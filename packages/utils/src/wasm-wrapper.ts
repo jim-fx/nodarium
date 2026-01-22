@@ -1,21 +1,20 @@
 interface NodariumExports extends WebAssembly.Exports {
   memory: WebAssembly.Memory;
-  execute: (ptr: number, len: number) => number;
-  __free: (ptr: number, len: number) => void;
-  __alloc: (len: number) => number;
+  execute: (outputPos: number, ...args: number[]) => number;
 }
 
-export function createWasmWrapper(buffer: ArrayBuffer) {
+export function createWasmWrapper(buffer: ArrayBuffer, memory: WebAssembly.Memory) {
   let exports: NodariumExports;
 
   const importObject = {
     env: {
-      host_log_panic: (ptr: number, len: number) => {
+      memory: memory,
+      __nodarium_log_panic: (ptr: number, len: number) => {
         if (!exports) return;
         const view = new Uint8Array(exports.memory.buffer, ptr, len);
         console.error('RUST PANIC:', new TextDecoder().decode(view));
       },
-      host_log: (ptr: number, len: number) => {
+      __nodarium_log: (ptr: number, len: number) => {
         if (!exports) return;
         const view = new Uint8Array(exports.memory.buffer, ptr, len);
         console.log('RUST:', new TextDecoder().decode(view));
@@ -27,19 +26,9 @@ export function createWasmWrapper(buffer: ArrayBuffer) {
   const instance = new WebAssembly.Instance(module, importObject);
   exports = instance.exports as NodariumExports;
 
-  function execute(args: Int32Array) {
-    const inPtr = exports.__alloc(args.length);
-    new Int32Array(exports.memory.buffer).set(args, inPtr / 4);
-
-    const outPtr = exports.execute(inPtr, args.length);
-
-    const i32Result = new Int32Array(exports.memory.buffer);
-    const outLen = i32Result[outPtr / 4];
-    const out = i32Result.slice(outPtr / 4 + 1, outPtr / 4 + 1 + outLen);
-
-    exports.__free(inPtr, args.length);
-
-    return out;
+  function execute(outputPos: number, args: number[]): number {
+    console.log('WASM_WRAPPER', { outputPos, args });
+    return exports.execute(outputPos, ...args);
   }
 
   function get_definition() {

@@ -10,6 +10,55 @@ pub fn decode_float(bits: i32) -> f32 {
     f32::from_bits(bits)
 }
 
+#[inline]
+pub unsafe fn read_i32(ptr: *const i32) -> i32 {
+    *ptr
+}
+
+#[inline]
+pub unsafe fn read_f32(ptr: *const i32) -> f32 {
+    f32::from_bits(*ptr as u32)
+}
+
+#[inline]
+pub unsafe fn read_bool(ptr: *const i32) -> bool {
+    *ptr != 0
+}
+
+#[inline]
+pub unsafe fn read_vec3(ptr: *const i32) -> [f32; 3] {
+    let p = ptr as *const f32;
+    [p.read(), p.add(1).read(), p.add(2).read()]
+}
+
+#[inline]
+pub unsafe fn read_i32_slice(ptr: *const i32, len: usize) -> Vec<i32> {
+    std::slice::from_raw_parts(ptr, len).to_vec()
+}
+
+#[inline]
+pub unsafe fn read_f32_slice(ptr: *const i32, len: usize) -> Vec<f32> {
+    std::slice::from_raw_parts(ptr as *const f32, len).to_vec()
+}
+
+#[inline]
+pub unsafe fn read_f32_default(ptr: *const i32, default: f32) -> f32 {
+    if ptr.is_null() {
+        default
+    } else {
+        read_f32(ptr)
+    }
+}
+
+#[inline]
+pub unsafe fn read_i32_default(ptr: *const i32, default: i32) -> i32 {
+    if ptr.is_null() {
+        default
+    } else {
+        read_i32(ptr)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

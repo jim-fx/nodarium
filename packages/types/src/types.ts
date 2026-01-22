@@ -65,7 +65,7 @@ export const NodeSchema = z.object({
 export type SerializedNode = z.infer<typeof NodeSchema>;
 
 export type NodeDefinition = z.infer<typeof NodeDefinitionSchema> & {
-  execute(input: Int32Array): Int32Array;
+  execute(outputPos: number, args: number[]): number;
 };
 
 export type Socket = {

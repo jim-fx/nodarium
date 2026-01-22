@@ -27,7 +27,6 @@ Currently this visual programming language is used to develop <https://nodes.max
 - [Node.js](https://nodejs.org/en/download)
 - [pnpm](https://pnpm.io/installation)
 - [rust](https://www.rust-lang.org/tools/install)
-- wasm-pack
 
 ### Install dependencies
 

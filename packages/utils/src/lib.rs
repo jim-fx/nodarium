@@ -8,30 +8,30 @@ pub mod geometry;
 
 extern "C" {
     #[cfg(target_arch = "wasm32")]
-    pub fn host_log(ptr: *const u8, len: usize);
+    pub fn __nodarium_log(ptr: *const u8, len: usize);
 }
 
-#[cfg(debug_assertions)]
+// #[cfg(debug_assertions)]
 #[macro_export]
 macro_rules! log {
     ($($t:tt)*) => {{
         let msg = std::format!($($t)*);
         #[cfg(target_arch = "wasm32")]
         unsafe {
-            $crate::host_log(msg.as_ptr(), msg.len());
+            $crate::__nodarium_log(msg.as_ptr(), msg.len());
         }
         #[cfg(not(target_arch = "wasm32"))]
         println!("{}", msg);
     }}
 }
 
-#[cfg(not(debug_assertions))]
-#[macro_export]
-macro_rules! log {
-    ($($arg:tt)*) => {{
-        // This will expand to nothing in release builds
-    }};
-}
+// #[cfg(not(debug_assertions))]
+// #[macro_export]
+// macro_rules! log {
+//     ($($arg:tt)*) => {{
+//         // This will expand to nothing in release builds
+//     }};
+// }
 
 #[allow(dead_code)]
 #[rustfmt::skip]

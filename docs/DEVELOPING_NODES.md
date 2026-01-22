@@ -4,20 +4,19 @@ This guide will help you developing your first Nodarium Node written in Rust. As
 
 ## Prerequesites
 
-You need to have [Rust](https://www.rust-lang.org/tools/install) and [wasm-pack](https://rustwasm.github.io/docs/wasm-pack/) installed. Rust is the language we are going to develop our node in and wasm-pack helps us compile our rust code into a webassembly file.
+You need to have [Rust](https://www.rust-lang.org/tools/install) installed. Rust is the language we are going to develop our node in and cargo compiles our rust code into webassembly.
 
 ```bash
 # install rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-# install wasm-pack
-cargo install wasm-pack
 ```
 
 ## Clone Template
 
 ```bash
-wasm-pack new my-new-node --template https://github.com/jim-fx/nodarium_template
-cd my-new-node
+# copy the template directory
+cp -r nodes/max/plantarium/.template nodes/max/plantarium/my-new-node
+cd nodes/max/plantarium/my-new-node
 ```
 
 ## Setup Definition

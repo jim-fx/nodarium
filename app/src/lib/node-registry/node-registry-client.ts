@@ -13,6 +13,7 @@ log.mute();
 export class RemoteNodeRegistry implements NodeRegistry {
   status: 'loading' | 'ready' | 'error' = 'loading';
   private nodes: Map<string, NodeDefinition> = new Map();
+  private memory = new WebAssembly.Memory({ initial: 1024, maximum: 8192 });
 
   constructor(
     private url: string,
