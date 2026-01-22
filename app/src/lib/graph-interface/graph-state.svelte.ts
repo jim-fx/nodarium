@@ -259,7 +259,7 @@ export class GraphState {
 
     let { node, index, position } = socket;
 
-    // remove existing edge
+    // if the socket is an input socket -> remove existing edges
     if (typeof index === 'string') {
       const edges = this.graph.getEdgesToNode(node);
       for (const edge of edges) {

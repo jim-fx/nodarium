@@ -90,11 +90,6 @@
   let graphSettingTypes = $state({
     randomSeed: { type: 'boolean', value: false }
   });
-  $effect(() => {
-    if (graphSettings && graphSettingTypes) {
-      manager?.setSettings($state.snapshot(graphSettings));
-    }
-  });
 
   async function update(
     g: Graph,

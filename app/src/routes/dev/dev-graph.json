@@ -1,0 +1,53 @@
+{
+  "settings": {
+    "resolution.circle": 26,
+    "resolution.curve": 39
+  },
+  "nodes": [
+    {
+      "id": 9,
+      "position": [
+        220,
+        80
+      ],
+      "type": "max/plantarium/output",
+      "props": {}
+    },
+    {
+      "id": 10,
+      "position": [
+        195,
+        80
+      ],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 0,
+        "a": 2,
+        "b": 2
+      }
+    },
+    {
+      "id": 11,
+      "position": [
+        170,
+        80
+      ],
+      "type": "max/plantarium/float",
+      "props": {
+        "value": 0.1
+      }
+    },
+    {
+      "id": 12,
+      "position": [
+        170,
+        100
+      ],
+      "type": "max/plantarium/float",
+      "props": {
+        "value": 0.1
+      }
+    }
+  ],
+  "edges": []
+}

@@ -33,6 +33,7 @@
     backgroundType = $bindable('grid'),
     snapToGrid = $bindable(true),
     showHelp = $bindable(false),
+    settings = $bindable(),
     settingTypes = $bindable(),
     onsave,
     onresult

@@ -2,6 +2,7 @@ import {
   type AsyncCache,
   type NodeDefinition,
   NodeDefinitionSchema,
+  type NodeId,
   type NodeRegistry
 } from '@nodarium/types';
 import { createLogger, createWasmWrapper } from '@nodarium/utils';
@@ -170,6 +171,13 @@ export class RemoteNodeRegistry implements NodeRegistry {
   }
 
   getAllNodes() {
-    return [...this.nodes.values()];
+    const allNodes = [...this.nodes.values()];
+    log.info('getting all nodes', allNodes);
+    return allNodes;
+  }
+
+  async overwriteNode(nodeId: NodeId, node: NodeDefinition) {
+    log.info('Overwritten node', { nodeId, node });
+    this.nodes.set(nodeId, node);
   }
 }

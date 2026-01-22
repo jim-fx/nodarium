@@ -52,6 +52,7 @@ function getValue(input: NodeInput, value?: unknown) {
     return value;
   }
 
+  console.error({ input, value });
   throw new Error(`Unknown input type ${input.type}`);
 }
 
@@ -62,6 +63,8 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   private debugData: Record<number, { type: string; data: Int32Array }> = {};
 
   perf?: PerformanceStore;
+
+  private results: Record<string, Int32Array> = {};
 
   constructor(
     private registry: NodeRegistry,
@@ -186,7 +189,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     );
 
     // here we store the intermediate results of the nodes
-    const results: Record<string, Int32Array> = {};
+    this.results = {};
 
     if (settings['randomSeed']) {
       this.seed = Math.floor(Math.random() * 100000000);
@@ -217,12 +220,12 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
           // check if the input is connected to another node
           const inputNode = node.state.inputNodes[key];
           if (inputNode) {
-            if (results[inputNode.id] === undefined) {
+            if (this.results[inputNode.id] === undefined) {
               throw new Error(
                 `Node ${node.type} is missing input from node ${inputNode.type}`
               );
             }
-            return results[inputNode.id];
+            return this.results[inputNode.id];
           }
 
           // If the value is stored in the node itself, we use that value
@@ -277,7 +280,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         b = performance.now();
 
         if (this.cache && node.id !== outputNode.id) {
-          this.cache.set(inputHash, results[node.id]);
+          this.cache.set(inputHash, this.results[node.id]);
         }
 
         this.perf?.addPoint('node/' + node_type.id, b - a);
@@ -290,7 +293,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     }
 
     // return the result of the parent of the output node
-    const res = results[outputNode.id];
+    const res = this.results[outputNode.id];
 
     if (this.cache) {
       this.cache.size = sortedNodes.length * 2;

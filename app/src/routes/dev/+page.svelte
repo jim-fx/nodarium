@@ -44,8 +44,9 @@
     }
   }
 
-  $effect(() => {
-    fetchNodeData(activeNode.value);
+  let graphSettings = $state<Record<string, any>>({});
+  let graphSettingTypes = $state({
+    randomSeed: { type: "boolean", value: false },
   });
 
   $effect(() => {
@@ -61,19 +62,11 @@
   });
 </script>
 
-<div class="node-wrapper absolute bottom-8 left-8">
-  {#if nodeInstance}
-    <NodeHTML inView position="relative" z={5} bind:node={nodeInstance} />
-  {/if}
-</div>
-
 <Grid.Row>
   <Grid.Cell>
-    <pre>
-      <code>
-        {JSON.stringify(nodeInstance?.props)}
-      </code>
-    </pre>
+    {#if result}
+      <pre><code>{JSON.stringify(decodeNestedArray(result))}</code></pre>
+    {/if}
   </Grid.Cell>
 
   <Grid.Cell>

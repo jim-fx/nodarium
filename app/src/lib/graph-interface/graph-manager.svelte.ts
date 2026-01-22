@@ -25,7 +25,7 @@ const clone = 'structuredClone' in self
   ? self.structuredClone
   : (args: unknown) => JSON.parse(JSON.stringify(args));
 
-function areSocketsCompatible(
+export function areSocketsCompatible(
   output: string | undefined,
   inputs: string | (string | undefined)[] | undefined
 ) {
@@ -33,7 +33,7 @@ function areSocketsCompatible(
   if (Array.isArray(inputs) && output) {
     return inputs.includes('*') || inputs.includes(output);
   }
-  return inputs === output;
+  return inputs === output || inputs === '*';
 }
 
 function areEdgesEqual(firstEdge: Edge, secondEdge: Edge) {
@@ -269,14 +269,7 @@ export class GraphManager extends EventEmitter<{
   private _init(graph: Graph) {
     const nodes = new SvelteMap(
       graph.nodes.map((node) => {
-        const nodeType = this.registry.getNode(node.type);
-        const n = node as NodeInstance;
-        if (nodeType) {
-          n.state = {
-            type: nodeType
-          };
-        }
-        return [node.id, n];
+        return [node.id, node as NodeInstance];
       })
     );
 
@@ -299,6 +292,30 @@ export class GraphManager extends EventEmitter<{
     }
 
     this.execute();
+  }
+
+  private async loadAllCollections() {
+    // Fetch all nodes from all collections of the loaded nodes
+    const nodeIds = Array.from(new Set([...this.graph.nodes.map((n) => n.type)]));
+    const allCollections = new Set<`${string}/${string}`>();
+    for (const id of nodeIds) {
+      const [user, collection] = id.split('/');
+      allCollections.add(`${user}/${collection}`);
+    }
+
+    const allCollectionIds = await Promise
+      .all([...allCollections]
+        .map(async (collection) =>
+          remoteRegistry
+            .fetchCollection(collection)
+            .then((collection: { nodes: { id: NodeId }[] }) => {
+              return collection.nodes.map(n => n.id.replace(/\.wasm$/, '') as NodeId);
+            })
+        ));
+
+    const missingNodeIds = [...new Set(allCollectionIds.flat())];
+
+    this.registry.load(missingNodeIds);
   }
 
   async load(graph: Graph) {
@@ -385,7 +402,9 @@ export class GraphManager extends EventEmitter<{
 
     this.loaded = true;
     logger.log(`Graph loaded in ${performance.now() - a}ms`);
+
     setTimeout(() => this.execute(), 100);
+    this.loadAllCollections(); // lazily load all nodes from all collections
   }
 
   getAllNodes() {
@@ -492,10 +511,10 @@ export class GraphManager extends EventEmitter<{
     const inputs = Object.entries(to.state?.type?.inputs ?? {});
     const outputs = from.state?.type?.outputs ?? [];
     for (let i = 0; i < inputs.length; i++) {
-      const [inputName, input] = inputs[0];
+      const [inputName, input] = inputs[i];
       for (let o = 0; o < outputs.length; o++) {
-        const output = outputs[0];
-        if (input.type === output) {
+        const output = outputs[o];
+        if (input.type === output || input.type === '*') {
           return this.createEdge(from, o, to, inputName);
         }
       }
@@ -725,6 +744,7 @@ export class GraphManager extends EventEmitter<{
 
   getPossibleSockets({ node, index }: Socket): [NodeInstance, string | number][] {
     const nodeType = node?.state?.type;
+    console.log({ node: $state.snapshot(node), index, nodeType });
     if (!nodeType) return [];
 
     const sockets: [NodeInstance, string | number][] = [];
@@ -788,6 +808,7 @@ export class GraphManager extends EventEmitter<{
       }
     }
 
+    console.log(`Found ${sockets.length} possible sockets`, sockets);
     return sockets;
   }
 
