@@ -217,11 +217,22 @@ export type Pointer = {
       (a, b) => (b.state?.depth || 0) - (a.state?.depth || 0)
     );
 
+    console.log({ settings });
+
+    this.printMemory();
+    const seedPtr = this.writeToMemory(this.seed, 'seed');
+
+    const settingPtrs = new Map<string, Pointer>(
+      Object.entries(settings).map((
+        [key, value]
+      ) => [key as string, this.writeToMemory(value as number, `setting.${key}`)])
+    );
+
     for (const node of sortedNodes) {
       const node_type = this.nodes.get(node.type)!;
 
       console.log('---------------');
-      console.log('STARTING NODE EXECUTION', node_type.definition.id);
+      console.log('STARTING NODE EXECUTION', node_type.definition.id + '/' + node.id);
       this.printMemory();
 
       // console.log(node_type.definition.inputs);
@@ -229,23 +240,24 @@ export type Pointer = {
         ([key, input]) => {
           // We should probably initially write this to memory
           if (input.type === 'seed') {
-            return this.writeToMemory(this.seed);
+            return seedPtr;
           }
 
           const title = `${node.id}.${key}`;
 
           // We should probably initially write this to memory
           // If the input is linked to a setting, we use that value
-          // if (input.setting) {
-          //   return getValue(input, settings[input.setting]);
-          // }
+          // TODO: handle nodes which reference undefined settings
+          if (input.setting) {
+            return settingPtrs.get(input.setting)!;
+          }
 
           // check if the input is connected to another node
           const inputNode = node.state.inputNodes[key];
           if (inputNode) {
             if (this.results[inputNode.id] === undefined) {
               throw new Error(
-                `Node ${node.type} is missing input from node ${inputNode.type}`
+                `Node ${node.type}/${node.id} is missing input from node ${inputNode.type}/${inputNode.id}`
               );
             }
             return this.results[inputNode.id];

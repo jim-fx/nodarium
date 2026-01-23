@@ -11,7 +11,7 @@ extern "C" {
     pub fn __nodarium_log(ptr: *const u8, len: usize);
 }
 
-// #[cfg(debug_assertions)]
+#[cfg(debug_assertions)]
 #[macro_export]
 macro_rules! log {
     ($($t:tt)*) => {{
@@ -25,13 +25,13 @@ macro_rules! log {
     }}
 }
 
-// #[cfg(not(debug_assertions))]
-// #[macro_export]
-// macro_rules! log {
-//     ($($arg:tt)*) => {{
-//         // This will expand to nothing in release builds
-//     }};
-// }
+#[cfg(not(debug_assertions))]
+#[macro_export]
+macro_rules! log {
+    ($($arg:tt)*) => {{
+        // This will expand to nothing in release builds
+    }};
+}
 
 #[allow(dead_code)]
 #[rustfmt::skip]

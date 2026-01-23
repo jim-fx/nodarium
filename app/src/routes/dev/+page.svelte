@@ -71,7 +71,11 @@
   <Grid.Cell>
     {#if visibleRows?.length}
       <table
-        class="min-w-full select-none overflow-hidden text-left text-sm flex-1"
+        class="min-w-full select-none overflow-auto text-left text-sm flex-1"
+        onscroll={(e) => {
+          const scrollTop = e.currentTarget.scrollTop;
+          start.value = Math.floor(scrollTop / rowHeight);
+        }}
       >
         <thead class="">
           <tr>
@@ -84,9 +88,14 @@
             <th class="px-4 py-2 border-b border-[var(--outline)]">Float</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody
+          onscroll={(e) => {
+            const scrollTop = e.currentTarget.scrollTop;
+            start.value = Math.floor(scrollTop / rowHeight);
+          }}
+        >
           {#each visibleRows as r, i}
-            {@const index = i + start}
+            {@const index = i + start.value}
             {@const ptr = ptrs[i]}
             <tr class="h-[40px] odd:bg-[var(--layer-1)]">
               <td class="px-4 border-b border-[var(--outline)] w-8">{index}</td>
@@ -119,7 +128,7 @@
       </table>
       <input
         class="absolute bottom-4 left-4 bg-white"
-        bind:value={start}
+        bind:value={start.value}
         min="0"
         type="number"
         step="1"
@@ -133,6 +142,13 @@
 </Grid.Row>
 
 <Sidebar>
+  <Panel id="general" title="General" icon="i-[tabler--settings]">
+    <NestedSettings
+      id="general"
+      bind:value={appSettings.value}
+      type={AppSettingTypes}
+    />
+  </Panel>
   <Panel
     id="node-store"
     classes="text-green-400"
