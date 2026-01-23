@@ -127,8 +127,14 @@
           {/each}
         </tbody>
       </table>
+      <button
+        onclick={() => copyVisibleMemory(visibleRows, ptrs, start.value)}
+        class="flex items-center cursor-pointer absolute bottom-4 left-4 z-100 bg-gray-200 px-2 py-1 rounded hover:bg-gray-300"
+      >
+        Copy Visible Memory
+      </button>
       <input
-        class="absolute bottom-4 left-4 bg-white"
+        class="absolute bottom-4 right-4 bg-white"
         bind:value={start.value}
         min="0"
         type="number"
@@ -144,6 +150,13 @@
 
 <Sidebar>
   <Panel id="general" title="General" icon="i-[tabler--settings]">
+    <h3 class="p-4 pb-0">Debug Settings</h3>
+    <NestedSettings
+      id="Debug"
+      bind:value={devSettings.value}
+      type={DevSettingsType}
+    />
+    <hr />
     <NestedSettings
       id="general"
       bind:value={appSettings.value}

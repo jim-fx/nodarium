@@ -1,3 +1,5 @@
+use crate::log;
+
 pub fn encode_float(f: f32) -> i32 {
     // Convert f32 to u32 using to_bits, then safely cast to i32
     let bits = f.to_bits();
@@ -12,6 +14,7 @@ pub fn decode_float(bits: i32) -> f32 {
 
 #[inline]
 pub fn read_i32(ptr: i32) -> i32 {
+    log!("read_i32 ptr: {:?}", ptr);
     unsafe {
         let _ptr = ptr as *const i32;
         *_ptr

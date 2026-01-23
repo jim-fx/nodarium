@@ -9,12 +9,12 @@ use syn::parse_macro_input;
 use syn::spanned::Spanned;
 
 fn add_line_numbers(input: String) -> String {
-    return input
+    input
         .split('\n')
         .enumerate()
         .map(|(i, line)| format!("{:2}: {}", i + 1, line))
         .collect::<Vec<String>>()
-        .join("\n");
+        .join("\n")
 }
 
 fn read_node_definition(file_path: &Path) -> NodeDefinition {
@@ -72,7 +72,7 @@ pub fn nodarium_execute(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let total_c_params = param_count * 2;
 
     let arg_names: Vec<_> = (0..total_c_params)
-        .map(|i| syn::Ident::new(&format!("arg{}", i), input_fn.sig.span()))
+        .map(|i| syn::Ident::new(&format!("arg{i}"), input_fn.sig.span()))
         .collect();
 
     let mut tuple_args = Vec::new();
@@ -89,7 +89,20 @@ pub fn nodarium_execute(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
         extern "C" {
             fn __nodarium_log(ptr: *const u8, len: usize);
-            fn __nodarium_log_panic(ptr: *const u8, len: usize);
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        fn init_panic_hook() {
+            std::panic::set_hook(Box::new(|_info| {
+                unsafe {
+                    __nodarium_log(b"PANIC\0".as_ptr(), 5);
+                }
+            }));
+        }
+
+        #[no_mangle]
+        pub extern "C" fn init_allocator() {
+            nodarium_utils::allocator::ALLOCATOR.init();
         }
 
         #fn_vis fn #inner_fn_name(#( #input_param_names: (i32, i32) ),*) -> Vec<i32> {
@@ -99,11 +112,14 @@ pub fn nodarium_execute(_attr: TokenStream, item: TokenStream) -> TokenStream {
         #[no_mangle]
         #fn_vis extern "C" fn execute(output_pos: i32, #( #arg_names: i32 ),*) -> i32 {
 
+            nodarium_utils::allocator::ALLOCATOR.init();
+            #[cfg(target_arch = "wasm32")]
+            init_panic_hook();
             nodarium_utils::log!("before_fn");
             let result = #inner_fn_name(
                 #( #tuple_args ),*
             );
-            nodarium_utils::log!("after_fn");
+            nodarium_utils::log!("after_fn: result_len={}", result.len());
 
             let len_bytes = result.len() * 4;
             unsafe {
@@ -137,7 +153,7 @@ fn validate_signature(fn_sig: &syn::Signature, expected_inputs: usize, def: &Nod
                 .map(|i| i.keys().collect::<Vec<_>>())
                 .unwrap_or_default(),
             (0..expected_inputs)
-                .map(|i| format!("arg{}: (i32, i32)", i))
+                .map(|i| format!("arg{i}: (i32, i32)"))
                 .collect::<Vec<_>>()
                 .join(", ")
         );
@@ -155,9 +171,7 @@ fn validate_signature(fn_sig: &syn::Signature, expected_inputs: usize, def: &Nod
                     .to_string();
                 if !clean_type.contains("(") && !clean_type.contains(",") {
                     panic!(
-                        "Parameter {} has type '{}' but should be a tuple (i32, i32) representing (start, end) positions in memory",
-                        i,
-                        clean_type
+                        "Parameter {i} has type '{clean_type}' but should be a tuple (i32, i32) representing (start, end) positions in memory",
                     );
                 }
             }
@@ -197,10 +211,7 @@ pub fn nodarium_definition_file(input: TokenStream) -> TokenStream {
     let full_path = Path::new(&project_dir).join(&file_path);
 
     let json_content = fs::read_to_string(&full_path).unwrap_or_else(|err| {
-        panic!(
-            "Failed to read JSON file at '{}/{}': {}",
-            project_dir, file_path, err
-        )
+        panic!("Failed to read JSON file at '{project_dir}/{file_path}': {err}",)
     });
 
     let _: NodeDefinition = serde_json::from_str(&json_content).unwrap_or_else(|err| {

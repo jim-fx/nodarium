@@ -2,10 +2,13 @@
 name = "float"
 version = "0.1.0"
 authors = ["Max Richter <jim-x@web.de>"]
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+
+[profile.dev]
+panic = "unwind"
 
 [dependencies]
 nodarium_macros = { version = "0.1.0", path = "../../../../packages/macros" }

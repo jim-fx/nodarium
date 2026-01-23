@@ -1,11 +1,13 @@
 interface NodariumExports extends WebAssembly.Exports {
   memory: WebAssembly.Memory;
   execute: (outputPos: number, ...args: number[]) => number;
+  init_allocator: () => void;
 }
 
 export function createWasmWrapper(buffer: ArrayBuffer, memory: WebAssembly.Memory) {
   let exports: NodariumExports;
 
+  let end = 0;
   const importObject = {
     env: {
       memory: memory,
@@ -25,14 +27,11 @@ export function createWasmWrapper(buffer: ArrayBuffer, memory: WebAssembly.Memor
   const module = new WebAssembly.Module(buffer);
   const instance = new WebAssembly.Instance(module, importObject);
   exports = instance.exports as NodariumExports;
+  exports.init_allocator();
 
   function execute(outputPos: number, args: number[]): number {
-    try {
-      return exports.execute(outputPos, ...args);
-    } catch (e) {
-      console.log(e);
-      return -1;
-    }
+    end = outputPos;
+    return exports.execute(outputPos, ...args);
   }
 
   function get_definition() {

@@ -1,3 +1,4 @@
+import type { SettingsToStore } from '$lib/settings/app-settings.svelte';
 import { RemoteNodeRegistry } from '@nodarium/registry';
 import type {
   Graph,
@@ -13,6 +14,8 @@ import {
   encodeFloat,
   type PerformanceStore
 } from '@nodarium/utils';
+import { DevSettingsType } from '../../routes/dev/settings.svelte';
+import { logInt32ArrayChanges } from './helpers';
 import type { RuntimeNode } from './types';
 
 const log = createLogger('runtime-executor');
@@ -79,14 +82,14 @@ export type Pointer = {
 
   perf?: PerformanceStore;
 
-  constructor(
-    private readonly registry: NodeRegistry,
-    public cache?: SyncCache<Int32Array>
-  ) {
-    this.cache = undefined;
-    this.refreshView();
-    log.info('MemoryRuntimeExecutor initialized');
-  }
+   constructor(
+     private readonly registry: NodeRegistry,
+     public cache?: SyncCache<Int32Array>
+   ) {
+     this.cache = undefined;
+     this.refreshView();
+     log.info('MemoryRuntimeExecutor initialized');
+   }
 
   private refreshView(): void {
     this.memoryView = new Int32Array(this.memory.buffer);
@@ -409,10 +412,11 @@ export type Pointer = {
         const args = inputs.flatMap(p => [p.start * 4, p.end * 4]);
 
         log.info(`Executing node ${node.type}/${node.id}`);
+        const memoryBefore = this.memoryView.slice(0, this.offset);
         const bytesWritten = nodeType.execute(this.offset * 4, args);
-        if (bytesWritten === -1) {
-          throw new Error(`Failed to execute node`);
-        }
+        this.refreshView();
+        const memoryAfter = this.memoryView.slice(0, this.offset);
+        logInt32ArrayChanges(memoryBefore, memoryAfter);
         this.refreshView();
 
         const outLen = bytesWritten >> 2;
@@ -427,6 +431,7 @@ export type Pointer = {
           )
         ) {
           this.results[node.id] = inputs[0];
+          this.allPtrs.push(this.results[node.id]);
           log.info(`Node ${node.id} result reused input memory`);
         } else {
           this.results[node.id] = {
@@ -434,6 +439,7 @@ export type Pointer = {
             end: outputStart + outLen,
             _title: `${node.id} ->`
           };
+          this.allPtrs.push(this.results[node.id]);
           this.offset += outLen;
           lastNodePtr = this.results[node.id];
           log.info(
@@ -454,6 +460,7 @@ export type Pointer = {
       console.error(e);
     } finally {
       this.isRunning = false;
+      console.log('Final Memory', [...this.memoryView.slice(0, 20)]);
       this.perf?.endPoint('runtime');
       log.info('Executor state reset');
     }

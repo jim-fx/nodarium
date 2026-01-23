@@ -7,6 +7,7 @@ nodarium_definition_file!("src/input.json");
 
 #[nodarium_execute]
 pub fn execute(min: (i32, i32), max: (i32, i32), seed: (i32, i32)) -> Vec<i32> {
+    nodarium_utils::log!("random execute start");
     concat_arg_vecs(vec![
         vec![1],
         read_i32_slice(min),
