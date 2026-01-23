@@ -616,11 +616,14 @@ export class GraphManager extends EventEmitter<{
       return;
     }
 
+    const fromType = from.state.type || this.registry.getNode(from.type);
+    const toType = to.state.type || this.registry.getNode(to.type);
+
     // check if socket types match
-    const fromSocketType = from.state?.type?.outputs?.[fromSocket];
-    const toSocketType = [to.state?.type?.inputs?.[toSocket]?.type];
-    if (to.state?.type?.inputs?.[toSocket]?.accepts) {
-      toSocketType.push(...(to?.state?.type?.inputs?.[toSocket]?.accepts || []));
+    const fromSocketType = fromType?.outputs?.[fromSocket];
+    const toSocketType = [toType?.inputs?.[toSocket]?.type];
+    if (toType?.inputs?.[toSocket]?.accepts) {
+      toSocketType.push(...(toType?.inputs?.[toSocket]?.accepts || []));
     }
 
     if (!areSocketsCompatible(fromSocketType, toSocketType)) {
@@ -743,9 +746,9 @@ export class GraphManager extends EventEmitter<{
   }
 
   getPossibleSockets({ node, index }: Socket): [NodeInstance, string | number][] {
-    const nodeType = node?.state?.type;
-    console.log({ node: $state.snapshot(node), index, nodeType });
+    const nodeType = this.registry.getNode(node.type);
     if (!nodeType) return [];
+    console.log({ index });
 
     const sockets: [NodeInstance, string | number][] = [];
 
@@ -760,7 +763,7 @@ export class GraphManager extends EventEmitter<{
       const ownType = nodeType?.inputs?.[index].type;
 
       for (const node of nodes) {
-        const nodeType = node?.state?.type;
+        const nodeType = this.registry.getNode(node.type);
         const inputs = nodeType?.outputs;
         if (!inputs) continue;
         for (let index = 0; index < inputs.length; index++) {
@@ -792,7 +795,7 @@ export class GraphManager extends EventEmitter<{
       const ownType = nodeType.outputs?.[index];
 
       for (const node of nodes) {
-        const inputs = node?.state?.type?.inputs;
+        const inputs = this.registry.getNode(node.type)?.inputs;
         if (!inputs) continue;
         for (const key in inputs) {
           const otherType = [inputs[key].type];

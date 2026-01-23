@@ -1,23 +1,26 @@
 use glam::{Mat4, Vec3};
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
+use nodarium_utils::read_i32_slice;
 use nodarium_utils::{
-    concat_args, evaluate_float, evaluate_int, geometry::wrap_path_mut, log,
-    split_args,
+    concat_args, evaluate_float, evaluate_int, geometry::wrap_path_mut, log, split_args,
 };
 
 nodarium_definition_file!("src/input.json");
 
 #[nodarium_execute]
-pub fn execute(input: &[i32]) -> Vec<i32> {
+pub fn execute(
+    plant: (i32, i32),
+    axis: (i32, i32),
+    angle: (i32, i32),
+    spread: (i32, i32),
+) -> Vec<i32> {
+    log!("DEBUG args: {:?}", plant);
 
-    log!("DEBUG args: {:?}", input);
-
-    let args = split_args(input);
-
-    let plants = split_args(args[0]);
-    let axis = evaluate_int(args[1]); // 0 =x, 1 = y, 2 = z
-    let spread = evaluate_int(args[3]);
+    let arg = read_i32_slice(plant);
+    let plants = split_args(arg.as_slice());
+    let axis = evaluate_int(read_i32_slice(axis).as_slice()); // 0 =x, 1 = y, 2 = z
+    let spread = evaluate_int(read_i32_slice(spread).as_slice());
 
     let output: Vec<Vec<i32>> = plants
         .iter()
@@ -32,7 +35,7 @@ pub fn execute(input: &[i32]) -> Vec<i32> {
 
             let path = wrap_path_mut(&mut path_data);
 
-            let angle = evaluate_float(args[2]);
+            let angle = evaluate_float(read_i32_slice(angle).as_slice());
 
             let origin = [path.points[0], path.points[1], path.points[2]];
 

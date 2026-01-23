@@ -1,7 +1,8 @@
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
+use nodarium_utils::read_i32_slice;
 use nodarium_utils::{
-    concat_args, evaluate_float, evaluate_int, evaluate_vec3, geometry::wrap_path_mut,
+    concat_args, evaluate_float, evaluate_int, evaluate_vec3, geometry::wrap_path_mut, read_i32,
     reset_call_count, split_args,
 };
 use noise::{HybridMulti, MultiFractal, NoiseFn, OpenSimplex};
@@ -13,23 +14,31 @@ fn lerp(a: f32, b: f32, t: f32) -> f32 {
 }
 
 #[nodarium_execute]
-pub fn execute(input: &[i32]) -> Vec<i32> {
+pub fn execute(
+    plant: (i32, i32),
+    scale: (i32, i32),
+    strength: (i32, i32),
+    fix_bottom: (i32, i32),
+    seed: (i32, i32),
+    directional_strength: (i32, i32),
+    depth: (i32, i32),
+    octaves: (i32, i32),
+) -> Vec<i32> {
     reset_call_count();
 
-    let args = split_args(input);
+    let arg = read_i32_slice(plant);
+    let plants = split_args(arg.as_slice());
+    let scale = (evaluate_float(read_i32_slice(scale).as_slice()) * 0.1) as f64;
+    let strength = evaluate_float(read_i32_slice(strength).as_slice());
+    let fix_bottom = evaluate_float(read_i32_slice(fix_bottom).as_slice());
 
-    let plants = split_args(args[0]);
-    let scale = (evaluate_float(args[1]) * 0.1) as f64;
-    let strength = evaluate_float(args[2]);
-    let fix_bottom = evaluate_float(args[3]);
+    let seed = read_i32(seed.0);
 
-    let seed = args[4][0];
+    let directional_strength = evaluate_vec3(read_i32_slice(directional_strength).as_slice());
 
-    let directional_strength = evaluate_vec3(args[5]);
+    let depth = evaluate_int(read_i32_slice(depth).as_slice());
 
-    let depth = evaluate_int(args[6]);
-
-    let octaves = evaluate_int(args[7]);
+    let octaves = evaluate_int(read_i32_slice(octaves).as_slice());
 
     let noise_x: HybridMulti<OpenSimplex> =
         HybridMulti::new(seed as u32 + 1).set_octaves(octaves as usize);

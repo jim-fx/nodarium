@@ -1,11 +1,11 @@
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
-use nodarium_utils::log;
+use nodarium_utils::{ log, read_f32, encode_float };
 
 nodarium_definition_file!("src/input.json");
 
 #[nodarium_execute]
-pub fn execute(_value: *const i32) -> Vec<i32> {
-    log!("Duuuude");
-    vec![32]
+pub fn execute(a: (i32, i32)) -> Vec<i32> {
+    let a_val = read_f32(a.0);
+    vec![encode_float(a_val)]
 }

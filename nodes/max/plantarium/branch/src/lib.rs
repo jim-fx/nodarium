@@ -1,5 +1,6 @@
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
+use nodarium_utils::read_i32_slice;
 use nodarium_utils::{
     concat_arg_vecs, evaluate_float, evaluate_int,
     geometry::{
@@ -13,15 +14,25 @@ use std::f32::consts::PI;
 nodarium_definition_file!("src/input.json");
 
 #[nodarium_execute]
-pub fn execute(input: &[i32]) -> Vec<i32> {
-    let args = split_args(input);
-
-    let paths = split_args(args[0]);
+pub fn execute(
+    path: (i32, i32),
+    length: (i32, i32),
+    thickness: (i32, i32),
+    offset_single: (i32, i32),
+    lowest_branch: (i32, i32),
+    highest_branch: (i32, i32),
+    depth: (i32, i32),
+    amount: (i32, i32),
+    resolution_curve: (i32, i32),
+    rotation: (i32, i32),
+) -> Vec<i32> {
+    let arg = read_i32_slice(path);
+    let paths = split_args(arg.as_slice());
 
     let mut output: Vec<Vec<i32>> = Vec::new();
 
-    let resolution = evaluate_int(args[8]).max(4) as usize;
-    let depth = evaluate_int(args[6]);
+    let resolution = evaluate_int(read_i32_slice(resolution_curve).as_slice()).max(4) as usize;
+    let depth = evaluate_int(read_i32_slice(depth).as_slice());
 
     let mut max_depth = 0;
     for path_data in paths.iter() {
@@ -40,18 +51,18 @@ pub fn execute(input: &[i32]) -> Vec<i32> {
 
         let path = wrap_path(path_data);
 
-        let branch_amount = evaluate_int(args[7]).max(1);
+        let branch_amount = evaluate_int(read_i32_slice(amount).as_slice()).max(1);
 
-        let lowest_branch = evaluate_float(args[4]);
-        let highest_branch = evaluate_float(args[5]);
+        let lowest_branch = evaluate_float(read_i32_slice(lowest_branch).as_slice());
+        let highest_branch = evaluate_float(read_i32_slice(highest_branch).as_slice());
 
         for i in 0..branch_amount {
             let a = i as f32 / (branch_amount - 1).max(1) as f32;
 
-            let length = evaluate_float(args[1]);
-            let thickness = evaluate_float(args[2]);
+            let length = evaluate_float(read_i32_slice(length).as_slice());
+            let thickness = evaluate_float(read_i32_slice(thickness).as_slice());
             let offset_single = if i % 2 == 0 {
-                evaluate_float(args[3])
+                evaluate_float(read_i32_slice(offset_single).as_slice())
             } else {
                 0.0
             };
@@ -65,7 +76,8 @@ pub fn execute(input: &[i32]) -> Vec<i32> {
                 root_alpha + (offset_single - 0.5) * 6.0 / resolution as f32,
             );
 
-            let rotation_angle = (evaluate_float(args[9]) * PI / 180.0) * i as f32;
+            let rotation_angle =
+                (evaluate_float(read_i32_slice(rotation).as_slice()) * PI / 180.0) * i as f32;
 
             // check if diration contains NaN
             if orthogonal[0].is_nan() || orthogonal[1].is_nan() || orthogonal[2].is_nan() {

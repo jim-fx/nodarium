@@ -1,6 +1,7 @@
 use glam::Vec3;
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
+use nodarium_utils::read_i32_slice;
 use nodarium_utils::{
     concat_args, evaluate_float, evaluate_int,
     geometry::{wrap_path, wrap_path_mut},
@@ -14,13 +15,17 @@ fn lerp_vec3(a: Vec3, b: Vec3, t: f32) -> Vec3 {
 }
 
 #[nodarium_execute]
-pub fn execute(input: &[i32]) -> Vec<i32> {
+pub fn execute(
+    plant: (i32, i32),
+    strength: (i32, i32),
+    curviness: (i32, i32),
+    depth: (i32, i32),
+) -> Vec<i32> {
     reset_call_count();
 
-    let args = split_args(input);
-
-    let plants = split_args(args[0]);
-    let depth = evaluate_int(args[3]);
+    let arg = read_i32_slice(plant);
+    let plants = split_args(arg.as_slice());
+    let depth = evaluate_int(read_i32_slice(depth).as_slice());
 
     let mut max_depth = 0;
     for path_data in plants.iter() {
@@ -55,9 +60,9 @@ pub fn execute(input: &[i32]) -> Vec<i32> {
 
                 let length = direction.length();
 
-                let curviness = evaluate_float(args[2]);
-                let strength =
-                    evaluate_float(args[1]) / curviness.max(0.0001) * evaluate_float(args[1]);
+                let str = evaluate_float(read_i32_slice(strength).as_slice());
+                let curviness = evaluate_float(read_i32_slice(curviness).as_slice());
+                let strength = str / curviness.max(0.0001) * str;
 
                 log!(
                     "length: {}, curviness: {}, strength: {}",

@@ -62,10 +62,68 @@
   });
 </script>
 
+<svelte:window
+  bind:innerHeight={windowHeight}
+  onkeydown={(ev) => ev.key === "r" && handleResult()}
+/>
+
 <Grid.Row>
   <Grid.Cell>
-    {#if result}
-      <pre><code>{JSON.stringify(decodeNestedArray(result))}</code></pre>
+    {#if visibleRows?.length}
+      <table
+        class="min-w-full select-none overflow-hidden text-left text-sm flex-1"
+      >
+        <thead class="">
+          <tr>
+            <th class="px-4 py-2 border-b border-[var(--outline)]">i</th>
+            <th
+              class="px-4 py-2 border-b border-[var(--outline)] w-[50px]"
+              style:width="50px">Ptrs</th
+            >
+            <th class="px-4 py-2 border-b border-[var(--outline)]">Value</th>
+            <th class="px-4 py-2 border-b border-[var(--outline)]">Float</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each visibleRows as r, i}
+            {@const index = i + start}
+            {@const ptr = ptrs[i]}
+            <tr class="h-[40px] odd:bg-[var(--layer-1)]">
+              <td class="px-4 border-b border-[var(--outline)] w-8">{index}</td>
+              <td
+                class="w-[50px] border-b border-[var(--outline)]
+                        {ptr?._title?.includes('->')
+                  ? 'bg-red-500'
+                  : 'bg-blue-500'}"
+              >
+                <span>{ptr?._title}</span>
+              </td>
+              <td
+                class="px-4 border-b border-[var(--outline)] cursor-pointer text-blue-600 hover:text-blue-800"
+                onclick={() =>
+                  (rowIsFloat.value[index] = !rowIsFloat.value[index])}
+              >
+                {decodeValue(r, rowIsFloat.value[index])}
+              </td>
+              <td class="px-4 border-b border-[var(--outline)] italic w-5">
+                <input
+                  type="checkbox"
+                  checked={rowIsFloat.value[index]}
+                  onclick={() =>
+                    (rowIsFloat.value[index] = !rowIsFloat.value[index])}
+                />
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      <input
+        class="absolute bottom-4 left-4 bg-white"
+        bind:value={start}
+        min="0"
+        type="number"
+        step="1"
+      />
     {/if}
   </Grid.Cell>
 

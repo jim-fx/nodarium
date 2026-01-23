@@ -27,7 +27,6 @@ export function createWasmWrapper(buffer: ArrayBuffer, memory: WebAssembly.Memor
   exports = instance.exports as NodariumExports;
 
   function execute(outputPos: number, args: number[]): number {
-    console.log('WASM_WRAPPER', { outputPos, args });
     return exports.execute(outputPos, ...args);
   }
 

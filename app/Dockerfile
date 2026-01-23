@@ -28,5 +28,6 @@ RUN rm /etc/nginx/conf.d/default.conf
 COPY app/docker/app.conf /etc/nginx/conf.d/app.conf
 
 COPY --from=builder /app/app/build /app
+COPY --from=builder /app/packages/ui/build /app/ui
 
 EXPOSE 80

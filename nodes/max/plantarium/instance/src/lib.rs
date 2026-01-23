@@ -13,7 +13,7 @@ pub fn execute(input: &[i32]) -> Vec<i32> {
     let args = split_args(input);
     let mut inputs = split_args(args[0]);
 
-    let mut geo_data = args[1].to_vec();
+    let mut geo_data = read_i32_slice(geometry);
     let geo = wrap_geometry_data(&mut geo_data);
 
     let mut transforms: Vec<Mat4> = Vec::new();

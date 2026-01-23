@@ -21,7 +21,7 @@ export type NodeRuntimeState = {
   parents?: NodeInstance[];
   children?: NodeInstance[];
   inputNodes?: Record<string, NodeInstance>;
-  type?: NodeDefinition;
+  type?: NodeDefinition; // we should probably remove this and rely on registry.getNode(nodeType)
   downX?: number;
   downY?: number;
   x?: number;

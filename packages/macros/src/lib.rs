@@ -68,40 +68,48 @@ pub fn nodarium_execute(_attr: TokenStream, item: TokenStream) -> TokenStream {
         })
         .collect();
 
-    let arg_names: Vec<_> = (0..input_count)
+    let param_count = input_fn.sig.inputs.len();
+    let total_c_params = param_count * 2;
+
+    let arg_names: Vec<_> = (0..total_c_params)
         .map(|i| syn::Ident::new(&format!("arg{}", i), input_fn.sig.span()))
         .collect();
 
+    let mut tuple_args = Vec::new();
+    for i in 0..param_count {
+        let start_name = &arg_names[i * 2];
+        let end_name = &arg_names[i * 2 + 1];
+        let tuple_arg = quote! {
+            (#start_name, #end_name)
+        };
+        tuple_args.push(tuple_arg);
+    }
+
     let expanded = quote! {
+
         extern "C" {
             fn __nodarium_log(ptr: *const u8, len: usize);
             fn __nodarium_log_panic(ptr: *const u8, len: usize);
         }
 
-        #fn_vis fn #inner_fn_name(#( #input_param_names: *const i32 ),*) -> Vec<i32> {
+        #fn_vis fn #inner_fn_name(#( #input_param_names: (i32, i32) ),*) -> Vec<i32> {
             #fn_body
         }
 
         #[no_mangle]
         #fn_vis extern "C" fn execute(output_pos: i32, #( #arg_names: i32 ),*) -> i32 {
-            static PANIC_HOOK_SET: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-            if !PANIC_HOOK_SET.load(std::sync::atomic::Ordering::SeqCst) {
-                std::panic::set_hook(Box::new(|info| {
-                    let msg = info.to_string();
-                    unsafe { __nodarium_log_panic(msg.as_ptr(), msg.len()); }
-                }));
-                PANIC_HOOK_SET.store(true, std::sync::atomic::Ordering::SeqCst);
-            }
-
+            // log!("before_fn");
             let result = #inner_fn_name(
-                #( #arg_names as *const i32 ),*
+                #( #tuple_args ),*
             );
+            // log!("after_fn");
 
             let len_bytes = result.len() * 4;
             unsafe {
                 let src = result.as_ptr() as *const u8;
                 let dst = output_pos as *mut u8;
+                // log!("writing output_pos={:?} src={:?} len_bytes={:?}", output_pos, src, len_bytes);
                 dst.copy_from_nonoverlapping(src, len_bytes);
             }
 
@@ -116,7 +124,9 @@ pub fn nodarium_execute(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 fn validate_signature(fn_sig: &syn::Signature, expected_inputs: usize, def: &NodeDefinition) {
     let param_count = fn_sig.inputs.len();
-    if param_count != expected_inputs {
+    let expected_params = expected_inputs;
+
+    if param_count != expected_params {
         panic!(
             "Execute function has {} parameters but definition has {} inputs\n\
              Definition inputs: {:?}\n\
@@ -129,10 +139,34 @@ fn validate_signature(fn_sig: &syn::Signature, expected_inputs: usize, def: &Nod
                 .map(|i| i.keys().collect::<Vec<_>>())
                 .unwrap_or_default(),
             (0..expected_inputs)
-                .map(|i| format!("arg{}: *const i32", i))
+                .map(|i| format!("arg{}: (i32, i32)", i))
                 .collect::<Vec<_>>()
                 .join(", ")
         );
+    }
+
+    for (i, arg) in fn_sig.inputs.iter().enumerate() {
+        match arg {
+            syn::FnArg::Typed(pat_type) => {
+                let type_str = quote! { #pat_type.ty }.to_string();
+                let clean_type = type_str
+                    .trim()
+                    .trim_start_matches("_")
+                    .trim_end_matches(".ty")
+                    .trim()
+                    .to_string();
+                if !clean_type.contains("(") && !clean_type.contains(",") {
+                    panic!(
+                        "Parameter {} has type '{}' but should be a tuple (i32, i32) representing (start, end) positions in memory",
+                        i,
+                        clean_type
+                    );
+                }
+            }
+            syn::FnArg::Receiver(_) => {
+                panic!("Execute function cannot have 'self' parameter");
+            }
+        }
     }
 
     match &fn_sig.output {
