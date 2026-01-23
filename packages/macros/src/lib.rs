@@ -125,7 +125,7 @@ pub fn nodarium_execute(_attr: TokenStream, item: TokenStream) -> TokenStream {
             unsafe {
                 let src = result.as_ptr() as *const u8;
                 let dst = output_pos as *mut u8;
-                // nodarium_utils::log!("writing output_pos={:?} src={:?} len_bytes={:?}", output_pos, src, len_bytes);
+                nodarium_utils::log!("writing output_pos={:?} src={:?} len_bytes={:?}", output_pos, src, len_bytes);
                 dst.copy_from_nonoverlapping(src, len_bytes);
             }
 

@@ -82,14 +82,14 @@ export type Pointer = {
 
   perf?: PerformanceStore;
 
-   constructor(
-     private readonly registry: NodeRegistry,
-     public cache?: SyncCache<Int32Array>
-   ) {
-     this.cache = undefined;
-     this.refreshView();
-     log.info('MemoryRuntimeExecutor initialized');
-   }
+  constructor(
+    private readonly registry: NodeRegistry,
+    public cache?: SyncCache<Int32Array>
+  ) {
+    this.cache = undefined;
+    this.refreshView();
+    log.info('MemoryRuntimeExecutor initialized');
+  }
 
   private refreshView(): void {
     this.memoryView = new Int32Array(this.memory.buffer);

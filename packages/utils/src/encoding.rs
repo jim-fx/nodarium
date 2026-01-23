@@ -31,6 +31,7 @@ pub fn read_f32(ptr: i32) -> f32 {
 
 #[inline]
 pub fn read_i32_slice(range: (i32, i32)) -> Vec<i32> {
+    log!("read_i32_slice ptr: {:?}", range);
     let (start, end) = range;
     assert!(end >= start);
     let byte_len = (end - start) as usize;
