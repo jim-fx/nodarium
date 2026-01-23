@@ -12,7 +12,7 @@ pub fn decode_float(bits: i32) -> f32 {
 
 #[inline]
 pub fn read_i32(ptr: i32) -> i32 {
-    unsafe { 
+    unsafe {
         let _ptr = ptr as *const i32;
         *_ptr
     }
@@ -27,22 +27,30 @@ pub fn read_f32(ptr: i32) -> f32 {
 }
 
 #[inline]
-pub fn read_i32_slice(tuple: (i32, i32)) -> Vec<i32> {
+pub fn read_i32_slice(range: (i32, i32)) -> Vec<i32> {
+    let (start, end) = range;
+    assert!(end >= start);
+    let byte_len = (end - start) as usize;
+    assert!(byte_len % 4 == 0);
+
     unsafe {
-        let start = tuple.0 as *const i32;
-        let end = tuple.1 as *const i32;
-        let len = (end as usize - start as usize) / 4;
-        std::slice::from_raw_parts(start, len).to_vec()
+        let ptr = start as *const i32;
+        let len = byte_len / 4;
+        std::slice::from_raw_parts(ptr, len).to_vec()
     }
 }
 
 #[inline]
-pub fn read_f32_slice(tuple: (i32, i32)) -> Vec<f32> {
+pub fn read_f32_slice(range: (i32, i32)) -> Vec<f32> {
+    let (start, end) = range;
+    assert!(end >= start);
+    let byte_len = (end - start) as usize;
+    assert!(byte_len % 4 == 0);
+
     unsafe {
-        let start = tuple.0 as *const f32;
-        let end = tuple.1 as *const f32;
-        let len = (end as usize - start as usize) / 4;
-        std::slice::from_raw_parts(start, len).to_vec()
+        let ptr = start as *const f32;
+        let len = byte_len / 4;
+        std::slice::from_raw_parts(ptr, len).to_vec()
     }
 }
 

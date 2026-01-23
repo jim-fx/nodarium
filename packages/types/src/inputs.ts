@@ -9,6 +9,7 @@ const DefaultOptionsSchema = z.object({
   accepts: z
     .array(
       z.union([
+        z.literal('*'),
         z.literal('float'),
         z.literal('integer'),
         z.literal('boolean'),

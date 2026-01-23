@@ -5,7 +5,7 @@
     "input": {
       "type": "path",
       "accepts": [
-        "geometry"
+        "*"
       ],
       "external": true
     },

@@ -1,0 +1,22 @@
+{
+  "id": "max/plantarium/debug",
+  "outputs": [],
+  "inputs": {
+    "input": {
+      "type": "float",
+      "accepts": [
+        "*"
+      ],
+      "external": true
+    },
+    "type": {
+      "type": "select",
+      "options": [
+        "float",
+        "vec3",
+        "geometry"
+      ],
+      "internal": true
+    }
+  }
+}

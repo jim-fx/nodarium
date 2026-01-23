@@ -1,0 +1,12 @@
+[package]
+name = "debug"
+version = "0.1.0"
+authors = ["Max Richter <jim-x@web.de>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+nodarium_macros = { version = "0.1.0", path = "../../../../packages/macros" }
+nodarium_utils = { version = "0.1.0", path = "../../../../packages/utils" }

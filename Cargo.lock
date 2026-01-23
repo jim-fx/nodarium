@@ -25,6 +25,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "debug"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
 name = "float"
 version = "0.1.0"
 dependencies = [

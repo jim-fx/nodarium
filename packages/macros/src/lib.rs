@@ -99,21 +99,19 @@ pub fn nodarium_execute(_attr: TokenStream, item: TokenStream) -> TokenStream {
         #[no_mangle]
         #fn_vis extern "C" fn execute(output_pos: i32, #( #arg_names: i32 ),*) -> i32 {
 
-            // log!("before_fn");
+            nodarium_utils::log!("before_fn");
             let result = #inner_fn_name(
                 #( #tuple_args ),*
             );
-            // log!("after_fn");
+            nodarium_utils::log!("after_fn");
 
             let len_bytes = result.len() * 4;
             unsafe {
                 let src = result.as_ptr() as *const u8;
                 let dst = output_pos as *mut u8;
-                // log!("writing output_pos={:?} src={:?} len_bytes={:?}", output_pos, src, len_bytes);
+                // nodarium_utils::log!("writing output_pos={:?} src={:?} len_bytes={:?}", output_pos, src, len_bytes);
                 dst.copy_from_nonoverlapping(src, len_bytes);
             }
-
-            core::mem::forget(result);
 
             len_bytes as i32
         }
