@@ -3,7 +3,7 @@ use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
     evaluate_float, evaluate_int, evaluate_vec3,
     geometry::{create_multiple_paths, wrap_multiple_paths},
-    log, reset_call_count, split_args,
+    log, reset_call_count,
     read_i32_slice, read_i32, 
 };
 

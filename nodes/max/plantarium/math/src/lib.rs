@@ -1,6 +1,6 @@
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
-use nodarium_utils::{concat_arg_vecs, encode_float, log, read_i32_slice};
+use nodarium_utils::{concat_arg_vecs, read_i32_slice};
 
 nodarium_definition_file!("src/input.json");
 

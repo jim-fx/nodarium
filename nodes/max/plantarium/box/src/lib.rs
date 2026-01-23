@@ -1,8 +1,7 @@
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    encode_float, evaluate_float, geometry::calculate_normals,log,
-    split_args, wrap_arg,
+    encode_float, evaluate_float, geometry::calculate_normals, wrap_arg,
     read_i32_slice
 };
 
