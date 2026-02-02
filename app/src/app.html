@@ -1,28 +1,26 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%sveltekit.assets%/svelte.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    %sveltekit.head%
+    <title>Nodes</title>
+    <script>
+      var store = localStorage.getItem('node-settings');
+      if (store) {
+        try {
+          var value = JSON.parse(store);
+          var themes = ['dark', 'light', 'catppuccin'];
+          if (themes[value.theme]) {
+            document.documentElement.classList.add('theme-' + themes[value.theme]);
+          }
+        } catch (e) {}
+      }
+    </script>
+  </head>
 
-<head>
-  <meta charset="utf-8" />
-  <link rel="icon" href="%sveltekit.assets%/svelte.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  %sveltekit.head%
-  <title>Nodes</title>
-  <script>
-    var store = localStorage.getItem("node-settings");
-    if (store) {
-      try {
-        var value = JSON.parse(store);
-        var themes = ["dark", "light", "catppuccin"];
-        if (themes[value.theme]) {
-          document.documentElement.classList.add("theme-" + themes[value.theme]);
-        }
-      } catch (e) { }
-    }
-  </script>
-</head>
-
-<body data-sveltekit-preload-data="hover">
-  <div style="display: contents">%sveltekit.body%</div>
-</body>
-
+  <body data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
 </html>

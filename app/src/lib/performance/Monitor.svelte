@@ -9,17 +9,17 @@
 
   let {
     points,
-    type = "ms",
-    title = "Performance",
+    type = 'ms',
+    title = 'Performance',
     max,
-    min,
+    min
   }: Props = $props();
 
   let internalMax = $derived(max ?? Math.max(...points));
   let internalMin = $derived(min ?? Math.min(...points))!;
 
   const maxText = $derived.by(() => {
-    if (type === "%") {
+    if (type === '%') {
       return 100;
     }
 
@@ -40,11 +40,10 @@
     points
       .map((point, i) => {
         const x = (i / (points.length - 1)) * 100;
-        const y =
-          100 - ((point - internalMin) / (internalMax - internalMin)) * 100;
+        const y = 100 - ((point - internalMin) / (internalMax - internalMin)) * 100;
         return `${x},${y}`;
       })
-      .join(" "),
+      .join(' ')
   );
 </script>
 

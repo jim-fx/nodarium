@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { createKeyMap } from "$lib/helpers/createKeyMap";
-  import { ShortCut } from "@nodarium/ui";
-  import { get } from "svelte/store";
+  import type { createKeyMap, ShortCut } from '$lib/helpers/createKeyMap';
+  import { ShortCut as ShortCutEl } from '@nodarium/ui';
+  import { get } from 'svelte/store';
 
   type Props = {
     keymaps: {
@@ -11,22 +11,26 @@
   };
 
   let { keymaps }: Props = $props();
+
+  function getKeyKey(key: ShortCut) {
+    return (key?.alt ? 'alt-' : '') + (key?.ctrl ? 'ctrl-' : '') + key.key;
+  }
 </script>
 
 <div class="p-4">
   <table class="wrapper">
     <tbody>
-      {#each keymaps as keymap}
+      {#each keymaps as keymap (keymap.title)}
         <tr>
           <td colspan="2">
             <h3>{keymap.title}</h3>
           </td>
         </tr>
-        {#each get(keymap.keymap?.keys) as key}
+        {#each get(keymap.keymap?.keys) as key (getKeyKey(key))}
           <tr>
             {#if key.description}
               <td class="command-wrapper">
-                <ShortCut
+                <ShortCutEl
                   alt={key.alt}
                   ctrl={key.ctrl}
                   shift={key.shift}

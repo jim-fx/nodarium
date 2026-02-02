@@ -6,7 +6,7 @@ export class FileDropEventManager {
   constructor(
     private graph: GraphManager,
     private state: GraphState
-  ) { }
+  ) {}
 
   handleFileDrop(event: DragEvent) {
     event.preventDefault();
@@ -17,19 +17,21 @@ export class FileDropEventManager {
     let my = event.clientY - this.state.rect.y;
 
     if (nodeId) {
-      let nodeOffsetX = event.dataTransfer.getData('data/node-offset-x');
-      let nodeOffsetY = event.dataTransfer.getData('data/node-offset-y');
+      const nodeOffsetX = event.dataTransfer.getData('data/node-offset-x');
+      const nodeOffsetY = event.dataTransfer.getData('data/node-offset-y');
       if (nodeOffsetX && nodeOffsetY) {
         mx += parseInt(nodeOffsetX);
         my += parseInt(nodeOffsetY);
       }
 
       let props = {};
-      let rawNodeProps = event.dataTransfer.getData('data/node-props');
+      const rawNodeProps = event.dataTransfer.getData('data/node-props');
       if (rawNodeProps) {
         try {
           props = JSON.parse(rawNodeProps);
-        } catch (e) { }
+        } catch (e) {
+          console.error('Failed to parse node dropped', e);
+        }
       }
 
       const pos = this.state.projectScreenToWorld(mx, my);
@@ -48,7 +50,7 @@ export class FileDropEventManager {
         reader.onload = async (e) => {
           const buffer = e.target?.result;
           if (buffer?.constructor === ArrayBuffer) {
-            const nodeType = await this.graph.registry.register(buffer);
+            const nodeType = await this.graph.registry.register(nodeId, buffer);
 
             this.graph.createNode({
               type: nodeType.id,

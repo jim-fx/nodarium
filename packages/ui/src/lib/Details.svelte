@@ -6,7 +6,8 @@
     open?: boolean;
   }
 
-  let { title = "Details", transparent = false, children, open = $bindable(false) }: Props = $props();
+  let { title = 'Details', transparent = false, children, open = $bindable(false) }: Props =
+    $props();
 </script>
 
 <details class:transparent bind:open>
@@ -33,5 +34,4 @@
     padding: 0;
     outline: none;
   }
-
 </style>

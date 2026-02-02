@@ -4,7 +4,9 @@
   "description": "",
   "main": "src/index.ts",
   "scripts": {
-    "test": "vitest"
+    "test": "vitest",
+    "format": "dprint fmt -c '../../.dprint.jsonc' .",
+    "format:check": "dprint check -c '../../.dprint.jsonc' ."
   },
   "keywords": [],
   "author": "",
@@ -13,6 +15,7 @@
     "@nodarium/types": "workspace:"
   },
   "devDependencies": {
+    "dprint": "^0.51.1",
     "vite": "^7.3.1",
     "vitest": "^4.0.17"
   }

@@ -3,8 +3,8 @@ name = "nodarium_types"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Types for Nodarium"
 repository = "https://github.com/jim-fx/nodes"
+description = "Types for Nodarium"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

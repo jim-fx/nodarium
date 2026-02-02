@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Graph } from "$lib/types";
+  import type { Graph } from '$lib/types';
 
   const { graph }: { graph?: Graph } = $props();
 
@@ -7,14 +7,14 @@
     return JSON.stringify(
       {
         ...g,
-        nodes: g.nodes.map((n: any) => ({ ...n, tmp: undefined })),
+        nodes: g.nodes.map((n: object) => ({ ...n, tmp: undefined }))
       },
       null,
-      2,
+      2
     );
   }
 </script>
 
 <pre>
-  {graph ? convert(graph) : 'No graph loaded'}
+  {graph ? convert(graph) : "No graph loaded"}
 </pre>

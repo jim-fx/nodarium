@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { type Snippet } from "svelte";
-  import { panelState } from "./PanelState.svelte";
+  import { type Snippet } from 'svelte';
+  import { type Panel, panelState } from './PanelState.svelte';
 
   const {
     id,
-    icon = "",
-    title = "",
-    classes = "",
+    icon = '',
+    title = '',
+    classes = '',
     hidden,
-    children,
+    children
   } = $props<{
     id: string;
     icon?: string;
@@ -18,7 +18,13 @@
     children?: Snippet;
   }>();
 
-  const panel = panelState.registerPanel(id, icon, classes, hidden);
+  let panel = $state<Panel>(null!);
+
+  $effect(() => {
+    panelState.unregisterPanel(id);
+    panel = panelState.registerPanel(id, icon, classes, hidden);
+  });
+
   $effect(() => {
     panel.hidden = hidden;
   });

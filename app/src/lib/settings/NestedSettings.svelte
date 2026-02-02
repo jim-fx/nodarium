@@ -1,10 +1,11 @@
 <script lang="ts">
-  import NestedSettings from "./NestedSettings.svelte";
-  import { localState } from "$lib/helpers/localState.svelte";
-  import type { NodeInput } from "@nodarium/types";
-  import Input from "@nodarium/ui";
+  import { localState } from '$lib/helpers/localState.svelte';
+  import type { NodeInput } from '@nodarium/types';
+  import Input from '@nodarium/ui';
+  import { onMount } from 'svelte';
+  import NestedSettings from './NestedSettings.svelte';
 
-  type Button = { type: "button"; callback: () => void; label?: string };
+  type Button = { type: 'button'; label?: string };
 
   type InputType = NodeInput | Button;
 
@@ -12,7 +13,7 @@
 
   interface SettingsGroup {
     title?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   }
 
   type SettingsType = Record<string, SettingsNode>;
@@ -31,44 +32,49 @@
   };
 
   // Local persistent state for <details> sections
-  const openSections = localState<Record<string, boolean>>("open-details", {});
+  const openSections = localState<Record<string, boolean>>('open-details', {});
 
-  let { id, key = "", value = $bindable(), type, depth = 0 }: Props = $props();
+  let { id, key = '', value = $bindable(), type, depth = 0 }: Props = $props();
 
   function isNodeInput(v: SettingsNode | undefined): v is InputType {
-    return !!v && typeof v === "object" && "type" in v;
+    return !!v && typeof v === 'object' && 'type' in v;
   }
 
-  function getDefaultValue(): unknown {
-    if (key === "" || key === "title") return;
+  function getDefaultValue(): NodeInput['value'] | undefined {
+    if (key === '' || key === 'title') return;
 
-    const node = type[key];
+    const node = type[key] as SettingsNode;
+    const inputValue = value[key];
 
     if (!isNodeInput(node)) return;
 
-    const anyNode = node as any;
-
     // select input: use index into options
-    if (Array.isArray(anyNode.options)) {
-      if (value?.[key] !== undefined) {
-        return anyNode.options.indexOf(value[key]);
+    if ('options' in node && Array.isArray(node.options)) {
+      if (typeof inputValue === 'string') {
+        return node.options.indexOf(inputValue);
       }
       return 0;
     }
 
-    if (value?.[key] !== undefined) return value[key];
+    // If the component is supplied with a default value use that
+    if (inputValue !== undefined && typeof inputValue !== 'object') {
+      return inputValue;
+    }
 
-    if ("value" in node && anyNode.value !== undefined) {
-      return anyNode.value;
+    if ('value' in node) {
+      const nodeValue = node.value;
+      if (nodeValue !== null && nodeValue !== undefined) {
+        return nodeValue;
+      }
     }
 
     switch (node.type) {
-      case "boolean":
+      case 'boolean':
         return 0;
-      case "float":
+      case 'float':
         return 0.5;
-      case "integer":
-      case "select":
+      case 'integer':
+      case 'select':
         return 0;
       default:
         return 0;
@@ -77,52 +83,63 @@
 
   let internalValue = $state(getDefaultValue());
 
-  let open = $state(openSections.value[id]);
-
-  // Persist <details> open/closed state for groups
-  if (depth > 0 && !isNodeInput(type[key!])) {
-    $effect(() => {
-      if (open !== undefined) {
-        openSections.value[id] = open;
-      }
-    });
-  }
+  let open = $state(false);
 
   // Sync internalValue back into `value`
   $effect(() => {
-    if (key === "" || internalValue === undefined) return;
+    if (key === '' || internalValue === undefined) return;
 
     const node = type[key];
 
     if (
-      isNodeInput(node) &&
-      Array.isArray((node as any).options) &&
-      typeof internalValue === "number"
+      isNodeInput(node)
+      && 'options' in node
+      && Array.isArray(node.options)
+      && typeof internalValue === 'number'
     ) {
-      value[key] = (node as any)?.options?.[internalValue] as any;
-    } else {
-      value[key] = internalValue as any;
+      value[key] = node?.options?.[internalValue];
+    } else if (internalValue) {
+      value[key] = internalValue;
+    }
+  });
+
+  function handleClick() {
+    const callback = value[key] as unknown as () => void;
+    callback();
+  }
+
+  onMount(() => {
+    open = openSections.value[id];
+
+    // Persist <details> open/closed state for groups
+    if (depth > 0 && !isNodeInput(type[key!])) {
+      $effect(() => {
+        if (open !== undefined) {
+          openSections.value[id] = open;
+        }
+      });
     }
   });
 </script>
 
 {#if key && isNodeInput(type?.[key])}
+  {@const inputType = type[key]}
   <!-- Leaf input -->
-  <div class="input input-{type[key].type}" class:first-level={depth === 1}>
-    {#if type[key].type === "button"}
-      <button onclick={() => "callback" in type[key] && type[key].callback()}>
-        {type[key].label || key}
+  <div class="input input-{inputType.type}" class:first-level={depth === 1}>
+    {#if inputType.type === 'button'}
+      <button onclick={handleClick}>
+        {inputType.label || key}
       </button>
     {:else}
-      {#if type[key].label !== ""}
-        <label for={id}>{type[key].label || key}</label>
+      {#if inputType.label !== ''}
+        <label for={id}>{inputType.label || key}</label>
       {/if}
-      <Input {id} input={type[key]} bind:value={internalValue} />
+      <Input {id} input={inputType} bind:value={internalValue} />
     {/if}
   </div>
 {:else if depth === 0}
   <!-- Root: iterate over top-level keys -->
-  {#each Object.keys(type ?? {}).filter((k) => k !== "title") as childKey}
+  {#each Object.keys(type ?? {}).filter((k) => k !== 'title') as childKey (childKey)}
     <NestedSettings
       id={`${id}.${childKey}`}
       key={childKey}
@@ -140,7 +157,7 @@
   <details bind:open>
     <summary><p>{(type[key] as SettingsGroup).title || key}</p></summary>
     <div class="content">
-      {#each Object.keys(type[key] as SettingsGroup).filter((k) => k !== "title") as childKey}
+      {#each Object.keys(type[key] as SettingsGroup).filter((k) => k !== 'title') as childKey (childKey)}
         <NestedSettings
           id={`${id}.${childKey}`}
           key={childKey}

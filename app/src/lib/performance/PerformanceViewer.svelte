@@ -1,13 +1,13 @@
 <script lang="ts">
-  import Monitor from "./Monitor.svelte";
-  import { humanizeNumber } from "$lib/helpers";
-  import { Checkbox } from "@nodarium/ui";
-  import type { PerformanceData } from "@nodarium/utils";
-  import BarSplit from "./BarSplit.svelte";
+  import { humanizeNumber } from '$lib/helpers';
+  import { Checkbox } from '@nodarium/ui';
+  import type { PerformanceData } from '@nodarium/utils';
+  import BarSplit from './BarSplit.svelte';
+  import Monitor from './Monitor.svelte';
 
   const { data }: { data: PerformanceData } = $props();
 
-  let activeType = $state("total");
+  let activeType = $state('total');
   let showAverage = $state(true);
 
   function round(v: number) {
@@ -21,21 +21,21 @@
   }
 
   function getTitle(t: string) {
-    if (t.includes("/")) {
-      return `Node ${t.split("/").slice(-1).join("/")}`;
+    if (t.includes('/')) {
+      return `Node ${t.split('/').slice(-1).join('/')}`;
     }
 
     return t
-      .split("-")
+      .split('-')
       .map((v) => v[0].toUpperCase() + v.slice(1))
-      .join(" ");
+      .join(' ');
   }
 
   const viewerKeys = [
-    "total-vertices",
-    "total-faces",
-    "update-geometries",
-    "split-result",
+    'total-vertices',
+    'total-faces',
+    'update-geometries',
+    'split-result'
   ];
 
   // --- Small helpers that query `data` directly ---
@@ -64,21 +64,19 @@
   const lasts = $derived.by(() => data.at(-1) || {});
 
   const totalPerformance = $derived.by(() => {
-    const onlyLast =
-      getLast("runtime") +
-      getLast("update-geometries") +
-      getLast("worker-transfer");
-    const average =
-      getAverage("runtime") +
-      getAverage("update-geometries") +
-      getAverage("worker-transfer");
+    const onlyLast = getLast('runtime')
+      + getLast('update-geometries')
+      + getLast('worker-transfer');
+    const average = getAverage('runtime')
+      + getAverage('update-geometries')
+      + getAverage('worker-transfer');
     return { onlyLast, average };
   });
 
   const cacheRatio = $derived.by(() => {
     return {
-      onlyLast: Math.floor(getLast("cache-hit") * 100),
-      average: Math.floor(getAverage("cache-hit") * 100),
+      onlyLast: Math.floor(getLast('cache-hit') * 100),
+      average: Math.floor(getAverage('cache-hit') * 100)
     };
   });
 
@@ -87,10 +85,10 @@
     return Object.entries(source)
       .filter(
         ([key]) =>
-          !key.startsWith("node/") &&
-          key !== "total" &&
-          !key.includes("cache") &&
-          !viewerKeys.includes(key),
+          !key.startsWith('node/')
+          && key !== 'total'
+          && !key.includes('cache')
+          && !viewerKeys.includes(key)
       )
       .sort((a, b) => b[1] - a[1]);
   });
@@ -98,7 +96,7 @@
   const nodePerformanceData = $derived.by(() => {
     const source = showAverage ? averages : lasts;
     return Object.entries(source)
-      .filter(([key]) => key.startsWith("node/"))
+      .filter(([key]) => key.startsWith('node/'))
       .sort((a, b) => b[1] - a[1]);
   });
 
@@ -107,9 +105,9 @@
     return Object.entries(source)
       .filter(
         ([key]) =>
-          key !== "total-vertices" &&
-          key !== "total-faces" &&
-          viewerKeys.includes(key),
+          key !== 'total-vertices'
+          && key !== 'total-faces'
+          && viewerKeys.includes(key)
       )
       .sort((a, b) => b[1] - a[1]);
   });
@@ -117,15 +115,15 @@
   const splitValues = $derived.by(() => {
     if (showAverage) {
       return [
-        getAverage("worker-transfer"),
-        getAverage("runtime"),
-        getAverage("update-geometries"),
+        getAverage('worker-transfer'),
+        getAverage('runtime'),
+        getAverage('update-geometries')
       ];
     }
     return [
-      getLast("worker-transfer"),
-      getLast("runtime"),
-      getLast("update-geometries"),
+      getLast('worker-transfer'),
+      getLast('runtime'),
+      getLast('update-geometries')
     ];
   });
 
@@ -133,24 +131,24 @@
     if (showAverage) {
       return data.map((run) => {
         return (
-          (run["runtime"]?.reduce((acc, v) => acc + v, 0) || 0) +
-          (run["update-geometries"]?.reduce((acc, v) => acc + v, 0) || 0) +
-          (run["worker-transfer"]?.reduce((acc, v) => acc + v, 0) || 0)
+          (run['runtime']?.reduce((acc, v) => acc + v, 0) || 0)
+          + (run['update-geometries']?.reduce((acc, v) => acc + v, 0) || 0)
+          + (run['worker-transfer']?.reduce((acc, v) => acc + v, 0) || 0)
         );
       });
     }
 
     return data.map((run) => {
       return (
-        (run["runtime"]?.[0] || 0) +
-        (run["update-geometries"]?.[0] || 0) +
-        (run["worker-transfer"]?.[0] || 0)
+        (run['runtime']?.[0] || 0)
+        + (run['update-geometries']?.[0] || 0)
+        + (run['worker-transfer']?.[0] || 0)
       );
     });
   });
 
   function constructPoints(key: string) {
-    if (key === "total") {
+    if (key === 'total') {
       return totalPoints;
     }
     return data.map((run) => {
@@ -166,21 +164,21 @@
   }
 
   const computedTotalDisplay = $derived.by(() =>
-    round(showAverage ? totalPerformance.average : totalPerformance.onlyLast),
+    round(showAverage ? totalPerformance.average : totalPerformance.onlyLast)
   );
 
   const computedFps = $derived.by(() =>
     Math.floor(
-      1000 /
-        (showAverage
+      1000
+        / (showAverage
           ? totalPerformance.average || 1
-          : totalPerformance.onlyLast || 1),
-    ),
+          : totalPerformance.onlyLast || 1)
+    )
   );
 </script>
 
 {#if data.length !== 0}
-  {#if activeType === "cache-hit"}
+  {#if activeType === 'cache-hit'}
     <Monitor
       title="Cache Hits"
       points={constructPoints(activeType)}
@@ -202,7 +200,7 @@
     </div>
 
     <BarSplit
-      labels={["worker-transfer", "runtime", "update-geometries"]}
+      labels={['worker-transfer', 'runtime', 'update-geometries']}
       values={splitValues}
     />
 
@@ -215,14 +213,14 @@
             {computedTotalDisplay}<span>ms</span>
           </td>
           <td
-            class:active={activeType === "total"}
-            onclick={() => (activeType = "total")}
+            class:active={activeType === 'total'}
+            onclick={() => (activeType = 'total')}
           >
             total<span>({computedFps}fps)</span>
           </td>
         </tr>
 
-        {#each performanceData as [key, value]}
+        {#each performanceData as [key, value] (key)}
           <tr>
             <td>{round(value)}<span>ms</span></td>
             <td
@@ -246,27 +244,23 @@
 
       <tbody>
         <tr>
+          <td>{showAverage ? cacheRatio.average : cacheRatio.onlyLast}<span>%</span></td>
           <td
-            >{showAverage ? cacheRatio.average : cacheRatio.onlyLast}<span
-              >%</span
-            ></td
-          >
-          <td
-            class:active={activeType === "cache-hit"}
-            onclick={() => (activeType = "cache-hit")}
+            class:active={activeType === 'cache-hit'}
+            onclick={() => (activeType = 'cache-hit')}
           >
             cache hits
           </td>
         </tr>
 
-        {#each nodePerformanceData as [key, value]}
+        {#each nodePerformanceData as [key, value] (key)}
           <tr>
             <td>{round(value)}<span>ms</span></td>
             <td
               class:active={activeType === key}
               onclick={() => (activeType = key)}
             >
-              {key.split("/").slice(-1).join("/")}
+              {key.split('/').slice(-1).join('/')}
             </td>
           </tr>
         {/each}
@@ -278,22 +272,22 @@
 
       <tbody>
         <tr>
-          <td>{humanizeNumber(getLast("total-vertices"))}</td>
+          <td>{humanizeNumber(getLast('total-vertices'))}</td>
           <td>Vertices</td>
         </tr>
         <tr>
-          <td>{humanizeNumber(getLast("total-faces"))}</td>
+          <td>{humanizeNumber(getLast('total-faces'))}</td>
           <td>Faces</td>
         </tr>
 
-        {#each viewerPerformanceData as [key, value]}
+        {#each viewerPerformanceData as [key, value] (key)}
           <tr>
             <td>{round(value)}<span>ms</span></td>
             <td
               class:active={activeType === key}
               onclick={() => (activeType = key)}
             >
-              {key.split("/").slice(-1).join("/")}
+              {key.split('/').slice(-1).join('/')}
             </td>
           </tr>
         {/each}

@@ -74,7 +74,7 @@
 
         const output = newNode.state?.type?.outputs?.find((out) => {
           if (socketType?.type === out) return true;
-          if (socketType?.accepts?.includes(out as any)) return true;
+          if ((socketType?.accepts as string[])?.includes(out)) return true;
           return false;
         });
 
@@ -172,7 +172,7 @@
         />
       {/if}
 
-      {#each graph.edges as edge}
+      {#each graph.edges as edge (edge)}
         {@const [x1, y1, x2, y2] = getEdgePosition(edge)}
         <EdgeEl
           id={graph.getEdgeId(edge)}

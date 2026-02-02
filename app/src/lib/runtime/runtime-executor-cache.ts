@@ -1,4 +1,4 @@
-import { type SyncCache } from "@nodarium/types";
+import { type SyncCache } from '@nodarium/types';
 
 export class MemoryRuntimeCache implements SyncCache {
   private map = new Map<string, unknown>();

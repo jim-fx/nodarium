@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { NodeDefinition, NodeRegistry } from "@nodarium/types";
-  import { onMount } from "svelte";
+  import type { NodeDefinition, NodeRegistry } from '@nodarium/types';
+  import { onMount } from 'svelte';
 
   let mx = $state(0);
   let my = $state(0);
@@ -20,15 +20,15 @@
     my = ev.clientY;
     if (!target) return;
 
-    const closest = target?.closest?.("[data-node-type]");
+    const closest = target?.closest?.('[data-node-type]');
 
     if (!closest) {
       node = undefined;
       return;
     }
 
-    let nodeType = closest.getAttribute("data-node-type");
-    let nodeInput = closest.getAttribute("data-node-input");
+    let nodeType = closest.getAttribute('data-node-type');
+    let nodeInput = closest.getAttribute('data-node-input');
 
     if (!nodeType) {
       node = undefined;
@@ -40,9 +40,9 @@
 
   onMount(() => {
     const style = wrapper.parentElement?.style;
-    style?.setProperty("cursor", "help");
+    style?.setProperty('cursor', 'help');
     return () => {
-      style?.removeProperty("cursor");
+      style?.removeProperty('cursor');
     };
   });
 </script>
@@ -53,12 +53,12 @@
   class="help-wrapper p-4"
   class:visible={node}
   bind:clientWidth={width}
-  style="--my:{my}px; --mx:{Math.min(mx, window.innerWidth - width - 20)}px;"
+  style="--my: {my}px; --mx: {Math.min(mx, window.innerWidth - width - 20)}px"
   bind:this={wrapper}
 >
   <p class="m-0 text-light opacity-40 flex items-center gap-3 mb-4">
     <span class="i-tabler-help block w-4 h-4"></span>
-    {node?.id.split("/").at(-1) || "Help"}
+    {node?.id.split('/').at(-1) || 'Help'}
     {#if input}
       <span>> {input}</span>
     {/if}
@@ -77,7 +77,7 @@
     {#if !input}
       <div>
         <span class="i-tabler-arrow-right opacity-30">-></span>
-        {node?.outputs?.map((o) => o).join(", ") ?? "nothing"}
+        {node?.outputs?.map((o) => o).join(', ') ?? 'nothing'}
       </div>
     {/if}
   {/if}

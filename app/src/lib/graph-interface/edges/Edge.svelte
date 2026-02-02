@@ -1,16 +1,18 @@
 <script module lang="ts">
-  import { colors } from "../graph/colors.svelte";
+  import { colors } from '../graph/colors.svelte';
 
   const circleMaterial = new MeshBasicMaterial({
     color: colors.edge.clone(),
-    toneMapped: false,
+    toneMapped: false
   });
 
   let lineColor = $state(colors.edge.clone().convertSRGBToLinear());
 
   $effect.root(() => {
     $effect(() => {
-      appSettings.value.theme;
+      if (appSettings.value.theme === undefined) {
+        return;
+      }
       circleMaterial.color = colors.edge.clone().convertSRGBToLinear();
       lineColor = colors.edge.clone().convertSRGBToLinear();
     });
@@ -20,19 +22,19 @@
     new Vector2(0, 0),
     new Vector2(0, 0),
     new Vector2(0, 0),
-    new Vector2(0, 0),
+    new Vector2(0, 0)
   );
 </script>
 
 <script lang="ts">
-  import { T } from "@threlte/core";
-  import { MeshLineGeometry, MeshLineMaterial } from "@threlte/extras";
-  import { MeshBasicMaterial, Vector3 } from "three";
-  import { CubicBezierCurve } from "three/src/extras/curves/CubicBezierCurve.js";
-  import { Vector2 } from "three/src/math/Vector2.js";
-  import { appSettings } from "$lib/settings/app-settings.svelte";
-  import { getGraphState } from "../graph-state.svelte";
-  import { onDestroy } from "svelte";
+  import { appSettings } from '$lib/settings/app-settings.svelte';
+  import { T } from '@threlte/core';
+  import { MeshLineGeometry, MeshLineMaterial } from '@threlte/extras';
+  import { onDestroy } from 'svelte';
+  import { MeshBasicMaterial, Vector3 } from 'three';
+  import { CubicBezierCurve } from 'three/src/extras/curves/CubicBezierCurve.js';
+  import { Vector2 } from 'three/src/math/Vector2.js';
+  import { getGraphState } from '../graph-state.svelte';
 
   const graphState = getGraphState();
 
@@ -63,7 +65,7 @@
     lastId = curveId;
 
     const length = Math.floor(
-      Math.sqrt(Math.pow(new_x, 2) + Math.pow(new_y, 2)) / 4,
+      Math.sqrt(Math.pow(new_x, 2) + Math.pow(new_y, 2)) / 4
     );
 
     const samples = Math.max(length * 16, 10);
@@ -83,7 +85,7 @@
         id,
         x1,
         y1,
-        $state.snapshot(points) as unknown as Vector3[],
+        $state.snapshot(points) as unknown as Vector3[]
       );
     }
   }

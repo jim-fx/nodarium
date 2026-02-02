@@ -1,26 +1,26 @@
 <script lang="ts">
-  import { setContext, getContext } from "svelte";
-  import { localState } from "$lib/helpers/localState.svelte";
+  import { localState } from '$lib/helpers/localState.svelte';
+  import { getContext, setContext } from 'svelte';
 
-  const gridId = getContext<string>("grid-id") || "grid-0";
+  const gridId = getContext<string>('grid-id') || 'grid-0';
   let sizes = localState<string[]>(gridId, []);
 
   const { children } = $props();
 
   let registerIndex = 0;
-  setContext("registerCell", function () {
+  setContext('registerCell', function() {
     let index = registerIndex;
     registerIndex++;
     if (registerIndex > sizes.value.length) {
-      sizes.value = [...sizes.value, "1fr"];
+      sizes.value = [...sizes.value, '1fr'];
     }
     return index;
   });
 
-  setContext("sizes", sizes);
+  setContext('sizes', sizes);
 
   const cols = $derived(
-    sizes.value.map((size, i) => `${i > 0 ? "1px " : ""}` + size).join(" "),
+    sizes.value.map((size, i) => `${i > 0 ? '1px ' : ''}` + size).join(' ')
   );
 </script>
 

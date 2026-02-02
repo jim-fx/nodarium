@@ -10,7 +10,7 @@
         const y = 100 - ((point - min) / (max - min)) * 100;
         return `${x},${y}`;
       })
-      .join(" ");
+      .join(' ');
   });
 </script>
 

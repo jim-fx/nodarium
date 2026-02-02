@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { T } from "@threlte/core";
-  import { type OrthographicCamera } from "three";
+  import { T } from '@threlte/core';
+  import { type OrthographicCamera } from 'three';
   type Props = {
     camera: OrthographicCamera;
     position: [number, number, number];

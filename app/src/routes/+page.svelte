@@ -1,40 +1,35 @@
 <script lang="ts">
-  import Grid from "$lib/grid";
-  import GraphInterface from "$lib/graph-interface";
-  import * as templates from "$lib/graph-templates";
-  import type { Graph, NodeInstance } from "@nodarium/types";
-  import Viewer from "$lib/result-viewer/Viewer.svelte";
-  import {
-    appSettings,
-    AppSettingTypes,
-  } from "$lib/settings/app-settings.svelte";
-  import Keymap from "$lib/sidebar/panels/Keymap.svelte";
-  import Sidebar from "$lib/sidebar/Sidebar.svelte";
-  import { createKeyMap } from "$lib/helpers/createKeyMap";
-  import NodeStore from "$lib/node-store/NodeStore.svelte";
-  import ActiveNodeSettings from "$lib/sidebar/panels/ActiveNodeSettings.svelte";
-  import PerformanceViewer from "$lib/performance/PerformanceViewer.svelte";
-  import Panel from "$lib/sidebar/Panel.svelte";
-  import NestedSettings from "$lib/settings/NestedSettings.svelte";
-  import type { Group } from "three";
-  import ExportSettings from "$lib/sidebar/panels/ExportSettings.svelte";
-  import {
-    MemoryRuntimeCache,
-    WorkerRuntimeExecutor,
-    MemoryRuntimeExecutor,
-  } from "$lib/runtime";
-  import { IndexDBCache, RemoteNodeRegistry } from "@nodarium/registry";
-  import { createPerformanceStore } from "@nodarium/utils";
-  import BenchmarkPanel from "$lib/sidebar/panels/BenchmarkPanel.svelte";
-  import { debounceAsyncFunction } from "$lib/helpers";
-  import GraphSource from "$lib/sidebar/panels/GraphSource.svelte";
-  import { ProjectManager } from "$lib/project-manager/project-manager.svelte";
-  import ProjectManagerEl from "$lib/project-manager/ProjectManager.svelte";
+  import GraphInterface from '$lib/graph-interface';
+  import * as templates from '$lib/graph-templates';
+  import Grid from '$lib/grid';
+  import { debounceAsyncFunction } from '$lib/helpers';
+  import { createKeyMap } from '$lib/helpers/createKeyMap';
+  import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
+  import NodeStore from '$lib/node-store/NodeStore.svelte';
+  import PerformanceViewer from '$lib/performance/PerformanceViewer.svelte';
+  import { ProjectManager } from '$lib/project-manager/project-manager.svelte';
+  import ProjectManagerEl from '$lib/project-manager/ProjectManager.svelte';
+  import Viewer from '$lib/result-viewer/Viewer.svelte';
+  import { MemoryRuntimeCache, MemoryRuntimeExecutor, WorkerRuntimeExecutor } from '$lib/runtime';
+  import type { SettingsValue } from '$lib/settings';
+  import { appSettings, AppSettingTypes } from '$lib/settings/app-settings.svelte';
+  import NestedSettings from '$lib/settings/NestedSettings.svelte';
+  import Panel from '$lib/sidebar/Panel.svelte';
+  import ActiveNodeSettings from '$lib/sidebar/panels/ActiveNodeSettings.svelte';
+  import BenchmarkPanel from '$lib/sidebar/panels/BenchmarkPanel.svelte';
+  import ExportSettings from '$lib/sidebar/panels/ExportSettings.svelte';
+  import GraphSource from '$lib/sidebar/panels/GraphSource.svelte';
+  import Keymap from '$lib/sidebar/panels/Keymap.svelte';
+  import Sidebar from '$lib/sidebar/Sidebar.svelte';
+  import type { Graph, NodeInstance } from '@nodarium/types';
+  import { createPerformanceStore } from '@nodarium/utils';
+  import { onMount } from 'svelte';
+  import type { Group } from 'three';
 
   let performanceStore = createPerformanceStore();
 
-  const registryCache = new IndexDBCache("node-registry");
-  const nodeRegistry = new RemoteNodeRegistry("", registryCache);
+  const registryCache = new IndexDBCache('node-registry');
+  const nodeRegistry = new RemoteNodeRegistry('', registryCache);
   const workerRuntime = new WorkerRuntimeExecutor();
   const runtimeCache = new MemoryRuntimeCache();
   const memoryRuntime = new MemoryRuntimeExecutor(nodeRegistry, runtimeCache);
@@ -42,14 +37,12 @@
   const pm = new ProjectManager();
 
   const runtime = $derived(
-    appSettings.value.debug.useWorker ? workerRuntime : memoryRuntime,
+    appSettings.value.debug.useWorker ? workerRuntime : memoryRuntime
   );
 
   $effect(() => {
-    workerRuntime.useRegistryCache =
-      appSettings.value.debug.cache.useRuntimeCache;
-    workerRuntime.useRuntimeCache =
-      appSettings.value.debug.cache.useRegistryCache;
+    workerRuntime.useRegistryCache = appSettings.value.debug.cache.useRuntimeCache;
+    workerRuntime.useRuntimeCache = appSettings.value.debug.cache.useRegistryCache;
 
     if (appSettings.value.debug.cache.useRegistryCache) {
       nodeRegistry.cache = registryCache;
@@ -80,15 +73,15 @@
 
   let applicationKeymap = createKeyMap([
     {
-      key: "r",
-      description: "Regenerate the plant model",
-      callback: () => randomGenerate(),
-    },
+      key: 'r',
+      description: 'Regenerate the plant model',
+      callback: () => randomGenerate()
+    }
   ]);
 
-  let graphSettings = $state<Record<string, any>>({});
+  let graphSettings = $state<SettingsValue>({});
   let graphSettingTypes = $state({
-    randomSeed: { type: "boolean", value: false },
+    randomSeed: { type: 'boolean', value: false }
   });
   $effect(() => {
     if (graphSettings && graphSettingTypes) {
@@ -98,7 +91,7 @@
 
   async function update(
     g: Graph,
-    s: Record<string, any> = $state.snapshot(graphSettings),
+    s: Record<string, unknown> = $state.snapshot(graphSettings)
   ) {
     performanceStore.startRun();
     try {
@@ -114,14 +107,14 @@
           delete lastRun.total;
           performanceStore.mergeData(lastRun);
           performanceStore.addPoint(
-            "worker-transfer",
-            b - a - lastRun.runtime[0],
+            'worker-transfer',
+            b - a - lastRun.runtime[0]
           );
         }
       }
       viewerComponent?.update(graphResult);
     } catch (error) {
-      console.log("errors", error);
+      console.log('errors', error);
     } finally {
       performanceStore.stopRun();
     }
@@ -129,31 +122,29 @@
 
   const handleUpdate = debounceAsyncFunction(update);
 
-  $effect(() => {
-    //@ts-ignore
-    AppSettingTypes.debug.stressTest.loadGrid.callback = () => {
-      manager.load(
-        templates.grid(
-          appSettings.value.debug.stressTest.amount,
-          appSettings.value.debug.stressTest.amount,
-        ),
-      );
-    };
-    //@ts-ignore
-    AppSettingTypes.debug.stressTest.loadTree.callback = () => {
-      manager.load(templates.tree(appSettings.value.debug.stressTest.amount));
-    };
-    //@ts-ignore
-    AppSettingTypes.debug.stressTest.lottaFaces.callback = () => {
-      manager.load(templates.lottaFaces as unknown as Graph);
-    };
-    //@ts-ignore
-    AppSettingTypes.debug.stressTest.lottaNodes.callback = () => {
-      manager.load(templates.lottaNodes as unknown as Graph);
-    };
-    //@ts-ignore
-    AppSettingTypes.debug.stressTest.lottaNodesAndFaces.callback = () => {
-      manager.load(templates.lottaNodesAndFaces as unknown as Graph);
+  onMount(() => {
+    appSettings.value.debug.stressTest = {
+      ...appSettings.value.debug.stressTest,
+      loadGrid: () => {
+        manager.load(
+          templates.grid(
+            appSettings.value.debug.stressTest.amount,
+            appSettings.value.debug.stressTest.amount
+          )
+        );
+      },
+      loadTree: () => {
+        manager.load(templates.tree(appSettings.value.debug.stressTest.amount));
+      },
+      lottaFaces: () => {
+        manager.load(templates.lottaFaces as unknown as Graph);
+      },
+      lottaNodes: () => {
+        manager.load(templates.lottaNodes as unknown as Graph);
+      },
+      lottaNodesAndFaces: () => {
+        manager.load(templates.lottaNodesAndFaces as unknown as Graph);
+      }
     };
   });
 </script>
@@ -184,7 +175,7 @@
           bind:settings={graphSettings}
           bind:settingTypes={graphSettingTypes}
           onsave={(g) => pm.saveGraph(g)}
-          onresult={(result) => handleUpdate(result)}
+          onresult={(result) => handleUpdate(result as Graph)}
         />
       {/if}
       <Sidebar>
@@ -202,8 +193,8 @@
         >
           <Keymap
             keymaps={[
-              { keymap: applicationKeymap, title: "Application" },
-              { keymap: graphInterface?.keymap, title: "Node-Editor" },
+              { keymap: applicationKeymap, title: 'Application' },
+              { keymap: graphInterface?.keymap, title: 'Node-Editor' }
             ]}
           />
         </Panel>

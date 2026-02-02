@@ -13,12 +13,12 @@ export function createWasmWrapper(buffer: ArrayBuffer) {
       host_log_panic: (ptr: number, len: number) => {
         if (!exports) return;
         const view = new Uint8Array(exports.memory.buffer, ptr, len);
-        console.error("RUST PANIC:", new TextDecoder().decode(view));
+        console.error('RUST PANIC:', new TextDecoder().decode(view));
       },
       host_log: (ptr: number, len: number) => {
         if (!exports) return;
         const view = new Uint8Array(exports.memory.buffer, ptr, len);
-        console.log("RUST:", new TextDecoder().decode(view));
+        console.log('RUST:', new TextDecoder().decode(view));
       }
     }
   };
@@ -43,7 +43,7 @@ export function createWasmWrapper(buffer: ArrayBuffer) {
   }
 
   function get_definition() {
-    const sections = WebAssembly.Module.customSections(module, "nodarium_definition");
+    const sections = WebAssembly.Module.customSections(module, 'nodarium_definition');
     if (sections.length > 0) {
       const decoder = new TextDecoder();
       const jsonString = decoder.decode(sections[0]);

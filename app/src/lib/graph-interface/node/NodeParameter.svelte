@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { NodeInput, NodeInstance } from "@nodarium/types";
-  import { createNodePath } from "../helpers";
-  import NodeInputEl from "./NodeInput.svelte";
-  import { getGraphManager, getGraphState } from "../graph-state.svelte";
+  import type { NodeInput, NodeInstance } from '@nodarium/types';
+  import { getGraphManager, getGraphState } from '../graph-state.svelte';
+  import { createNodePath } from '../helpers';
+  import NodeInputEl from './NodeInput.svelte';
 
   type Props = {
     node: NodeInstance;
@@ -15,9 +15,9 @@
 
   let { node = $bindable(), input, id, isLast }: Props = $props();
 
-  const inputType = node?.state?.type?.inputs?.[id]!;
+  const inputType = $derived(node?.state?.type?.inputs?.[id]);
 
-  const socketId = `${node.id}-${id}`;
+  const socketId = $derived(`${node.id}-${id}`);
 
   const graphState = getGraphState();
   const graphId = graph?.id;
@@ -30,38 +30,44 @@
     graphState.setDownSocket({
       node,
       index: id,
-      position: graphState.getSocketPosition?.(node, id),
+      position: graphState.getSocketPosition?.(node, id)
     });
   }
 
-  const leftBump = node.state?.type?.inputs?.[id].internal !== true;
-  const cornerBottom = isLast ? 5 : 0;
+  const leftBump = $derived(node.state?.type?.inputs?.[id].internal !== true);
+  const cornerBottom = $derived(isLast ? 5 : 0);
   const aspectRatio = 0.5;
 
-  const path = createNodePath({
-    depth: 7,
-    height: 20,
-    y: 50.5,
-    cornerBottom,
-    leftBump,
-    aspectRatio,
-  });
-  const pathDisabled = createNodePath({
-    depth: 6,
-    height: 18,
-    y: 50.5,
-    cornerBottom,
-    leftBump,
-    aspectRatio,
-  });
-  const pathHover = createNodePath({
-    depth: 8,
-    height: 25,
-    y: 50.5,
-    cornerBottom,
-    leftBump,
-    aspectRatio,
-  });
+  const path = $derived(
+    createNodePath({
+      depth: 7,
+      height: 20,
+      y: 50.5,
+      cornerBottom,
+      leftBump,
+      aspectRatio
+    })
+  );
+  const pathDisabled = $derived(
+    createNodePath({
+      depth: 6,
+      height: 18,
+      y: 50.5,
+      cornerBottom,
+      leftBump,
+      aspectRatio
+    })
+  );
+  const pathHover = $derived(
+    createNodePath({
+      depth: 8,
+      height: 25,
+      y: 50.5,
+      cornerBottom,
+      leftBump,
+      aspectRatio
+    })
+  );
 </script>
 
 <div
@@ -72,16 +78,14 @@
 >
   {#key id && graphId}
     <div class="content" class:disabled={graph?.inputSockets?.has(socketId)}>
-      {#if inputType.label !== ""}
-        <label for={elementId} title={input.description}
-          >{input.label || id}</label
-        >
+      {#if inputType?.label !== ''}
+        <label for={elementId} title={input.description}>{input.label || id}</label>
       {/if}
       <span
         class="absolute i-[tabler--help-circle] size-4 block top-2 right-2 opacity-30"
         title={JSON.stringify(input, null, 2)}
       ></span>
-      {#if inputType.external !== true}
+      {#if inputType?.external !== true}
         <NodeInputEl {graph} {elementId} bind:node {input} {id} />
       {/if}
     </div>
@@ -94,7 +98,8 @@
         onmousedown={handleMouseDown}
         role="button"
         tabindex="0"
-      ></div>
+      >
+      </div>
     {/if}
   {/key}
 
@@ -169,9 +174,7 @@
   }
 
   svg path {
-    transition:
-      d 0.3s ease,
-      fill 0.3s ease;
+    transition: d 0.3s ease, fill 0.3s ease;
     fill: var(--layer-1);
     stroke: var(--stroke);
     stroke-width: var(--stroke-width);

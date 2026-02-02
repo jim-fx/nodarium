@@ -1,7 +1,6 @@
 export { default as Input } from './Input.svelte';
 export { default as Checkbox } from './inputs/Checkbox.svelte';
-export { default as Float, default as Number } from './inputs/Float.svelte';
-export { default as Integer } from './inputs/Integer.svelte';
+export { default as Float } from './inputs/Float.svelte';
 export { default as Select } from './inputs/Select.svelte';
 export { default as Vec3 } from './inputs/Vec3.svelte';
 

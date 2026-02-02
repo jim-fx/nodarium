@@ -10,38 +10,33 @@
   "json": {
     // https://dprint.dev/plugins/json/config/
   },
-  "markdown": {
-  },
-  "toml": {
-  },
-  "dockerfile": {
-  },
-  "ruff": {
-  },
-  "jupyter": {
-  },
-  "malva": {
-  },
+  "markdown": {},
+  "toml": {},
+  "dockerfile": {},
+  "ruff": {},
+  "jupyter": {},
+  "malva": {},
   "markup": {
     // https://dprint.dev/plugins/markup_fmt/config/
     "scriptIndent": true,
     "styleIndent": true,
   },
-  "yaml": {
-  },
-  "graphql": {
-  },
+  "yaml": {},
+  "graphql": {},
   "exec": {
     "cwd": "${configDir}",
-
-    "commands": [{
-      "command": "rustfmt",
-      "exts": ["rs"],
-      "cacheKeyFiles": [
-        "rustfmt.toml",
-        "rust-toolchain.toml",
-      ],
-    }],
+    "commands": [
+      {
+        "command": "rustfmt",
+        "exts": [
+          "rs",
+        ],
+        "cacheKeyFiles": [
+          "rustfmt.toml",
+          "rust-toolchain.toml",
+        ],
+      },
+    ],
   },
   "excludes": [
     "**/node_modules",

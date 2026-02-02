@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { T } from "@threlte/core";
-  import BackgroundVert from "./Background.vert";
-  import BackgroundFrag from "./Background.frag";
-  import { colors } from "../graph/colors.svelte";
   import { appSettings } from "$lib/settings/app-settings.svelte";
+  import { T } from "@threlte/core";
+  import { colors } from "../graph/colors.svelte";
+  import BackgroundFrag from "./Background.frag";
+  import BackgroundVert from "./Background.vert";
 
   type Props = {
     minZoom: number;

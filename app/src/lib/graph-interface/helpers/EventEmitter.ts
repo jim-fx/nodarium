@@ -1,11 +1,11 @@
-import throttle from "$lib/helpers/throttle";
+import throttle from '$lib/helpers/throttle';
 
 type EventMap = Record<string, unknown>;
 type EventKey<T extends EventMap> = string & keyof T;
 type EventReceiver<T> = (params: T, stuff?: Record<string, unknown>) => unknown;
 
 export default class EventEmitter<
-  T extends EventMap = { [key: string]: unknown },
+  T extends EventMap = { [key: string]: unknown }
 > {
   index = 0;
   public eventMap: T = {} as T;
@@ -32,11 +32,11 @@ export default class EventEmitter<
   public on<K extends EventKey<T>>(
     event: K,
     cb: EventReceiver<T[K]>,
-    throttleTimer = 0,
+    throttleTimer = 0
   ) {
     if (throttleTimer > 0) cb = throttle(cb, throttleTimer);
     const cbs = Object.assign(this.cbs, {
-      [event]: [...(this.cbs[event] || []), cb],
+      [event]: [...(this.cbs[event] || []), cb]
     });
     this.cbs = cbs;
 
@@ -54,10 +54,10 @@ export default class EventEmitter<
    */
   public once<K extends EventKey<T>>(
     event: K,
-    cb: EventReceiver<T[K]>,
+    cb: EventReceiver<T[K]>
   ): () => void {
     const cbsOnce = Object.assign(this.cbsOnce, {
-      [event]: [...(this.cbsOnce[event] || []), cb],
+      [event]: [...(this.cbsOnce[event] || []), cb]
     });
     this.cbsOnce = cbsOnce;
 

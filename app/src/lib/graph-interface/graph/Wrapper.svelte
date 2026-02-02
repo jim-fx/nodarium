@@ -1,29 +1,25 @@
 <script lang="ts">
-  import type { Graph, NodeInstance, NodeRegistry } from "@nodarium/types";
-  import GraphEl from "./Graph.svelte";
-  import { GraphManager } from "../graph-manager.svelte";
-  import { createKeyMap } from "$lib/helpers/createKeyMap";
-  import {
-    GraphState,
-    setGraphManager,
-    setGraphState,
-  } from "../graph-state.svelte";
-  import { setupKeymaps } from "../keymaps";
+  import { createKeyMap } from '$lib/helpers/createKeyMap';
+  import type { Graph, NodeInstance, NodeRegistry } from '@nodarium/types';
+  import { GraphManager } from '../graph-manager.svelte';
+  import { GraphState, setGraphManager, setGraphState } from '../graph-state.svelte';
+  import { setupKeymaps } from '../keymaps';
+  import GraphEl from './Graph.svelte';
 
   type Props = {
     graph?: Graph;
     registry: NodeRegistry;
 
-    settings?: Record<string, any>;
+    settings?: Record<string, unknown>;
 
     activeNode?: NodeInstance;
     showGrid?: boolean;
     snapToGrid?: boolean;
     showHelp?: boolean;
-    settingTypes?: Record<string, any>;
+    settingTypes?: Record<string, unknown>;
 
     onsave?: (save: Graph) => void;
-    onresult?: (result: any) => void;
+    onresult?: (result: unknown) => void;
   };
 
   let {
@@ -36,11 +32,12 @@
     showHelp = $bindable(false),
     settingTypes = $bindable(),
     onsave,
-    onresult,
+    onresult
   }: Props = $props();
 
   export const keymap = createKeyMap([]);
 
+  // svelte-ignore state_referenced_locally
   export const manager = new GraphManager(registry);
   setGraphManager(manager);
 
@@ -70,14 +67,14 @@
     }
   });
 
-  manager.on("settings", (_settings) => {
+  manager.on('settings', (_settings) => {
     settingTypes = { ...settingTypes, ..._settings.types };
     settings = _settings.values;
   });
 
-  manager.on("result", (result) => onresult?.(result));
+  manager.on('result', (result) => onresult?.(result));
 
-  manager.on("save", (save) => onsave?.(save));
+  manager.on('save', (save) => onsave?.(save));
 
   $effect(() => {
     if (graph) {

@@ -1,23 +1,20 @@
 <script lang="ts">
-  import { Canvas } from "@threlte/core";
-  import Scene from "./Scene.svelte";
-  import { Vector3 } from "three";
-  import { decodeFloat, splitNestedArray } from "@nodarium/utils";
-  import type { PerformanceStore } from "@nodarium/utils";
-  import { appSettings } from "$lib/settings/app-settings.svelte";
-  import SmallPerformanceViewer from "$lib/performance/SmallPerformanceViewer.svelte";
-  import { MeshMatcapMaterial, TextureLoader, type Group } from "three";
-  import {
-    createGeometryPool,
-    createInstancedGeometryPool,
-  } from "./geometryPool";
+  import SmallPerformanceViewer from '$lib/performance/SmallPerformanceViewer.svelte';
+  import { appSettings } from '$lib/settings/app-settings.svelte';
+  import { decodeFloat, splitNestedArray } from '@nodarium/utils';
+  import type { PerformanceStore } from '@nodarium/utils';
+  import { Canvas } from '@threlte/core';
+  import { Vector3 } from 'three';
+  import { type Group, MeshMatcapMaterial, TextureLoader } from 'three';
+  import { createGeometryPool, createInstancedGeometryPool } from './geometryPool';
+  import Scene from './Scene.svelte';
 
   const loader = new TextureLoader();
-  const matcap = loader.load("/matcap_green.jpg");
-  matcap.colorSpace = "srgb";
+  const matcap = loader.load('/matcap_green.jpg');
+  matcap.colorSpace = 'srgb';
   const material = new MeshMatcapMaterial({
     color: 0xffffff,
-    matcap,
+    matcap
   });
 
   let sceneComponent = $state<ReturnType<typeof Scene>>();
@@ -34,7 +31,7 @@
 
     return {
       totalFaces: meshes.totalFaces + faces.totalFaces,
-      totalVertices: meshes.totalVertices + faces.totalVertices,
+      totalVertices: meshes.totalVertices + faces.totalVertices
     };
   }
 
@@ -64,12 +61,12 @@
   }
 
   export const update = function update(result: Int32Array) {
-    perf.addPoint("split-result");
+    perf.addPoint('split-result');
     const inputs = splitNestedArray(result);
     perf.endPoint();
 
     if (appSettings.value.debug.showStemLines) {
-      perf.addPoint("create-lines");
+      perf.addPoint('create-lines');
       lines = inputs
         .map((input) => {
           if (input[0] === 0) {
@@ -80,13 +77,13 @@
       perf.endPoint();
     }
 
-    perf.addPoint("update-geometries");
+    perf.addPoint('update-geometries');
 
     const { totalVertices, totalFaces } = updateGeometries(inputs, scene);
     perf.endPoint();
 
-    perf.addPoint("total-vertices", totalVertices);
-    perf.addPoint("total-faces", totalFaces);
+    perf.addPoint('total-vertices', totalVertices);
+    perf.addPoint('total-faces', totalFaces);
     sceneComponent?.invalidate();
   };
 </script>

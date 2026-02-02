@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { type Snippet } from "svelte";
-  import { panelState as state } from "./PanelState.svelte";
+  import { type Snippet } from 'svelte';
+  import { panelState as state } from './PanelState.svelte';
 
   const { children } = $props<{ children?: Snippet }>();
 </script>
@@ -19,8 +19,7 @@
           class:active={panelId === state.activePanel.value}
           onclick={() => (state.activePanel.value = panelId)}
         >
-          <span class={`block w-6 h-6 iconify ${state.panels[panelId].icon}`}
-          ></span>
+          <span class={`block w-6 h-6 iconify ${state.panels[panelId].icon}`}></span>
         </button>
       {/if}
     {/each}
@@ -40,9 +39,7 @@
     height: 100%;
     right: 0px;
     transform: translateX(calc(100% - 30px));
-    transition:
-      transform 0.2s,
-      background 0.2s ease;
+    transition: transform 0.2s, background 0.2s ease;
     width: 30%;
     min-width: 350px;
   }

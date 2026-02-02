@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { getGraphState } from "../graph-state.svelte";
-  import { createNodePath } from "../helpers/index.js";
-  import type { NodeInstance } from "@nodarium/types";
+  import type { NodeInstance } from '@nodarium/types';
+  import { getGraphState } from '../graph-state.svelte';
+  import { createNodePath } from '../helpers/index.js';
 
   const graphState = getGraphState();
 
@@ -10,47 +10,52 @@
   function handleMouseDown(event: MouseEvent) {
     event.stopPropagation();
     event.preventDefault();
-    if ("state" in node) {
+    if ('state' in node) {
       graphState.setDownSocket?.({
         node,
         index: 0,
-        position: graphState.getSocketPosition?.(node, 0),
+        position: graphState.getSocketPosition?.(node, 0)
       });
     }
   }
 
   const cornerTop = 10;
-  const rightBump = !!node?.state?.type?.outputs?.length;
+  const rightBump = $derived(!!node?.state?.type?.outputs?.length);
   const aspectRatio = 0.25;
 
-  const path = createNodePath({
-    depth: 5.5,
-    height: 34,
-    y: 49,
-    cornerTop,
-    rightBump,
-    aspectRatio,
-  });
-  const pathHover = createNodePath({
-    depth: 8.5,
-    height: 50,
-    y: 49,
-    cornerTop,
-    rightBump,
-    aspectRatio,
-  });
+  const path = $derived(
+    createNodePath({
+      depth: 5.5,
+      height: 34,
+      y: 49,
+      cornerTop,
+      rightBump,
+      aspectRatio
+    })
+  );
+  const pathHover = $derived(
+    createNodePath({
+      depth: 8.5,
+      height: 50,
+      y: 49,
+      cornerTop,
+      rightBump,
+      aspectRatio
+    })
+  );
 </script>
 
 <div class="wrapper" data-node-id={node.id} data-node-type={node.type}>
   <div class="content">
-    {node.type.split("/").pop()}
+    {node.type.split('/').pop()}
   </div>
   <div
     class="click-target"
     role="button"
     tabindex="0"
     onmousedown={handleMouseDown}
-  ></div>
+  >
+  </div>
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 100 100"
@@ -62,8 +67,7 @@
       --hover-path: path("${pathHover}");
     `}
   >
-    <path vector-effect="non-scaling-stroke" stroke="white" stroke-width="0.1"
-    ></path>
+    <path vector-effect="non-scaling-stroke" stroke="white" stroke-width="0.1"></path>
   </svg>
 </div>
 
@@ -104,9 +108,7 @@
 
   svg path {
     stroke-width: 0.2px;
-    transition:
-      d 0.3s ease,
-      fill 0.3s ease;
+    transition: d 0.3s ease, fill 0.3s ease;
     fill: var(--layer-2);
     stroke: var(--stroke);
     stroke-width: var(--stroke-width);

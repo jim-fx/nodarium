@@ -1,8 +1,7 @@
 import type { AsyncCache } from '@nodarium/types';
-import { openDB, type IDBPDatabase } from 'idb';
+import { type IDBPDatabase, openDB } from 'idb';
 
 export class IndexDBCache implements AsyncCache<unknown> {
-
   size: number = 100;
 
   db: Promise<IDBPDatabase<unknown>>;
@@ -12,7 +11,7 @@ export class IndexDBCache implements AsyncCache<unknown> {
     this.db = openDB<unknown>('cache/' + id, 1, {
       upgrade(db) {
         db.createObjectStore('keyval');
-      },
+      }
     });
   }
 
@@ -33,16 +32,16 @@ export class IndexDBCache implements AsyncCache<unknown> {
     if (res instanceof ArrayBuffer) {
       return res;
     }
-    return
+    return;
   }
 
   async getString(key: string) {
     const res = await this.get(key);
     if (!res) return;
-    if (typeof res === "string") {
+    if (typeof res === 'string') {
       return res;
     }
-    return
+    return;
   }
 
   async set(key: string, value: unknown) {
@@ -54,5 +53,4 @@ export class IndexDBCache implements AsyncCache<unknown> {
   clear() {
     this.db.then(db => db.clear('keyval'));
   }
-
 }

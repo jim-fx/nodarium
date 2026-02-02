@@ -1,15 +1,15 @@
 <script lang="ts">
-  import BreadCrumbs from "./BreadCrumbs.svelte";
-  import DraggableNode from "./DraggableNode.svelte";
-  import type { RemoteNodeRegistry } from "@nodarium/registry";
+  import type { RemoteNodeRegistry } from '$lib/node-registry/index';
+  import BreadCrumbs from './BreadCrumbs.svelte';
+  import DraggableNode from './DraggableNode.svelte';
 
   const { registry }: { registry: RemoteNodeRegistry } = $props();
 
-  let activeId = $state("max/plantarium");
+  let activeId = $state('max/plantarium');
   let showBreadCrumbs = false;
 
   const [activeUser, activeCollection, activeNode] = $derived(
-    activeId.split(`/`),
+    activeId.split(`/`)
   );
 </script>
 
@@ -22,12 +22,14 @@
     {#await registry.fetchUsers()}
       <div>Loading Users...</div>
     {:then users}
-      {#each users as user}
+      {#each users as user (user.id)}
         <button
           onclick={() => {
             activeId = user.id;
-          }}>{user.id}</button
+          }}
         >
+          {user.id}
+        </button>
       {/each}
     {:catch error}
       <div>{error.message}</div>
@@ -36,7 +38,7 @@
     {#await registry.fetchUser(activeUser)}
       <div>Loading User...</div>
     {:then user}
-      {#each user.collections as collection}
+      {#each user.collections as collection (collection)}
         <button
           onclick={() => {
             activeId = collection.id;
@@ -52,7 +54,7 @@
     {#await registry.fetchCollection(`${activeUser}/${activeCollection}`)}
       <div>Loading Collection...</div>
     {:then collection}
-      {#each collection.nodes as node}
+      {#each collection.nodes as node (node.id)}
         {#await registry.fetchNodeDefinition(node.id)}
           <div>Loading Node... {node.id}</div>
         {:then node}

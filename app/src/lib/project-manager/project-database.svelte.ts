@@ -31,6 +31,7 @@ export async function getGraph(id: number): Promise<Graph | undefined> {
 
 export async function saveGraph(graph: Graph): Promise<Graph> {
   const db = await getDB();
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
   graph.meta = { ...graph.meta, lastModified: new Date().toISOString() };
   await db.put(STORE_NAME, graph);
   return graph;

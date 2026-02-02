@@ -4,47 +4,47 @@ import type {
   NodeInput,
   NodeRegistry,
   RuntimeExecutor,
-  SyncCache,
-} from "@nodarium/types";
+  SyncCache
+} from '@nodarium/types';
 import {
   concatEncodedArrays,
   createLogger,
   encodeFloat,
   fastHashArrayBuffer,
-  type PerformanceStore,
-} from "@nodarium/utils";
-import type { RuntimeNode } from "./types";
+  type PerformanceStore
+} from '@nodarium/utils';
+import type { RuntimeNode } from './types';
 
-const log = createLogger("runtime-executor");
+const log = createLogger('runtime-executor');
 log.mute();
 
 function getValue(input: NodeInput, value?: unknown) {
-  if (value === undefined && "value" in input) {
+  if (value === undefined && 'value' in input) {
     value = input.value;
   }
 
-  if (input.type === "float") {
+  if (input.type === 'float') {
     return encodeFloat(value as number);
   }
 
   if (Array.isArray(value)) {
-    if (input.type === "vec3") {
+    if (input.type === 'vec3') {
       return [
         0,
         value.length + 1,
         ...value.map((v) => encodeFloat(v)),
         1,
-        1,
+        1
       ] as number[];
     }
     return [0, value.length + 1, ...value, 1, 1] as number[];
   }
 
-  if (typeof value === "boolean") {
+  if (typeof value === 'boolean') {
     return value ? 1 : 0;
   }
 
-  if (typeof value === "number") {
+  if (typeof value === 'number') {
     return value;
   }
 
@@ -64,14 +64,14 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
   constructor(
     private registry: NodeRegistry,
-    public cache?: SyncCache<Int32Array>,
+    public cache?: SyncCache<Int32Array>
   ) {
     this.cache = undefined;
   }
 
   private async getNodeDefinitions(graph: Graph) {
-    if (this.registry.status !== "ready") {
-      throw new Error("Node registry is not ready");
+    if (this.registry.status !== 'ready') {
+      throw new Error('Node registry is not ready');
     }
 
     await this.registry.load(graph.nodes.map((node) => node.type));
@@ -98,26 +98,23 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         depth: 0,
         children: [],
         parents: [],
-        inputNodes: {},
-      }
-      return n
-    })
+        inputNodes: {}
+      };
+      return n;
+    });
 
-
-    const outputNode = graphNodes.find((node) =>
-      node.type.endsWith("/output"),
-    );
+    const outputNode = graphNodes.find((node) => node.type.endsWith('/output'));
     if (!outputNode) {
-      throw new Error("No output node found");
+      throw new Error('No output node found');
     }
 
     const nodeMap = new Map(
-      graphNodes.map((node) => [node.id, node]),
+      graphNodes.map((node) => [node.id, node])
     );
 
     // loop through all edges and assign the parent and child nodes to each node
     for (const edge of graph.edges) {
-      const [parentId, _parentOutput, childId, childInput] = edge;
+      const [parentId, /*_parentOutput*/, childId, childInput] = edge;
       const parent = nodeMap.get(parentId);
       const child = nodeMap.get(childId);
       if (parent && child) {
@@ -146,7 +143,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   }
 
   async execute(graph: Graph, settings: Record<string, unknown>) {
-    this.perf?.addPoint("runtime");
+    this.perf?.addPoint('runtime');
 
     let a = performance.now();
 
@@ -154,7 +151,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     const [outputNode, nodes] = await this.addMetaData(graph);
     let b = performance.now();
 
-    this.perf?.addPoint("collect-metadata", b - a);
+    this.perf?.addPoint('collect-metadata', b - a);
 
     /*
      * Here we sort the nodes into buckets, which we then execute one by one
@@ -169,13 +166,13 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
     // we execute the nodes from the bottom up
     const sortedNodes = nodes.sort(
-      (a, b) => (b.state?.depth || 0) - (a.state?.depth || 0),
+      (a, b) => (b.state?.depth || 0) - (a.state?.depth || 0)
     );
 
     // here we store the intermediate results of the nodes
     const results: Record<string, Int32Array> = {};
 
-    if (settings["randomSeed"]) {
+    if (settings['randomSeed']) {
       this.seed = Math.floor(Math.random() * 100000000);
     }
 
@@ -192,7 +189,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       // Collect the inputs for the node
       const inputs = Object.entries(node_type.inputs || {}).map(
         ([key, input]) => {
-          if (input.type === "seed") {
+          if (input.type === 'seed') {
             return this.seed;
           }
 
@@ -206,7 +203,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
           if (inputNode) {
             if (results[inputNode.id] === undefined) {
               throw new Error(
-                `Node ${node.type} is missing input from node ${inputNode.type}`,
+                `Node ${node.type} is missing input from node ${inputNode.type}`
               );
             }
             return results[inputNode.id];
@@ -218,45 +215,45 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
           }
 
           return getValue(input);
-        },
+        }
       );
       b = performance.now();
 
-      this.perf?.addPoint("collected-inputs", b - a);
+      this.perf?.addPoint('collected-inputs', b - a);
 
       try {
         a = performance.now();
         const encoded_inputs = concatEncodedArrays(inputs);
         b = performance.now();
-        this.perf?.addPoint("encoded-inputs", b - a);
+        this.perf?.addPoint('encoded-inputs', b - a);
 
         a = performance.now();
-        let inputHash = `node-${node.id}-${fastHashArrayBuffer(encoded_inputs)}`;
+        const inputHash = `node-${node.id}-${fastHashArrayBuffer(encoded_inputs)}`;
         b = performance.now();
-        this.perf?.addPoint("hash-inputs", b - a);
+        this.perf?.addPoint('hash-inputs', b - a);
 
-        let cachedValue = this.cache?.get(inputHash);
+        const cachedValue = this.cache?.get(inputHash);
         if (cachedValue !== undefined) {
           log.log(`Using cached value for ${node_type.id || node.id}`);
-          this.perf?.addPoint("cache-hit", 1);
+          this.perf?.addPoint('cache-hit', 1);
           results[node.id] = cachedValue as Int32Array;
           continue;
         }
-        this.perf?.addPoint("cache-hit", 0);
+        this.perf?.addPoint('cache-hit', 0);
 
         log.group(`executing ${node_type.id}-${node.id}`);
         log.log(`Inputs:`, inputs);
         a = performance.now();
         results[node.id] = node_type.execute(encoded_inputs);
-        log.log("Executed", node.type, node.id)
+        log.log('Executed', node.type, node.id);
         b = performance.now();
 
         if (this.cache && node.id !== outputNode.id) {
           this.cache.set(inputHash, results[node.id]);
         }
 
-        this.perf?.addPoint("node/" + node_type.id, b - a);
-        log.log("Result:", results[node.id]);
+        this.perf?.addPoint('node/' + node_type.id, b - a);
+        log.log('Result:', results[node.id]);
         log.groupEnd();
       } catch (e) {
         log.groupEnd();
@@ -271,7 +268,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       this.cache.size = sortedNodes.length * 2;
     }
 
-    this.perf?.endPoint("runtime");
+    this.perf?.endPoint('runtime');
 
     return res as unknown as Int32Array;
   }

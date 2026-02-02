@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { NodeInstance } from "@nodarium/types";
-  import type { GraphManager } from "$lib/graph-interface/graph-manager.svelte";
-  import ActiveNodeSelected from "./ActiveNodeSelected.svelte";
+  import type { GraphManager } from '$lib/graph-interface/graph-manager.svelte';
+  import type { NodeInstance } from '@nodarium/types';
+  import ActiveNodeSelected from './ActiveNodeSelected.svelte';
 
   type Props = {
     manager: GraphManager;

@@ -1,15 +1,14 @@
-import { writable, type Writable } from "svelte/store";
+import { type Writable, writable } from 'svelte/store';
 
 function isStore(v: unknown): v is Writable<unknown> {
-  return v !== null && typeof v === "object" && "subscribe" in v && "set" in v;
+  return v !== null && typeof v === 'object' && 'subscribe' in v && 'set' in v;
 }
 
 const storeIds: Map<string, ReturnType<typeof createLocalStore>> = new Map();
 
-const HAS_LOCALSTORAGE = "localStorage" in globalThis;
+const HAS_LOCALSTORAGE = 'localStorage' in globalThis;
 
 function createLocalStore<T>(key: string, initialValue: T | Writable<T>) {
-
   let store: Writable<T>;
 
   if (HAS_LOCALSTORAGE) {
@@ -36,18 +35,15 @@ function createLocalStore<T>(key: string, initialValue: T | Writable<T>) {
     subscribe: store.subscribe,
     set: store.set,
     update: store.update
-  }
+  };
 }
 
-
 export default function localStore<T>(key: string, initialValue: T | Writable<T>): Writable<T> {
-
   if (storeIds.has(key)) return storeIds.get(key) as Writable<T>;
 
-  const store = createLocalStore(key, initialValue)
+  const store = createLocalStore(key, initialValue);
 
   storeIds.set(key, store);
 
-  return store
-
+  return store;
 }

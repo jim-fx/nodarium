@@ -1,11 +1,11 @@
-import type { Graph, NodeDefinition, NodeId } from "./types";
+import type { Graph, NodeDefinition, NodeId } from './types';
 
 export interface NodeRegistry {
   /**
    * The status of the node registry
    * @remarks The status should be "loading" when the registry is loading, "ready" when the registry is ready, and "error" if an error occurred while loading the registry
    */
-  status: "loading" | "ready" | "error";
+  status: 'loading' | 'ready' | 'error';
   /**
    * Load the nodes with the given ids
    * @param nodeIds - The ids of the nodes to load
@@ -31,7 +31,7 @@ export interface NodeRegistry {
    * @param wasmBuffer - The WebAssembly buffer for the node
    * @returns The node definition
    */
-  register: (wasmBuffer: ArrayBuffer) => Promise<NodeDefinition>;
+  register: (id: string, wasmBuffer: ArrayBuffer) => Promise<NodeDefinition>;
 }
 
 export interface RuntimeExecutor {
@@ -42,7 +42,7 @@ export interface RuntimeExecutor {
    */
   execute: (
     graph: Graph,
-    settings: Record<string, unknown>,
+    settings: Record<string, unknown>
   ) => Promise<Int32Array>;
 }
 

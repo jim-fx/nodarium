@@ -1,6 +1,6 @@
-import { withSubComponents } from "$lib/helpers";
-import Grid from "./Grid.svelte";
-import Row from "./Row.svelte";
-import Cell from "./Cell.svelte";
+import { withSubComponents } from '$lib/helpers';
+import Cell from './Cell.svelte';
+import Grid from './Grid.svelte';
+import Row from './Row.svelte';
 
 export default withSubComponents(Grid, { Row, Cell });
