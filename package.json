@@ -9,7 +9,7 @@
     "build:story": "pnpm -r --filter 'ui' story:build",
     "build:app": "BASE_PATH=/ui pnpm -r --filter 'ui' build && pnpm -r --filter 'app' build",
     "build:nodes": "cargo build --workspace --target wasm32-unknown-unknown --release && rm -rf ./app/static/nodes/max/plantarium/ && mkdir -p ./app/static/nodes/max/plantarium/ && cp -R ./target/wasm32-unknown-unknown/release/*.wasm ./app/static/nodes/max/plantarium/",
-    "build:deploy": "pnpm build",
+    "build:deploy": "pnpm build && cp packages/ui/build app/build/ui",
     "dev:nodes": "chokidar './nodes/**' --initial -i '/pkg/' -c 'pnpm build:nodes'",
     "dev:app_ui": "pnpm -r --parallel --filter 'app' --filter './packages/ui' dev",
     "dev_ui": "pnpm -r --filter 'ui' dev:ui",
