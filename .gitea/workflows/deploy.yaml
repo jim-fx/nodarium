@@ -7,42 +7,50 @@ on:
 env:
   PNPM_CACHE_FOLDER: .pnpm-store
 
-x-templates:
-  setup-steps: &setup-steps
-    - name: 📑 Checkout Code
-      uses: actions/checkout@v4
-
-    - name: 💾 Setup pnpm Cache
-      uses: actions/cache@v4
-      with:
-        path: ${{ env.PNPM_CACHE_FOLDER }}
-        key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-    - name: 📦 Install Dependencies
-      run: pnpm install --frozen-lockfile --store-dir ${{ env.PNPM_CACHE_FOLDER }}
-
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    container: jimfx/nodes:latest
+    outputs:
+      workspace: ${{ steps.set_workspace.outputs.workspace }}
+    steps:
+      - name: 📑 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 💾 Setup pnpm Cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PNPM_CACHE_FOLDER }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: 📦 Install Dependencies
+        run: pnpm install --frozen-lockfile --store-dir ${{ env.PNPM_CACHE_FOLDER }}
+
+      - name: 📝 Set Workspace Output
+        id: set_workspace
+        run: echo "workspace=." >> $GITHUB_OUTPUT
+
   lint:
+    needs: setup
     runs-on: ubuntu-latest
     container: jimfx/nodes:latest
     steps:
-      - <<: *setup-steps
       - name: 🧹 Run Linter
         run: pnpm lint
 
   format:
+    needs: setup
     runs-on: ubuntu-latest
     container: jimfx/nodes:latest
     steps:
-      - <<: *setup-steps
       - name: 🎨 Check Formatting
         run: pnpm format:check
 
   typecheck:
+    needs: setup
     runs-on: ubuntu-latest
     container: jimfx/nodes:latest
     steps:
-      - <<: *setup-steps
       - name: 🧬 Type Check
         run: pnpm check
 
@@ -52,8 +60,6 @@ jobs:
     runs-on: ubuntu-latest
     container: jimfx/nodes:latest
     steps:
-      - <<: *setup-steps
-      
       - name: 🛠️ Build Site
         run: pnpm run build:deploy
 
