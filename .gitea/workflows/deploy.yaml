@@ -8,15 +8,12 @@ env:
   PNPM_CACHE_FOLDER: .pnpm-store
 
 jobs:
-  build_and_deploy:
-    if: github.ref == 'refs/heads/main'
-    needs: [lint]
+  setup:
     runs-on: ubuntu-latest
     container: jimfx/nodes:latest
     steps:
       - name: 📑 Checkout Code
         uses: actions/checkout@v4
-
       - name: 💾 Setup pnpm Cache
         uses: actions/cache@v4
         with:
@@ -24,22 +21,51 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
-
       - name: 📦 Install Dependencies
         run: pnpm install --frozen-lockfile --store-dir ${{ env.PNPM_CACHE_FOLDER }}
 
+      - name: 🗜️ Tar Workspace
+        run: tar -cf workspace.tar --exclude="${{ env.PNPM_CACHE_FOLDER }}" .
+
+      - name: 📤 Upload Workspace
+        uses: actions/upload-artifact@v3
+        with:
+          name: workspace-deps
+          path: workspace.tar
+          compression-level: 0
+
+  lint:
+    needs: setup
+    runs-on: ubuntu-latest
+    container: jimfx/nodes:latest
+    steps:
+      - name: 📥 Download Workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: workspace-deps
+      - name: 🔓 Untar Workspace
+        run: tar -xf workspace.tar && rm workspace.tar
       - name: 🧹 Run Linter
         run: pnpm lint
-
       - name: 🎨 Check Formatting
         run: pnpm format:check
-
       - name: 🧬 Type Check
         run: pnpm check
 
+  build_and_deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: [lint]
+    runs-on: ubuntu-latest
+    container: jimfx/nodes:latest
+    steps:
+      - name: 📥 Download Workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: workspace-deps
+      - name: 🔓 Untar Workspace
+        run: tar -xf workspace.tar && rm workspace.tar
       - name: 🛠️ Build Site
         run: pnpm run build:deploy
-
       - name: 🔑 Configure rclone
         run: |
           echo "$SSH_PRIVATE_KEY" > /tmp/id_rsa
