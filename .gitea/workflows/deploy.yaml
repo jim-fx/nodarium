@@ -14,7 +14,6 @@ jobs:
     steps:
       - name: 📑 Checkout Code
         uses: actions/checkout@v4
-
       - name: 💾 Setup pnpm Cache
         uses: actions/cache@v4
         with:
@@ -22,19 +21,18 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
-
       - name: 📦 Install Dependencies
         run: pnpm install --frozen-lockfile --store-dir ${{ env.PNPM_CACHE_FOLDER }}
+      
+      - name: 🗜️ Tar Workspace
+        run: tar -cf workspace.tar --exclude="${{ env.PNPM_CACHE_FOLDER }}" .
 
       - name: 📤 Upload Workspace
         uses: actions/upload-artifact@v3
         with:
           name: workspace-deps
-          path: .
-          include-hidden-files: true
-          # Compression level 0 is recommended by docs for large non-compressible files
-          # but for code/node_modules, the default (6) is usually fine.
-          compression-level: 6 
+          path: workspace.tar
+          compression-level: 0 
 
   lint:
     needs: setup
@@ -45,7 +43,8 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: workspace-deps
-          path: .
+      - name: 🔓 Untar Workspace
+        run: tar -xf workspace.tar && rm workspace.tar
       - name: 🧹 Run Linter
         run: pnpm lint
 
@@ -58,7 +57,8 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: workspace-deps
-          path: .
+      - name: 🔓 Untar Workspace
+        run: tar -xf workspace.tar && rm workspace.tar
       - name: 🎨 Check Formatting
         run: pnpm format:check
 
@@ -71,7 +71,8 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: workspace-deps
-          path: .
+      - name: 🔓 Untar Workspace
+        run: tar -xf workspace.tar && rm workspace.tar
       - name: 🧬 Type Check
         run: pnpm check
 
@@ -85,11 +86,10 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: workspace-deps
-          path: .
-
+      - name: 🔓 Untar Workspace
+        run: tar -xf workspace.tar && rm workspace.tar
       - name: 🛠️ Build Site
         run: pnpm run build:deploy
-
       - name: 🔑 Configure rclone
         run: |
           mkdir -p ~/.config/rclone
@@ -107,7 +107,6 @@ jobs:
           SSH_HOST: ${{ vars.SSH_HOST }}
           SSH_PORT: ${{ vars.SSH_PORT }}
           SSH_USER: ${{ vars.SSH_USER }}
-
       - name: 🚚 Deploy via rclone
         run: |
           rclone sync --update -v --progress --exclude "_astro/**" --stats 2s --stats-one-line ./app/build/ sftp-remote:${REMOTE_DIR} --transfers 4
