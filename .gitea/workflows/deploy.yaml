@@ -27,11 +27,14 @@ jobs:
         run: pnpm install --frozen-lockfile --store-dir ${{ env.PNPM_CACHE_FOLDER }}
 
       - name: 📤 Upload Workspace
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: workspace-deps
           path: .
           include-hidden-files: true
+          # Compression level 0 is recommended by docs for large non-compressible files
+          # but for code/node_modules, the default (6) is usually fine.
+          compression-level: 6 
 
   lint:
     needs: setup
@@ -39,7 +42,7 @@ jobs:
     container: jimfx/nodes:latest
     steps:
       - name: 📥 Download Workspace
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: workspace-deps
           path: .
@@ -52,7 +55,7 @@ jobs:
     container: jimfx/nodes:latest
     steps:
       - name: 📥 Download Workspace
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: workspace-deps
           path: .
@@ -65,7 +68,7 @@ jobs:
     container: jimfx/nodes:latest
     steps:
       - name: 📥 Download Workspace
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: workspace-deps
           path: .
@@ -79,7 +82,7 @@ jobs:
     container: jimfx/nodes:latest
     steps:
       - name: 📥 Download Workspace
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: workspace-deps
           path: .
