@@ -11,8 +11,6 @@ jobs:
   setup:
     runs-on: ubuntu-latest
     container: jimfx/nodes:latest
-    outputs:
-      workspace: ${{ steps.set_workspace.outputs.workspace }}
     steps:
       - name: 📑 Checkout Code
         uses: actions/checkout@v4
@@ -22,19 +20,29 @@ jobs:
         with:
           path: ${{ env.PNPM_CACHE_FOLDER }}
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
 
       - name: 📦 Install Dependencies
         run: pnpm install --frozen-lockfile --store-dir ${{ env.PNPM_CACHE_FOLDER }}
 
-      - name: 📝 Set Workspace Output
-        id: set_workspace
-        run: echo "workspace=." >> $GITHUB_OUTPUT
+      - name: 📤 Upload Workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace-deps
+          path: .
+          include-hidden-files: true
 
   lint:
     needs: setup
     runs-on: ubuntu-latest
     container: jimfx/nodes:latest
     steps:
+      - name: 📥 Download Workspace
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace-deps
+          path: .
       - name: 🧹 Run Linter
         run: pnpm lint
 
@@ -43,6 +51,11 @@ jobs:
     runs-on: ubuntu-latest
     container: jimfx/nodes:latest
     steps:
+      - name: 📥 Download Workspace
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace-deps
+          path: .
       - name: 🎨 Check Formatting
         run: pnpm format:check
 
@@ -51,6 +64,11 @@ jobs:
     runs-on: ubuntu-latest
     container: jimfx/nodes:latest
     steps:
+      - name: 📥 Download Workspace
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace-deps
+          path: .
       - name: 🧬 Type Check
         run: pnpm check
 
@@ -60,6 +78,12 @@ jobs:
     runs-on: ubuntu-latest
     container: jimfx/nodes:latest
     steps:
+      - name: 📥 Download Workspace
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace-deps
+          path: .
+
       - name: 🛠️ Build Site
         run: pnpm run build:deploy
 
