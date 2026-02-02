@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { appSettings } from "$lib/settings/app-settings.svelte";
-  import { T } from "@threlte/core";
-  import { colors } from "../graph/colors.svelte";
-  import BackgroundFrag from "./Background.frag";
-  import BackgroundVert from "./Background.vert";
+  import { appSettings } from '$lib/settings/app-settings.svelte';
+  import { T } from '@threlte/core';
+  import { colors } from '../graph/colors.svelte';
+  import BackgroundFrag from './Background.frag';
+  import BackgroundVert from './Background.vert';
 
   type Props = {
     minZoom: number;
@@ -18,7 +18,7 @@
     maxZoom = 150,
     cameraPosition = [0, 1, 0],
     width = globalThis?.innerWidth || 100,
-    height = globalThis?.innerHeight || 100,
+    height = globalThis?.innerHeight || 100
   }: Props = $props();
 
   let bw = $derived(width / cameraPosition[2]);
@@ -38,25 +38,25 @@
       fragmentShader={BackgroundFrag}
       uniforms={{
         camPos: {
-          value: [0, 1, 0],
+          value: [0, 1, 0]
         },
         backgroundColor: {
-          value: colors["layer-0"],
+          value: colors['layer-0']
         },
         lineColor: {
-          value: colors["outline"],
+          value: colors['outline']
         },
         zoomLimits: {
-          value: [2, 50],
+          value: [2, 50]
         },
         dimensions: {
-          value: [100, 100],
-        },
+          value: [100, 100]
+        }
       }}
       uniforms.camPos.value={cameraPosition}
-      uniforms.backgroundColor.value={appSettings.value.theme &&
-        colors["layer-0"]}
-      uniforms.lineColor.value={appSettings.value.theme && colors["outline"]}
+      uniforms.backgroundColor.value={appSettings.value.theme
+      && colors['layer-0']}
+      uniforms.lineColor.value={appSettings.value.theme && colors['outline']}
       uniforms.zoomLimits.value={[minZoom, maxZoom]}
       uniforms.dimensions.value={[width, height]}
     />
