@@ -27,7 +27,7 @@ jobs:
         run: pnpm install --frozen-lockfile --store-dir ${{ env.PNPM_CACHE_FOLDER }}
 
       - name: 📤 Upload Workspace
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v3
         with:
           name: workspace-deps
           path: .
@@ -42,7 +42,7 @@ jobs:
     container: jimfx/nodes:latest
     steps:
       - name: 📥 Download Workspace
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v3
         with:
           name: workspace-deps
           path: .
@@ -55,7 +55,7 @@ jobs:
     container: jimfx/nodes:latest
     steps:
       - name: 📥 Download Workspace
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v3
         with:
           name: workspace-deps
           path: .
@@ -68,7 +68,7 @@ jobs:
     container: jimfx/nodes:latest
     steps:
       - name: 📥 Download Workspace
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v3
         with:
           name: workspace-deps
           path: .
@@ -82,7 +82,7 @@ jobs:
     container: jimfx/nodes:latest
     steps:
       - name: 📥 Download Workspace
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v3
         with:
           name: workspace-deps
           path: .
