@@ -2,17 +2,17 @@ Nodarium
 
 <div align="center">
 
-  <a href="https://nodes.max-richter.dev/"><h2 align="center">Nodarium</h2></a>
+<a href="https://nodes.max-richter.dev/"><h2 align="center">Nodarium</h2></a>
 
   <p align="center">
-    Nodarium is a WebAssembly based visual programming language. 
+    Nodarium is a WebAssembly based visual programming language.
   </p>
 
-  <img src=".github/graphics/nodes.svg" width="80%"/>
+  <img src=".gitea/graphics/nodes.svg" width="80%"/>
 
 </div>
 
-Currently this visual programming language is used to develop https://nodes.max-richter.dev, a procedural modelling tool for 3d-plants.
+Currently this visual programming language is used to develop <https://nodes.max-richter.dev>, a procedural modelling tool for 3d-plants.
 
 # Table of contents
 
@@ -22,7 +22,7 @@ Currently this visual programming language is used to develop https://nodes.max-
 
 # Developing
 
-### Install prerequisites:
+### Install prerequisites
 
 - [Node.js](https://nodejs.org/en/download)
 - [pnpm](https://pnpm.io/installation)
