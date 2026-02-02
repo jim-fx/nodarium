@@ -1,13 +1,13 @@
 <script lang="ts">
-  import type { NodeInstance } from "@nodarium/types";
-  import { getGraphState } from "../graph-state.svelte";
-  import { T } from "@threlte/core";
-  import { type Mesh } from "three";
-  import NodeFrag from "./Node.frag";
-  import NodeVert from "./Node.vert";
-  import NodeHtml from "./NodeHTML.svelte";
-  import { colors } from "../graph/colors.svelte";
-  import { appSettings } from "$lib/settings/app-settings.svelte";
+  import { appSettings } from '$lib/settings/app-settings.svelte';
+  import type { NodeInstance } from '@nodarium/types';
+  import { T } from '@threlte/core';
+  import { type Mesh } from 'three';
+  import { getGraphState } from '../graph-state.svelte';
+  import { colors } from '../graph/colors.svelte';
+  import NodeFrag from './Node.frag';
+  import NodeVert from './Node.vert';
+  import NodeHtml from './NodeHTML.svelte';
 
   const graphState = getGraphState();
 
@@ -21,12 +21,12 @@
   const isActive = $derived(graphState.activeNodeId === node.id);
   const isSelected = $derived(graphState.selectedNodes.has(node.id));
   const strokeColor = $derived(
-    appSettings.value.theme &&
-      (isSelected
+    appSettings.value.theme
+      && (isSelected
         ? colors.selected
         : isActive
-          ? colors.active
-          : colors.outline),
+        ? colors.active
+        : colors.outline)
   );
 
   let meshRef: Mesh | undefined = $state();
@@ -55,12 +55,12 @@
     fragmentShader={NodeFrag}
     transparent
     uniforms={{
-      uColorBright: { value: colors["layer-2"] },
-      uColorDark: { value: colors["layer-1"] },
+      uColorBright: { value: colors['layer-2'] },
+      uColorDark: { value: colors['layer-1'] },
       uStrokeColor: { value: colors.outline.clone() },
       uStrokeWidth: { value: 1.0 },
       uWidth: { value: 20 },
-      uHeight: { value: height },
+      uHeight: { value: height }
     }}
     uniforms.uStrokeColor.value={strokeColor.clone()}
     uniforms.uStrokeWidth.value={(7 - z) / 3}

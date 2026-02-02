@@ -1,11 +1,11 @@
 <script lang="ts">
-  import localStore from "$lib/helpers/localStore";
-  import { T, useTask } from "@threlte/core";
-  import { OrbitControls } from "@threlte/extras";
-  import { onMount } from "svelte";
-  import { Vector3 } from "three";
-  import type { PerspectiveCamera, Vector3Tuple } from "three";
-  import type { OrbitControls as OrbitControlsType } from "three/examples/jsm/controls/OrbitControls.js";
+  import localStore from '$lib/helpers/localStore';
+  import { T, useTask } from '@threlte/core';
+  import { OrbitControls } from '@threlte/extras';
+  import { onMount } from 'svelte';
+  import { Vector3 } from 'three';
+  import type { PerspectiveCamera, Vector3Tuple } from 'three';
+  import type { OrbitControls as OrbitControlsType } from 'three/examples/jsm/controls/OrbitControls.js';
 
   let camera = $state<PerspectiveCamera>();
   let controls = $state<OrbitControlsType>();
@@ -20,9 +20,9 @@
   const cameraTransform = localStore<{
     camera: Vector3Tuple;
     target: Vector3Tuple;
-  }>("nodes.camera.transform", {
+  }>('nodes.camera.transform', {
     camera: [10, 10, 10],
-    target: [0, 0, 0],
+    target: [0, 0, 0]
   });
 
   function saveCameraState() {
@@ -33,7 +33,7 @@
     if (tPos.some((v) => isNaN(v)) || cPos.some((v) => isNaN(v))) return;
     $cameraTransform = {
       camera: cPos,
-      target: tPos,
+      target: tPos
     };
   }
 
@@ -54,13 +54,13 @@
 
   $effect(() => {
     if (
-      center &&
-      controls &&
-      centerCamera &&
-      (center.x !== controls.target.x ||
-        center.y !== controls.target.y ||
-        center.z !== controls.target.z) &&
-      !isRunning
+      center
+      && controls
+      && centerCamera
+      && (center.x !== controls.target.x
+        || center.y !== controls.target.y
+        || center.z !== controls.target.z)
+      && !isRunning
     ) {
       isRunning = true;
       task.start();

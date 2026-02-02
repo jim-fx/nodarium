@@ -8,15 +8,15 @@
 
   const total = $derived(values.reduce((acc, v) => acc + v, 0));
 
-  let colors = ["red", "green", "blue"];
+  let colors = ['red', 'green', 'blue'];
 </script>
 
 <div class="wrapper">
   <div class="bars">
-    {#each values as value, i}
+    {#each values as value, i (value)}
       <div
         class="bar bg-{colors[i]}-400"
-        style="width: {(value / total) * 100}%;"
+        style:width={(value / total) * 100 + '%'}
       >
         {Math.round(value)}ms
       </div>
@@ -24,7 +24,7 @@
   </div>
 
   <div class="labels mt-2">
-    {#each values as _label, i}
+    {#each values as _label, i (_label)}
       <div class="text-{colors[i]}-400">{labels[i]}</div>
     {/each}
   </div>

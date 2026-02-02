@@ -1,6 +1,6 @@
-import type { NodeInput } from "@nodarium/types";
+import type { NodeInput } from '@nodarium/types';
 
-type Button = { type: "button"; label?: string };
+type Button = { type: 'button'; label?: string };
 
 export type SettingsStore = {
   [key: string]: SettingsStore | string | number | boolean;
@@ -23,5 +23,5 @@ export type SettingsValue = Record<
 >;
 
 export function isNodeInput(v: SettingsNode | undefined): v is InputType {
-  return !!v && "type" in v;
+  return !!v && 'type' in v;
 }

@@ -31,7 +31,7 @@
           # frontend
           pkgs.vscode-langservers-extracted
           pkgs.typescript-language-server
-          pkgs.prettier
+          pkgs.dprint
           pkgs.tailwindcss-language-server
           pkgs.svelte-language-server
         ];

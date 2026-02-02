@@ -1,7 +1,7 @@
 import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
-const { BASE_URL = "" } = process.env;
+const { BASE_URL = '' } = process.env;
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -11,7 +11,7 @@ const config = {
 
   kit: {
     paths: {
-      base: BASE_URL,
+      base: BASE_URL
     },
     // adapter-auto only supports some environments, see https://kit.svelte.dev/docs/adapter-auto for a list.
     // If your environment is not supported, or you settled on a specific environment, switch out the adapter.

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import wabtInit from "wabt";
+  import wabtInit from 'wabt';
 
   const { wasm } = $props<{ wasm: ArrayBuffer }>();
 
@@ -7,7 +7,7 @@
     const wabt = await wabtInit();
 
     const module = wabt.readWasm(new Uint8Array(arrayBuffer), {
-      readDebugNames: true,
+      readDebugNames: true
     });
 
     module.generateNames();

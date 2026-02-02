@@ -1,6 +1,6 @@
 import type { NodeInstance, Socket } from '@nodarium/types';
 import { getContext, setContext } from 'svelte';
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { OrthographicCamera, Vector3 } from 'three';
 import type { GraphManager } from './graph-manager.svelte';
 
@@ -54,7 +54,7 @@ export class GraphState {
   height = $state(100);
 
   hoveredEdgeId = $state<string | null>(null);
-  edges = new Map<string, EdgeData>();
+  edges = new SvelteMap<string, EdgeData>();
 
   wrapper = $state<HTMLDivElement>(null!);
   rect: DOMRect = $derived(
@@ -100,7 +100,7 @@ export class GraphState {
   hoveredSocket = $state<Socket | null>(null);
   possibleSockets = $state<Socket[]>([]);
   possibleSocketIds = $derived(
-    new Set(this.possibleSockets.map((s) => `${s.node.id}-${s.index}`))
+    new SvelteSet(this.possibleSockets.map((s) => `${s.node.id}-${s.index}`))
   );
 
   getEdges() {
@@ -155,7 +155,6 @@ export class GraphState {
       return 4;
     } else if (z > 11) {
       return 2;
-    } else {
     }
     return 1;
   }
@@ -193,7 +192,7 @@ export class GraphState {
           (p) =>
             p !== 'seed'
             && node?.inputs
-            && !('setting' in node?.inputs?.[p])
+            && !(node?.inputs?.[p] !== undefined && 'setting' in node.inputs[p])
             && node.inputs[p].hidden !== true
         ).length;
     this.nodeHeightCache[nodeTypeId] = height;
@@ -294,8 +293,8 @@ export class GraphState {
   getNodeIdFromEvent(event: MouseEvent) {
     let clickedNodeId = -1;
 
-    let mx = event.clientX - this.rect.x;
-    let my = event.clientY - this.rect.y;
+    const mx = event.clientX - this.rect.x;
+    const my = event.clientY - this.rect.y;
 
     if (event.button === 0) {
       // check if the clicked element is a node

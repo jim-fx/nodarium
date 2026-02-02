@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getContext, type Snippet } from "svelte";
+  import { getContext, type Snippet } from 'svelte';
 
   let index = $state(-1);
   let wrapper: HTMLDivElement;
@@ -8,19 +8,17 @@
 
   $effect(() => {
     if (index === -1) {
-      index = getContext<() => number>("registerCell")();
+      index = getContext<() => number>('registerCell')();
     }
   });
 
-  const sizes = getContext<{ value: string[] }>("sizes");
+  const sizes = getContext<{ value: string[] }>('sizes');
 
-  let downSizes: string[] = [];
   let downWidth = 0;
   let mouseDown = false;
   let startX = 0;
 
   function handleMouseDown(event: MouseEvent) {
-    downSizes = [...sizes.value];
     mouseDown = true;
     startX = event.clientX;
     downWidth = wrapper.getBoundingClientRect().width;
@@ -45,7 +43,8 @@
     role="button"
     tabindex="0"
     onmousedown={handleMouseDown}
-  ></div>
+  >
+  </div>
 {/if}
 
 <div class="cell" bind:this={wrapper}>

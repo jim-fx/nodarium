@@ -1,38 +1,82 @@
-name: Deploy to GitHub Pages
+name: 🏗️ Build and Deploy
 
 on:
   push:
-    branches: "main"
+    branches: ["*"]
+
+env:
+  PNPM_CACHE_FOLDER: .pnpm-store
+
+x-templates:
+  setup-steps: &setup-steps
+    - name: 📑 Checkout Code
+      uses: actions/checkout@v4
+
+    - name: 💾 Setup pnpm Cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.PNPM_CACHE_FOLDER }}
+        key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+    - name: 📦 Install Dependencies
+      run: pnpm install --frozen-lockfile --store-dir ${{ env.PNPM_CACHE_FOLDER }}
 
 jobs:
-  build_site:
+  lint:
     runs-on: ubuntu-latest
     container: jimfx/nodes:latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - <<: *setup-steps
+      - name: 🧹 Run Linter
+        run: pnpm lint
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+  format:
+    runs-on: ubuntu-latest
+    container: jimfx/nodes:latest
+    steps:
+      - <<: *setup-steps
+      - name: 🎨 Check Formatting
+        run: pnpm format:check
 
-      - name: build
+  typecheck:
+    runs-on: ubuntu-latest
+    container: jimfx/nodes:latest
+    steps:
+      - <<: *setup-steps
+      - name: 🧬 Type Check
+        run: pnpm check
+
+  build_and_deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: [lint, format, typecheck]
+    runs-on: ubuntu-latest
+    container: jimfx/nodes:latest
+    steps:
+      - <<: *setup-steps
+      
+      - name: 🛠️ Build Site
         run: pnpm run build:deploy
 
       - name: 🔑 Configure rclone
         run: |
-          echo "$SSH_PRIVATE_KEY" > /tmp/id_rsa
-          chmod 600 /tmp/id_rsa
           mkdir -p ~/.config/rclone
-          echo -e "[sftp-remote]\ntype = sftp\nhost = ${SSH_HOST}\nuser = ${SSH_USER}\nport = ${SSH_PORT}\nkey_file = /tmp/id_rsa" > ~/.config/rclone/rclone.conf
+          cat <<EOF > ~/.config/rclone/rclone.conf
+          [sftp-remote]
+          type = sftp
+          host = ${SSH_HOST}
+          user = ${SSH_USER}
+          port = ${SSH_PORT}
+          key_use_agent = false
+          key_data = ${SSH_PRIVATE_KEY}
+          EOF
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SSH_HOST: ${{ vars.SSH_HOST }}
           SSH_PORT: ${{ vars.SSH_PORT }}
           SSH_USER: ${{ vars.SSH_USER }}
 
-      - name: 🚀 Deploy Changed Files via rclone
+      - name: 🚚 Deploy via rclone
         run: |
-          echo "Uploading the rest"
-          rclone sync --update -v --progress --exclude _astro/** --stats 2s --stats-one-line ./app/build/ sftp-remote:${REMOTE_DIR} --transfers 4
+          rclone sync --update -v --progress --exclude "_astro/**" --stats 2s --stats-one-line ./app/build/ sftp-remote:${REMOTE_DIR} --transfers 4
         env:
           REMOTE_DIR: ${{ vars.REMOTE_DIR }}

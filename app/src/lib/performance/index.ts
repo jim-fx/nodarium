@@ -1,1 +1,1 @@
-export { default as PerformanceViewer } from "./PerformanceViewer.svelte";
+export { default as PerformanceViewer } from './PerformanceViewer.svelte';

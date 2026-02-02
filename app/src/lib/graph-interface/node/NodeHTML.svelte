@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { NodeInstance } from "@nodarium/types";
-  import NodeHeader from "./NodeHeader.svelte";
-  import NodeParameter from "./NodeParameter.svelte";
-  import { getGraphState } from "../graph-state.svelte";
+  import type { NodeInstance } from '@nodarium/types';
+  import { getGraphState } from '../graph-state.svelte';
+  import NodeHeader from './NodeHeader.svelte';
+  import NodeParameter from './NodeParameter.svelte';
 
   let ref: HTMLDivElement;
 
@@ -10,7 +10,7 @@
 
   type Props = {
     node: NodeInstance;
-    position?: "absolute" | "fixed" | "relative";
+    position?: 'absolute' | 'fixed' | 'relative';
     isActive?: boolean;
     isSelected?: boolean;
     inView?: boolean;
@@ -19,11 +19,11 @@
 
   let {
     node = $bindable(),
-    position = "absolute",
+    position = 'absolute',
     isActive = false,
     isSelected = false,
     inView = true,
-    z = 2,
+    z = 2
   }: Props = $props();
 
   // If we dont have a random offset, all nodes becom visible at the same zoom level -> stuttering
@@ -31,12 +31,11 @@
   const zLimit = 2 - zOffset;
 
   const parameters = Object.entries(node.state?.type?.inputs || {}).filter(
-    (p) =>
-      p[1].type !== "seed" && !("setting" in p[1]) && p[1]?.hidden !== true,
+    (p) => p[1].type !== 'seed' && !('setting' in p[1]) && p[1]?.hidden !== true
   );
 
   $effect(() => {
-    if ("state" in node && !node.state.ref) {
+    if ('state' in node && !node.state.ref) {
       node.state.ref = ref;
       graphState?.updateNodePosition(node);
     }
@@ -47,7 +46,7 @@
   class="node {position}"
   class:active={isActive}
   style:--cz={z + zOffset}
-  style:display={inView && z > zLimit ? "block" : "none"}
+  style:display={inView && z > zLimit ? 'block' : 'none'}
   class:selected={isSelected}
   class:out-of-view={!inView}
   data-node-id={node.id}
@@ -56,7 +55,7 @@
 >
   <NodeHeader {node} />
 
-  {#each parameters as [key, value], i}
+  {#each parameters as [key, value], i (key)}
     <NodeParameter
       bind:node
       id={key}

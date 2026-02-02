@@ -25,18 +25,7 @@ FROM nginx:alpine AS runner
 
 RUN rm /etc/nginx/conf.d/default.conf
 
-COPY <<EOF /etc/nginx/conf.d/app.conf
-server {
-    listen 80;
-    server_name _;
-    root /app;
-    index index.html;
-
-    location / {
-        try_files \$uri \$uri/ /index.html;
-    }
-}
-EOF
+COPY app/docker/app.conf /etc/nginx/conf.d/app.conf
 
 COPY --from=builder /app/app/build /app
 

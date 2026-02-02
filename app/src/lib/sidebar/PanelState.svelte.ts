@@ -1,6 +1,6 @@
 import { localState } from '$lib/helpers/localState.svelte';
 
-type Panel = {
+export type Panel = {
   icon: string;
   classes: string;
   hidden?: boolean;
@@ -12,6 +12,10 @@ class PanelState {
 
   get keys() {
     return Object.keys(this.panels);
+  }
+
+  public unregisterPanel(id: string) {
+    delete this.panels[id];
   }
 
   public registerPanel(id: string, icon: string, classes: string, hidden: boolean): Panel {

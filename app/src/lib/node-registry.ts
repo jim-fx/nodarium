@@ -8,6 +8,7 @@ export async function getWasm(id: `${string}/${string}/${string}`) {
   try {
     await fs.access(filePath);
   } catch (e) {
+    console.error(`Failed to read node: ${id}`, e);
     return null;
   }
 
@@ -20,9 +21,11 @@ export async function getNodeWasm(id: `${string}/${string}/${string}`) {
   const wasmBytes = await getWasm(id);
   if (!wasmBytes) return null;
 
-  const wrapper = createWasmWrapper(wasmBytes);
-
-  return wrapper;
+  try {
+    return createWasmWrapper(wasmBytes.buffer);
+  } catch (error) {
+    console.error(`Failed to create node wrapper for node: ${id}`, error);
+  }
 }
 
 export async function getNode(id: `${string}/${string}/${string}`) {

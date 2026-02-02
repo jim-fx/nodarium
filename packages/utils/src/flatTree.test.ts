@@ -1,25 +1,23 @@
-import { expect, test } from 'vitest'
-import { decodeNestedArray, encodeNestedArray, concatEncodedArrays } from './flatTree'
+import { expect, test } from 'vitest';
+import { concatEncodedArrays, decodeNestedArray, encodeNestedArray } from './flatTree';
 
-test("it correctly concats nested arrays", () => {
-
+test('it correctly concats nested arrays', () => {
   const input_a = encodeNestedArray([1, 2, 3]);
   const input_b = 2;
   const input_c = encodeNestedArray([4, 5, 6]);
 
   const output = concatEncodedArrays([input_a, input_b, input_c]);
 
-  console.log("Output", output);
+  console.log('Output', output);
 
   const decoded = decodeNestedArray(output);
 
   expect(decoded[0]).toEqual([1, 2, 3]);
   expect(decoded[1]).toEqual(2);
   expect(decoded[2]).toEqual([4, 5, 6]);
-
 });
 
-test("it correctly concats nested arrays with nested arrays", () => {
+test('it correctly concats nested arrays with nested arrays', () => {
   const input_c = encodeNestedArray([1, 2, 3]);
   const output = concatEncodedArrays([42, 12, input_c]);
   const decoded = decodeNestedArray(output);
@@ -78,11 +76,11 @@ test('it correctly handles sequential nesting', () => {
 });
 
 // Test with mixed data types (if supported)
-// Note: This test assumes your implementation supports mixed types. 
+// Note: This test assumes your implementation supports mixed types.
 // If not, you can ignore or remove this test.
 test('it correctly handles arrays with mixed data types', () => {
   const input = [1, 'text', [true, [null, ['another text']]]];
-  //@ts-ignore
+  // @ts-ignore
   const decoded = decodeNestedArray(encodeNestedArray(input));
   expect(decoded).toEqual(input);
 });

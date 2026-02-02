@@ -1,13 +1,13 @@
-import { MemoryRuntimeExecutor } from "./runtime-executor";
-import { RemoteNodeRegistry, IndexDBCache } from "@nodarium/registry";
-import type { Graph } from "@nodarium/types";
-import { createPerformanceStore } from "@nodarium/utils";
-import { MemoryRuntimeCache } from "./runtime-executor-cache";
+import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
+import type { Graph } from '@nodarium/types';
+import { createPerformanceStore } from '@nodarium/utils';
+import { MemoryRuntimeExecutor } from './runtime-executor';
+import { MemoryRuntimeCache } from './runtime-executor-cache';
 
-const indexDbCache = new IndexDBCache("node-registry");
-const nodeRegistry = new RemoteNodeRegistry("", indexDbCache);
+const indexDbCache = new IndexDBCache('node-registry');
+const nodeRegistry = new RemoteNodeRegistry('', indexDbCache);
 
-const cache = new MemoryRuntimeCache()
+const cache = new MemoryRuntimeCache();
 const executor = new MemoryRuntimeExecutor(nodeRegistry, cache);
 
 const performanceStore = createPerformanceStore();
@@ -31,11 +31,11 @@ export async function setUseRuntimeCache(useCache: boolean) {
 
 export async function executeGraph(
   graph: Graph,
-  settings: Record<string, unknown>,
+  settings: Record<string, unknown>
 ): Promise<Int32Array> {
   await nodeRegistry.load(graph.nodes.map((n) => n.type));
   performanceStore.startRun();
-  let res = await executor.execute(graph, settings);
+  const res = await executor.execute(graph, settings);
   performanceStore.stopRun();
   return res;
 }

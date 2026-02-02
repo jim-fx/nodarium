@@ -18,7 +18,7 @@ export function animate(duration: number, callback: (progress: number) => void |
     } else {
       callback(1);
     }
-  }
+  };
   requestAnimationFrame(loop);
 }
 
@@ -30,10 +30,11 @@ export function createNodePath({
   cornerBottom = 0,
   leftBump = false,
   rightBump = false,
-  aspectRatio = 1,
+  aspectRatio = 1
 } = {}) {
   return `M0,${cornerTop}
-      ${cornerTop
+      ${
+    cornerTop
       ? ` V${cornerTop}
               Q0,0 ${cornerTop * aspectRatio},0
               H${100 - cornerTop * aspectRatio}
@@ -42,40 +43,45 @@ export function createNodePath({
       : ` V0
               H100
             `
-    }
+  }
       V${y - height / 2}
-      ${rightBump
+      ${
+    rightBump
       ? ` C${100 - depth},${y - height / 2} ${100 - depth},${y + height / 2} 100,${y + height / 2}`
       : ` H100`
-    }
-      ${cornerBottom
+  }
+      ${
+    cornerBottom
       ? ` V${100 - cornerBottom}
               Q100,100 ${100 - cornerBottom * aspectRatio},100
               H${cornerBottom * aspectRatio}
               Q0,100  0,${100 - cornerBottom}
             `
       : `${leftBump ? `V100 H0` : `V100`}`
-    }
-      ${leftBump
-      ? ` V${y + height / 2} C${depth},${y + height / 2} ${depth},${y - height / 2} 0,${y - height / 2}`
+  }
+      ${
+    leftBump
+      ? ` V${y + height / 2} C${depth},${y + height / 2} ${depth},${y - height / 2} 0,${
+        y - height / 2
+      }`
       : ` H0`
-    }
-      Z`.replace(/\s+/g, " ");
+  }
+      Z`.replace(/\s+/g, ' ');
 }
 
-export const debounce = (fn: Function, ms = 300) => {
+export const debounce = (fn: () => void, ms = 300) => {
   let timeoutId: ReturnType<typeof setTimeout>;
-  return function (this: any, ...args: any[]) {
+  return function(this: unknown, ...args: unknown[]) {
     clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn.apply(this, args), ms);
+    timeoutId = setTimeout(() => fn.apply(this, args as []), ms);
   };
 };
 
-export const clone: <T>(v: T) => T = "structedClone" in globalThis ? globalThis.structuredClone : (obj) => JSON.parse(JSON.stringify(obj));
+export const clone: <T>(v: T) => T = 'structedClone' in globalThis
+  ? globalThis.structuredClone
+  : (obj) => JSON.parse(JSON.stringify(obj));
 
-
-
-export function withSubComponents<A, B extends Record<string, any>>(
+export function withSubComponents<A, B extends Record<string, unknown>>(
   component: A,
   subcomponents: B
 ): A & B {
@@ -87,7 +93,7 @@ export function withSubComponents<A, B extends Record<string, any>>(
 }
 
 export function humanizeNumber(number: number): string {
-  const suffixes = ["", "K", "M", "B", "T"];
+  const suffixes = ['', 'K', 'M', 'B', 'T'];
   if (number < 1000) {
     return number.toString();
   }
@@ -104,11 +110,15 @@ export function humanizeDuration(durationInMilliseconds: number) {
   const millisecondsPerHour = 3600000;
   const millisecondsPerDay = 86400000;
 
-  let days = Math.floor(durationInMilliseconds / millisecondsPerDay);
-  let hours = Math.floor((durationInMilliseconds % millisecondsPerDay) / millisecondsPerHour);
-  let minutes = Math.floor((durationInMilliseconds % millisecondsPerHour) / millisecondsPerMinute);
-  let seconds = Math.floor((durationInMilliseconds % millisecondsPerMinute) / millisecondsPerSecond);
-  let millis = durationInMilliseconds % millisecondsPerSecond;
+  const days = Math.floor(durationInMilliseconds / millisecondsPerDay);
+  const hours = Math.floor((durationInMilliseconds % millisecondsPerDay) / millisecondsPerHour);
+  const minutes = Math.floor(
+    (durationInMilliseconds % millisecondsPerHour) / millisecondsPerMinute
+  );
+  const seconds = Math.floor(
+    (durationInMilliseconds % millisecondsPerMinute) / millisecondsPerSecond
+  );
+  const millis = durationInMilliseconds % millisecondsPerSecond;
 
   let durationString = '';
 
@@ -131,32 +141,10 @@ export function humanizeDuration(durationInMilliseconds: number) {
 
   return durationString.trim();
 }
-// export function debounceAsyncFunction<T extends any[], R>(
-//   func: (...args: T) => Promise<R>
-// ): (...args: T) => Promise<R> {
-//   let timeoutId: ReturnType<typeof setTimeout> | null = null;
-//   let lastPromise: Promise<R> | null = null;
-//   let lastReject: ((reason?: any) => void) | null = null;
-//
-//   return (...args: T): Promise<R> => {
-//     if (timeoutId) {
-//       clearTimeout(timeoutId);
-//       if (lastReject) {
-//         lastReject(new Error("Debounced: Previous call was canceled."));
-//       }
-//     }
-//
-//     return new Promise<R>((resolve, reject) => {
-//       lastReject = reject;
-//       timeoutId = setTimeout(() => {
-//         timeoutId = null;
-//         lastReject = null;
-//         lastPromise = func(...args).then(resolve, reject);
-//       }, 300); // Default debounce time is 300ms; you can make this configurable.
-//     });
-//   };
-// }
-export function debounceAsyncFunction<T extends (...args: any[]) => Promise<any>>(asyncFn: T): T {
+
+export function debounceAsyncFunction<T extends (...args: never[]) => Promise<unknown>>(
+  asyncFn: T
+): T {
   let isRunning = false;
   let latestArgs: Parameters<T> | null = null;
   let resolveNext: (() => void) | null = null;
@@ -177,7 +165,7 @@ export function debounceAsyncFunction<T extends (...args: any[]) => Promise<any>
     try {
       // Execute with the latest arguments
       const result = await asyncFn(...latestArgs!);
-      return result;
+      return result as ReturnType<T>;
     } finally {
       // Allow the next execution
       isRunning = false;
@@ -190,48 +178,18 @@ export function debounceAsyncFunction<T extends (...args: any[]) => Promise<any>
   }) as T;
 }
 
-// export function debounceAsyncFunction<T extends any[], R>(func: (...args: T) => Promise<R>): (...args: T) => Promise<R> {
-//   let currentPromise: Promise<R> | null = null;
-//   let nextArgs: T | null = null;
-//   let resolveNext: ((result: R) => void) | null = null;
-//
-//   const debouncedFunction = async (...args: T): Promise<R> => {
-//     if (currentPromise) {
-//       // Store the latest arguments and create a new promise to resolve them later
-//       nextArgs = args;
-//       return new Promise<R>((resolve) => {
-//         resolveNext = resolve;
-//       });
-//     } else {
-//       // Execute the function immediately
-//       try {
-//         currentPromise = func(...args);
-//         const result = await currentPromise;
-//         return result;
-//       } finally {
-//         currentPromise = null;
-//         // If there are stored arguments, call the function again with the latest arguments
-//         if (nextArgs) {
-//           const argsToUse = nextArgs;
-//           const resolver = resolveNext;
-//           nextArgs = null;
-//           resolveNext = null;
-//           resolver!(await debouncedFunction(...argsToUse));
-//         }
-//       }
-//     }
-//   };
-//
-//   return debouncedFunction;
-// }
-
-export function withArgsChangeOnly<T extends any[], R>(func: (...args: T) => R): (...args: T) => R {
+export function withArgsChangeOnly<T extends unknown[], R>(
+  func: (...args: T) => R
+): (...args: T) => R {
   let lastArgs: T | undefined = undefined;
   let lastResult: R;
 
   return (...args: T): R => {
     // Check if arguments are the same as last call
-    if (lastArgs && args.length === lastArgs.length && args.every((val, index) => val === lastArgs?.[index])) {
+    if (
+      lastArgs && args.length === lastArgs.length
+      && args.every((val, index) => val === lastArgs?.[index])
+    ) {
       return lastResult; // Return cached result if arguments haven't changed
     }
 
@@ -241,4 +199,3 @@ export function withArgsChangeOnly<T extends any[], R>(func: (...args: T) => R):
     return lastResult; // Return new result
   };
 }
-

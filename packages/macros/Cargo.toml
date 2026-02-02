@@ -2,17 +2,17 @@
 name = "nodarium_macros"
 version = "0.1.0"
 edition = "2021"
-license = "MIT"
-description = "Procedural macros for the nodarium crate"
 homepage = "https://nodes.max-richter.dev/docs"
+license = "MIT"
 repository = "https://github.com/jim-fx/nodes"
+description = "Procedural macros for the nodarium crate"
 
 [lib]
 proc-macro = true
 
 [dependencies]
-syn = { version = "2.0", features = ["full"] }
+nodarium_types = { version = "0.1.0", path = "../types" }
+quote = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
-quote = "1.0"
-nodarium_types = { version = "0.1.0", path = "../types" }
+syn = { version = "2.0", features = ["full"] }

@@ -4,10 +4,10 @@
 @font-face {
   font-display: swap;
   /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Fira Code';
+  font-family: "Fira Code";
   font-style: normal;
   font-weight: 300;
-  src: url('/fonts/fira-code-v22-latin-300.woff2') format('woff2');
+  src: url("/fonts/fira-code-v22-latin-300.woff2") format("woff2");
   /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
 }
 
@@ -15,15 +15,15 @@
 @font-face {
   font-display: swap;
   /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Fira Code';
+  font-family: "Fira Code";
   font-style: normal;
   font-weight: 600;
-  src: url('/fonts/fira-code-v22-latin-600.woff2') format('woff2');
+  src: url("/fonts/fira-code-v22-latin-600.woff2") format("woff2");
   /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
 }
 
 :root {
-  --font-family: 'Fira Code', monospace;
+  --font-family: "Fira Code", monospace;
   font-family: var(--font-family);
 
   /* Spacing */
@@ -37,14 +37,13 @@
   /* Large spacing */
   --spacing-xl: 32px;
   /* Extra large spacing */
-
 }
 
 @theme {
-  --color-neutral-100: #E7E7E7;
-  --color-neutral-200: #CECECE;
-  --color-neutral-300: #7C7C7C;
-  --color-neutral-400: #2D2D2D;
+  --color-neutral-100: #e7e7e7;
+  --color-neutral-200: #cecece;
+  --color-neutral-300: #7c7c7c;
+  --color-neutral-400: #2d2d2d;
   --color-neutral-500: #171717;
   --color-neutral-800: #111111;
   --color-neutral-900: #060606;
@@ -65,10 +64,10 @@
 }
 
 html {
-  --neutral-100: #E7E7E7;
-  --neutral-200: #CECECE;
-  --neutral-300: #7C7C7C;
-  --neutral-400: #2D2D2D;
+  --neutral-100: #e7e7e7;
+  --neutral-200: #cecece;
+  --neutral-300: #7c7c7c;
+  --neutral-400: #2d2d2d;
   --neutral-500: #171717;
   --neutral-800: #111111;
   --neutral-900: #060606;
@@ -123,45 +122,45 @@ html.theme-solarized {
 }
 
 html.theme-catppuccin {
-  --text-color: #CDD6F4;
+  --text-color: #cdd6f4;
   --outline: #3e3e4f;
   --layer-3: #a8aac8;
   --layer-2: #313244;
-  --layer-1: #1E1E2E;
+  --layer-1: #1e1e2e;
   --layer-0: #11111b;
   --connection: #444459;
 }
 
 html.theme-high-contrast {
-  --text-color: #FFFFFF;
+  --text-color: #ffffff;
   --outline: white;
   --layer-0: #000000;
   --layer-1: black;
   --layer-2: #222222;
-  --layer-3: #FFFFFF;
-  --connection: #FFF;
+  --layer-3: #ffffff;
+  --connection: #fff;
 }
 
 html.theme-nord {
-  --text-color: #D8DEE9;
-  --outline: #4C566A;
-  --layer-0: #2E3440;
-  --layer-1: #3B4252;
-  --layer-2: #434C5E;
-  --layer-3: #5E81AC;
+  --text-color: #d8dee9;
+  --outline: #4c566a;
+  --layer-0: #2e3440;
+  --layer-1: #3b4252;
+  --layer-2: #434c5e;
+  --layer-3: #5e81ac;
   --active: #8999bd;
   --selected: #b76c3f;
-  --connection: #4C566A;
+  --connection: #4c566a;
 }
 
 html.theme-dracula {
-  --text-color: #F8F8F2;
-  --outline: #6272A4;
-  --layer-0: #282A36;
-  --layer-1: #44475A;
-  --layer-2: #32374D;
-  --layer-3: #BD93F9;
-  --connection: #6272A4;
+  --text-color: #f8f8f2;
+  --outline: #6272a4;
+  --layer-0: #282a36;
+  --layer-1: #44475a;
+  --layer-2: #32374d;
+  --layer-3: #bd93f9;
+  --connection: #6272a4;
 }
 
 button {

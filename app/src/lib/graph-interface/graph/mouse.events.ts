@@ -177,8 +177,8 @@ export class MouseEventManager {
       }
     }
 
-    let mx = event.clientX - this.state.rect.x;
-    let my = event.clientY - this.state.rect.y;
+    const mx = event.clientX - this.state.rect.x;
+    const my = event.clientY - this.state.rect.y;
 
     this.state.mouseDown = [mx, my];
     this.state.cameraDown[0] = this.state.cameraPosition[0];
@@ -242,8 +242,8 @@ export class MouseEventManager {
   }
 
   handleWindowMouseMove(event: MouseEvent) {
-    let mx = event.clientX - this.state.rect.x;
-    let my = event.clientY - this.state.rect.y;
+    const mx = event.clientX - this.state.rect.x;
+    const my = event.clientY - this.state.rect.y;
 
     this.state.mousePosition = this.state.projectScreenToWorld(mx, my);
     this.state.hoveredNodeId = this.state.getNodeIdFromEvent(event);
@@ -352,9 +352,9 @@ export class MouseEventManager {
 
     // here we are handling panning of camera
     this.state.isPanning = true;
-    let newX = this.state.cameraDown[0]
+    const newX = this.state.cameraDown[0]
       - (mx - this.state.mouseDown[0]) / this.state.cameraPosition[2];
-    let newY = this.state.cameraDown[1]
+    const newY = this.state.cameraDown[1]
       - (my - this.state.mouseDown[1]) / this.state.cameraPosition[2];
 
     this.state.cameraPosition[0] = newX;
@@ -392,6 +392,7 @@ export class MouseEventManager {
         / zoomRatio;
     this.state.cameraPosition[1] = this.state.mousePosition[1]
       - (this.state.mousePosition[1] - this.state.cameraPosition[1])
-        / zoomRatio, this.state.cameraPosition[2] = newZoom;
+        / zoomRatio;
+    this.state.cameraPosition[2] = newZoom;
   }
 }

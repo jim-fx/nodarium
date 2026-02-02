@@ -25,7 +25,7 @@ export class ProjectManager {
     this.projects = await db.getGraphs();
 
     if (this.activeProjectId.value !== undefined) {
-      let loadedGraph = await db.getGraph(this.activeProjectId.value);
+      const loadedGraph = await db.getGraph(this.activeProjectId.value);
       if (loadedGraph) {
         this.graph = loadedGraph;
       }

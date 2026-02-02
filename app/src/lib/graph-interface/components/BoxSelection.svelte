@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { HTML } from "@threlte/extras";
+  import { HTML } from '@threlte/extras';
 
   type Props = {
     p1: { x: number; y: number };
@@ -10,7 +10,7 @@
   const {
     p1 = { x: 0, y: 0 },
     p2 = { x: 0, y: 0 },
-    cameraPosition = [0, 1, 0],
+    cameraPosition = [0, 1, 0]
   }: Props = $props();
 
   const width = $derived(Math.abs(p1.x - p2.x) * cameraPosition[2]);
@@ -24,7 +24,8 @@
   <div
     class="box-selection"
     style={`width: ${width}px; height: ${height}px;`}
-  ></div>
+  >
+  </div>
 </HTML>
 
 <style>

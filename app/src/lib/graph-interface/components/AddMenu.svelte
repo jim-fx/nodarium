@@ -116,7 +116,7 @@
     </div>
 
     <div class="content">
-      {#each nodes as node}
+      {#each nodes as node (node.id)}
         <div
           class="result"
           role="treeitem"

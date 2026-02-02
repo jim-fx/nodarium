@@ -1,16 +1,16 @@
 <script lang="ts">
-  import { Select } from "@nodarium/ui";
+  import { Select } from '@nodarium/ui';
 
   let activeStore = $state(0);
   let { activeId }: { activeId: string } = $props();
   const [activeUser, activeCollection, activeNode] = $derived(
-    activeId.split(`/`),
+    activeId.split(`/`)
   );
 </script>
 
 <div class="breadcrumbs">
   {#if activeUser}
-    <Select id="root" options={["root"]} bind:value={activeStore}></Select>
+    <Select id="root" options={['root']} bind:value={activeStore}></Select>
     {#if activeCollection}
       <button
         onclick={() => {
@@ -35,7 +35,7 @@
       <span>{activeUser}</span>
     {/if}
   {:else}
-    <Select id="root" options={["root"]} bind:value={activeStore}></Select>
+    <Select id="root" options={['root']} bind:value={activeStore}></Select>
   {/if}
 </div>
 

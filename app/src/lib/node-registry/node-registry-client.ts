@@ -16,7 +16,7 @@ export class RemoteNodeRegistry implements NodeRegistry {
   constructor(
     private url: string,
     public cache?: AsyncCache<ArrayBuffer | string>
-  ) { }
+  ) {}
 
   async fetchJson(url: string, skipCache = false) {
     const finalUrl = `${this.url}/${url}`;
@@ -105,7 +105,7 @@ export class RemoteNodeRegistry implements NodeRegistry {
         const wasmBuffer = await this.fetchNodeWasm(id);
 
         try {
-          return await this.register(wasmBuffer);
+          return await this.register(id, wasmBuffer);
         } catch (e) {
           console.log('Failed to register: ', id);
           console.error(e);
@@ -125,20 +125,30 @@ export class RemoteNodeRegistry implements NodeRegistry {
     return nodes;
   }
 
-  async register(wasmBuffer: ArrayBuffer) {
-    const wrapper = createWasmWrapper(wasmBuffer);
+  async register(id: string, wasmBuffer: ArrayBuffer) {
+    let wrapper: ReturnType<typeof createWasmWrapper> = null!;
+    try {
+      wrapper = createWasmWrapper(wasmBuffer);
+    } catch (error) {
+      console.error(`Failed to create node wrapper for node: ${id}`, error);
+    }
 
-    const definition = NodeDefinitionSchema.safeParse(wrapper.get_definition());
+    const rawDefinition = wrapper.get_definition();
+    const definition = NodeDefinitionSchema.safeParse(rawDefinition);
 
     if (definition.error) {
-      throw definition.error;
+      throw new Error(
+        'Failed to parse node definition from node:+\n' + JSON.stringify(rawDefinition, null, 2)
+          + '\n'
+          + definition.error
+      );
     }
 
     if (this.cache) {
       this.cache.set(definition.data.id, wasmBuffer);
     }
 
-    let node = {
+    const node = {
       ...definition.data,
       execute: wrapper.execute
     };

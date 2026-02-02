@@ -1,5 +1,5 @@
 import throttle from '$lib/helpers/throttle';
-import { RemoteNodeRegistry } from '@nodarium/registry';
+import { RemoteNodeRegistry } from '$lib/node-registry/index';
 import type {
   Edge,
   Graph,
@@ -12,7 +12,7 @@ import type {
 } from '@nodarium/types';
 import { fastHashString } from '@nodarium/utils';
 import { createLogger } from '@nodarium/utils';
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import EventEmitter from './helpers/EventEmitter';
 import { HistoryManager } from './history-manager';
 
@@ -23,7 +23,7 @@ const remoteRegistry = new RemoteNodeRegistry('');
 
 const clone = 'structuredClone' in self
   ? self.structuredClone
-  : (args: any) => JSON.parse(JSON.stringify(args));
+  : (args: unknown) => JSON.parse(JSON.stringify(args));
 
 function areSocketsCompatible(
   output: string | undefined,
@@ -57,7 +57,7 @@ function areEdgesEqual(firstEdge: Edge, secondEdge: Edge) {
 
 export class GraphManager extends EventEmitter<{
   save: Graph;
-  result: any;
+  result: unknown;
   settings: {
     types: Record<string, NodeInput>;
     values: Record<string, unknown>;
@@ -79,7 +79,7 @@ export class GraphManager extends EventEmitter<{
   currentUndoGroup: number | null = null;
 
   inputSockets = $derived.by(() => {
-    const s = new Set<string>();
+    const s = new SvelteSet<string>();
     for (const edge of this.edges) {
       s.add(`${edge[2].id}-${edge[3]}`);
     }
@@ -122,7 +122,7 @@ export class GraphManager extends EventEmitter<{
 
   private lastSettingsHash = 0;
   setSettings(settings: Record<string, unknown>) {
-    let hash = fastHashString(JSON.stringify(settings));
+    const hash = fastHashString(JSON.stringify(settings));
     if (hash === this.lastSettingsHash) return;
     this.lastSettingsHash = hash;
 
@@ -136,7 +136,7 @@ export class GraphManager extends EventEmitter<{
   }
 
   getLinkedNodes(node: NodeInstance) {
-    const nodes = new Set<NodeInstance>();
+    const nodes = new SvelteSet<NodeInstance>();
     const stack = [node];
     while (stack.length) {
       const n = stack.pop();
@@ -171,7 +171,7 @@ export class GraphManager extends EventEmitter<{
     const targetInput = toNode.state?.type?.inputs?.[toSocketKey];
     const targetAcceptedTypes = [targetInput?.type, ...(targetInput?.accepts || [])];
 
-    const bestInputEntry = draggedInputs.find(([_, input]) => {
+    const bestInputEntry = draggedInputs.find(([, input]) => {
       const accepted = [input.type, ...(input.accepts || [])];
       return areSocketsCompatible(edgeOutputSocketType, accepted);
     });
@@ -209,7 +209,7 @@ export class GraphManager extends EventEmitter<{
     const draggedOutputs = draggedNode.state.type.outputs ?? [];
 
     // Optimization: Pre-calculate parents to avoid cycles
-    const parentIds = new Set(this.getParentsOfNode(draggedNode).map(n => n.id));
+    const parentIds = new SvelteSet(this.getParentsOfNode(draggedNode).map(n => n.id));
 
     return this.edges.filter((edge) => {
       const [fromNode, fromSocketIdx, toNode, toSocketKey] = edge;
@@ -266,7 +266,7 @@ export class GraphManager extends EventEmitter<{
   }
 
   private _init(graph: Graph) {
-    const nodes = new Map(
+    const nodes = new SvelteMap(
       graph.nodes.map((node) => {
         const nodeType = this.registry.getNode(node.type);
         const n = node as NodeInstance;
@@ -310,11 +310,11 @@ export class GraphManager extends EventEmitter<{
 
     logger.info('loading graph', { nodes: graph.nodes, edges: graph.edges, id: graph.id });
 
-    const nodeIds = Array.from(new Set([...graph.nodes.map((n) => n.type)]));
+    const nodeIds = Array.from(new SvelteSet([...graph.nodes.map((n) => n.type)]));
     await this.registry.load(nodeIds);
 
     // Fetch all nodes from all collections of the loaded nodes
-    const allCollections = new Set<`${string}/${string}`>();
+    const allCollections = new SvelteSet<`${string}/${string}`>();
     for (const id of nodeIds) {
       const [user, collection] = id.split('/');
       allCollections.add(`${user}/${collection}`);
@@ -354,7 +354,7 @@ export class GraphManager extends EventEmitter<{
     for (const type of types) {
       if (type.inputs) {
         for (const key in type.inputs) {
-          let settingId = type.inputs[key].setting;
+          const settingId = type.inputs[key].setting;
           if (settingId) {
             settingTypes[settingId] = {
               __node_type: type.id,
@@ -409,7 +409,7 @@ export class GraphManager extends EventEmitter<{
     const settingValues = this.settings;
     if (nodeType.inputs) {
       for (const key in nodeType.inputs) {
-        let settingId = nodeType.inputs[key].setting;
+        const settingId = nodeType.inputs[key].setting;
         if (settingId) {
           settingTypes[settingId] = nodeType.inputs[key];
           if (
@@ -507,7 +507,7 @@ export class GraphManager extends EventEmitter<{
 
   createGraph(nodes: NodeInstance[], edges: [number, number, number, string][]) {
     // map old ids to new ids
-    const idMap = new Map<number, number>();
+    const idMap = new SvelteMap<number, number>();
 
     let startId = this.createNodeId();
 
@@ -731,7 +731,7 @@ export class GraphManager extends EventEmitter<{
     // if index is a string, we are an input looking for outputs
     if (typeof index === 'string') {
       // filter out self and child nodes
-      const children = new Set(this.getChildren(node).map((n) => n.id));
+      const children = new SvelteSet(this.getChildren(node).map((n) => n.id));
       const nodes = this.getAllNodes().filter(
         (n) => n.id !== node.id && !children.has(n.id)
       );
@@ -752,13 +752,13 @@ export class GraphManager extends EventEmitter<{
       // if index is a number, we are an output looking for inputs
 
       // filter out self and parent nodes
-      const parents = new Set(this.getParentsOfNode(node).map((n) => n.id));
+      const parents = new SvelteSet(this.getParentsOfNode(node).map((n) => n.id));
       const nodes = this.getAllNodes().filter(
         (n) => n.id !== node.id && !parents.has(n.id)
       );
 
       // get edges from this socket
-      const edges = new Map(
+      const edges = new SvelteMap(
         this.getEdgesFromNode(node)
           .filter((e) => e[1] === index)
           .map((e) => [e[2].id, e[3]])

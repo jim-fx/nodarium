@@ -11,7 +11,6 @@ export interface PerformanceStore {
 }
 
 export function createPerformanceStore(): PerformanceStore {
-
   let data: PerformanceData = [];
 
   let currentRun: Record<string, number[]> | undefined;
@@ -24,7 +23,7 @@ export function createPerformanceStore(): PerformanceStore {
     return () => {
       const i = listeners.indexOf(cb);
       if (i > -1) listeners.splice(i, 1);
-    }
+    };
   }
 
   function set(v: PerformanceData) {
@@ -37,12 +36,12 @@ export function createPerformanceStore(): PerformanceStore {
     lastPoint = undefined;
     temp = {
       start: performance.now()
-    }
+    };
   }
 
   function stopRun() {
     if (currentRun && temp) {
-      currentRun["total"] = [performance.now() - temp.start];
+      currentRun['total'] = [performance.now() - temp.start];
       data.push(currentRun);
       data = data.slice(-100);
       currentRun = undefined;
@@ -69,7 +68,6 @@ export function createPerformanceStore(): PerformanceStore {
   }
 
   function mergeData(newData: PerformanceData[number]) {
-
     let r = currentRun;
     if (!r) return;
 
@@ -99,5 +97,5 @@ export function createPerformanceStore(): PerformanceStore {
     endPoint,
     mergeData,
     get
-  }
+  };
 }

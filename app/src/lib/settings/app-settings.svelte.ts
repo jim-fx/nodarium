@@ -1,169 +1,163 @@
-import { localState } from "$lib/helpers/localState.svelte";
+import { localState } from '$lib/helpers/localState.svelte';
 
 const themes = [
-  "dark",
-  "light",
-  "catppuccin",
-  "solarized",
-  "high-contrast",
-  "nord",
-  "dracula",
+  'dark',
+  'light',
+  'catppuccin',
+  'solarized',
+  'high-contrast',
+  'nord',
+  'dracula'
 ] as const;
 
 export const AppSettingTypes = {
   theme: {
-    type: "select",
+    type: 'select',
     options: themes,
-    label: "Theme",
-    value: themes[0],
+    label: 'Theme',
+    value: themes[0]
   },
   showGrid: {
-    type: "boolean",
-    label: "Show Grid",
-    value: true,
+    type: 'boolean',
+    label: 'Show Grid',
+    value: true
   },
   centerCamera: {
-    type: "boolean",
-    label: "Center Camera",
-    value: true,
+    type: 'boolean',
+    label: 'Center Camera',
+    value: true
   },
   nodeInterface: {
-    title: "Node Interface",
+    title: 'Node Interface',
     showNodeGrid: {
-      type: "boolean",
-      label: "Show Grid",
-      value: true,
+      type: 'boolean',
+      label: 'Show Grid',
+      value: true
     },
     snapToGrid: {
-      type: "boolean",
-      label: "Snap to Grid",
-      value: true,
+      type: 'boolean',
+      label: 'Snap to Grid',
+      value: true
     },
     showHelp: {
-      type: "boolean",
-      label: "Show Help",
-      value: false,
-    },
+      type: 'boolean',
+      label: 'Show Help',
+      value: false
+    }
   },
   debug: {
-    title: "Debug",
+    title: 'Debug',
     wireframe: {
-      type: "boolean",
-      label: "Wireframe",
-      value: false,
+      type: 'boolean',
+      label: 'Wireframe',
+      value: false
     },
     useWorker: {
-      type: "boolean",
-      label: "Execute in WebWorker",
-      value: true,
+      type: 'boolean',
+      label: 'Execute in WebWorker',
+      value: true
     },
     showIndices: {
-      type: "boolean",
-      label: "Show Indices",
-      value: false,
+      type: 'boolean',
+      label: 'Show Indices',
+      value: false
     },
     showPerformancePanel: {
-      type: "boolean",
-      label: "Show Performance Panel",
-      value: false,
+      type: 'boolean',
+      label: 'Show Performance Panel',
+      value: false
     },
     showBenchmarkPanel: {
-      type: "boolean",
-      label: "Show Benchmark Panel",
-      value: false,
+      type: 'boolean',
+      label: 'Show Benchmark Panel',
+      value: false
     },
     showVertices: {
-      type: "boolean",
-      label: "Show Vertices",
-      value: false,
+      type: 'boolean',
+      label: 'Show Vertices',
+      value: false
     },
     showStemLines: {
-      type: "boolean",
-      label: "Show Stem Lines",
-      value: false,
+      type: 'boolean',
+      label: 'Show Stem Lines',
+      value: false
     },
     showGraphJson: {
-      type: "boolean",
-      label: "Show Graph Source",
-      value: false,
+      type: 'boolean',
+      label: 'Show Graph Source',
+      value: false
     },
     cache: {
-      title: "Cache",
+      title: 'Cache',
       useRuntimeCache: {
-        type: "boolean",
-        label: "Node Results",
-        value: true,
+        type: 'boolean',
+        label: 'Node Results',
+        value: true
       },
       useRegistryCache: {
-        type: "boolean",
-        label: "Node Source",
-        value: true,
-      },
+        type: 'boolean',
+        label: 'Node Source',
+        value: true
+      }
     },
     stressTest: {
-      title: "Stress Test",
+      title: 'Stress Test',
       amount: {
-        type: "integer",
+        type: 'integer',
         min: 2,
         max: 15,
-        value: 4,
+        value: 4
       },
       loadGrid: {
-        type: "button",
-        label: "Load Grid",
+        type: 'button',
+        label: 'Load Grid'
       },
       loadTree: {
-        type: "button",
-        label: "Load Tree",
+        type: 'button',
+        label: 'Load Tree'
       },
       lottaFaces: {
-        type: "button",
-        label: "Load 'lots of faces'",
+        type: 'button',
+        label: "Load 'lots of faces'"
       },
       lottaNodes: {
-        type: "button",
-        label: "Load 'lots of nodes'",
+        type: 'button',
+        label: "Load 'lots of nodes'"
       },
       lottaNodesAndFaces: {
-        type: "button",
-        label: "Load 'lots of nodes and faces'",
-      },
-    },
-  },
+        type: 'button',
+        label: "Load 'lots of nodes and faces'"
+      }
+    }
+  }
 } as const;
 
-type SettingsToStore<T> =
-  T extends { value: infer V }
-  ? V extends readonly string[]
-  ? V[number]
-  : V
-  : T extends any[]
-  ? {}
-  : T extends object
-  ? {
-    [K in keyof T as T[K] extends object ? K : never]:
-    SettingsToStore<T[K]>
-  }
+type SettingsToStore<T> = T extends { type: 'button' } ? () => void
+  : T extends { value: infer V } ? V extends readonly string[] ? V[number]
+    : V
+  : T extends object ? {
+      -readonly [K in keyof T as T[K] extends object ? K : never]: SettingsToStore<T[K]>;
+    }
   : never;
 
 export function settingsToStore<T>(settings: T): SettingsToStore<T> {
-  const result = {} as any;
+  const result = {} as Record<string, unknown>;
   for (const key in settings) {
     const value = settings[key];
-    if (value && typeof value === "object") {
-      if ("value" in value) {
+    if (value && typeof value === 'object') {
+      if ('value' in value) {
         result[key] = value.value;
       } else {
         result[key] = settingsToStore(value);
       }
     }
   }
-  return result;
+  return result as SettingsToStore<T>;
 }
 
-export let appSettings = localState(
-  "app-settings",
-  settingsToStore(AppSettingTypes),
+export const appSettings = localState(
+  'app-settings',
+  settingsToStore(AppSettingTypes)
 );
 
 $effect.root(() => {
@@ -173,7 +167,7 @@ $effect.root(() => {
     const newClassName = `theme-${theme}`;
     if (classes) {
       for (const className of classes) {
-        if (className.startsWith("theme-") && className !== newClassName) {
+        if (className.startsWith('theme-') && className !== newClassName) {
           classes.remove(className);
         }
       }

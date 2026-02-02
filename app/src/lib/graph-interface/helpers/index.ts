@@ -36,7 +36,8 @@ export function createNodePath({
   aspectRatio = 1
 } = {}) {
   return `M0,${cornerTop}
-      ${cornerTop
+      ${
+    cornerTop
       ? ` V${cornerTop}
               Q0,0 ${cornerTop * aspectRatio},0
               H${100 - cornerTop * aspectRatio}
@@ -45,40 +46,37 @@ export function createNodePath({
       : ` V0
               H100
             `
-    }
+  }
       V${y - height / 2}
-      ${rightBump
+      ${
+    rightBump
       ? ` C${100 - depth},${y - height / 2} ${100 - depth},${y + height / 2} 100,${y + height / 2}`
       : ` H100`
-    }
-      ${cornerBottom
+  }
+      ${
+    cornerBottom
       ? ` V${100 - cornerBottom}
               Q100,100 ${100 - cornerBottom * aspectRatio},100
               H${cornerBottom * aspectRatio}
               Q0,100  0,${100 - cornerBottom}
             `
       : `${leftBump ? `V100 H0` : `V100`}`
-    }
-      ${leftBump
-      ? ` V${y + height / 2} C${depth},${y + height / 2} ${depth},${y - height / 2} 0,${y - height / 2}`
+  }
+      ${
+    leftBump
+      ? ` V${y + height / 2} C${depth},${y + height / 2} ${depth},${y - height / 2} 0,${
+        y - height / 2
+      }`
       : ` H0`
-    }
+  }
       Z`.replace(/\s+/g, ' ');
 }
-
-export const debounce = (fn: Function, ms = 300) => {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  return function (this: any, ...args: any[]) {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn.apply(this, args), ms);
-  };
-};
 
 export const clone: <T>(v: T) => T = 'structedClone' in globalThis
   ? globalThis.structuredClone
   : (obj) => JSON.parse(JSON.stringify(obj));
 
-export function withSubComponents<A, B extends Record<string, any>>(
+export function withSubComponents<A, B extends Record<string, unknown>>(
   component: A,
   subcomponents: B
 ): A & B {

@@ -1,9 +1,12 @@
 packages:
-  - "app"
-  - "packages/*"
-  - "nodes/**"
-  - "!**/.template/**"
-  - "!**/pkg/**"
+  - app
+  - packages/*
+  - nodes/**
+  - '!**/.template/**'
+  - '!**/pkg/**'
 
 catalog:
   chokidar-cli: github:open-cli-tools/chokidar-cli#semver:v4.0.0
+
+onlyBuiltDependencies:
+  - dprint

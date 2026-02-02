@@ -1,7 +1,7 @@
 type SparseArray<T = number> = (T | T[] | SparseArray<T>)[];
 
 export function concatEncodedArrays(
-  input: (number | number[] | Int32Array)[],
+  input: (number | number[] | Int32Array)[]
 ): Int32Array {
   let totalLength = 4;
   for (let i = 0; i < input.length; i++) {
@@ -86,7 +86,7 @@ function decode_recursive(dense: number[] | Int32Array, index = 0) {
         // Opening bracket detected
         const [p, nextIndex, _nextBracketIndex] = decode_recursive(
           dense,
-          index,
+          index
         );
         decoded.push(...p);
         index = nextIndex + 1;
@@ -109,11 +109,9 @@ export function decodeNestedArray(dense: number[] | Int32Array) {
 }
 
 export function splitNestedArray(input: Int32Array) {
-
   let index = 0;
   const length = input.length;
   let res: Int32Array[] = [];
-
 
   let nextBracketIndex = 0;
   let argStartIndex = 0;

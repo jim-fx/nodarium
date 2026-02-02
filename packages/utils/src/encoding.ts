@@ -4,7 +4,7 @@ const view = new DataView(buffer);
 
 export function encodeFloat(value: number): number {
   // Write the number as a float to the buffer
-  view.setFloat32(0, value, true);  // 'true' for little-endian
+  view.setFloat32(0, value, true); // 'true' for little-endian
 
   // Read the buffer as an integer
   return view.getInt32(0, true);

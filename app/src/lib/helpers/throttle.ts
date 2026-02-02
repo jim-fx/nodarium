@@ -1,6 +1,6 @@
 export default <T extends unknown[]>(
   callback: (...args: T) => void,
-  delay: number,
+  delay: number
 ) => {
   let isWaiting = false;
 

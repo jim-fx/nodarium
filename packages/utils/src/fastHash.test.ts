@@ -1,4 +1,4 @@
-import { test, expect } from 'vitest';
+import { expect, test } from 'vitest';
 import { fastHashArrayBuffer, fastHashString } from './fastHash';
 
 test('fastHashString doesnt produce clashes', () => {
@@ -10,8 +10,7 @@ test('fastHashString doesnt produce clashes', () => {
   expect(hashB).toEqual(hashC);
 });
 
-test("fastHashArray doesnt product collisions", () => {
-
+test('fastHashArray doesnt product collisions', () => {
   const a = new Int32Array(1000);
 
   const hash_a = fastHashArrayBuffer(a);
@@ -20,11 +19,9 @@ test("fastHashArray doesnt product collisions", () => {
   const hash_b = fastHashArrayBuffer(a);
 
   expect(hash_a).not.toEqual(hash_b);
-
 });
 
 test('fastHashArray is fast(ish) < 20ms', () => {
-
   const a = new Int32Array(10_000);
 
   const t0 = performance.now();

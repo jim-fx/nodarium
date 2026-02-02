@@ -7,7 +7,7 @@ export class EdgeInteractionManager {
   constructor(
     private graph: GraphManager,
     private state: GraphState
-  ) { }
+  ) {}
 
   private MIN_DISTANCE = 3;
 
@@ -85,7 +85,14 @@ export class EdgeInteractionManager {
         const pointAy = edge.points[i].z + edge.y1;
         const pointBx = edge.points[i + DENSITY].x + edge.x1;
         const pointBy = edge.points[i + DENSITY].z + edge.y1;
-        const distance = distanceFromPointToSegment(pointAx, pointAy, pointBx, pointBy, mouseX, mouseY);
+        const distance = distanceFromPointToSegment(
+          pointAx,
+          pointAy,
+          pointBx,
+          pointBy,
+          mouseX,
+          mouseY
+        );
         if (distance < this.MIN_DISTANCE) {
           if (distance < hoveredEdgeDistance) {
             hoveredEdgeDistance = distance;

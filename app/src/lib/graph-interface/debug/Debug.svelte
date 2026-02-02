@@ -1,11 +1,32 @@
 <script lang="ts">
-  import { MeshLineGeometry, MeshLineMaterial } from "@threlte/extras";
-  import { points, lines, rects } from "./store.js";
-  import { T } from "@threlte/core";
-  import { Color } from "three";
+  import type { Box } from '@nodarium/types';
+  import { T } from '@threlte/core';
+  import { MeshLineGeometry, MeshLineMaterial } from '@threlte/extras';
+  import { Color, Vector3 } from 'three';
+  import { lines, points, rects } from './store.js';
+
+  type Line = {
+    points: Vector3[];
+    color?: Color;
+  };
+
+  function getEachKey(value: Vector3 | Box | Line): string {
+    if ('x' in value) {
+      return [value.x, value.y, value.z].join('-');
+    }
+    if ('minX' in value) {
+      return [value.maxX, value.minX, value.maxY, value.minY].join('-');
+    }
+
+    if ('points' in value) {
+      return getEachKey(value.points[Math.floor(value.points.length / 2)]);
+    }
+
+    return '';
+  }
 </script>
 
-{#each $points as point}
+{#each $points as point (getEachKey(point))}
   <T.Mesh
     position.x={point.x}
     position.y={point.y}
@@ -17,7 +38,7 @@
   </T.Mesh>
 {/each}
 
-{#each $rects as rect, i}
+{#each $rects as rect, i (getEachKey(rect))}
   <T.Mesh
     position.x={(rect.minX + rect.maxX) / 2}
     position.y={0}
@@ -32,11 +53,11 @@
   </T.Mesh>
 {/each}
 
-{#each $lines as line}
+{#each $lines as line (getEachKey(line))}
   <T.Mesh position.y={1}>
     <MeshLineGeometry points={line.points} />
     <MeshLineMaterial
-      color={line.color || "red"}
+      color={line.color || 'red'}
       linewidth={1}
       attenuate={false}
     />
