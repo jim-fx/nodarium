@@ -8,15 +8,16 @@ The visual programming language consists of so called `Nodes` which are stored a
 
 ```typescript
 type Node = {
-  id: string,
-  outputs: string[],
+  id: string;
+  outputs: string[];
   inputs: {
-    [key:string]: NodeInput
-  }
-}
+    [key: string]: NodeInput;
+  };
+};
 ```
 
 ## How are the arguments defined?
+
 To define which arguments a nodes accepts we use JSON. This json is embeded into the `.wasm` file of our node. An example `definition.json` file could look like this:
 
 ```json

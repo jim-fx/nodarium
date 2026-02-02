@@ -7,7 +7,6 @@ edition = "2018"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-
 [dependencies]
-nodarium_utils = { version = "0.1.0", path = "../../../../packages/utils" }
 nodarium_macros = { version = "0.1.0", path = "../../../../packages/macros" }
+nodarium_utils = { version = "0.1.0", path = "../../../../packages/utils" }

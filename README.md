@@ -4,11 +4,11 @@ Nodarium
 
 <a href="https://nodes.max-richter.dev/"><h2 align="center">Nodarium</h2></a>
 
-  <p align="center">
+<p align="center">
     Nodarium is a WebAssembly based visual programming language.
   </p>
 
-  <img src=".gitea/graphics/nodes.svg" width="80%"/>
+<img src=".gitea/graphics/nodes.svg" width="80%"/>
 
 </div>
 

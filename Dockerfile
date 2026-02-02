@@ -3,8 +3,8 @@ FROM node:24-alpine
 RUN apk add --no-cache --update curl rclone g++
 
 ENV RUSTUP_HOME=/usr/local/rustup \
-  CARGO_HOME=/usr/local/cargo \
-  PATH=/usr/local/cargo/bin:$PATH
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
 
 RUN curl --silent --show-error --location --fail --retry 3 \
   --proto '=https' --tlsv1.2 \

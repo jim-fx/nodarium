@@ -9,29 +9,29 @@
     },
     "geometry": {
       "type": "geometry",
-      "value": [0,0,0]
+      "value": [0, 0, 0]
     },
     "amount": {
       "type": "integer"
     },
     "lowestInstance": {
       "type": "float",
-      "min":0,
-      "max":1,
+      "min": 0,
+      "max": 1,
       "value": 0.5,
       "hidden": true
     },
     "highestInstance": {
       "type": "float",
-      "min":0,
-      "max":1,
-      "value":1,
+      "min": 0,
+      "max": 1,
+      "value": 1,
       "hidden": true
     },
     "depth": {
-      "type":"integer",
+      "type": "integer",
       "min": 1,
-      "max":10,
+      "max": 10,
       "value": 1,
       "hidden": true
     }

@@ -11,8 +11,8 @@ crate-type = ["cdylib", "rlib"]
 default = ["console_error_panic_hook"]
 
 [dependencies]
-utils = { version = "0.1.0", path = "../../../../packages/utils" }
+console_error_panic_hook = { version = "0.1.7", optional = true }
 macros = { version = "0.1.0", path = "../../../../packages/macros" }
 serde = { version = "1.0", features = ["derive"] }
-console_error_panic_hook = { version = "0.1.7", optional = true }
+utils = { version = "0.1.0", path = "../../../../packages/utils" }
 web-sys = { version = "0.3.69", features = ["console"] }
