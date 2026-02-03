@@ -3,16 +3,16 @@
   prefix: "i";
 }
 
-@source inline('{hover:,}{bg-,outline-,text-,}layer-0');
-@source inline('{hover:,}{bg-,outline-,text-,}layer-1');
-@source inline('{hover:,}{bg-,outline-,text-,}layer-2');
-@source inline('{hover:,}{bg-,outline-,text-,}layer-3');
-@source inline('{hover:,}{bg-,outline-,text-,}active');
-@source inline('{hover:,}{bg-,outline-,text-,}selected');
-@source inline('{hover:,}{bg-,outline-,text-,}outline{!,}');
-@source inline('{hover:,}{bg-,outline-,text-,}connection');
-@source inline('{hover:,}{bg-,outline-,text-,}edge');
-@source inline('{hover:,}{bg-,outline-,text-,}text');
+@source inline("{hover:,}{bg-,outline-,text-,}layer-0");
+@source inline("{hover:,}{bg-,outline-,text-,}layer-1");
+@source inline("{hover:,}{bg-,outline-,text-,}layer-2");
+@source inline("{hover:,}{bg-,outline-,text-,}layer-3");
+@source inline("{hover:,}{bg-,outline-,text-,}active");
+@source inline("{hover:,}{bg-,outline-,text-,}selected");
+@source inline("{hover:,}{bg-,outline-,text-,}outline{!,}");
+@source inline("{hover:,}{bg-,outline-,text-,}connection");
+@source inline("{hover:,}{bg-,outline-,text-,}edge");
+@source inline("{hover:,}{bg-,outline-,text-,}text");
 
 /* fira-code-300 - latin */
 @font-face {
