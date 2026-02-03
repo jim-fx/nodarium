@@ -244,7 +244,7 @@
     z-index: 1;
     width: 100%;
     height: 100%;
-    background: var(--layer-2);
+    background: var(--color-layer-2);
     opacity: 0;
   }
   input:disabled {
@@ -264,8 +264,8 @@
     border-radius: 5px;
     width: calc(100% - 20px);
     height: calc(100% - 25px);
-    border: dashed 4px var(--layer-2);
-    background: var(--layer-1);
+    border: dashed 4px var(--color-layer-2);
+    background: var(--color-layer-1);
     opacity: 0.5;
   }
 </style>

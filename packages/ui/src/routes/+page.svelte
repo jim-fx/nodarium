@@ -1,11 +1,10 @@
 <script lang="ts">
   import '$lib/app.css';
-  import { Checkbox, Details, Float, Select, ShortCut, Vec3 } from '$lib/index.js';
+  import { Details, InputCheckbox, InputNumber, InputSelect, InputVec3, ShortCut } from '$lib';
   import Section from './Section.svelte';
 
   let intValue = $state(0);
   let floatValue = $state(0.2);
-  let float2Value = $state(0.02);
   let float3Value = $state(1);
   let vecValue = $state([0.2, 0.3, 0.4]);
   const options = ['strawberry', 'raspberry', 'chickpeas'];
@@ -16,6 +15,7 @@
   let detailsOpen = $state(false);
 
   const themes = [
+    'dark',
     'light',
     'solarized',
     'catppuccin',
@@ -31,40 +31,63 @@
     }
     document.documentElement.classList.add(`theme-${themes[themeIndex]}`);
   });
+
+  const colors = [
+    'layer-0',
+    'layer-1',
+    'layer-2',
+    'layer-3',
+    'active',
+    'selected',
+    'outline',
+    'connection',
+    'edge',
+    'text'
+  ];
 </script>
 
 <main class="flex flex-col gap-8 py-8">
   <div class="flex gap-4">
     <h1 class="text-4xl">@nodarium/ui</h1>
-    <Select bind:value={themeIndex} options={themes}></Select>
+    <InputSelect bind:value={themeIndex} options={themes}></InputSelect>
   </div>
 
-  <Section title="Integer (step inherit)" value={intValue}>
-    <Float bind:value={intValue} max={2} />
+  <Section title="Colors">
+    <table>
+      <tbody>
+        {#each colors as color (color)}
+          <tr>
+            <td>
+              <div class="w-6 h-6 mr-2 my-1 rounded-sm outline-1 bg-{color}"></div>
+            </td>
+            <td>{color}</td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
   </Section>
 
-  <Section title="Float (step inherit)" value={floatValue}>
-    <Float bind:value={floatValue} />
-  </Section>
-
-  <Section title="Float 2 (step inherit)" value={intValue}>
-    <Float bind:value={float2Value} />
-  </Section>
-
-  <Section title="Float (0.01 step)" value={floatValue}>
-    <Float bind:value={float3Value} step={0.01} max={3} />
+  <Section title="InputNumber">
+    <div class="flex flex-col gap-2">
+      <p>value={floatValue}</p>
+      <InputNumber bind:value={floatValue} />
+      <p>min=0 max=10 step=1 value={intValue}</p>
+      <InputNumber bind:value={intValue} min={0} max={10} step={1} />
+      <p>min=0 max=3 step=0.01 value={float3Value}</p>
+      <InputNumber bind:value={float3Value} step={0.01} max={3} />
+    </div>
   </Section>
 
   <Section title="Vec3" value={JSON.stringify(vecValue)}>
-    <Vec3 bind:value={vecValue} />
+    <InputVec3 bind:value={vecValue} />
   </Section>
 
   <Section title="Select" value={d}>
-    <Select bind:value={selectValue} {options} />
+    <InputSelect bind:value={selectValue} {options} />
   </Section>
 
   <Section title="Checkbox" value={checked}>
-    <Checkbox bind:value={checked} />
+    <InputCheckbox bind:value={checked} />
   </Section>
 
   <Section title="Details" value={detailsOpen}>
@@ -74,7 +97,11 @@
   </Section>
 
   <Section title="Shortcut">
-    <ShortCut ctrl key="S" />
+    <div class="flex gap-4">
+      <ShortCut ctrl key="S" />
+      <ShortCut alt key="F4" />
+      <ShortCut alt ctrl key="delete" />
+    </div>
   </Section>
 </main>
 

@@ -25,7 +25,7 @@
   }
   polyline {
     fill: none;
-    stroke: var(--layer-3);
+    stroke: var(--color-layer-3);
     opacity: 1;
     stroke-width: 1;
   }

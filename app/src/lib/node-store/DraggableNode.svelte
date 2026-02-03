@@ -51,7 +51,9 @@
     tabindex="0"
     ondragstart={handleDragStart}
   >
-    <NodeHtml bind:node={nodeData} inView={true} position="relative" z={5} />
+    {#if nodeData}
+      <NodeHtml bind:node={nodeData} inView={true} position="relative" z={5} />
+    {/if}
   </div>
 </div>
 
@@ -66,7 +68,7 @@
   }
 
   .dragging {
-    border: dashed 2px var(--outline);
+    border: dashed 2px var(--color-outline);
   }
   .node-wrapper > div {
     opacity: 1;

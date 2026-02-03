@@ -2,8 +2,7 @@
   "name": "@nodarium/ui",
   "version": "0.0.1",
   "scripts": {
-    "dev": "chokidar './src/**' --initial -c 'pnpm build'",
-    "dev:ui": "vite",
+    "dev": "vite",
     "build": "vite build && npm run package",
     "preview": "vite preview",
     "package": "svelte-kit sync && svelte-package && publint",
@@ -43,7 +42,6 @@
     "@types/three": "^0.182.0",
     "@typescript-eslint/eslint-plugin": "^8.53.0",
     "@typescript-eslint/parser": "^8.53.0",
-    "chokidar-cli": "^3.0.0",
     "dprint": "^0.51.1",
     "eslint": "^9.39.2",
     "eslint-plugin-svelte": "^3.14.0",
@@ -62,6 +60,8 @@
   "types": "./dist/index.d.ts",
   "type": "module",
   "dependencies": {
+    "@iconify-json/tabler": "^1.2.26",
+    "@iconify/tailwind4": "^1.2.1",
     "@tailwindcss/vite": "^4.1.18",
     "@threlte/core": "^8.3.1",
     "@threlte/extras": "^9.7.1",

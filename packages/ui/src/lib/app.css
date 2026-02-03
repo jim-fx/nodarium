@@ -1,4 +1,18 @@
 @import "tailwindcss";
+@plugin "@iconify/tailwind4" {
+  prefix: "i";
+}
+
+@source inline('{hover:,}{bg-,outline-,text-,}layer-0');
+@source inline('{hover:,}{bg-,outline-,text-,}layer-1');
+@source inline('{hover:,}{bg-,outline-,text-,}layer-2');
+@source inline('{hover:,}{bg-,outline-,text-,}layer-3');
+@source inline('{hover:,}{bg-,outline-,text-,}active');
+@source inline('{hover:,}{bg-,outline-,text-,}selected');
+@source inline('{hover:,}{bg-,outline-,text-,}outline{!,}');
+@source inline('{hover:,}{bg-,outline-,text-,}connection');
+@source inline('{hover:,}{bg-,outline-,text-,}edge');
+@source inline('{hover:,}{bg-,outline-,text-,}text');
 
 /* fira-code-300 - latin */
 @font-face {
@@ -58,9 +72,9 @@
 
   --color-outline: var(--neutral-400);
   --color-connection: #333333;
-  --color-edge: var(--connection, var(--outline));
+  --color-edge: var(--connection, var(--color-outline));
 
-  --color-text-color: var(--neutral-200);
+  --color-text: var(--neutral-200);
 }
 
 html {
@@ -72,100 +86,89 @@ html {
   --neutral-800: #111111;
   --neutral-900: #060606;
 
-  --layer-0: var(--neutral-900);
-  --layer-1: var(--neutral-500);
-  --layer-2: var(--neutral-400);
-  --layer-3: var(--neutral-200);
+  --color-layer-0: var(--neutral-900);
+  --color-layer-1: var(--neutral-500);
+  --color-layer-2: var(--neutral-400);
+  --color-layer-3: var(--neutral-200);
 
-  --active: #ffffff;
-  --selected: #c65a19;
+  --color-active: #ffffff;
+  --color-selected: #c65a19;
 
-  --outline: var(--neutral-400);
-  --connection: #333333;
-  --edge: var(--connection, var(--outline));
+  --color-outline: var(--neutral-400);
+  --color-connection: #333333;
+  --color-edge: var(--connection, var(--color-outline));
 
-  --text-color: var(--neutral-200);
+  --color-text-color: var(--neutral-200);
 }
 
 body {
-  color: var(--text-color);
-  background-color: var(--layer-0);
+  color: var(--color-text);
+  background-color: var(--color-layer-0);
   margin: 0;
 }
 
-body * {
-  color: var(--text-color);
-}
-
 html.theme-light {
-  --text-color: var(--neutral-800);
-  --outline: var(--neutral-300);
-  --layer-0: var(--neutral-100);
-  --layer-1: var(--neutral-100);
-  --layer-2: var(--neutral-200);
-  --layer-3: var(--neutral-500);
-  --active: #000000;
-  --selected: #c65a19;
-  --connection: #888;
+  --color-text: var(--neutral-800);
+  --color-outline: var(--neutral-300);
+  --color-layer-0: var(--neutral-100);
+  --color-layer-1: var(--neutral-100);
+  --color-layer-2: var(--neutral-200);
+  --color-layer-3: var(--neutral-500);
+  --color-active: #000000;
+  --color-selected: #c65a19;
+  --color-connection: #888;
 }
 
 html.theme-solarized {
-  --text-color: #425055;
-  --outline: #93a1a1;
-  --layer-0: #fdf6e3;
-  --layer-1: #eee8d5;
-  --layer-2: #c4c0b4;
-  --layer-3: #586e75;
-  --active: #000000;
-  --selected: #268bd2;
-  --connection: #839496;
+  --color-text: #425055;
+  --color-outline: #93a1a1;
+  --color-layer-0: #fdf6e3;
+  --color-layer-1: #eee8d5;
+  --color-layer-2: #c4c0b4;
+  --color-layer-3: #586e75;
+  --color-active: #000000;
+  --color-selected: #268bd2;
+  --color-connection: #839496;
 }
 
 html.theme-catppuccin {
-  --text-color: #cdd6f4;
-  --outline: #3e3e4f;
-  --layer-3: #a8aac8;
-  --layer-2: #313244;
-  --layer-1: #1e1e2e;
-  --layer-0: #11111b;
-  --connection: #444459;
+  --color-text: #cdd6f4;
+  --color-outline: #3e3e4f;
+  --color-layer-3: #a8aac8;
+  --color-layer-2: #313244;
+  --color-layer-1: #1e1e2e;
+  --color-layer-0: #11111b;
+  --color-connection: #444459;
 }
 
 html.theme-high-contrast {
-  --text-color: #ffffff;
-  --outline: white;
-  --layer-0: #000000;
-  --layer-1: black;
-  --layer-2: #222222;
-  --layer-3: #ffffff;
-  --connection: #fff;
+  --color-text: #ffffff;
+  --color-outline: white;
+  --color-layer-0: #000000;
+  --color-layer-1: black;
+  --color-layer-2: #222222;
+  --color-layer-3: #ffffff;
+  --color-connection: #fff;
 }
 
 html.theme-nord {
-  --text-color: #d8dee9;
-  --outline: #4c566a;
-  --layer-0: #2e3440;
-  --layer-1: #3b4252;
-  --layer-2: #434c5e;
-  --layer-3: #5e81ac;
-  --active: #8999bd;
-  --selected: #b76c3f;
-  --connection: #4c566a;
+  --color-text: #d8dee9;
+  --color-outline: #4c566a;
+  --color-layer-0: #2e3440;
+  --color-layer-1: #3b4252;
+  --color-layer-2: #434c5e;
+  --color-layer-3: #5e81ac;
+  --color-active: #8999bd;
+  --color-selected: #b76c3f;
+  --color-connection: #4c566a;
 }
 
 html.theme-dracula {
-  --text-color: #f8f8f2;
-  --outline: #6272a4;
-  --layer-0: #282a36;
-  --layer-1: #44475a;
-  --layer-2: #32374d;
-  --layer-3: #bd93f9;
-  --connection: #6272a4;
-}
-
-button {
-  background-color: var(--layer-2);
-  border: 1px solid var(--outline);
-  padding: 8px 9px;
-  border-radius: 4px;
+  --color-text: #f8f8f2;
+  --color-outline: #6272a4;
+  --color-layer-0: #282a36;
+  --color-layer-1: #44475a;
+  --color-layer-2: #32374d;
+  --color-layer-3: #bd93f9;
+  --color-connection: #6272a4;
 }

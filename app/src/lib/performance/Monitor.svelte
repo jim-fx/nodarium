@@ -74,7 +74,7 @@
 
   .wrapper {
     position: relative;
-    border-bottom: solid thin var(--outline);
+    border-bottom: solid thin var(--color-outline);
     display: flex;
   }
   p {
@@ -88,13 +88,13 @@
   svg {
     height: 124px;
     margin: 24px 0px;
-    border-top: solid thin var(--outline);
-    border-bottom: solid thin var(--outline);
+    border-top: solid thin var(--color-outline);
+    border-bottom: solid thin var(--color-outline);
     width: 100%;
   }
   polyline {
     fill: none;
-    stroke: var(--layer-3);
+    stroke: var(--color-layer-3);
     opacity: 0.5;
     stroke-width: 1;
   }

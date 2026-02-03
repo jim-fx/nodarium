@@ -149,7 +149,7 @@
   }
 
   input {
-    background: var(--layer-0);
+    background: var(--color-layer-0);
     font-family: var(--font-family);
     border: none;
     border-radius: 5px;
@@ -168,10 +168,10 @@
 
   .add-menu-wrapper {
     position: absolute;
-    background: var(--layer-1);
+    background: var(--color-layer-1);
     border-radius: 7px;
     overflow: hidden;
-    border: solid 2px var(--layer-2);
+    border: solid 2px var(--color-layer-2);
     width: 150px;
   }
   .content {
@@ -184,14 +184,14 @@
 
   .result {
     padding: 1em 0.9em;
-    border-bottom: solid 1px var(--layer-2);
+    border-bottom: solid 1px var(--color-layer-2);
     opacity: 0.7;
     font-size: 0.9em;
     cursor: pointer;
   }
 
   .result[aria-selected="true"] {
-    background: var(--layer-2);
+    background: var(--color-layer-2);
     opacity: 1;
   }
 </style>

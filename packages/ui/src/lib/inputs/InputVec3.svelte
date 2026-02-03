@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Float from './Float.svelte';
+  import InputNumber from './InputNumber.svelte';
 
   interface Props {
     value?: number[];
@@ -10,9 +10,9 @@
 </script>
 
 <div>
-  <Float id={`${id}-x`} bind:value={value[0]} step={0.01} />
-  <Float id={`${id}-y`} bind:value={value[1]} step={0.01} />
-  <Float id={`${id}-z`} bind:value={value[2]} step={0.01} />
+  <InputNumber id={`${id}-x`} bind:value={value[0]} step={0.01} />
+  <InputNumber id={`${id}-y`} bind:value={value[1]} step={0.01} />
+  <InputNumber id={`${id}-z`} bind:value={value[2]} step={0.01} />
 </div>
 
 <style>
@@ -23,9 +23,9 @@
   div > :global(.component-wrapper:nth-child(2)) {
     border-radius: 0px !important;
     outline: none;
-    border: solid thin var(--outline);
-    border-top: solid thin color-mix(in srgb, var(--outline) 50%, transparent);
-    border-bottom: solid thin color-mix(in srgb, var(--outline) 50%, transparent);
+    border: solid thin var(--color-outline);
+    border-top: solid 1px var(--color-outline);
+    border-bottom: solid 1px var(--color-outline);
   }
   div > :global(.component-wrapper:nth-child(3)) {
     border-top: none !important;

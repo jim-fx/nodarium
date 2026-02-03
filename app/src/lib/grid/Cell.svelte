@@ -62,7 +62,7 @@
     cursor: ew-resize;
     height: 100%;
     width: 1px;
-    background: var(--outline);
+    background: var(--color-outline);
   }
   .seperator::before {
     content: "";

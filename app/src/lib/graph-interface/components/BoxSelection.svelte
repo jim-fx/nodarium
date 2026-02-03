@@ -32,7 +32,7 @@
   .box-selection {
     width: 40px;
     height: 20px;
-    border: solid 2px var(--outline);
+    border: solid 2px var(--color-outline);
     border-style: dashed;
     border-radius: 2px;
   }

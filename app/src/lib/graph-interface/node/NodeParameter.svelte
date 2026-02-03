@@ -175,7 +175,7 @@
 
   svg path {
     transition: d 0.3s ease, fill 0.3s ease;
-    fill: var(--layer-1);
+    fill: var(--color-layer-1);
     stroke: var(--stroke);
     stroke-width: var(--stroke-width);
     d: var(--path);

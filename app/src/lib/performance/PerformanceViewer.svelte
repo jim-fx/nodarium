@@ -1,6 +1,6 @@
 <script lang="ts">
   import { humanizeNumber } from '$lib/helpers';
-  import { Checkbox } from '@nodarium/ui';
+  import { InputCheckbox } from '@nodarium/ui';
   import type { PerformanceData } from '@nodarium/utils';
   import BarSplit from './BarSplit.svelte';
   import Monitor from './Monitor.svelte';
@@ -195,7 +195,7 @@
 
   <div class="p-4 performance-tabler">
     <div class="flex items-center gap-2">
-      <Checkbox id="show-total" bind:value={showAverage} />
+      <InputCheckbox id="show-total" bind:value={showAverage} />
       <label for="show-total">Show Average</label>
     </div>
 

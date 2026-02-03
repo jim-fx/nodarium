@@ -74,14 +74,14 @@
     top: 10px;
     left: 10px;
     z-index: 2;
-    background: var(--layer-0);
-    border: solid thin var(--outline);
+    background: var(--color-layer-0);
+    border: solid thin var(--color-outline);
     border-collapse: collapse;
   }
   td {
     padding: 4px;
     padding-inline: 8px;
     font-size: 0.8em;
-    border: solid thin var(--outline);
+    border: solid thin var(--color-outline);
   }
 </style>

@@ -95,5 +95,5 @@
     type={nodeDefinition}
   />
 {:else}
-  <p class="mx-4">Node has no settings</p>
+  <p class="mx-4 mt-4">Node has no settings</p>
 {/if}

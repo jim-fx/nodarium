@@ -33,8 +33,8 @@
 {#if panelState.activePanel.value === id}
   <div class="wrapper" class:hidden>
     {#if title}
-      <header>
-        <h3>{title}</h3>
+      <header class="bg-layer-2">
+        <h3 class="font-bold">{title}</h3>
       </header>
     {/if}
     {@render children?.()}
@@ -43,7 +43,7 @@
 
 <style>
   header {
-    border-bottom: solid thin var(--outline);
+    border-bottom: solid thin var(--color-outline);
     height: 70px;
     display: flex;
     align-items: center;

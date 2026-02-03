@@ -18,7 +18,7 @@
 </script>
 
 <label
-  class="relative inline-flex h-[22px] w-[22px] cursor-pointer items-center justify-center bg-[var(--layer-2)] rounded-[5px]"
+  class="relative inline-flex h-5.5 w-5.5 cursor-pointer items-center justify-center bg-layer-2 rounded-[5px]"
 >
   <input
     type="checkbox"
@@ -33,7 +33,7 @@
       viewBox="0 0 19 14"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      class="h-[10px] w-[12px] text-[var(--text-color)]"
+      class="h-2.5 w-3 text-text"
     >
       <path
         d="M2 7L7 12L17 2"

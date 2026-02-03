@@ -9,7 +9,7 @@
   let { ctrl = false, shift = false, alt = false, key }: Props = $props();
 </script>
 
-<div class="command">
+<div class="command bg-layer-2">
   {#if ctrl}
     <span>Ctrl</span>
   {/if}
@@ -24,8 +24,8 @@
 
 <style>
   .command {
-    background: var(--layer-2);
     padding: 0.4em;
+    padding-inline: 0.8em;
     font-size: 0.8em;
     border-radius: 0.3em;
     white-space: nowrap;

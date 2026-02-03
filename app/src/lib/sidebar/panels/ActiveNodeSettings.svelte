@@ -11,14 +11,16 @@
   let { manager, node = $bindable() }: Props = $props();
 </script>
 
+<div class='{node?"border-l-2 pl-3.5!":""} bg-layer-2 flex items-center h-[70px] border-b-1 border-l-selected border-b-outline pl-4'>
+  <h3 class="font-bold">Node Settings</h3>
+</div>
+
 {#if node}
   {#key node.id}
     {#if node}
       <ActiveNodeSelected {manager} bind:node />
-    {:else}
-      <p class="mx-4">Active Node has no Settings</p>
     {/if}
   {/key}
 {:else}
-  <p class="mx-4">No node selected</p>
+  <p class="mx-4 mt-4">No node selected</p>
 {/if}
