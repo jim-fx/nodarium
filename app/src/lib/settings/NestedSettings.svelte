@@ -98,7 +98,7 @@
       && typeof internalValue === 'number'
     ) {
       value[key] = node?.options?.[internalValue];
-    } else if (internalValue) {
+    } else if (internalValue !== undefined) {
       value[key] = internalValue;
     }
   });
@@ -124,7 +124,6 @@
 
 {#if key && isNodeInput(type?.[key])}
   {@const inputType = type[key]}
-  <!-- Leaf input -->
   <div class="input input-{inputType.type}" class:first-level={depth === 1}>
     {#if inputType.type === 'button'}
       <button onclick={handleClick}>
@@ -138,7 +137,6 @@
     {/if}
   </div>
 {:else if depth === 0}
-  <!-- Root: iterate over top-level keys -->
   {#each Object.keys(type ?? {}).filter((k) => k !== 'title') as childKey (childKey)}
     <NestedSettings
       id={`${id}.${childKey}`}
@@ -150,7 +148,6 @@
   {/each}
   <hr />
 {:else if key && type?.[key]}
-  <!-- Group -->
   {#if depth > 0}
     <hr />
   {/if}
