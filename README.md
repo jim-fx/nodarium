@@ -50,4 +50,29 @@ pnpm dev
 
 ### [Now you can create your first node 🤓](./docs/DEVELOPING_NODES.md)
 
+# Releasing
+
+## Creating a Release
+
+1. **Create an annotated tag** with your release notes:
+
+```bash
+git tag -a v1.0.0 -m "Release notes for this version"
+git push origin v1.0.0
+```
+
+2. **The CI workflow will:**
+   - Run lint, format check, and type check
+   - Build the project
+   - Update all `package.json` versions to match the tag
+   - Generate/update `CHANGELOG.md`
+   - Create a release commit on `main`
+   - Publish a Gitea release
+
+## Version Requirements
+
+- Tag must match pattern `v*` (e.g., `v1.0.0`, `v2.3.1`)
+- Tag message must not be empty (annotated tag required)
+- Tag must be pushed from `main` branch
+
 # Roadmap
