@@ -1,4 +1,5 @@
 {
+  "version": "0.0.1",
   "scripts": {
     "postinstall": "pnpm run -r --filter 'ui' build",
     "build": "pnpm build:nodes && pnpm build:app",
@@ -19,6 +20,5 @@
   "devDependencies": {
     "chokidar-cli": "catalog:",
     "dprint": "^0.51.1"
-  },
-  "version": "0.0.1"
+  }
 }

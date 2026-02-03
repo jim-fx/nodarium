@@ -51,6 +51,8 @@ tmp_changelog="CHANGELOG.tmp"
 
 mv "$tmp_changelog" CHANGELOG.md
 
+pnpm run format
+
 # -------------------------------------------------------------------
 # 4. Create release commit
 # -------------------------------------------------------------------
