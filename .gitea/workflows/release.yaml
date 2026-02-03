@@ -1,5 +1,9 @@
 name: 🚀 Release
 
+on:
+  push:
+    branches: ["*"]
+
 env:
   PNPM_CACHE_FOLDER: ~/.pnpm-store
 
