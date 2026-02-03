@@ -51,7 +51,9 @@
     tabindex="0"
     ondragstart={handleDragStart}
   >
-    <NodeHtml bind:node={nodeData} inView={true} position="relative" z={5} />
+    {#if nodeData}
+      <NodeHtml bind:node={nodeData} inView={true} position="relative" z={5} />
+    {/if}
   </div>
 </div>
 

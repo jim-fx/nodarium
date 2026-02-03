@@ -247,12 +247,6 @@
             type={graphSettingTypes}
             bind:value={graphSettings}
           />
-        </Panel>
-        <Panel
-          id="active-node"
-          title="Node Settings"
-          icon="i-[tabler--adjustments] bg-blue-400"
-        >
           <ActiveNodeSettings {manager} bind:node={activeNode} />
         </Panel>
       </Sidebar>

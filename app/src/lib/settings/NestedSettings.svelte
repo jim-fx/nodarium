@@ -211,6 +211,11 @@
     padding-left: 1em;
     padding-right: 1em;
     padding-bottom: 1px;
+    gap: 3px;
+  }
+
+  .first-level.input-boolean {
+    gap: 10px;
   }
 
   button {
@@ -218,7 +223,6 @@
   }
 
   hr {
-    position: absolute;
     margin: 0;
     left: 0;
     right: 0;
