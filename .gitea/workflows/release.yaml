@@ -13,7 +13,7 @@ jobs:
     container: jimfx/nodes:latest
 
     steps:
-      - name: 🔍 Debug Info
+      - name: 🔍 Debug Information
         run: |
           echo "GITHUB_REF: ${{ github.ref }}"
           echo "GITHUB_REF_TYPE: ${{ github.ref_type }}"
