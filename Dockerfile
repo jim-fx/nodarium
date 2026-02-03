@@ -17,4 +17,3 @@ RUN curl --silent --show-error --location --fail --retry 3 \
     && rustup target add wasm32-unknown-unknown \
     && rm -rf /usr/local/rustup/toolchains/*/share/doc \
     && npm i -g pnpm
-
