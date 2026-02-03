@@ -1,8 +1,8 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 TAG="$GITHUB_REF_NAME"
-VERSION="${TAG#v}"
+VERSION=$(echo "$TAG" | sed 's/^v//')
 DATE=$(date +%Y-%m-%d)
 
 echo "🚀 Creating release for $TAG (safe mode)"
@@ -26,15 +26,17 @@ git checkout main
 
 echo "🔧 Updating package.json versions to $VERSION"
 
-find . -name package.json -not -path "*/node_modules/*" | while read -r file; do
-  jq --arg v "$VERSION" '.version = $v' "$file" >"$file.tmp"
-  mv "$file.tmp" "$file"
+find . -name package.json ! -path "*/node_modules/*" | while read file; do
+  tmp_file="$file.tmp"
+  jq --arg v "$VERSION" '.version = $v' "$file" >"$tmp_file"
+  mv "$tmp_file" "$file"
 done
 
 # -------------------------------------------------------------------
 # 3. Update CHANGELOG.md (prepend)
 # -------------------------------------------------------------------
 
+tmp_changelog="CHANGELOG.tmp"
 {
   echo "## $TAG ($DATE)"
   echo ""
@@ -42,10 +44,12 @@ done
   echo ""
   echo "---"
   echo ""
-  cat CHANGELOG.md 2>/dev/null || true
-} >CHANGELOG.tmp
+  if [ -f CHANGELOG.md ]; then
+    cat CHANGELOG.md
+  fi
+} >"$tmp_changelog"
 
-mv CHANGELOG.tmp CHANGELOG.md
+mv "$tmp_changelog" CHANGELOG.md
 
 # -------------------------------------------------------------------
 # 4. Create release commit
@@ -54,7 +58,7 @@ mv CHANGELOG.tmp CHANGELOG.md
 git config user.name "release-bot"
 git config user.email "release-bot@ci"
 
-git add CHANGELOG.md $(find . -name package.json -not -path "*/node_modules/*")
+git add CHANGELOG.md $(find . -name package.json ! -path "*/node_modules/*")
 
 # Skip commit if nothing changed
 if git diff --cached --quiet; then
