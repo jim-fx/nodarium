@@ -34,7 +34,7 @@
   <div class="wrapper" class:hidden>
     {#if title}
       <header class="bg-layer-2">
-        <h3 class="font-bold">{title}</h3>
+        <h3>{title}</h3>
       </header>
     {/if}
     {@render children?.()}

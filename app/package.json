@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite dev",
     "build": "svelte-kit sync && vite build",
-    "test": "vitest",
+    "test:unit": "vitest",
+    "test": "npm run test:unit -- --run && npm run test:e2e",
+    "test:e2e": "playwright test",
     "preview": "vite preview",
     "format": "dprint fmt -c '../.dprint.jsonc' .",
     "format:check": "dprint check -c '../.dprint.jsonc' .",
@@ -25,8 +27,7 @@
     "idb": "^8.0.3",
     "jsondiffpatch": "^0.7.3",
     "tailwindcss": "^4.1.18",
-    "three": "^0.182.0",
-    "wabt": "^1.0.39"
+    "three": "^0.182.0"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.2",
@@ -34,11 +35,13 @@
     "@iconify-json/tabler": "^1.2.26",
     "@iconify/tailwind4": "^1.2.1",
     "@nodarium/types": "workspace:",
+    "@playwright/test": "^1.58.1",
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@tsconfig/svelte": "^5.0.6",
     "@types/file-saver": "^2.0.7",
     "@types/three": "^0.182.0",
+    "@vitest/browser-playwright": "^4.0.18",
     "dprint": "^0.51.1",
     "eslint": "^9.39.2",
     "eslint-plugin-svelte": "^3.14.0",
@@ -52,6 +55,7 @@
     "vite-plugin-comlink": "^5.3.0",
     "vite-plugin-glsl": "^1.5.5",
     "vite-plugin-wasm": "^3.5.0",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.17",
+    "vitest-browser-svelte": "^2.0.2"
   }
 }

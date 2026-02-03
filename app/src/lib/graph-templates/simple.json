@@ -1,0 +1,63 @@
+{
+  "id": 0,
+  "settings": {
+    "resolution.circle": 54,
+    "resolution.curve": 20,
+    "randomSeed": true
+  },
+  "meta": {
+    "title": "New Project",
+    "lastModified": "2026-02-03T16:56:40.375Z"
+  },
+  "nodes": [
+    {
+      "id": 9,
+      "position": [
+        215,
+        85
+      ],
+      "type": "max/plantarium/output",
+      "props": {}
+    },
+    {
+      "id": 10,
+      "position": [
+        165,
+        72.5
+      ],
+      "type": "max/plantarium/stem",
+      "props": {
+        "amount": 50,
+        "length": 4,
+        "thickness": 1
+      }
+    },
+    {
+      "id": 11,
+      "position": [
+        190,
+        77.5
+      ],
+      "type": "max/plantarium/noise",
+      "props": {
+        "plant": 0,
+        "scale": 0.5,
+        "strength": 5
+      }
+    }
+  ],
+  "edges": [
+    [
+      10,
+      0,
+      11,
+      "plant"
+    ],
+    [
+      11,
+      0,
+      9,
+      "input"
+    ]
+  ]
+}

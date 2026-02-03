@@ -6,6 +6,7 @@
     "lint": "pnpm run -r --parallel lint",
     "format": "pnpm dprint fmt",
     "format:check": "pnpm dprint check",
+    "test": "pnpm run -r test",
     "check": "pnpm run -r check",
     "build:story": "pnpm -r --filter 'ui' story:build",
     "build:app": "BASE_PATH=/ui pnpm -r --filter 'ui' build && pnpm -r --filter 'app' build",

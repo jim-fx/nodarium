@@ -7,7 +7,6 @@
   import Sidebar from '$lib/sidebar/Sidebar.svelte';
   import { type NodeId, type NodeInstance } from '@nodarium/types';
   import { concatEncodedArrays, createWasmWrapper, encodeNestedArray } from '@nodarium/utils';
-  import Code from './Code.svelte';
 
   const registryCache = new IndexDBCache('node-registry');
   const nodeRegistry = new RemoteNodeRegistry('', registryCache);
@@ -78,11 +77,7 @@
   </Grid.Cell>
 
   <Grid.Cell>
-    <div class="h-screen w-[80vw] overflow-y-auto">
-      {#if nodeWasm}
-        <Code wasm={nodeWasm} />
-      {/if}
-    </div>
+    <div class="h-screen w-[80vw] overflow-y-auto"></div>
   </Grid.Cell>
 </Grid.Row>
 

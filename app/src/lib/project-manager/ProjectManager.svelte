@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { defaultPlant, lottaFaces, plant } from '$lib/graph-templates';
+  import { defaultPlant, lottaFaces, plant, simple } from '$lib/graph-templates';
   import type { Graph } from '$lib/types';
+  import { InputSelect } from '@nodarium/ui';
   import type { ProjectManager } from './project-manager.svelte';
 
   const { projectManager } = $props<{ projectManager: ProjectManager }>();
 
   let showNewProject = $state(false);
   let newProjectName = $state('');
-  let selectedTemplate = $state('defaultPlant');
 
   const templates = [
     {
@@ -16,25 +16,27 @@
       graph: defaultPlant as unknown as Graph
     },
     { name: 'Plant', value: 'plant', graph: plant as unknown as Graph },
+    { name: 'Simple', value: 'simple', graph: simple as unknown as Graph },
     {
       name: 'Lotta Faces',
       value: 'lottaFaces',
       graph: lottaFaces as unknown as Graph
     }
   ];
+  let selectedTemplateIndex = $state(0);
 
   function handleCreate() {
-    const template = templates.find((t) => t.value === selectedTemplate) || templates[0];
+    const template = templates[selectedTemplateIndex] || templates[0];
     projectManager.handleCreateProject(template.graph, newProjectName);
     newProjectName = '';
     showNewProject = false;
   }
 </script>
 
-<header class="flex justify-between px-4 h-[70px] border-b-1 border-outline items-center">
+<header class="flex justify-between px-4 h-[70px] border-b-1 border-outline items-center bg-layer-2">
   <h3>Project</h3>
   <button
-    class="px-3 py-1 bg-layer-0 rounded"
+    class="px-3 py-1 bg-layer-1 rounded"
     onclick={() => (showNewProject = !showNewProject)}
   >
     New
@@ -42,24 +44,17 @@
 </header>
 
 {#if showNewProject}
-  <div class="flex flex-col px-4 py-3 border-b-1 border-outline gap-2">
+  <div class="flex flex-col px-4 py-3.5 mt-[1px] border-b-1 border-outline gap-3">
     <input
       type="text"
       bind:value={newProjectName}
       placeholder="Project name"
-      class="w-full px-2 py-2 bg-gray-800 border border-gray-700 rounded"
+      class="w-full px-2 py-2 bg-layer-2 rounded"
       onkeydown={(e) => e.key === 'Enter' && handleCreate()}
     />
-    <select
-      bind:value={selectedTemplate}
-      class="w-full px-2 py-2 bg-gray-800 border border-gray-700 rounded"
-    >
-      {#each templates as template (template.name)}
-        <option value={template.value}>{template.name}</option>
-      {/each}
-    </select>
+    <InputSelect options={templates.map(t => t.name)} bind:value={selectedTemplateIndex} />
     <button
-      class="cursor-pointer self-end px-3 py-1 bg-blue-600 rounded"
+      class="cursor-pointer self-end px-3 py-1 bg-selected rounded"
       onclick={() => handleCreate()}
     >
       Create
@@ -67,20 +62,22 @@
   </div>
 {/if}
 
-<div class="p-4 text-white min-h-screen">
+<div class="text-white min-h-screen">
   {#if projectManager.loading}
     <p>Loading...</p>
   {/if}
 
-  <ul class="space-y-2">
+  <ul>
     {#each projectManager.projects as project (project.id)}
       <li>
         <div
           class="
-            w-full text-left px-3 py-2 rounded cursor-pointer {projectManager
+            h-[70px] border-b-1 border-b-outline
+            flex
+            w-full text-left px-3 py-2 cursor-pointer {projectManager
             .activeProjectId.value === project.id
-            ? 'bg-blue-600'
-            : 'bg-gray-800 hover:bg-gray-700'}
+            ? 'border-l-2 border-l-selected pl-2.5!'
+            : ''}
           "
           onclick={() => projectManager.handleSelectProject(project.id!)}
           role="button"
@@ -89,10 +86,10 @@
           e.key === 'Enter'
           && projectManager.handleSelectProject(project.id!)}
         >
-          <div class="flex justify-between items-center">
+          <div class="flex justify-between items-center grow">
             <span>{project.meta?.title || 'Untitled'}</span>
             <button
-              class="text-red-400 hover:text-red-300"
+              class="text-layer-1! bg-red-500 w-7 text-xl rounded-sm cursor-pointer opacity-20 hover:opacity-80"
               onclick={() => {
                 projectManager.handleDeleteProject(project.id!);
               }}

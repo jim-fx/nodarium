@@ -5,7 +5,6 @@ test('encode_float', () => {
   const input = 1.23;
   const encoded = encodeFloat(input);
   const output = decodeFloat(encoded);
-  console.log(input, output);
   expect(output).toBeCloseTo(input);
 });
 

@@ -88,7 +88,7 @@ function decode_recursive(dense: number[] | Int32Array, index = 0) {
           dense,
           index
         );
-        decoded.push(...p);
+        decoded.push(p as number[]);
         index = nextIndex + 1;
         nextBracketIndex = _nextBracketIndex;
       } else {

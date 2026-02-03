@@ -54,7 +54,7 @@ export class ProjectManager {
 
     g.id = id;
     if (!g.meta) g.meta = {};
-    if (!g.meta.title) g.meta.title = title;
+    g.meta.title = title;
 
     db.saveGraph(g);
     this.projects = [...this.projects, g];

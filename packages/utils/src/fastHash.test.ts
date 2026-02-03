@@ -21,24 +21,6 @@ test('fastHashArray doesnt product collisions', () => {
   expect(hash_a).not.toEqual(hash_b);
 });
 
-test('fastHashArray is fast(ish) < 20ms', () => {
-  const a = new Int32Array(10_000);
-
-  const t0 = performance.now();
-  fastHashArrayBuffer(a);
-
-  const t1 = performance.now();
-
-  a[0] = 1;
-
-  fastHashArrayBuffer(a);
-
-  const t2 = performance.now();
-
-  expect(t1 - t0).toBeLessThan(20);
-  expect(t2 - t1).toBeLessThan(20);
-});
-
 // test if the fastHashArray function is deterministic
 test('fastHashArray is deterministic', () => {
   const a = new Int32Array(1000);

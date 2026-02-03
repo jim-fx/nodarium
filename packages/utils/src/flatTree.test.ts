@@ -8,8 +8,6 @@ test('it correctly concats nested arrays', () => {
 
   const output = concatEncodedArrays([input_a, input_b, input_c]);
 
-  console.log('Output', output);
-
   const decoded = decodeNestedArray(output);
 
   expect(decoded[0]).toEqual([1, 2, 3]);

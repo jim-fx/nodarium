@@ -4,6 +4,8 @@ on:
   push:
     branches: ["*"]
     tags: ["*"]
+  pull_request:
+    branches: ["*"]
 
 env:
   PNPM_CACHE_FOLDER: ~/.pnpm-store
@@ -42,6 +44,9 @@ jobs:
 
       - name: 🛠️ Build
         run: pnpm build:deploy
+
+      - name: 🔬 Tests
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" pnpm test
 
       - name: 🚀 Create Release Commit
         if: github.ref_type == 'tag'
