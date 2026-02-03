@@ -1,5 +1,11 @@
 ## v0.0.2 (2026-02-03)
 
+fix(ci): actually deploy on tags
+
+---
+
+## v0.0.2 (2026-02-03)
+
 fix(app): correctly handle false value in settings
 
 This caused a bug where random seed could not be false.
