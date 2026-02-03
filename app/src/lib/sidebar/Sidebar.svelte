@@ -8,7 +8,6 @@
 <div class="wrapper" class:visible={state.activePanel.value}>
   <div class="tabs">
     <button aria-label="Close" onclick={() => state.toggleOpen()}>
-      <span class="icon-[tabler--settings]"></span>
       <span class="absolute i-[tabler--chevron-left] w-6 h-6 block"></span>
     </button>
     {#each state.keys as panelId (panelId)}
@@ -45,7 +44,7 @@
   }
 
   .content {
-    background: var(--layer-1);
+    background: var(--color-layer-1);
     z-index: 10;
     position: relative;
     max-height: 100vh;
@@ -55,7 +54,7 @@
   .tabs {
     display: flex;
     flex-direction: column;
-    border-right: solid thin var(--outline);
+    border-right: solid thin var(--color-outline);
   }
 
   .tabs > button {
@@ -66,9 +65,9 @@
     border: none;
     display: flex;
     align-items: center;
-    border-bottom: solid thin var(--outline);
-    border-left: solid thin var(--outline);
-    background: var(--layer-1);
+    border-bottom: solid thin var(--color-outline);
+    border-left: solid thin var(--color-outline);
+    background: var(--color-layer-1);
   }
 
   .tabs > button > span {
@@ -76,7 +75,7 @@
   }
 
   .tabs > button.active {
-    background: var(--layer-2);
+    background: var(--color-layer-2);
   }
 
   .tabs > button.active span {

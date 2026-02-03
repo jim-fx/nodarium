@@ -43,7 +43,7 @@
 
 <style>
   header {
-    border-bottom: solid thin var(--outline);
+    border-bottom: solid thin var(--color-outline);
     height: 70px;
     display: flex;
     align-items: center;

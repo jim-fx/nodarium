@@ -14,7 +14,7 @@ const variables = [
 
 function getColor(variable: (typeof variables)[number]) {
   const style = getComputedStyle(document.body.parentElement!);
-  const color = style.getPropertyValue(`--${variable}`);
+  const color = style.getPropertyValue(`--color-${variable}`);
   return new Color().setStyle(color, LinearSRGBColorSpace);
 }
 
@@ -27,7 +27,7 @@ $effect.root(() => {
     if (!appSettings.value.theme || !('getComputedStyle' in globalThis)) return;
     const style = getComputedStyle(document.body.parentElement!);
     for (const v of variables) {
-      const hex = style.getPropertyValue(`--${v}`);
+      const hex = style.getPropertyValue(`--color-${v}`);
       colors[v].setStyle(hex, LinearSRGBColorSpace);
     }
   });

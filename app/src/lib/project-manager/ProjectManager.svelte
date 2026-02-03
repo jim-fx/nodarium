@@ -31,10 +31,10 @@
   }
 </script>
 
-<header class="flex justify-between px-4 h-[70px] border-b-1 border-[var(--outline)] items-center">
+<header class="flex justify-between px-4 h-[70px] border-b-1 border-outline items-center">
   <h3>Project</h3>
   <button
-    class="px-3 py-1 bg-[var(--layer-0)] rounded"
+    class="px-3 py-1 bg-layer-0 rounded"
     onclick={() => (showNewProject = !showNewProject)}
   >
     New
@@ -42,7 +42,7 @@
 </header>
 
 {#if showNewProject}
-  <div class="flex flex-col px-4 py-3 border-b-1 border-[var(--outline)] gap-2">
+  <div class="flex flex-col px-4 py-3 border-b-1 border-outline gap-2">
     <input
       type="text"
       bind:value={newProjectName}

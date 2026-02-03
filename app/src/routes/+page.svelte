@@ -262,7 +262,7 @@
 
 <style>
   header {
-    background-color: var(--layer-1);
+    background-color: var(--color-layer-1);
   }
 
   .wrapper {

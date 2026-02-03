@@ -4,3 +4,7 @@
   prefix: "i";
   icon-sets: from-folder(custom, "./src/lib/icons");
 }
+
+body * {
+  color: var(--color-text);
+}

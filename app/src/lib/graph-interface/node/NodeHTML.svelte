@@ -71,22 +71,22 @@
     user-select: none !important;
     cursor: pointer;
     width: 200px;
-    color: var(--text-color);
+    color: var(--color-text);
     transform: translate3d(var(--nx), var(--ny), 0);
     z-index: 1;
     opacity: calc((var(--cz) - 2.5) / 3.5);
     font-weight: 300;
-    --stroke: var(--outline);
+    --stroke: var(--color-outline);
     --stroke-width: 2px;
   }
 
   .node.active {
-    --stroke: var(--active);
+    --stroke: var(--color-active);
     --stroke-width: 2px;
   }
 
   .node.selected {
-    --stroke: var(--selected);
+    --stroke: var(--color-selected);
     --stroke-width: 2px;
   }
 </style>

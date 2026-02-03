@@ -8,7 +8,7 @@
   let { options = [], value = $bindable(0), id = '' }: Props = $props();
 </script>
 
-<select {id} bind:value>
+<select {id} bind:value class="bg-layer-2 text-text">
   {#each options as label, i (label)}
     <option value={i}>{label}</option>
   {/each}
@@ -16,10 +16,8 @@
 
 <style>
   select {
-    background: var(--layer-2);
-    color: var(--text-color);
     font-family: var(--font-family);
-    outline: solid 1px var(--outline);
+    outline: solid 1px var(--color-outline);
     padding: 0.8em 1em;
     border-radius: 5px;
     border: none;

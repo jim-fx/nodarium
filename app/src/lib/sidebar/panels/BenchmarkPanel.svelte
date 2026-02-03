@@ -8,7 +8,7 @@
   import { humanizeDuration } from '$lib/helpers';
   import { localState } from '$lib/helpers/localState.svelte';
   import Monitor from '$lib/performance/Monitor.svelte';
-  import { Float } from '@nodarium/ui';
+  import { InputNumber } from '@nodarium/ui';
   import { writable } from 'svelte/store';
 
   function calculateStandardDeviation(array: number[]) {
@@ -125,7 +125,7 @@
     </progress>
   {:else}
     <label for="bench-samples">Samples</label>
-    <Float id="bench-sample" bind:value={amount.value} max={1000} />
+    <InputNumber id="bench-sample" bind:value={amount.value} max={1000} step={1} />
     <button onclick={benchmark} disabled={isRunning}>start</button>
   {/if}
 </div>
@@ -138,7 +138,7 @@
     gap: 1em;
   }
   .monitor-wrapper {
-    border: solid thin var(--outline);
+    border: solid thin var(--color-outline);
     border-bottom: none;
   }
   i {

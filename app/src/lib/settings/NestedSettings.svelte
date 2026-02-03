@@ -223,6 +223,6 @@
     left: 0;
     right: 0;
     border: none;
-    border-bottom: solid thin var(--outline);
+    border-bottom: solid thin var(--color-outline);
   }
 </style>

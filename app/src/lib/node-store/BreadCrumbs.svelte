@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Select } from '@nodarium/ui';
+  import { InputSelect } from '@nodarium/ui';
 
   let activeStore = $state(0);
   let { activeId }: { activeId: string } = $props();
@@ -10,7 +10,7 @@
 
 <div class="breadcrumbs">
   {#if activeUser}
-    <Select id="root" options={['root']} bind:value={activeStore}></Select>
+    <InputSelect id="root" options={['root']} bind:value={activeStore}></InputSelect>
     {#if activeCollection}
       <button
         onclick={() => {
@@ -35,7 +35,7 @@
       <span>{activeUser}</span>
     {/if}
   {:else}
-    <Select id="root" options={['root']} bind:value={activeStore}></Select>
+    <InputSelect id="root" options={['root']} bind:value={activeStore}></InputSelect>
   {/if}
 </div>
 
@@ -47,7 +47,7 @@
     gap: 0.8em;
     height: 35px;
     box-sizing: border-box;
-    border-bottom: solid thin var(--outline);
+    border-bottom: solid thin var(--color-outline);
   }
   .breadcrumbs > button {
     position: relative;

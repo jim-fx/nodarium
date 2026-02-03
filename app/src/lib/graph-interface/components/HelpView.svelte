@@ -88,12 +88,12 @@
     position: fixed;
     pointer-events: none;
     transform: translate(var(--mx), var(--my));
-    background: var(--layer-1);
+    background: var(--color-layer-1);
     border-radius: 5px;
     top: 10px;
     left: 10px;
     max-width: 250px;
-    border: 1px solid var(--outline);
+    border: 1px solid var(--color-outline);
     z-index: 10000;
     display: none;
   }

@@ -1,16 +1,16 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   interface Props {
     title?: string;
     transparent?: boolean;
-    children?: import('svelte').Snippet;
+    children?: Snippet;
     open?: boolean;
   }
-
   let { title = 'Details', transparent = false, children, open = $bindable(false) }: Props =
     $props();
 </script>
 
-<details class:transparent bind:open>
+<details class:transparent bind:open class="text-text outline-1 outline-outline bg-layer-1">
   <summary>{title}</summary>
   <div class="content">
     {@render children?.()}
@@ -20,10 +20,7 @@
 <style>
   details {
     padding: 1em;
-    color: var(--text-color);
     padding-left: 20px;
-    background-color: #202020;
-    outline: solid 0.1px white;
     border-radius: 2px;
     font-weight: 300;
     font-size: 0.9em;

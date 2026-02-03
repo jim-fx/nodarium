@@ -66,7 +66,7 @@
   }
 
   .dragging {
-    border: dashed 2px var(--outline);
+    border: dashed 2px var(--color-outline);
   }
   .node-wrapper > div {
     opacity: 1;
