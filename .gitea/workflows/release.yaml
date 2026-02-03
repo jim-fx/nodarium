@@ -61,3 +61,24 @@ jobs:
           body_path: CHANGELOG.md
           draft: false
           prerelease: false
+
+      - name: 🔑 Configure rclone
+        if: github.ref_type == 'tag'
+        run: |
+          echo "$SSH_PRIVATE_KEY" > /tmp/id_rsa
+          chmod 600 /tmp/id_rsa
+          mkdir -p ~/.config/rclone
+          echo -e "[sftp-remote]\ntype = sftp\nhost = ${SSH_HOST}\nuser = ${SSH_USER}\nport = ${SSH_PORT}\nkey_file = /tmp/id_rsa" > ~/.config/rclone/rclone.conf
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ vars.SSH_HOST }}
+          SSH_PORT: ${{ vars.SSH_PORT }}
+          SSH_USER: ${{ vars.SSH_USER }}
+
+      - name: 🚀 Deploy Changed Files via rclone
+        if: github.ref_type == 'tag'
+        run: |
+          echo "Uploading the rest"
+          rclone sync --update -v --progress --exclude _astro/** --stats 2s --stats-one-line ./app/build/ sftp-remote:${REMOTE_DIR} --transfers 4
+        env:
+          REMOTE_DIR: ${{ vars.REMOTE_DIR }}
