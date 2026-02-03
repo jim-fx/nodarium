@@ -1,5 +1,5 @@
 {
-  "version": "0.0.1",
+  "version": "0.0.2",
   "scripts": {
     "postinstall": "pnpm run -r --filter 'ui' build",
     "build": "pnpm build:nodes && pnpm build:app",
