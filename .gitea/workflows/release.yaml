@@ -1,4 +1,4 @@
-name: 🚀 Release
+name: 🚀 Lint & Test & Deploy
 
 on:
   push:
@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITEA_TOKEN }}
 
       - name: 💾 Setup pnpm Cache
         uses: actions/cache@v4
@@ -49,36 +49,25 @@ jobs:
         run: xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" pnpm test
 
       - name: 🚀 Create Release Commit
-        if: github.ref_type == 'tag'
+        if: gitea.ref_type == 'tag'
         run: ./.gitea/scripts/create-release.sh
 
       - name: 🏷️ Create Gitea Release
-        if: github.ref_type == 'tag'
+        if: gitea.ref_type == 'tag'
         uses: akkuman/gitea-release-action@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
+          tag_name: ${{ gitea.ref_name }}
+          release_name: Release ${{ gitea.ref_name }}
           body_path: CHANGELOG.md
           draft: false
           prerelease: false
 
-      - name: 🔑 Configure rclone
-        if: github.ref_type == 'tag'
-        run: |
-          echo "$SSH_PRIVATE_KEY" > /tmp/id_rsa
-          chmod 600 /tmp/id_rsa
-          mkdir -p ~/.config/rclone
-          echo -e "[sftp-remote]\ntype = sftp\nhost = ${SSH_HOST}\nuser = ${SSH_USER}\nport = ${SSH_PORT}\nkey_file = /tmp/id_rsa" > ~/.config/rclone/rclone.conf
+      - name: 🚀 Deploy Changed Files via rclone
+        run: ./.gitea/scripts/deploy-files.sh
         env:
+          REMOTE_DIR: ${{ vars.REMOTE_DIR }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SSH_HOST: ${{ vars.SSH_HOST }}
           SSH_PORT: ${{ vars.SSH_PORT }}
           SSH_USER: ${{ vars.SSH_USER }}
 
-      - name: 🚀 Deploy Changed Files via rclone
-        if: github.ref_type == 'tag'
-        run: |
-          echo "Uploading the rest"
-          rclone sync --update -v --progress --exclude _astro/** --stats 2s --stats-one-line ./app/build/ sftp-remote:${REMOTE_DIR} --transfers 4
-        env:
-          REMOTE_DIR: ${{ vars.REMOTE_DIR }}

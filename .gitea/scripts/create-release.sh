@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-TAG="$GITHUB_REF_NAME"
+TAG="$GITEA_REF_NAME"
 VERSION=$(echo "$TAG" | sed 's/^v//')
 DATE=$(date +%Y-%m-%d)
 
