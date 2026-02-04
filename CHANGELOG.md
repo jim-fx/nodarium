@@ -1,3 +1,9 @@
+## v0.0.2 (2026-02-04)
+
+chore(release): v0.0.2
+
+---
+
 ## v0.0.2 (2026-02-03)
 
 fix(ci): actually deploy on tags
