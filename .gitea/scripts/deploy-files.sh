@@ -17,15 +17,15 @@ port = ${SSH_PORT}
 key_file = ${KEY_FILE}
 EOF
 
-if [[ "${GITEA_REF_TYPE:-}" == "tag" ]]; then
+if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
   TARGET_DIR="${REMOTE_DIR}"
-elif [[ "${GITEA_EVENT_NAME:-}" == "pull_request" ]]; then
-  SAFE_PR_NAME="${GITEA_HEAD_REF//\//-}"
+elif [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" ]]; then
+  SAFE_PR_NAME="${GITHUB_HEAD_REF//\//-}"
   TARGET_DIR="${REMOTE_DIR}_${SAFE_PR_NAME}"
-elif [[ "${GITEA_REF_NAME:-}" == "main" ]]; then
+elif [[ "${GITHUB_REF_NAME:-}" == "main" ]]; then
   TARGET_DIR="${REMOTE_DIR}_main"
 else
-  SAFE_REF="${GITEA_REF_NAME//\//-}"
+  SAFE_REF="${GITHUB_REF_NAME//\//-}"
   TARGET_DIR="${REMOTE_DIR}_${SAFE_REF}"
 fi
 
