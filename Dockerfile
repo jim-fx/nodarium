@@ -1,23 +1,20 @@
-# FROM jacoblincool/playwright:chromium-light
-FROM jacoblincool/playwright:firefox
+FROM node:25-bookworm-slim
 
-# RUN apk add --no-cache curl git jq g++ make
-RUN apt update && apt install -y curl git jq g++ make \
-    libgl1-mesa-dri \
+RUN apt update && apt install -y \
+    curl \
+    git \
+    jq \
+    g++ \
+    make \
+    rclone \
     libglapi-mesa \
     libosmesa6 \
-    mesa-utils \
-    xvfb \
-    && rm -rf /var/lib/apt/lists/*
+    xvfb
 
-# Set Rust paths
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH
 
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-
-# Install Rust, wasm target, and pnpm
 RUN curl --silent --show-error --location --fail --retry 3 \
       --proto '=https' --tlsv1.2 \
       --output /tmp/rustup-init.sh https://sh.rustup.rs \
@@ -26,4 +23,6 @@ RUN curl --silent --show-error --location --fail --retry 3 \
     && rustup target add wasm32-unknown-unknown \
     && rm -rf /usr/local/rustup/toolchains/*/share/doc \
     && npm i -g pnpm \
-    && pnpx playwright install firefox
+    && pnpx playwright install-deps \
+    && pnpx playwright install --with-deps firefox \
+    && rm -rf /var/lib/apt/lists/*
