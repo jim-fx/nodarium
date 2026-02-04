@@ -56,6 +56,10 @@
       return 0;
     }
 
+    if (Array.isArray(inputValue) && node.type === 'vec3') {
+      return inputValue;
+    }
+
     // If the component is supplied with a default value use that
     if (inputValue !== undefined && typeof inputValue !== 'object') {
       return inputValue;

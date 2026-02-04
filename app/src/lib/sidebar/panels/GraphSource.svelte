@@ -7,7 +7,7 @@
     return JSON.stringify(
       {
         ...g,
-        nodes: g.nodes.map((n: object) => ({ ...n, tmp: undefined }))
+        nodes: g.nodes.map((n: object) => ({ ...n, tmp: undefined, state: undefined }))
       },
       null,
       2
