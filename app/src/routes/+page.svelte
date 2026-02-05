@@ -17,6 +17,7 @@
   import Panel from '$lib/sidebar/Panel.svelte';
   import ActiveNodeSettings from '$lib/sidebar/panels/ActiveNodeSettings.svelte';
   import BenchmarkPanel from '$lib/sidebar/panels/BenchmarkPanel.svelte';
+  import Changelog from '$lib/sidebar/panels/Changelog.svelte';
   import ExportSettings from '$lib/sidebar/panels/ExportSettings.svelte';
   import GraphSource from '$lib/sidebar/panels/GraphSource.svelte';
   import Keymap from '$lib/sidebar/panels/Keymap.svelte';
@@ -248,6 +249,13 @@
             bind:value={graphSettings}
           />
           <ActiveNodeSettings {manager} bind:node={activeNode} />
+        </Panel>
+        <Panel
+          id="changelog"
+          title="Changelog"
+          icon="i-[tabler--file-text-spark] bg-green-400"
+        >
+          <Changelog />
         </Panel>
       </Sidebar>
     </Grid.Cell>
