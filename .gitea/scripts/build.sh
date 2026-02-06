@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
+echo "=== GITHUB_* Variables ==="
+printenv | grep '^GITHUB_'
+echo
+echo "=== GITEA_* Variables ==="
+printenv | grep '^GITEA_'
 
 mkdir -p app/static
 
