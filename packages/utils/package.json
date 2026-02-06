@@ -12,11 +12,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@nodarium/types": "workspace:"
+    "@nodarium/types": "workspace:^"
   },
   "devDependencies": {
     "dprint": "^0.51.1",
     "vite": "^7.3.1",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.18"
   }
 }
