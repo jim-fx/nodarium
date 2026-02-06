@@ -1,14 +1,19 @@
 FROM node:25-bookworm-slim
 
+ENV RUSTUP_HOME=/usr/local/rustup \
+  CARGO_HOME=/usr/local/cargo \
+  PATH=/usr/local/cargo/bin:$PATH
+
 RUN apt-get update && apt-get install -y \
-  curl=7.88.1 \
-  git=1:2.39.5 \
-  jq=1.6-2.1 \
+  curl=7.88.1-10+deb12u14 \
+  git=1:2.39.5-0+deb12u3 \
+  jq=1.6-2.1+deb12u1 \
   g++=4:12.2.0-3 \
-  rclone=1.60.1 \
-  libglapi-mesa=22.3.6 \
-  libosmesa6=22.3.6 \
-  xvfb=2:21.1.7 \
+  make=4.3-4.1 \
+  rclone=1.60.1+dfsg-2+b5 \
+  libglapi-mesa=22.3.6-1+deb12u1 \
+  libosmesa6=22.3.6-1+deb12u1 \
+  xvfb=2:21.1.7-3+deb12u11 \
   --no-install-recommends \
   && curl --silent --show-error --location --fail --retry 3 \
   --proto '=https' --tlsv1.2 \
