@@ -5,24 +5,27 @@ ENV RUSTUP_HOME=/usr/local/rustup \
   PATH=/usr/local/cargo/bin:$PATH
 
 RUN apt-get update && apt-get install -y \
+  ca-certificates=20230311+deb12u1 \
   curl=7.88.1-10+deb12u14 \
   git=1:2.39.5-0+deb12u3 \
   jq=1.6-2.1+deb12u1 \
   g++=4:12.2.0-3 \
-  make=4.3-4.1 \
   rclone=1.60.1+dfsg-2+b5 \
   libglapi-mesa=22.3.6-1+deb12u1 \
-  libosmesa6=22.3.6-1+deb12u1 \
   xvfb=2:21.1.7-3+deb12u11 \
   --no-install-recommends \
-  && curl --silent --show-error --location --fail --retry 3 \
-  --proto '=https' --tlsv1.2 \
-  --output /tmp/rustup-init.sh https://sh.rustup.rs \
-  && sh /tmp/rustup-init.sh -y --no-modify-path --profile minimal \
-  && rm /tmp/rustup-init.sh \
+  # Install Rust
+  && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+  --default-toolchain stable \
+  --profile minimal \
+  # Install Rust
   && rustup target add wasm32-unknown-unknown \
-  && rm -rf /usr/local/rustup/toolchains/*/share/doc \
+  # Setup Playwright
   && npm i -g pnpm \
-  && pnpx playwright install-deps \
-  && pnpx playwright install --with-deps firefox \
+  && pnpm dlx playwright install --with-deps firefox \
+  # Final Cleanup
+  && rm -rf /usr/local/rustup/downloads /usr/local/rustup/tmp \
+  && rm -rf /usr/local/cargo/registry/index /usr/local/cargo/registry/cache \
+  && rm -rf /usr/local/rustup/toolchains/*/share/doc \
+  && apt-get purge -y --auto-remove \
   && rm -rf /var/lib/apt/lists/*
