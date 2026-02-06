@@ -1,21 +1,16 @@
 FROM node:25-bookworm-slim
 
 RUN apt-get update && apt-get install -y \
-  curl \
-  git \
-  jq \
-  g++ \
-  make \
-  rclone \
-  libglapi-mesa \
-  libosmesa6 \
-  xvfb
-
-ENV RUSTUP_HOME=/usr/local/rustup \
-  CARGO_HOME=/usr/local/cargo \
-  PATH=/usr/local/cargo/bin:$PATH
-
-RUN curl --silent --show-error --location --fail --retry 3 \
+  curl=7.88.1 \
+  git=1:2.39.5 \
+  jq=1.6-2.1 \
+  g++=4:12.2.0-3 \
+  rclone=1.60.1 \
+  libglapi-mesa=22.3.6 \
+  libosmesa6=22.3.6 \
+  xvfb=2:21.1.7 \
+  --no-install-recommends \
+  && curl --silent --show-error --location --fail --retry 3 \
   --proto '=https' --tlsv1.2 \
   --output /tmp/rustup-init.sh https://sh.rustup.rs \
   && sh /tmp/rustup-init.sh -y --no-modify-path --profile minimal \
