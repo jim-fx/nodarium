@@ -1,0 +1,40 @@
+name: Build & Push CI Image
+
+on:
+  push:
+    paths:
+      - "Dockerfile.ci"
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare Metadata
+        id: meta
+        run: |
+          REGISTRY_HOST=$(echo "${{ gitea.server_url }}" | sed -e 's|https://||' -e 's|http://||')
+          
+          REPO_POSTFIXED=$(echo "${{ gitea.repository }}-ci" | tr '[:upper:]' '[:lower:]')
+          
+          echo "registry=$REGISTRY_HOST" >> $GITHUB_OUTPUT
+          echo "repo_path=$REPO_POSTFIXED" >> $GITHUB_OUTPUT
+
+      - name: Login to Gitea Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ steps.meta.outputs.registry }}
+          username: ${{ gitea.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.ci
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.registry }}/${{ steps.meta.outputs.repo_path }}:latest
+            ${{ steps.meta.outputs.registry }}/${{ steps.meta.outputs.repo_path }}:${{ github.sha }}
