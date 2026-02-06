@@ -15,7 +15,7 @@ env:
 jobs:
   release:
     runs-on: ubuntu-latest
-    container: git.max-richter.dev/max/nodarium-ci:655b6a18b282f0cddcc750892e575ee6c311036b
+    container: git.max-richter.dev/max/nodarium-ci:fd7268d6208aede435e1685817ae6b271c68bd83
 
     steps:
       - name: 📑 Checkout Code
