@@ -26,9 +26,16 @@
     return Math.min(max, Math.max(min, v));
   }
 
-  function snap(v: number) {
-    if (step) v = Math.round(v / step) * step;
+  function snap(v: number, s = step) {
+    if (s) v = Math.round(v / s) * s;
     return +v.toFixed(3);
+  }
+
+  function getAutoStep(v: number): number {
+    const abs = Math.abs(v);
+    if (abs === 0) return 0.1; // fallback for 0
+    const exponent = Math.floor(Math.log10(abs));
+    return Math.pow(10, exponent);
   }
 
   let dragging = $state(false);
@@ -58,7 +65,8 @@
     value = snap(
       e.ctrlKey
         ? startValue + delta
-        : clamp(startValue + delta)
+        : clamp(startValue + delta),
+      (e.altKey && !step) ? getAutoStep(value) : step
     );
   }
 
@@ -129,7 +137,7 @@
     <div
       class="absolute inset-y-0 left-0 bg-layer-3 opacity-30 pointer-events-none transition-[width]"
       class:transition-none={dragging}
-      style={`width: ${Math.min((value - min) / (max - min), 1) * 100}%`}
+      style={`width: ${Math.max(0, Math.min((value - min) / (max - min), 1) * 100)}%`}
     >
     </div>
 
