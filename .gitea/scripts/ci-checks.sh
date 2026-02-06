@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+pnpm build
+
 pnpm lint &
 LINT_PID=$!
 pnpm format:check &
