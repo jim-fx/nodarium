@@ -19,7 +19,6 @@
 
   // normalize bounds
   if (min > max) [min, max] = [max, min];
-  if (value > max) max = value;
 
   let inputEl: HTMLInputElement | undefined = $state();
 
@@ -105,7 +104,7 @@
   }
 
   onMount(() => {
-    value = snap(clamp(value));
+    value = snap(value);
   });
 </script>
 

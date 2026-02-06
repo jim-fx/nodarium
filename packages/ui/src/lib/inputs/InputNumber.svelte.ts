@@ -42,4 +42,18 @@ describe('InputNumber', () => {
     await expect.element(input).toHaveAttribute('min', '0');
     await expect.element(input).toHaveAttribute('max', '10');
   });
+
+  it('should not clamp value on init when value exceeds min/max', async () => {
+    render(InputNumber, { value: 100, min: 0, max: 10 });
+
+    const input = page.getByRole('spinbutton');
+    await expect.element(input).toHaveValue(100);
+  });
+
+  it('should not clamp value on init when value is below min', async () => {
+    render(InputNumber, { value: -50, min: 0, max: 10 });
+
+    const input = page.getByRole('spinbutton');
+    await expect.element(input).toHaveValue(-50);
+  });
 });
