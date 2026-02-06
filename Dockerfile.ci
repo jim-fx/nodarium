@@ -11,21 +11,20 @@ RUN apt-get update && apt-get install -y \
   jq=1.6-2.1+deb12u1 \
   g++=4:12.2.0-3 \
   rclone=1.60.1+dfsg-2+b5 \
-  libglapi-mesa=22.3.6-1+deb12u1 \
   xvfb=2:21.1.7-3+deb12u11 \
+  xauth=1:1.1.2-1 \
   --no-install-recommends \
   # Install Rust
   && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
   --default-toolchain stable \
   --profile minimal \
-  # Install Rust
   && rustup target add wasm32-unknown-unknown \
   # Setup Playwright
   && npm i -g pnpm \
   && pnpm dlx playwright install --with-deps firefox \
   # Final Cleanup
-  && rm -rf /usr/local/rustup/downloads /usr/local/rustup/tmp \
-  && rm -rf /usr/local/cargo/registry/index /usr/local/cargo/registry/cache \
-  && rm -rf /usr/local/rustup/toolchains/*/share/doc \
-  && apt-get purge -y --auto-remove \
+  && rm -rf /usr/local/rustup/downloads /usr/local/rustup/tmp \ 
+  && rm -rf /usr/local/cargo/registry/index /usr/local/cargo/registry/cache \ 
+  && rm -rf /usr/local/rustup/toolchains/*/share/doc \ 
+  && apt-get purge -y --auto-remove \ 
   && rm -rf /var/lib/apt/lists/*
