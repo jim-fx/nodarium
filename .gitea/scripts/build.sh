@@ -13,6 +13,14 @@ if [[ -z "$BRANCH" && "$REF_TYPE" == "branch" ]]; then
   BRANCH="$REF_NAME"
 fi
 
+# Determine last tag and commits since
+LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+if [[ -n "$LAST_TAG" ]]; then
+  COMMITS_SINCE_LAST_RELEASE="$(git rev-list --count "${LAST_TAG}..HEAD")"
+else
+  COMMITS_SINCE_LAST_RELEASE="0"
+fi
+
 cat >app/static/git.json <<EOF
 {
   "ref": "${GITHUB_REF:-}",
@@ -25,7 +33,8 @@ cat >app/static/git.json <<EOF
   "job": "${GITHUB_JOB:-}",
   "commit_message": "$(git log -1 --pretty=%B)",
   "commit_timestamp": "$(git log -1 --pretty=%cI)",
-  "branch": "${BRANCH}"
+  "branch": "${BRANCH}",
+  "commits_since_last_release": "${COMMITS_SINCE_LAST_RELEASE}"
 }
 EOF
 

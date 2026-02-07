@@ -75,6 +75,10 @@
         {git.sha.slice(0, 7)} – {git.commit_message}
       </p>
       <p>
+        <strong>Commits since last release:</strong>
+        {git.commits_since_last_release}
+      </p>
+      <p>
         <strong>Timestamp:</strong>
         {new Date(git.commit_timestamp).toLocaleString()}
       </p>
