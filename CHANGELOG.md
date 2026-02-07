@@ -60,6 +60,8 @@ Maintenance / CI
 
 ## v0.0.2 (2026-02-04)
 
+Fixes
+
 fix(ci): actually deploy on tags
 fix(app): correctly handle false value in settings
 -> This caused a bug where random seed could not be false.
@@ -67,6 +69,8 @@ fix(app): correctly handle false value in settings
 ---
 
 ## v0.0.1 (2026-02-03)
+
+Chore
 
 chore: format
 
