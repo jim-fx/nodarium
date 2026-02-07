@@ -757,12 +757,16 @@ export class GraphManager extends EventEmitter<{
         (n) => n.id !== node.id && !parents.has(n.id)
       );
 
-      // get edges from this socket
-      const edges = new SvelteMap(
-        this.getEdgesFromNode(node)
-          .filter((e) => e[1] === index)
-          .map((e) => [e[2].id, e[3]])
-      );
+      const edges = new SvelteMap<number, string[]>();
+      this.getEdgesFromNode(node)
+        .filter((e) => e[1] === index)
+        .forEach((e) => {
+          if (edges.has(e[2].id)) {
+            edges.get(e[2].id)?.push(e[3]);
+          } else {
+            edges.set(e[2].id, [e[3]]);
+          }
+        });
 
       const ownType = nodeType.outputs?.[index];
 
@@ -775,7 +779,7 @@ export class GraphManager extends EventEmitter<{
 
           if (
             areSocketsCompatible(ownType, otherType)
-            && edges.get(node.id) !== key
+            && !edges.get(node.id)?.includes(key)
           ) {
             sockets.push([node, key]);
           }
