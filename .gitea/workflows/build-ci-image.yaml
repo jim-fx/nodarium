@@ -2,6 +2,8 @@ name: Build & Push CI Image
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "Dockerfile.ci"
       - ".gitea/workflows/build-ci-image.yaml"
@@ -36,4 +38,4 @@ jobs:
           push: true
           tags: |
             git.max-richter.dev/${{ gitea.repository }}-ci:latest
-            git.max-richter.dev/${{ gitea.repository }}-ci:${{ github.sha }}
+            git.max-richter.dev/${{ gitea.repository }}-ci:${{ gitea.sha }}

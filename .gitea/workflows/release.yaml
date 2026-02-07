@@ -8,8 +8,8 @@ on:
     branches: ["*"]
 
 env:
-  PNPM_CACHE_FOLDER: /.pnpm-store
-  CARGO_HOME: /.cargo
+  PNPM_CACHE_FOLDER: .pnpm-store
+  CARGO_HOME: .cargo
   CARGO_TARGET_DIR: target
 
 jobs:

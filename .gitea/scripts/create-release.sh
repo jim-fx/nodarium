@@ -16,7 +16,7 @@ git fetch origin "refs/tags/$TAG:refs/tags/$TAG" --force
 
 # %(contents) gets the whole message.
 # If you want ONLY what you typed after the first line, use %(contents:body)
-NOTES=$(git tag -l "$TAG" --format='%(contents)')
+NOTES=$(git tag -l "$TAG" --format='%(contents)' | sed '/-----BEGIN PGP SIGNATURE-----/,/-----END PGP SIGNATURE-----/d')
 
 if [ -z "$(echo "$NOTES" | tr -d '[:space:]')" ]; then
   echo "❌ Tag message is empty or tag is not annotated"

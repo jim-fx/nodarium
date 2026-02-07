@@ -42,6 +42,9 @@
     "**/*-lock.yaml",
     "**/yaml.lock",
     "**/.DS_Store",
+    "**/.pnpm-store",
+    "**/.cargo",
+    "**/target",
   ],
   "plugins": [
     "https://plugins.dprint.dev/typescript-0.95.13.wasm",
