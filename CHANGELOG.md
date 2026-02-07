@@ -18,15 +18,8 @@ Maintenance / CI
 - Significant CI and Dockerfile cleanup and optimization.
 - Improved git metadata generation during builds.
 - Dependency updates, formatting, and test snapshot updates.
-  -----BEGIN PGP SIGNATURE-----
 
-iHUEABYKAB0WIQRm3WoVsLh0N7s9vL8pHrJCuWc4DAUCaYdbRwAKCRApHrJCuWc4
-DANLAP9/D3+7iaSYgNXWUV5W9Pw8Y3yO2QHoSZTfXpYS1zKzlwEAo3C+YU64Qo/9
-84z+hfOu+pV4oFLtuyg8C83w5i2NFgA=
-=bPH8
------END PGP SIGNATURE-----
-
-### All Commits in this version:
+### All Commits in this version
 
 - [f8a2a95](https://git.max-richter.dev/max/nodarium/commit/f8a2a95bc18fa3c8c1db67dc0c2b66db1ff0d866) chore: clean CHANGELOG.md
 - [c9dd143](https://git.max-richter.dev/max/nodarium/commit/c9dd143916d758991f3ba30723a32c18b6f98bb5) fix(ci): correctly add release notes from tag to changelog
@@ -56,7 +49,7 @@ DANLAP9/D3+7iaSYgNXWUV5W9Pw8Y3yO2QHoSZTfXpYS1zKzlwEAo3C+YU64Qo/9
 - [09fdfb8](https://git.max-richter.dev/max/nodarium/commit/09fdfb88cd203ace0e36663ebdb2c8c7ba53f190) chore: update test screenshots
 - [04b63cc](https://git.max-richter.dev/max/nodarium/commit/04b63cc7e2fc4fcfa0973cf40592d11457179db3) feat: add changelog to sidebar
 - [cb6a356](https://git.max-richter.dev/max/nodarium/commit/cb6a35606dfda50b0c81b04902d7a6c8e59458d2) feat(ci): also cache cargo stuff
-- [9c9f3ba](https://git.max-richter.dev/max/nodarium/commit/9c9f3ba3b7c94215a86b0a338a5cecdd87b96b28) fix(ci): use GITHUB_ instead of GITEA_ for env vars
+- [9c9f3ba](https://git.max-richter.dev/max/nodarium/commit/9c9f3ba3b7c94215a86b0a338a5cecdd87b96b28) fix(ci): use GITHUB_instead of GITEA_ for env vars
 - [08dda2b](https://git.max-richter.dev/max/nodarium/commit/08dda2b2cb4d276846abe30bc260127626bb508a) chore: pnpm format
 - [059129a](https://git.max-richter.dev/max/nodarium/commit/059129a738d02b8b313bb301a515697c7c4315ac) fix(ci): deploy prs and main
 - [437c9f4](https://git.max-richter.dev/max/nodarium/commit/437c9f4a252125e1724686edace0f5f006f58439) feat(ci): add list of all commits to changelog entry
