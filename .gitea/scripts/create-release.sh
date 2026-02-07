@@ -94,4 +94,6 @@ git commit -m "chore(release): $TAG"
 
 git push origin main
 
+cp CHANGELOG.md app/static/CHANGELOG.md
+
 echo "✅ Release commit for $TAG created successfully (tag untouched)"
