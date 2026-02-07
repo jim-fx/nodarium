@@ -265,7 +265,7 @@ export class MouseEventManager {
         }
       }
 
-      if (_socket && smallestDist < 0.9) {
+      if (_socket && smallestDist < 1.5) {
         this.state.mousePosition = _socket.position;
         this.state.hoveredSocket = _socket;
       } else {

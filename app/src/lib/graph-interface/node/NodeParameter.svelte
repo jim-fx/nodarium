@@ -40,16 +40,6 @@
 
   const path = $derived(
     createNodePath({
-      depth: 7,
-      height: 20,
-      y: 50.5,
-      cornerBottom,
-      leftBump,
-      aspectRatio
-    })
-  );
-  const pathDisabled = $derived(
-    createNodePath({
       depth: 6,
       height: 18,
       y: 50.5,
@@ -60,8 +50,8 @@
   );
   const pathHover = $derived(
     createNodePath({
-      depth: 8,
-      height: 25,
+      depth: 7,
+      height: 20,
       y: 50.5,
       cornerBottom,
       leftBump,
@@ -74,7 +64,7 @@
   class="wrapper"
   data-node-type={node.type}
   data-node-input={id}
-  class:disabled={!graphState?.possibleSocketIds.has(socketId)}
+  class:possible-socket={graphState?.possibleSocketIds.has(socketId)}
 >
   {#key id && graphId}
     <div class="content" class:disabled={graph?.inputSockets?.has(socketId)}>
@@ -91,10 +81,9 @@
     </div>
 
     {#if node?.state?.type?.inputs?.[id]?.internal !== true}
-      <div data-node-socket class="large target"></div>
       <div
         data-node-socket
-        class="small target"
+        class="target"
         onmousedown={handleMouseDown}
         role="button"
         tabindex="0"
@@ -112,7 +101,6 @@
     style={`
       --path: path("${path}");
       --hover-path: path("${pathHover}");
-      --hover-path-disabled: path("${pathDisabled}");
     `}
   >
     <path vector-effect="non-scaling-stroke"></path>
@@ -128,28 +116,22 @@
   }
 
   .target {
+    width: 30px;
+    height: 30px;
     position: absolute;
     border-radius: 50%;
     top: 50%;
     transform: translateY(-50%) translateX(-50%);
-    /* background: red; */
-    /* opacity: 0.1; */
   }
 
-  .small.target {
-    width: 30px;
-    height: 30px;
+  .possible-socket .target {
+    box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.2);
+    z-index: -10;
   }
 
-  .large.target {
-    width: 60px;
-    height: 60px;
-    cursor: unset;
-    pointer-events: none;
-  }
-
-  :global(.hovering-sockets) .large.target {
-    pointer-events: all;
+  .target:hover ~ svg path{
+    d: var(--hover-path);
   }
 
   .content {
@@ -179,19 +161,16 @@
     stroke: var(--stroke);
     stroke-width: var(--stroke-width);
     d: var(--path);
-  }
 
-  :global {
-    .hovering-sockets .large:hover ~ svg path {
-      d: var(--hover-path);
-    }
+    stroke-linejoin: round;
+    shape-rendering: geometricPrecision;
   }
 
   .content.disabled {
     opacity: 0.2;
   }
 
-  .disabled svg path {
-    d: var(--hover-path-disabled) !important;
+  .possible-socket svg path {
+     d: var(--hover-path);
   }
 </style>

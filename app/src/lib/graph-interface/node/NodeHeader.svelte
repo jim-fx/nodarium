@@ -35,8 +35,8 @@
   );
   const pathHover = $derived(
     createNodePath({
-      depth: 8.5,
-      height: 50,
+      depth: 7,
+      height: 40,
       y: 49,
       cornerTop,
       rightBump,
@@ -113,6 +113,9 @@
     stroke: var(--stroke);
     stroke-width: var(--stroke-width);
     d: var(--path);
+
+    stroke-linejoin: round;
+    shape-rendering: geometricPrecision;
   }
 
   .content {
