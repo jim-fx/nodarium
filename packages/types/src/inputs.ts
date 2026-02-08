@@ -26,7 +26,6 @@ const DefaultOptionsSchema = z.object({
 export const NodeInputFloatSchema = z.object({
   ...DefaultOptionsSchema.shape,
   type: z.literal('float'),
-  element: z.literal('slider').optional(),
   value: z.number().optional(),
   min: z.number().optional(),
   max: z.number().optional(),
@@ -36,10 +35,15 @@ export const NodeInputFloatSchema = z.object({
 export const NodeInputIntegerSchema = z.object({
   ...DefaultOptionsSchema.shape,
   type: z.literal('integer'),
-  element: z.literal('slider').optional(),
   value: z.number().optional(),
   min: z.number().optional(),
   max: z.number().optional()
+});
+
+export const NodeInputShapeSchema = z.object({
+  ...DefaultOptionsSchema.shape,
+  type: z.literal('shape'),
+  value: z.array(z.number()).optional()
 });
 
 export const NodeInputBooleanSchema = z.object({
@@ -84,6 +88,7 @@ export const NodeInputSchema = z.union([
   NodeInputBooleanSchema,
   NodeInputFloatSchema,
   NodeInputIntegerSchema,
+  NodeInputShapeSchema,
   NodeInputSelectSchema,
   NodeInputSeedSchema,
   NodeInputVec3Schema,

@@ -18,6 +18,7 @@
   const inputType = $derived(node?.state?.type?.inputs?.[id]);
 
   const socketId = $derived(`${node.id}-${id}`);
+  const height = $derived(input.type === 'shape' ? 200 : 100);
 
   const graphState = getGraphState();
   const graphId = graph?.id;
@@ -64,6 +65,7 @@
   class="wrapper"
   data-node-type={node.type}
   data-node-input={id}
+  style:height="{height}px"
   class:possible-socket={graphState?.possibleSocketIds.has(socketId)}
 >
   {#key id && graphId}
@@ -95,8 +97,6 @@
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 100 100"
-    width="100"
-    height="100"
     preserveAspectRatio="none"
     style={`
       --path: path("${path}");
@@ -111,7 +111,6 @@
   .wrapper {
     position: relative;
     width: 100%;
-    height: 100px;
     transform: translateY(-0.5px);
   }
 

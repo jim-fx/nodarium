@@ -1,0 +1,26 @@
+{
+  "id": "max/plantarium/shape",
+  "outputs": [
+    "shape"
+  ],
+  "inputs": {
+    "shape": {
+      "type": "shape",
+      "value": [
+        47.8,
+        100,
+        47.8,
+        82.8,
+        30.9,
+        69.1,
+        23.2,
+        40.7,
+        27.1,
+        14.5,
+        42.5,
+        0
+      ],
+      "label": ""
+    }
+  }
+}

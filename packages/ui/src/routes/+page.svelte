@@ -108,7 +108,7 @@
       </label>
       <p>{JSON.stringify(points)}</p>
     {/snippet}
-    <InputShape bind:points={points} mirror={mirrorShape} />
+    <InputShape bind:value={points} mirror={mirrorShape} />
   </Section>
 
   <Section title="Details" value={detailsOpen}>

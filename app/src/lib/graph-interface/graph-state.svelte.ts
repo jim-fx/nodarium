@@ -186,15 +186,21 @@ export class GraphState {
     if (!node?.inputs) {
       return 5;
     }
-    const height = 5
-      + 10
-        * Object.keys(node.inputs).filter(
-          (p) =>
-            p !== 'seed'
-            && node?.inputs
-            && !(node?.inputs?.[p] !== undefined && 'setting' in node.inputs[p])
-            && node.inputs[p].hidden !== true
-        ).length;
+    let height = 5;
+
+    for (const key of Object.keys(node.inputs)) {
+      if (key === 'seed') continue;
+      if (!node.inputs) continue;
+      if (node?.inputs?.[key] === undefined) continue;
+      if ('setting' in node.inputs[key]) continue;
+      if (node.inputs[key].hidden) continue;
+      if (node.inputs[key].type === 'shape') {
+        height += 20;
+        continue;
+      }
+      height += 10;
+    }
+
     this.nodeHeightCache[nodeTypeId] = height;
     return height;
   }
