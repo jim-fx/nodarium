@@ -121,6 +121,11 @@
     let vx = (mouseDown[0] - ev.clientX) * (100 / svgRect.width);
     let vy = (mouseDown[1] - ev.clientY) * (100 / svgRect.height);
 
+    if (ev.shiftKey) {
+      vx /= 10;
+      vy /= 10;
+    }
+
     let x = downCirclePosition[0] + ((isMirroredEvent ? 1 : -1) * vx);
     let y = downCirclePosition[1] - vy;
 
@@ -200,16 +205,17 @@
     onmousedown={handleMouseDown}
   >
     <path d={pathD} style:fill="var(--color-layer-3)" style:opacity={0.3} />
-    <path d={pathD} fill="none" stroke="var(--color-layer-2)" />
+    <path d={pathD} fill="none" stroke="var(--color-layer-3)" />
     {#if mirror}
       {#each groupedPoints as p, i (i)}
         {@const x = 100 - p[0]}
         {@const y = p[1]}
         <circle
+          class:active={isMirroredEvent && draggingIndex === i}
           data-index={i}
           cx={x}
           cy={y}
-          r={2}
+          r={3}
         >
         </circle>
       {/each}
@@ -217,10 +223,11 @@
 
     {#each groupedPoints as p, i (i)}
       <circle
+        class:active={!isMirroredEvent && draggingIndex === i}
         data-index={i}
         cx={p[0]}
         cy={p[1]}
-        r={2}
+        r={3}
       >
       </circle>
     {/each}
@@ -231,6 +238,10 @@
   .wrapper {
     width: 100%;
     aspect-ratio: 1;
+    background-color: var(--color-layer-2);
+    padding: 15px;
+    border-radius: 5px;
+    outline: solid thin var(--color-outline);
   }
 
   svg {
@@ -240,13 +251,15 @@
   }
 
   circle {
-    fill: var(--color-layer-2);
     cursor: pointer;
     stroke: transparent;
-    transition: stroke 0.2s ease;
-    stroke-width: 0.5px;
+    transition: fill 0.2s ease;
+    stroke-width: 1px;
+    stroke: var(--color-layer-3); 
+    fill: var(--color-layer-2);
   }
+  circle.active,
   circle:hover {
-    stroke: var(--color-layer-3);
+    fill: var(--color-layer-3);
   }
 </style>

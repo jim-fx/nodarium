@@ -19,7 +19,7 @@
   let selectValue = $state(0);
   const d = $derived(options[selectValue]);
   let checked = $state(false);
-  let mirrorShape = $state(false);
+  let mirrorShape = $state(true);
   let detailsOpen = $state(false);
 
   let points = $state([]);
@@ -108,7 +108,9 @@
       </label>
       <p>{JSON.stringify(points)}</p>
     {/snippet}
-    <InputShape bind:value={points} mirror={mirrorShape} />
+    <div style:width="300px">
+      <InputShape bind:value={points} mirror={mirrorShape} />
+    </div>
   </Section>
 
   <Section title="Details" value={detailsOpen}>

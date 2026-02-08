@@ -113,7 +113,7 @@ html.theme-light {
   --color-layer-0: var(--neutral-100);
   --color-layer-1: var(--neutral-100);
   --color-layer-2: var(--neutral-200);
-  --color-layer-3: var(--neutral-500);
+  --color-layer-3: var(--neutral-300);
   --color-active: #000000;
   --color-selected: #c65a19;
   --color-connection: #888;
