@@ -177,8 +177,8 @@
       ev.preventDefault();
       ev.stopImmediatePropagation();
       const index = parseInt(indexText);
-      points.splice(index * 2, 2);
       draggingIndex = undefined;
+      points.splice(index * 2, 2);
     }
   }
 </script>
@@ -199,7 +199,7 @@
     aria-label="Interactive 2D Shape Editor"
     onmousedown={handleMouseDown}
   >
-    <path d={pathD} style:fill="var(--color-layer-3)" style:opacity={0.5} />
+    <path d={pathD} style:fill="var(--color-layer-3)" style:opacity={0.3} />
     <path d={pathD} fill="none" stroke="var(--color-layer-2)" />
     {#if mirror}
       {#each groupedPoints as p, i (i)}
@@ -242,5 +242,11 @@
   circle {
     fill: var(--color-layer-2);
     cursor: pointer;
+    stroke: transparent;
+    transition: stroke 0.2s ease;
+    stroke-width: 0.5px;
+  }
+  circle:hover {
+    stroke: var(--color-layer-3);
   }
 </style>
