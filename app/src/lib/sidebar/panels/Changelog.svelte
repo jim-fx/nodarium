@@ -22,25 +22,10 @@
   ]);
 
   function detectCommitType(commit: string) {
-    if (commit.startsWith('fix:') || commit.startsWith('fix(')) {
-      return 'fix';
-    }
-
-    if (commit.startsWith('feat:') || commit.startsWith('feat(')) {
-      return 'feat';
-    }
-
-    if (commit.startsWith('chore:') || commit.startsWith('chore(')) {
-      return 'chore';
-    }
-    if (commit.startsWith('docs:') || commit.startsWith('docs(')) {
-      return 'docs';
-    }
-    if (commit.startsWith('refactor:') || commit.startsWith('refactor(')) {
-      return 'refactor';
-    }
-    if (commit.startsWith('ci:') || commit.startsWith('ci(')) {
-      return 'ci';
+    for (const key of typeMap.keys()) {
+      if (commit.startsWith(key)) {
+        return key;
+      }
     }
     return '';
   }
