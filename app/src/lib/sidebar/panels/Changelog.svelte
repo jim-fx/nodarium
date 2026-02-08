@@ -52,7 +52,7 @@
 
     const match = line.match(regex);
     if (!match) {
-      throw new Error('Invalid commit line format');
+      return;
     }
 
     const [, sha, link, description] = match;
