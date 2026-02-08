@@ -1,6 +1,14 @@
 <script lang="ts">
   import '$lib/app.css';
-  import { Details, InputCheckbox, InputNumber, InputSelect, InputVec3, ShortCut } from '$lib';
+  import {
+    Details,
+    InputCheckbox,
+    InputNumber,
+    InputSelect,
+    InputShape,
+    InputVec3,
+    ShortCut
+  } from '$lib';
   import Section from './Section.svelte';
 
   let intValue = $state(0);
@@ -10,9 +18,11 @@
   const options = ['strawberry', 'raspberry', 'chickpeas'];
   let selectValue = $state(0);
   const d = $derived(options[selectValue]);
-
   let checked = $state(false);
+  let mirrorShape = $state(false);
   let detailsOpen = $state(false);
+
+  let points = $state([]);
 
   const themes = [
     'dark',
@@ -88,6 +98,17 @@
 
   <Section title="Checkbox" value={checked}>
     <InputCheckbox bind:value={checked} />
+  </Section>
+
+  <Section title="Shape">
+    {#snippet header()}
+      <label class="flex gap-2">
+        <InputCheckbox bind:value={mirrorShape} />
+        <p>mirror</p>
+      </label>
+      <p>{JSON.stringify(points)}</p>
+    {/snippet}
+    <InputShape bind:points={points} mirror={mirrorShape} />
   </Section>
 
   <Section title="Details" value={detailsOpen}>
