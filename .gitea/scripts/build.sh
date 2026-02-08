@@ -21,6 +21,8 @@ else
   COMMITS_SINCE_LAST_RELEASE="0"
 fi
 
+commit_message=$(git log -1 --pretty=%B | tr -d '\n' | sed 's/"/\\"/g')
+
 cat >app/static/git.json <<EOF
 {
   "ref": "${GITHUB_REF:-}",
@@ -31,7 +33,7 @@ cat >app/static/git.json <<EOF
   "event_name": "${GITHUB_EVENT_NAME:-}",
   "workflow": "${GITHUB_WORKFLOW:-}",
   "job": "${GITHUB_JOB:-}",
-  "commit_message": "$(git log -1 --pretty=%B)",
+  "commit_message": "${commit_message}",
   "commit_timestamp": "$(git log -1 --pretty=%cI)",
   "branch": "${BRANCH}",
   "commits_since_last_release": "${COMMITS_SINCE_LAST_RELEASE}"
