@@ -1,25 +1,25 @@
-## v0.0.3 (2026-02-07)
+# v0.0.3 (2026-02-07)
 
-Features
+## Features
 
 - Edge dragging now highlights valid connection sockets, improving graph editing clarity.
 - InputNumber supports snapping to predefined values while holding Alt.
 - Changelog is accessible directly from the sidebar and now includes git metadata and a list of commits.
 
-Fixes
+## Fixes
 
 - Fixed incorrect socket highlighting when an edge already existed.
-- Corrected initialization of InputNumber values outside min/max bounds.
+- Corrected initialization of `InputNumber` values outside min/max bounds.
 - Fixed initialization of nested vec3 inputs.
 - Multiple CI fixes to ensure reliable builds, correct environment variables, and proper image handling.
 
-Maintenance / CI
+## Maintenance / CI
 
 - Significant CI and Dockerfile cleanup and optimization.
 - Improved git metadata generation during builds.
 - Dependency updates, formatting, and test snapshot updates.
 
-### All Commits in this version
+---
 
 - [f8a2a95](https://git.max-richter.dev/max/nodarium/commit/f8a2a95bc18fa3c8c1db67dc0c2b66db1ff0d866) chore: clean CHANGELOG.md
 - [c9dd143](https://git.max-richter.dev/max/nodarium/commit/c9dd143916d758991f3ba30723a32c18b6f98bb5) fix(ci): correctly add release notes from tag to changelog
@@ -56,22 +56,15 @@ Maintenance / CI
 - [48bf447](https://git.max-richter.dev/max/nodarium/commit/48bf447ce12949d7c29a230806d160840b7847e1) docs: straighten up changelog a bit
 - [548fa4f](https://git.max-richter.dev/max/nodarium/commit/548fa4f0a1a14adc40a74da1182fa6da81eab3df) fix(app): correctly initialize vec3 inputs in nestedsettings
 
----
+# v0.0.2 (2026-02-04)
 
-## v0.0.2 (2026-02-04)
-
-Fixes
-
-fix(ci): actually deploy on tags
-fix(app): correctly handle false value in settings
--> This caused a bug where random seed could not be false.
+## Fixes
 
 ---
 
-## v0.0.1 (2026-02-03)
+- []() fix(ci): actually deploy on tags
+- []() fix(app): correctly handle false value in settings
 
-Chore
+# v0.0.1 (2026-02-03)
 
 chore: format
-
----

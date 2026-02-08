@@ -29,6 +29,8 @@
 
   let performanceStore = createPerformanceStore();
 
+  const { data } = $props();
+
   const registryCache = new IndexDBCache('node-registry');
   const nodeRegistry = new RemoteNodeRegistry('', registryCache);
   const workerRuntime = new WorkerRuntimeExecutor();
@@ -255,7 +257,7 @@
           title="Changelog"
           icon="i-[tabler--file-text-spark] bg-green-400"
         >
-          <Changelog />
+          <Changelog git={data.git} changelog={data.changelog} />
         </Panel>
       </Sidebar>
     </Grid.Cell>

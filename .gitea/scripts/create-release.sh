@@ -52,16 +52,15 @@ fi
 # -------------------------------------------------------------------
 tmp_changelog="CHANGELOG.tmp"
 {
-  echo "## $TAG ($DATE)"
+  echo "# $TAG ($DATE)"
   echo ""
   echo "$NOTES"
   echo ""
   if [ -n "$COMMITS" ]; then
-    echo "### All Commits in this version:"
+    echo "---"
     echo "$COMMITS"
     echo ""
   fi
-  echo "---"
   echo ""
   if [ -f CHANGELOG.md ]; then
     cat CHANGELOG.md
@@ -87,5 +86,6 @@ else
   git push origin main
 fi
 
+rm app/static/CHANGELOG.md
 cp CHANGELOG.md app/static/CHANGELOG.md
 echo "✅ Release process for $TAG complete"

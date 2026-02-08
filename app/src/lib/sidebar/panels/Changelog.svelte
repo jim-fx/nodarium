@@ -1,99 +1,108 @@
 <script lang="ts">
   import { Details } from '@nodarium/ui';
+  import { micromark } from 'micromark';
 
-  type ReleaseBlock = {
-    header: string;
-    sections: { title: string; items: { type: string; text?: string; url?: string; linkText?: string; linkUrl?: string; message?: string; content?: string }[] }[];
-    commits: { type: string; linkText: string; linkUrl: string; message: string }[];
+  type Props = {
+    git?: Record<string, string>;
+    changelog?: string;
   };
 
-  const typeMap: Record<string, string> = {
-    fix: 'bg-red-800',
-    feat: 'bg-green-800',
-    chore: 'bg-gray-800',
-    docs: 'bg-blue-800',
-    refactor: 'bg-purple-800',
-    default: ''
-  };
+  const {
+    git,
+    changelog
+  }: Props = $props();
 
-  const sectionHeaders = ['Features', 'Fixes', 'Maintenance / CI', 'Maintenance'];
+  const typeMap = new Map([
+    ['fix', 'border-l-red-800'],
+    ['feat', 'border-l-green-800'],
+    ['chore', 'border-l-gray-800'],
+    ['docs', 'border-l-blue-800'],
+    ['refactor', 'border-l-purple-800'],
+    ['ci', 'border-l-red-400']
+  ]);
 
-  async function fetchChangelog() {
-    const res = await fetch('/CHANGELOG.md');
-    return await res.text();
-  }
-
-  async function fetchGitInfo() {
-    const res = await fetch('/git.json');
-    return await res.json();
-  }
-
-  function parseChangelog(md: string): ReleaseBlock[] {
-    const lines = md.split('\n');
-    const releases: ReleaseBlock[] = [];
-    let currentRelease: ReleaseBlock | null = null;
-
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
-      if (!line) continue;
-
-      if (line === '---') {
-        currentRelease = null;
-        continue;
-      }
-
-      if (line.startsWith('## ')) {
-        currentRelease = {
-          header: line.replace('## ', ''),
-          sections: [],
-          commits: []
-        };
-        releases.push(currentRelease);
-        continue;
-      }
-
-      if (!currentRelease) continue;
-
-      if (line.startsWith('### ')) {
-        currentRelease.commits = [];
-        continue;
-      }
-
-      const commitMatch = line.match(/^- \[([^\]]+)\]\(([^)]+)\)(.+)$/);
-      if (commitMatch) {
-        currentRelease.commits.push({
-          type: 'commit',
-          linkText: commitMatch[1],
-          linkUrl: commitMatch[2],
-          message: commitMatch[3].trim()
-        });
-        continue;
-      }
-
-      if (sectionHeaders.includes(line)) {
-        currentRelease.sections.push({ title: line, items: [] });
-        continue;
-      }
-
-      const lastSection = currentRelease.sections.at(-1);
-      if (lastSection) {
-        const match = line.match(/^(fix|feat|chore|docs|refactor)(\(|:)/i);
-        if (match) {
-          lastSection.items.push({ type: match[1].toLowerCase(), content: line });
-        } else {
-          lastSection.items.push({ type: 'default', content: line });
-        }
-      }
+  function detectCommitType(commit: string) {
+    if (commit.startsWith('fix:') || commit.startsWith('fix(')) {
+      return 'fix';
     }
 
-    return releases;
+    if (commit.startsWith('feat:') || commit.startsWith('feat(')) {
+      return 'feat';
+    }
+
+    if (commit.startsWith('chore:') || commit.startsWith('chore(')) {
+      return 'chore';
+    }
+    if (commit.startsWith('docs:') || commit.startsWith('docs(')) {
+      return 'docs';
+    }
+    if (commit.startsWith('refactor:') || commit.startsWith('refactor(')) {
+      return 'refactor';
+    }
+    if (commit.startsWith('ci:') || commit.startsWith('ci(')) {
+      return 'ci';
+    }
+    return '';
+  }
+
+  function parseCommit(line?: string) {
+    if (!line) return;
+
+    const regex = /^\s*-\s*\[([a-f0-9]+)\]\((https?:\/\/[^\s)]+)\)\s+(.+)$/;
+
+    const match = line.match(regex);
+    if (!match) {
+      throw new Error('Invalid commit line format');
+    }
+
+    const [, sha, link, description] = match;
+
+    return {
+      sha,
+      link,
+      description,
+      type: detectCommitType(description)
+    };
+  }
+
+  function parseChangelog(md: string) {
+    return md.split(/^# v/gm)
+      .filter(l => !!l.length)
+      .map(release => {
+        const [firstLine, ...rest] = release.split('\n');
+        const title = firstLine.trim();
+
+        const blocks = rest
+          .join('\n')
+          .split('---');
+
+        const commits = blocks.length > 1
+          ? blocks
+            .at(-1)
+            ?.split('\n')
+            ?.map(line => parseCommit(line))
+            ?.filter(c => !!c)
+          : [];
+
+        const description = (
+          blocks.length > 1
+            ? blocks
+              .slice(0, -1)
+              .join('\n')
+            : blocks[0]
+        ).trim();
+
+        return {
+          description: micromark(description),
+          title,
+          commits
+        };
+      });
   }
 </script>
 
-<div class="p-4 font-mono text-text overflow-y-auto max-h-full">
-  {#await Promise.all([fetchChangelog(), fetchGitInfo()])}
-    <p>Loading...</p>
-  {:then [md, git]}
+<div id="changelog" class="p-4 font-mono text-text overflow-y-auto max-h-full space-y-5">
+  {#if git}
     <div class="mb-4 p-3 bg-layer-2 text-xs rounded">
       <p><strong>Branch:</strong> {git.branch}</p>
       <p>
@@ -116,44 +125,71 @@
         {new Date(git.commit_timestamp).toLocaleString()}
       </p>
     </div>
+  {/if}
 
-    {#each parseChangelog(md) as release}
-      <hr class="border-outline my-4" />
-      <h2 class="text-xl font-semibold mt-4 mb-3 text-layer-1">{release.header}</h2>
+  {#if changelog}
+    {#each parseChangelog(changelog) as release (release)}
+      <Details title={release.title}>
+        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+        <div id="description" class="pb-5">{@html release.description}</div>
 
-      {#each release.sections as section}
-        <h3 class="text-base font-semibold mt-3 mb-2 text-layer-2">{section.title}</h3>
-        {#each section.items as item}
-          {#if item.type === 'default'}
-            <p class="py-1 leading-7">{item.content}</p>
-          {:else}
-            <p class="py-1 leading-7">
-              <span
-                class="p-1 rounded-sm opacity-80 font-semibold {typeMap[item.type] ?? 'bg-layer-2'}"
-              >
-                {item.content?.split(':')[0]}
-              </span>
-              {item.content?.split(':').slice(1).join(':').trim()}
-            </p>
-          {/if}
-        {/each}
-      {/each}
-
-      {#if release.commits.length > 0}
-        <Details title="All Commits" transparent>
-          {#each release.commits as item}
-            <p class="py-1 leading-7">
-              <a href={item.linkUrl} class="link" target="_blank">{item.linkText}</a>
-              {' '}{item.message}
-            </p>
-          {/each}
-        </Details>
-      {/if}
+        {#if release?.commits?.length}
+          <Details
+            title="All Commits"
+            class="commits"
+          >
+            {#each release.commits as commit (commit)}
+              <p class="py-1 leading-7 text-xs border-b-1 border-l-1 border-b-outline last:border-b-0 -ml-2 pl-2 {typeMap.get(commit.type)}">
+                <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+                <a href={commit.link} class="link" target="_blank">{commit.sha}</a>
+                {commit.description}
+              </p>
+            {/each}
+          </Details>
+        {/if}
+      </Details>
     {/each}
-  {/await}
+  {/if}
 </div>
 
 <style>
+  @reference "tailwindcss";
+
+  #changelog :global(.commits) {
+    margin-left: -16px;
+    margin-right: -16px;
+    border-radius: 0px 0px 2px 2px !important;
+  }
+
+  #changelog :global(details > div){
+    padding-bottom: 0px;
+  }
+
+  #changelog :global(.commits > div) {
+    padding-bottom: 0px;
+    padding-top: 0px;
+  }
+
+  #description :global(h2) {
+    @apply font-bold mt-4 mb-1;
+  }
+  #description :global(h2:first-child) {
+    margin-top: 0px !important;
+  }
+
+  #description :global(ul) {
+    padding-left: 1em;
+  }
+  #description :global(li),
+  #description :global(p) {
+    @apply text-xs!;
+    list-style-type: disc;
+  }
+
+  #changelog :global(details > details[open] > summary){
+    margin-bottom: 20px !important;
+  }
+
   .link {
     color: #60a5fa;
     text-decoration: none;
