@@ -6,6 +6,7 @@
   "inputs": {
     "shape": {
       "type": "shape",
+      "internal": true,
       "value": [
         47.8,
         100,
