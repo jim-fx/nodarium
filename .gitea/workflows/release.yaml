@@ -50,7 +50,12 @@ jobs:
         run: ./.gitea/scripts/ci-checks.sh
 
       - name: 🛠️ Build
-        run: ./.gitea/scripts/build.sh
+        run: |
+          pnpm build
+          pnpm lint
+          pnpm format:check
+          pnpm check
+          xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" pnpm test
 
       - name: 🚀 Create Release Commit
         if: gitea.ref_type == 'tag'
