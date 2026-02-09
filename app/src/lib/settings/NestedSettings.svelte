@@ -211,7 +211,7 @@
   .first-level.input {
     padding-left: 1em;
     padding-right: 1em;
-    padding-bottom: 1px;
+    padding-bottom: 0.5px;
     gap: 3px;
   }
 

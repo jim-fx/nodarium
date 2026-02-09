@@ -11,7 +11,6 @@
 @source inline("{hover:,}{bg-,outline-,text-,}selected");
 @source inline("{hover:,}{bg-,outline-,text-,}outline{!,}");
 @source inline("{hover:,}{bg-,outline-,text-,}connection");
-@source inline("{hover:,}{bg-,outline-,text-,}edge");
 @source inline("{hover:,}{bg-,outline-,text-,}text");
 
 /* fira-code-300 - latin */
@@ -72,7 +71,6 @@
 
   --color-outline: var(--neutral-400);
   --color-connection: #333333;
-  --color-edge: var(--connection, var(--color-outline));
 
   --color-text: var(--neutral-200);
 }
@@ -89,14 +87,13 @@ html {
   --color-layer-0: var(--neutral-900);
   --color-layer-1: var(--neutral-500);
   --color-layer-2: var(--neutral-400);
-  --color-layer-3: var(--neutral-200);
+  --color-layer-3: var(--neutral-300);
 
   --color-active: #ffffff;
   --color-selected: #c65a19;
 
-  --color-outline: var(--neutral-400);
+  --color-outline: #3e3e3e;
   --color-connection: #333333;
-  --color-edge: var(--connection, var(--color-outline));
 
   --color-text-color: var(--neutral-200);
 }

@@ -51,7 +51,6 @@
     'selected',
     'outline',
     'connection',
-    'edge',
     'text'
   ];
 </script>

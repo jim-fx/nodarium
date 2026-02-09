@@ -2,19 +2,19 @@
   import { colors } from '../graph/colors.svelte';
 
   const circleMaterial = new MeshBasicMaterial({
-    color: colors.edge.clone(),
+    color: colors.connection.clone(),
     toneMapped: false
   });
 
-  let lineColor = $state(colors.edge.clone().convertSRGBToLinear());
+  let lineColor = $state(colors.connection.clone().convertSRGBToLinear());
 
   $effect.root(() => {
     $effect(() => {
       if (appSettings.value.theme === undefined) {
         return;
       }
-      circleMaterial.color = colors.edge.clone().convertSRGBToLinear();
-      lineColor = colors.edge.clone().convertSRGBToLinear();
+      circleMaterial.color = colors.connection.clone().convertSRGBToLinear();
+      lineColor = colors.connection.clone().convertSRGBToLinear();
     });
   });
 

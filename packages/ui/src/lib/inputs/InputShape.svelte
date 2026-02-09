@@ -239,7 +239,7 @@
     width: 100%;
     aspect-ratio: 1;
     background-color: var(--color-layer-2);
-    padding: 15px;
+    padding: 7px;
     border-radius: 5px;
     outline: solid thin var(--color-outline);
   }
