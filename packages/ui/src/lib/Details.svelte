@@ -7,14 +7,19 @@
     open?: boolean;
     class?: string;
   }
-  let { title = 'Details', transparent = false, children, open = $bindable(false), class: _class }:
-    Props = $props();
+  let {
+    title = 'Details',
+    transparent = false,
+    children,
+    open = $bindable(false),
+    class: _class
+  }: Props = $props();
 </script>
 
 <details
   class:transparent
   bind:open
-  class="text-text outline-1 outline-outline bg-layer-1 {_class}"
+  class="text-text outline-1 outline-outline bg-layer-2 {_class}"
 >
   <summary>{title}</summary>
   <div>
