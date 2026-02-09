@@ -29,7 +29,7 @@
 {:else if input.type === 'shape'}
   <InputShape bind:value={value as number[]} />
 {:else if input.type === 'color'}
-  <InputColor bind:value={value as number[]} />
+  <InputColor bind:value={value as [number, number, number]} />
 {:else if input.type === 'integer'}
   <InputNumber
     bind:value={value as number}

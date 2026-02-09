@@ -51,7 +51,7 @@
     if (mirror) {
       const _points: [number, number, number][] = [];
       for (let i = 0; i < points.length / 2; i++) {
-        const pt = [...getPt(i), i];
+        const pt = [...getPt(i), i] as [number, number, number];
         if (pt[0] > 50) {
           pt[0] = 100 - pt[0];
         }

@@ -37,7 +37,7 @@
   </div>
 
   <Section title="InputNumber">
-    <Theme theme />
+    <Theme />
   </Section>
 
   <Section title="InputNumber">

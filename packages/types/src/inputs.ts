@@ -32,6 +32,12 @@ export const NodeInputFloatSchema = z.object({
   step: z.number().optional()
 });
 
+export const NodeInputColorSchema = z.object({
+  ...DefaultOptionsSchema.shape,
+  type: z.literal('color'),
+  value: z.array(z.number()).optional()
+});
+
 export const NodeInputIntegerSchema = z.object({
   ...DefaultOptionsSchema.shape,
   type: z.literal('integer'),
@@ -87,6 +93,7 @@ export const NodeInputSchema = z.union([
   NodeInputSeedSchema,
   NodeInputBooleanSchema,
   NodeInputFloatSchema,
+  NodeInputColorSchema,
   NodeInputIntegerSchema,
   NodeInputShapeSchema,
   NodeInputSelectSchema,

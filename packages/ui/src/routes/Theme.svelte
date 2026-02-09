@@ -1,12 +1,6 @@
 <script lang="ts">
   import { InputColor } from '$lib';
 
-  interface Props {
-    theme?: string;
-  }
-
-  let { theme }: Props = $props();
-
   const colors = [
     'layer-0',
     'layer-1',
@@ -18,6 +12,20 @@
     'connection',
     'text'
   ];
+
+  type CustomColors = {
+    text: [number, number, number];
+    outline: [number, number, number];
+    'layer-0': [number, number, number];
+    'layer-1': [number, number, number];
+    'layer-2': [number, number, number];
+    'layer-3': [number, number, number];
+    active: [number, number, number];
+    selected: [number, number, number];
+    connection: [number, number, number];
+  };
+
+  type CustomColorKey = keyof CustomColors;
 
   let customColors = $state<CustomColors>({
     text: [205, 214, 244],
@@ -36,7 +44,7 @@
   ${
       Object.keys(customColors)
         .map((v) => {
-          return `--color-${v}: rgb(${customColors[v].join(',')});`;
+          return `--color-${v}: rgb(${customColors[v as CustomColorKey].join(',')});`;
         })
         .join('\n')
     }</style>`;
@@ -63,7 +71,7 @@
         </td>
         <td>{color}</td>
         <td>
-          <InputColor bind:value={customColors[color]} />
+          <InputColor bind:value={customColors[color as CustomColorKey]} />
         </td>
       </tr>
     {/each}
