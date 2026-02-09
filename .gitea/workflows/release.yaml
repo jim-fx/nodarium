@@ -47,15 +47,15 @@ jobs:
         run: pnpm install --frozen-lockfile --store-dir ${{ env.PNPM_CACHE_FOLDER }}
 
       - name: 🧹 Quality Control
-        run: ./.gitea/scripts/ci-checks.sh
-
-      - name: 🛠️ Build
         run: |
           pnpm build
           pnpm lint
           pnpm format:check
           pnpm check
           xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" pnpm test
+
+      - name: 🛠️ Build
+        run: ./.gitea/scripts/build.sh
 
       - name: 🚀 Create Release Commit
         if: gitea.ref_type == 'tag'
