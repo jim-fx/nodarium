@@ -18,7 +18,8 @@
   const inputType = $derived(node?.state?.type?.inputs?.[id]);
 
   const socketId = $derived(`${node.id}-${id}`);
-  const height = $derived(input.type === 'shape' ? 200 : 100);
+  const isShape = $derived(input.type === 'shape' && input.external !== true);
+  const height = $derived(isShape ? 200 : 100);
 
   const graphState = getGraphState();
   const graphId = graph?.id;

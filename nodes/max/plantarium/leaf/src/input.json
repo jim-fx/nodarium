@@ -1,0 +1,16 @@
+{
+  "id": "max/plantarium/leaf",
+  "outputs": [
+    "geometry"
+  ],
+  "inputs": {
+    "shape": {
+      "type": "shape",
+      "external": true
+    },
+    "size": {
+      "type": "float",
+      "value": 1
+    }
+  }
+}

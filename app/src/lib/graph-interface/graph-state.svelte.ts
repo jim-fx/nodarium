@@ -194,7 +194,11 @@ export class GraphState {
       if (node?.inputs?.[key] === undefined) continue;
       if ('setting' in node.inputs[key]) continue;
       if (node.inputs[key].hidden) continue;
-      if (node.inputs[key].type === 'shape') {
+      if (
+        node.inputs[key].type === 'shape'
+        && node.inputs[key].external !== true
+        && node.inputs[key].internal !== false
+      ) {
         height += 20;
         continue;
       }
