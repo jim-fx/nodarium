@@ -37,7 +37,7 @@
 
     const match = line.match(regex);
     if (!match) {
-      return undefined;
+      return;
     }
 
     const [, sha, link, description] = match;
