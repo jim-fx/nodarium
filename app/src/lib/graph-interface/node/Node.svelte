@@ -57,7 +57,7 @@
     uniforms={{
       uColorBright: { value: colors['layer-2'] },
       uColorDark: { value: colors['layer-1'] },
-      uStrokeColor: { value: colors['layer-2'] },
+      uStrokeColor: { value: colors['layer-2'].clone() },
       uStrokeWidth: { value: 1.0 },
       uWidth: { value: 20 },
       uHeight: { value: height }
