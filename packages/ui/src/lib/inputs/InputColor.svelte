@@ -13,16 +13,6 @@
     `#${value.map((c) => c.toString(16).padStart(2, '0')).join('')}`
   );
 
-  let rValue = $state(value[0]);
-  let gValue = $state(value[1]);
-  let bValue = $state(value[2]);
-
-  $effect(() => {
-    rValue = value[0];
-    gValue = value[1];
-    bValue = value[2];
-  });
-
   function handleHexInput(e: Event) {
     const target = e.target as HTMLInputElement;
     let val = target.value.replace(/[^0-9a-fA-F]/g, '');
@@ -40,12 +30,6 @@
         parseInt(val.slice(4, 6), 16)
       ] as [number, number, number];
     }
-  }
-
-  function handleHexBlur() {
-    rValue = value[0];
-    gValue = value[1];
-    bValue = value[2];
   }
 </script>
 
@@ -69,7 +53,6 @@
       value={hexValue.slice(1)}
       {id}
       oninput={handleHexInput}
-      onblur={handleHexBlur}
       maxlength={6}
       class="w-15 bg-transparent text-text outline-none"
     />
