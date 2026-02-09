@@ -76,6 +76,7 @@
 }
 
 html {
+  --neutral-050: #f0f0f0;
   --neutral-100: #e7e7e7;
   --neutral-200: #cecece;
   --neutral-300: #7c7c7c;
@@ -107,7 +108,7 @@ body {
 html.theme-light {
   --color-text: var(--neutral-800);
   --color-outline: var(--neutral-300);
-  --color-layer-0: var(--neutral-100);
+  --color-layer-0: var(--neutral-050);
   --color-layer-1: var(--neutral-100);
   --color-layer-2: var(--neutral-200);
   --color-layer-3: var(--neutral-300);

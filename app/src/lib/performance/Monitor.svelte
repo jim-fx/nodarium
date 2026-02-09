@@ -86,7 +86,7 @@
     position: absolute;
   }
   svg {
-    height: 124px;
+    height: 126px;
     margin: 24px 0px;
     border-top: solid thin var(--color-outline);
     border-bottom: solid thin var(--color-outline);
