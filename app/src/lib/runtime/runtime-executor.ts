@@ -28,7 +28,7 @@ function getValue(input: NodeInput, value?: unknown) {
   }
 
   if (Array.isArray(value)) {
-    if (input.type === 'vec3') {
+    if (input.type === 'vec3' || input.type === 'shape') {
       return [
         0,
         value.length + 1,
