@@ -30,7 +30,20 @@
 
   $effect(() => {
     if (!points.length) {
-      points = [47.8, 100, 47.8, 82.8, 30.9, 69.1, 23.2, 40.7, 27.1, 14.5, 42.5, 0];
+      points = [
+        47.8,
+        100,
+        47.8,
+        82.8,
+        30.9,
+        69.1,
+        23.2,
+        40.7,
+        27.1,
+        14.5,
+        42.5,
+        0
+      ];
     }
   });
 
@@ -38,20 +51,21 @@
     if (mirror) {
       const _points: [number, number, number][] = [];
       for (let i = 0; i < points.length / 2; i++) {
-        _points.push([...getPt(i), i]);
+        const pt = [...getPt(i), i];
+        if (pt[0] > 50) {
+          pt[0] = 100 - pt[0];
+        }
+        _points.push(pt);
       }
 
-      const sortedPoints = _points
-        .sort((a, b) => {
-          if (a[1] !== b[1]) return b[1] - a[1];
-          return a[0] - b[0];
-        });
+      const sortedPoints = _points.sort((a, b) => {
+        if (a[1] !== b[1]) return b[1] - a[1];
+        return a[0] - b[0];
+      });
 
       const newIndices = new Map(sortedPoints.map((p, i) => [p[2], i]));
 
-      const sorted = sortedPoints
-        .map(p => [p[0], p[1]])
-        .flat();
+      const sorted = sortedPoints.map((p) => [p[0], p[1]]).flat();
 
       let sortChanged = false;
 
@@ -109,14 +123,20 @@
         const x = 100 - arr[i];
         d += ` L ${x} ${arr[i + 1]}`;
       }
-      d += ' Z';
     }
+    d += ' Z';
 
     return d;
   }
 
   function handleMouseMove(ev: MouseEvent) {
-    if (mouseDown === undefined || draggingIndex === undefined || !downCirclePosition) return;
+    if (
+      mouseDown === undefined
+      || draggingIndex === undefined
+      || !downCirclePosition
+    ) {
+      return;
+    }
 
     let vx = (mouseDown[0] - ev.clientX) * (100 / svgRect.width);
     let vy = (mouseDown[1] - ev.clientY) * (100 / svgRect.height);
@@ -126,7 +146,7 @@
       vy /= 10;
     }
 
-    let x = downCirclePosition[0] + ((isMirroredEvent ? 1 : -1) * vx);
+    let x = downCirclePosition[0] + (isMirroredEvent ? 1 : -1) * vx;
     let y = downCirclePosition[1] - vy;
 
     x = clamp(x, 0, mirror ? 50 : 100);
@@ -147,7 +167,7 @@
 
     const x = ((ev.clientX - svgRect.left) / svgRect.width) * 100;
     const y = ((ev.clientY - svgRect.top) / svgRect.height) * 100;
-    isMirroredEvent = x > 50;
+    isMirroredEvent = mirror && x > 50;
 
     if (indexText !== undefined) {
       draggingIndex = parseInt(indexText);
@@ -155,10 +175,7 @@
     } else {
       draggingIndex = undefined;
 
-      const pt = [
-        round(clamp(x, 0, 100)),
-        round(clamp(y, 0, 100))
-      ] as [
+      const pt = [round(clamp(x, 0, 100)), round(clamp(y, 0, 100))] as [
         number,
         number
       ];
@@ -255,7 +272,7 @@
     stroke: transparent;
     transition: fill 0.2s ease;
     stroke-width: 1px;
-    stroke: var(--color-layer-3); 
+    stroke: var(--color-layer-3);
     fill: var(--color-layer-2);
   }
   circle.active,
