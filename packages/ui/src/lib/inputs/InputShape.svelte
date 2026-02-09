@@ -274,6 +274,11 @@
     stroke-width: 1px;
     stroke: var(--color-layer-3);
     fill: var(--color-layer-2);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  svg:hover circle {
+    opacity: 1;
   }
   circle.active,
   circle:hover {
