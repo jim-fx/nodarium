@@ -109,7 +109,7 @@
     transition:
       d 0.3s ease,
       fill 0.3s ease;
-    fill: var(--color-outline);
+    fill: var(--color-layer-2);
     stroke: var(--stroke);
     stroke-width: var(--stroke-width);
     d: var(--path);

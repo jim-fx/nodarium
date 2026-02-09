@@ -146,6 +146,8 @@ html.theme-high-contrast {
   --color-layer-1: black;
   --color-layer-2: black;
   --color-layer-3: white;
+  --color-active: #00ff00;
+  --color-selected: #ff0000;
   --color-connection: #fff;
 }
 
@@ -156,6 +158,8 @@ html.theme-high-contrast-light {
   --color-layer-1: white;
   --color-layer-2: white;
   --color-layer-3: black;
+  --color-active: #00ffff;
+  --color-selected: #ff0000;
   --color-connection: black;
 }
 
