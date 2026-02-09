@@ -6,6 +6,7 @@ const themes = [
   'catppuccin',
   'solarized',
   'high-contrast',
+  'high-contrast-light',
   'nord',
   'dracula'
 ] as const;

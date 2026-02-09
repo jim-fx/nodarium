@@ -6,6 +6,7 @@
     'solarized',
     'catppuccin',
     'high-contrast',
+    'high-contrast-light',
     'nord',
     'dracula',
     'custom'

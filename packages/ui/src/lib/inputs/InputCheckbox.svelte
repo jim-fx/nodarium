@@ -18,7 +18,7 @@
 </script>
 
 <label
-  class="relative inline-flex h-5.5 w-5.5 cursor-pointer items-center justify-center bg-layer-2 rounded-[5px]"
+  class="relative inline-flex h-5.5 w-5.5 cursor-pointer items-center justify-center bg-layer-2 outline-1 outline-outline rounded-[5px]"
 >
   <input
     type="checkbox"

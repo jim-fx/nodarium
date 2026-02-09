@@ -144,9 +144,19 @@ html.theme-high-contrast {
   --color-outline: white;
   --color-layer-0: black;
   --color-layer-1: black;
-  --color-layer-2: #ababab;
+  --color-layer-2: black;
   --color-layer-3: white;
   --color-connection: #fff;
+}
+
+html.theme-high-contrast-light {
+  --color-text: black;
+  --color-outline: black;
+  --color-layer-0: white;
+  --color-layer-1: white;
+  --color-layer-2: white;
+  --color-layer-3: black;
+  --color-connection: black;
 }
 
 html.theme-nord {
