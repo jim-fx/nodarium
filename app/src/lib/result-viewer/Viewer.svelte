@@ -4,7 +4,7 @@
   import { decodeFloat, splitNestedArray } from '@nodarium/utils';
   import type { PerformanceStore } from '@nodarium/utils';
   import { Canvas } from '@threlte/core';
-  import { Vector3 } from 'three';
+  import { DoubleSide, Vector3 } from 'three';
   import { type Group, MeshMatcapMaterial, TextureLoader } from 'three';
   import { createGeometryPool, createInstancedGeometryPool } from './geometryPool';
   import Scene from './Scene.svelte';
@@ -14,7 +14,8 @@
   matcap.colorSpace = 'srgb';
   const material = new MeshMatcapMaterial({
     color: 0xffffff,
-    matcap
+    matcap,
+    side: DoubleSide
   });
 
   let sceneComponent = $state<ReturnType<typeof Scene>>();
