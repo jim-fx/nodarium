@@ -104,6 +104,15 @@ pub struct NodeInputVec3 {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct NodeInputShape {
+    #[serde(flatten)]
+    pub default_options: DefaultOptions,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<Vec<f64>>,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct NodeInputGeometry {
     #[serde(flatten)]
     pub default_options: DefaultOptions,
@@ -125,6 +134,7 @@ pub enum NodeInput {
     select(NodeInputSelect),
     seed(NodeInputSeed),
     vec3(NodeInputVec3),
+    shape(NodeInputShape),
     geometry(NodeInputGeometry),
     path(NodeInputPath),
 }

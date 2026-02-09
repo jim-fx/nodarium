@@ -1,7 +1,14 @@
 <script lang="ts">
   import type { NodeInput } from '@nodarium/types';
 
-  import { InputCheckbox, InputNumber, InputSelect, InputVec3 } from './index';
+  import {
+    InputCheckbox,
+    InputColor,
+    InputNumber,
+    InputSelect,
+    InputShape,
+    InputVec3
+  } from './index';
 
   interface Props {
     input: NodeInput;
@@ -19,8 +26,17 @@
     max={input?.max}
     step={input?.step}
   />
+{:else if input.type === 'shape'}
+  <InputShape bind:value={value as number[]} />
+{:else if input.type === 'color'}
+  <InputColor bind:value={value as [number, number, number]} />
 {:else if input.type === 'integer'}
-  <InputNumber bind:value={value as number} min={input?.min} max={input?.max} step={1} />
+  <InputNumber
+    bind:value={value as number}
+    min={input?.min}
+    max={input?.max}
+    step={1}
+  />
 {:else if input.type === 'boolean'}
   <InputCheckbox bind:value={value as boolean} {id} />
 {:else if input.type === 'select'}

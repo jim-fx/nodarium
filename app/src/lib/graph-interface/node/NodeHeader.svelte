@@ -87,8 +87,6 @@
     width: 30px;
     z-index: 100;
     border-radius: 50%;
-    /* background: red; */
-    /* opacity: 0.2; */
   }
 
   .click-target:hover + svg path {
@@ -108,7 +106,9 @@
 
   svg path {
     stroke-width: 0.2px;
-    transition: d 0.3s ease, fill 0.3s ease;
+    transition:
+      d 0.3s ease,
+      fill 0.3s ease;
     fill: var(--color-layer-2);
     stroke: var(--stroke);
     stroke-width: var(--stroke-width);

@@ -18,7 +18,7 @@
 </script>
 
 <label
-  class="relative inline-flex h-5.5 w-5.5 cursor-pointer items-center justify-center bg-layer-2 rounded-[5px]"
+  class="relative inline-flex h-5.5 w-5.5 cursor-pointer items-center justify-center bg-layer-2 outline-1 outline-outline rounded-[5px]"
 >
   <input
     type="checkbox"
@@ -27,7 +27,7 @@
     {id}
   />
   <span
-    class="absolute opacity-0 peer-checked:opacity-100 transition-opacity duration-100 flex w-full h-full items-center justify-center"
+    class="absolute opacity-0 peer-checked:opacity-100 transition-opacity duration-50 flex w-full h-full items-center justify-center"
   >
     <svg
       viewBox="0 0 19 14"

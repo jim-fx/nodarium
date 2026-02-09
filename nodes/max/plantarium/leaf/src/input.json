@@ -1,0 +1,24 @@
+{
+  "id": "max/plantarium/leaf",
+  "outputs": [
+    "geometry"
+  ],
+  "inputs": {
+    "shape": {
+      "type": "shape",
+      "external": true
+    },
+    "size": {
+      "type": "float",
+      "value": 1
+    },
+    "xResolution": {
+      "type": "integer",
+      "description": "The amount of stems to produce",
+      "min": 1,
+      "max": 64,
+      "value": 1,
+      "hidden": true
+    }
+  }
+}

@@ -31,11 +31,24 @@
     return 0;
   }
 
-  let value = $state(getDefaultValue());
+  let value = $state(structuredClone($state.snapshot(getDefaultValue())));
+
+  function diffArray(a: number[], b?: number[] | number) {
+    if (!Array.isArray(b)) return true;
+    if (Array.isArray(a) !== Array.isArray(b)) return true;
+    if (a.length !== b.length) return true;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return true;
+    }
+    return false;
+  }
 
   $effect(() => {
-    if (value !== undefined && node?.props?.[id] !== value) {
-      node.props = { ...node.props, [id]: value };
+    const a = $state.snapshot(value);
+    const b = $state.snapshot(node?.props?.[id]);
+    const isDiff = Array.isArray(a) ? diffArray(a, b) : a !== b;
+    if (value !== undefined && isDiff) {
+      node.props = { ...node.props, [id]: a };
       if (graph) {
         graph.save();
         graph.execute();

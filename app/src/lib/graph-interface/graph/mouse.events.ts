@@ -166,15 +166,14 @@ export class MouseEventManager {
 
     if (this.state.mouseDown) return;
     this.state.edgeEndPosition = null;
+    const target = event.target as HTMLElement;
 
-    if (event.target instanceof HTMLElement) {
-      if (
-        event.target.nodeName !== 'CANVAS'
-        && !event.target.classList.contains('node')
-        && !event.target.classList.contains('content')
-      ) {
-        return;
-      }
+    if (
+      target.nodeName !== 'CANVAS'
+      && !target.classList.contains('node')
+      && !target.classList.contains('content')
+    ) {
+      return;
     }
 
     const mx = event.clientX - this.state.rect.x;

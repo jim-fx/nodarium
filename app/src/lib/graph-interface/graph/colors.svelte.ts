@@ -9,7 +9,7 @@ const variables = [
   'outline',
   'active',
   'selected',
-  'edge'
+  'connection'
 ] as const;
 
 function getColor(variable: (typeof variables)[number]) {

@@ -18,7 +18,7 @@
   select {
     font-family: var(--font-family);
     outline: solid 1px var(--color-outline);
-    padding: 0.8em 1em;
+    padding: 0.5em 0.8em;
     border-radius: 5px;
     border: none;
   }
