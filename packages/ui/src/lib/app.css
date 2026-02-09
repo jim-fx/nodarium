@@ -140,12 +140,12 @@ html.theme-catppuccin {
 }
 
 html.theme-high-contrast {
-  --color-text: #ffffff;
+  --color-text: white;
   --color-outline: white;
-  --color-layer-0: #000000;
+  --color-layer-0: black;
   --color-layer-1: black;
-  --color-layer-2: #222222;
-  --color-layer-3: #ffffff;
+  --color-layer-2: #ababab;
+  --color-layer-3: white;
   --color-connection: #fff;
 }
 

@@ -1,5 +1,6 @@
 export { default as Input } from './Input.svelte';
 export { default as InputCheckbox } from './inputs/InputCheckbox.svelte';
+export { default as InputColor } from './inputs/InputColor.svelte';
 export { default as InputNumber } from './inputs/InputNumber.svelte';
 export { default as InputSelect } from './inputs/InputSelect.svelte';
 export { default as InputShape } from './inputs/InputShape.svelte';

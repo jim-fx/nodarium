@@ -3,6 +3,7 @@
   import {
     Details,
     InputCheckbox,
+    InputColor,
     InputNumber,
     InputSelect,
     InputShape,
@@ -10,6 +11,8 @@
     ShortCut
   } from '$lib';
   import Section from './Section.svelte';
+  import Theme from './Theme.svelte';
+  import ThemeSelector from './ThemeSelector.svelte';
 
   let intValue = $state(0);
   let floatValue = $state(0.2);
@@ -19,61 +22,22 @@
   let selectValue = $state(0);
   const d = $derived(options[selectValue]);
   let checked = $state(false);
+  let colorValue = $state<[number, number, number]>([59, 130, 246]);
   let mirrorShape = $state(true);
   let detailsOpen = $state(false);
 
   let points = $state([]);
-
-  const themes = [
-    'dark',
-    'light',
-    'solarized',
-    'catppuccin',
-    'high-contrast',
-    'nord',
-    'dracula'
-  ];
-  let themeIndex = $state(0);
-  $effect(() => {
-    const classList = document.documentElement.classList;
-    for (const c of classList) {
-      if (c.startsWith('theme-')) document.documentElement.classList.remove(c);
-    }
-    document.documentElement.classList.add(`theme-${themes[themeIndex]}`);
-  });
-
-  const colors = [
-    'layer-0',
-    'layer-1',
-    'layer-2',
-    'layer-3',
-    'active',
-    'selected',
-    'outline',
-    'connection',
-    'text'
-  ];
+  let theme = $state('dark');
 </script>
 
 <main class="flex flex-col gap-8 py-8">
   <div class="flex gap-4">
     <h1 class="text-4xl">@nodarium/ui</h1>
-    <InputSelect bind:value={themeIndex} options={themes}></InputSelect>
+    <ThemeSelector bind:theme />
   </div>
 
-  <Section title="Colors">
-    <table>
-      <tbody>
-        {#each colors as color (color)}
-          <tr>
-            <td>
-              <div class="w-6 h-6 mr-2 my-1 rounded-sm outline-1 bg-{color}"></div>
-            </td>
-            <td>{color}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+  <Section title="InputNumber">
+    <Theme theme />
   </Section>
 
   <Section title="InputNumber">
@@ -97,6 +61,10 @@
 
   <Section title="Checkbox" value={checked}>
     <InputCheckbox bind:value={checked} />
+  </Section>
+
+  <Section title="Color" value={colorValue}>
+    <InputColor bind:value={colorValue} />
   </Section>
 
   <Section title="Shape">
