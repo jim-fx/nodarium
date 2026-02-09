@@ -83,7 +83,7 @@ export class GraphState {
   addMenuPosition = $state<[number, number] | null>(null);
 
   snapToGrid = $state(false);
-  showGrid = $state(true);
+  backgroundType = $state<'grid' | 'dots' | 'none'>('grid');
   showHelp = $state(false);
 
   cameraDown = [0, 0];

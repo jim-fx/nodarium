@@ -13,7 +13,7 @@
     settings?: Record<string, unknown>;
 
     activeNode?: NodeInstance;
-    showGrid?: boolean;
+    backgroundType?: 'grid' | 'dots' | 'none';
     snapToGrid?: boolean;
     showHelp?: boolean;
     settingTypes?: Record<string, unknown>;
@@ -27,7 +27,7 @@
     registry,
     settings = $bindable(),
     activeNode = $bindable(),
-    showGrid = $bindable(true),
+    backgroundType = $bindable('grid'),
     snapToGrid = $bindable(true),
     showHelp = $bindable(false),
     settingTypes = $bindable(),
@@ -43,7 +43,7 @@
 
   const graphState = new GraphState(manager);
   $effect(() => {
-    graphState.showGrid = showGrid;
+    graphState.backgroundType = backgroundType;
     graphState.snapToGrid = snapToGrid;
     graphState.showHelp = showHelp;
   });

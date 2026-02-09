@@ -6,11 +6,12 @@
   import BackgroundVert from './Background.vert';
 
   type Props = {
-    minZoom: number;
-    maxZoom: number;
-    cameraPosition: [number, number, number];
-    width: number;
-    height: number;
+    minZoom?: number;
+    maxZoom?: number;
+    cameraPosition?: [number, number, number];
+    width?: number;
+    height?: number;
+    type?: 'grid' | 'dots' | 'none';
   };
 
   let {
@@ -18,8 +19,17 @@
     maxZoom = 150,
     cameraPosition = [0, 1, 0],
     width = globalThis?.innerWidth || 100,
-    height = globalThis?.innerHeight || 100
+    height = globalThis?.innerHeight || 100,
+    type = 'grid'
   }: Props = $props();
+
+  const typeMap = new Map([
+    ['grid', 0],
+    ['dots', 1],
+    ['none', 2]
+  ]);
+
+  const gridType = $derived(typeMap.get(type) || 0);
 
   let bw = $derived(width / cameraPosition[2]);
   let bh = $derived(height / cameraPosition[2]);
@@ -51,6 +61,9 @@
         },
         dimensions: {
           value: [100, 100]
+        },
+        gridType: {
+          value: 0
         }
       }}
       uniforms.camPos.value={cameraPosition}
@@ -59,6 +72,7 @@
       uniforms.lineColor.value={appSettings.value.theme && colors['outline']}
       uniforms.zoomLimits.value={[minZoom, maxZoom]}
       uniforms.dimensions.value={[width, height]}
+      uniforms.gridType.value={gridType}
     />
   </T.Mesh>
 </T.Group>

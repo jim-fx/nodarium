@@ -30,10 +30,11 @@ export const AppSettingTypes = {
   },
   nodeInterface: {
     title: 'Node Interface',
-    showNodeGrid: {
-      type: 'boolean',
-      label: 'Show Grid',
-      value: true
+    backgroundType: {
+      type: 'select',
+      label: 'Background',
+      options: ['grid', 'dots', 'none'],
+      value: 'grid'
     },
     snapToGrid: {
       type: 'boolean',

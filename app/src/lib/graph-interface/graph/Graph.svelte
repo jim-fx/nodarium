@@ -132,8 +132,9 @@
       position={graphState.cameraPosition}
     />
 
-    {#if graphState.showGrid !== false}
+    {#if graphState.backgroundType !== 'none'}
       <Background
+        type={graphState.backgroundType}
         cameraPosition={graphState.cameraPosition}
         {maxZoom}
         {minZoom}

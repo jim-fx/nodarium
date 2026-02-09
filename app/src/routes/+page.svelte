@@ -171,7 +171,7 @@
           graph={pm.graph}
           bind:this={graphInterface}
           registry={nodeRegistry}
-          showGrid={appSettings.value.nodeInterface.showNodeGrid}
+          backgroundType={appSettings.value.nodeInterface.backgroundType}
           snapToGrid={appSettings.value.nodeInterface.snapToGrid}
           bind:activeNode
           bind:showHelp={appSettings.value.nodeInterface.showHelp}
