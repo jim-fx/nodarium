@@ -73,11 +73,19 @@ mv "$tmp_changelog" CHANGELOG.md
 pnpm exec dprint fmt CHANGELOG.md
 
 # -------------------------------------------------------------------
-# 5. Create release commit
+# 5. Setup GPG signing
 # -------------------------------------------------------------------
-git config user.name "release-bot"
-git config user.email "release-bot@ci"
+echo "$BOT_PGP_PRIVATE_KEY" | base64 -d | gpg --batch --import --
+GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG nodarium-bot@max-richter.dev 2>/dev/null | grep sec | head -n1 | sed 's/.*\///' | tr -d ' ')
 
+git config user.name "nodarium-bot"
+git config user.email "nodarium-bot@max-richter.dev"
+git config user.signingkey "$GPG_KEY_ID"
+git config commit.gpgsign true
+
+# -------------------------------------------------------------------
+# 6. Create release commit
+# -------------------------------------------------------------------
 git add CHANGELOG.md $(find . -name package.json ! -path "*/node_modules/*")
 
 if git diff --cached --quiet; then

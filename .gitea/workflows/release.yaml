@@ -57,6 +57,8 @@ jobs:
       - name: 🚀 Create Release Commit
         if: gitea.ref_type == 'tag'
         run: ./.gitea/scripts/create-release.sh
+        env:
+          BOT_PGP_PRIVATE_KEY : ${{ secrets.BOT_PGP_PRIVATE_KEY }}
 
       - name: 🛠️ Build
         run: ./.gitea/scripts/build.sh
