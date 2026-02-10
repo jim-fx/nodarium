@@ -5,18 +5,32 @@
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
 
   type Props = {
+    paddingLeft?: number;
+    paddingRight?: number;
+    paddingTop?: number;
+    paddingBottom?: number;
     onnode: (n: NodeInstance) => void;
   };
 
-  const { onnode }: Props = $props();
+  const padding = 10;
+
+  const {
+    paddingLeft = padding,
+    paddingRight = padding,
+    paddingTop = padding,
+    paddingBottom = padding,
+    onnode
+  }: Props = $props();
 
   const graph = getGraphManager();
   const graphState = getGraphState();
 
   let input: HTMLInputElement;
-  let wrapper: HTMLDivElement;
   let value = $state<string>();
   let activeNodeId = $state<NodeId>();
+
+  const MENU_WIDTH = 150;
+  const MENU_HEIGHT = 350;
 
   const allNodes = graphState.activeSocket
     ? graph.getPossibleNodes(graphState.activeSocket)
@@ -79,19 +93,52 @@
     }
   }
 
+  function clampAddMenuPosition() {
+    if (!graphState.addMenuPosition) return;
+
+    const camX = graphState.cameraPosition[0];
+    const camY = graphState.cameraPosition[1];
+    const zoom = graphState.cameraPosition[2];
+
+    const halfViewportWidth = (graphState.width / 2) / zoom;
+    const halfViewportHeight = (graphState.height / 2) / zoom;
+
+    const halfMenuWidth = (MENU_WIDTH / 2) / zoom;
+    const halfMenuHeight = (MENU_HEIGHT / 2) / zoom;
+
+    const minX = camX - halfViewportWidth - halfMenuWidth + paddingLeft / zoom;
+    const maxX = camX + halfViewportWidth - halfMenuWidth - paddingRight / zoom;
+    const minY = camY - halfViewportHeight - halfMenuHeight + paddingTop / zoom;
+    const maxY = camY + halfViewportHeight - halfMenuHeight - paddingBottom / zoom;
+
+    const clampedX = Math.max(
+      minX + halfMenuWidth,
+      Math.min(graphState.addMenuPosition[0], maxX - halfMenuWidth)
+    );
+    const clampedY = Math.max(
+      minY + halfMenuHeight,
+      Math.min(graphState.addMenuPosition[1], maxY - halfMenuHeight)
+    );
+
+    if (clampedX !== graphState.addMenuPosition[0] || clampedY !== graphState.addMenuPosition[1]) {
+      graphState.addMenuPosition = [clampedX, clampedY];
+    }
+  }
+
+  $effect(() => {
+    const pos = graphState.addMenuPosition;
+    const zoom = graphState.cameraPosition[2];
+    const width = graphState.width;
+    const height = graphState.height;
+
+    if (pos && zoom && width && height) {
+      clampAddMenuPosition();
+    }
+  });
+
   onMount(() => {
     input.disabled = false;
     setTimeout(() => input.focus(), 50);
-
-    const rect = wrapper.getBoundingClientRect();
-    const deltaY = rect.bottom - window.innerHeight;
-    const deltaX = rect.right - window.innerWidth;
-    if (deltaY > 0) {
-      wrapper.style.marginTop = `-${deltaY + 30}px`;
-    }
-    if (deltaX > 0) {
-      wrapper.style.marginLeft = `-${deltaX + 30}px`;
-    }
   });
 </script>
 
@@ -100,7 +147,7 @@
   position.z={graphState.addMenuPosition?.[1]}
   transform={false}
 >
-  <div class="add-menu-wrapper" bind:this={wrapper}>
+  <div class="add-menu-wrapper">
     <div class="header">
       <input
         id="add-menu"

@@ -2,7 +2,11 @@
   import { type Snippet } from 'svelte';
   import { panelState as state } from './PanelState.svelte';
 
-  const { children } = $props<{ children?: Snippet }>();
+  let { children, open = $bindable(false) } = $props<{ children?: Snippet; open?: boolean }>();
+
+  $effect(() => {
+    open = !!state.activePanel.value;
+  });
 </script>
 
 <div class="wrapper" class:visible={state.activePanel.value}>

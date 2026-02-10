@@ -63,6 +63,7 @@
   let activeNode = $state<NodeInstance | undefined>(undefined);
   let scene = $state<Group>(null!);
 
+  let sidebarOpen = $state(false);
   let graphInterface = $state<ReturnType<typeof GraphInterface>>(null!);
   let viewerComponent = $state<ReturnType<typeof Viewer>>();
   const manager = $derived(graphInterface?.manager);
@@ -171,6 +172,7 @@
           graph={pm.graph}
           bind:this={graphInterface}
           registry={nodeRegistry}
+          addMenuPadding={{ right: sidebarOpen ? 330 : undefined }}
           backgroundType={appSettings.value.nodeInterface.backgroundType}
           snapToGrid={appSettings.value.nodeInterface.snapToGrid}
           bind:activeNode
@@ -181,7 +183,7 @@
           onresult={(result) => handleUpdate(result as Graph)}
         />
       {/if}
-      <Sidebar>
+      <Sidebar bind:open={sidebarOpen}>
         <Panel id="general" title="General" icon="i-[tabler--settings]">
           <NestedSettings
             id="general"

@@ -17,9 +17,11 @@
   import { MouseEventManager } from './mouse.events';
 
   const {
-    keymap
+    keymap,
+    addMenuPadding
   }: {
     keymap: ReturnType<typeof createKeyMap>;
+    addMenuPadding?: { left?: number; right?: number; bottom?: number; top?: number };
   } = $props();
 
   const graph = getGraphManager();
@@ -160,7 +162,13 @@
 
     {#if graph.status === 'idle'}
       {#if graphState.addMenuPosition}
-        <AddMenu onnode={handleNodeCreation} />
+        <AddMenu
+          onnode={handleNodeCreation}
+          paddingTop={addMenuPadding?.top}
+          paddingRight={addMenuPadding?.right}
+          paddingBottom={addMenuPadding?.bottom}
+          paddingLeft={addMenuPadding?.left}
+        />
       {/if}
 
       {#if graphState.activeSocket}

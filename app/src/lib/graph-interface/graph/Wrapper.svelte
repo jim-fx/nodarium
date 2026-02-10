@@ -18,6 +18,8 @@
     showHelp?: boolean;
     settingTypes?: Record<string, unknown>;
 
+    addMenuPadding?: { left?: number; right?: number; bottom?: number; top?: number };
+
     onsave?: (save: Graph) => void;
     onresult?: (result: unknown) => void;
   };
@@ -25,6 +27,7 @@
   let {
     graph,
     registry,
+    addMenuPadding,
     settings = $bindable(),
     activeNode = $bindable(),
     backgroundType = $bindable('grid'),
@@ -83,4 +86,4 @@
   });
 </script>
 
-<GraphEl {keymap} />
+<GraphEl {keymap} {addMenuPadding} />
