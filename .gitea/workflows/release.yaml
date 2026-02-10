@@ -48,10 +48,10 @@ jobs:
 
       - name: 🧹 Quality Control
         run: |
-          pnpm build
           pnpm lint
           pnpm format:check
           pnpm check
+          pnpm build
           xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" pnpm test
 
       - name: 🚀 Create Release Commit
