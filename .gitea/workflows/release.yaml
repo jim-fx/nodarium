@@ -54,12 +54,12 @@ jobs:
           pnpm check
           xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" pnpm test
 
-      - name: 🛠️ Build
-        run: ./.gitea/scripts/build.sh
-
       - name: 🚀 Create Release Commit
         if: gitea.ref_type == 'tag'
         run: ./.gitea/scripts/create-release.sh
+
+      - name: 🛠️ Build
+        run: ./.gitea/scripts/build.sh
 
       - name: 🏷️ Create Gitea Release
         if: gitea.ref_type == 'tag'

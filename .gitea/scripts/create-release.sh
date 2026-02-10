@@ -86,6 +86,4 @@ else
   git push origin main
 fi
 
-rm app/static/CHANGELOG.md
-cp CHANGELOG.md app/static/CHANGELOG.md
 echo "✅ Release process for $TAG complete"
