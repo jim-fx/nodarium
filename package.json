@@ -1,5 +1,5 @@
 {
-  "version": "0.0.3",
+  "version": "0.0.4",
   "scripts": {
     "postinstall": "pnpm run -r --filter 'ui' build",
     "lint": "pnpm run -r --parallel lint",
