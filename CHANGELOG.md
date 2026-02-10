@@ -1,18 +1,18 @@
 # v0.0.4 (2026-02-10)
 
-Features
+## Features
 
 - Added shape and leaf nodes, including rotation support.
 - Added high-contrast light theme and improved overall node readability.
 - Enhanced UI with dots background, clearer details, and consistent node coloring.
 - Improved changelog display and parsing robustness.
 
-Fixes
+## Fixes
 
 - Fixed UI issues (backside rendering, missing types, linter errors).
 - Improved CI handling of commit messages and changelog placement.
 
-Chores
+## Chores
 
 - Simplified CI quality checks.
 - Updated dprint linters.

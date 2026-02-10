@@ -58,6 +58,7 @@ tmp_changelog="CHANGELOG.tmp"
   echo ""
   if [ -n "$COMMITS" ]; then
     echo "---"
+    echo ""
     echo "$COMMITS"
     echo ""
   fi
