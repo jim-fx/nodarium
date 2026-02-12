@@ -189,6 +189,10 @@ export class MouseEventManager {
 
     // if we clicked on a node
     if (clickedNodeId !== -1) {
+      if (event.ctrlKey && event.shiftKey) {
+        this.state.tryConnectToDebugNode(clickedNodeId);
+        return;
+      }
       if (this.state.activeNodeId === -1) {
         this.state.activeNodeId = clickedNodeId;
         // if the selected node is the same as the clicked node
@@ -220,10 +224,6 @@ export class MouseEventManager {
       this.edgeInteractionManager.handleMouseDown();
     } else if (event.ctrlKey) {
       this.state.boxSelection = true;
-    }
-
-    if (event.ctrlKey && event.shiftKey && this.state.activeNodeId !== -1) {
-      this.state.tryConnectToDebugNode(this.state.activeNodeId);
     }
 
     const node = this.graph.getNode(this.state.activeNodeId);
