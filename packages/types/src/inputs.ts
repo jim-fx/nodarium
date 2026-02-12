@@ -91,7 +91,8 @@ export const NodeInputPathSchema = z.object({
 
 export const NodeInputAnySchema = z.object({
   ...DefaultOptionsSchema.shape,
-  type: z.literal('*')
+  type: z.literal('*'),
+  value: z.any().optional()
 });
 
 export const NodeInputSchema = z.union([

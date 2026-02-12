@@ -209,7 +209,6 @@
             <NodeEl
               {node}
               inView={graphState.isNodeInView(node)}
-              z={graphState.cameraPosition[2]}
             />
           {/each}
         </div>

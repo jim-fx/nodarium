@@ -34,7 +34,7 @@ export function getSocketPosition(
     ];
   } else {
     let height = 5;
-    let nodeType = node.state.type!;
+    const nodeType = node.state.type!;
     const inputs = nodeType.inputs || {};
     for (const inputKey in inputs) {
       const h = getParameterHeight(nodeType, inputKey) / 10;
