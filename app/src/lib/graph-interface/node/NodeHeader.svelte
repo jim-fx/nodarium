@@ -45,9 +45,16 @@
       aspectRatio
     })
   );
+
+  const socketId = $derived(`${node.id}-${0}`);
 </script>
 
-<div class="wrapper" data-node-id={node.id} data-node-type={node.type}>
+<div
+  class="wrapper"
+  data-node-id={node.id}
+  data-node-type={node.type}
+  class:possible-socket={graphState?.possibleSocketIds.has(socketId)}
+>
   <div class="content">
     {#if appSettings.value.debug.advancedMode}
       <span class="bg-white text-black! mr-2 px-1 rounded-sm opacity-30">{node.id}</span>
@@ -55,7 +62,7 @@
     {node.type.split('/').pop()}
   </div>
   <div
-    class="click-target"
+    class="target"
     role="button"
     tabindex="0"
     onmousedown={handleMouseDown}
@@ -83,7 +90,20 @@
     height: 50px;
   }
 
-  .click-target {
+  .possible-socket .target::before {
+    content: "";
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border-radius: 100%;
+    box-shadow: 0px 0px 10px var(--color-layer-3);
+    background-color: var(--color-layer-3);
+    outline: solid thin white;
+    opacity: 0.2;
+    z-index: -10;
+  }
+
+  .target {
     position: absolute;
     right: 0px;
     top: 50%;
@@ -94,7 +114,7 @@
     border-radius: 50%;
   }
 
-  .click-target:hover + svg path {
+  .target:hover + svg path {
     d: var(--hover-path);
   }
 

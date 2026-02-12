@@ -120,9 +120,16 @@
     transform: translateY(-50%) translateX(-50%);
   }
 
-  .possible-socket .target {
-    box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.5);
-    background-color: rgba(255, 255, 255, 0.2);
+  .possible-socket .target::before {
+    content: "";
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border-radius: 100%;
+    box-shadow: 0px 0px 10px var(--color-layer-3);
+    background-color: var(--color-layer-3);
+    outline: solid thin white;
+    opacity: 0.2;
     z-index: -10;
   }
 
@@ -132,11 +139,12 @@
 
   .content {
     position: relative;
-    padding: 10px 20px;
     display: flex;
     flex-direction: column;
+    padding-inline: 20px;
     height: 100%;
-    justify-content: space-around;
+    justify-content: center;
+    gap: 10px;
     box-sizing: border-box;
   }
 
