@@ -4,6 +4,7 @@
   import Grid from '$lib/grid';
   import { debounceAsyncFunction } from '$lib/helpers';
   import { createKeyMap } from '$lib/helpers/createKeyMap';
+  import { debugNode } from '$lib/node-registry/debugNode.js';
   import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
   import NodeStore from '$lib/node-store/NodeStore.svelte';
   import PerformanceViewer from '$lib/performance/PerformanceViewer.svelte';
@@ -32,19 +33,6 @@
   const { data } = $props();
 
   const registryCache = new IndexDBCache('node-registry');
-
-  const debugNode = {
-    id: 'max/plantarium/debug',
-    inputs: {
-      a: {
-        type: '*'
-      }
-    },
-    execute(data: Int32Array) {
-      console.log({ data });
-      return data;
-    }
-  } as const;
 
   const nodeRegistry = new RemoteNodeRegistry('', registryCache, [debugNode]);
   const workerRuntime = new WorkerRuntimeExecutor();

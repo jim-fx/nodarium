@@ -59,6 +59,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   private definitionMap: Map<string, NodeDefinition> = new Map();
 
   private seed = Math.floor(Math.random() * 100000000);
+  private debugData: Record<string, Int32Array> = {};
 
   perf?: PerformanceStore;
 
@@ -139,6 +140,14 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       nodes.push(node);
     }
 
+    for (const node of graphNodes) {
+      if (node.type.endsWith('/debug')) {
+        node.state = node.state || {};
+        node.state.depth = Math.min(...node.state.parents.map(s => s.state.depth), 1) - 1;
+        nodes.push(node);
+      }
+    }
+
     return [outputNode, nodes] as const;
   }
 
@@ -146,6 +155,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     this.perf?.addPoint('runtime');
 
     let a = performance.now();
+    this.debugData = {};
 
     // Then we add some metadata to the graph
     const [outputNode, nodes] = await this.addMetaData(graph);
@@ -245,6 +255,9 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         log.log(`Inputs:`, inputs);
         a = performance.now();
         results[node.id] = node_type.execute(encoded_inputs);
+        if (node_type.id.endsWith('/debug')) {
+          this.debugData[node.id] = results[node.id];
+        }
         log.log('Executed', node.type, node.id);
         b = performance.now();
 
@@ -271,6 +284,10 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     this.perf?.endPoint('runtime');
 
     return res as unknown as Int32Array;
+  }
+
+  getDebugData() {
+    return this.debugData;
   }
 
   getPerformanceData() {
