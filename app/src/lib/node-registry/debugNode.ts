@@ -1,15 +1,3 @@
-const data: Record<string, unknown> = {};
-
-export function clearDebugData() {
-  for (const key in data) {
-    delete data[key];
-  }
-}
-
-export function getDebugData() {
-  return { ...data };
-}
-
 export const debugNode = {
   id: 'max/plantarium/debug',
   inputs: {
@@ -17,5 +5,7 @@ export const debugNode = {
       type: '*'
     }
   },
-  execute() {}
+  execute(_data: Int32Array): Int32Array {
+    return _data;
+  }
 } as const;
