@@ -3,6 +3,7 @@
   "scripts": {
     "postinstall": "pnpm run -r --filter 'ui' build",
     "lint": "pnpm run -r --parallel lint",
+    "qa": "pnpm lint && pnpm check && pnpm test",
     "format": "pnpm dprint fmt",
     "format:check": "pnpm dprint check",
     "test": "pnpm run -r --parallel test",
