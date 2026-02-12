@@ -13,11 +13,9 @@ export function getDebugData() {
 export const debugNode = {
   id: 'max/plantarium/debug',
   inputs: {
-    a: {
+    input: {
       type: '*'
     }
   },
-  execute(data: Int32Array) {
-    return data;
-  }
+  execute() {}
 } as const;

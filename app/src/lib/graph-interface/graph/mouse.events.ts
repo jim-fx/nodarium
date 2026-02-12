@@ -222,6 +222,10 @@ export class MouseEventManager {
       this.state.boxSelection = true;
     }
 
+    if (event.ctrlKey && event.shiftKey && this.state.activeNodeId !== -1) {
+      this.state.tryConnectToDebugNode(this.state.activeNodeId);
+    }
+
     const node = this.graph.getNode(this.state.activeNodeId);
     if (!node) return;
     node.state = node.state || {};

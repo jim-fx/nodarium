@@ -160,6 +160,29 @@ export class GraphState {
     return 1;
   }
 
+  tryConnectToDebugNode(nodeId: number) {
+    const node = this.graph.nodes.get(nodeId);
+    if (!node) return;
+    if (node.type.endsWith('/debug')) return;
+    if (!node.state.type?.outputs?.length) return;
+    for (const _node of this.graph.nodes.values()) {
+      if (_node.type.endsWith('/debug')) {
+        this.graph.createEdge(node, 0, _node, 'input');
+        return;
+      }
+    }
+
+    const debugNode = this.graph.createNode({
+      type: 'max/plantarium/debug',
+      position: [node.position[0] + 30, node.position[1]],
+      props: {}
+    });
+
+    if (debugNode) {
+      this.graph.createEdge(node, 0, debugNode, 'input');
+    }
+  }
+
   copyNodes() {
     if (this.activeNodeId === -1 && !this.selectedNodes?.size) {
       return;
