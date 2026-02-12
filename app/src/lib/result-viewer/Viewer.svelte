@@ -89,7 +89,7 @@
   };
 </script>
 
-{#if appSettings.value.debug.showPerformancePanel}
+{#if appSettings.value.debug.advancedMode}
   <SmallPerformanceViewer {fps} store={perf} />
 {/if}
 

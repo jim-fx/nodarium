@@ -216,7 +216,7 @@
         <Panel
           id="performance"
           title="Performance"
-          hidden={!appSettings.value.debug.showPerformancePanel}
+          hidden={!appSettings.value.debug.advancedMode}
           icon="i-[tabler--brand-speedtest] bg-red-400"
         >
           {#if $performanceStore}
@@ -229,7 +229,7 @@
         <Panel
           id="graph-source"
           title="Graph Source"
-          hidden={!appSettings.value.debug.showGraphJson}
+          hidden={!appSettings.value.debug.advancedMode}
           icon="i-[tabler--code]"
         >
           <GraphSource graph={pm.graph ?? manager?.serialize()} />
@@ -237,7 +237,7 @@
         <Panel
           id="benchmark"
           title="Benchmark"
-          hidden={!appSettings.value.debug.showBenchmarkPanel}
+          hidden={!appSettings.value.debug.advancedMode}
           icon="i-[tabler--graph] bg-red-400"
         >
           <BenchmarkPanel run={randomGenerate} />

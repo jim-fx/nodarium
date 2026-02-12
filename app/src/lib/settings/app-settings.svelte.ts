@@ -64,14 +64,9 @@ export const AppSettingTypes = {
       label: 'Show Indices',
       value: false
     },
-    showPerformancePanel: {
+    advancedMode: {
       type: 'boolean',
-      label: 'Show Performance Panel',
-      value: false
-    },
-    showBenchmarkPanel: {
-      type: 'boolean',
-      label: 'Show Benchmark Panel',
+      label: 'Advanced Mode',
       value: false
     },
     showVertices: {
@@ -82,11 +77,6 @@ export const AppSettingTypes = {
     showStemLines: {
       type: 'boolean',
       label: 'Show Stem Lines',
-      value: false
-    },
-    showGraphJson: {
-      type: 'boolean',
-      label: 'Show Graph Source',
       value: false
     },
     cache: {
