@@ -5,3 +5,5 @@ node_modules/
 
 /target
 .direnv/
+
+.pnpm-store/
