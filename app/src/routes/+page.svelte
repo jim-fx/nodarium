@@ -32,7 +32,21 @@
   const { data } = $props();
 
   const registryCache = new IndexDBCache('node-registry');
-  const nodeRegistry = new RemoteNodeRegistry('', registryCache);
+
+  const debugNode = {
+    id: 'max/plantarium/debug',
+    inputs: {
+      a: {
+        type: '*'
+      }
+    },
+    execute(data: Int32Array) {
+      console.log({ data });
+      return data;
+    }
+  } as const;
+
+  const nodeRegistry = new RemoteNodeRegistry('', registryCache, [debugNode]);
   const workerRuntime = new WorkerRuntimeExecutor();
   const runtimeCache = new MemoryRuntimeCache();
   const memoryRuntime = new MemoryRuntimeExecutor(nodeRegistry, runtimeCache);
