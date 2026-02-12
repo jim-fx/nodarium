@@ -38,7 +38,6 @@ export function getSocketPosition(
     const inputs = nodeType.inputs || {};
     for (const inputKey in inputs) {
       const h = getParameterHeight(nodeType, inputKey) / 10;
-      console.log({ inputKey, h });
       if (inputKey === index) {
         height += h / 2;
         break;
@@ -61,7 +60,6 @@ export function getNodeHeight(node: NodeDefinition) {
     return 5;
   }
   let height = 5;
-  console.log('Get Node Height', node.id);
 
   for (const key in node.inputs) {
     const h = getParameterHeight(node, key) / 10;

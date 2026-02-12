@@ -5,7 +5,7 @@
   import { type Mesh } from 'three';
   import { getGraphState } from '../graph-state.svelte';
   import { colors } from '../graph/colors.svelte';
-  import { getNodeHeight } from '../helpers/nodeHelpers';
+  import { getNodeHeight, getParameterHeight } from '../helpers/nodeHelpers';
   import NodeFrag from './Node.frag';
   import NodeVert from './Node.vert';
   import NodeHtml from './NodeHTML.svelte';
@@ -15,9 +15,10 @@
   type Props = {
     node: NodeInstance;
     inView: boolean;
-    z: number;
   };
-  let { node = $bindable(), inView, z }: Props = $props();
+  let { node = $bindable(), inView }: Props = $props();
+
+  const nodeType = $derived(node.state.type!);
 
   const isActive = $derived(graphState.activeNodeId === node.id);
   const isSelected = $derived(graphState.selectedNodes.has(node.id));
@@ -30,9 +31,18 @@
         : colors.outline)
   );
 
+  const sectionHeights = $derived(
+    Object
+      .keys(nodeType.inputs || {})
+      .map(key => getParameterHeight(nodeType, key) / 10)
+      .filter(b => !!b)
+  );
+
   let meshRef: Mesh | undefined = $state();
 
   const height = getNodeHeight(node.state.type!);
+
+  const zoom = $derived(graphState.cameraPosition[2]);
 
   $effect(() => {
     if (meshRef && !node.state?.mesh) {
@@ -40,6 +50,10 @@
       graphState.updateNodePosition(node);
     }
   });
+  const zoomValue = $derived(
+    (Math.log(graphState.cameraPosition[2]) - Math.log(1)) / (Math.log(40) - Math.log(1))
+  );
+  // const zoomValue = (graphState.cameraPosition[2] - 1) / 39;
 </script>
 
 <T.Mesh
@@ -48,7 +62,7 @@
   position.y={0.8}
   rotation.x={-Math.PI / 2}
   bind:ref={meshRef}
-  visible={inView && z < 7}
+  visible={inView && zoom < 7}
 >
   <T.PlaneGeometry args={[20, height]} radius={1} />
   <T.ShaderMaterial
@@ -58,14 +72,19 @@
     uniforms={{
       uColorBright: { value: colors['layer-2'] },
       uColorDark: { value: colors['layer-1'] },
-      uStrokeColor: { value: colors['layer-2'].clone() },
-      uStrokeWidth: { value: 1.0 },
+      uStrokeColor: { value: colors.outline.clone() },
+      uSectionHeights: { value: [5, 10] },
+      uNumSections: { value: 2 },
       uWidth: { value: 20 },
-      uHeight: { value: height }
+      uHeight: { value: 200 },
+      uZoom: { value: 1.0 }
     }}
-    uniforms.uStrokeColor.value={strokeColor.clone()}
-    uniforms.uStrokeWidth.value={(7 - z) / 3}
+    uniforms.uZoom.value={zoomValue}
+    uniforms.uHeight.value={height}
+    uniforms.uSectionHeights.value={sectionHeights}
+    uniforms.uNumSections.value={sectionHeights.length}
+    uniforms.uStrokeColor.value={strokeColor}
   />
 </T.Mesh>
 
-<NodeHtml bind:node {inView} {isActive} {isSelected} {z} />
+<NodeHtml bind:node {inView} {isActive} {isSelected} z={zoom} />

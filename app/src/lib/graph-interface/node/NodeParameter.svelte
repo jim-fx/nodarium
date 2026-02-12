@@ -43,7 +43,7 @@
   const path = $derived(
     createNodePath({
       depth: 6,
-      height: 1700 / height,
+      height: 2000 / height,
       y: 50.5,
       cornerBottom,
       leftBump,
@@ -53,7 +53,7 @@
   const pathHover = $derived(
     createNodePath({
       depth: 7,
-      height: 2000 / height,
+      height: 2200 / height,
       y: 50.5,
       cornerBottom,
       leftBump,
