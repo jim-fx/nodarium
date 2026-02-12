@@ -1,5 +1,37 @@
 import { browser } from '$app/environment';
 
+function mergeRecursive<T>(current: T, initial: T): T {
+  if (typeof initial === 'number') {
+    if (typeof current === 'number') return current;
+    return initial;
+  }
+
+  if (typeof initial === 'boolean') {
+    if (typeof current === 'boolean') return current;
+    return initial;
+  }
+
+  if (Array.isArray(initial)) {
+    if (Array.isArray(current)) return current;
+    return initial;
+  }
+
+  if (typeof initial === 'object' && initial) {
+    const merged = initial;
+    if (typeof current === 'object' && current) {
+      for (const key of Object.keys(initial)) {
+        if (key in current) {
+          // @ts-expect-error It's safe dont worry about it
+          merged[key] = mergeRecursive(current[key], initial[key]);
+        }
+      }
+    }
+    return merged;
+  }
+
+  return current;
+}
+
 export class LocalStore<T> {
   value = $state<T>() as T;
   key = '';
@@ -10,7 +42,10 @@ export class LocalStore<T> {
 
     if (browser) {
       const item = localStorage.getItem(key);
-      if (item) this.value = this.deserialize(item);
+      if (item) {
+        const storedValue = this.deserialize(item);
+        this.value = mergeRecursive(storedValue, value);
+      }
     }
 
     $effect.root(() => {
