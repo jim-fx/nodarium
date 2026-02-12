@@ -73,7 +73,7 @@
         <InputCheckbox bind:value={mirrorShape} />
         <p>mirror</p>
       </label>
-      <p>{JSON.stringify(points)}</p>
+      <p class="max-w-full overflow-hidden">{JSON.stringify(points)}</p>
     {/snippet}
     <div style:width="300px">
       <InputShape bind:value={points} mirror={mirrorShape} />

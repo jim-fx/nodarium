@@ -126,7 +126,7 @@
     <button
       aria-label="step down"
       onmousedown={stepDown}
-      class="cursor-pointer w-4 bg-layer-3 opacity-30 hover:opacity-50"
+      class="cursor-pointer w-4 bg-layer-3/30 hover:bg-layer-3/50"
     >
       <span class="i-[tabler--chevron-compact-left] block h-full w-full text-outline!"></span>
     </button>
@@ -161,7 +161,7 @@
     <button
       aria-label="step up"
       onmousedown={stepUp}
-      class="cursor-pointer w-4 bg-layer-3 opacity-30 hover:opacity-50"
+      class="cursor-pointer w-4 bg-layer-3/30 hover:bg-layer-3/50"
     >
       <span class="i-[tabler--chevron-compact-right] block h-full w-full text-outline!"></span>
     </button>
