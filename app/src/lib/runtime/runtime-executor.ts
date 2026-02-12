@@ -59,7 +59,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   private definitionMap: Map<string, NodeDefinition> = new Map();
 
   private seed = Math.floor(Math.random() * 100000000);
-  private debugData: Record<string, Int32Array> = {};
+  private debugData: Record<number, { type: string; data: Int32Array }> = {};
 
   perf?: PerformanceStore;
 
@@ -143,8 +143,8 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     for (const node of graphNodes) {
       if (node.type.endsWith('/debug')) {
         node.state = node.state || {};
-        node.state.depth = Math.min(...node.state.parents.map(s => s.state.depth), 1) - 1;
-        nodes.push(node);
+        const parent = node.state.parents[0];
+        parent.state.debugNode = true;
       }
     }
 
@@ -247,6 +247,12 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
           log.log(`Using cached value for ${node_type.id || node.id}`);
           this.perf?.addPoint('cache-hit', 1);
           results[node.id] = cachedValue as Int32Array;
+          if (node.state.debugNode && node_type.outputs) {
+            this.debugData[node.id] = {
+              type: node_type.outputs[0],
+              data: cachedValue
+            };
+          }
           continue;
         }
         this.perf?.addPoint('cache-hit', 0);
@@ -255,8 +261,11 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         log.log(`Inputs:`, inputs);
         a = performance.now();
         results[node.id] = node_type.execute(encoded_inputs);
-        if (node_type.id.endsWith('/debug')) {
-          this.debugData[node.id] = results[node.id];
+        if (node.state.debugNode && node_type.outputs) {
+          this.debugData[node.id] = {
+            type: node_type.outputs[0],
+            data: results[node.id]
+          };
         }
         log.log('Executed', node.type, node.id);
         b = performance.now();

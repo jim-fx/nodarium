@@ -1,33 +1,26 @@
 <script lang="ts">
   import { colors } from '$lib/graph-interface/graph/colors.svelte';
   import { T, useTask, useThrelte } from '@threlte/core';
-  import { Grid, MeshLineGeometry, MeshLineMaterial, Text } from '@threlte/extras';
-  import {
-    Box3,
-    type BufferGeometry,
-    type Group,
-    Mesh,
-    MeshBasicMaterial,
-    Vector3,
-    type Vector3Tuple
-  } from 'three';
+  import { Grid } from '@threlte/extras';
+  import { Box3, type BufferGeometry, type Group, Mesh, MeshBasicMaterial, Vector3 } from 'three';
   import { appSettings } from '../settings/app-settings.svelte';
   import Camera from './Camera.svelte';
+  import Debug from './Debug.svelte';
 
   const { renderStage, invalidate: _invalidate } = useThrelte();
 
   type Props = {
     fps: number[];
-    lines: Vector3[][];
+    debugData?: Record<number, { type: string; data: Int32Array }>;
     scene: Group;
     centerCamera: boolean;
   };
 
   let {
-    lines,
     centerCamera,
     fps = $bindable(),
-    scene = $bindable()
+    scene = $bindable(),
+    debugData
   }: Props = $props();
 
   let geometries = $state.raw<BufferGeometry[]>([]);
@@ -91,17 +84,11 @@
     });
     _invalidate();
   });
-
-  function getPosition(geo: BufferGeometry, i: number) {
-    return [
-      geo.attributes.position.array[i],
-      geo.attributes.position.array[i + 1],
-      geo.attributes.position.array[i + 2]
-    ] as Vector3Tuple;
-  }
 </script>
 
 <Camera {center} {centerCamera} />
+
+<Debug {debugData} />
 
 {#if appSettings.value.showGrid}
   <Grid
@@ -116,35 +103,4 @@
     fadeOrigin={new Vector3(0, 0, 0)}
   />
 {/if}
-
-<T.Group>
-  {#if geometries}
-    {#each geometries as geo (geo.id)}
-      {#if appSettings.value.debug.showIndices}
-        {#each geo.attributes.position.array, i (i)}
-          {#if i % 3 === 0}
-            <Text fontSize={0.25} position={getPosition(geo, i)} />
-          {/if}
-        {/each}
-      {/if}
-
-      {#if appSettings.value.debug.showVertices}
-        <T.Points visible={true}>
-          <T is={geo} />
-          <T.PointsMaterial size={0.25} />
-        </T.Points>
-      {/if}
-    {/each}
-  {/if}
-
-  <T.Group bind:ref={scene}></T.Group>
-</T.Group>
-
-{#if appSettings.value.debug.showStemLines && lines}
-  {#each lines as line (line[0].x + '-' + line[0].y + '-' + '' + line[0].z)}
-    <T.Mesh>
-      <MeshLineGeometry points={line} />
-      <MeshLineMaterial width={0.1} color="red" depthTest={false} />
-    </T.Mesh>
-  {/each}
-{/if}
+<T.Group bind:ref={scene}></T.Group>

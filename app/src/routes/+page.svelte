@@ -68,6 +68,7 @@
   let sidebarOpen = $state(false);
   let graphInterface = $state<ReturnType<typeof GraphInterface>>(null!);
   let viewerComponent = $state<ReturnType<typeof Viewer>>();
+  let debugData = $state<Record<number, { type: string; data: Int32Array }>>();
   const manager = $derived(graphInterface?.manager);
 
   async function randomGenerate() {
@@ -107,6 +108,7 @@
 
       if (appSettings.value.debug.useWorker) {
         let perfData = await runtime.getPerformanceData();
+        debugData = await runtime.getDebugData();
         let lastRun = perfData?.at(-1);
         if (lastRun?.total) {
           lastRun.runtime = lastRun.total;
@@ -165,6 +167,7 @@
         bind:scene
         bind:this={viewerComponent}
         perf={performanceStore}
+        debugData={debugData}
         centerCamera={appSettings.value.centerCamera}
       />
     </Grid.Cell>

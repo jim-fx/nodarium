@@ -5,6 +5,7 @@ type RuntimeState = {
   parents: RuntimeNode[];
   children: RuntimeNode[];
   inputNodes: Record<string, RuntimeNode>;
+  debugNode?: boolean;
 };
 
 export type RuntimeNode = SerializedNode & { state: RuntimeState };

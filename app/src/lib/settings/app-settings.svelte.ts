@@ -59,24 +59,9 @@ export const AppSettingTypes = {
       label: 'Execute in WebWorker',
       value: true
     },
-    showIndices: {
-      type: 'boolean',
-      label: 'Show Indices',
-      value: false
-    },
     advancedMode: {
       type: 'boolean',
       label: 'Advanced Mode',
-      value: false
-    },
-    showVertices: {
-      type: 'boolean',
-      label: 'Show Vertices',
-      value: false
-    },
-    showStemLines: {
-      type: 'boolean',
-      label: 'Show Stem Lines',
       value: false
     },
     cache: {
