@@ -3,6 +3,7 @@ import { type NodeInstance } from '@nodarium/types';
 import type { GraphManager } from '../graph-manager.svelte';
 import { type GraphState } from '../graph-state.svelte';
 import { snapToGrid as snapPointToGrid } from '../helpers';
+import { getNodeHeight } from '../helpers/nodeHelpers';
 import { maxZoom, minZoom, zoomSpeed } from './constants';
 import { EdgeInteractionManager } from './edge.events';
 
@@ -289,7 +290,7 @@ export class MouseEventManager {
         if (!node?.state) continue;
         const x = node.position[0];
         const y = node.position[1];
-        const height = this.state.getNodeHeight(node.type);
+        const height = getNodeHeight(node.state.type!);
         if (x > x1 - 20 && x < x2 && y > y1 - height && y < y2) {
           this.state.selectedNodes?.add(node.id);
         } else {

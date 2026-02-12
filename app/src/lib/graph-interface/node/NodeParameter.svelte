@@ -2,6 +2,7 @@
   import type { NodeInput, NodeInstance } from '@nodarium/types';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers';
+  import { getParameterHeight, getSocketPosition } from '../helpers/nodeHelpers';
   import NodeInputEl from './NodeInput.svelte';
 
   type Props = {
@@ -12,19 +13,18 @@
   };
 
   const graph = getGraphManager();
+  const graphState = getGraphState();
+  const graphId = graph?.id;
+  const elementId = `input-${Math.random().toString(36).substring(7)}`;
 
   let { node = $bindable(), input, id, isLast }: Props = $props();
 
-  const inputType = $derived(node?.state?.type?.inputs?.[id]);
+  const nodeType = $derived(node.state.type!);
+
+  const inputType = $derived(nodeType.inputs?.[id]);
 
   const socketId = $derived(`${node.id}-${id}`);
-  const isShape = $derived(input.type === 'shape' && input.external !== true);
-  const height = $derived(isShape ? 200 : 100);
-
-  const graphState = getGraphState();
-  const graphId = graph?.id;
-
-  const elementId = `input-${Math.random().toString(36).substring(7)}`;
+  const height = $derived(getParameterHeight(nodeType, id));
 
   function handleMouseDown(ev: MouseEvent) {
     ev.preventDefault();
@@ -32,18 +32,18 @@
     graphState.setDownSocket({
       node,
       index: id,
-      position: graphState.getSocketPosition?.(node, id)
+      position: getSocketPosition(node, id)
     });
   }
 
-  const leftBump = $derived(node.state?.type?.inputs?.[id].internal !== true);
+  const leftBump = $derived(nodeType.inputs?.[id].internal !== true);
   const cornerBottom = $derived(isLast ? 5 : 0);
   const aspectRatio = 0.5;
 
   const path = $derived(
     createNodePath({
       depth: 6,
-      height: 18,
+      height: 1700 / height,
       y: 50.5,
       cornerBottom,
       leftBump,
@@ -53,7 +53,7 @@
   const pathHover = $derived(
     createNodePath({
       depth: 7,
-      height: 20,
+      height: 2000 / height,
       y: 50.5,
       cornerBottom,
       leftBump,
@@ -74,10 +74,6 @@
       {#if inputType?.label !== ''}
         <label for={elementId} title={input.description}>{input.label || id}</label>
       {/if}
-      <span
-        class="absolute i-[tabler--help-circle] size-4 block top-2 right-2 opacity-30"
-        title={JSON.stringify(input, null, 2)}
-      ></span>
       {#if inputType?.external !== true}
         <NodeInputEl {graph} {elementId} bind:node {input} {id} />
       {/if}

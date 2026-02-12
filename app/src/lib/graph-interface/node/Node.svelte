@@ -5,6 +5,7 @@
   import { type Mesh } from 'three';
   import { getGraphState } from '../graph-state.svelte';
   import { colors } from '../graph/colors.svelte';
+  import { getNodeHeight } from '../helpers/nodeHelpers';
   import NodeFrag from './Node.frag';
   import NodeVert from './Node.vert';
   import NodeHtml from './NodeHTML.svelte';
@@ -31,7 +32,7 @@
 
   let meshRef: Mesh | undefined = $state();
 
-  const height = graphState.getNodeHeight(node.type);
+  const height = getNodeHeight(node.state.type!);
 
   $effect(() => {
     if (meshRef && !node.state?.mesh) {
