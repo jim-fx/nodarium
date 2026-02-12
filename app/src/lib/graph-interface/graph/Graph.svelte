@@ -11,6 +11,7 @@
   import Debug from '../debug/Debug.svelte';
   import EdgeEl from '../edges/Edge.svelte';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
+  import { getSocketPosition } from '../helpers/nodeHelpers';
   import NodeEl from '../node/Node.svelte';
   import { maxZoom, minZoom } from './constants';
   import { FileDropEventManager } from './drop.events';
@@ -38,8 +39,8 @@
       return [0, 0, 0, 0];
     }
 
-    const pos1 = graphState.getSocketPosition(fromNode, edge[1]);
-    const pos2 = graphState.getSocketPosition(toNode, edge[3]);
+    const pos1 = getSocketPosition(fromNode, edge[1]);
+    const pos2 = getSocketPosition(toNode, edge[3]);
     return [pos1[0], pos1[1], pos2[0], pos2[1]];
   }
 
@@ -208,7 +209,6 @@
             <NodeEl
               {node}
               inView={graphState.isNodeInView(node)}
-              z={graphState.cameraPosition[2]}
             />
           {/each}
         </div>

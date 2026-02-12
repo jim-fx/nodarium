@@ -3,6 +3,7 @@ import { getContext, setContext } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { OrthographicCamera, Vector3 } from 'three';
 import type { GraphManager } from './graph-manager.svelte';
+import { getNodeHeight, getSocketPosition } from './helpers/nodeHelpers';
 
 const graphStateKey = Symbol('graph-state');
 export function getGraphState() {
@@ -159,54 +160,27 @@ export class GraphState {
     return 1;
   }
 
-  getSocketPosition(
-    node: NodeInstance,
-    index: string | number
-  ): [number, number] {
-    if (typeof index === 'number') {
-      return [
-        (node?.state?.x ?? node.position[0]) + 20,
-        (node?.state?.y ?? node.position[1]) + 2.5 + 10 * index
-      ];
-    } else {
-      const _index = Object.keys(node.state?.type?.inputs || {}).indexOf(index);
-      return [
-        node?.state?.x ?? node.position[0],
-        (node?.state?.y ?? node.position[1]) + 10 + 10 * _index
-      ];
-    }
-  }
-
-  private nodeHeightCache: Record<string, number> = {};
-  getNodeHeight(nodeTypeId: string) {
-    if (nodeTypeId in this.nodeHeightCache) {
-      return this.nodeHeightCache[nodeTypeId];
-    }
-    const node = this.graph.getNodeType(nodeTypeId);
-    if (!node?.inputs) {
-      return 5;
-    }
-    let height = 5;
-
-    for (const key of Object.keys(node.inputs)) {
-      if (key === 'seed') continue;
-      if (!node.inputs) continue;
-      if (node?.inputs?.[key] === undefined) continue;
-      if ('setting' in node.inputs[key]) continue;
-      if (node.inputs[key].hidden) continue;
-      if (
-        node.inputs[key].type === 'shape'
-        && node.inputs[key].external !== true
-        && node.inputs[key].internal !== false
-      ) {
-        height += 20;
-        continue;
+  tryConnectToDebugNode(nodeId: number) {
+    const node = this.graph.nodes.get(nodeId);
+    if (!node) return;
+    if (node.type.endsWith('/debug')) return;
+    if (!node.state.type?.outputs?.length) return;
+    for (const _node of this.graph.nodes.values()) {
+      if (_node.type.endsWith('/debug')) {
+        this.graph.createEdge(node, 0, _node, 'input');
+        return;
       }
-      height += 10;
     }
 
-    this.nodeHeightCache[nodeTypeId] = height;
-    return height;
+    const debugNode = this.graph.createNode({
+      type: 'max/plantarium/debug',
+      position: [node.position[0] + 30, node.position[1]],
+      props: {}
+    });
+
+    if (debugNode) {
+      this.graph.createEdge(node, 0, debugNode, 'input');
+    }
   }
 
   copyNodes() {
@@ -266,7 +240,7 @@ export class GraphState {
         if (edge[3] === index) {
           node = edge[0];
           index = edge[1];
-          position = this.getSocketPosition(node, index);
+          position = getSocketPosition(node, index);
           this.graph.removeEdge(edge);
           break;
         }
@@ -286,7 +260,7 @@ export class GraphState {
         return {
           node,
           index,
-          position: this.getSocketPosition(node, index)
+          position: getSocketPosition(node, index)
         };
       });
   }
@@ -323,7 +297,7 @@ export class GraphState {
         for (const node of this.graph.nodes.values()) {
           const x = node.position[0];
           const y = node.position[1];
-          const height = this.getNodeHeight(node.type);
+          const height = getNodeHeight(node.state.type!);
           if (downX > x && downX < x + 20 && downY > y && downY < y + height) {
             clickedNodeId = node.id;
             break;
@@ -335,14 +309,12 @@ export class GraphState {
   }
 
   isNodeInView(node: NodeInstance) {
-    const height = this.getNodeHeight(node.type);
+    const height = getNodeHeight(node.state.type!);
     const width = 20;
-    return (
-      node.position[0] > this.cameraBounds[0] - width
+    return node.position[0] > this.cameraBounds[0] - width
       && node.position[0] < this.cameraBounds[1]
       && node.position[1] > this.cameraBounds[2] - height
-      && node.position[1] < this.cameraBounds[3]
-    );
+      && node.position[1] < this.cameraBounds[3];
   }
 
   openNodePalette() {

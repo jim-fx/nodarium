@@ -6,11 +6,14 @@ export class WorkerRuntimeExecutor implements RuntimeExecutor {
     new URL(`./worker-runtime-executor-backend.ts`, import.meta.url)
   );
 
-  async execute(graph: Graph, settings: Record<string, unknown>) {
+  execute(graph: Graph, settings: Record<string, unknown>) {
     return this.worker.executeGraph(graph, settings);
   }
-  async getPerformanceData() {
+  getPerformanceData() {
     return this.worker.getPerformanceData();
+  }
+  getDebugData() {
+    return this.worker.getDebugData();
   }
   set useRuntimeCache(useCache: boolean) {
     this.worker.setUseRuntimeCache(useCache);

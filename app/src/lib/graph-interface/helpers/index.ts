@@ -35,6 +35,9 @@ export function createNodePath({
   rightBump = false,
   aspectRatio = 1
 } = {}) {
+  const leftBumpTopY = y + height / 2;
+  const leftBumpBottomY = y - height / 2;
+
   return `M0,${cornerTop}
       ${
     cornerTop
@@ -64,9 +67,7 @@ export function createNodePath({
   }
       ${
     leftBump
-      ? ` V${y + height / 2} C${depth},${y + height / 2} ${depth},${y - height / 2} 0,${
-        y - height / 2
-      }`
+      ? ` V${leftBumpTopY} C${depth},${leftBumpTopY} ${depth},${leftBumpBottomY} 0,${leftBumpBottomY}`
       : ` H0`
   }
       Z`.replace(/\s+/g, ' ');

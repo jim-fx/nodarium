@@ -89,6 +89,12 @@ export const NodeInputPathSchema = z.object({
   value: z.array(z.number()).optional()
 });
 
+export const NodeInputAnySchema = z.object({
+  ...DefaultOptionsSchema.shape,
+  type: z.literal('*'),
+  value: z.any().optional()
+});
+
 export const NodeInputSchema = z.union([
   NodeInputSeedSchema,
   NodeInputBooleanSchema,
@@ -100,7 +106,8 @@ export const NodeInputSchema = z.union([
   NodeInputSeedSchema,
   NodeInputVec3Schema,
   NodeInputGeometrySchema,
-  NodeInputPathSchema
+  NodeInputPathSchema,
+  NodeInputAnySchema
 ]);
 
 export type NodeInput = z.infer<typeof NodeInputSchema>;

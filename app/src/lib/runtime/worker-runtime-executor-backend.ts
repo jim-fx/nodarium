@@ -1,3 +1,4 @@
+import { debugNode } from '$lib/node-registry/debugNode';
 import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
 import type { Graph } from '@nodarium/types';
 import { createPerformanceStore } from '@nodarium/utils';
@@ -5,7 +6,7 @@ import { MemoryRuntimeExecutor } from './runtime-executor';
 import { MemoryRuntimeCache } from './runtime-executor-cache';
 
 const indexDbCache = new IndexDBCache('node-registry');
-const nodeRegistry = new RemoteNodeRegistry('', indexDbCache);
+const nodeRegistry = new RemoteNodeRegistry('', indexDbCache, [debugNode]);
 
 const cache = new MemoryRuntimeCache();
 const executor = new MemoryRuntimeExecutor(nodeRegistry, cache);
@@ -42,4 +43,8 @@ export async function executeGraph(
 
 export function getPerformanceData() {
   return performanceStore.get();
+}
+
+export function getDebugData() {
+  return executor.getDebugData();
 }

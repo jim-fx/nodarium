@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { appSettings } from '$lib/settings/app-settings.svelte';
   import type { NodeInstance } from '@nodarium/types';
   import { getGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers/index.js';
+  import { getSocketPosition } from '../helpers/nodeHelpers';
 
   const graphState = getGraphState();
 
@@ -14,7 +16,7 @@
       graphState.setDownSocket?.({
         node,
         index: 0,
-        position: graphState.getSocketPosition?.(node, 0)
+        position: getSocketPosition?.(node, 0)
       });
     }
   }
@@ -47,6 +49,9 @@
 
 <div class="wrapper" data-node-id={node.id} data-node-type={node.type}>
   <div class="content">
+    {#if appSettings.value.debug.advancedMode}
+      <span class="bg-white text-black! mr-2 px-1 rounded-sm opacity-30">{node.id}</span>
+    {/if}
     {node.type.split('/').pop()}
   </div>
   <div

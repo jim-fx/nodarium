@@ -15,8 +15,15 @@ export class RemoteNodeRegistry implements NodeRegistry {
 
   constructor(
     private url: string,
-    public cache?: AsyncCache<ArrayBuffer | string>
-  ) {}
+    public cache?: AsyncCache<ArrayBuffer | string>,
+    nodes?: NodeDefinition[]
+  ) {
+    if (nodes?.length) {
+      for (const node of nodes) {
+        this.nodes.set(node.id, node);
+      }
+    }
+  }
 
   async fetchJson(url: string, skipCache = false) {
     const finalUrl = `${this.url}/${url}`;

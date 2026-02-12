@@ -59,34 +59,9 @@ export const AppSettingTypes = {
       label: 'Execute in WebWorker',
       value: true
     },
-    showIndices: {
+    advancedMode: {
       type: 'boolean',
-      label: 'Show Indices',
-      value: false
-    },
-    showPerformancePanel: {
-      type: 'boolean',
-      label: 'Show Performance Panel',
-      value: false
-    },
-    showBenchmarkPanel: {
-      type: 'boolean',
-      label: 'Show Benchmark Panel',
-      value: false
-    },
-    showVertices: {
-      type: 'boolean',
-      label: 'Show Vertices',
-      value: false
-    },
-    showStemLines: {
-      type: 'boolean',
-      label: 'Show Stem Lines',
-      value: false
-    },
-    showGraphJson: {
-      type: 'boolean',
-      label: 'Show Graph Source',
+      label: 'Advanced Mode',
       value: false
     },
     cache: {

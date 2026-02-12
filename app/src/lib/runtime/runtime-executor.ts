@@ -59,6 +59,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   private definitionMap: Map<string, NodeDefinition> = new Map();
 
   private seed = Math.floor(Math.random() * 100000000);
+  private debugData: Record<number, { type: string; data: Int32Array }> = {};
 
   perf?: PerformanceStore;
 
@@ -124,10 +125,10 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       }
     }
 
-    const nodes = [];
+    const nodes = new Map<number, RuntimeNode>();
 
     // loop through all the nodes and assign each nodes its depth
-    const stack = [outputNode];
+    const stack = [outputNode, ...graphNodes.filter(n => n.type.endsWith('/debug'))];
     while (stack.length) {
       const node = stack.pop();
       if (!node) continue;
@@ -136,16 +137,31 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         parent.state.depth = node.state.depth + 1;
         stack.push(parent);
       }
-      nodes.push(node);
+      nodes.set(node.id, node);
     }
 
-    return [outputNode, nodes] as const;
+    for (const node of graphNodes) {
+      if (node.type.endsWith('/debug')) {
+        node.state = node.state || {};
+        const parent = node.state.parents[0];
+        if (parent) {
+          node.state.depth = parent.state.depth - 1;
+          parent.state.debugNode = true;
+        }
+        nodes.set(node.id, node);
+      }
+    }
+
+    const _nodes = [...nodes.values()];
+
+    return [outputNode, _nodes] as const;
   }
 
   async execute(graph: Graph, settings: Record<string, unknown>) {
     this.perf?.addPoint('runtime');
 
     let a = performance.now();
+    this.debugData = {};
 
     // Then we add some metadata to the graph
     const [outputNode, nodes] = await this.addMetaData(graph);
@@ -237,6 +253,12 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
           log.log(`Using cached value for ${node_type.id || node.id}`);
           this.perf?.addPoint('cache-hit', 1);
           results[node.id] = cachedValue as Int32Array;
+          if (node.state.debugNode && node_type.outputs) {
+            this.debugData[node.id] = {
+              type: node_type.outputs[0],
+              data: cachedValue
+            };
+          }
           continue;
         }
         this.perf?.addPoint('cache-hit', 0);
@@ -245,6 +267,12 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         log.log(`Inputs:`, inputs);
         a = performance.now();
         results[node.id] = node_type.execute(encoded_inputs);
+        if (node.state.debugNode && node_type.outputs) {
+          this.debugData[node.id] = {
+            type: node_type.outputs[0],
+            data: results[node.id]
+          };
+        }
         log.log('Executed', node.type, node.id);
         b = performance.now();
 
@@ -271,6 +299,10 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     this.perf?.endPoint('runtime');
 
     return res as unknown as Int32Array;
+  }
+
+  getDebugData() {
+    return this.debugData;
   }
 
   getPerformanceData() {

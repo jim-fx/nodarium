@@ -1,10 +1,10 @@
 <script lang="ts">
   import SmallPerformanceViewer from '$lib/performance/SmallPerformanceViewer.svelte';
   import { appSettings } from '$lib/settings/app-settings.svelte';
-  import { decodeFloat, splitNestedArray } from '@nodarium/utils';
+  import { splitNestedArray } from '@nodarium/utils';
   import type { PerformanceStore } from '@nodarium/utils';
   import { Canvas } from '@threlte/core';
-  import { DoubleSide, Vector3 } from 'three';
+  import { DoubleSide } from 'three';
   import { type Group, MeshMatcapMaterial, TextureLoader } from 'three';
   import { createGeometryPool, createInstancedGeometryPool } from './geometryPool';
   import Scene from './Scene.svelte';
@@ -23,6 +23,7 @@
 
   let geometryPool: ReturnType<typeof createGeometryPool>;
   let instancePool: ReturnType<typeof createInstancedGeometryPool>;
+
   export function updateGeometries(inputs: Int32Array[], group: Group) {
     geometryPool = geometryPool || createGeometryPool(group, material);
     instancePool = instancePool || createInstancedGeometryPool(group, material);
@@ -40,43 +41,15 @@
     scene: Group;
     centerCamera: boolean;
     perf: PerformanceStore;
+    debugData?: Record<number, { type: string; data: Int32Array }>;
   };
 
-  let { scene = $bindable(), centerCamera, perf }: Props = $props();
-
-  let lines = $state<Vector3[][]>([]);
-
-  function createLineGeometryFromEncodedData(encodedData: Int32Array) {
-    const positions: Vector3[] = [];
-
-    const amount = (encodedData.length - 1) / 4;
-
-    for (let i = 0; i < amount; i++) {
-      const x = decodeFloat(encodedData[2 + i * 4 + 0]);
-      const y = decodeFloat(encodedData[2 + i * 4 + 1]);
-      const z = decodeFloat(encodedData[2 + i * 4 + 2]);
-      positions.push(new Vector3(x, y, z));
-    }
-
-    return positions;
-  }
+  let { scene = $bindable(), centerCamera, debugData, perf }: Props = $props();
 
   export const update = function update(result: Int32Array) {
     perf.addPoint('split-result');
     const inputs = splitNestedArray(result);
     perf.endPoint();
-
-    if (appSettings.value.debug.showStemLines) {
-      perf.addPoint('create-lines');
-      lines = inputs
-        .map((input) => {
-          if (input[0] === 0) {
-            return createLineGeometryFromEncodedData(input);
-          }
-        })
-        .filter(Boolean) as Vector3[][];
-      perf.endPoint();
-    }
 
     perf.addPoint('update-geometries');
 
@@ -89,7 +62,7 @@
   };
 </script>
 
-{#if appSettings.value.debug.showPerformancePanel}
+{#if appSettings.value.debug.advancedMode}
   <SmallPerformanceViewer {fps} store={perf} />
 {/if}
 
@@ -97,8 +70,8 @@
   <Canvas>
     <Scene
       bind:this={sceneComponent}
-      {lines}
       {centerCamera}
+      {debugData}
       bind:scene
       bind:fps
     />

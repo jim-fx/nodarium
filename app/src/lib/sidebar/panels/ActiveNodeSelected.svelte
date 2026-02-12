@@ -42,11 +42,13 @@
     const store: Store = {};
     Object.keys(inputs).forEach((key) => {
       if (props) {
-        const value = props[key] || inputs[key].value;
+        const value = props[key] !== undefined ? props[key] : inputs[key].value;
         if (Array.isArray(value) || typeof value === 'number') {
           store[key] = value;
+        } else if (typeof value === 'boolean') {
+          store[key] = value ? 1 : 0;
         } else {
-          console.error('Wrong error');
+          console.error('Wrong error', { value });
         }
       }
     });

@@ -4,6 +4,7 @@
   import Grid from '$lib/grid';
   import { debounceAsyncFunction } from '$lib/helpers';
   import { createKeyMap } from '$lib/helpers/createKeyMap';
+  import { debugNode } from '$lib/node-registry/debugNode.js';
   import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
   import NodeStore from '$lib/node-store/NodeStore.svelte';
   import PerformanceViewer from '$lib/performance/PerformanceViewer.svelte';
@@ -32,7 +33,8 @@
   const { data } = $props();
 
   const registryCache = new IndexDBCache('node-registry');
-  const nodeRegistry = new RemoteNodeRegistry('', registryCache);
+
+  const nodeRegistry = new RemoteNodeRegistry('', registryCache, [debugNode]);
   const workerRuntime = new WorkerRuntimeExecutor();
   const runtimeCache = new MemoryRuntimeCache();
   const memoryRuntime = new MemoryRuntimeExecutor(nodeRegistry, runtimeCache);
@@ -66,6 +68,7 @@
   let sidebarOpen = $state(false);
   let graphInterface = $state<ReturnType<typeof GraphInterface>>(null!);
   let viewerComponent = $state<ReturnType<typeof Viewer>>();
+  let debugData = $state<Record<number, { type: string; data: Int32Array }>>();
   const manager = $derived(graphInterface?.manager);
 
   async function randomGenerate() {
@@ -105,6 +108,7 @@
 
       if (appSettings.value.debug.useWorker) {
         let perfData = await runtime.getPerformanceData();
+        debugData = await runtime.getDebugData();
         let lastRun = perfData?.at(-1);
         if (lastRun?.total) {
           lastRun.runtime = lastRun.total;
@@ -163,6 +167,7 @@
         bind:scene
         bind:this={viewerComponent}
         perf={performanceStore}
+        debugData={debugData}
         centerCamera={appSettings.value.centerCamera}
       />
     </Grid.Cell>
@@ -216,7 +221,7 @@
         <Panel
           id="performance"
           title="Performance"
-          hidden={!appSettings.value.debug.showPerformancePanel}
+          hidden={!appSettings.value.debug.advancedMode}
           icon="i-[tabler--brand-speedtest] bg-red-400"
         >
           {#if $performanceStore}
@@ -229,7 +234,7 @@
         <Panel
           id="graph-source"
           title="Graph Source"
-          hidden={!appSettings.value.debug.showGraphJson}
+          hidden={!appSettings.value.debug.advancedMode}
           icon="i-[tabler--code]"
         >
           <GraphSource graph={pm.graph ?? manager?.serialize()} />
@@ -237,7 +242,7 @@
         <Panel
           id="benchmark"
           title="Benchmark"
-          hidden={!appSettings.value.debug.showBenchmarkPanel}
+          hidden={!appSettings.value.debug.advancedMode}
           icon="i-[tabler--graph] bg-red-400"
         >
           <BenchmarkPanel run={randomGenerate} />
