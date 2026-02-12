@@ -125,7 +125,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       }
     }
 
-    const nodes = [];
+    const nodes = new Map<number, RuntimeNode>();
 
     // loop through all the nodes and assign each nodes its depth
     const stack = [outputNode];
@@ -137,18 +137,23 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         parent.state.depth = node.state.depth + 1;
         stack.push(parent);
       }
-      nodes.push(node);
+      nodes.set(node.id, node);
     }
 
     for (const node of graphNodes) {
       if (node.type.endsWith('/debug')) {
         node.state = node.state || {};
         const parent = node.state.parents[0];
-        parent.state.debugNode = true;
+        if (parent) {
+          parent.state.debugNode = true;
+        }
+        nodes.set(node.id, node);
       }
     }
 
-    return [outputNode, nodes] as const;
+    const _nodes = [...nodes.values()];
+
+    return [outputNode, _nodes] as const;
   }
 
   async execute(graph: Graph, settings: Record<string, unknown>) {
