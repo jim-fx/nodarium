@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { NodeInput, NodeInstance } from '@nodarium/types';
+  import type { NodeInput, NodeInstance, Socket } from '@nodarium/types';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers';
   import { getParameterHeight, getSocketPosition } from '../helpers/nodeHelpers';
@@ -60,6 +60,17 @@
       aspectRatio
     })
   );
+
+  function getSocketType(s: Socket | null) {
+    if (!s) return 'unknown';
+    if (typeof s.index === 'string') {
+      return s.node.state.type?.inputs?.[s.index].type || 'unknown';
+    }
+    return s.node.state.type?.outputs?.[s.index] || 'unknown';
+  }
+
+  const socketType = $derived(getSocketType(graphState.activeSocket));
+  const hoverColor = $derived(graphState.colors.getColor(socketType));
 </script>
 
 <div
@@ -67,6 +78,7 @@
   data-node-type={node.type}
   data-node-input={id}
   style:height="{height}px"
+  style:--socket-color={hoverColor}
   class:possible-socket={graphState?.possibleSocketIds.has(socketId)}
 >
   {#key id && graphId}
@@ -95,10 +107,8 @@
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 100 100"
     preserveAspectRatio="none"
-    style={`
-      --path: path("${path}");
-      --hover-path: path("${pathHover}");
-    `}
+    style:--path={`path("${path}")`}
+    style:--hover-path={`path("${pathHover}")`}
   >
     <path vector-effect="non-scaling-stroke"></path>
   </svg>
@@ -126,10 +136,10 @@
     width: 30px;
     height: 30px;
     border-radius: 100%;
-    box-shadow: 0px 0px 10px var(--color-layer-3);
-    background-color: var(--color-layer-3);
-    outline: solid thin white;
-    opacity: 0.2;
+    box-shadow: 0px 0px 10px var(--socket-color);
+    background-color: var(--socket-color);
+    outline: solid thin var(--socket-color);
+    opacity: 0.5;
     z-index: -10;
   }
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { appSettings } from '$lib/settings/app-settings.svelte';
-  import type { NodeInstance } from '@nodarium/types';
+  import type { NodeInstance, Socket } from '@nodarium/types';
   import { getGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers/index.js';
   import { getSocketPosition } from '../helpers/nodeHelpers';
@@ -47,12 +47,23 @@
   );
 
   const socketId = $derived(`${node.id}-${0}`);
+
+  function getSocketType(s: Socket | null) {
+    if (!s) return 'unknown';
+    if (typeof s.index === 'string') {
+      return s.node.state.type?.inputs?.[s.index].type || 'unknown';
+    }
+    return s.node.state.type?.outputs?.[s.index] || 'unknown';
+  }
+  const socketType = $derived(getSocketType(graphState.activeSocket));
+  const hoverColor = $derived(graphState.colors.getColor(socketType));
 </script>
 
 <div
   class="wrapper"
   data-node-id={node.id}
   data-node-type={node.type}
+  style:--socket-color={hoverColor}
   class:possible-socket={graphState?.possibleSocketIds.has(socketId)}
 >
   <div class="content">
@@ -96,10 +107,10 @@
     width: 30px;
     height: 30px;
     border-radius: 100%;
-    box-shadow: 0px 0px 10px var(--color-layer-3);
-    background-color: var(--color-layer-3);
-    outline: solid thin white;
-    opacity: 0.2;
+    box-shadow: 0px 0px 10px var(--socket-color);
+    background-color: var(--socket-color);
+    outline: solid thin var(--socket-color);
+    opacity: 0.7;
     z-index: -10;
   }
 

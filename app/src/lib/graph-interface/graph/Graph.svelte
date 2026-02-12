@@ -95,6 +95,13 @@
     graphState.activeSocket = null;
     graphState.addMenuPosition = null;
   }
+
+  function getSocketType(node: NodeInstance, index: number | string): string {
+    if (typeof index === 'string') {
+      return node.state.type?.inputs?.[index].type || 'unknown';
+    }
+    return node.state.type?.outputs?.[index] || 'unknown';
+  }
 </script>
 
 <svelte:window
@@ -175,6 +182,8 @@
       {#if graphState.activeSocket}
         <EdgeEl
           z={graphState.cameraPosition[2]}
+          inputType={getSocketType(graphState.activeSocket.node, graphState.activeSocket.index)}
+          outputType={getSocketType(graphState.activeSocket.node, graphState.activeSocket.index)}
           x1={graphState.activeSocket.position[0]}
           y1={graphState.activeSocket.position[1]}
           x2={graphState.edgeEndPosition?.[0] ?? graphState.mousePosition[0]}
@@ -187,6 +196,8 @@
         <EdgeEl
           id={graph.getEdgeId(edge)}
           z={graphState.cameraPosition[2]}
+          inputType={getSocketType(edge[0], edge[1])}
+          outputType={getSocketType(edge[2], edge[3])}
           {x1}
           {y1}
           {x2}

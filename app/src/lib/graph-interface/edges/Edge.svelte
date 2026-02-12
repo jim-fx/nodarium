@@ -6,15 +6,12 @@
     toneMapped: false
   });
 
-  let lineColor = $state(colors.outline.clone().convertSRGBToLinear());
-
   $effect.root(() => {
     $effect(() => {
       if (appSettings.value.theme === undefined) {
         return;
       }
       circleMaterial.color = colors.outline.clone().convertSRGBToLinear();
-      lineColor = colors.outline.clone().convertSRGBToLinear();
     });
   });
 
@@ -35,6 +32,7 @@
   import { CubicBezierCurve } from 'three/src/extras/curves/CubicBezierCurve.js';
   import { Vector2 } from 'three/src/math/Vector2.js';
   import { getGraphState } from '../graph-state.svelte';
+  import MeshGradientLineMaterial from './MeshGradientLine/MeshGradientLineMaterial.svelte';
 
   const graphState = getGraphState();
 
@@ -45,11 +43,16 @@
     y2: number;
     z: number;
     id?: string;
+    inputType?: string;
+    outputType?: string;
   };
 
-  const { x1, y1, x2, y2, z, id }: Props = $props();
+  const { x1, y1, x2, y2, z, inputType = 'unknown', outputType = 'unknown', id }: Props = $props();
 
   const thickness = $derived(Math.max(0.001, 0.00082 * Math.exp(0.055 * z)));
+
+  const inputColor = $derived(graphState.colors.getColor(inputType));
+  const outputColor = $derived(graphState.colors.getColor(outputType));
 
   let points = $state<Vector3[]>([]);
 
@@ -106,9 +109,9 @@
   position.z={y1}
   position.y={0.8}
   rotation.x={-Math.PI / 2}
-  material={circleMaterial}
 >
   <T.CircleGeometry args={[0.5, 16]} />
+  <T.MeshBasicMaterial color={inputColor} toneMapped={false} />
 </T.Mesh>
 
 <T.Mesh
@@ -119,6 +122,7 @@
   material={circleMaterial}
 >
   <T.CircleGeometry args={[0.5, 16]} />
+  <T.MeshBasicMaterial color={outputColor} toneMapped={false} />
 </T.Mesh>
 
 {#if graphState.hoveredEdgeId === id}
@@ -126,7 +130,8 @@
     <MeshLineGeometry {points} />
     <MeshLineMaterial
       width={thickness * 5}
-      color={lineColor}
+      color={inputColor}
+      tonemapped={false}
       opacity={0.5}
       transparent
     />
@@ -135,5 +140,10 @@
 
 <T.Mesh position.x={x1} position.z={y1} position.y={0.1}>
   <MeshLineGeometry {points} />
-  <MeshLineMaterial width={thickness} color={lineColor} />
+  <MeshGradientLineMaterial
+    width={thickness}
+    colorStart={inputColor}
+    colorEnd={outputColor}
+    tonemapped={false}
+  />
 </T.Mesh>
