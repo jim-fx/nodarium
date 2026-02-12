@@ -128,7 +128,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     const nodes = new Map<number, RuntimeNode>();
 
     // loop through all the nodes and assign each nodes its depth
-    const stack = [outputNode];
+    const stack = [outputNode, ...graphNodes.filter(n => n.type.endsWith('/debug'))];
     while (stack.length) {
       const node = stack.pop();
       if (!node) continue;
@@ -145,6 +145,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         node.state = node.state || {};
         const parent = node.state.parents[0];
         if (parent) {
+          node.state.depth = parent.state.depth - 1;
           parent.state.debugNode = true;
         }
         nodes.set(node.id, node);
