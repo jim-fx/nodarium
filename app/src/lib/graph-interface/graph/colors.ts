@@ -17,7 +17,6 @@ export class ColorGenerator {
 
     const newColor = this.generateNewColor();
     this.colors.set(id, newColor);
-    console.log(id, newColor);
     return this.colorToHsl(newColor);
   }
 
