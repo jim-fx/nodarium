@@ -56,3 +56,4 @@ jobs:
         with:
           name: benchmark-data
           path: app/benchmark/out/
+          compression: 9
