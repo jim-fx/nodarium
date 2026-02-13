@@ -86,7 +86,7 @@ git config commit.gpgsign true
 # -------------------------------------------------------------------
 # 6. Create release commit
 # -------------------------------------------------------------------
-git add CHANGELOG.md $(find . -name package.json ! -path "*/node_modules/*")
+git add CHANGELOG.md $(git ls-files '**/package.json')
 
 if git diff --cached --quiet; then
   echo "No changes to commit for release $TAG"
