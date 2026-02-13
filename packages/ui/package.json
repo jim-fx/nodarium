@@ -1,6 +1,6 @@
 {
   "name": "@nodarium/ui",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "scripts": {
     "dev": "vite",
     "build": "vite build && npm run package",
