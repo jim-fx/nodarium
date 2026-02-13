@@ -75,24 +75,17 @@ pnpm exec dprint fmt CHANGELOG.md
 # -------------------------------------------------------------------
 # 5. Setup GPG signing
 # -------------------------------------------------------------------
-mkdir -p ~/.gnupg
-chmod 700 ~/.gnupg
+echo "$BOT_PGP_PRIVATE_KEY" | base64 -d | gpg --batch --import
+GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep sec | awk '{print $2}' | cut -d'/' -f2)
 
-echo "pinentry-mode loopback" >>~/.gnupg/gpg.conf
+export GPG_TTY=$(tty)
 echo "allow-loopback-pinentry" >>~/.gnupg/gpg-agent.conf
-
 gpg-connect-agent reloadagent /bye
 
-echo "$BOT_PGP_PRIVATE_KEY" | base64 -d | gpg --batch --import --
-
-GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG nodarium-bot@max-richter.dev | grep sec | head -n1 | sed 's/.*\///' | tr -d ' ')
-
-# Git Configuration
 git config user.name "nodarium-bot"
 git config user.email "nodarium-bot@max-richter.dev"
-git config user.signingkey "$GPG_KEY_ID"
-git config commit.gpgsign true
-git config --global gpg.program "gpg --batch --pinentry-mode loopback"
+git config --global user.signingkey "$GPG_KEY_ID"
+git config --global commit.gpgsign true
 
 # -------------------------------------------------------------------
 # 6. Create release commit
