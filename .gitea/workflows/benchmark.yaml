@@ -1,0 +1,54 @@
+name: 📊 Benchmark the Runtime
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
+
+env:
+  PNPM_CACHE_FOLDER: .pnpm-store
+  CARGO_HOME: .cargo
+  CARGO_TARGET_DIR: target
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    container: git.max-richter.dev/max/nodarium-ci:bce06da456e3c008851ac006033cfff256015a47
+
+    steps:
+      - name: 📑 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITEA_TOKEN }}
+
+      - name: 💾 Setup pnpm Cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PNPM_CACHE_FOLDER }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: 🦀 Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: 📦 Install Dependencies
+        run: pnpm install --frozen-lockfile --store-dir ${{ env.PNPM_CACHE_FOLDER }}
+
+      - name: Execute Runtime
+        run: pnpm run --filter @nodarium/app bench
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-data
+          path: app/benchmark/out/

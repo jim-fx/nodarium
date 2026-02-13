@@ -2,7 +2,8 @@
   "name": "@nodarium/utils",
   "version": "0.0.5",
   "description": "",
-  "main": "src/index.ts",
+  "main": "./src/index.ts",
+  "type": "module",
   "scripts": {
     "test": "vitest",
     "format": "dprint fmt -c '../../.dprint.jsonc' .",
