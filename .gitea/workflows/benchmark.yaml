@@ -52,7 +52,7 @@ jobs:
         run: pnpm run --filter @nodarium/app bench
 
       - name: 📤 Upload Benchmark Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: benchmark-data
           path: app/benchmark/out/
