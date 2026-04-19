@@ -36,7 +36,7 @@ export interface DialogNode {
 
 export interface Choice {
   label: string;
-  next: string | null;
+  next?: string | null;
   onclick?: () => void;
 }
 
