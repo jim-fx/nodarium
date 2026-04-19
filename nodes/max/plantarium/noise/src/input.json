@@ -10,12 +10,14 @@
     "scale": {
       "type": "float",
       "min": 0.1,
-      "max": 10
+      "max": 10,
+      "value": 1
     },
     "strength": {
       "type": "float",
       "min": 0.1,
-      "max": 10
+      "max": 10,
+      "value": 2
     },
     "fixBottom": {
       "type": "float",
