@@ -7,3 +7,6 @@ packages:
 
 catalog:
   chokidar-cli: github:open-cli-tools/chokidar-cli#semver:v4.0.0
+onlyBuiltDependencies:
+  - "@tailwindcss/oxide"
+  - esbuild

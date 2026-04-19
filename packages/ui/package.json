@@ -64,6 +64,7 @@
   "types": "./dist/index.d.ts",
   "type": "module",
   "dependencies": {
+    "@nodarium/ui": "workspace:*",
     "@iconify-json/tabler": "^1.2.26",
     "@iconify/tailwind4": "^1.2.1",
     "@tailwindcss/vite": "^4.1.18",
