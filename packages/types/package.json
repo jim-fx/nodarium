@@ -2,6 +2,7 @@
   "name": "@nodarium/types",
   "version": "0.0.5",
   "description": "",
+  "type": "module",
   "main": "src/index.ts",
   "scripts": {
     "format": "dprint fmt -c '../../.dprint.jsonc' .",
