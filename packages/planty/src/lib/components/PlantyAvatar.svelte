@@ -82,14 +82,10 @@
   }
 
   const left = $derived(
-    displayMood === 'talking'
-      ? { px: 0, py: 0 }
-      : pupilOffset(cursorX, cursorY, 9.5, 30.5)
+    displayMood === 'talking' ? { px: 0, py: 0 } : pupilOffset(cursorX, cursorY, 9.5, 30.5)
   );
   const right = $derived(
-    displayMood === 'talking'
-      ? { px: 0, py: 0 }
-      : pupilOffset(cursorX, cursorY, 31.5, 35.5)
+    displayMood === 'talking' ? { px: 0, py: 0 } : pupilOffset(cursorX, cursorY, 31.5, 35.5)
   );
 </script>
 
@@ -176,10 +172,10 @@
   	cursor: grab;
   	user-select: none;
   	pointer-events: auto;
-    filter: drop-shadow(0px 0px 10px black);
+  	filter: drop-shadow(0px 0px 10px black);
   	transition:
   		left 0.85s cubic-bezier(0.33, 1, 0.68, 1),
-  		top  0.85s cubic-bezier(0.33, 1, 0.68, 1),
+  		top 0.85s cubic-bezier(0.33, 1, 0.68, 1);
   }
 
   .dragging {
@@ -189,49 +185,83 @@
 
   /* idle: steady vertical bob */
   @keyframes bob {
-  	0%, 100% { transform: translateY(0); }
-  	50%       { transform: translateY(-5px); }
+  	0%,
+  	100% {
+  		transform: translateY(0);
+  	}
+  	50% {
+  		transform: translateY(-5px);
+  	}
   }
-  .mood-idle  { animation: bob 2.6s ease-in-out infinite; }
-  .mood-happy { animation: bob 1.8s ease-in-out infinite; }
+  .mood-idle {
+  	animation: bob 2.6s ease-in-out infinite;
+  }
+  .mood-happy {
+  	animation: bob 1.8s ease-in-out infinite;
+  }
 
   /* thinking: head tilted to the side — clearly different from idle */
   @keyframes think {
-  	0%, 100% { transform: rotate(-12deg) translateY(0); }
-  	50%       { transform: rotate(-12deg) translateY(-3px); }
+  	0%,
+  	100% {
+  		transform: rotate(-12deg) translateY(0);
+  	}
+  	50% {
+  		transform: rotate(-12deg) translateY(-3px);
+  	}
   }
-  .mood-thinking { animation: think 2.8s ease-in-out infinite; }
+  .mood-thinking {
+  	animation: think 2.8s ease-in-out infinite;
+  }
 
   /* talking: subtle head waggle */
   @keyframes waggle {
-  	0%, 100% { transform: rotate(0deg); }
-  	25%       { transform: rotate(-2deg) translateY(-1px); }
-  	75%       { transform: rotate(2deg)  translateY(1px); }
+  	0%,
+  	100% {
+  		transform: rotate(0deg);
+  	}
+  	25% {
+  		transform: rotate(-2deg) translateY(-1px);
+  	}
+  	75% {
+  		transform: rotate(2deg) translateY(1px);
+  	}
   }
-  .mood-talking { animation: waggle 0.3s ease-in-out infinite; }
+  .mood-talking {
+  	animation: waggle 0.3s ease-in-out infinite;
+  }
 
   /* moving: forward-lean glide */
   @keyframes glide {
-  	0%, 100% { transform: translateY(0) rotate(-6deg); }
-  	50%       { transform: translateY(-8px) rotate(-4deg); }
+  	0%,
+  	100% {
+  		transform: translateY(0) rotate(-6deg);
+  	}
+  	50% {
+  		transform: translateY(-8px) rotate(-4deg);
+  	}
   }
-  .mood-moving { animation: glide 0.4s ease-in-out infinite; }
+  .mood-moving {
+  	animation: glide 0.4s ease-in-out infinite;
+  }
 
   /* ── Drop shadows ────────────────────────────────────────────────── */
   .body {
   	filter: drop-shadow(1px 1px 0 rgba(0, 0, 0, 0.5));
   	transition: d 0.12s ease-in-out;
   }
-  .eye-left, .eye-right {
+  .eye-left,
+  .eye-right {
   	filter: drop-shadow(1px 1px 0 rgba(0, 0, 0, 0.5));
   }
 
   .mood-talking {
-    .eye-left, .eye-right {
-      > g {
-        transition: transform 0.5s ease-in-out;
-      }
-    }
+  	.eye-left,
+  	.eye-right {
+  		> g {
+  			transition: transform 0.5s ease-in-out;
+  		}
+  	}
   }
 
   /* ── Leaves ──────────────────────────────────────────────────────── */
@@ -246,74 +276,154 @@
 
   /* idle: slow gentle breathing wave */
   @keyframes idle-right {
-  	0%, 100% { transform: rotate(0deg); }
-  	50%       { transform: rotate(-9deg); }
+  	0%,
+  	100% {
+  		transform: rotate(0deg);
+  	}
+  	50% {
+  		transform: rotate(-9deg);
+  	}
   }
   @keyframes idle-left {
-  	0%, 100% { transform: rotate(0deg); }
-  	50%       { transform: rotate(7deg); }
+  	0%,
+  	100% {
+  		transform: rotate(0deg);
+  	}
+  	50% {
+  		transform: rotate(7deg);
+  	}
   }
-  .mood-idle .leave-right { animation: idle-right 3s    ease-in-out infinite; }
-  .mood-idle .leave-left  { animation: idle-left  3s    ease-in-out infinite 0.15s; }
+  .mood-idle .leave-right {
+  	animation: idle-right 3s ease-in-out infinite;
+  }
+  .mood-idle .leave-left {
+  	animation: idle-left 3s ease-in-out infinite 0.15s;
+  }
 
   /* thinking: wings held raised, minimal drift */
   @keyframes think-right {
-  	0%, 100% { transform: rotate(-14deg); }
-  	50%       { transform: rotate(-10deg); }
+  	0%,
+  	100% {
+  		transform: rotate(-14deg);
+  	}
+  	50% {
+  		transform: rotate(-10deg);
+  	}
   }
   @keyframes think-left {
-  	0%, 100% { transform: rotate(10deg); }
-  	50%       { transform: rotate(7deg); }
+  	0%,
+  	100% {
+  		transform: rotate(10deg);
+  	}
+  	50% {
+  		transform: rotate(7deg);
+  	}
   }
-  .mood-thinking .leave-right { animation: think-right 4s ease-in-out infinite; }
-  .mood-thinking .leave-left  { animation: think-left  4s ease-in-out infinite 0.3s; }
+  .mood-thinking .leave-right {
+  	animation: think-right 4s ease-in-out infinite;
+  }
+  .mood-thinking .leave-left {
+  	animation: think-left 4s ease-in-out infinite 0.3s;
+  }
 
   /* talking: nearly still — tiny passive counter-sway */
   @keyframes talk-right {
-  	0%, 100% { transform: rotate(-2deg); }
-  	50%       { transform: rotate(2deg); }
+  	0%,
+  	100% {
+  		transform: rotate(-2deg);
+  	}
+  	50% {
+  		transform: rotate(2deg);
+  	}
   }
   @keyframes talk-left {
-  	0%, 100% { transform: rotate(2deg); }
-  	50%       { transform: rotate(-2deg); }
+  	0%,
+  	100% {
+  		transform: rotate(2deg);
+  	}
+  	50% {
+  		transform: rotate(-2deg);
+  	}
   }
-  .mood-talking .leave-right { animation: talk-right 0.6s ease-in-out infinite; }
-  .mood-talking .leave-left  { animation: talk-left  0.6s ease-in-out infinite 0.1s; }
+  .mood-talking .leave-right {
+  	animation: talk-right 0.6s ease-in-out infinite;
+  }
+  .mood-talking .leave-left {
+  	animation: talk-left 0.6s ease-in-out infinite 0.1s;
+  }
 
   /* happy: light casual flap */
   @keyframes happy-right {
-  	0%, 100% { transform: rotate(0deg); }
-  	50%       { transform: rotate(-18deg); }
+  	0%,
+  	100% {
+  		transform: rotate(0deg);
+  	}
+  	50% {
+  		transform: rotate(-18deg);
+  	}
   }
   @keyframes happy-left {
-  	0%, 100% { transform: rotate(0deg); }
-  	50%       { transform: rotate(13deg); }
+  	0%,
+  	100% {
+  		transform: rotate(0deg);
+  	}
+  	50% {
+  		transform: rotate(13deg);
+  	}
   }
-  .mood-happy .leave-right { animation: happy-right 1.4s ease-in-out infinite; }
-  .mood-happy .leave-left  { animation: happy-left  1.4s ease-in-out infinite 0.1s; }
+  .mood-happy .leave-right {
+  	animation: happy-right 1.4s ease-in-out infinite;
+  }
+  .mood-happy .leave-left {
+  	animation: happy-left 1.4s ease-in-out infinite 0.1s;
+  }
 
   /* moving: vigorous wing flap — full range, fast */
   @keyframes flap-right {
-  	0%, 100% { transform: rotate(0deg); }
-  	40%       { transform: rotate(-40deg); }
+  	0%,
+  	100% {
+  		transform: rotate(0deg);
+  	}
+  	40% {
+  		transform: rotate(-40deg);
+  	}
   }
   @keyframes flap-left {
-  	0%, 100% { transform: rotate(0deg); }
-  	40%       { transform: rotate(26deg); }
+  	0%,
+  	100% {
+  		transform: rotate(0deg);
+  	}
+  	40% {
+  		transform: rotate(26deg);
+  	}
   }
-  .mood-moving .leave-right { animation: flap-right 0.34s ease-in-out infinite; }
-  .mood-moving .leave-left  { animation: flap-left  0.34s ease-in-out infinite 0.04s; }
+  .mood-moving .leave-right {
+  	animation: flap-right 0.34s ease-in-out infinite;
+  }
+  .mood-moving .leave-left {
+  	animation: flap-left 0.34s ease-in-out infinite 0.04s;
+  }
 
   /* ── Eye blink (on pupil so it doesn't fight cursor translate) ───── */
   @keyframes blink {
-  	0%, 93%, 100% { transform: scaleY(1); }
-  	96%            { transform: scaleY(0.05); }
+  	0%,
+  	93%,
+  	100% {
+  		transform: scaleY(1);
+  	}
+  	96% {
+  		transform: scaleY(0.05);
+  	}
   }
   .pupil {
   	transform-box: fill-box;
   	transform-origin: center;
   	animation: blink 4s ease-in-out infinite;
   }
-  .eye-left  .pupil { animation-delay: 0s; }
-  .eye-right .pupil { animation-delay: 0.07s; }
+  .eye-left .pupil {
+  	animation-delay: 0s;
+  }
+  .eye-right .pupil {
+  	animation-delay: 0.07s;
+  }
 </style>

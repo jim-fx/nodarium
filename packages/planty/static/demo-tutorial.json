@@ -11,9 +11,9 @@
       "position": "bottom-right",
       "text": "👋 Hey! I'm Planty — your guide to this app. How would you like me to explain things?",
       "choices": [
-        { "label": "🤓 Technical — give me the details", "next": "intro_nerd"   },
-        { "label": "🌱 Simple — keep it friendly",       "next": "intro_simple" },
-        { "label": "No thanks, skip the tour",           "next": null           }
+        { "label": "🤓 Technical — give me the details", "next": "intro_nerd" },
+        { "label": "🌱 Simple — keep it friendly", "next": "intro_simple" },
+        { "label": "No thanks, skip the tour", "next": null }
       ]
     },
 

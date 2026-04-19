@@ -80,7 +80,7 @@
 
 {#if rect}
   <div
-    class="highlight fixed z-99999 rounded-md pointer-events-none"
+    class="highlight pointer-events-none fixed z-99999 rounded-md"
     style:top="{rect.top}px"
     style:left="{rect.left}px"
     style:width="{rect.width}px"
@@ -91,7 +91,8 @@
 
 <style>
   @keyframes pulse {
-  	0%, 100% {
+  	0%,
+  	100% {
   		box-shadow:
   			0 0 0 9999px rgba(0, 0, 0, 0.45),
   			0 0 0 2px rgba(255, 255, 255, 0.9),

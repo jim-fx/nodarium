@@ -1,7 +1,7 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 body {
-  color: var(--color-text);
-  background-color: var(--color-layer-0);
-  margin: 0;
+	color: var(--color-text);
+	background-color: var(--color-layer-0);
+	margin: 0;
 }

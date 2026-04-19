@@ -12,11 +12,8 @@
     'custom'
   ];
 
-  let { theme = $bindable() } = $props();
-
   let themeIndex = $state(0);
   $effect(() => {
-    theme = themes[themeIndex];
     const classList = document.documentElement.classList;
     for (const c of classList) {
       if (c.startsWith('theme-')) document.documentElement.classList.remove(c);

@@ -34,7 +34,7 @@
 >
   <!-- Header -->
   <header
-    class="flex items-center gap-4 px-8 py-5 h-12"
+    class="flex h-12 items-center gap-4 px-8 py-5"
     style="border-color: var(--color-outline);"
   >
     <h1 class="text-xl font-semibold">🌿 Planty</h1>
@@ -75,11 +75,17 @@
           <PlantyAvatar x={0} y={0} mood={previewMood} />
         </div>
         <div class="flex gap-2">
-          {#each moods as m}
+          {#each moods as m (m)}
             <button
               class="rounded-lg border px-3 py-1 text-xs transition"
               onclick={() => (previewMood = m)}
-              style="border-color: {previewMood === m ? 'var(--color-selected)' : 'var(--color-outline)'}; color: {previewMood === m ? 'var(--color-selected)' : 'var(--color-text)'}; background: {previewMood === m ? 'var(--color-layer-2)' : 'transparent'};"
+              style="border-color: {previewMood === m
+  ? 'var(--color-selected)'
+  : 'var(--color-outline)'}; color: {previewMood === m
+  ? 'var(--color-selected)'
+  : 'var(--color-text)'}; background: {previewMood === m
+  ? 'var(--color-layer-2)'
+  : 'transparent'};"
             >
               {m}
             </button>
@@ -95,7 +101,7 @@
       style="border-color: var(--color-outline); background-color: var(--color-layer-0);"
     >
       <span
-        class="text-xs font-semibold uppercase tracking-widest"
+        class="text-xs font-semibold tracking-widest uppercase"
         style="color: var(--color-outline);"
       >Parameters</span>
       <div
@@ -117,7 +123,7 @@
         Leaf density: 0.6
       </div>
       <span
-        class="mt-2 text-xs font-semibold uppercase tracking-widest"
+        class="mt-2 text-xs font-semibold tracking-widest uppercase"
         style="color: var(--color-outline);"
       >Export</span>
       <div
@@ -139,4 +145,3 @@
     }}
   />
 {/if}
-

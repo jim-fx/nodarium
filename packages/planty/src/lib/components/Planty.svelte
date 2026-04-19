@@ -13,12 +13,7 @@
     onComplete?: () => void;
   }
 
-  let {
-    config,
-    hooks = {},
-    onStepChange,
-    onComplete
-  }: Props = $props();
+  let { config, hooks = {}, onStepChange, onComplete }: Props = $props();
 
   const AVATAR_SIZE = 80;
   const SCREEN_PADDING = 20;
@@ -182,11 +177,7 @@
 {#if isActive}
   <div class="pointer-events-none fixed inset-0 z-99999">
     {#if highlight}
-      <Highlight
-        selector={highlight.selector}
-        hookName={highlight.hookName}
-        {hooks}
-      />
+      <Highlight selector={highlight.selector} hookName={highlight.hookName} {hooks} />
     {/if}
 
     <PlantyAvatar bind:x={avatarX} bind:y={avatarY} {mood} />

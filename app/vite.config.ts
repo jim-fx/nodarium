@@ -1,10 +1,10 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { playwright } from '@vitest/browser-playwright';
+import path from 'path';
 import comlink from 'vite-plugin-comlink';
 import glsl from 'vite-plugin-glsl';
 import wasm from 'vite-plugin-wasm';
-import path from 'path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
