@@ -6,3 +6,4 @@ export { default as lottaNodes } from './lotta-nodes.json';
 export { plant } from './plant';
 export { default as simple } from './simple.json';
 export { tree } from './tree';
+export { default as tutorial } from './tutorial.json';

@@ -22,13 +22,16 @@
   import ExportSettings from '$lib/sidebar/panels/ExportSettings.svelte';
   import GraphSource from '$lib/sidebar/panels/GraphSource.svelte';
   import Keymap from '$lib/sidebar/panels/Keymap.svelte';
+  import { panelState } from '$lib/sidebar/PanelState.svelte';
   import Sidebar from '$lib/sidebar/Sidebar.svelte';
+  import { tutorialConfig } from '$lib/tutorial/tutorial-config';
+  import { Planty } from '@nodarium/planty';
   import type { Graph, NodeInstance } from '@nodarium/types';
   import { createPerformanceStore } from '@nodarium/utils';
-  import { onMount } from 'svelte';
   import type { Group } from 'three';
 
   let performanceStore = createPerformanceStore();
+  let planty = $state<ReturnType<typeof Planty>>();
 
   const { data } = $props();
 
@@ -130,34 +133,64 @@
 
   const handleUpdate = debounceAsyncFunction(update);
 
-  onMount(() => {
-    appSettings.value.debug.stressTest = {
-      ...appSettings.value.debug.stressTest,
-      loadGrid: () => {
+  function handleSettingsButton(id: string) {
+    switch (id) {
+      case 'general.clippy':
+        planty?.start();
+        break;
+      case 'general.debug.stressTest.loadGrid':
         manager.load(
           templates.grid(
             appSettings.value.debug.stressTest.amount,
             appSettings.value.debug.stressTest.amount
           )
         );
-      },
-      loadTree: () => {
+        break;
+      case 'general.debug.stressTest.loadTree':
         manager.load(templates.tree(appSettings.value.debug.stressTest.amount));
-      },
-      lottaFaces: () => {
+        break;
+      case 'general.debug.stressTest.lottaFaces':
         manager.load(templates.lottaFaces as unknown as Graph);
-      },
-      lottaNodes: () => {
+        break;
+      case 'general.debug.stressTest.lottaNodes':
         manager.load(templates.lottaNodes as unknown as Graph);
-      },
-      lottaNodesAndFaces: () => {
+        break;
+      case 'general.debug.stressTest.lottaNodesAndFaces':
         manager.load(templates.lottaNodesAndFaces as unknown as Graph);
-      }
-    };
-  });
+        break;
+      default:
+    }
+  }
 </script>
 
 <svelte:document onkeydown={applicationKeymap.handleKeyboardEvent} />
+
+<Planty
+  bind:this={planty}
+  config={tutorialConfig}
+  hooks={{
+    'setup-default': () => {
+      const ts = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      pm.handleCreateProject(
+        structuredClone(templates.defaultPlant) as unknown as Graph,
+        `Tutorial Project (${ts})`
+      );
+    },
+    'load-tutorial-template': () => {
+      if (!pm.graph) return;
+      const g = structuredClone(templates.tutorial) as unknown as Graph;
+      g.id = pm.graph.id;
+      g.meta = { ...pm.graph.meta };
+      pm.graph = g;
+      pm.saveGraph(g);
+    },
+    'before:save_project': () => panelState.setActivePanel('projects'),
+    'before:export_tour': () => panelState.setActivePanel('exports'),
+    'before:shortcuts_tour': () => panelState.setActivePanel('shortcuts'),
+    'after:save_project': () => panelState.setActivePanel('graph-settings'),
+    'before:tour_runtime_nerd': () => panelState.setActivePanel('general')
+  }}
+/>
 
 <div class="wrapper manager-{manager?.status}">
   <header></header>
@@ -192,6 +225,7 @@
         <Panel id="general" title="General" icon="i-[tabler--settings]">
           <NestedSettings
             id="general"
+            onButtonClick={handleSettingsButton}
             bind:value={appSettings.value}
             type={AppSettingTypes}
           />
@@ -211,13 +245,15 @@
         <Panel id="exports" title="Exporter" icon="i-[tabler--package-export]">
           <ExportSettings {scene} />
         </Panel>
-        <Panel
-          id="node-store"
-          title="Node Store"
-          icon="i-[tabler--database] bg-green-400"
-        >
-          <NodeStore registry={nodeRegistry} />
-        </Panel>
+        {#if false}
+          <Panel
+            id="node-store"
+            title="Node Store"
+            icon="i-[tabler--database] bg-green-400"
+          >
+            <NodeStore registry={nodeRegistry} />
+          </Panel>
+        {/if}
         <Panel
           id="performance"
           title="Performance"
@@ -274,6 +310,25 @@
 <style>
   header {
     background-color: var(--color-layer-1);
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+  }
+
+  .tutorial-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    opacity: 0.7;
+    transition: opacity 0.15s, background 0.15s;
+  }
+
+  .tutorial-btn:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .wrapper {
@@ -281,7 +336,7 @@
     width: 100vw;
     color: white;
     display: grid;
-    grid-template-rows: 0px 1fr;
+    grid-template-rows: 36px 1fr;
   }
 
   .wrapper :global(canvas) {

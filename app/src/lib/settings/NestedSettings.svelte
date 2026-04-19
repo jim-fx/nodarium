@@ -28,13 +28,14 @@
     key?: string;
     value: SettingsValue;
     type: SettingsType;
+    onButtonClick?: (id: string) => void;
     depth?: number;
   };
 
   // Local persistent state for <details> sections
   const openSections = localState<Record<string, boolean>>('open-details', {});
 
-  let { id, key = '', value = $bindable(), type, depth = 0 }: Props = $props();
+  let { id, key = '', value = $bindable(), type, onButtonClick, depth = 0 }: Props = $props();
 
   function isNodeInput(v: SettingsNode | undefined): v is InputType {
     return !!v && typeof v === 'object' && 'type' in v;
@@ -107,11 +108,6 @@
     }
   });
 
-  function handleClick() {
-    const callback = value[key] as unknown as () => void;
-    callback();
-  }
-
   onMount(() => {
     open = openSections.value[id];
 
@@ -130,7 +126,7 @@
   {@const inputType = type[key]}
   <div class="input input-{inputType.type}" class:first-level={depth === 1}>
     {#if inputType.type === 'button'}
-      <button onclick={handleClick}>
+      <button onclick={() => onButtonClick?.(id)}>
         {inputType.label || key}
       </button>
     {:else}
@@ -143,6 +139,7 @@
 {:else if depth === 0}
   {#each Object.keys(type ?? {}).filter((k) => k !== 'title') as childKey (childKey)}
     <NestedSettings
+      {onButtonClick}
       id={`${id}.${childKey}`}
       key={childKey}
       bind:value
@@ -160,6 +157,7 @@
     <div class="content">
       {#each Object.keys(type[key] as SettingsGroup).filter((k) => k !== 'title') as childKey (childKey)}
         <NestedSettings
+          {onButtonClick}
           id={`${id}.${childKey}`}
           key={childKey}
           bind:value={value[key] as SettingsValue}
@@ -221,6 +219,9 @@
 
   button {
     cursor: pointer;
+    background: var(--color-layer-2);
+    padding-block: 5px;
+    border-radius: 4px;
   }
 
   hr {

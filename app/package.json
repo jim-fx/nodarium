@@ -20,6 +20,7 @@
   "dependencies": {
     "@nodarium/ui": "workspace:*",
     "@nodarium/utils": "workspace:*",
+    "@nodarium/planty": "workspace:*",
     "@sveltejs/kit": "^2.50.2",
     "@tailwindcss/vite": "^4.1.18",
     "@threlte/core": "8.3.1",

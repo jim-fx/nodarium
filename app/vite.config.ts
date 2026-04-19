@@ -4,6 +4,7 @@ import { playwright } from '@vitest/browser-playwright';
 import comlink from 'vite-plugin-comlink';
 import glsl from 'vite-plugin-glsl';
 import wasm from 'vite-plugin-wasm';
+import path from 'path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -18,6 +19,11 @@ export default defineConfig({
     plugins: () => [
       comlink()
     ]
+  },
+  resolve: {
+    alias: {
+      '@nodarium/planty': path.resolve(__dirname, '../packages/planty/src/lib/index.ts')
+    }
   },
   ssr: {
     noExternal: ['three']

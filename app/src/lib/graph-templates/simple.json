@@ -3,7 +3,7 @@
   "settings": {
     "resolution.circle": 54,
     "resolution.curve": 20,
-    "randomSeed": true
+    "randomSeed": false
   },
   "meta": {
     "title": "New Project",
@@ -27,9 +27,9 @@
       ],
       "type": "max/plantarium/stem",
       "props": {
-        "amount": 50,
+        "amount": 4,
         "length": 4,
-        "thickness": 1
+        "thickness": 0.2
       }
     },
     {

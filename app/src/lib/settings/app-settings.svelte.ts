@@ -28,6 +28,10 @@ export const AppSettingTypes = {
     label: 'Center Camera',
     value: true
   },
+  clippy: {
+    type: 'button',
+    label: '🌱 Open Planty'
+  },
   nodeInterface: {
     title: 'Node Interface',
     backgroundType: {
@@ -109,9 +113,8 @@ export const AppSettingTypes = {
   }
 } as const;
 
-type SettingsToStore<T> = T extends { type: 'button' } ? () => void
-  : T extends { value: infer V } ? V extends readonly string[] ? V[number]
-    : V
+type SettingsToStore<T> = T extends { value: infer V } ? V extends readonly string[] ? V[number]
+  : V
   : T extends object ? {
       -readonly [K in keyof T as T[K] extends object ? K : never]: SettingsToStore<T[K]>;
     }
