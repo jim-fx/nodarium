@@ -200,8 +200,12 @@
         onClose={stop}
         onChoose={async (choice) => {
           await _runAfter(currentNodeId!, currentNode);
-          if (choice && choice.onclick) {
-            choice.onclick();
+          if (choice && choice.action) {
+            if (choice.action in actions) {
+              actions[choice.action]();
+            } else {
+              console.warn(`Planty: No action found for ${choice.action}`);
+            }
             return;
           }
           if (!choice.next) {

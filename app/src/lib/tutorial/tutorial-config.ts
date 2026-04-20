@@ -125,12 +125,7 @@ export const tutorialConfig: PlantyConfig = {
       choices: [
         {
           label: '🔍 Explore Node Sourcecode',
-          onclick: () => {
-            window.open(
-              'https://git.max-richter.dev/max/nodarium/src/branch/main/nodes/max/plantarium',
-              '__blank'
-            );
-          }
+          action: 'open-github-nodes'
         }
       ],
       next: 'tour_viewer_nerd'

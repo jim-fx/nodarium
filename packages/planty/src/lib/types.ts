@@ -34,7 +34,7 @@ export interface DialogNode {
 export interface Choice {
   label: string;
   next?: string | null;
-  onclick?: () => void;
+  action?: string;
 }
 
 export interface PlantyConfig {

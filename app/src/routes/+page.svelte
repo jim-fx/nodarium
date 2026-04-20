@@ -184,6 +184,12 @@
       pm.graph = g;
       pm.saveGraph(g);
       graphInterface.state.centerNode(graphInterface.manager.getAllNodes()[0]);
+    },
+    'open-github-nodes': () => {
+      window.open(
+        'https://github.com/jim-fx/nodarium/tree/main/nodes/max/plantarium',
+        '__blank'
+      );
     }
   }}
   hooks={{
