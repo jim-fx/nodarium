@@ -336,7 +336,7 @@
     width: 100vw;
     color: white;
     display: grid;
-    grid-template-rows: 36px 1fr;
+    grid-template-rows: 0px 1fr;
   }
 
   .wrapper :global(canvas) {
