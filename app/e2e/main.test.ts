@@ -23,9 +23,9 @@ test('test', async ({ page }) => {
       id: '10',
       type: 'max/plantarium/stem',
       props: {
-        amount: 50,
+        amount: 4,
         length: 4,
-        thickness: 1
+        thickness: 0.2
       }
     },
     {
