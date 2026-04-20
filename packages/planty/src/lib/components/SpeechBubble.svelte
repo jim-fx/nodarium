@@ -54,8 +54,8 @@
         /`(.+?)`/g,
         '<code class="text-[11px] rounded px-1 font-mono" style="background: var(--color-layer-3); color: var(--color-text);">$1</code>'
       )
-      .replaceAll(/\*/, '')
-      .replaceAll(/_/, '')
+      .replaceAll(/\*/g, '')
+      .replaceAll(/_/g, '')
       .replaceAll(/\n+/g, '<br>');
   }
 
