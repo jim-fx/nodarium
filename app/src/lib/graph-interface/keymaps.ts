@@ -1,4 +1,3 @@
-import { animate, lerp } from '$lib/helpers';
 import type { createKeyMap } from '$lib/helpers/createKeyMap';
 import { panelState } from '$lib/sidebar/PanelState.svelte';
 import FileSaver from 'file-saver';
