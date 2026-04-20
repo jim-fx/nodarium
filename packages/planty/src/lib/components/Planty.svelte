@@ -180,7 +180,6 @@
 
 {#if isActive}
   <div class="pointer-events-none fixed inset-0 z-99999">
-    <span>{currentNodeId}</span>
     {#if highlight}
       <Highlight selector={highlight.selector} hookName={highlight.hookName} {hooks} />
     {/if}
