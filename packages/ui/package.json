@@ -5,6 +5,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "package": "svelte-kit sync && svelte-package && publint",
+    "prepublishOnly": "npm run package",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test": "vitest",
     "format": "dprint fmt -c '../../.dprint.jsonc' .",
