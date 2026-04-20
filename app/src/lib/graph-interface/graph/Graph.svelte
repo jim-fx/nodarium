@@ -19,10 +19,10 @@
 
   const {
     keymap,
-    addMenuPadding
+    safePadding
   }: {
     keymap: ReturnType<typeof createKeyMap>;
-    addMenuPadding?: { left?: number; right?: number; bottom?: number; top?: number };
+    safePadding?: { left?: number; right?: number; bottom?: number; top?: number };
   } = $props();
 
   const graph = getGraphManager();
@@ -172,10 +172,10 @@
       {#if graphState.addMenuPosition}
         <AddMenu
           onnode={handleNodeCreation}
-          paddingTop={addMenuPadding?.top}
-          paddingRight={addMenuPadding?.right}
-          paddingBottom={addMenuPadding?.bottom}
-          paddingLeft={addMenuPadding?.left}
+          paddingTop={safePadding?.top}
+          paddingRight={safePadding?.right}
+          paddingBottom={safePadding?.bottom}
+          paddingLeft={safePadding?.left}
         />
       {/if}
 

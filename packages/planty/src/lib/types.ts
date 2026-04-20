@@ -22,12 +22,9 @@ export interface DialogNode {
   position?: AvatarPosition;
   highlight?: HighlightTarget;
   /** App hook to call on entering this node */
-  hook?: string;
-  hookArgs?: unknown[];
+  action?: string;
   next?: string | null;
   choices?: Choice[];
-  /** 'click' = wait for user click, number = auto-advance after N ms, 'action' = wait for hook to call advance() */
-  waitFor?: 'click' | 'action' | number;
   /** Called (and awaited) just before the avatar starts moving to this node */
   before?: StepCallback;
   /** Called (and awaited) just before the user leaves this node */

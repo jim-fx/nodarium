@@ -24,6 +24,10 @@
   let geometryPool: ReturnType<typeof createGeometryPool>;
   let instancePool: ReturnType<typeof createInstancedGeometryPool>;
 
+  export function invalidate() {
+    sceneComponent?.invalidate();
+  }
+
   export function updateGeometries(inputs: Int32Array[], group: Group) {
     geometryPool = geometryPool || createGeometryPool(group, material);
     instancePool = instancePool || createInstancedGeometryPool(group, material);

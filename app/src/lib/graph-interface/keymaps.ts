@@ -67,28 +67,7 @@ export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: Gr
     description: 'Center camera',
     callback: () => {
       if (!graphState.isBodyFocused()) return;
-
-      const average = [0, 0];
-      for (const node of graph.nodes.values()) {
-        average[0] += node.position[0];
-        average[1] += node.position[1];
-      }
-      average[0] = (average[0] / graph.nodes.size) + 10;
-      average[1] /= graph.nodes.size;
-
-      const camX = graphState.cameraPosition[0];
-      const camY = graphState.cameraPosition[1];
-      const camZ = graphState.cameraPosition[2];
-
-      const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
-      const easeZoom = (t: number) => t * t * (3 - 2 * t);
-
-      animate(500, (a: number) => {
-        graphState.cameraPosition[0] = lerp(camX, average[0], ease(a));
-        graphState.cameraPosition[1] = lerp(camY, average[1], ease(a));
-        graphState.cameraPosition[2] = lerp(camZ, 4, easeZoom(a));
-        if (graphState.mouseDown) return false;
-      });
+      graphState.centerNode(graph.getNode(graphState.activeNodeId));
     }
   });
 

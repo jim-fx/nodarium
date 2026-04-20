@@ -69,6 +69,12 @@
     cursorY = e.clientY;
   }
 
+  export function flash(flashMood: Mood, duration = 500) {
+    const prev = displayMood;
+    mood = flashMood;
+    setTimeout(() => (mood = prev), duration);
+  }
+
   function pupilOffset(cx: number, cy: number, eyeSvgX: number, eyeSvgY: number, maxPx = 2.8) {
     const ex = x + eyeSvgX;
     const ey = y + eyeSvgY;

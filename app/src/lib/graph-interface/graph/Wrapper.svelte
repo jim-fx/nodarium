@@ -18,7 +18,7 @@
     showHelp?: boolean;
     settingTypes?: Record<string, unknown>;
 
-    addMenuPadding?: { left?: number; right?: number; bottom?: number; top?: number };
+    safePadding?: { left?: number; right?: number; bottom?: number; top?: number };
 
     onsave?: (save: Graph) => void;
     onresult?: (result: unknown) => void;
@@ -27,7 +27,7 @@
   let {
     graph,
     registry,
-    addMenuPadding,
+    safePadding,
     settings = $bindable(),
     activeNode = $bindable(),
     backgroundType = $bindable('grid'),
@@ -44,29 +44,32 @@
   export const manager = new GraphManager(registry);
   setGraphManager(manager);
 
-  const graphState = new GraphState(manager);
+  export const state = new GraphState(manager);
   $effect(() => {
-    graphState.backgroundType = backgroundType;
-    graphState.snapToGrid = snapToGrid;
-    graphState.showHelp = showHelp;
+    if (safePadding) {
+      state.safePadding = safePadding;
+    }
+    state.backgroundType = backgroundType;
+    state.snapToGrid = snapToGrid;
+    state.showHelp = showHelp;
   });
 
-  setGraphState(graphState);
+  setGraphState(state);
 
-  setupKeymaps(keymap, manager, graphState);
+  setupKeymaps(keymap, manager, state);
 
   $effect(() => {
-    if (graphState.activeNodeId !== -1) {
-      activeNode = manager.getNode(graphState.activeNodeId);
+    if (state.activeNodeId !== -1) {
+      activeNode = manager.getNode(state.activeNodeId);
     } else if (activeNode) {
       activeNode = undefined;
     }
   });
 
   $effect(() => {
-    if (!graphState.addMenuPosition) {
-      graphState.edgeEndPosition = null;
-      graphState.activeSocket = null;
+    if (!state.addMenuPosition) {
+      state.edgeEndPosition = null;
+      state.activeSocket = null;
     }
   });
 
@@ -86,4 +89,4 @@
   });
 </script>
 
-<GraphEl {keymap} {addMenuPadding} />
+<GraphEl {keymap} {safePadding} />

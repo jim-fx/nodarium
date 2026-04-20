@@ -9,11 +9,12 @@
   interface Props {
     config: PlantyConfig;
     hooks?: Record<string, PlantyHook>;
+    actions?: Record<string, PlantyHook>;
     onStepChange?: (nodeId: string, node: DialogNode) => void;
     onComplete?: () => void;
   }
 
-  let { config, hooks = {}, onStepChange, onComplete }: Props = $props();
+  let { config, actions = {}, hooks = {}, onStepChange, onComplete }: Props = $props();
 
   const AVATAR_SIZE = 80;
   const SCREEN_PADDING = 20;
@@ -22,6 +23,7 @@
   let isActive = $state(false);
   let currentNodeId = $state<string | null>(null);
   let bubbleVisible = $state(false);
+  let avatar = $state<PlantyAvatar>(null!);
   let avatarX = $state(0);
   let avatarY = $state(0);
   let mood = $state<Mood>('idle');
@@ -30,6 +32,9 @@
 
   // ── Derived ──────────────────────────────────────────────────────────
   const runner = $derived(new DialogRunner(config));
+  const nextNode = $derived(
+    runner.getNextNode(currentNodeId ?? '')
+  );
   const mainPath = $derived(runner.getMainPath());
   const currentNode = $derived<DialogNode | null>(
     currentNodeId ? runner.getNode(currentNodeId) : null
@@ -125,32 +130,31 @@
     if (node.position) {
       mood = 'moving';
       const pos = resolvePosition(node.position);
+      const hasChanges = pos.x !== avatarX || pos.y !== avatarY;
       avatarX = pos.x;
       avatarY = pos.y;
-      await _wait(900);
+      if (hasChanges) await _wait(900);
     }
 
     mood = 'talking';
     bubbleVisible = true;
 
     // App hook
-    if (node.hook && hooks[node.hook]) {
-      const result = await hooks[node.hook](...(node.hookArgs ?? []));
+    if (node.action && actions[node.action]) {
+      const result = await actions[node.action]();
       if (typeof result === 'function') actionCleanup = result as () => void;
     }
 
-    // Auto-advance
-    if (typeof node.waitFor === 'number') {
-      autoAdvanceTimer = setTimeout(() => next(), node.waitFor);
+    const actionHook = hooks[`action:${id}`];
+    if (actionHook) {
+      const advance = () => {
+        avatar.flash('happy', 2000);
+        next();
+      };
+      const result = await actionHook(advance);
+      if (typeof result === 'function') actionCleanup = result as () => void;
     }
-    if (node.waitFor === 'action') {
-      const actionHook = hooks[`action:${id}`];
-      if (actionHook) {
-        const advance = () => next();
-        const result = await actionHook(advance, ...(node.hookArgs ?? []));
-        if (typeof result === 'function') actionCleanup = result as () => void;
-      }
-    }
+
     if (!node.choices && !node.next) {
       setTimeout(() => stop(), 3000);
     }
@@ -176,11 +180,12 @@
 
 {#if isActive}
   <div class="pointer-events-none fixed inset-0 z-99999">
+    <span>{currentNodeId}</span>
     {#if highlight}
       <Highlight selector={highlight.selector} hookName={highlight.hookName} {hooks} />
     {/if}
 
-    <PlantyAvatar bind:x={avatarX} bind:y={avatarY} {mood} />
+    <PlantyAvatar bind:this={avatar} bind:x={avatarX} bind:y={avatarY} {mood} />
 
     {#if showBubble && currentNode}
       <SpeechBubble
@@ -188,7 +193,7 @@
         {avatarX}
         {avatarY}
         choices={currentNode.choices || []}
-        showNext={currentNode.waitFor === 'click'}
+        showNext={nextNode !== null}
         {stepIndex}
         {totalSteps}
         onNext={next}

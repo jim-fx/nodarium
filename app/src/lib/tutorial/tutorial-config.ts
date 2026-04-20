@@ -24,11 +24,10 @@ export const tutorialConfig: PlantyConfig = {
 
     tour_canvas: {
       position: 'bottom-left',
-      hook: 'setup-default',
+      action: 'setup-default',
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
         'This is the **graph canvas**. Nodes connect together to build a plant — the 3D model updates automatically whenever you make a change.\nEach node does one specific job: grow stems, add noise, produce output.',
-      waitFor: 'click',
       next: 'tour_viewer'
     },
 
@@ -37,7 +36,6 @@ export const tutorialConfig: PlantyConfig = {
       highlight: { selector: '.cell:first-child', padding: 8 },
       text:
         'This is the **3D viewer** — the live preview of your plant.\nLeft-click to rotate · right-click to pan · scroll to zoom.',
-      waitFor: 'click',
       next: 'try_params'
     },
 
@@ -46,16 +44,14 @@ export const tutorialConfig: PlantyConfig = {
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
         'Click a node to select it. Its settings appear **directly on the node** — try changing a value and watch the plant update.\nThe sidebar shows extra hidden settings for the selected node.',
-      waitFor: 'click',
       next: 'start_building'
     },
 
     start_building: {
       position: 'center',
-      hook: 'load-tutorial-template',
+      action: 'load-tutorial-template',
       text:
         "Now let's build your own plant from scratch!\nI've loaded a blank project — it only has an **Output** node. Your goal: connect nodes to make a plant.",
-      waitFor: 'click',
       next: 'add_stem_node'
     },
 
@@ -64,7 +60,6 @@ export const tutorialConfig: PlantyConfig = {
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
         "Open the **Add Menu** with **Shift+A** or **right-click** on the canvas.\nAdd a **Stem** node, then connect its output socket to the Output node's input.",
-      waitFor: 'click',
       next: 'add_noise_node'
     },
 
@@ -73,7 +68,6 @@ export const tutorialConfig: PlantyConfig = {
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
         'Add a **Noise** node the same way.\nConnect: Stem → Noise input, then Noise output → Output.\nThis makes the stems grow in organic, curved shapes.',
-      waitFor: 'click',
       next: 'add_random_node'
     },
 
@@ -82,7 +76,6 @@ export const tutorialConfig: PlantyConfig = {
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
         "Let's add some randomness! Add a **Random** node and connect its output to the **thickness** or **length** input of the Stem node.\nThe default min/max range is small — **Ctrl+drag** any number field to exceed its normal limits.",
-      waitFor: 'click',
       next: 'prompt_regenerate'
     },
 
@@ -91,7 +84,6 @@ export const tutorialConfig: PlantyConfig = {
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
         'Now press **R** to regenerate. Each press gives the Random node a new value — your plant changes every run!',
-      waitFor: 'click',
       next: 'tour_sidebar'
     },
 
@@ -100,16 +92,13 @@ export const tutorialConfig: PlantyConfig = {
       highlight: { selector: '.tabs', padding: 4 },
       text:
         'The **sidebar** holds all your tools:\n⚙️ Settings · ⌨️ Shortcuts · 📦 Export · 📁 Projects · 📊 Graph Settings\nEnable **Advanced Mode** in Settings to unlock performance and benchmark panels.',
-      waitFor: 'click',
       next: 'save_project'
     },
 
     save_project: {
       position: 'right',
-      highlight: { selector: '.tabs', padding: 4 },
       text:
         'Your work is saved in the **Projects panel** — rename it, create new projects, or switch between them anytime.',
-      waitFor: 'click',
       next: 'congrats'
     },
 
@@ -129,7 +118,7 @@ export const tutorialConfig: PlantyConfig = {
 
     tour_canvas_nerd: {
       position: 'bottom-left',
-      hook: 'setup-default',
+      action: 'setup-default',
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
         "The **graph canvas** renders a directed acyclic graph. Each node is an individual **WASM module** executed in isolation — inputs in, output out. The 3D model updates automatically on every change.\nI've loaded a starter graph so you can see it in action.",
@@ -144,7 +133,6 @@ export const tutorialConfig: PlantyConfig = {
           }
         }
       ],
-      waitFor: 'click',
       next: 'tour_viewer_nerd'
     },
 
@@ -153,15 +141,13 @@ export const tutorialConfig: PlantyConfig = {
       highlight: { selector: '.cell:first-child', padding: 8 },
       text:
         'The **3D viewer** uses `@threlte/core` (Svelte + Three.js). Mesh data streams from WASM execution results. OrbitControls: left-drag rotate, right-drag pan, scroll zoom.',
-      waitFor: 'click',
       next: 'tour_runtime_nerd'
     },
 
     tour_runtime_nerd: {
-      position: 'right',
+      position: 'bottom-right',
       text:
         'By default, nodes execute in a **WebWorker** for better performance. You can switch to main-thread execution by disabling **Debug → Execute in WebWorker** in Settings.\nEnable **Advanced Mode** to unlock the Performance and Benchmark panels.',
-      waitFor: 'click',
       next: 'start_building'
     },
 
@@ -171,7 +157,6 @@ export const tutorialConfig: PlantyConfig = {
       position: 'bottom-right',
       text:
         'Node sockets are **type-checked**. The coloured dots tell you what kind of data flows through:\n🔵 `number` · 🟢 `vec3` · 🟣 `shape` · ⚪ `*` (wildcard)',
-      waitFor: 'click',
       next: 'connections_rules'
     },
 
@@ -191,7 +176,6 @@ export const tutorialConfig: PlantyConfig = {
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
         'Click any node to select it. Basic settings are shown **on the node itself**.\nThe sidebar under *Graph Settings → Active Node* shows the full list:\n**Number** — drag or type · **Vec3** — X/Y/Z · **Select** — dropdown · **Color** — picker',
-      waitFor: 'click',
       next: 'params_tip'
     },
 
@@ -210,7 +194,6 @@ export const tutorialConfig: PlantyConfig = {
       position: 'bottom-right',
       text:
         'Add a **Debug node** from the Add Menu (Shift+A or right-click). It accepts `*` wildcard inputs — connect any socket to inspect the data flowing through.\nEnable **Advanced Mode** in Settings to also see Performance and Graph Source panels.',
-      waitFor: 'click',
       next: 'debug_done'
     },
 
@@ -228,7 +211,6 @@ export const tutorialConfig: PlantyConfig = {
       position: 'bottom-right',
       text:
         '**Essential shortcuts:**\n`R` — Regenerate\n`Shift+A` / right-click — Add node\n`f` — Smart-connect selected nodes\n`.` — Center camera\n`Ctrl+Z` / `Ctrl+Y` — Undo / Redo\n`Delete` — Remove selected · `Ctrl+Delete` — Remove and restore edges',
-      waitFor: 'click',
       next: 'shortcuts_done'
     },
 
@@ -247,7 +229,6 @@ export const tutorialConfig: PlantyConfig = {
       position: 'right',
       text:
         'Export your 3D model from the **📦 Export** panel:\n**GLB** — standard for 3D apps (Blender, Three.js)\n**OBJ** — legacy format · **STL** — 3D printing · **PNG** — screenshot',
-      waitFor: 'click',
       next: 'congrats'
     },
 

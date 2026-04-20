@@ -21,14 +21,12 @@
       "type": "step",
       "position": "bottom-right",
       "text": "This is a WebAssembly-powered node graph. Each node is a compiled .wasm module executed in a sandboxed runtime.",
-      "waitFor": "click",
       "next": "highlight_graph_nerd"
     },
     "intro_simple": {
       "type": "step",
       "position": "bottom-right",
       "text": "Think of this like a recipe card — each block does one thing, and you connect them to build a plant!",
-      "waitFor": "click",
       "next": "highlight_graph_simple"
     },
 
@@ -37,7 +35,6 @@
       "position": "bottom-left",
       "highlight": { "selector": "#graph-canvas", "padding": 12 },
       "text": "The graph canvas renders edges as Bézier curves. Node execution is topologically sorted before each WASM call.",
-      "waitFor": "click",
       "next": "highlight_sidebar_nerd"
     },
     "highlight_graph_simple": {
@@ -45,7 +42,6 @@
       "position": "bottom-left",
       "highlight": { "selector": "#graph-canvas", "padding": 12 },
       "text": "This is the main canvas — drag nodes around and connect them to create your plant!",
-      "waitFor": "click",
       "next": "highlight_sidebar_simple"
     },
 
@@ -54,7 +50,6 @@
       "position": "bottom-right",
       "highlight": { "selector": "#sidebar", "padding": 8 },
       "text": "The sidebar exposes node parameters, export settings, and the raw graph JSON for debugging.",
-      "waitFor": "click",
       "next": "tip_nerd"
     },
     "highlight_sidebar_simple": {
@@ -62,7 +57,6 @@
       "position": "bottom-right",
       "highlight": { "selector": "#sidebar", "padding": 8 },
       "text": "The sidebar lets you tweak settings and export your creation.",
-      "waitFor": "click",
       "next": "tip_simple"
     },
 
@@ -70,14 +64,12 @@
       "type": "step",
       "position": "center",
       "text": "Press Space or double-click the canvas to open node search. Nodes are fetched from the WASM registry at runtime.",
-      "waitFor": "click",
       "next": "done_nerd"
     },
     "tip_simple": {
       "type": "step",
       "position": "center",
       "text": "Press Space anywhere on the canvas to add a new block — try it!",
-      "waitFor": "click",
       "next": "done_simple"
     },
 

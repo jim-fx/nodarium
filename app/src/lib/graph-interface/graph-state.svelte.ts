@@ -1,3 +1,4 @@
+import { animate, lerp } from '$lib/helpers';
 import type { NodeInstance, Socket } from '@nodarium/types';
 import { getContext, setContext } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -124,6 +125,9 @@ export class GraphState {
   activeNodeId = $state(-1);
   selectedNodes = new SvelteSet<number>();
   activeSocket = $state<Socket | null>(null);
+  safePadding = $state<{ left?: number; right?: number; bottom?: number; top?: number } | null>(
+    null
+  );
   hoveredSocket = $state<Socket | null>(null);
   possibleSockets = $state<Socket[]>([]);
   possibleSocketIds = $derived(
@@ -234,6 +238,37 @@ export class GraphState {
       nodes: nodes,
       edges: edges
     };
+  }
+
+  centerNode(node?: NodeInstance) {
+    const average = [0, 0, 4];
+    if (node) {
+      average[0] = node.position[0] + (this.safePadding?.right || 0) / 10;
+      average[1] = node.position[1];
+      average[2] = 10;
+    } else {
+      for (const node of this.graph.nodes.values()) {
+        average[0] += node.position[0];
+        average[1] += node.position[1];
+      }
+      average[0] = (average[0] / this.graph.nodes.size)
+        + (this.safePadding?.right || 0) / (average[2] * 2);
+      average[1] /= this.graph.nodes.size;
+    }
+
+    const camX = this.cameraPosition[0];
+    const camY = this.cameraPosition[1];
+    const camZ = this.cameraPosition[2];
+
+    const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
+    const easeZoom = (t: number) => t * t * (3 - 2 * t);
+
+    animate(500, (a: number) => {
+      this.cameraPosition[0] = lerp(camX, average[0], ease(a));
+      this.cameraPosition[1] = lerp(camY, average[1], ease(a));
+      this.cameraPosition[2] = lerp(camZ, average[2], easeZoom(a));
+      if (this.mouseDown) return false;
+    });
   }
 
   pasteNodes() {

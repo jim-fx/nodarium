@@ -168,7 +168,7 @@
 <Planty
   bind:this={planty}
   config={tutorialConfig}
-  hooks={{
+  actions={{
     'setup-default': () => {
       const ts = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       pm.handleCreateProject(
@@ -183,6 +183,48 @@
       g.meta = { ...pm.graph.meta };
       pm.graph = g;
       pm.saveGraph(g);
+      graphInterface.state.centerNode(graphInterface.manager.getAllNodes()[0]);
+    }
+  }}
+  hooks={{
+    'action:add_stem_node': (cb) => {
+      const unsub = manager.on('save', () => {
+        const allNodes = graphInterface.manager.getAllNodes();
+        const stemNode = allNodes.find(n => n.type === 'max/plantarium/stem');
+        if (stemNode && graphInterface.manager.edges.length) {
+          unsub();
+          (cb as () => void)();
+        }
+      });
+    },
+    'action:add_noise_node': (cb) => {
+      const unsub = manager.on('save', () => {
+        const allNodes = graphInterface.manager.getAllNodes();
+        const noiseNode = allNodes.find(n => n.type === 'max/plantarium/noise');
+        if (noiseNode && graphInterface.manager.edges.length > 1) {
+          unsub();
+          (cb as () => void)();
+        }
+      });
+    },
+    'action:add_random_node': (cb) => {
+      const unsub = manager.on('save', () => {
+        const allNodes = graphInterface.manager.getAllNodes();
+        const noiseNode = allNodes.find(n => n.type === 'max/plantarium/random');
+        if (noiseNode && graphInterface.manager.edges.length > 2) {
+          unsub();
+          (cb as () => void)();
+        }
+      });
+    },
+    'action:prompt_regenerate': (cb) => {
+      function handleKeydown(e: KeyboardEvent) {
+        if (e.key === 'r') {
+          window.removeEventListener('keydown', handleKeydown);
+          (cb as () => void)();
+        }
+      }
+      window.addEventListener('keydown', handleKeydown);
     },
     'before:save_project': () => panelState.setActivePanel('projects'),
     'before:export_tour': () => panelState.setActivePanel('exports'),
@@ -210,7 +252,7 @@
           graph={pm.graph}
           bind:this={graphInterface}
           registry={nodeRegistry}
-          addMenuPadding={{ right: sidebarOpen ? 330 : undefined }}
+          safePadding={{ right: sidebarOpen ? 330 : undefined }}
           backgroundType={appSettings.value.nodeInterface.backgroundType}
           snapToGrid={appSettings.value.nodeInterface.snapToGrid}
           bind:activeNode
@@ -245,7 +287,7 @@
         <Panel id="exports" title="Exporter" icon="i-[tabler--package-export]">
           <ExportSettings {scene} />
         </Panel>
-        {#if false}
+        {#if 0 > 1}
           <Panel
             id="node-store"
             title="Node Store"
