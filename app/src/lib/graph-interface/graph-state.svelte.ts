@@ -99,6 +99,9 @@ export class GraphState {
     edges: [number, number, number, string][];
   } = null;
 
+  // Saved camera position per group so re-entering restores where you left off
+  groupCameras = new Map<string, [number, number, number]>();
+
   cameraBounds = $derived([
     this.cameraPosition[0] - this.width / this.cameraPosition[2] / 2,
     this.cameraPosition[0] + this.width / this.cameraPosition[2] / 2,

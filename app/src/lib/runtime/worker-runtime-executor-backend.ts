@@ -1,12 +1,18 @@
 import { debugNode } from '$lib/node-registry/debugNode';
+import { groupInputNode, groupNode, groupOutputNode } from '$lib/node-registry/groupNodes';
 import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
 import type { Graph } from '@nodarium/types';
 import { createPerformanceStore } from '@nodarium/utils';
-import { MemoryRuntimeExecutor } from './runtime-executor';
+import { expandGroups, MemoryRuntimeExecutor } from './runtime-executor';
 import { MemoryRuntimeCache } from './runtime-executor-cache';
 
 const indexDbCache = new IndexDBCache('node-registry');
-const nodeRegistry = new RemoteNodeRegistry('', indexDbCache, [debugNode]);
+const nodeRegistry = new RemoteNodeRegistry('', indexDbCache, [
+  debugNode,
+  groupInputNode,
+  groupOutputNode,
+  groupNode
+]);
 
 const cache = new MemoryRuntimeCache();
 const executor = new MemoryRuntimeExecutor(nodeRegistry, cache);
@@ -34,7 +40,13 @@ export async function executeGraph(
   graph: Graph,
   settings: Record<string, unknown>
 ): Promise<Int32Array> {
-  await nodeRegistry.load(graph.nodes.map((n) => n.type));
+  // Expand groups before loading types so we only load real (non-virtual) node types
+  const expandedGraph = expandGroups(graph);
+  await nodeRegistry.load(
+    expandedGraph.nodes
+      .map(n => n.type)
+      .filter(t => !t.startsWith('__virtual/')) as any
+  );
   performanceStore.startRun();
   const res = await executor.execute(graph, settings);
   performanceStore.stopRun();

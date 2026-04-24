@@ -3,11 +3,14 @@ import { RemoteNodeRegistry } from '$lib/node-registry/index';
 import type {
   Edge,
   Graph,
+  GroupSocket,
   NodeDefinition,
+  NodeGroupDefinition,
   NodeId,
   NodeInput,
   NodeInstance,
   NodeRegistry,
+  SerializedNode,
   Socket
 } from '@nodarium/types';
 import { fastHashString } from '@nodarium/utils';
@@ -56,6 +59,14 @@ function areEdgesEqual(firstEdge: Edge, secondEdge: Edge) {
   return true;
 }
 
+function isVirtualType(type: string): boolean {
+  return type.startsWith('__virtual/');
+}
+
+function isGroupInstanceType(type: string): boolean {
+  return type === '__virtual/group/instance';
+}
+
 export class GraphManager extends EventEmitter<{
   save: Graph;
   result: unknown;
@@ -79,6 +90,12 @@ export class GraphManager extends EventEmitter<{
 
   currentUndoGroup: number | null = null;
 
+  // Group-related state
+  groups: Map<string, NodeGroupDefinition> = new Map();
+  groupNodeDefinitions: Map<string, NodeDefinition> = new Map();
+  currentGroupContext: string | null = null;
+  graphStack: { rootGraph: Graph; groupId: string; cameraPosition: [number, number, number] }[] = $state([]);
+
   inputSockets = $derived.by(() => {
     const s = new SvelteSet<string>();
     for (const edge of this.edges) {
@@ -88,37 +105,523 @@ export class GraphManager extends EventEmitter<{
   });
 
   history: HistoryManager = new HistoryManager();
+  private serializeFullGraph(): Graph {
+    if (this.graphStack.length === 0) return this.serialize();
+    // Merge the current internal state upward through every stack level.
+    // $state.snapshot strips Svelte reactive proxies so the result can cross
+    // the postMessage boundary to the worker.
+    let merged: Graph = this.serialize();
+    for (let i = this.graphStack.length - 1; i >= 0; i--) {
+      const { rootGraph, groupId } = $state.snapshot(this.graphStack[i]);
+      merged = {
+        ...rootGraph,
+        groups: {
+          ...rootGraph.groups,
+          [groupId]: {
+            ...rootGraph.groups?.[groupId]!,
+            graph: { nodes: merged.nodes, edges: merged.edges }
+          }
+        }
+      };
+    }
+    return merged;
+  }
+
   execute = throttle(() => {
     if (this.loaded === false) return;
-    this.emit('result', this.serialize());
+    this.emit('result', this.serializeFullGraph());
   }, 10);
 
   constructor(public registry: NodeRegistry) {
     super();
   }
 
+  // --- Group helpers ---
+
+  private buildGroupNodeDefinition(group: NodeGroupDefinition): NodeDefinition {
+    return {
+      id: `__virtual/group/${group.id}` as NodeId,
+      meta: { title: group.name },
+      inputs: Object.fromEntries(
+        group.inputs.map(s => [s.name, { type: s.type, external: true } as NodeInput])
+      ),
+      outputs: group.outputs.map(s => s.type),
+      execute(input: Int32Array): Int32Array { return input; }
+    };
+  }
+
+  buildGroupInputNodeDef(group: NodeGroupDefinition): NodeDefinition {
+    return {
+      id: '__virtual/group/input' as NodeId,
+      inputs: {},
+      outputs: group.inputs.map(s => s.type),
+      execute(input: Int32Array): Int32Array { return input; }
+    };
+  }
+
+  buildGroupOutputNodeDef(group: NodeGroupDefinition): NodeDefinition {
+    return {
+      id: '__virtual/group/output' as NodeId,
+      inputs: Object.fromEntries(
+        group.outputs.map(s => [s.name, { type: s.type }])
+      ) as Record<string, NodeInput>,
+      outputs: [],
+      execute(input: Int32Array): Int32Array { return input; }
+    };
+  }
+
+  private getNodeTypeWithContext(type: string, props?: Record<string, unknown>): NodeDefinition | undefined {
+    if (type === '__virtual/group/input' && this.currentGroupContext) {
+      const group = this.groups.get(this.currentGroupContext);
+      if (group) return this.buildGroupInputNodeDef(group);
+    }
+    if (type === '__virtual/group/output' && this.currentGroupContext) {
+      const group = this.groups.get(this.currentGroupContext);
+      if (group) return this.buildGroupOutputNodeDef(group);
+    }
+    if (type === '__virtual/group/instance') {
+      const groupId = props?.groupId as string | undefined;
+      if (groupId) return this.groupNodeDefinitions.get(`__virtual/group/${groupId}`);
+      return undefined;
+    }
+    return this.groupNodeDefinitions.get(type) || this.registry.getNode(type);
+  }
+
+  // --- Group creation ---
+
+  createGroup(nodeIds: number[]): NodeInstance | undefined {
+    if (nodeIds.length === 0) return;
+
+    const selectedNodes = nodeIds
+      .map(id => this.getNode(id))
+      .filter(Boolean) as NodeInstance[];
+    if (selectedNodes.length === 0) return;
+
+    const selectedSet = new Set(nodeIds);
+
+    // Snapshot boundary edges
+    const incomingEdges = this.edges.filter(e =>
+      !selectedSet.has(e[0].id) && selectedSet.has(e[2].id)
+    );
+    const outgoingEdges = this.edges.filter(e =>
+      selectedSet.has(e[0].id) && !selectedSet.has(e[2].id)
+    );
+
+    const inputs: GroupSocket[] = incomingEdges.map((e, i) => ({
+      name: `input_${i}`,
+      type: e[0].state.type?.outputs?.[e[1]] || '*'
+    }));
+
+    const outputs: GroupSocket[] = outgoingEdges.map((e, i) => ({
+      name: `output_${i}`,
+      type: e[0].state.type?.outputs?.[e[1]] || '*'
+    }));
+
+    const groupId = `grp_${Date.now().toString(36)}`;
+
+    const xs = selectedNodes.map(n => n.position[0]);
+    const ys = selectedNodes.map(n => n.position[1]);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const avgY = ys.reduce((a, b) => a + b, 0) / ys.length;
+    const centroidX = xs.reduce((a, b) => a + b, 0) / xs.length;
+
+    // Find unique IDs for virtual nodes in the internal graph
+    const existingIds = new Set(selectedNodes.map(n => n.id));
+    let internalInputId = 1;
+    while (existingIds.has(internalInputId)) internalInputId++;
+    existingIds.add(internalInputId);
+    let internalOutputId = internalInputId + 1;
+    while (existingIds.has(internalOutputId)) internalOutputId++;
+
+    const internalNodes: SerializedNode[] = [
+      {
+        id: internalInputId,
+        type: '__virtual/group/input' as NodeId,
+        position: [minX - 25, avgY]
+      },
+      ...selectedNodes.map(n => {
+        // Use $state.snapshot to get plain values (no reactive proxies)
+        const props = n.props ? $state.snapshot(n.props) : undefined;
+        const meta = n.meta ? $state.snapshot(n.meta) : undefined;
+        return {
+          id: n.id,
+          type: n.type,
+          position: [n.position[0], n.position[1]] as [number, number],
+          ...(props !== undefined ? { props } : {}),
+          ...(meta ? { meta } : {})
+        };
+      }),
+      {
+        id: internalOutputId,
+        type: '__virtual/group/output' as NodeId,
+        position: [maxX + 25, avgY]
+      }
+    ];
+
+    const internalEdges: Graph['edges'] = [
+      ...this.getEdgesBetweenNodes(selectedNodes),
+      ...incomingEdges.map((e, i) =>
+        [internalInputId, i, e[2].id, e[3]] as [number, number, number, string]
+      ),
+      ...outgoingEdges.map((e, i) =>
+        [e[0].id, e[1], internalOutputId, `output_${i}`] as [number, number, number, string]
+      )
+    ];
+
+    const group: NodeGroupDefinition = {
+      id: groupId,
+      name: 'Group',
+      inputs,
+      outputs,
+      graph: { nodes: internalNodes, edges: internalEdges }
+    };
+
+    this.groups.set(groupId, group);
+    if (!this.graph.groups) this.graph.groups = {};
+    this.graph.groups[groupId] = group;
+
+    const groupNodeDef = this.buildGroupNodeDefinition(group);
+    this.groupNodeDefinitions.set(groupNodeDef.id, groupNodeDef);
+
+    this.startUndoGroup();
+
+    // Remove selected nodes and all their edges
+    for (const node of selectedNodes) {
+      const connectedEdges = this.edges.filter(
+        e => e[0].id === node.id || e[2].id === node.id
+      );
+      for (const e of connectedEdges) {
+        this.removeEdge(e, { applyDeletion: false });
+      }
+      this.nodes.delete(node.id);
+    }
+
+    // Place group instance node (plain object like _init — don't wrap in $state()
+    // to avoid Svelte 5 deeply-proxying the NodeDefinition execute function)
+    const groupNodeId = this.createNodeId();
+    const groupNode = {
+      id: groupNodeId,
+      type: '__virtual/group/instance' as NodeId,
+      position: [centroidX, avgY] as [number, number],
+      props: { groupId },
+      state: { type: groupNodeDef }
+    } as NodeInstance;
+    this.nodes.set(groupNodeId, groupNode);
+
+    // Reconnect boundary edges
+    for (let i = 0; i < incomingEdges.length; i++) {
+      const e = incomingEdges[i];
+      this.createEdge(e[0], e[1], groupNode, inputs[i].name, { applyUpdate: false });
+    }
+    for (let i = 0; i < outgoingEdges.length; i++) {
+      const e = outgoingEdges[i];
+      this.createEdge(groupNode, i, e[2], e[3], { applyUpdate: false });
+    }
+
+    this.saveUndoGroup();
+    this.execute();
+
+    return groupNode;
+  }
+
+  // --- Ungrouping ---
+
+  ungroup(nodeId: number) {
+    const groupNode = this.getNode(nodeId);
+    if (!groupNode || !isGroupInstanceType(groupNode.type)) return;
+
+    const groupId = groupNode.props?.groupId as string | undefined;
+    if (!groupId) return;
+    const group = this.groups.get(groupId);
+    if (!group) return;
+
+    const incomingEdges = this.getEdgesToNode(groupNode);
+    const outgoingEdges = this.getEdgesFromNode(groupNode);
+
+    const inputVirtualId = group.graph.nodes.find(
+      n => n.type === '__virtual/group/input'
+    )?.id;
+    const outputVirtualId = group.graph.nodes.find(
+      n => n.type === '__virtual/group/output'
+    )?.id;
+
+    this.startUndoGroup();
+
+    // Remove the group instance node (and its edges)
+    this.removeNode(groupNode, { restoreEdges: false });
+
+    // Re-insert internal nodes
+    const idMap = new Map<number, number>();
+    const realInternalNodes = group.graph.nodes.filter(
+      n => n.type !== '__virtual/group/input' && n.type !== '__virtual/group/output'
+    );
+
+    for (const n of realInternalNodes) {
+      const newId = this.createNodeId();
+      idMap.set(n.id, newId);
+      const nodeType = this.getNodeTypeWithContext(n.type, n.props as Record<string, unknown>);
+      const newNode: NodeInstance = $state({
+        id: newId,
+        type: n.type,
+        position: [...n.position] as [number, number],
+        ...(n.props ? { props: { ...n.props } } : {}),
+        state: nodeType ? { type: nodeType } : {}
+      });
+      this.nodes.set(newId, newNode);
+    }
+
+    // Re-wire edges
+    for (const e of group.graph.edges) {
+      const fromIsInput = e[0] === inputVirtualId;
+      const toIsOutput = e[2] === outputVirtualId;
+
+      if (fromIsInput) {
+        const inputIdx = e[1];
+        const parentEdge = incomingEdges.find(
+          pe => pe[3] === group.inputs[inputIdx]?.name
+        );
+        if (parentEdge) {
+          const toNode = this.getNode(idMap.get(e[2])!);
+          if (toNode) {
+            this.createEdge(parentEdge[0], parentEdge[1], toNode, e[3], {
+              applyUpdate: false
+            });
+          }
+        }
+      } else if (toIsOutput) {
+        const outputSocketName = e[3];
+        const outputIdx = group.outputs.findIndex(s => s.name === outputSocketName);
+        const parentEdge = outgoingEdges.find(pe => pe[1] === outputIdx);
+        if (parentEdge) {
+          const fromNode = this.getNode(idMap.get(e[0])!);
+          const toNode = this.getNode(parentEdge[2].id);
+          if (fromNode && toNode) {
+            this.createEdge(fromNode, e[1], toNode, parentEdge[3], {
+              applyUpdate: false
+            });
+          }
+        }
+      } else {
+        const fromNode = this.getNode(idMap.get(e[0])!);
+        const toNode = this.getNode(idMap.get(e[2])!);
+        if (fromNode && toNode) {
+          this.createEdge(fromNode, e[1], toNode, e[3], { applyUpdate: false });
+        }
+      }
+    }
+
+    // Remove group definition if no more instances
+    const hasOtherInstances = Array.from(this.nodes.values()).some(
+      n => n.type === '__virtual/group/instance' && (n.props?.groupId as string) === groupId
+    );
+    if (!hasOtherInstances) {
+      this.groups.delete(groupId);
+      this.groupNodeDefinitions.delete(`__virtual/group/${groupId}`);
+      if (this.graph.groups) {
+        delete this.graph.groups[groupId];
+      }
+    }
+
+    this.saveUndoGroup();
+    this.execute();
+  }
+
+  // --- Group socket management (called from inside a group) ---
+
+  addGroupSocket(kind: 'input' | 'output', socketType: string) {
+    if (!this.currentGroupContext) return;
+    const group = this.groups.get(this.currentGroupContext);
+    if (!group) return;
+
+    const arr = kind === 'input' ? group.inputs : group.outputs;
+    const name = `${kind}_${arr.length}`;
+    arr.push({ name, type: socketType });
+
+    this._refreshGroupContext(group);
+    this.save();
+  }
+
+  removeGroupSocket(kind: 'input' | 'output', index: number) {
+    if (!this.currentGroupContext) return;
+    const group = this.groups.get(this.currentGroupContext);
+    if (!group) return;
+
+    const arr = kind === 'input' ? group.inputs : group.outputs;
+    arr.splice(index, 1);
+
+    this._refreshGroupContext(group);
+    this.save();
+  }
+
+  private _refreshGroupContext(group: NodeGroupDefinition) {
+    const groupId = group.id;
+
+    // Keep graph.groups in sync
+    if (this.graph.groups?.[groupId]) {
+      this.graph.groups[groupId] = group;
+    }
+
+    // Rebuild the group node definition (used in parent graph)
+    const groupNodeDef = this.buildGroupNodeDefinition(group);
+    this.groupNodeDefinitions.set(groupNodeDef.id, groupNodeDef);
+
+    // Update virtual input/output nodes in the current internal graph,
+    // and any group instance nodes that reference this group
+    const inputDef = this.buildGroupInputNodeDef(group);
+    const outputDef = this.buildGroupOutputNodeDef(group);
+    for (const node of this.nodes.values()) {
+      if (node.type === '__virtual/group/input') node.state.type = inputDef;
+      if (node.type === '__virtual/group/output') node.state.type = outputDef;
+      if (node.type === '__virtual/group/instance' && (node.props?.groupId as string) === groupId) {
+        node.state.type = groupNodeDef;
+      }
+    }
+  }
+
+  // --- Group navigation ---
+
+  enterGroup(nodeId: number, cameraPosition: [number, number, number] = [0, 0, 4]): boolean {
+    const groupNode = this.getNode(nodeId);
+    if (!groupNode || !isGroupInstanceType(groupNode.type)) return false;
+
+    const groupId = groupNode.props?.groupId as string | undefined;
+    if (!groupId) return false;
+    const group = this.groups.get(groupId);
+    if (!group) return false;
+
+    const currentSerialized = this.serialize();
+    this.graphStack.push({ rootGraph: currentSerialized, groupId, cameraPosition });
+
+    this.currentGroupContext = groupId;
+
+    const internalGraph: Graph = {
+      id: this.graph.id,
+      nodes: group.graph.nodes,
+      edges: group.graph.edges,
+      groups: this.graph.groups
+    };
+
+    this.graph = internalGraph;
+    this._init(internalGraph);
+    this.history.reset();
+
+    return true;
+  }
+
+  exitGroup(): [number, number, number] | false {
+    if (this.graphStack.length === 0) return false;
+
+    const { rootGraph, groupId, cameraPosition } = this.graphStack[this.graphStack.length - 1];
+    this.graphStack.pop();
+
+    // Serialize current internal graph state
+    const internalState = this.serialize();
+
+    // Update the group definition in the root graph
+    const updatedRootGraph: Graph = {
+      ...rootGraph,
+      groups: {
+        ...rootGraph.groups,
+        [groupId]: {
+          ...rootGraph.groups?.[groupId]!,
+          graph: {
+            nodes: internalState.nodes,
+            edges: internalState.edges
+          }
+        }
+      }
+    };
+
+    this.currentGroupContext = this.graphStack.length > 0
+      ? this.graphStack[this.graphStack.length - 1].groupId
+      : null;
+
+    this.graph = updatedRootGraph;
+    this._init(updatedRootGraph);
+    this.history.reset();
+    this.save();
+
+    return cameraPosition;
+  }
+
+  get isInsideGroup(): boolean {
+    return this.graphStack.length > 0;
+  }
+
+  get breadcrumbs(): { name: string; groupId: string | null }[] {
+    const crumbs: { name: string; groupId: string | null }[] = [
+      { name: 'Root', groupId: null }
+    ];
+    for (const entry of this.graphStack) {
+      const group = this.groups.get(entry.groupId);
+      crumbs.push({ name: group?.name ?? entry.groupId, groupId: entry.groupId });
+    }
+    return crumbs;
+  }
+
+  // --- Serialization ---
+
+  private serializeGroups(): Graph['groups'] | undefined {
+    const src = this.graph.groups;
+    if (!src || Object.keys(src).length === 0) return undefined;
+    const result: NonNullable<Graph['groups']> = {};
+    for (const [id, group] of Object.entries(src)) {
+      result[id] = {
+        id: group.id,
+        name: group.name,
+        inputs: group.inputs.map(s => ({ name: s.name, type: s.type })),
+        outputs: group.outputs.map(s => ({ name: s.name, type: s.type })),
+        graph: {
+          nodes: group.graph.nodes.map(n => ({
+            id: n.id,
+            type: n.type,
+            position: [n.position[0], n.position[1]] as [number, number],
+            ...(n.props !== undefined ? {
+              props: Object.fromEntries(
+                Object.entries(n.props).map(([k, v]) => [
+                  k,
+                  Array.isArray(v) ? [...v] : v
+                ])
+              )
+            } : {}),
+            ...(n.meta ? { meta: { title: n.meta.title, lastModified: n.meta.lastModified } } : {})
+          })),
+          edges: group.graph.edges.map(
+            e => [e[0], e[1], e[2], e[3]] as [number, number, number, string]
+          )
+        }
+      };
+    }
+    return result;
+  }
+
   serialize(): Graph {
     const nodes = Array.from(this.nodes.values()).map((node) => ({
       id: node.id,
-      position: [...node.position],
+      position: [...node.position] as [number, number],
       type: node.type,
-      props: node.props
-    })) as NodeInstance[];
+      props: node.props ? $state.snapshot(node.props) : undefined
+    }));
     const edges = this.edges.map((edge) => [
       edge[0].id,
       edge[1],
       edge[2].id,
       edge[3]
     ]) as Graph['edges'];
+
+    const groups = this.serializeGroups();
+
     const serialized = {
       id: this.graph.id,
       settings: $state.snapshot(this.settings),
       meta: $state.snapshot(this.graph.meta),
       nodes,
-      edges
+      edges,
+      ...(groups ? { groups } : {})
     };
     logger.log('serializing graph', serialized);
-    return clone($state.snapshot(serialized));
+    return clone(serialized) as Graph;
   }
 
   private lastSettingsHash = 0;
@@ -133,7 +636,12 @@ export class GraphManager extends EventEmitter<{
   }
 
   getNodeDefinitions() {
-    return this.registry.getAllNodes();
+    const all = this.registry.getAllNodes();
+    // Only show the Group node in AddMenu when there's at least one group to assign
+    if (this.groups.size === 0) {
+      return all.filter(n => n.id !== '__virtual/group/instance');
+    }
+    return all;
   }
 
   getLinkedNodes(node: NodeInstance) {
@@ -209,19 +717,14 @@ export class GraphManager extends EventEmitter<{
     const draggedInputs = Object.values(draggedNode.state.type.inputs ?? {});
     const draggedOutputs = draggedNode.state.type.outputs ?? [];
 
-    // Optimization: Pre-calculate parents to avoid cycles
     const parentIds = new SvelteSet(this.getParentsOfNode(draggedNode).map(n => n.id));
 
     return this.edges.filter((edge) => {
       const [fromNode, fromSocketIdx, toNode, toSocketKey] = edge;
 
-      // 1. Prevent cycles: If the target node is already a parent, we can't drop here
       if (parentIds.has(toNode.id)) return false;
-
-      // 2. Prevent self-dropping: Don't drop on edges already connected to this node
       if (fromNode.id === nodeId || toNode.id === nodeId) return false;
 
-      // 3. Check if edge.source can plug into ANY draggedNode.input
       const edgeOutputSocketType = fromNode.state?.type?.outputs?.[fromSocketIdx];
       const canPlugIntoDragged = draggedInputs.some(input => {
         const acceptedTypes = [input.type, ...(input.accepts || [])];
@@ -230,7 +733,6 @@ export class GraphManager extends EventEmitter<{
 
       if (!canPlugIntoDragged) return false;
 
-      // 4. Check if ANY draggedNode.output can plug into edge.target
       const targetInput = toNode.state?.type?.inputs?.[toSocketKey];
       const targetAcceptedTypes = [targetInput?.type, ...(targetInput?.accepts || [])];
 
@@ -267,15 +769,35 @@ export class GraphManager extends EventEmitter<{
   }
 
   private _init(graph: Graph) {
+    // Rebuild group definitions from the graph
+    this.groups.clear();
+    this.groupNodeDefinitions.clear();
+    if (graph.groups) {
+      for (const [groupId, group] of Object.entries(graph.groups)) {
+        this.groups.set(groupId, group);
+        const def = this.buildGroupNodeDefinition(group);
+        this.groupNodeDefinitions.set(def.id, def);
+      }
+    }
+
     const nodes = new SvelteMap(
-      graph.nodes.map((node) => {
-        const nodeType = this.registry.getNode(node.type);
-        const n = node as NodeInstance;
-        if (nodeType) {
-          n.state = {
-            type: nodeType
-          };
+      graph.nodes.map((serialized) => {
+        // Migration: old __virtual/group/{groupId} format → __virtual/group/instance with props.groupId
+        let node = serialized;
+        if (node.type.startsWith('__virtual/group/')
+            && node.type !== '__virtual/group/input'
+            && node.type !== '__virtual/group/output'
+            && node.type !== '__virtual/group/instance') {
+          const oldGroupId = node.type.split('/')[2];
+          node = { ...node, type: '__virtual/group/instance' as NodeId, props: { ...node.props, groupId: oldGroupId } };
         }
+
+        // IMPORTANT: copy the node so we don't mutate the original SerializedNode
+        // (which may be stored in a group definition). Mutating it would add
+        // state.type (with an execute fn) making it non-cloneable.
+        const nodeType = this.getNodeTypeWithContext(node.type, node.props as Record<string, unknown>);
+        const n = { ...node } as NodeInstance;
+        n.state = nodeType ? { type: nodeType } : {};
         return [node.id, n];
       })
     );
@@ -311,7 +833,10 @@ export class GraphManager extends EventEmitter<{
 
     logger.info('loading graph', { nodes: graph.nodes, edges: graph.edges, id: graph.id });
 
-    const nodeIds = Array.from(new SvelteSet([...graph.nodes.map((n) => n.type)]));
+    // Filter out virtual group types — they are resolved locally, not fetched remotely
+    const nodeIds = Array.from(new SvelteSet([
+      ...graph.nodes.map((n) => n.type).filter(t => !isVirtualType(t))
+    ]));
     await this.registry.load(nodeIds);
 
     // Fetch all nodes from all collections of the loaded nodes
@@ -332,13 +857,13 @@ export class GraphManager extends EventEmitter<{
     logger.info('loaded node types', this.registry.getAllNodes());
 
     for (const node of this.graph.nodes) {
+      if (isVirtualType(node.type)) continue;
       const nodeType = this.registry.getNode(node.type);
       if (!nodeType) {
         logger.error(`Node type not found: ${node.type}`);
         this.status = 'error';
         return;
       }
-      // Turn into runtime node
       const n = node as NodeInstance;
       n.state = {};
       n.state.type = nodeType;
@@ -347,7 +872,6 @@ export class GraphManager extends EventEmitter<{
     // load settings
     const settingTypes: Record<
       string,
-      // Optional metadata to map settings to specific nodes
       NodeInput & { __node_type: string; __node_input: string }
     > = {};
     const settingValues = graph.settings || {};
@@ -375,6 +899,10 @@ export class GraphManager extends EventEmitter<{
 
     this.settings = settingValues;
     this.emit('settings', { types: settingTypes, values: settingValues });
+
+    // Reset navigation
+    this.graphStack = [];
+    this.currentGroupContext = null;
 
     this.history.reset();
     this._init(this.graph);
@@ -442,9 +970,7 @@ export class GraphManager extends EventEmitter<{
   }
 
   getNodesBetween(from: NodeInstance, to: NodeInstance): NodeInstance[] | undefined {
-    //  < - - - - from
     const toParents = this.getParentsOfNode(to);
-    //  < - - - - from - - - - to
     const fromParents = this.getParentsOfNode(from);
     if (toParents.includes(from)) {
       const fromChildren = this.getChildren(from);
@@ -453,7 +979,6 @@ export class GraphManager extends EventEmitter<{
       const toChildren = this.getChildren(to);
       return fromParents.filter((n) => toChildren.includes(n));
     } else {
-      // these two nodes are not connected
       return;
     }
   }
@@ -507,7 +1032,6 @@ export class GraphManager extends EventEmitter<{
   }
 
   createGraph(nodes: NodeInstance[], edges: [number, number, number, string][]) {
-    // map old ids to new ids
     const idMap = new SvelteMap<number, number>();
 
     let startId = this.createNodeId();
@@ -558,6 +1082,26 @@ export class GraphManager extends EventEmitter<{
     position: NodeInstance['position'];
     props: NodeInstance['props'];
   }) {
+    if (type === '__virtual/group/instance') {
+      const firstEntry = this.groups.entries().next();
+      if (firstEntry.done) {
+        logger.error('No groups available to create a group node');
+        return;
+      }
+      const [groupId] = firstEntry.value;
+      const groupNodeDef = this.groupNodeDefinitions.get(`__virtual/group/${groupId}`);
+      const node = {
+        id: this.createNodeId(),
+        type: '__virtual/group/instance' as NodeId,
+        position,
+        props: { groupId, ...props },
+        state: { type: groupNodeDef }
+      } as NodeInstance;
+      this.nodes.set(node.id, node);
+      this.save();
+      return node;
+    }
+
     const nodeType = this.registry.getNode(type);
     if (!nodeType) {
       logger.error(`Node type not found: ${type}`);
@@ -588,7 +1132,6 @@ export class GraphManager extends EventEmitter<{
   ): Edge | undefined {
     const existingEdges = this.getEdgesToNode(to);
 
-    // check if this exact edge already exists
     const existingEdge = existingEdges.find(
       (e) => e[0].id === from.id && e[1] === fromSocket && e[3] === toSocket
     );
@@ -597,7 +1140,6 @@ export class GraphManager extends EventEmitter<{
       return;
     }
 
-    // check if socket types match
     const fromSocketType = from.state?.type?.outputs?.[fromSocket];
     const toSocketType = [to.state?.type?.inputs?.[toSocket]?.type];
     if (to.state?.type?.inputs?.[toSocket]?.accepts) {
@@ -665,11 +1207,12 @@ export class GraphManager extends EventEmitter<{
     const state = this.serialize();
     this.history.save(state);
 
-    // This is some stupid race condition where the graph-manager emits a save event
-    // when the graph is not fully loaded
     if (this.nodes.size === 0 && this.edges.length === 0) {
       return;
     }
+
+    // Don't emit save event while navigating inside a group
+    if (this.graphStack.length > 0) return;
 
     this.emit('save', state);
     logger.log('saving graphs', state);
@@ -729,9 +1272,7 @@ export class GraphManager extends EventEmitter<{
 
     const sockets: [NodeInstance, string | number][] = [];
 
-    // if index is a string, we are an input looking for outputs
     if (typeof index === 'string') {
-      // filter out self and child nodes
       const children = new SvelteSet(this.getChildren(node).map((n) => n.id));
       const nodes = this.getAllNodes().filter(
         (n) => n.id !== node.id && !children.has(n.id)
@@ -750,9 +1291,6 @@ export class GraphManager extends EventEmitter<{
         }
       }
     } else if (typeof index === 'number') {
-      // if index is a number, we are an output looking for inputs
-
-      // filter out self and parent nodes
       const parents = new SvelteSet(this.getParentsOfNode(node).map((n) => n.id));
       const nodes = this.getAllNodes().filter(
         (n) => n.id !== node.id && !parents.has(n.id)

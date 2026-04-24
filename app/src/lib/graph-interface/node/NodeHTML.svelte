@@ -1,12 +1,13 @@
 <script lang="ts">
-  import type { NodeInstance } from '@nodarium/types';
-  import { getGraphState } from '../graph-state.svelte';
+  import type { NodeDefinition, NodeInstance } from '@nodarium/types';
+  import { getGraphManager, getGraphState } from '../graph-state.svelte';
   import NodeHeader from './NodeHeader.svelte';
   import NodeParameter from './NodeParameter.svelte';
 
   let ref: HTMLDivElement;
 
   const graphState = getGraphState();
+  const manager = getGraphManager();
 
   type Props = {
     node: NodeInstance;
@@ -30,9 +31,37 @@
   const zOffset = Math.random() - 0.5;
   const zLimit = 2 - zOffset;
 
-  const parameters = Object.entries(node.state?.type?.inputs || {}).filter(
-    (p) => p[1].type !== 'seed' && !('setting' in p[1]) && p[1]?.hidden !== true
-  );
+  function buildParameters(node: NodeInstance, inputs: NodeDefinition['inputs']) {
+    let parameters = Object.entries(inputs || {}).filter(
+      (p) => p[1].type !== 'seed' && !('setting' in p[1]) && p[1]?.hidden !== true
+    );
+
+    if (node.type === '__virtual/group/instance') {
+      parameters = [['__virtual/groupId', {
+        type: 'select',
+        value: node.props?.groupId as string,
+        options: [...manager?.groups?.keys()]
+      }], ...parameters];
+    }
+
+    return parameters;
+  }
+
+  const parameters = $derived(buildParameters(node, node?.state?.type?.inputs || {}));
+
+  const currentGroupId = $derived((node.props?.groupId as string) ?? '');
+
+  function onGroupSelect(event: Event) {
+    const select = event.target as HTMLSelectElement;
+    const newGroupId = select.value;
+    if (!manager || newGroupId === currentGroupId) return;
+    const newGroupDef = manager.groupNodeDefinitions.get(`__virtual/group/${newGroupId}`);
+    if (!newGroupDef) return;
+    node.props = { ...(node.props ?? {}), groupId: newGroupId };
+    node.state = { type: newGroupDef };
+    manager.execute();
+    manager.save();
+  }
 
   $effect(() => {
     if ('state' in node && !node.state.ref) {
@@ -55,6 +84,22 @@
 >
   <NodeHeader {node} />
 
+  {#if false && node.type === '__virtual/group/instance'}
+    <div class="group-param">
+      <select
+        value={currentGroupId}
+        onchange={onGroupSelect}
+        onmousedown={(e) => e.stopPropagation()}
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+      >
+        {#each manager?.groups?.entries() ?? [] as [gid, gdef]}
+          <option value={gid}>{gdef.name}</option>
+        {/each}
+      </select>
+    </div>
+  {/if}
+
   {#each parameters as [key, value], i (key)}
     <NodeParameter
       bind:node
@@ -66,6 +111,24 @@
 </div>
 
 <style>
+  .group-param {
+    padding: 5px 8px;
+    border-bottom: solid 1px var(--color-layer-2);
+    background: var(--color-layer-1);
+  }
+
+  .group-param select {
+    width: 100%;
+    background: var(--color-layer-2);
+    color: var(--color-text);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 0.8em;
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+
   .node {
     box-sizing: border-box;
     user-select: none !important;

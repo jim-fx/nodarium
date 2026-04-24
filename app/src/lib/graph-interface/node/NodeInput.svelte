@@ -45,7 +45,7 @@
 
   $effect(() => {
     const a = $state.snapshot(value);
-    const b = $state.snapshot(node?.props?.[id]);
+    const b = $state.snapshot(node?.props?.[id]) as number | number[] | undefined;
     const isDiff = Array.isArray(a) ? diffArray(a, b) : a !== b;
     if (value !== undefined && isDiff) {
       node.props = { ...node.props, [id]: a };

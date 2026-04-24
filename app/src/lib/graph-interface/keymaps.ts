@@ -45,8 +45,26 @@ export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: Gr
 
   keymap.addShortcut({
     key: 'Escape',
-    description: 'Deselect nodes',
+    description: 'Deselect nodes / Exit group',
     callback: () => {
+      if (graph.isInsideGroup) {
+        const groupId = graph.currentGroupContext;
+        if (groupId) {
+          graphState.groupCameras.set(
+            groupId,
+            [...graphState.cameraPosition] as [number, number, number]
+          );
+        }
+        const savedCamera = graph.exitGroup();
+        if (savedCamera !== false) {
+          graphState.activeNodeId = -1;
+          graphState.clearSelection();
+          graphState.cameraPosition[0] = savedCamera[0];
+          graphState.cameraPosition[1] = savedCamera[1];
+          graphState.cameraPosition[2] = savedCamera[2];
+          return;
+        }
+      }
       graphState.activeNodeId = -1;
       graphState.clearSelection();
       graphState.edgeEndPosition = null;
@@ -157,6 +175,82 @@ export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: Gr
         .filter((n) => !!n);
       const edge = graph.smartConnect(nodes[0], nodes[1]);
       if (!edge) graph.smartConnect(nodes[1], nodes[0]);
+    }
+  });
+
+  keymap.addShortcut({
+    key: 'g',
+    ctrl: true,
+    preventDefault: true,
+    description: 'Group selected nodes',
+    callback: () => {
+      if (!graphState.isBodyFocused()) return;
+      const nodeIds = Array.from(
+        new Set([
+          ...(graphState.selectedNodes.size > 0 ? graphState.selectedNodes.values() : []),
+          ...(graphState.activeNodeId !== -1 ? [graphState.activeNodeId] : [])
+        ])
+      );
+      if (nodeIds.length === 0) return;
+      const groupNode = graph.createGroup(nodeIds);
+      if (groupNode) {
+        graphState.selectedNodes.clear();
+        graphState.activeNodeId = groupNode.id;
+      }
+    }
+  });
+
+  keymap.addShortcut({
+    key: 'g',
+    alt: true,
+    shift: true,
+    preventDefault: true,
+    description: 'Ungroup selected node',
+    callback: () => {
+      if (!graphState.isBodyFocused()) return;
+      const nodeId = graphState.activeNodeId !== -1
+        ? graphState.activeNodeId
+        : graphState.selectedNodes.size === 1
+        ? [...graphState.selectedNodes.values()][0]
+        : -1;
+      if (nodeId === -1) return;
+      graph.ungroup(nodeId);
+      graphState.activeNodeId = -1;
+      graphState.clearSelection();
+    }
+  });
+
+  keymap.addShortcut({
+    key: 'Tab',
+    preventDefault: true,
+    description: 'Enter focused group node',
+    callback: () => {
+      if (!graphState.isBodyFocused()) return;
+      const entered = graph.enterGroup(
+        graphState.activeNodeId,
+        [...graphState.cameraPosition] as [number, number, number]
+      );
+      if (entered) {
+        graphState.activeNodeId = -1;
+        graphState.clearSelection();
+        // Restore group-specific camera if we've been here before, else snap to center
+        const groupId = graph.currentGroupContext;
+        const saved = groupId ? graphState.groupCameras.get(groupId) : undefined;
+        if (saved) {
+          graphState.cameraPosition[0] = saved[0];
+          graphState.cameraPosition[1] = saved[1];
+          graphState.cameraPosition[2] = saved[2];
+        } else {
+          const nodes = [...graph.nodes.values()];
+          if (nodes.length) {
+            const avgX = nodes.reduce((s, n) => s + n.position[0], 0) / nodes.length;
+            const avgY = nodes.reduce((s, n) => s + n.position[1], 0) / nodes.length;
+            graphState.cameraPosition[0] = avgX;
+            graphState.cameraPosition[1] = avgY;
+            graphState.cameraPosition[2] = 10;
+          }
+        }
+      }
     }
   });
 }

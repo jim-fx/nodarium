@@ -6,6 +6,142 @@ import type {
   RuntimeExecutor,
   SyncCache
 } from '@nodarium/types';
+
+function isGroupInstanceType(type: string): boolean {
+  return type === '__virtual/group/instance';
+}
+
+export function expandGroups(graph: Graph): Graph {
+  if (!graph.groups || Object.keys(graph.groups).length === 0) {
+    return graph;
+  }
+
+  let nodes = [...graph.nodes];
+  let edges = [...graph.edges];
+  const groups = graph.groups;
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      if (!isGroupInstanceType(node.type)) continue;
+
+      const groupId = (node.props as Record<string, unknown> | undefined)?.groupId as string | undefined;
+      if (!groupId) continue;
+      const group = groups[groupId];
+      if (!group) continue;
+
+      changed = true;
+
+      // Recursively expand nested groups inside this group's internal graph
+      const expandedInternal = expandGroups({
+        id: 0,
+        nodes: group.graph.nodes,
+        edges: group.graph.edges,
+        groups
+      });
+
+      const ID_PREFIX = node.id * 1000000;
+      const idMap = new Map<number, number>();
+
+      const inputVirtualNode = expandedInternal.nodes.find(
+        n => n.type === '__virtual/group/input'
+      );
+      const outputVirtualNode = expandedInternal.nodes.find(
+        n => n.type === '__virtual/group/output'
+      );
+
+      const realInternalNodes = expandedInternal.nodes.filter(
+        n => n.type !== '__virtual/group/input' && n.type !== '__virtual/group/output'
+      );
+
+      for (const n of realInternalNodes) {
+        idMap.set(n.id, ID_PREFIX + n.id);
+      }
+
+      const parentIncomingEdges = edges.filter(e => e[2] === node.id);
+      const parentOutgoingEdges = edges.filter(e => e[0] === node.id);
+
+      // Edges from/to virtual nodes in the expanded internal graph
+      const edgesFromInput = expandedInternal.edges.filter(
+        e => e[0] === inputVirtualNode?.id
+      );
+      const edgesToOutput = expandedInternal.edges.filter(
+        e => e[2] === outputVirtualNode?.id
+      );
+
+      const newEdges: Graph['edges'] = [];
+
+      // Short-circuit: parent source → internal target (via group input)
+      for (const parentEdge of parentIncomingEdges) {
+        const socketName = parentEdge[3];
+        const socketIdx = group.inputs.findIndex(s => s.name === socketName);
+        if (socketIdx === -1) continue;
+
+        for (const internalEdge of edgesFromInput.filter(e => e[1] === socketIdx)) {
+          const remappedId = idMap.get(internalEdge[2]);
+          if (remappedId !== undefined) {
+            newEdges.push([parentEdge[0], parentEdge[1], remappedId, internalEdge[3]]);
+          }
+        }
+      }
+
+      // Short-circuit: internal source → parent target (via group output)
+      for (const parentEdge of parentOutgoingEdges) {
+        const outputIdx = parentEdge[1];
+        const outputSocketName = group.outputs[outputIdx]?.name;
+        if (!outputSocketName) continue;
+
+        for (const internalEdge of edgesToOutput.filter(e => e[3] === outputSocketName)) {
+          const remappedId = idMap.get(internalEdge[0]);
+          if (remappedId !== undefined) {
+            newEdges.push([remappedId, internalEdge[1], parentEdge[2], parentEdge[3]]);
+          }
+        }
+      }
+
+      // Remap internal-to-internal edges
+      const internalEdges = expandedInternal.edges.filter(
+        e => e[0] !== inputVirtualNode?.id
+          && e[0] !== outputVirtualNode?.id
+          && e[2] !== inputVirtualNode?.id
+          && e[2] !== outputVirtualNode?.id
+      );
+
+      for (const e of internalEdges) {
+        const fromId = idMap.get(e[0]);
+        const toId = idMap.get(e[2]);
+        if (fromId !== undefined && toId !== undefined) {
+          newEdges.push([fromId, e[1], toId, e[3]]);
+        }
+      }
+
+      // Remove the group node
+      nodes.splice(i, 1);
+
+      // Add remapped internal nodes
+      for (const n of realInternalNodes) {
+        nodes.push({ ...n, id: idMap.get(n.id)! });
+      }
+
+      // Remove group node's edges and add short-circuit edges
+      const groupEdgeKeys = new Set([
+        ...parentIncomingEdges.map(e => `${e[0]}-${e[1]}-${e[2]}-${e[3]}`),
+        ...parentOutgoingEdges.map(e => `${e[0]}-${e[1]}-${e[2]}-${e[3]}`)
+      ]);
+      edges = edges.filter(
+        e => !groupEdgeKeys.has(`${e[0]}-${e[1]}-${e[2]}-${e[3]}`)
+      );
+      edges.push(...newEdges);
+
+      break; // Restart loop with updated nodes array
+    }
+  }
+
+  return { ...graph, nodes, edges };
+}
 import {
   concatEncodedArrays,
   createLogger,
@@ -75,7 +211,11 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       throw new Error('Node registry is not ready');
     }
 
-    await this.registry.load(graph.nodes.map((node) => node.type));
+    // Only load non-virtual types (virtual nodes are resolved locally)
+    const nonVirtualTypes = graph.nodes
+      .map(node => node.type)
+      .filter(t => !t.startsWith('__virtual/'));
+    await this.registry.load(nonVirtualTypes as any);
 
     const typeMap = new Map<string, NodeDefinition>();
     for (const node of graph.nodes) {
@@ -162,6 +302,9 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
     let a = performance.now();
     this.debugData = {};
+
+    // Expand group nodes into a flat graph before execution
+    graph = expandGroups(graph);
 
     // Then we add some metadata to the graph
     const [outputNode, nodes] = await this.addMetaData(graph);

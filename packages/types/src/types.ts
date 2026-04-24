@@ -51,7 +51,7 @@ export const NodeSchema = z.object({
   id: z.number(),
   type: NodeIdSchema,
   props: z
-    .record(z.string(), z.union([z.number(), z.array(z.number())]))
+    .record(z.string(), z.union([z.number(), z.array(z.number()), z.string()]))
     .optional(),
   meta: z
     .object({
@@ -76,6 +76,33 @@ export type Socket = {
 
 export type Edge = [NodeInstance, number, NodeInstance, string];
 
+export type GroupSocket = {
+  name: string;
+  type: string;
+};
+
+export type NodeGroupDefinition = {
+  id: string;
+  name: string;
+  inputs: GroupSocket[];
+  outputs: GroupSocket[];
+  graph: {
+    nodes: SerializedNode[];
+    edges: [number, number, number, string][];
+  };
+};
+
+const NodeGroupDefinitionSchema: z.ZodType<NodeGroupDefinition> = z.object({
+  id: z.string(),
+  name: z.string(),
+  inputs: z.array(z.object({ name: z.string(), type: z.string() })),
+  outputs: z.array(z.object({ name: z.string(), type: z.string() })),
+  graph: z.object({
+    nodes: z.array(NodeSchema),
+    edges: z.array(z.tuple([z.number(), z.number(), z.number(), z.string()]))
+  })
+});
+
 export const GraphSchema = z.object({
   id: z.number(),
   meta: z
@@ -86,7 +113,8 @@ export const GraphSchema = z.object({
     .optional(),
   settings: z.record(z.string(), z.any()).optional(),
   nodes: z.array(NodeSchema),
-  edges: z.array(z.tuple([z.number(), z.number(), z.number(), z.string()]))
+  edges: z.array(z.tuple([z.number(), z.number(), z.number(), z.string()])),
+  groups: z.record(z.string(), NodeGroupDefinitionSchema).optional()
 });
 
 export type Graph = z.infer<typeof GraphSchema>;

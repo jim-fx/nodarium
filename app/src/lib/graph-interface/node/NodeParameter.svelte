@@ -36,7 +36,7 @@
     });
   }
 
-  const leftBump = $derived(nodeType.inputs?.[id].internal !== true);
+  const leftBump = $derived(!id.startsWith('__virtual') && nodeType.inputs?.[id].internal !== true);
   const cornerBottom = $derived(isLast ? 5 : 0);
   const aspectRatio = 0.5;
 
@@ -83,7 +83,7 @@
 >
   {#key id && graphId}
     <div class="content" class:disabled={graph?.inputSockets?.has(socketId)}>
-      {#if inputType?.label !== ''}
+      {#if inputType?.label !== '' && !id.startsWith('__virtual')}
         <label for={elementId} title={input.description}>{input.label || id}</label>
       {/if}
       {#if inputType?.external !== true}

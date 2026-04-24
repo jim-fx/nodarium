@@ -5,22 +5,27 @@
 
   type Props = {
     manager: GraphManager;
-    node: NodeInstance | undefined;
+    node: NodeInstance;
   };
 
   let { manager, node = $bindable() }: Props = $props();
+
+  const inputs = $derived(node?.state?.type?.inputs || {});
+
+  const hasSettings = $derived(
+    Object.values(inputs).find(entry => {
+      return entry.hidden === true;
+    }) !== undefined
+  );
+
+  $inspect({ inputs, hasSettings });
 </script>
 
-<div class='{node?"border-l-2 pl-3.5!":""} bg-layer-2 flex items-center h-[70px] border-b-1 border-l-selected border-b-outline pl-4'>
-  <h3>Node Settings</h3>
-</div>
-
-{#if node}
-  {#key node.id}
-    {#if node}
-      <ActiveNodeSelected {manager} bind:node />
-    {/if}
-  {/key}
-{:else}
-  <p class="mx-4 mt-4">No node selected</p>
-{/if}
+{#key node.id}
+  {#if node && hasSettings}
+    <div class="border-l-2 pl-3.5! bg-layer-2 flex items-center h-[70px] border-b-1 border-l-selected border-b-outline pl-4">
+      <h3>Node Settings</h3>
+    </div>
+    <ActiveNodeSelected {manager} bind:node />
+  {/if}
+{/key}

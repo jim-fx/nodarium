@@ -100,6 +100,9 @@
     if (typeof index === 'string') {
       return node.state.type?.inputs?.[index].type || 'unknown';
     }
+    if (node.type === '__virtual/group/instance') {
+      index += 1;
+    }
     return node.state.type?.outputs?.[index] || 'unknown';
   }
 </script>

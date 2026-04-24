@@ -5,6 +5,7 @@
   import { debounceAsyncFunction } from '$lib/helpers';
   import { createKeyMap } from '$lib/helpers/createKeyMap';
   import { debugNode } from '$lib/node-registry/debugNode.js';
+  import { groupInputNode, groupNode, groupOutputNode } from '$lib/node-registry/groupNodes.js';
   import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
   import NodeStore from '$lib/node-store/NodeStore.svelte';
   import PerformanceViewer from '$lib/performance/PerformanceViewer.svelte';
@@ -21,6 +22,7 @@
   import Changelog from '$lib/sidebar/panels/Changelog.svelte';
   import ExportSettings from '$lib/sidebar/panels/ExportSettings.svelte';
   import GraphSource from '$lib/sidebar/panels/GraphSource.svelte';
+  import GroupContextPanel from '$lib/sidebar/panels/GroupContextPanel.svelte';
   import Keymap from '$lib/sidebar/panels/Keymap.svelte';
   import { panelState } from '$lib/sidebar/PanelState.svelte';
   import Sidebar from '$lib/sidebar/Sidebar.svelte';
@@ -37,7 +39,12 @@
 
   const registryCache = new IndexDBCache('node-registry');
 
-  const nodeRegistry = new RemoteNodeRegistry('', registryCache, [debugNode]);
+  const nodeRegistry = new RemoteNodeRegistry('', registryCache, [
+    debugNode,
+    groupInputNode,
+    groupOutputNode,
+    groupNode
+  ]);
   const workerRuntime = new WorkerRuntimeExecutor();
   const runtimeCache = new MemoryRuntimeCache();
   const memoryRuntime = new MemoryRuntimeExecutor(nodeRegistry, runtimeCache);
@@ -341,7 +348,20 @@
             type={graphSettingTypes}
             bind:value={graphSettings}
           />
-          <ActiveNodeSettings {manager} bind:node={activeNode} />
+          {#if activeNode?.id}
+            <ActiveNodeSettings {manager} bind:node={activeNode} />
+          {/if}
+          {#if manager?.isInsideGroup}
+            <GroupContextPanel
+              {manager}
+              groupId={manager.currentGroupContext!}
+            />
+          {:else if activeNode?.type === '__virtual/group/instance'}
+            <GroupContextPanel
+              {manager}
+              groupId={activeNode?.props?.groupId as string}
+            />
+          {/if}
         </Panel>
         <Panel
           id="changelog"

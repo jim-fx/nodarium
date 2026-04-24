@@ -183,7 +183,7 @@
             activeNodeId = node.id;
           }}
         >
-          {node.id.split('/').at(-1)}
+          {node.meta?.title ?? node.id.split('/').at(-1)}
         </div>
       {/each}
     </div>

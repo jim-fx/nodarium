@@ -3,6 +3,9 @@ import type { NodeDefinition, NodeInstance } from '@nodarium/types';
 export function getParameterHeight(node: NodeDefinition, inputKey: string) {
   const input = node.inputs?.[inputKey];
   if (!input) {
+    if (inputKey.startsWith('__virtual')) {
+      return 50;
+    }
     return 0;
   }
 
@@ -53,7 +56,9 @@ export function getSocketPosition(
 
 const nodeHeightCache: Record<string, number> = {};
 export function getNodeHeight(node: NodeDefinition) {
-  if (node.id in nodeHeightCache) {
+  // Don't cache virtual nodes — their inputs can change dynamically
+  const isVirtual = (node.id as string).startsWith('__virtual/');
+  if (!isVirtual && node.id in nodeHeightCache) {
     return nodeHeightCache[node.id];
   }
   if (!node?.inputs) {
@@ -66,6 +71,8 @@ export function getNodeHeight(node: NodeDefinition) {
     height += h;
   }
 
-  nodeHeightCache[node.id] = height;
+  if (!isVirtual) {
+    nodeHeightCache[node.id] = height;
+  }
   return height;
 }
