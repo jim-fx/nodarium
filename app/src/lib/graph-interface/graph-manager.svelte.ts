@@ -94,7 +94,7 @@ export class GraphManager extends EventEmitter<{
   groups = new SvelteMap<string, NodeGroupDefinition>();
   groupNodeDefinitions: Map<string, NodeDefinition> = new Map();
   currentGroupContext: string | null = null;
-  graphStack: { rootGraph: Graph; groupId: string; cameraPosition: [number, number, number] }[] = $state([]);
+  graphStack: { rootGraph: Graph; groupId: string; nodeId: number; cameraPosition: [number, number, number] }[] = $state([]);
 
   inputSockets = $derived.by(() => {
     const s = new SvelteSet<string>();
@@ -115,7 +115,7 @@ export class GraphManager extends EventEmitter<{
       const { rootGraph, groupId } = $state.snapshot(this.graphStack[i]);
       // Prefer the live definition (may have been updated via addGroupSocket/rename)
       // over the snapshot taken when we entered the group.
-      const currentDef = (this.graph.groups ?? rootGraph.groups)?.[groupId];
+      const currentDef = $state.snapshot((this.graph.groups ?? rootGraph.groups)?.[groupId]);
       merged = {
         ...rootGraph,
         groups: {
@@ -563,7 +563,7 @@ export class GraphManager extends EventEmitter<{
     if (!group) return false;
 
     const currentSerialized = this.serialize();
-    this.graphStack.push({ rootGraph: currentSerialized, groupId, cameraPosition });
+    this.graphStack.push({ rootGraph: currentSerialized, groupId, nodeId, cameraPosition });
 
     this.currentGroupContext = groupId;
 
@@ -581,10 +581,10 @@ export class GraphManager extends EventEmitter<{
     return true;
   }
 
-  exitGroup(): [number, number, number] | false {
+  exitGroup(): { camera: [number, number, number]; nodeId: number } | false {
     if (this.graphStack.length === 0) return false;
 
-    const { rootGraph, groupId, cameraPosition } = this.graphStack[this.graphStack.length - 1];
+    const { rootGraph, groupId, nodeId, cameraPosition } = this.graphStack[this.graphStack.length - 1];
     this.graphStack.pop();
 
     // Serialize current internal graph state
@@ -614,7 +614,7 @@ export class GraphManager extends EventEmitter<{
     this.history.reset();
     this.save();
 
-    return cameraPosition;
+    return { camera: cameraPosition, nodeId };
   }
 
   get isInsideGroup(): boolean {

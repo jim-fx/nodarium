@@ -128,6 +128,7 @@
       id={key}
       input={value}
       isLast={i == parameters.length - 1}
+      outputIndex={node.type === '__virtual/group/input' ? i : undefined}
     />
   {/each}
 </div>

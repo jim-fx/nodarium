@@ -10,6 +10,7 @@
     input: NodeInput;
     id: string;
     isLast?: boolean;
+    outputIndex?: number;
   };
 
   const graph = getGraphManager();
@@ -17,13 +18,14 @@
   const graphId = graph?.id;
   const elementId = `input-${Math.random().toString(36).substring(7)}`;
 
-  let { node = $bindable(), input, id, isLast }: Props = $props();
+  let { node = $bindable(), input, id, isLast, outputIndex = undefined }: Props = $props();
 
   const nodeType = $derived(node.state.type!);
 
   const inputType = $derived(nodeType.inputs?.[id]);
 
   const socketId = $derived(`${node.id}-${id}`);
+  const outputSocketId = $derived(outputIndex !== undefined ? `${node.id}-${outputIndex}` : '');
   const height = $derived(getParameterHeight(nodeType, id));
 
   function handleMouseDown(ev: MouseEvent) {
@@ -36,7 +38,19 @@
     });
   }
 
-  const leftBump = $derived(!id.startsWith('__virtual') && nodeType.inputs?.[id].internal !== true);
+  function handleOutputMouseDown(ev: MouseEvent) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (outputIndex === undefined) return;
+    graphState.setDownSocket({
+      node,
+      index: outputIndex,
+      position: getSocketPosition(node, outputIndex)
+    });
+  }
+
+  const leftBump = $derived(!id.startsWith('__virtual') && nodeType.inputs?.[id].internal !== true && outputIndex === undefined);
+  const rightBump = $derived(outputIndex !== undefined);
   const cornerBottom = $derived(isLast ? 5 : 0);
   const aspectRatio = 0.5;
 
@@ -47,6 +61,7 @@
       y: 50.5,
       cornerBottom,
       leftBump,
+      rightBump,
       aspectRatio
     })
   );
@@ -57,6 +72,7 @@
       y: 50.5,
       cornerBottom,
       leftBump,
+      rightBump,
       aspectRatio
     })
   );
@@ -79,7 +95,9 @@
   data-node-input={id}
   style:height="{height}px"
   style:--socket-color={hoverColor}
-  class:possible-socket={graphState?.possibleSocketIds.has(socketId)}
+  class:possible-socket={outputIndex !== undefined
+    ? graphState?.possibleSocketIds.has(outputSocketId)
+    : graphState?.possibleSocketIds.has(socketId)}
 >
   {#key id && graphId}
     <div class="content" class:disabled={graph?.inputSockets?.has(socketId)}>
@@ -91,7 +109,7 @@
       {/if}
     </div>
 
-    {#if node?.state?.type?.inputs?.[id]?.internal !== true}
+    {#if outputIndex === undefined && node?.state?.type?.inputs?.[id]?.internal !== true}
       <div
         data-node-socket
         class="target"
@@ -102,6 +120,17 @@
       </div>
     {/if}
   {/key}
+
+  {#if outputIndex !== undefined}
+    <div
+      data-node-socket
+      class="target target-right"
+      onmousedown={handleOutputMouseDown}
+      role="button"
+      tabindex="0"
+    >
+    </div>
+  {/if}
 
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -128,6 +157,16 @@
     border-radius: 50%;
     top: 50%;
     transform: translateY(-50%) translateX(-50%);
+  }
+
+  .target-right {
+    right: 0;
+    left: auto;
+    transform: translateY(-50%) translateX(50%);
+  }
+
+  .target-right:hover ~ svg path {
+    d: var(--hover-path);
   }
 
   .possible-socket .target::before {

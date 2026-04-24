@@ -22,7 +22,7 @@
   }
 
   const cornerTop = 10;
-  const rightBump = $derived(!!node?.state?.type?.outputs?.length);
+  const rightBump = $derived(!!node?.state?.type?.outputs?.length && node.type !== '__virtual/group/input');
   const aspectRatio = 0.25;
 
   const path = $derived(
@@ -72,13 +72,15 @@
     {/if}
     {node.state?.type?.meta?.title ?? node.type.split('/').pop()}
   </div>
-  <div
-    class="target"
-    role="button"
-    tabindex="0"
-    onmousedown={handleMouseDown}
-  >
-  </div>
+  {#if node.type !== '__virtual/group/input'}
+    <div
+      class="target"
+      role="button"
+      tabindex="0"
+      onmousedown={handleMouseDown}
+    >
+    </div>
+  {/if}
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 100 100"

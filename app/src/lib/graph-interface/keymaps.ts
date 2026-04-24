@@ -55,13 +55,13 @@ export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: Gr
             [...graphState.cameraPosition] as [number, number, number]
           );
         }
-        const savedCamera = graph.exitGroup();
-        if (savedCamera !== false) {
-          graphState.activeNodeId = -1;
+        const result = graph.exitGroup();
+        if (result !== false) {
+          graphState.activeNodeId = result.nodeId;
           graphState.clearSelection();
-          graphState.cameraPosition[0] = savedCamera[0];
-          graphState.cameraPosition[1] = savedCamera[1];
-          graphState.cameraPosition[2] = savedCamera[2];
+          graphState.cameraPosition[0] = result.camera[0];
+          graphState.cameraPosition[1] = result.camera[1];
+          graphState.cameraPosition[2] = result.camera[2];
           return;
         }
       }

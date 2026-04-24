@@ -31,6 +31,20 @@ export function getSocketPosition(
   index: string | number
 ): [number, number] {
   if (typeof index === 'number') {
+    if (node.type === '__virtual/group/input') {
+      const nodeType = node.state.type;
+      const keys = Object.keys(nodeType?.inputs || {});
+      let height = 5;
+      for (let i = 0; i < keys.length; i++) {
+        const h = getParameterHeight(nodeType!, keys[i]) / 10;
+        if (i === index) { height += h / 2; break; }
+        height += h;
+      }
+      return [
+        (node?.state?.x ?? node.position[0]) + 20,
+        (node?.state?.y ?? node.position[1]) + height
+      ];
+    }
     return [
       (node?.state?.x ?? node.position[0]) + 20,
       (node?.state?.y ?? node.position[1]) + 2.5 + 10 * index

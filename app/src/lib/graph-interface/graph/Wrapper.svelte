@@ -91,21 +91,23 @@
   function navigateToBreadcrumb(index: number) {
     const crumbs = manager.breadcrumbs;
     const depth = crumbs.length - 1 - index;
-    let restoredCamera: [number, number, number] | false = false;
+    let result: { camera: [number, number, number]; nodeId: number } | false = false;
     for (let i = 0; i < depth; i++) {
       const groupId = manager.currentGroupContext;
       if (groupId) {
         state.groupCameras.set(groupId, [...state.cameraPosition] as [number, number, number]);
       }
-      restoredCamera = manager.exitGroup();
+      result = manager.exitGroup();
     }
-    state.activeNodeId = -1;
-    state.clearSelection();
-    if (restoredCamera !== false) {
-      state.cameraPosition[0] = restoredCamera[0];
-      state.cameraPosition[1] = restoredCamera[1];
-      state.cameraPosition[2] = restoredCamera[2];
+    if (result !== false) {
+      state.activeNodeId = result.nodeId;
+      state.clearSelection();
+      state.cameraPosition[0] = result.camera[0];
+      state.cameraPosition[1] = result.camera[1];
+      state.cameraPosition[2] = result.camera[2];
     } else {
+      state.activeNodeId = -1;
+      state.clearSelection();
       state.centerNode();
     }
   }
