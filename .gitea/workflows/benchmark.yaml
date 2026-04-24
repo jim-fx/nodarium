@@ -57,7 +57,6 @@ jobs:
           echo "${{ secrets.GIT_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -p 2222 -H git.max-richter.dev >> ~/.ssh/known_hosts
-          ssh -vvv -p 2222 -i ~/.ssh/id_ed25519 -T git@git.max-richter.dev
 
       - name: 📤 Push Results
         env:
@@ -67,7 +66,7 @@ jobs:
           git config --global user.email "nodarium-bot@max-richter.dev"
 
           # 2. Clone the benchmarks repo into a temp folder
-          git config --global core.sshCommand "ssh -vv -p 2222 -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes"
+          git config --global core.sshCommand "ssh -p 2222 -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes"
           git clone git@git.max-richter.dev:max/nodarium-benchmarks.git target_bench_repo
           
           # 3. Create a directory structure based on the branch
