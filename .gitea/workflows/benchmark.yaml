@@ -57,6 +57,7 @@ jobs:
           echo "${{ secrets.GIT_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H git.max-richter.dev >> ~/.ssh/known_hosts
+           ssh -i ~/.ssh/id_ed25519 -T git@git.max-richter.dev
 
       - name: 📤 Push Results
         env:
