@@ -71,8 +71,8 @@ jobs:
           
           # 3. Create a directory structure based on the branch
           # This allows the UI to "switch between branches"
-          BRANCH_NAME="${{ github.ref_name }}"
-          DEST_DIR="target_bench_repo/data/$BRANCH_NAME/$(date +%s)"
+          SAFE_PR_NAME="${GITHUB_HEAD_REF//\//-}"
+          DEST_DIR="target_bench_repo/data/$SAFE_PR_NAME/$(date +%s)"
           mkdir -p "$DEST_DIR"
 
           # 4. Copy the new results
@@ -82,5 +82,5 @@ jobs:
           # 5. Commit and Push
           cd target_bench_repo
           git add .
-          git commit -m "Update benchmarks for $BRANCH_NAME: ${{ github.sha }}"
+          git commit -m "Update benchmarks for $SAFE_PR_NAME: ${{ github.sha }}"
           git push origin main
