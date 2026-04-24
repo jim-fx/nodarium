@@ -51,9 +51,30 @@ jobs:
       - name: 🏃 Execute Runtime
         run: pnpm run --filter @nodarium/app bench
 
-      - name: 📤 Upload Benchmark Results
-        uses: actions/upload-artifact@v3
-        with:
-          name: benchmark-data
-          path: app/benchmark/out/
-          compression: 9
+
+      - name: 📤 Push Results
+        env:
+          BENCH_REPO: "git.max-richter.dev/max/nodarium-benchmarks.git"
+          BENCH_TOKEN: ${{ secrets.GITEA_TOKEN }}
+        run: |
+          git config user.name "nodarium-bot"
+          git config user.email "nodarium-bot@max-richter.dev"
+
+          # 2. Clone the benchmarks repo into a temp folder
+          git clone https://$BENCH_TOKEN@$BENCH_REPO target_bench_repo
+          
+          # 3. Create a directory structure based on the branch
+          # This allows the UI to "switch between branches"
+          BRANCH_NAME="${{ github.ref_name }}"
+          DEST_DIR="target_bench_repo/data/$BRANCH_NAME/$(date +%s)"
+          mkdir -p "$DEST_DIR"
+
+          # 4. Copy the new results
+          # Assuming your bench tool outputs a file named 'results.json'
+          cp app/benchmark/out/*.json "$DEST_DIR/"
+
+          # 5. Commit and Push
+          cd target_bench_repo
+          git add .
+          git commit -m "Update benchmarks for $BRANCH_NAME: ${{ github.sha }}"
+          git push origin main
