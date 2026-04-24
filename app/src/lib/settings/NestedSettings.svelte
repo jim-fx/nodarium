@@ -52,7 +52,7 @@
     // select input: use index into options
     if ('options' in node && Array.isArray(node.options)) {
       if (typeof inputValue === 'string') {
-        return node.options.indexOf(inputValue);
+        return (node.options as string[]).indexOf(inputValue);
       }
       return 0;
     }

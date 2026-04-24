@@ -40,7 +40,7 @@
 
   let meshRef: Mesh | undefined = $state();
 
-  const height = getNodeHeight(node.state.type!);
+  const height = $derived(getNodeHeight(node.state.type!));
 
   const zoom = $derived(graphState.cameraPosition[2]);
 

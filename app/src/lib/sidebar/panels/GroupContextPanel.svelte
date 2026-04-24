@@ -5,8 +5,6 @@
   type Props = { manager: GraphManager; groupId: string };
   const { manager, groupId }: Props = $props();
 
-  $inspect({ groupId });
-
   const group = $derived(manager.groups.get(groupId));
 
   const COMMON_TYPES = ['plant', 'float', 'int', 'vec3', 'bool'];
@@ -33,6 +31,10 @@
 
   function removeSocket(index: number) {
     manager.removeGroupSocket('input', index);
+  }
+
+  function prune() {
+    manager.pruneUnusedGroups();
   }
 </script>
 
@@ -84,6 +86,11 @@
       />
       <button class="add-btn" onclick={addSocket}>+ Add</button>
     </div>
+  </div>
+
+  <div class="flex flex-col gap-1.5">
+    <span class="section-label">Maintenance</span>
+    <button class="danger-btn" onclick={prune}>Prune unused groups</button>
   </div>
 </div>
 
@@ -144,5 +151,25 @@
 
   .add-btn:hover {
     outline-color: var(--color-selected);
+  }
+
+  .danger-btn {
+    background: var(--color-layer-2);
+    color: var(--color-text);
+    border: none;
+    outline: 1px solid var(--color-outline);
+    border-radius: 5px;
+    padding: 0.4em 0.7em;
+    font-size: 0.8em;
+    cursor: pointer;
+    font-family: var(--font-family);
+    opacity: 0.7;
+    width: 100%;
+    text-align: left;
+  }
+
+  .danger-btn:hover {
+    outline-color: #e05050;
+    opacity: 1;
   }
 </style>

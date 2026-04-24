@@ -40,7 +40,7 @@
 {:else if input.type === 'boolean'}
   <InputCheckbox bind:value={value as boolean} {id} />
 {:else if input.type === 'select'}
-  <InputSelect bind:value={value as number} options={input.options} {id} />
+  <InputSelect bind:value={value as number | string} options={input.options} {id} />
 {:else if input.type === 'vec3'}
   <InputVec3 bind:value={value as [number, number, number]} {id} />
 {/if}

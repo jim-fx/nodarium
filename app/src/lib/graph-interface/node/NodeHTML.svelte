@@ -37,15 +37,37 @@
     );
 
     if (node.type === '__virtual/group/instance') {
+      const groupOptions = [...(manager?.groups?.entries() ?? [])].map(([id, g]) => ({
+        label: g.name,
+        value: id
+      }));
+      // Remove the static placeholder from the definition (height-only) and replace
+      // with a fully dynamic version that carries current names + value.
+      parameters = parameters.filter(([key]) => key !== '__virtual/groupId');
       parameters = [['__virtual/groupId', {
         type: 'select',
         value: node.props?.groupId as string,
-        options: [...manager?.groups?.keys()]
+        options: groupOptions
       }], ...parameters];
     }
 
     return parameters;
   }
+
+  $effect(() => {
+    const props = node.props as Record<string, unknown> | undefined;
+    const virtualGroupId = props?.['__virtual/groupId'] as string | undefined;
+    if (!virtualGroupId) return;
+    const activeGroupId = props?.groupId as string | undefined;
+    if (virtualGroupId === activeGroupId) return;
+    const newGroupDef = manager?.groupNodeDefinitions.get(`__virtual/group/${virtualGroupId}`);
+    if (!newGroupDef) return;
+    const { children, parents, ref } = node.state;
+    node.props = { ...props, groupId: virtualGroupId, '__virtual/groupId': virtualGroupId };
+    node.state = { type: newGroupDef, children, parents, ref };
+    manager?.execute();
+    manager?.save();
+  });
 
   const parameters = $derived(buildParameters(node, node?.state?.type?.inputs || {}));
 

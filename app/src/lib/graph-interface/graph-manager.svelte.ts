@@ -91,7 +91,7 @@ export class GraphManager extends EventEmitter<{
   currentUndoGroup: number | null = null;
 
   // Group-related state
-  groups: Map<string, NodeGroupDefinition> = new Map();
+  groups = new SvelteMap<string, NodeGroupDefinition>();
   groupNodeDefinitions: Map<string, NodeDefinition> = new Map();
   currentGroupContext: string | null = null;
   graphStack: { rootGraph: Graph; groupId: string; cameraPosition: [number, number, number] }[] = $state([]);
@@ -113,12 +113,15 @@ export class GraphManager extends EventEmitter<{
     let merged: Graph = this.serialize();
     for (let i = this.graphStack.length - 1; i >= 0; i--) {
       const { rootGraph, groupId } = $state.snapshot(this.graphStack[i]);
+      // Prefer the live definition (may have been updated via addGroupSocket/rename)
+      // over the snapshot taken when we entered the group.
+      const currentDef = (this.graph.groups ?? rootGraph.groups)?.[groupId];
       merged = {
         ...rootGraph,
         groups: {
           ...rootGraph.groups,
           [groupId]: {
-            ...rootGraph.groups?.[groupId]!,
+            ...(currentDef as NodeGroupDefinition),
             graph: { nodes: merged.nodes, edges: merged.edges }
           }
         }
@@ -142,9 +145,13 @@ export class GraphManager extends EventEmitter<{
     return {
       id: `__virtual/group/${group.id}` as NodeId,
       meta: { title: group.name },
-      inputs: Object.fromEntries(
-        group.inputs.map(s => [s.name, { type: s.type, external: true } as NodeInput])
-      ),
+      inputs: {
+        // Placeholder for the group-selector dropdown — counted in height/socket math
+        '__virtual/groupId': { type: 'select' as const, internal: true, label: '' } as NodeInput,
+        ...Object.fromEntries(
+          group.inputs.map(s => [s.name, { type: s.type, external: true } as NodeInput])
+        )
+      },
       outputs: group.outputs.map(s => s.type),
       execute(input: Int32Array): Int32Array { return input; }
     };
@@ -153,7 +160,12 @@ export class GraphManager extends EventEmitter<{
   buildGroupInputNodeDef(group: NodeGroupDefinition): NodeDefinition {
     return {
       id: '__virtual/group/input' as NodeId,
-      inputs: {},
+      meta: { title: 'Input' },
+      // Each group input socket gets a labeled row (external = no control widget,
+      // internal = no left-side socket dot; it's an output-only node).
+      inputs: Object.fromEntries(
+        group.inputs.map(s => [s.name, { type: s.type, external: true, internal: true }])
+      ) as Record<string, NodeInput>,
       outputs: group.inputs.map(s => s.type),
       execute(input: Int32Array): Int32Array { return input; }
     };
@@ -434,11 +446,19 @@ export class GraphManager extends EventEmitter<{
     const group = this.groups.get(this.currentGroupContext);
     if (!group) return;
 
-    const arr = kind === 'input' ? group.inputs : group.outputs;
-    const name = `${kind}_${arr.length}`;
-    arr.push({ name, type: socketType });
+    const oldArr = kind === 'input' ? group.inputs : group.outputs;
+    const name = `${kind}_${oldArr.length}`;
+    const updatedGroup: NodeGroupDefinition = {
+      ...group,
+      inputs: kind === 'input' ? [...oldArr, { name, type: socketType }] : group.inputs,
+      outputs: kind === 'output' ? [...oldArr, { name, type: socketType }] : group.outputs
+    };
 
-    this._refreshGroupContext(group);
+    if (!this.graph.groups) this.graph.groups = {};
+    this.graph.groups[this.currentGroupContext] = updatedGroup;
+
+    // Reinitialize so virtual group input/output nodes pick up the new socket reactively
+    this._init(this.serialize());
     this.save();
   }
 
@@ -447,10 +467,17 @@ export class GraphManager extends EventEmitter<{
     const group = this.groups.get(this.currentGroupContext);
     if (!group) return;
 
-    const arr = kind === 'input' ? group.inputs : group.outputs;
-    arr.splice(index, 1);
+    const oldArr = kind === 'input' ? group.inputs : group.outputs;
+    const updatedGroup: NodeGroupDefinition = {
+      ...group,
+      inputs: kind === 'input' ? oldArr.filter((_, i) => i !== index) : group.inputs,
+      outputs: kind === 'output' ? oldArr.filter((_, i) => i !== index) : group.outputs
+    };
 
-    this._refreshGroupContext(group);
+    if (!this.graph.groups) this.graph.groups = {};
+    this.graph.groups[this.currentGroupContext] = updatedGroup;
+
+    this._init(this.serialize());
     this.save();
   }
 
@@ -476,6 +503,51 @@ export class GraphManager extends EventEmitter<{
       if (node.type === '__virtual/group/instance' && (node.props?.groupId as string) === groupId) {
         node.state.type = groupNodeDef;
       }
+    }
+  }
+
+  pruneUnusedGroups() {
+    const usedIds = new Set<string>();
+
+    // Scan nodes in the current graph
+    for (const node of this.nodes.values()) {
+      if (node.type === '__virtual/group/instance') {
+        const gid = node.props?.groupId as string | undefined;
+        if (gid) usedIds.add(gid);
+      }
+    }
+
+    // Scan nodes in every stacked (parent) graph
+    for (const { rootGraph } of this.graphStack) {
+      for (const node of rootGraph.nodes) {
+        if (node.type === '__virtual/group/instance' && node.props?.groupId) {
+          usedIds.add(node.props.groupId as string);
+        }
+      }
+    }
+
+    // Scan internal graphs of all known groups (nested group nodes)
+    for (const group of this.groups.values()) {
+      for (const node of group.graph.nodes) {
+        if (node.type === '__virtual/group/instance' && node.props?.groupId) {
+          usedIds.add(node.props.groupId as string);
+        }
+      }
+    }
+
+    let changed = false;
+    for (const groupId of [...this.groups.keys()]) {
+      if (!usedIds.has(groupId)) {
+        this.groups.delete(groupId);
+        this.groupNodeDefinitions.delete(`__virtual/group/${groupId}`);
+        if (this.graph.groups) delete this.graph.groups[groupId];
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      this.execute();
+      this.save();
     }
   }
 
@@ -984,6 +1056,7 @@ export class GraphManager extends EventEmitter<{
   }
 
   removeNode(node: NodeInstance, { restoreEdges = false } = {}) {
+    if (node.type === '__virtual/group/input' || node.type === '__virtual/group/output') return;
     const edgesToNode = this.edges.filter((edge) => edge[2].id === node.id);
     const edgesFromNode = this.edges.filter((edge) => edge[0].id === node.id);
     for (const edge of [...edgesToNode, ...edgesFromNode]) {
@@ -1211,11 +1284,9 @@ export class GraphManager extends EventEmitter<{
       return;
     }
 
-    // Don't emit save event while navigating inside a group
-    if (this.graphStack.length > 0) return;
-
-    this.emit('save', state);
-    logger.log('saving graphs', state);
+    const fullState = this.graphStack.length > 0 ? this.serializeFullGraph() : state;
+    this.emit('save', fullState);
+    logger.log('saving graphs', fullState);
   }
 
   getParentsOfNode(node: NodeInstance) {
