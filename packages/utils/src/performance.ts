@@ -4,6 +4,7 @@ export interface PerformanceStore {
   startRun(): void;
   stopRun(): void;
   addPoint(name: string, value?: number): void;
+  addToLastRun(name: string, value: number): void;
   endPoint(name?: string): void;
   mergeData(data: PerformanceData[number]): void;
   get: () => PerformanceData;
@@ -63,6 +64,13 @@ export function createPerformanceStore(): PerformanceStore {
     }
   }
 
+  function addToLastRun(name: string, value: number) {
+    const last = data[data.length - 1];
+    if (!last) return;
+    last[name] = last[name] || [];
+    last[name].push(value);
+  }
+
   function get() {
     return data;
   }
@@ -94,6 +102,7 @@ export function createPerformanceStore(): PerformanceStore {
     startRun,
     stopRun,
     addPoint,
+    addToLastRun,
     endPoint,
     mergeData,
     get
