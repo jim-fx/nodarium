@@ -66,7 +66,8 @@ jobs:
           git config user.email "nodarium-bot@max-richter.dev"
 
           # 2. Clone the benchmarks repo into a temp folder
-          git clone $BENCH_REPO target_bench_repo
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes" \
+          git clone git@git.max-richter.dev:max/nodarium-benchmarks.git target_bench_repo
           
           # 3. Create a directory structure based on the branch
           # This allows the UI to "switch between branches"
