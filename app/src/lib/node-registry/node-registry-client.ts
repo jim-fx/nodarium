@@ -88,6 +88,7 @@ export class RemoteNodeRegistry implements NodeRegistry {
   }
 
   async fetchNodeDefinition(nodeId: `${string}/${string}/${string}`) {
+    if (nodeId.startsWith('__internal/')) return;
     return this.fetchJson(`nodes/${nodeId}.json`);
   }
 
@@ -108,6 +109,8 @@ export class RemoteNodeRegistry implements NodeRegistry {
         if (this.nodes.has(id)) {
           return this.nodes.get(id)!;
         }
+
+        if (id.startsWith('__internal/')) return;
 
         const wasmBuffer = await this.fetchNodeWasm(id);
 

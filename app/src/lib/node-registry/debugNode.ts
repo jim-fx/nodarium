@@ -1,5 +1,5 @@
 export const debugNode = {
-  id: 'max/plantarium/debug',
+  id: '__internal/debug/instance',
   inputs: {
     input: {
       type: '*'

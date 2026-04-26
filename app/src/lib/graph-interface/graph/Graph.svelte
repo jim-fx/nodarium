@@ -11,7 +11,6 @@
   import Debug from '../debug/Debug.svelte';
   import EdgeEl from '../edges/Edge.svelte';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
-  import { getSocketPosition } from '../helpers/nodeHelpers';
   import NodeEl from '../node/Node.svelte';
   import { maxZoom, minZoom } from './constants';
   import { FileDropEventManager } from './drop.events';
@@ -39,8 +38,8 @@
       return [0, 0, 0, 0];
     }
 
-    const pos1 = getSocketPosition(fromNode, edge[1]);
-    const pos2 = getSocketPosition(toNode, edge[3]);
+    const pos1 = graphState.getSocketPosition(fromNode, edge[1]);
+    const pos2 = graphState.getSocketPosition(toNode, edge[3]);
     return [pos1[0], pos1[1], pos2[0], pos2[1]];
   }
 
@@ -96,11 +95,13 @@
     graphState.addMenuPosition = null;
   }
 
-  function getSocketType(node: NodeInstance, index: number | string): string {
+  function getSocketType(node: NodeInstance, index: number | string, e: unknown): string {
+    const nodeType = graph.getNodeType(node);
+    console.log($state.snapshot({ nodeType, index, e }));
     if (typeof index === 'string') {
-      return node.state.type?.inputs?.[index].type || 'unknown';
+      return nodeType?.inputs?.[index].type || 'unknown';
     }
-    return node.state.type?.outputs?.[index] || 'unknown';
+    return nodeType?.outputs?.[index] || 'unknown';
   }
 </script>
 
@@ -182,8 +183,8 @@
       {#if graphState.activeSocket}
         <EdgeEl
           z={graphState.cameraPosition[2]}
-          inputType={getSocketType(graphState.activeSocket.node, graphState.activeSocket.index)}
-          outputType={getSocketType(graphState.activeSocket.node, graphState.activeSocket.index)}
+          inputType={getSocketType(graphState.activeSocket.node, graphState.activeSocket.index, 'c')}
+          outputType={getSocketType(graphState.activeSocket.node, graphState.activeSocket.index, 'd')}
           x1={graphState.activeSocket.position[0]}
           y1={graphState.activeSocket.position[1]}
           x2={graphState.edgeEndPosition?.[0] ?? graphState.mousePosition[0]}
@@ -196,8 +197,8 @@
         <EdgeEl
           id={graph.getEdgeId(edge)}
           z={graphState.cameraPosition[2]}
-          inputType={getSocketType(edge[0], edge[1])}
-          outputType={getSocketType(edge[2], edge[3])}
+          inputType={getSocketType(edge[0], edge[1], 'a')}
+          outputType={getSocketType(edge[2], edge[3], 'b')}
           {x1}
           {y1}
           {x2}
@@ -216,7 +217,7 @@
           style:transform={`scale(${graphState.cameraPosition[2] * 0.1})`}
           class:hovering-sockets={graphState.activeSocket}
         >
-          {#each graph.nodes.values() as node (node.id)}
+          {#each graph.getAllNodes() as node (node.id)}
             <NodeEl
               {node}
               inView={graphState.isNodeInView(node)}

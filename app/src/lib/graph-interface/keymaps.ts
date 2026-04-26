@@ -55,6 +55,19 @@ export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: Gr
   });
 
   keymap.addShortcut({
+    key: 'g',
+    ctrl: true,
+    description: 'Group selected nodes',
+    callback: () => graphState.groupSelectedNodes()
+  });
+
+  keymap.addShortcut({
+    key: 'Tab',
+    description: 'Enter selected node group',
+    callback: () => graphState.enterGroupNode()
+  });
+
+  keymap.addShortcut({
     key: 'A',
     shift: true,
     description: 'Add new Node',

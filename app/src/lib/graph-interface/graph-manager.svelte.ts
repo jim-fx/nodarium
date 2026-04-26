@@ -10,6 +10,7 @@ import type {
   NodeRegistry,
   Socket
 } from '@nodarium/types';
+import { type GroupDefinition } from '@nodarium/types';
 import { fastHashString } from '@nodarium/utils';
 import { createLogger } from '@nodarium/utils';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -67,7 +68,7 @@ export class GraphManager extends EventEmitter<{
   status = $state<'loading' | 'idle' | 'error'>();
   loaded = false;
 
-  graph: Graph = { id: 0, nodes: [], edges: [] };
+  graph: Graph = { id: 0, nodes: [], edges: [], groups: [] };
   id = $state(0);
 
   nodes = new SvelteMap<number, NodeInstance>();
@@ -110,10 +111,36 @@ export class GraphManager extends EventEmitter<{
       edge[2].id,
       edge[3]
     ]) as Graph['edges'];
+
+    const groups = this.graph.groups?.map((group) => {
+      const groupNodes = group.nodes.map((node) => ({
+        id: node.id,
+        position: [...node.position],
+        type: node.type,
+        props: node.props
+      })) as NodeInstance[];
+
+      const groupEdges = this.edges.map((edge) => [
+        edge[0].id,
+        edge[1],
+        edge[2].id,
+        edge[3]
+      ]) as Graph['edges'];
+
+      return {
+        id: group.id,
+        inputs: group.inputs,
+        outputs: group.outputs,
+        nodes: groupNodes,
+        edges: groupEdges
+      };
+    });
+
     const serialized = {
       id: this.graph.id,
       settings: $state.snapshot(this.settings),
       meta: $state.snapshot(this.graph.meta),
+      groups,
       nodes,
       edges
     };
@@ -311,13 +338,16 @@ export class GraphManager extends EventEmitter<{
 
     logger.info('loading graph', { nodes: graph.nodes, edges: graph.edges, id: graph.id });
 
-    const nodeIds = Array.from(new SvelteSet([...graph.nodes.map((n) => n.type)]));
+    const nodeIds = Array
+      .from(new SvelteSet([...graph.nodes.map((n) => n.type)]))
+      .filter(n => !n.startsWith('__internal/'));
     await this.registry.load(nodeIds);
 
     // Fetch all nodes from all collections of the loaded nodes
     const allCollections = new SvelteSet<`${string}/${string}`>();
     for (const id of nodeIds) {
       const [user, collection] = id.split('/');
+      if (user === '__internal') continue;
       allCollections.add(`${user}/${collection}`);
     }
     for (const collection of allCollections) {
@@ -333,7 +363,7 @@ export class GraphManager extends EventEmitter<{
 
     for (const node of this.graph.nodes) {
       const nodeType = this.registry.getNode(node.type);
-      if (!nodeType) {
+      if (!nodeType && !node.type.startsWith('__internal/')) {
         logger.error(`Node type not found: ${node.type}`);
         this.status = 'error';
         return;
@@ -389,15 +419,47 @@ export class GraphManager extends EventEmitter<{
   }
 
   getAllNodes() {
-    return Array.from(this.nodes.values());
+    this.graph.groups ??= [];
+    if (!this.graph.groups.length) {
+      this.graph.groups.push({
+        id: 0,
+        nodes: [],
+        edges: []
+      });
+    }
+
+    return Array
+      .from(this.nodes.values());
   }
 
   getNode(id: number) {
     return this.nodes.get(id);
   }
 
-  getNodeType(id: string) {
-    return this.registry.getNode(id);
+  getNodeType(node: NodeInstance) {
+    // Construct the inputs on the fly
+    if (node.type === '__internal/group/instance') {
+      const groupDefinition = this.getGroup(node.props?.groupId as number);
+
+      const inputs = {
+        'groupId': {
+          type: 'select',
+          label: '',
+          value: node.props?.groupId.toString(),
+          internal: true,
+          options: this.graph.groups.map(g => g.id.toString())
+        },
+        ...(node.state.type?.inputs || {}),
+        ...groupDefinition?.inputs
+      };
+
+      return {
+        ...node.state.type,
+        inputs
+      } as NodeDefinition;
+    }
+
+    return node.state.type;
   }
 
   async loadNodeType(id: NodeId) {
@@ -502,6 +564,14 @@ export class GraphManager extends EventEmitter<{
     }
   }
 
+  createGroupId() {
+    return Math.max(0, ...this.graph.groups.keys()) + 1;
+  }
+
+  getGroup(id: number) {
+    return this.graph.groups.find(g => g.id === id);
+  }
+
   createNodeId() {
     return Math.max(0, ...this.nodes.keys()) + 1;
   }
@@ -579,6 +649,26 @@ export class GraphManager extends EventEmitter<{
     return node;
   }
 
+  createGroupNode(position: [number, number], groupDefinition: GroupDefinition): NodeInstance {
+    this.graph.groups ??= [];
+    this.graph.groups.push(groupDefinition);
+    const node = {
+      id: this.createNodeId(),
+      type: '__internal/group/instance',
+      meta: {
+        title: 'Group'
+      },
+      props: {
+        groupId: groupDefinition.id
+      },
+      position,
+      state: {}
+    } as const;
+
+    this.nodes.set(node.id, node);
+    return node;
+  }
+
   createEdge(
     from: NodeInstance,
     fromSocket: number,
@@ -597,11 +687,14 @@ export class GraphManager extends EventEmitter<{
       return;
     }
 
+    const fromType = this.getNodeType(from);
+    const toType = this.getNodeType(to);
+
     // check if socket types match
-    const fromSocketType = from.state?.type?.outputs?.[fromSocket];
-    const toSocketType = [to.state?.type?.inputs?.[toSocket]?.type];
-    if (to.state?.type?.inputs?.[toSocket]?.accepts) {
-      toSocketType.push(...(to?.state?.type?.inputs?.[toSocket]?.accepts || []));
+    const fromSocketType = fromType?.outputs?.[fromSocket];
+    const toSocketType = [toType?.inputs?.[toSocket]?.type];
+    if (toType?.inputs?.[toSocket]?.accepts) {
+      toSocketType.push(...(toType?.inputs?.[toSocket]?.accepts || []));
     }
 
     if (!areSocketsCompatible(fromSocketType, toSocketType)) {
@@ -724,7 +817,7 @@ export class GraphManager extends EventEmitter<{
   }
 
   getPossibleSockets({ node, index }: Socket): [NodeInstance, string | number][] {
-    const nodeType = node?.state?.type;
+    const nodeType = this.getNodeType(node);
     if (!nodeType) return [];
 
     const sockets: [NodeInstance, string | number][] = [];
@@ -740,7 +833,7 @@ export class GraphManager extends EventEmitter<{
       const ownType = nodeType?.inputs?.[index].type;
 
       for (const node of nodes) {
-        const nodeType = node?.state?.type;
+        const nodeType = this.getNodeType(node);
         const inputs = nodeType?.outputs;
         if (!inputs) continue;
         for (let index = 0; index < inputs.length; index++) {
@@ -772,7 +865,7 @@ export class GraphManager extends EventEmitter<{
       const ownType = nodeType.outputs?.[index];
 
       for (const node of nodes) {
-        const inputs = node?.state?.type?.inputs;
+        const inputs = this.getNodeType(node)?.inputs;
         if (!inputs) continue;
         for (const key in inputs) {
           const otherType = [inputs[key].type];

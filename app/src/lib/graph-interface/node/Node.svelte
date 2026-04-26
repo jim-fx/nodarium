@@ -3,13 +3,14 @@
   import type { NodeInstance } from '@nodarium/types';
   import { T } from '@threlte/core';
   import { type Mesh } from 'three';
-  import { getGraphState } from '../graph-state.svelte';
+  import { getGraphManager, getGraphState } from '../graph-state.svelte';
   import { colors } from '../graph/colors.svelte';
   import { getNodeHeight, getParameterHeight } from '../helpers/nodeHelpers';
   import NodeFrag from './Node.frag';
   import NodeVert from './Node.vert';
   import NodeHtml from './NodeHTML.svelte';
 
+  const graph = getGraphManager();
   const graphState = getGraphState();
 
   type Props = {
@@ -18,7 +19,7 @@
   };
   let { node = $bindable(), inView }: Props = $props();
 
-  const nodeType = $derived(node.state.type!);
+  const nodeType = $derived(graph.getNodeType(node)!);
 
   const isActive = $derived(graphState.activeNodeId === node.id);
   const isSelected = $derived(graphState.selectedNodes.has(node.id));
@@ -40,7 +41,11 @@
 
   let meshRef: Mesh | undefined = $state();
 
-  const height = getNodeHeight(node.state.type!);
+  const height = $derived(getNodeHeight(nodeType));
+
+  if (node.type.startsWith('__internal/')) {
+    $inspect({ node, nodeType, height, sectionHeights });
+  }
 
   const zoom = $derived(graphState.cameraPosition[2]);
 

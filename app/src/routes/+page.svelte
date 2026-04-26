@@ -4,7 +4,7 @@
   import Grid from '$lib/grid';
   import { debounceAsyncFunction } from '$lib/helpers';
   import { createKeyMap } from '$lib/helpers/createKeyMap';
-  import { debugNode } from '$lib/node-registry/debugNode.js';
+  import { debugNode } from '$lib/node-registry/debugNode';
   import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
   import NodeStore from '$lib/node-store/NodeStore.svelte';
   import PerformanceViewer from '$lib/performance/PerformanceViewer.svelte';

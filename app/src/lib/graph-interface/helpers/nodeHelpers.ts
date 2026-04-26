@@ -23,36 +23,11 @@ export function getParameterHeight(node: NodeDefinition, inputKey: string) {
   return 50;
 }
 
-export function getSocketPosition(
-  node: NodeInstance,
-  index: string | number
-): [number, number] {
-  if (typeof index === 'number') {
-    return [
-      (node?.state?.x ?? node.position[0]) + 20,
-      (node?.state?.y ?? node.position[1]) + 2.5 + 10 * index
-    ];
-  } else {
-    let height = 5;
-    const nodeType = node.state.type!;
-    const inputs = nodeType.inputs || {};
-    for (const inputKey in inputs) {
-      const h = getParameterHeight(nodeType, inputKey) / 10;
-      if (inputKey === index) {
-        height += h / 2;
-        break;
-      }
-      height += h;
-    }
-    return [
-      node?.state?.x ?? node.position[0],
-      (node?.state?.y ?? node.position[1]) + height
-    ];
-  }
-}
-
 const nodeHeightCache: Record<string, number> = {};
 export function getNodeHeight(node: NodeDefinition) {
+  if (!node) {
+    console.trace('Node is undefined', node);
+  }
   if (node.id in nodeHeightCache) {
     return nodeHeightCache[node.id];
   }

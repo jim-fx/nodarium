@@ -76,6 +76,16 @@ export type Socket = {
 
 export type Edge = [NodeInstance, number, NodeInstance, string];
 
+export const GroupSchema = z.object({
+  id: z.number(),
+  nodes: z.array(NodeSchema),
+  edges: z.array(z.tuple([z.number(), z.number(), z.number(), z.string()])),
+  inputs: z.record(z.string(), NodeInputSchema).optional(),
+  outputs: z.array(z.string()).optional()
+});
+
+export type GroupDefinition = z.infer<typeof GroupSchema>;
+
 export const GraphSchema = z.object({
   id: z.number(),
   meta: z
@@ -86,7 +96,8 @@ export const GraphSchema = z.object({
     .optional(),
   settings: z.record(z.string(), z.any()).optional(),
   nodes: z.array(NodeSchema),
-  edges: z.array(z.tuple([z.number(), z.number(), z.number(), z.string()]))
+  edges: z.array(z.tuple([z.number(), z.number(), z.number(), z.string()])),
+  groups: z.array(GroupSchema)
 });
 
 export type Graph = z.infer<typeof GraphSchema>;

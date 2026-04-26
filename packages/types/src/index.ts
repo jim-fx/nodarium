@@ -4,11 +4,12 @@ export type {
   Box,
   Edge,
   Graph,
+  GroupDefinition,
   NodeDefinition,
   NodeId,
   NodeInstance,
   SerializedNode,
   Socket
 } from './types';
-export { GraphSchema, NodeSchema } from './types';
+export { GraphSchema, GroupSchema, NodeSchema } from './types';
 export { NodeDefinitionSchema } from './types';

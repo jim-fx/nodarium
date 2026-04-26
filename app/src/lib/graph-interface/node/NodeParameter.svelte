@@ -2,7 +2,7 @@
   import type { NodeInput, NodeInstance, Socket } from '@nodarium/types';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers';
-  import { getParameterHeight, getSocketPosition } from '../helpers/nodeHelpers';
+  import { getParameterHeight } from '../helpers/nodeHelpers';
   import NodeInputEl from './NodeInput.svelte';
 
   type Props = {
@@ -19,7 +19,7 @@
 
   let { node = $bindable(), input, id, isLast }: Props = $props();
 
-  const nodeType = $derived(node.state.type!);
+  const nodeType = $derived(graph.getNodeType(node)!);
 
   const inputType = $derived(nodeType.inputs?.[id]);
 
@@ -32,7 +32,7 @@
     graphState.setDownSocket({
       node,
       index: id,
-      position: getSocketPosition(node, id)
+      position: graphState.getSocketPosition(node, id)
     });
   }
 
