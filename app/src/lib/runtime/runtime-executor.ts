@@ -7,18 +7,11 @@ import type {
   SyncCache
 } from '@nodarium/types';
 
-function isGroupInstanceType(type: string): boolean {
-  return type === '__virtual/group/instance';
-}
-
 export function expandGroups(graph: Graph): Graph {
-  if (!graph.groups || Object.keys(graph.groups).length === 0) {
-    return graph;
-  }
+  if (!graph.groups || graph.groups.length === 0) return graph;
 
   let nodes = [...graph.nodes];
   let edges = [...graph.edges];
-  const groups = graph.groups;
 
   let changed = true;
   while (changed) {
@@ -26,120 +19,69 @@ export function expandGroups(graph: Graph): Graph {
 
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i];
-      if (!isGroupInstanceType(node.type)) continue;
+      if (node.type !== '__internal/group/instance') continue;
 
-      const groupId = (node.props as Record<string, unknown> | undefined)?.groupId as
-        | string
-        | undefined;
-      if (!groupId) continue;
-      const group = groups[groupId];
+      const groupId = node.props?.groupId as number | undefined;
+      if (groupId === undefined) continue;
+
+      const group = graph.groups.find(g => g.id === groupId);
       if (!group) continue;
 
       changed = true;
 
-      // Recursively expand nested groups inside this group's internal graph
-      const expandedInternal = expandGroups({
-        id: 0,
-        nodes: group.graph.nodes,
-        edges: group.graph.edges,
-        groups
-      });
-
-      const ID_PREFIX = node.id * 1000000;
+      const ID_OFFSET = (node.id + 1) * 1_000_000;
       const idMap = new Map<number, number>();
 
-      const inputVirtualNode = expandedInternal.nodes.find(
-        n => n.type === '__virtual/group/input'
-      );
-      const outputVirtualNode = expandedInternal.nodes.find(
-        n => n.type === '__virtual/group/output'
-      );
+      const inputBoundary = group.nodes.find(n => n.type === '__internal/group/input');
+      const outputBoundary = group.nodes.find(n => n.type === '__internal/group/output');
 
-      const realInternalNodes = expandedInternal.nodes.filter(
-        n => n.type !== '__virtual/group/input' && n.type !== '__virtual/group/output'
+      const realNodes = group.nodes.filter(
+        n => n.type !== '__internal/group/input' && n.type !== '__internal/group/output'
       );
 
-      for (const n of realInternalNodes) {
-        idMap.set(n.id, ID_PREFIX + n.id);
-      }
+      for (const n of realNodes) idMap.set(n.id, ID_OFFSET + n.id);
 
-      const parentIncomingEdges = edges.filter(e => e[2] === node.id);
-      const parentOutgoingEdges = edges.filter(e => e[0] === node.id);
-
-      // Edges from/to virtual nodes in the expanded internal graph
-      const edgesFromInput = expandedInternal.edges.filter(
-        e => e[0] === inputVirtualNode?.id
-      );
-      const edgesToOutput = expandedInternal.edges.filter(
-        e => e[2] === outputVirtualNode?.id
-      );
-
+      const incomingExternal = edges.filter(e => e[2] === node.id);
+      const outgoingExternal = edges.filter(e => e[0] === node.id);
       const newEdges: Graph['edges'] = [];
 
-      // Short-circuit: parent source → internal target (via group input)
-      for (const parentEdge of parentIncomingEdges) {
-        const socketName = parentEdge[3];
-        const socketIdx = group.inputs.findIndex(s => s.name === socketName);
-        if (socketIdx === -1) continue;
-
-        for (const internalEdge of edgesFromInput.filter(e => e[1] === socketIdx)) {
-          const remappedId = idMap.get(internalEdge[2]);
-          if (remappedId !== undefined) {
-            newEdges.push([parentEdge[0], parentEdge[1], remappedId, internalEdge[3]]);
+      // external_source → [inputBoundary →] internal_target
+      if (inputBoundary) {
+        const fromInput = group.edges.filter(e => e[0] === inputBoundary.id);
+        for (const extEdge of incomingExternal) {
+          for (const intEdge of fromInput) {
+            const toId = idMap.get(intEdge[2]);
+            if (toId !== undefined) newEdges.push([extEdge[0], extEdge[1], toId, intEdge[3]]);
           }
         }
       }
 
-      // Short-circuit: internal source → parent target (via group output)
-      for (const parentEdge of parentOutgoingEdges) {
-        const outputIdx = parentEdge[1];
-        const outputSocketName = group.outputs[outputIdx]?.name;
-        if (!outputSocketName) continue;
-
-        for (const internalEdge of edgesToOutput.filter(e => e[3] === outputSocketName)) {
-          const remappedId = idMap.get(internalEdge[0]);
-          if (remappedId !== undefined) {
-            newEdges.push([remappedId, internalEdge[1], parentEdge[2], parentEdge[3]]);
+      // internal_source → [outputBoundary →] external_target
+      if (outputBoundary) {
+        const toOutput = group.edges.filter(e => e[2] === outputBoundary.id);
+        for (const extEdge of outgoingExternal) {
+          for (const intEdge of toOutput) {
+            const fromId = idMap.get(intEdge[0]);
+            if (fromId !== undefined) newEdges.push([fromId, intEdge[1], extEdge[2], extEdge[3]]);
           }
         }
       }
 
-      // Remap internal-to-internal edges
-      const internalEdges = expandedInternal.edges.filter(
-        e =>
-          e[0] !== inputVirtualNode?.id
-          && e[0] !== outputVirtualNode?.id
-          && e[2] !== inputVirtualNode?.id
-          && e[2] !== outputVirtualNode?.id
-      );
-
-      for (const e of internalEdges) {
+      // internal-to-internal edges (skip boundary edges)
+      for (const e of group.edges) {
+        if (e[0] === inputBoundary?.id || e[2] === outputBoundary?.id) continue;
         const fromId = idMap.get(e[0]);
         const toId = idMap.get(e[2]);
-        if (fromId !== undefined && toId !== undefined) {
-          newEdges.push([fromId, e[1], toId, e[3]]);
-        }
+        if (fromId !== undefined && toId !== undefined) newEdges.push([fromId, e[1], toId, e[3]]);
       }
 
-      // Remove the group node
       nodes.splice(i, 1);
+      for (const n of realNodes) nodes.push({ ...n, id: idMap.get(n.id)! });
 
-      // Add remapped internal nodes
-      for (const n of realInternalNodes) {
-        nodes.push({ ...n, id: idMap.get(n.id)! });
-      }
-
-      // Remove group node's edges and add short-circuit edges
-      const groupEdgeKeys = new Set([
-        ...parentIncomingEdges.map(e => `${e[0]}-${e[1]}-${e[2]}-${e[3]}`),
-        ...parentOutgoingEdges.map(e => `${e[0]}-${e[1]}-${e[2]}-${e[3]}`)
-      ]);
-      edges = edges.filter(
-        e => !groupEdgeKeys.has(`${e[0]}-${e[1]}-${e[2]}-${e[3]}`)
-      );
+      edges = edges.filter(e => e[0] !== node.id && e[2] !== node.id);
       edges.push(...newEdges);
 
-      break; // Restart loop with updated nodes array
+      break;
     }
   }
 

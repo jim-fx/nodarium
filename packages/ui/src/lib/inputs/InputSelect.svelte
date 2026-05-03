@@ -6,13 +6,6 @@
   }
 
   let { options = [], value = $bindable(0), id = '' }: Props = $props();
-
-  $effect(() => {
-    console.log({ options, value });
-    if (typeof value !== typeof options[0]) {
-      console.trace('WARNING: value type does not match options type');
-    }
-  });
 </script>
 
 <select {id} bind:value class="bg-layer-2 text-text">
