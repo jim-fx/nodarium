@@ -81,7 +81,10 @@ export const GroupSchema = z.object({
   nodes: z.array(NodeSchema),
   edges: z.array(z.tuple([z.number(), z.number(), z.number(), z.string()])),
   inputs: z.record(z.string(), NodeInputSchema).optional(),
-  outputs: z.array(z.string()).optional()
+  outputs: z.array(z.object({
+    type: z.string(),
+    label: z.string().optional()
+  })).optional()
 });
 
 export type GroupDefinition = z.infer<typeof GroupSchema>;

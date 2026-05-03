@@ -1,10 +1,11 @@
 <script lang="ts">
   import { appSettings } from '$lib/settings/app-settings.svelte';
   import type { NodeInstance, Socket } from '@nodarium/types';
-  import { getGraphState } from '../graph-state.svelte';
+  import { getGraphManager, getGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers/index.js';
 
   const graphState = getGraphState();
+  const graph = getGraphManager();
 
   const { node }: { node: NodeInstance } = $props();
 
@@ -21,7 +22,8 @@
   }
 
   const cornerTop = 10;
-  const rightBump = $derived(!!node?.state?.type?.outputs?.length);
+  const nodeType = $derived(graph.getNodeType(node));
+  const rightBump = $derived(!!nodeType?.outputs?.length);
   const aspectRatio = 0.25;
 
   const path = $derived(

@@ -24,3 +24,9 @@
 {:else}
   <p class="mx-4 mt-4">No node selected</p>
 {/if}
+
+{#if manager?.graph.groups.length}
+  <button onclick={() => manager.removeUnusedGroups()}>
+    remove unused groups
+  </button>
+{/if}

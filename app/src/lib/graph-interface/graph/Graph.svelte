@@ -97,7 +97,6 @@
 
   function getSocketType(node: NodeInstance, index: number | string, e: unknown): string {
     const nodeType = graph.getNodeType(node);
-    console.log($state.snapshot({ nodeType, index, e }));
     if (typeof index === 'string') {
       return nodeType?.inputs?.[index].type || 'unknown';
     }

@@ -43,10 +43,6 @@
 
   const height = $derived(getNodeHeight(nodeType));
 
-  if (node.type.startsWith('__internal/')) {
-    $inspect({ node, nodeType, height, sectionHeights });
-  }
-
   const zoom = $derived(graphState.cameraPosition[2]);
 
   $effect(() => {

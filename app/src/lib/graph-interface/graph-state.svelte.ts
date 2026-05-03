@@ -1,5 +1,5 @@
 import { animate, lerp } from '$lib/helpers';
-import type { Box, Edge, GroupDefinition, NodeInput, NodeInstance, Socket } from '@nodarium/types';
+import type { NodeInstance, Socket } from '@nodarium/types';
 import { getContext, setContext } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { OrthographicCamera, Vector3 } from 'three';
@@ -240,117 +240,8 @@ export class GraphState {
     };
   }
 
-  groupSelectedNodes(nodeIds = [...this.selectedNodes.keys(), this.activeNodeId]) {
-    const ids = new Set(nodeIds);
-    const nodes = [
-      ...ids.values().map(id => this.graph.getNode(id)).filter(Boolean)
-    ] as NodeInstance[];
-
-    const incomingEdges = this.graph.edges.filter((edge) =>
-      ids.has(edge[2].id) && !ids.has(edge[0].id)
-    );
-    const groupInputs = new Map<string, Edge>();
-    for (const edge of incomingEdges) {
-      groupInputs.set(`${edge[0].id}-${edge[1]}`, edge);
-    }
-
-    const outgoingEdges = this.graph.edges.filter((edge) =>
-      ids.has(edge[0].id) && !ids.has(edge[2].id)
-    );
-    const groupOutputs = new Map<string, Edge>();
-    for (const edge of outgoingEdges) {
-      groupOutputs.set(`${edge[2].id}-${edge[3]}`, edge);
-    }
-
-    const inputs: Record<string, NodeInput> = {};
-    [...groupInputs.values()].forEach((edge, i) => {
-      const input = {
-        label: `Input ${i}`,
-        type: edge[0].state.type?.outputs?.[edge[1]] || '*'
-      };
-      inputs[`input_${i}`] = input as NodeInput;
-    });
-
-    const outputs = [...groupOutputs.values()].map((edge, i) => ({
-      label: `Output ${i}`,
-      type: edge[2].state.type?.inputs?.[edge[3]].type
-    }));
-
-    const groupPosition = [0, 0] as [number, number];
-    const bounds: Box = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
-    for (const node of nodes) {
-      groupPosition[0] += node.position[0];
-      groupPosition[1] += node.position[1];
-      bounds.minX = Math.min(bounds.minX, node.position[0]);
-      bounds.maxX = Math.max(bounds.maxX, node.position[0]);
-      bounds.minY = Math.min(bounds.minY, node.position[1]);
-      bounds.maxY = Math.max(bounds.maxY, node.position[1]);
-    }
-    groupPosition[0] /= nodes.length;
-    groupPosition[1] /= nodes.length;
-
-    const groupInputNode: NodeInstance = {
-      id: this.graph.createNodeId(),
-      type: '__internal/group/input',
-      position: [bounds.minX - 50, (bounds.minY + bounds.maxY) / 2],
-      state: {}
-    };
-
-    const groupOutputNode: NodeInstance = {
-      id: this.graph.createNodeId(),
-      type: '__internal/group/output',
-      position: [bounds.maxX + 25, (bounds.minY + bounds.maxY) / 2],
-      state: {}
-    };
-
-    // Edges that are inside the group
-    const internalEdges = this.graph.edges.filter((edge) => {
-      return ids.has(edge[0].id) || ids.has(edge[2].id);
-    }).map((edge) => {
-      // Going in from the group
-      if (!ids.has(edge[0].id)) {
-        return [groupInputNode, 0, edge[2], edge[3]];
-        // Going out to the group
-      } else if (!ids.has(edge[2].id)) {
-        return [edge[0], edge[1], groupOutputNode, 'Out'];
-      }
-      return edge;
-    });
-
-    const groupId = this.graph.createGroupId();
-    const groupDefinition: GroupDefinition = {
-      id: groupId,
-      inputs: inputs,
-      outputs: outputs,
-      edges: internalEdges,
-      nodes: [groupInputNode, ...nodes, groupOutputNode]
-    };
-    const groupNode = this.graph.createGroupNode(groupPosition, groupDefinition);
-
-    // Update the edges that are now inside
-    // the group to be connected to that group node
-    const externalEdges = this.graph.edges.map((edge) => {
-      if (ids.has(edge[2].id)) {
-        // Edge going into the group
-        return [edge[0], edge[1], groupNode, 'input_0'] as Edge;
-      } else if (ids.has(edge[0].id)) {
-        // Edge going out of the group
-        return [groupNode, 0, edge[2], edge[3]] as Edge;
-      }
-      return edge;
-    });
-
-    for (const node of nodes) {
-      this.graph.nodes.delete(node.id);
-    }
-    this.graph.edges = externalEdges;
-    this.graph.saveUndoGroup();
-    console.log(
-      $state.snapshot({
-        groupNode,
-        groupDefinition
-      })
-    );
+  groupSelectedNodes() {
+    return this.graph.groupNodes([...this.selectedNodes.keys(), this.activeNodeId]);
   }
 
   centerNode(node?: NodeInstance) {

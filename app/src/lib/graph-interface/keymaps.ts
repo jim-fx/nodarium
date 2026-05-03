@@ -57,6 +57,7 @@ export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: Gr
   keymap.addShortcut({
     key: 'g',
     ctrl: true,
+    preventDefault: true,
     description: 'Group selected nodes',
     callback: () => graphState.groupSelectedNodes()
   });

@@ -1,8 +1,10 @@
 import throttle from '$lib/helpers/throttle';
 import { RemoteNodeRegistry } from '$lib/node-registry/index';
 import type {
+  Box,
   Edge,
   Graph,
+  GroupDefinition,
   NodeDefinition,
   NodeId,
   NodeInput,
@@ -10,7 +12,6 @@ import type {
   NodeRegistry,
   Socket
 } from '@nodarium/types';
-import { type GroupDefinition } from '@nodarium/types';
 import { fastHashString } from '@nodarium/utils';
 import { createLogger } from '@nodarium/utils';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -120,19 +121,12 @@ export class GraphManager extends EventEmitter<{
         props: node.props
       })) as NodeInstance[];
 
-      const groupEdges = this.edges.map((edge) => [
-        edge[0].id,
-        edge[1],
-        edge[2].id,
-        edge[3]
-      ]) as Graph['edges'];
-
       return {
         id: group.id,
         inputs: group.inputs,
         outputs: group.outputs,
         nodes: groupNodes,
-        edges: groupEdges
+        edges: group.edges
       };
     });
 
@@ -332,15 +326,29 @@ export class GraphManager extends EventEmitter<{
     const a = performance.now();
 
     this.loaded = false;
+    graph.groups ??= [];
     this.graph = graph;
     this.status = 'loading';
     this.id = graph.id;
 
-    logger.info('loading graph', { nodes: graph.nodes, edges: graph.edges, id: graph.id });
+    logger.info(
+      'loading graph',
+      { nodes: graph.nodes, edges: graph.edges, id: graph.id }
+    );
 
     const nodeIds = Array
-      .from(new SvelteSet([...graph.nodes.map((n) => n.type)]))
+      .from(
+        new SvelteSet(
+          [
+            ...graph.nodes,
+            graph?.groups?.map(g => g.nodes).flat()
+          ]
+            .filter(n => n && 'type' in n)
+            .map((n) => n.type)
+        )
+      )
       .filter(n => !n.startsWith('__internal/'));
+
     await this.registry.load(nodeIds);
 
     // Fetch all nodes from all collections of the loaded nodes
@@ -419,15 +427,6 @@ export class GraphManager extends EventEmitter<{
   }
 
   getAllNodes() {
-    this.graph.groups ??= [];
-    if (!this.graph.groups.length) {
-      this.graph.groups.push({
-        id: 0,
-        nodes: [],
-        edges: []
-      });
-    }
-
     return Array
       .from(this.nodes.values());
   }
@@ -437,26 +436,34 @@ export class GraphManager extends EventEmitter<{
   }
 
   getNodeType(node: NodeInstance) {
-    // Construct the inputs on the fly
+    // Construct the group inputs on the fly
     if (node.type === '__internal/group/instance') {
       const groupDefinition = this.getGroup(node.props?.groupId as number);
+
+      if (!groupDefinition) {
+        logger.error(`Group not found: ${node.props?.groupId}`);
+        return;
+      }
 
       const inputs = {
         'groupId': {
           type: 'select',
           label: '',
-          value: node.props?.groupId.toString(),
+          value: node.props?.groupId,
           internal: true,
-          options: this.graph.groups.map(g => g.id.toString())
+          options: this.graph.groups.map(g => g.id)
         },
         ...(node.state.type?.inputs || {}),
         ...groupDefinition?.inputs
       };
 
-      return {
+      const groupType = {
         ...node.state.type,
-        inputs
+        inputs,
+        outputs: groupDefinition?.outputs?.map(o => o.type)
       } as NodeDefinition;
+
+      return groupType;
     }
 
     return node.state.type;
@@ -521,6 +528,7 @@ export class GraphManager extends EventEmitter<{
   }
 
   removeNode(node: NodeInstance, { restoreEdges = false } = {}) {
+    console.log('REMOVING NODE', $state.snapshot({ node }));
     const edgesToNode = this.edges.filter((edge) => edge[2].id === node.id);
     const edgesFromNode = this.edges.filter((edge) => edge[0].id === node.id);
     for (const edge of [...edgesToNode, ...edgesFromNode]) {
@@ -564,16 +572,22 @@ export class GraphManager extends EventEmitter<{
     }
   }
 
-  createGroupId() {
-    return Math.max(0, ...this.graph.groups.keys()) + 1;
-  }
-
   getGroup(id: number) {
     return this.graph.groups.find(g => g.id === id);
   }
 
   createNodeId() {
-    return Math.max(0, ...this.nodes.keys()) + 1;
+    const ids = [
+      ...this.nodes.keys(),
+      ...this.graph.groups.map(g => g.id),
+      ...this.graph.groups.flatMap(g => g.nodes.map(n => n.id))
+    ];
+
+    let id = 0;
+    while (ids.includes(id)) {
+      id++;
+    }
+    return id;
   }
 
   createGraph(nodes: NodeInstance[], edges: [number, number, number, string][]) {
@@ -586,7 +600,7 @@ export class GraphManager extends EventEmitter<{
       const id = startId++;
       idMap.set(node.id, id);
       const type = this.registry.getNode(node.type);
-      if (!type) {
+      if (!type && !node.type.startsWith('__internal/')) {
         throw new Error(`Node type not found: ${node.type}`);
       }
       return { ...node, id, tmp: { type } };
@@ -619,6 +633,148 @@ export class GraphManager extends EventEmitter<{
     return nodes;
   }
 
+  removeUnusedGroups() {
+    const usedGroups = new Set(this.getAllNodes().map(n => n.props?.groupId));
+    const unusedGroupAmount = this.graph.groups.length - usedGroups.size;
+    this.graph.groups = this.graph.groups.filter(g => usedGroups.has(g.id));
+    this.save();
+    return unusedGroupAmount;
+  }
+
+  groupNodes(nodeIds: number[]) {
+    this.startUndoGroup();
+    this.removeUnusedGroups();
+
+    const nodes = [
+      ...new Set(nodeIds).values().map(id => this.getNode(id)).filter(Boolean)
+    ] as NodeInstance[];
+
+    if (!nodes.length) return;
+
+    logger.log(`Grouping ${nodes.length} nodes`, { nodes });
+
+    const ids = new Set(nodes.map(n => n.id));
+
+    // We use the map to dedupe when one external node is connected to multiple internal nodes
+    //           ┌──internal_a
+    // external──┤
+    //           └──internal_b
+    // This should only result in one group input not two
+    const incomingEdges = this.edges.filter((edge) => ids.has(edge[2].id) && !ids.has(edge[0].id));
+    const groupInputs = new Map<string, Edge>();
+    for (const edge of incomingEdges) {
+      groupInputs.set(`${edge[0].id}-${edge[1]}`, edge);
+    }
+
+    // And the same for the outputs
+    const outgoingEdges = this.edges.filter((edge) => ids.has(edge[0].id) && !ids.has(edge[2].id));
+    const groupOutputs = new Map<string, Edge>();
+    for (const edge of outgoingEdges) {
+      groupOutputs.set(`${edge[2].id}-${edge[3]}`, edge);
+    }
+
+    const inputs: Record<string, NodeInput> = {};
+    [...groupInputs.values()].forEach((edge, i) => {
+      const input = {
+        label: `Input ${i}`,
+        type: edge[0].state.type?.outputs?.[edge[1]] || '*'
+      };
+      inputs[`input_${i}`] = input as NodeInput;
+    });
+
+    const outputs = [...groupOutputs.values()].map((edge, i) => ({
+      label: `Output ${i}`,
+      type: edge[2].state.type?.inputs?.[edge[3]].type || '*'
+    }));
+
+    const groupPosition = [0, 0] as [number, number];
+    const bounds: Box = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+    for (const node of nodes) {
+      groupPosition[0] += node.position[0];
+      groupPosition[1] += node.position[1];
+      bounds.minX = Math.min(bounds.minX, node.position[0]);
+      bounds.maxX = Math.max(bounds.maxX, node.position[0]);
+      bounds.minY = Math.min(bounds.minY, node.position[1]);
+      bounds.maxY = Math.max(bounds.maxY, node.position[1]);
+    }
+    groupPosition[0] /= nodes.length;
+    groupPosition[1] /= nodes.length;
+
+    const groupInputNode: NodeInstance = {
+      id: this.createNodeId(),
+      type: '__internal/group/input',
+      position: [bounds.minX - 50, (bounds.minY + bounds.maxY) / 2],
+      state: {}
+    };
+
+    const groupOutputNode: NodeInstance = {
+      id: this.createNodeId(),
+      type: '__internal/group/output',
+      position: [bounds.maxX + 25, (bounds.minY + bounds.maxY) / 2],
+      state: {}
+    };
+
+    // Edges that are inside the group
+    const internalEdges = this.edges.filter((edge) => {
+      return ids.has(edge[0].id) || ids.has(edge[2].id);
+    }).map((edge) => {
+      // Going in from the group
+      if (!ids.has(edge[0].id)) {
+        return [groupInputNode.id, 0, edge[2].id, edge[3]];
+        // Going out to the group
+      } else if (!ids.has(edge[2].id)) {
+        return [edge[0].id, edge[1], groupOutputNode.id, 'Out'];
+      }
+      return [edge[0].id, edge[1], edge[2].id, edge[3]];
+    }) as [number, number, number, string][];
+
+    const groupId = this.createNodeId();
+    const groupDefinition: GroupDefinition = {
+      id: groupId,
+      inputs: inputs,
+      outputs: outputs,
+      edges: internalEdges,
+      nodes: [groupInputNode, ...nodes, groupOutputNode]
+    };
+
+    const groupNode = this.createNode({
+      type: '__internal/group/instance',
+      position: [groupPosition[0], groupPosition[1]],
+      props: {
+        groupId: groupId
+      }
+    });
+
+    if (!groupNode) throw new Error('Failed to create group node');
+
+    // Update the edges that are now inside
+    // the group to be connected to that group node
+    const externalEdges = this.edges.map((edge) => {
+      if (ids.has(edge[2].id)) {
+        // Edge going into the group
+        return [edge[0], edge[1], groupNode, 'input_0'] as Edge;
+      } else if (ids.has(edge[0].id)) {
+        // Edge going out of the group
+        return [groupNode, 0, edge[2], edge[3]] as Edge;
+      }
+      return edge;
+    });
+
+    this.graph.groups.push(groupDefinition);
+    this.nodes.set(groupNode.id, groupNode);
+    this.edges = externalEdges;
+
+    // Remove nodes from graph which are not part of the group
+    for (const node of nodes) {
+      this.removeNode(node);
+    }
+
+    console.log('FINISHED', this.serialize());
+    this.saveUndoGroup();
+
+    return groupNode;
+  }
+
   createNode({
     type,
     position,
@@ -629,7 +785,7 @@ export class GraphManager extends EventEmitter<{
     props: NodeInstance['props'];
   }) {
     const nodeType = this.registry.getNode(type);
-    if (!nodeType) {
+    if (!nodeType && !type.startsWith('__internal/')) {
       logger.error(`Node type not found: ${type}`);
       return;
     }
@@ -646,26 +802,6 @@ export class GraphManager extends EventEmitter<{
 
     this.save();
 
-    return node;
-  }
-
-  createGroupNode(position: [number, number], groupDefinition: GroupDefinition): NodeInstance {
-    this.graph.groups ??= [];
-    this.graph.groups.push(groupDefinition);
-    const node = {
-      id: this.createNodeId(),
-      type: '__internal/group/instance',
-      meta: {
-        title: 'Group'
-      },
-      props: {
-        groupId: groupDefinition.id
-      },
-      position,
-      state: {}
-    } as const;
-
-    this.nodes.set(node.id, node);
     return node;
   }
 

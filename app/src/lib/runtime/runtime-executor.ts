@@ -365,7 +365,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
           if (inputNode) {
             if (results[inputNode.id] === undefined) {
               throw new Error(
-                `Node ${node.type} is missing input from node ${inputNode.type}`
+                `Node ${node.type} is missing input from node ${inputNode.type}#${inputNode.id}`
               );
             }
             return results[inputNode.id];
