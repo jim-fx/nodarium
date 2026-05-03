@@ -8,6 +8,7 @@
     InputSelect,
     InputShape,
     InputVec3,
+    JsonViewer,
     ShortCut
   } from '$lib';
   import Section from './Section.svelte';
@@ -25,6 +26,32 @@
   let colorValue = $state<[number, number, number]>([59, 130, 246]);
   let mirrorShape = $state(true);
   let detailsOpen = $state(false);
+  let jsonValue = $state({
+    id: 1,
+    nodes: [{ id: 0, type: 'max/test/node', position: [0, 0] }, {
+      id: 1,
+      type: 'max/test/other',
+      position: [100, 50]
+    }],
+    edges: [[0, 0, 1, 'input']],
+    groups: [],
+    settings: { seed: 42, enabled: true }
+  });
+
+  function randomlyUpdateJson() {
+    const rand = Math.floor(Math.random() * 5);
+    if (rand === 0) {
+      jsonValue.nodes[0].position[0] += 1;
+    } else if (rand === 1) {
+      jsonValue.nodes[0].position[1] += 1;
+    } else if (rand === 2) {
+      jsonValue.settings.seed += 1;
+    } else if (rand === 3) {
+      jsonValue.settings.enabled = !jsonValue.settings.enabled;
+    } else if (rand === 4) {
+      jsonValue.id += Math.floor(Math.random() * 10 - 5);
+    }
+  }
 
   let points = $state([]);
   let theme = $state('dark');
@@ -56,6 +83,7 @@
   </Section>
 
   <Section title="Select" value={d}>
+    <i>Select with simple values</i>
     <InputSelect bind:value={selectValue} {options} />
   </Section>
 
@@ -84,6 +112,23 @@
     <Details title="More Information" bind:open={detailsOpen}>
       <p>Here is some more information that was previously hidden.</p>
     </Details>
+  </Section>
+
+  <Section title="JsonViewer">
+    {#snippet header()}
+      <button
+        onclick={() => randomlyUpdateJson()}
+        class="-mt-1 bg-layer-2 p-1 px-2 rounded-sm cursor-pointer"
+      >
+        update
+      </button>
+    {/snippet}
+    <div class="w-64 bg-layer-1 p-2 rounded">
+      <JsonViewer
+        value={jsonValue}
+        path="demo"
+      />
+    </div>
   </Section>
 
   <Section title="Shortcut">

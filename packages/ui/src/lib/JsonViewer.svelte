@@ -31,7 +31,7 @@
 
 <script lang="ts">
   import { browser } from '$app/environment';
-  import JsonNode from './JsonNode.svelte';
+  import JsonViewer from './JsonViewer.svelte';
 
   let {
     value,
@@ -49,7 +49,7 @@
   const open_bracket = $derived(isArr ? '[' : '{');
   const close_bracket = $derived(isArr ? ']' : '}');
   const items = $derived.by(() => {
-    if (Array.isArray(value)) {
+    if (isArr) {
       return (value as unknown[]).map((v, i) => [String(i), v] as [string, unknown]);
     }
     if (value !== null && typeof value === 'object') {
@@ -59,6 +59,7 @@
     }
     return [] as [string, unknown][];
   });
+  const showKeys = $derived(!isArr || typeof items[0]?.[1] === "object")
 
   function toggle(next: boolean) {
     open = next;
@@ -84,53 +85,53 @@
 
 <span
   class="font-mono text-xs leading-[1.6] rounded transition-[background-color] duration-500"
-  class:bg-white={flashing}
+  class:bg-layer-3={flashing}
 >
   {#if key !== undefined}
-    <span class="text-neutral-300">{key}</span><span class="text-neutral-600">: </span>
+    <span class="text-text">{key}</span><span class="text-text/40">: </span>
   {/if}
 
   {#if isExpandable}
     {#if items.length === 0}
-      <span class="text-neutral-500">{open_bracket}{close_bracket}</span>
+      <span class="text-text/50">{open_bracket}{close_bracket}</span>
     {:else if open}
       {#if depth > 0}
-        <button class="w-3 text-neutral-500 hover:text-neutral-200" onclick={() => toggle(false)}>
+        <button class="w-3 text-text/50 hover:text-text" onclick={() => toggle(false)}>
           ▼
         </button>
       {/if}
-      <span class="text-neutral-500">{open_bracket}</span>
-      <div class="pl-4 border-l border-neutral-700/60">
+      <span class="text-text/50">{open_bracket}</span>
+      <div class="pl-4 border-l border-outline">
         {#each items as [k, v], i (k)}
           <div>
-            <JsonNode
+            <JsonViewer
               value={v}
-              key={k}
+              key={showKeys ? k : undefined }
               depth={depth + 1}
               path={path ? `${path}/${k}` : k}
-            />{#if i < items.length - 1}<span class="text-neutral-700">,</span>{/if}
+            />{#if i < items.length - 1}<span class="text-text/20">,</span>{/if}
           </div>
         {/each}
       </div>
-      <span class="text-neutral-500">{close_bracket}</span>
+      <span class="text-text/50">{close_bracket}</span>
     {:else}
       <button
-        class="inline text-neutral-500 hover:text-neutral-200"
+        class="inline text-text/50 hover:text-text"
         onclick={() => toggle(true)}
       >
         <span class="w-3 inline-block">▶</span>
-        {open_bracket}<span class="text-neutral-600 mx-1">{items.length}</span>{close_bracket}
+        {open_bracket}<span class="text-text/40 mx-1">{items.length}</span>{close_bracket}
       </button>
     {/if}
   {:else if value === null}
-    <span class="text-neutral-500!">null</span>
+    <span class="text-emerald-500!">null</span>
   {:else if typeof value === 'boolean'}
-    <span class="text-amber-400!">{value}</span>
+    <span class="text-blue-500!">{value}</span>
   {:else if typeof value === 'number'}
-    <span class="text-sky-400!">{value}</span>
+    <span class="text-orange-400!">{value}</span>
   {:else if typeof value === 'string'}
-    <span class="text-emerald-400!">"{value}"</span>
+    <span class="text-emerald-500!">"{value}"</span>
   {:else}
-    <span class="text-neutral-400">{String(value)}</span>
+    <span class="text-text/70">{String(value)}</span>
   {/if}
 </span>
