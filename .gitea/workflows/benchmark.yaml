@@ -43,7 +43,7 @@ jobs:
             IdentityFile ~/.ssh/id_ed25519
             IdentitiesOnly yes
           EOF
-          ssh-keyscan -H git.max-richter.dev >> ~/.ssh/known_hosts
+          ssh-keyscan -p 2222 -H git.max-richter.dev >> ~/.ssh/known_hosts
 
       - name: 📤 Push Results
         env:
