@@ -321,7 +321,7 @@
           hidden={!appSettings.value.debug.advancedMode}
           icon="i-[tabler--code]"
         >
-          <GraphSource graph={pm.graph ?? manager?.serialize()} />
+          <GraphSource graph={manager?.serialize()} />
         </Panel>
         <Panel
           id="benchmark"
