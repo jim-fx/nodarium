@@ -18,10 +18,14 @@ jobs:
     container: git.max-richter.dev/max/nodarium-ci:a56e8f445edb6064ae7a7b3b783fb7445f1b4e69
 
     steps:
+      - name: 📑 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITEA_TOKEN }}
+
       - name: 🔧 Setup
         uses: ./.gitea/actions/setup
-        with:
-          token: ${{ secrets.GITEA_TOKEN }}
 
       - name: 🧹 Quality Control
         run: |
@@ -35,10 +39,14 @@ jobs:
     container: git.max-richter.dev/max/nodarium-ci:a56e8f445edb6064ae7a7b3b783fb7445f1b4e69
 
     steps:
+      - name: 📑 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITEA_TOKEN }}
+
       - name: 🔧 Setup
         uses: ./.gitea/actions/setup
-        with:
-          token: ${{ secrets.GITEA_TOKEN }}
 
       - name: 🧪 Run Tests
         run: xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" pnpm test
@@ -49,10 +57,14 @@ jobs:
     container: git.max-richter.dev/max/nodarium-ci:a56e8f445edb6064ae7a7b3b783fb7445f1b4e69
 
     steps:
+      - name: 📑 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITEA_TOKEN }}
+
       - name: 🔧 Setup
         uses: ./.gitea/actions/setup
-        with:
-          token: ${{ secrets.GITEA_TOKEN }}
 
       - name: 🏗️ Build Web Assets
         run: pnpm build

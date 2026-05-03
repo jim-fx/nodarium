@@ -1,18 +1,9 @@
 name: Setup
-description: Checkout code, restore caches, and install pnpm dependencies
-inputs:
-  token:
-    required: true
+description: Restore caches and install pnpm dependencies (run after checkout)
 
 runs:
   using: composite
   steps:
-    - name: 📑 Checkout Code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        token: ${{ inputs.token }}
-
     - name: 💾 Setup pnpm Cache
       uses: actions/cache@v4
       with:
