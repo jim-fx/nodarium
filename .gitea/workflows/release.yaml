@@ -34,7 +34,7 @@ jobs:
           pnpm check
           pnpm build
 
-  test:
+  test-unit:
     runs-on: ubuntu-latest
     container: git.max-richter.dev/max/nodarium-ci:a56e8f445edb6064ae7a7b3b783fb7445f1b4e69
 
@@ -49,11 +49,28 @@ jobs:
         uses: ./.gitea/actions/setup
 
       - name: 🧪 Run Tests
-        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" pnpm test
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" pnpm test:unit
+
+  test-e2e:
+    runs-on: ubuntu-latest
+    container: git.max-richter.dev/max/nodarium-ci:a56e8f445edb6064ae7a7b3b783fb7445f1b4e69
+
+    steps:
+      - name: 📑 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITEA_TOKEN }}
+
+      - name: 🔧 Setup
+        uses: ./.gitea/actions/setup
+
+      - name: 🧪 Run Tests
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" pnpm test:e2e
 
   deploy:
     runs-on: ubuntu-latest
-    needs: [quality, test]
+    needs: [quality, test-e2e, test-unit]
     container: git.max-richter.dev/max/nodarium-ci:a56e8f445edb6064ae7a7b3b783fb7445f1b4e69
 
     steps:
