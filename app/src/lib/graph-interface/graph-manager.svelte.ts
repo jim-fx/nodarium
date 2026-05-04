@@ -19,7 +19,7 @@ import EventEmitter from './helpers/EventEmitter';
 import { HistoryManager } from './history-manager';
 
 const logger = createLogger('graph-manager');
-logger.mute();
+// logger.mute();
 
 const remoteRegistry = new RemoteNodeRegistry('');
 
@@ -73,8 +73,21 @@ export class GraphManager extends EventEmitter<{
   id = $state(0);
 
   nodes = new SvelteMap<number, NodeInstance>();
+  nodeArray = $derived(Array.from(this.nodes.values()));
 
   edges = $state<Edge[]>([]);
+
+  // Plain array — NOT $state. rootGraph items are plain-serialized (safe for structuredClone).
+  // savedNodes/savedEdges hold live reactive references so reactivity is preserved on exit.
+  graphStack: {
+    rootGraph: Graph;
+    savedNodes: Map<number, NodeInstance>;
+    savedEdges: Edge[];
+    outerGraph: Graph;
+    groupId: number;
+    nodeId: number;
+    cameraPosition: [number, number, number];
+  }[] = [];
 
   settingTypes: Record<string, NodeInput> = {};
   settings = $state<Record<string, unknown>>();
@@ -90,9 +103,25 @@ export class GraphManager extends EventEmitter<{
   });
 
   history: HistoryManager = new HistoryManager();
+
+  private serializeFullGraph(): Graph {
+    if (this.graphStack.length === 0) return this.serialize();
+    let merged = this.serialize();
+    for (let i = this.graphStack.length - 1; i >= 0; i--) {
+      const { rootGraph, groupId } = this.graphStack[i];
+      merged = {
+        ...rootGraph,
+        groups: rootGraph.groups.map(g =>
+          g.id === groupId ? { ...g, nodes: merged.nodes, edges: merged.edges } : g
+        )
+      };
+    }
+    return merged;
+  }
+
   execute = throttle(() => {
     if (this.loaded === false) return;
-    this.emit('result', this.serialize());
+    this.emit('result', this.serializeFullGraph());
   }, 10);
 
   constructor(public registry: NodeRegistry) {
@@ -263,6 +292,28 @@ export class GraphManager extends EventEmitter<{
     });
   }
 
+  tryConnectToDebugNode(nodeId: number) {
+    const node = this.nodes.get(nodeId);
+    if (!node) return;
+    if (node.type.endsWith('/debug')) return;
+    if (!node.state.type?.outputs?.length) return;
+    let debugNode = this.nodes.values().find(n => n.type.endsWith('/debug'));
+
+    if (!debugNode) {
+      debugNode = this.createNode({
+        type: '__internal/node/debug',
+        position: [node.position[0] + 30, node.position[1]],
+        props: {}
+      });
+    }
+
+    if (debugNode) {
+      this.createEdge(node, 0, debugNode, 'input');
+    }
+
+    return debugNode;
+  }
+
   getEdgesBetweenNodes(nodes: NodeInstance[]): [number, number, number, string][] {
     const edges = [];
     for (const node of nodes) {
@@ -290,13 +341,11 @@ export class GraphManager extends EventEmitter<{
   private _init(graph: Graph) {
     const nodes = new SvelteMap(
       graph.nodes.map((node) => {
-        const nodeType = this.registry.getNode(node.type);
         const n = node as NodeInstance;
-        if (nodeType) {
-          n.state = {
-            type: nodeType
-          };
-        }
+        const registryType = this.registry.getNode(node.type);
+        n.state = registryType ? { type: registryType } : {};
+        const resolvedType = this.getNodeType(n);
+        if (resolvedType) n.state = { type: resolvedType };
         return [node.id, n];
       })
     );
@@ -436,6 +485,39 @@ export class GraphManager extends EventEmitter<{
   }
 
   getNodeType(node: NodeInstance) {
+    if (!node) {
+      console.trace('failed to get node type');
+      return;
+    }
+
+    if (node.type === '__internal/group/input') {
+      const groupId = this.graphStack.at(-1)?.groupId;
+      const group = groupId !== undefined ? this.getGroup(groupId) : undefined;
+      if (!group) return node.state.type;
+      return {
+        id: '__internal/group/input' as NodeId,
+        outputs: Object.values(group.inputs ?? {}).map(i => i.type),
+        execute: (x: Int32Array) => x
+      } as NodeDefinition;
+    }
+
+    if (node.type === '__internal/group/output') {
+      const groupId = this.graphStack.at(-1)?.groupId;
+      const group = groupId !== undefined ? this.getGroup(groupId) : undefined;
+      if (!group) return node.state.type;
+      return {
+        id: '__internal/group/output' as NodeId,
+        inputs: Object.fromEntries(
+          (group.outputs ?? []).map((
+            o,
+            i
+          ) => [`out_${i}`, { type: o.type, label: o.label, external: true }])
+        ),
+        outputs: [],
+        execute: (x: Int32Array) => x
+      } as NodeDefinition;
+    }
+
     // Construct the group inputs on the fly
     if (node.type === '__internal/group/instance') {
       const groupDefinition = this.getGroup(node.props?.groupId as number);
@@ -446,15 +528,15 @@ export class GraphManager extends EventEmitter<{
       }
 
       const inputs = {
+        ...(node.state.type?.inputs || {}),
+        ...groupDefinition?.inputs,
         'groupId': {
           type: 'select',
           label: '',
           value: node.props?.groupId,
           internal: true,
           options: this.graph.groups.map(g => g.id)
-        },
-        ...(node.state.type?.inputs || {}),
-        ...groupDefinition?.inputs
+        }
       };
 
       const groupType = {
@@ -576,12 +658,66 @@ export class GraphManager extends EventEmitter<{
     return this.graph.groups.find(g => g.id === id);
   }
 
+  isInsideGroup = $state(false);
+
+  enterGroup(nodeId: number, cameraPosition: [number, number, number]): boolean {
+    const groupNode = this.getNode(nodeId);
+    if (!groupNode || groupNode.type !== '__internal/group/instance') return false;
+    const groupId = groupNode.props?.groupId as number;
+    const group = this.getGroup(groupId);
+    if (!group) return false;
+
+    this.graphStack.push({
+      rootGraph: this.serialize(),
+      savedNodes: new Map(this.nodes),
+      savedEdges: [...this.edges],
+      outerGraph: this.graph,
+      groupId,
+      nodeId,
+      cameraPosition
+    });
+    this.graph = { ...this.graph, nodes: group.nodes, edges: group.edges };
+    this._init(this.graph);
+    this.history.reset();
+    this.isInsideGroup = true;
+    return true;
+  }
+
+  exitGroup(): { camera: [number, number, number]; nodeId: number } | false {
+    if (!this.graphStack.length) return false;
+    const { savedNodes, savedEdges, outerGraph, groupId, nodeId, cameraPosition } = this.graphStack.pop()!;
+    const internalState = this.serialize();
+
+    // Restore live reactive nodes and edges so drag-reactivity is preserved
+    this.nodes.clear();
+    for (const [id, node] of savedNodes) {
+      this.nodes.set(id, node);
+    }
+    this.edges = savedEdges;
+
+    // Patch the group definition with the edited internal graph
+    this.graph = {
+      ...outerGraph,
+      groups: (outerGraph.groups ?? []).map(g =>
+        g.id === groupId ? { ...g, nodes: internalState.nodes, edges: internalState.edges } : g
+      )
+    };
+
+    this.history.reset();
+    this.isInsideGroup = this.graphStack.length > 0;
+    this.execute();
+    this.save();
+    return { camera: cameraPosition, nodeId };
+  }
+
   createNodeId() {
     const ids = [
       ...this.nodes.keys(),
       ...this.graph.groups.map(g => g.id),
       ...this.graph.groups.flatMap(g => g.nodes.map(n => n.id))
     ];
+
+    console.log('CREATE NODE ID', ids);
 
     let id = 0;
     while (ids.includes(id)) {
@@ -723,7 +859,7 @@ export class GraphManager extends EventEmitter<{
         return [groupInputNode.id, 0, edge[2].id, edge[3]];
         // Going out to the group
       } else if (!ids.has(edge[2].id)) {
-        return [edge[0].id, edge[1], groupOutputNode.id, 'Out'];
+        return [edge[0].id, edge[1], groupOutputNode.id, 'out_0'];
       }
       return [edge[0].id, edge[1], edge[2].id, edge[3]];
     }) as [number, number, number, string][];
@@ -900,8 +1036,9 @@ export class GraphManager extends EventEmitter<{
       return;
     }
 
-    this.emit('save', state);
-    logger.log('saving graphs', state);
+    const fullState = this.graphStack.length > 0 ? this.serializeFullGraph() : state;
+    this.emit('save', fullState);
+    logger.log('saving graphs', fullState);
   }
 
   getParentsOfNode(node: NodeInstance) {

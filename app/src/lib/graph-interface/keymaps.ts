@@ -47,6 +47,10 @@ export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: Gr
     key: 'Escape',
     description: 'Deselect nodes',
     callback: () => {
+      if (graph.isInsideGroup) {
+        graphState.exitGroupNode();
+        return;
+      }
       graphState.activeNodeId = -1;
       graphState.clearSelection();
       graphState.edgeEndPosition = null;
@@ -64,6 +68,7 @@ export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: Gr
 
   keymap.addShortcut({
     key: 'Tab',
+    preventDefault: true,
     description: 'Enter selected node group',
     callback: () => graphState.enterGroupNode()
   });

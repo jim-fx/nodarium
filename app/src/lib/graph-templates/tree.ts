@@ -47,6 +47,7 @@ export function tree(depth: number): Graph {
   return {
     id: Math.floor(Math.random() * 100000),
     nodes,
-    edges
+    edges,
+    groups: []
   };
 }

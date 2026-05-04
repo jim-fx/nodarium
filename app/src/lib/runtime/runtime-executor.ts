@@ -159,7 +159,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     // Only load non-virtual types (virtual nodes are resolved locally)
     const nonVirtualTypes = graph.nodes
       .map(node => node.type)
-      .filter(t => !t.startsWith('__virtual/'));
+      .filter(t => !t.startsWith('__internal/'));
     await this.registry.load(nonVirtualTypes as any);
 
     const typeMap = new Map<string, NodeDefinition>();

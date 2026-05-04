@@ -34,14 +34,14 @@
 
   const sectionHeights = $derived(
     Object
-      .keys(nodeType.inputs || {})
+      .keys(nodeType?.inputs || {})
       .map(key => getParameterHeight(nodeType, key) / 10)
       .filter(b => !!b)
   );
 
   let meshRef: Mesh | undefined = $state();
 
-  const height = $derived(getNodeHeight(nodeType));
+  const height = $derived(nodeType ? getNodeHeight(nodeType) : 20);
 
   const zoom = $derived(graphState.cameraPosition[2]);
 

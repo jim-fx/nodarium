@@ -4,7 +4,8 @@ export function grid(width: number, height: number) {
   const graph: Graph = {
     id: Math.floor(Math.random() * 100000),
     edges: [],
-    nodes: []
+    nodes: [],
+    groups: []
   };
 
   const amount = width * height;

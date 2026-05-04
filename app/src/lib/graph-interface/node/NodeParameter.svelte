@@ -19,7 +19,7 @@
 
   let { node = $bindable(), input, id, isLast }: Props = $props();
 
-  const nodeType = $derived(graph.getNodeType(node)!);
+  let nodeType = $derived(graph.getNodeType(node)!);
 
   const inputType = $derived(nodeType.inputs?.[id]);
 

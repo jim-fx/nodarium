@@ -25,14 +25,11 @@ export function getParameterHeight(node: NodeDefinition, inputKey: string) {
 
 const nodeHeightCache: Record<string, number> = {};
 export function getNodeHeight(node: NodeDefinition) {
-  if (!node) {
-    console.trace('Node is undefined', node);
+  if (!node || !('inputs' in node)) {
+    return 5;
   }
   if (node.id in nodeHeightCache) {
     return nodeHeightCache[node.id];
-  }
-  if (!node?.inputs) {
-    return 5;
   }
   let height = 5;
 

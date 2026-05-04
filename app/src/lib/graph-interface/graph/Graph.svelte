@@ -95,8 +95,9 @@
     graphState.addMenuPosition = null;
   }
 
-  function getSocketType(node: NodeInstance, index: number | string, e: unknown): string {
+  function getSocketType(node: NodeInstance, index: number | string): string {
     const nodeType = graph.getNodeType(node);
+    console.log({ nodeType, index });
     if (typeof index === 'string') {
       return nodeType?.inputs?.[index].type || 'unknown';
     }
@@ -169,6 +170,14 @@
     {/if}
 
     {#if graph.status === 'idle'}
+      {#if graph.isInsideGroup}
+        <HTML transform={false}>
+          <button class="exit-group" onclick={() => graphState.exitGroupNode()}>
+            ↑ Exit Group
+          </button>
+        </HTML>
+      {/if}
+
       {#if graphState.addMenuPosition}
         <AddMenu
           onnode={handleNodeCreation}
@@ -182,8 +191,8 @@
       {#if graphState.activeSocket}
         <EdgeEl
           z={graphState.cameraPosition[2]}
-          inputType={getSocketType(graphState.activeSocket.node, graphState.activeSocket.index, 'c')}
-          outputType={getSocketType(graphState.activeSocket.node, graphState.activeSocket.index, 'd')}
+          inputType={getSocketType(graphState.activeSocket.node, graphState.activeSocket.index)}
+          outputType={getSocketType(graphState.activeSocket.node, graphState.activeSocket.index)}
           x1={graphState.activeSocket.position[0]}
           y1={graphState.activeSocket.position[1]}
           x2={graphState.edgeEndPosition?.[0] ?? graphState.mousePosition[0]}
@@ -196,8 +205,8 @@
         <EdgeEl
           id={graph.getEdgeId(edge)}
           z={graphState.cameraPosition[2]}
-          inputType={getSocketType(edge[0], edge[1], 'a')}
-          outputType={getSocketType(edge[2], edge[3], 'b')}
+          inputType={getSocketType(edge[0], edge[1])}
+          outputType={getSocketType(edge[2], edge[3])}
           {x1}
           {y1}
           {x2}
@@ -216,10 +225,10 @@
           style:transform={`scale(${graphState.cameraPosition[2] * 0.1})`}
           class:hovering-sockets={graphState.activeSocket}
         >
-          {#each graph.getAllNodes() as node (node.id)}
+          {#each graph.nodeArray as node, index (node.id)}
             <NodeEl
-              {node}
-              inView={graphState.isNodeInView(node)}
+              bind:node={graph.nodeArray[index]}
+              inView={node ? graphState.isNodeInView(node) : false}
             />
           {/each}
         </div>
@@ -242,6 +251,26 @@
     z-index: 0;
     transition: opacity 0.3s ease;
     height: 100%;
+  }
+
+  :global(.exit-group) {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    padding: 4px 12px;
+    background: var(--color-layer-2);
+    border: 1px solid var(--stroke);
+    border-radius: 4px;
+    color: inherit;
+    font-size: 0.85em;
+    cursor: pointer;
+    opacity: 0.85;
+  }
+
+  :global(.exit-group:hover) {
+    opacity: 1;
   }
 
   .wrapper {

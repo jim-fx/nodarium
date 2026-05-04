@@ -152,10 +152,6 @@ export class GraphState {
     this.edges.delete(edgeId);
   }
 
-  getEdgeData() {
-    return this.edges;
-  }
-
   updateNodePosition(node: NodeInstance) {
     if (
       node.state.x === node.position[0]
@@ -188,29 +184,6 @@ export class GraphState {
       return 2;
     }
     return 1;
-  }
-
-  tryConnectToDebugNode(nodeId: number) {
-    const node = this.graph.nodes.get(nodeId);
-    if (!node) return;
-    if (node.type.endsWith('/debug')) return;
-    if (!node.state.type?.outputs?.length) return;
-    for (const _node of this.graph.nodes.values()) {
-      if (_node.type.endsWith('/debug')) {
-        this.graph.createEdge(node, 0, _node, 'input');
-        return;
-      }
-    }
-
-    const debugNode = this.graph.createNode({
-      type: '__internal/node/debug',
-      position: [node.position[0] + 30, node.position[1]],
-      props: {}
-    });
-
-    if (debugNode) {
-      this.graph.createEdge(node, 0, debugNode, 'input');
-    }
   }
 
   copyNodes() {
@@ -362,7 +335,8 @@ export class GraphState {
         for (const node of this.graph.nodes.values()) {
           const x = node.position[0];
           const y = node.position[1];
-          const height = getNodeHeight(this.graph.getNodeType(node)!);
+          const nodeType = this.graph.getNodeType(node);
+          const height = nodeType ? getNodeHeight(nodeType) : 20;
           if (downX > x && downX < x + 20 && downY > y && downY < y + height) {
             clickedNodeId = node.id;
             break;
@@ -374,6 +348,7 @@ export class GraphState {
   }
 
   isNodeInView(node: NodeInstance) {
+    if (!node) return false;
     const height = getNodeHeight(this.graph.getNodeType(node)!);
     const width = 20;
     return node.position[0] > this.cameraBounds[0] - width
@@ -388,8 +363,21 @@ export class GraphState {
 
   enterGroupNode() {
     if (this.activeNodeId === -1) return;
-    const selectedNode = this.graph.getNode(this.activeNodeId);
-    if (!selectedNode || selectedNode.type.startsWith('__internal/group/instance')) return;
+    const node = this.graph.getNode(this.activeNodeId);
+    if (!node || node.type !== '__internal/group/instance') return;
+    const ok = this.graph.enterGroup(this.activeNodeId, [...this.cameraPosition]);
+    if (ok) {
+      this.activeNodeId = -1;
+      this.clearSelection();
+    }
+  }
+
+  exitGroupNode() {
+    const result = this.graph.exitGroup();
+    if (!result) return;
+    this.cameraPosition = result.camera;
+    this.activeNodeId = -1;
+    this.clearSelection();
   }
 
   getSocketPosition(
