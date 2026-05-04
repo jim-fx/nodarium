@@ -10,8 +10,8 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "lint": "eslint .",
-    "format": "dprint fmt -c '../.dprint.jsonc' .",
-    "format:check": "dprint check -c '../.dprint.jsonc' ."
+    "format": "dprint fmt -c '../../.dprint.jsonc' .",
+    "format:check": "dprint check -c '../../.dprint.jsonc' ."
   },
   "files": [
     "dist",
