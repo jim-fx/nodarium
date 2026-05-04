@@ -88,7 +88,11 @@
   class:bg-layer-3={flashing}
 >
   {#if key !== undefined}
-    <span class="text-text">{key}</span><span class="text-text/40">: </span>
+    <button
+      class="text-text hover:bg-layer-3 cursor-pointer"
+      title="Copy value"
+      onclick={() => navigator.clipboard.writeText(JSON.stringify({[key]: value}, null, 2))}
+    >{key}</button><span class="text-text/40">: </span>
   {/if}
 
   {#if isExpandable}
