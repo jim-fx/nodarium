@@ -22,22 +22,15 @@ export async function readCpuSnapshot(): Promise<CpuSnapshot> {
   const stat = await readFile('/proc/stat', 'utf8');
   const line = stat.split('\n')[0];
 
-  const parts = line
+  const parts: number[] = line
     .trim()
     .split(/\s+/)
     .slice(1)
-    .map(v => Number(v));
+    .map((v: unknown) => Number(v));
 
-  const [
-    user,
-    nice,
-    system,
-    idle,
-    iowait,
-    irq,
-    softirq,
-    steal
-  ] = parts;
+  const idle = parts[3];
+  const iowait = parts[4];
+  const steal = parts[7];
 
   return {
     idle: idle + iowait,
@@ -74,7 +67,7 @@ export async function readCgroupCpuStat() {
 
   for (const path of possiblePaths) {
     try {
-      const txt = await readFile(path, 'utf8');
+      const txt: string = await readFile(path, 'utf8');
 
       return Object.fromEntries(
         txt
