@@ -5,7 +5,8 @@ export const debugNode = {
   },
   inputs: {
     input: {
-      type: '*'
+      type: '*',
+      label: ''
     }
   },
   execute(_data: Int32Array): Int32Array {

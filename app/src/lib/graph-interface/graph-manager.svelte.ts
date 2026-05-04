@@ -556,7 +556,7 @@ export class GraphManager extends EventEmitter<{
       const inputs = {
         'groupId': {
           type: 'select',
-          label: 'Group',
+          label: '',
           value: node.props?.groupId,
           internal: true,
           options: this.graph.groups.map((g, i) => ({

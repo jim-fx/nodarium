@@ -343,8 +343,10 @@
             type={graphSettingTypes}
             bind:value={graphSettings}
           />
-          <ActiveNodeSettings {manager} bind:node={activeNode} />
-          <GroupSettings {manager} bind:node={activeNode} />
+          {#key activeNode}
+            <ActiveNodeSettings {manager} bind:node={activeNode} />
+            <GroupSettings {manager} bind:node={activeNode} />
+          {/key}
         </Panel>
         <Panel
           id="changelog"

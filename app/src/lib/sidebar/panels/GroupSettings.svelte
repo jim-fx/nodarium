@@ -10,10 +10,8 @@
   const { manager, node = $bindable() }: Props = $props();
 
   const activeGroup = $derived.by(() => {
-    console.log('isInsideGroup', manager?.isInsideGroup);
     if (manager?.isInsideGroup) {
       const activeGroupId = manager.graphStack?.at(-1)?.groupId;
-      console.log('activeGroupId', activeGroupId);
       if (activeGroupId !== undefined) {
         return manager.getGroup(activeGroupId);
       }
