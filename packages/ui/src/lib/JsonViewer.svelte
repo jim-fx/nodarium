@@ -1,4 +1,4 @@
-<script module>
+<script module lang="ts">
   import { SvelteMap } from 'svelte/reactivity';
   const cache = new SvelteMap<string, Record<string, boolean>>();
 
@@ -60,7 +60,7 @@
     }
     return [] as [string, unknown][];
   });
-  const showKeys = $derived(!isArr || typeof items[0]?.[1] === "object")
+  const showKeys = $derived(!isArr || typeof items[0]?.[1] === 'object');
 
   function toggle(next: boolean) {
     open = next;
@@ -92,8 +92,10 @@
     <button
       class="text-text hover:bg-layer-3 cursor-pointer"
       title="Copy value"
-      onclick={() => navigator.clipboard.writeText(JSON.stringify({[key]: value}, null, 2))}
-    >{key}</button><span class="text-text/40">: </span>
+      onclick={() => navigator.clipboard.writeText(JSON.stringify({ [key]: value }, null, 2))}
+    >
+      {key}
+    </button><span class="text-text/40">: </span>
   {/if}
 
   {#if isExpandable}
@@ -111,7 +113,7 @@
           <div>
             <JsonViewer
               value={v}
-              key={showKeys ? k : undefined }
+              key={showKeys ? k : undefined}
               depth={depth + 1}
               path={path ? `${path}/${k}` : k}
             />{#if i < items.length - 1}<span class="text-text/20">,</span>{/if}

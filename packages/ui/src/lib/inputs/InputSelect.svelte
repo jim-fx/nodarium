@@ -10,9 +10,7 @@
   let { options = [], value = $bindable(0), id = '' }: Props = $props();
 
   const normalized = $derived(
-    options.map((opt, i) =>
-      typeof opt === 'string' ? { value: i, label: opt } : opt
-    )
+    options.map((opt, i) => typeof opt === 'string' ? { value: i, label: opt } : opt)
   );
 </script>
 

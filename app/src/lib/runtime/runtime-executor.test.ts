@@ -1,13 +1,23 @@
+import type { Graph } from '@nodarium/types';
 import { describe, expect, it } from 'vitest';
 import { expandGroups } from './runtime-executor';
-import type { Graph } from '@nodarium/types';
 
 // Helpers to build minimal serialized nodes/edges
 function node(id: number, type: string, props?: Record<string, number>) {
-  return { id, type: type as Graph['nodes'][0]['type'], position: [0, 0] as [number, number], ...(props ? { props } : {}) };
+  return {
+    id,
+    type: type as Graph['nodes'][0]['type'],
+    position: [0, 0] as [number, number],
+    ...(props ? { props } : {})
+  };
 }
 
-function edge(from: number, fromSocket: number, to: number, toSocket: string): [number, number, number, string] {
+function edge(
+  from: number,
+  fromSocket: number,
+  to: number,
+  toSocket: string
+): [number, number, number, string] {
   return [from, fromSocket, to, toSocket];
 }
 
@@ -41,8 +51,8 @@ describe('expandGroups', () => {
         node(3, 'test/node/input')
       ],
       edges: [
-        edge(1, 0, groupNodeId, 'input_0'),  // A → group
-        edge(groupNodeId, 0, 3, 'value')     // group → C
+        edge(1, 0, groupNodeId, 'input_0'), // A → group
+        edge(groupNodeId, 0, 3, 'value') // group → C
       ],
       groups: [{
         id: groupId,
@@ -52,8 +62,8 @@ describe('expandGroups', () => {
           node(7, '__internal/group/output')
         ],
         edges: [
-          edge(6, 0, 2, 'input'),  // inputBoundary → B
-          edge(2, 0, 7, 'Out')     // B → outputBoundary
+          edge(6, 0, 2, 'input'), // inputBoundary → B
+          edge(2, 0, 7, 'Out') // B → outputBoundary
         ],
         inputs: { input_0: { type: 'float' } },
         outputs: [{ type: 'float', label: 'Output 0' }]
@@ -69,7 +79,7 @@ describe('expandGroups', () => {
     expect(ids).toContain(3); // C
     expect(result.nodes.length).toBe(3); // A, B(remapped), C
 
-    expect(result.edges).toContainEqual(edge(1, 0, remappedB, 'input'));   // A → B
+    expect(result.edges).toContainEqual(edge(1, 0, remappedB, 'input')); // A → B
     expect(result.edges).toContainEqual(edge(remappedB, 0, 3, 'value')); // B → C
     expect(result.edges.length).toBe(2);
   });
@@ -96,14 +106,14 @@ describe('expandGroups', () => {
         id: groupId,
         nodes: [
           node(3, '__internal/group/input'),
-          node(1, 'test/node/output'),  // B
-          node(2, 'test/node/output'),  // D
+          node(1, 'test/node/output'), // B
+          node(2, 'test/node/output'), // D
           node(4, '__internal/group/output')
         ],
         edges: [
-          edge(3, 0, 1, 'input'),  // inputBoundary → B
-          edge(1, 0, 2, 'input'),  // B → D (internal)
-          edge(2, 0, 4, 'Out')     // D → outputBoundary
+          edge(3, 0, 1, 'input'), // inputBoundary → B
+          edge(1, 0, 2, 'input'), // B → D (internal)
+          edge(2, 0, 4, 'Out') // D → outputBoundary
         ],
         inputs: { input_0: { type: 'float' } },
         outputs: [{ type: 'float' }]
@@ -116,9 +126,9 @@ describe('expandGroups', () => {
     expect(result.nodes.map(n => n.id)).toContain(remappedB);
     expect(result.nodes.map(n => n.id)).toContain(remappedD);
 
-    expect(result.edges).toContainEqual(edge(0, 0, remappedB, 'input'));    // A → B
+    expect(result.edges).toContainEqual(edge(0, 0, remappedB, 'input')); // A → B
     expect(result.edges).toContainEqual(edge(remappedB, 0, remappedD, 'input')); // B → D (internal)
-    expect(result.edges).toContainEqual(edge(remappedD, 0, 9, 'value'));    // D → C
+    expect(result.edges).toContainEqual(edge(remappedD, 0, 9, 'value')); // D → C
     expect(result.edges.length).toBe(3);
   });
 
