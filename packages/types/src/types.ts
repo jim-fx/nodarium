@@ -78,6 +78,7 @@ export type Edge = [NodeInstance, number, NodeInstance, string];
 
 export const GroupSchema = z.object({
   id: z.number(),
+  name: z.string().optional(),
   nodes: z.array(NodeSchema),
   edges: z.array(z.tuple([z.number(), z.number(), z.number(), z.string()])),
   inputs: z.record(z.string(), NodeInputSchema).optional(),
