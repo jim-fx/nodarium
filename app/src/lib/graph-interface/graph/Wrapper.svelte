@@ -28,6 +28,7 @@
     graph,
     registry,
     safePadding,
+    // eslint-disable-next-line no-useless-assignment
     settings = $bindable(),
     activeNode = $bindable(),
     backgroundType = $bindable('grid'),

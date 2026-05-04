@@ -80,7 +80,6 @@ export function createGeometryPool(parentScene: Group, material: Material) {
     }
 
     const normals = new Float32Array(data.buffer, index * 4, vertexCount * 3);
-    index = index + vertexCount * 3;
 
     if (
       geometry.userData?.faceCount !== faceCount

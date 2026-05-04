@@ -12,6 +12,7 @@
     'custom'
   ];
 
+  // eslint-disable-next-line no-useless-assignment
   let { theme = $bindable() } = $props();
 
   let themeIndex = $state(0);
