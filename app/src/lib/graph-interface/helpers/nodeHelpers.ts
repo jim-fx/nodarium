@@ -1,4 +1,4 @@
-import type { NodeDefinition, NodeInstance } from '@nodarium/types';
+import type { NodeDefinition } from '@nodarium/types';
 
 export function getParameterHeight(node: NodeDefinition, inputKey: string) {
   const input = node.inputs?.[inputKey];

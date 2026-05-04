@@ -6,11 +6,22 @@ import type {
   RuntimeExecutor,
   SyncCache
 } from '@nodarium/types';
+import {
+  concatEncodedArrays,
+  createLogger,
+  encodeFloat,
+  fastHashArrayBuffer,
+  type PerformanceStore
+} from '@nodarium/utils';
+import type { RuntimeNode } from './types';
+
+const log = createLogger('runtime-executor');
+log.mute();
 
 export function expandGroups(graph: Graph): Graph {
   if (!graph.groups || graph.groups.length === 0) return graph;
 
-  let nodes = [...graph.nodes];
+  const nodes = [...graph.nodes];
   let edges = [...graph.edges];
 
   let changed = true;
@@ -87,17 +98,6 @@ export function expandGroups(graph: Graph): Graph {
 
   return { ...graph, nodes, edges };
 }
-import {
-  concatEncodedArrays,
-  createLogger,
-  encodeFloat,
-  fastHashArrayBuffer,
-  type PerformanceStore
-} from '@nodarium/utils';
-import type { RuntimeNode } from './types';
-
-const log = createLogger('runtime-executor');
-log.mute();
 
 function getValue(input: NodeInput, value?: unknown) {
   if (value === undefined && 'value' in input) {
@@ -160,7 +160,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     const nonVirtualTypes = graph.nodes
       .map(node => node.type)
       .filter(t => !t.startsWith('__internal/'));
-    await this.registry.load(nonVirtualTypes as any);
+    await this.registry.load(nonVirtualTypes);
 
     const typeMap = new Map<string, NodeDefinition>();
     for (const node of graph.nodes) {

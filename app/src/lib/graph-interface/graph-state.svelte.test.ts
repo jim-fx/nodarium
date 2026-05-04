@@ -1,11 +1,7 @@
-import { assert, beforeEach, describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { GraphManager } from './graph-manager.svelte';
 import { GraphState } from './graph-state.svelte';
-import {
-  createMockNodeRegistry,
-  mockFloatInputNode,
-  mockFloatOutputNode
-} from './test-utils';
+import { createMockNodeRegistry, mockFloatInputNode, mockFloatOutputNode } from './test-utils';
 
 // GraphState constructor reads localStorage synchronously — mock before any instantiation
 Object.defineProperty(globalThis, 'localStorage', {

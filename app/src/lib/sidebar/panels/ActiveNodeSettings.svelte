@@ -15,10 +15,7 @@
     isGroupInstance ? manager.getGroup(node!.props?.groupId as number) : undefined
   );
 
-  let groupName = $state('');
-  $effect(() => {
-    groupName = activeGroup?.name ?? '';
-  });
+  const groupName = $derived(activeGroup?.name ?? '');
 
   function handleRename(e: Event) {
     const name = (e.target as HTMLInputElement).value;

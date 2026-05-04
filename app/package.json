@@ -7,7 +7,7 @@
     "dev": "vite dev",
     "predev": "rm static/CHANGELOG.md && ln -s ../../CHANGELOG.md static/CHANGELOG.md",
     "build": "svelte-kit sync && vite build",
-    "test:unit": "vitest",
+    "test:unit": "vitest --browser=false",
     "test": "npm run test:unit -- --run && npm run test:e2e",
     "test:e2e": "playwright test",
     "preview": "vite preview",

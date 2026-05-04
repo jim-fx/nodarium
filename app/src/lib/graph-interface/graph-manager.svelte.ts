@@ -19,12 +19,12 @@ import EventEmitter from './helpers/EventEmitter';
 import { HistoryManager } from './history-manager';
 
 const logger = createLogger('graph-manager');
-// logger.mute();
+logger.mute();
 
 const remoteRegistry = new RemoteNodeRegistry('');
 
-const clone = 'structuredClone' in self
-  ? self.structuredClone
+const clone = 'structuredClone' in globalThis
+  ? globalThis.structuredClone
   : (args: unknown) => JSON.parse(JSON.stringify(args));
 
 function areSocketsCompatible(
@@ -104,7 +104,7 @@ export class GraphManager extends EventEmitter<{
 
   history: HistoryManager = new HistoryManager();
 
-  private serializeFullGraph(): Graph {
+  public serializeFullGraph(): Graph {
     if (this.graphStack.length === 0) return this.serialize();
     let merged = this.serialize();
     for (let i = this.graphStack.length - 1; i >= 0; i--) {
@@ -538,7 +538,7 @@ export class GraphManager extends EventEmitter<{
       const inputs = {
         'groupId': {
           type: 'select',
-          label: '',
+          label: 'Group',
           value: node.props?.groupId,
           internal: true,
           options: this.graph.groups.map((g, i) => ({
@@ -551,6 +551,10 @@ export class GraphManager extends EventEmitter<{
 
       const groupType = {
         ...node.state.type,
+        meta: {
+          title: 'Group',
+          ...node?.state?.type?.meta || {}
+        },
         inputs,
         outputs: groupDefinition?.outputs?.map(o => o.type)
       } as NodeDefinition;
@@ -620,7 +624,6 @@ export class GraphManager extends EventEmitter<{
   }
 
   removeNode(node: NodeInstance, { restoreEdges = false } = {}) {
-    console.log('REMOVING NODE', $state.snapshot({ node }));
     const edgesToNode = this.edges.filter((edge) => edge[2].id === node.id);
     const edgesFromNode = this.edges.filter((edge) => edge[0].id === node.id);
     for (const edge of [...edgesToNode, ...edgesFromNode]) {
@@ -686,7 +689,7 @@ export class GraphManager extends EventEmitter<{
 
     this.graphStack.push({
       rootGraph: this.serialize(),
-      savedNodes: new Map(this.nodes),
+      savedNodes: new SvelteMap(this.nodes),
       savedEdges: [...this.edges],
       outerGraph: this.graph,
       groupId,
@@ -743,8 +746,6 @@ export class GraphManager extends EventEmitter<{
       ...this.graph.groups.flatMap(g => g.nodes.map(n => n.id))
     ];
 
-    console.log('CREATE NODE ID', ids);
-
     let id = 0;
     while (ids.includes(id)) {
       id++;
@@ -796,7 +797,7 @@ export class GraphManager extends EventEmitter<{
   }
 
   removeUnusedGroups() {
-    const usedGroups = new Set(this.getAllNodes().map(n => n.props?.groupId));
+    const usedGroups = new SvelteSet(this.getAllNodes().map(n => n.props?.groupId));
     const unusedGroupAmount = this.graph.groups.length - usedGroups.size;
     this.graph.groups = this.graph.groups.filter(g => usedGroups.has(g.id));
     this.save();
@@ -808,14 +809,14 @@ export class GraphManager extends EventEmitter<{
     this.removeUnusedGroups();
 
     const nodes = [
-      ...new Set(nodeIds).values().map(id => this.getNode(id)).filter(Boolean)
+      ...new SvelteSet(nodeIds).values().map(id => this.getNode(id)).filter(Boolean)
     ] as NodeInstance[];
 
     if (!nodes.length) return;
 
     logger.log(`Grouping ${nodes.length} nodes`, { nodes });
 
-    const ids = new Set(nodes.map(n => n.id));
+    const ids = new SvelteSet(nodes.map(n => n.id));
 
     // We use the map to dedupe when one external node is connected to multiple internal nodes
     //           ┌──internal_a
@@ -823,14 +824,14 @@ export class GraphManager extends EventEmitter<{
     //           └──internal_b
     // This should only result in one group input not two
     const incomingEdges = this.edges.filter((edge) => ids.has(edge[2].id) && !ids.has(edge[0].id));
-    const groupInputs = new Map<string, Edge>();
+    const groupInputs = new SvelteMap<string, Edge>();
     for (const edge of incomingEdges) {
       groupInputs.set(`${edge[0].id}-${edge[1]}`, edge);
     }
 
     // And the same for the outputs
     const outgoingEdges = this.edges.filter((edge) => ids.has(edge[0].id) && !ids.has(edge[2].id));
-    const groupOutputs = new Map<string, Edge>();
+    const groupOutputs = new SvelteMap<string, Edge>();
     for (const edge of outgoingEdges) {
       groupOutputs.set(`${edge[2].id}-${edge[3]}`, edge);
     }
@@ -864,11 +865,11 @@ export class GraphManager extends EventEmitter<{
 
     // Map from deduped edge source key → group input index, used for both
     // internal edge wiring and external edge socket naming.
-    const inputIndexByEdgeKey = new Map<string, number>();
+    const inputIndexByEdgeKey = new SvelteMap<string, number>();
     [...groupInputs.keys()].forEach((key, i) => inputIndexByEdgeKey.set(key, i));
 
     // Allocate all needed IDs up front so sequential calls never collide.
-    const usedIds = new Set<number>([
+    const usedIds = new SvelteSet<number>([
       ...this.nodes.keys(),
       ...this.graph.groups.map(g => g.id),
       ...this.graph.groups.flatMap(g => g.nodes.map(n => n.id))
@@ -949,7 +950,6 @@ export class GraphManager extends EventEmitter<{
       this.removeNode(node);
     }
 
-    console.log('FINISHED', this.serialize());
     this.saveUndoGroup();
 
     return groupNode;

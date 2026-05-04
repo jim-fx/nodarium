@@ -136,6 +136,12 @@
   />
   <label for="drop-zone"></label>
 
+  {#if graph.isInsideGroup}
+    <button class="exit-group" onclick={() => graphState.exitGroupNode()}>
+      ↑ Exit Group
+    </button>
+  {/if}
+
   <Canvas shadows={false} renderMode="on-demand" colorManagementEnabled={false}>
     <Camera
       bind:camera={graphState.camera}
@@ -169,14 +175,6 @@
     {/if}
 
     {#if graph.status === 'idle'}
-      {#if graph.isInsideGroup}
-        <HTML transform={false}>
-          <button class="exit-group" onclick={() => graphState.exitGroupNode()}>
-            ↑ Exit Group
-          </button>
-        </HTML>
-      {/if}
-
       {#if graphState.addMenuPosition}
         <AddMenu
           onnode={handleNodeCreation}
@@ -252,11 +250,10 @@
     height: 100%;
   }
 
-  :global(.exit-group) {
-    position: fixed;
+  .exit-group {
+    position: absolute;
     top: 12px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 12px;
     z-index: 1000;
     padding: 4px 12px;
     background: var(--color-layer-2);
@@ -268,7 +265,7 @@
     opacity: 0.85;
   }
 
-  :global(.exit-group:hover) {
+  .exit-group:hover {
     opacity: 1;
   }
 

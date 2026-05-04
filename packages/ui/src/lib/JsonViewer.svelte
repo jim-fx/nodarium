@@ -1,5 +1,6 @@
 <script module>
-  const cache = new Map<string, Record<string, boolean>>();
+  import { SvelteMap } from 'svelte/reactivity';
+  const cache = new SvelteMap<string, Record<string, boolean>>();
 
   function getStore(root: string): Record<string, boolean> {
     if (!cache.has(root)) {

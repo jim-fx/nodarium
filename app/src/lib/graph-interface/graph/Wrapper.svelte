@@ -1,7 +1,6 @@
 <script lang="ts">
   import { createKeyMap } from '$lib/helpers/createKeyMap';
   import type { Graph, NodeInstance, NodeRegistry } from '@nodarium/types';
-  import { onMount } from 'svelte';
   import { GraphManager } from '../graph-manager.svelte';
   import { GraphState, setGraphManager, setGraphState } from '../graph-state.svelte';
   import { setupKeymaps } from '../keymaps';

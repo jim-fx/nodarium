@@ -71,7 +71,7 @@
     {#if appSettings.value.debug.advancedMode}
       <span class="bg-white text-black! mr-2 px-1 rounded-sm opacity-30">{node.id}</span>
     {/if}
-    {node.type.split('/').pop()}
+    {nodeType?.meta?.title || node.type?.split('/').pop()}
   </div>
   <div
     class="target"
