@@ -2,12 +2,12 @@ packages:
   - app
   - packages/*
   - nodes/**
-  - '!**/.template/**'
-  - '!**/pkg/**'
+  - "!**/.template/**"
+  - "!**/pkg/**"
 
 catalog:
   chokidar-cli: github:open-cli-tools/chokidar-cli#semver:v4.0.0
 
 onlyBuiltDependencies:
-  - '@tailwindcss/oxide'
+  - "@tailwindcss/oxide"
   - esbuild
