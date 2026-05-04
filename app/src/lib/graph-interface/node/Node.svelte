@@ -19,7 +19,7 @@
   };
   let { node = $bindable(), inView }: Props = $props();
 
-  const nodeType = $derived(graph.getNodeType(node)!);
+  const nodeType = $derived(node ? graph.getNodeType(node) : undefined);
 
   const isActive = $derived(graphState.activeNodeId === node.id);
   const isSelected = $derived(graphState.selectedNodes.has(node.id));
@@ -33,10 +33,12 @@
   );
 
   const sectionHeights = $derived(
-    Object
-      .keys(nodeType?.inputs || {})
-      .map(key => getParameterHeight(nodeType, key) / 10)
-      .filter(b => !!b)
+    nodeType
+      ? Object
+        .keys(nodeType?.inputs || {})
+        .map(key => getParameterHeight(nodeType, key) / 10)
+        .filter(b => !!b)
+      : [5]
   );
 
   let meshRef: Mesh | undefined = $state();

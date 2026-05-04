@@ -486,7 +486,7 @@ export class GraphManager extends EventEmitter<{
 
   getNodeType(node: NodeInstance) {
     if (!node) {
-      console.trace('failed to get node type');
+      console.trace('failed to get node type', { node });
       return;
     }
 
@@ -685,8 +685,17 @@ export class GraphManager extends EventEmitter<{
 
   exitGroup(): { camera: [number, number, number]; nodeId: number } | false {
     if (!this.graphStack.length) return false;
-    const { savedNodes, savedEdges, outerGraph, groupId, nodeId, cameraPosition } = this.graphStack.pop()!;
+    const { savedNodes, savedEdges, outerGraph, groupId, nodeId, cameraPosition } = this.graphStack
+      .pop()!;
     const internalState = this.serialize();
+
+    // Clear stale DOM/mesh refs so the remounting components register fresh ones.
+    // The $effect guards in NodeHTML/Node only set these when undefined, so without
+    // this clear they'd keep pointing to the detached elements from before group entry.
+    for (const node of savedNodes.values()) {
+      node.state.ref = undefined;
+      node.state.mesh = undefined;
+    }
 
     // Restore live reactive nodes and edges so drag-reactivity is preserved
     this.nodes.clear();
