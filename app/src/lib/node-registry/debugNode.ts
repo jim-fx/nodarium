@@ -1,5 +1,5 @@
 export const debugNode = {
-  id: '__internal/debug/instance',
+  id: '__internal/node/debug',
   meta: {
     title: 'Debug'
   },
