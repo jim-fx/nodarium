@@ -376,7 +376,7 @@ export class GraphState {
     const result = this.graph.exitGroup();
     if (!result) return;
     this.cameraPosition = result.camera;
-    this.activeNodeId = -1;
+    this.activeNodeId = result.nodeId;
     this.clearSelection();
   }
 

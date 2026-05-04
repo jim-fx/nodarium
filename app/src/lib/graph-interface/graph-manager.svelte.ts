@@ -152,6 +152,7 @@ export class GraphManager extends EventEmitter<{
 
       return {
         id: group.id,
+        name: group.name,
         inputs: group.inputs,
         outputs: group.outputs,
         nodes: groupNodes,
@@ -527,16 +528,25 @@ export class GraphManager extends EventEmitter<{
         return;
       }
 
-      const inputs = {
+      const defaultInputs = {
         ...(node.state.type?.inputs || {}),
-        ...groupDefinition?.inputs,
+        ...groupDefinition?.inputs
+      };
+
+      // This is to make sure the the groupId is always first
+      delete defaultInputs['groupId'];
+      const inputs = {
         'groupId': {
           type: 'select',
           label: '',
           value: node.props?.groupId,
           internal: true,
-          options: this.graph.groups.map(g => g.id)
-        }
+          options: this.graph.groups.map((g, i) => ({
+            value: g.id,
+            label: g.name || `Group ${i + 1}`
+          }))
+        },
+        ...defaultInputs
       };
 
       const groupType = {
@@ -656,6 +666,13 @@ export class GraphManager extends EventEmitter<{
 
   getGroup(id: number) {
     return this.graph.groups.find(g => g.id === id);
+  }
+
+  renameGroup(groupId: number, name: string) {
+    const group = this.getGroup(groupId);
+    if (!group) return;
+    group.name = name;
+    this.save();
   }
 
   isInsideGroup = $state(false);
@@ -845,35 +862,53 @@ export class GraphManager extends EventEmitter<{
     groupPosition[0] /= nodes.length;
     groupPosition[1] /= nodes.length;
 
+    // Map from deduped edge source key → group input index, used for both
+    // internal edge wiring and external edge socket naming.
+    const inputIndexByEdgeKey = new Map<string, number>();
+    [...groupInputs.keys()].forEach((key, i) => inputIndexByEdgeKey.set(key, i));
+
+    // Allocate all needed IDs up front so sequential calls never collide.
+    const usedIds = new Set<number>([
+      ...this.nodes.keys(),
+      ...this.graph.groups.map(g => g.id),
+      ...this.graph.groups.flatMap(g => g.nodes.map(n => n.id))
+    ]);
+    const nextId = () => {
+      let id = 0;
+      while (usedIds.has(id)) id++;
+      usedIds.add(id);
+      return id;
+    };
+
     const groupInputNode: NodeInstance = {
-      id: this.createNodeId(),
+      id: nextId(),
       type: '__internal/group/input',
       position: [bounds.minX - 50, (bounds.minY + bounds.maxY) / 2],
       state: {}
     };
 
     const groupOutputNode: NodeInstance = {
-      id: this.createNodeId(),
+      id: nextId(),
       type: '__internal/group/output',
       position: [bounds.maxX + 25, (bounds.minY + bounds.maxY) / 2],
       state: {}
     };
 
-    // Edges that are inside the group
+    // Edges that are inside the group, routed through boundary nodes at
+    // the correct input/output index for each unique external connection.
     const internalEdges = this.edges.filter((edge) => {
       return ids.has(edge[0].id) || ids.has(edge[2].id);
     }).map((edge) => {
-      // Going in from the group
       if (!ids.has(edge[0].id)) {
-        return [groupInputNode.id, 0, edge[2].id, edge[3]];
-        // Going out to the group
+        const idx = inputIndexByEdgeKey.get(`${edge[0].id}-${edge[1]}`) ?? 0;
+        return [groupInputNode.id, idx, edge[2].id, edge[3]];
       } else if (!ids.has(edge[2].id)) {
         return [edge[0].id, edge[1], groupOutputNode.id, 'out_0'];
       }
       return [edge[0].id, edge[1], edge[2].id, edge[3]];
     }) as [number, number, number, string][];
 
-    const groupId = this.createNodeId();
+    const groupId = nextId();
     const groupDefinition: GroupDefinition = {
       id: groupId,
       inputs: inputs,
@@ -881,6 +916,9 @@ export class GraphManager extends EventEmitter<{
       edges: internalEdges,
       nodes: [groupInputNode, ...nodes, groupOutputNode]
     };
+
+    // Push before createNode so createNodeId() inside sees the allocated IDs.
+    this.graph.groups.push(groupDefinition);
 
     const groupNode = this.createNode({
       type: '__internal/group/instance',
@@ -892,20 +930,17 @@ export class GraphManager extends EventEmitter<{
 
     if (!groupNode) throw new Error('Failed to create group node');
 
-    // Update the edges that are now inside
-    // the group to be connected to that group node
+    // Rewire external edges to/from the group node using the correct input socket.
     const externalEdges = this.edges.map((edge) => {
       if (ids.has(edge[2].id)) {
-        // Edge going into the group
-        return [edge[0], edge[1], groupNode, 'input_0'] as Edge;
+        const idx = inputIndexByEdgeKey.get(`${edge[0].id}-${edge[1]}`) ?? 0;
+        return [edge[0], edge[1], groupNode, `input_${idx}`] as Edge;
       } else if (ids.has(edge[0].id)) {
-        // Edge going out of the group
         return [groupNode, 0, edge[2], edge[3]] as Edge;
       }
       return edge;
     });
 
-    this.graph.groups.push(groupDefinition);
     this.nodes.set(groupNode.id, groupNode);
     this.edges = externalEdges;
 

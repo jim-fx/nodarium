@@ -21,7 +21,7 @@
   let vecValue = $state([0.2, 0.3, 0.4]);
   const options = ['strawberry', 'raspberry', 'chickpeas'];
   let selectValue = $state(0);
-  const d = $derived(options[selectValue]);
+  let selectValue2 = $state(0);
   let checked = $state(false);
   let colorValue = $state<[number, number, number]>([59, 130, 246]);
   let mirrorShape = $state(true);
@@ -82,9 +82,28 @@
     <InputVec3 bind:value={vecValue} />
   </Section>
 
-  <Section title="Select" value={d}>
-    <i>Select with simple values</i>
+  <Section title="Select">
+    <p>
+      Select with simple values
+      <br>
+      <b>value={options[selectValue]}</b>
+    </p>
     <InputSelect bind:value={selectValue} {options} />
+    <br>
+    <br>
+    <p>
+      Select with <i>&lbrace;option: number, label: string&rbrace;[]</i>
+      <br>
+      <b>value={selectValue2}</b>
+    </p>
+    <InputSelect
+      bind:value={selectValue2}
+      options={[
+        { value: 0, label: 'Zero' },
+        { value: 1, label: 'One' },
+        { value: 2, label: 'Two' }
+      ]}
+    />
   </Section>
 
   <Section title="Checkbox" value={checked}>

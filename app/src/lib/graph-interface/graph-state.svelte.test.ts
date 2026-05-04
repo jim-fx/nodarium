@@ -178,7 +178,8 @@ describe('exitGroupNode', () => {
 
     state.exitGroupNode();
 
-    expect(state.activeNodeId).toBe(-1);
+    // Group instance node is re-selected on exit; internal selection is cleared
+    expect(state.activeNodeId).toBe(groupNode!.id);
     expect(state.selectedNodes.size).toBe(0);
   });
 

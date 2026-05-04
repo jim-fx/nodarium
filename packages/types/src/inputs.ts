@@ -61,8 +61,10 @@ export const NodeInputBooleanSchema = z.object({
 export const NodeInputSelectSchema = z.object({
   ...DefaultOptionsSchema.shape,
   type: z.literal('select'),
-  options: z.array(z.string()).optional(),
-  value: z.string().optional()
+  options: z.array(
+    z.union([z.string(), z.object({ value: z.number(), label: z.string() })])
+  ).optional(),
+  value: z.union([z.string(), z.number()]).optional()
 });
 
 export const NodeInputSeedSchema = z.object({
