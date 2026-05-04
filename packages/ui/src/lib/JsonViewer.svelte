@@ -1,6 +1,6 @@
 <script module lang="ts">
-  import { SvelteMap } from 'svelte/reactivity';
-  const cache = new SvelteMap<string, Record<string, boolean>>();
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
+  const cache = new Map<string, Record<string, boolean>>();
 
   function getStore(root: string): Record<string, boolean> {
     if (!cache.has(root)) {

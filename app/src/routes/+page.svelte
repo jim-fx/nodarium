@@ -21,6 +21,7 @@
   import Changelog from '$lib/sidebar/panels/Changelog.svelte';
   import ExportSettings from '$lib/sidebar/panels/ExportSettings.svelte';
   import GraphSource from '$lib/sidebar/panels/GraphSource.svelte';
+  import GroupSettings from '$lib/sidebar/panels/GroupSettings.svelte';
   import Keymap from '$lib/sidebar/panels/Keymap.svelte';
   import { panelState } from '$lib/sidebar/PanelState.svelte';
   import Sidebar from '$lib/sidebar/Sidebar.svelte';
@@ -258,7 +259,7 @@
           graph={pm.graph}
           bind:this={graphInterface}
           registry={nodeRegistry}
-          safePadding={{ right: sidebarOpen ? 330 : undefined }}
+          safePadding={{ right: sidebarOpen ? 320 : undefined }}
           backgroundType={appSettings.value.nodeInterface.backgroundType}
           snapToGrid={appSettings.value.nodeInterface.snapToGrid}
           bind:activeNode
@@ -336,12 +337,14 @@
           title="Graph Settings"
           icon="i-[custom--graph] bg-blue-400"
         >
+          <span class="block h-[1px]"></span>
           <NestedSettings
             id="graph-settings"
             type={graphSettingTypes}
             bind:value={graphSettings}
           />
           <ActiveNodeSettings {manager} bind:node={activeNode} />
+          <GroupSettings {manager} bind:node={activeNode} />
         </Panel>
         <Panel
           id="changelog"

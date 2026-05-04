@@ -100,7 +100,21 @@
     if (typeof index === 'string') {
       return nodeType?.inputs?.[index].type || 'unknown';
     }
+
+    if (node.type === '__internal/group/input') {
+      const key = Object.keys(nodeType?.inputs || {})[index];
+      return nodeType?.inputs?.[key].type || 'unknown';
+    }
+
     return nodeType?.outputs?.[index] || 'unknown';
+  }
+
+  function getGroupName() {
+    const groupId = graph.graphStack.at(-1)?.groupId;
+    if (groupId !== undefined) {
+      const group = graph.getGroup(groupId);
+      return group?.name || `Group#${groupId}`;
+    }
   }
 </script>
 
@@ -114,6 +128,7 @@
   bind:this={graphState.wrapper}
   class="graph-wrapper"
   style="height: 100%"
+  class:is-inside-group={graph.isInsideGroup}
   class:is-panning={graphState.isPanning}
   class:is-hovering={graphState.hoveredNodeId !== -1}
   aria-label="Graph"
@@ -121,11 +136,13 @@
   tabindex="0"
   bind:clientWidth={graphState.width}
   bind:clientHeight={graphState.height}
+  style:--padding-right="{safePadding?.right || 0}px"
   onkeydown={(ev) => keymap.handleKeyboardEvent(ev)}
   onmousedown={(ev) => mouseEvents.handleMouseDown(ev)}
   oncontextmenu={(ev) => mouseEvents.handleContextMenu(ev)}
   {...fileDropEvents.getEventListenerProps()}
 >
+  <div class="shadow"></div>
   <input
     type="file"
     accept="application/wasm,application/json"
@@ -140,6 +157,9 @@
     <button class="exit-group" onclick={() => graphState.exitGroupNode()}>
       ↑ Exit Group
     </button>
+    <p class="group-name absolute">
+      Group <b>{getGroupName()}</b>
+    </p>
   {/if}
 
   <Canvas shadows={false} renderMode="on-demand" colorManagementEnabled={false}>
@@ -250,6 +270,15 @@
     height: 100%;
   }
 
+  .group-name {
+    position: absolute;
+    left: calc(50% - var(--padding-right) / 2);
+    transition: left 0.3s ease;
+    top: 12px;
+    transform: translateX(-50%);
+    z-index: 1000;
+  }
+
   .exit-group {
     position: absolute;
     top: 12px;
@@ -278,6 +307,22 @@
 
   .is-hovering {
     cursor: pointer;
+  }
+
+  .shadow {
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    right: calc(var(--padding-right) - 5px);
+    bottom: -5px;
+    z-index: 1;
+    transition: box-shadow 0.3s ease;
+    box-shadow: 0 0 0px 0px var(--color-layer-2) inset;
+    pointer-events: none;
+  }
+
+  .is-inside-group .shadow {
+    box-shadow: 0 0 0px 8px var(--color-layer-2) inset;
   }
 
   .is-panning {

@@ -1,0 +1,120 @@
+<script lang="ts">
+  import type { GraphManager } from '$lib/graph-interface/graph-manager.svelte';
+  import type { NodeInstance } from '@nodarium/types';
+
+  type Props = {
+    manager: GraphManager;
+    node?: NodeInstance;
+  };
+
+  const { manager, node = $bindable() }: Props = $props();
+
+  const activeGroup = $derived.by(() => {
+    console.log('isInsideGroup', manager?.isInsideGroup);
+    if (manager?.isInsideGroup) {
+      const activeGroupId = manager.graphStack?.at(-1)?.groupId;
+      console.log('activeGroupId', activeGroupId);
+      if (activeGroupId !== undefined) {
+        return manager.getGroup(activeGroupId);
+      }
+    }
+
+    if (node?.type === '__internal/group/instance') {
+      return manager.getGroup(node.props?.groupId as number);
+    }
+  });
+
+  const groupName = $derived(activeGroup?.name ?? '');
+  function handleRename(e: Event) {
+    const name = (e.target as HTMLInputElement).value;
+    if (activeGroup) manager.renameGroup(activeGroup.id, name);
+  }
+
+  const hasUnusedGroups = $derived.by(() => {
+    if (!manager) return false;
+    if (manager.isInsideGroup) return false;
+    if (manager.graph.groups.length === 0) return false;
+    return manager.graph.groups.filter(g => {
+      return !manager.graph.nodes.find(n => n.props?.groupId === g.id);
+    }).length;
+  });
+</script>
+
+{#if activeGroup || hasUnusedGroups}
+  <div class='{node?"border-l-2 pl-3.5!":""} bg-layer-2 flex items-center h-[70px] border-b-1 border-l-selected border-b-outline pl-4'>
+    <h3>Group Settings</h3>
+  </div>
+{/if}
+
+{#if activeGroup}
+  {#key activeGroup.id}
+    <div class="group-settings">
+      <label for="group-name">Group name</label>
+      <input
+        id="group-name"
+        type="text"
+        placeholder="Group {activeGroup.id}"
+        value={groupName}
+        oninput={handleRename}
+      />
+    </div>
+  {/key}
+{/if}
+
+{#if hasUnusedGroups}
+  <div class="group-actions">
+    <button onclick={() => manager.removeUnusedGroups()}>
+      Remove ({hasUnusedGroups}) orphaned groups
+    </button>
+  </div>
+{/if}
+
+<style>
+  .group-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4em;
+    padding: 1em;
+  }
+
+  .group-settings label {
+    font-size: 0.8em;
+    opacity: 0.7;
+  }
+
+  .group-settings input {
+    background: var(--color-layer-1);
+    border: 1px solid var(--color-outline);
+    border-radius: 4px;
+    color: var(--color-text);
+    font-family: var(--font-family);
+    font-size: 0.9em;
+    padding: 0.4em 0.6em;
+  }
+
+  .group-settings input:focus {
+    outline: 1px solid var(--color-active);
+  }
+
+  .group-actions {
+    padding: 0.75em 1em;
+    border-bottom: 1px solid var(--color-outline);
+    margin-top: auto;
+  }
+
+  .group-actions button {
+    width: 100%;
+    padding: 0.4em 0.8em;
+    background: var(--color-layer-1);
+    border: 1px solid var(--color-outline);
+    border-radius: 4px;
+    color: var(--color-text);
+    font-family: var(--font-family);
+    font-size: 0.85em;
+    cursor: pointer;
+  }
+
+  .group-actions button:hover {
+    border-color: var(--color-active);
+  }
+</style>

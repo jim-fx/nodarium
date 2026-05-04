@@ -1,5 +1,8 @@
 export const debugNode = {
   id: '__internal/debug/instance',
+  meta: {
+    title: 'Debug'
+  },
   inputs: {
     input: {
       type: '*'

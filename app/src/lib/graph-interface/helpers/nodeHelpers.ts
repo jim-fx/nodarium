@@ -1,6 +1,10 @@
 import type { NodeDefinition } from '@nodarium/types';
 
 export function getParameterHeight(node: NodeDefinition, inputKey: string) {
+  if (node.id === '__internal/group/input') {
+    return 50;
+  }
+
   const input = node.inputs?.[inputKey];
   if (!input) {
     return 0;

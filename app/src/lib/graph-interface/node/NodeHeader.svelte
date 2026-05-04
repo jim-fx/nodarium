@@ -23,7 +23,10 @@
 
   const cornerTop = 10;
   const nodeType = $derived(graph.getNodeType(node));
-  const rightBump = $derived(!!nodeType?.outputs?.length);
+  const rightBump = $derived(
+    !!nodeType?.outputs?.length && node.type !== '__internal/group/input'
+  );
+
   const aspectRatio = 0.25;
 
   const path = $derived(
@@ -73,13 +76,15 @@
     {/if}
     {nodeType?.meta?.title || node.type?.split('/').pop()}
   </div>
-  <div
-    class="target"
-    role="button"
-    tabindex="0"
-    onmousedown={handleMouseDown}
-  >
-  </div>
+  {#if rightBump}
+    <div
+      class="target"
+      role="button"
+      tabindex="0"
+      onmousedown={handleMouseDown}
+    >
+    </div>
+  {/if}
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 100 100"

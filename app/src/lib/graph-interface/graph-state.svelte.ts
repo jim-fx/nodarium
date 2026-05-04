@@ -384,6 +384,13 @@ export class GraphState {
     node: NodeInstance,
     index: string | number
   ): [number, number] {
+    if (node.type === '__internal/group/input' && typeof index === 'number') {
+      return [
+        (node?.state?.x ?? node.position[0]) + 20,
+        (node?.state?.y ?? node.position[1]) + 2.5 + 5 * index + 5
+      ];
+    }
+
     if (typeof index === 'number') {
       return [
         (node?.state?.x ?? node.position[0]) + 20,

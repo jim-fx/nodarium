@@ -69,7 +69,7 @@ export class GraphManager extends EventEmitter<{
   status = $state<'loading' | 'idle' | 'error'>();
   loaded = false;
 
-  graph: Graph = { id: 0, nodes: [], edges: [], groups: [] };
+  graph: Graph = $state({ id: 0, nodes: [], edges: [], groups: [] });
   id = $state(0);
 
   nodes = new SvelteMap<number, NodeInstance>();
@@ -495,9 +495,24 @@ export class GraphManager extends EventEmitter<{
       const groupId = this.graphStack.at(-1)?.groupId;
       const group = groupId !== undefined ? this.getGroup(groupId) : undefined;
       if (!group) return node.state.type;
+
+      const groupInputs: NodeDefinition['inputs'] = Object.fromEntries(
+        Object.values(group?.inputs || {}).map((o, i) => {
+          return [
+            `in_${i}`,
+            {
+              ...o,
+              external: true
+            }
+          ];
+        }) || []
+      );
       return {
         id: '__internal/group/input' as NodeId,
-        outputs: Object.values(group.inputs ?? {}).map(i => i.type),
+        meta: {
+          title: 'Group Input'
+        },
+        inputs: groupInputs,
         execute: (x: Int32Array) => x
       } as NodeDefinition;
     }
@@ -514,6 +529,9 @@ export class GraphManager extends EventEmitter<{
             i
           ) => [`out_${i}`, { type: o.type, label: o.label, external: true }])
         ),
+        meta: {
+          title: 'Group Output'
+        },
         outputs: [],
         execute: (x: Int32Array) => x
       } as NodeDefinition;
@@ -1007,7 +1025,9 @@ export class GraphManager extends EventEmitter<{
     const toType = this.getNodeType(to);
 
     // check if socket types match
-    const fromSocketType = fromType?.outputs?.[fromSocket];
+    const fromSocketType = from.type === '__internal/group/input'
+      ? fromType?.inputs?.[Object.keys(fromType?.inputs || {})[fromSocket]].type
+      : fromType?.outputs?.[fromSocket];
     const toSocketType = [toType?.inputs?.[toSocket]?.type];
     if (toType?.inputs?.[toSocket]?.accepts) {
       toSocketType.push(...(toType?.inputs?.[toSocket]?.accepts || []));
@@ -1179,7 +1199,9 @@ export class GraphManager extends EventEmitter<{
           }
         });
 
-      const ownType = nodeType.outputs?.[index];
+      const ownType = node.type === '__internal/group/input'
+        ? nodeType.inputs?.[Object.keys(nodeType?.inputs || {})[index]].type
+        : nodeType.outputs?.[index];
 
       for (const node of nodes) {
         const inputs = this.getNodeType(node)?.inputs;
