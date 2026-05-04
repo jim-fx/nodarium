@@ -10,7 +10,6 @@ import plantTemplate from './templates/plant.json' assert { type: 'json' };
 
 const registry = new BenchmarkRegistry();
 const r = new MemoryRuntimeExecutor(registry);
-const perfStore = createPerformanceStore();
 
 const log = createLogger('bench');
 
@@ -26,10 +25,12 @@ function countGeometry(result: Int32Array): { totalVertices: number; totalFaces:
   let totalFaces = 0;
   for (const part of parts) {
     const type = part[0];
-    const vertexCount = part[1];
-    const faceCount = part[2];
+    // Values are stored as uint32 in the wasm output but read as signed int32;
+    // >>> 0 reinterprets the bit pattern as unsigned.
+    const vertexCount = part[1] >>> 0;
+    const faceCount = part[2] >>> 0;
     if (type === 2) {
-      const instanceCount = part[3];
+      const instanceCount = part[3] >>> 0;
       totalVertices += vertexCount * instanceCount;
       totalFaces += faceCount * instanceCount;
     } else {
@@ -41,17 +42,16 @@ function countGeometry(result: Int32Array): { totalVertices: number; totalFaces:
 }
 
 async function run(g: GraphType, amount: number) {
-  await registry.load(plantTemplate.nodes.map(n => n.type) as NodeId[]);
+  await registry.load(g.nodes.map(n => n.type) as NodeId[]);
   log.log('loaded ' + g.nodes.length + ' nodes');
 
   log.log('warming up');
-
-  // Warm up the runtime? maybe this does something?
   for (let index = 0; index < 10; index++) {
     await r.execute(g, { randomSeed: true });
   }
 
   log.log('executing');
+  const perfStore = createPerformanceStore();
   r.perf = perfStore;
   let res;
   for (let i = 0; i < amount; i++) {
