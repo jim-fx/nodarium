@@ -65,6 +65,12 @@ jobs:
       - name: 🔧 Setup
         uses: ./.gitea/actions/setup
 
+      - name: 🔧 Make sure firefox is setup
+        # run: pnpm dlx playwright install --with-deps firefox
+
+      - name: 🔧 Sync svelte-kit
+        run: pnpm --filter @nodarium/app exec svelte-kit sync
+
       - name: 🧪 Run Tests
         run: xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" pnpm test:e2e
 
