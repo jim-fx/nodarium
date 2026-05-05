@@ -109,16 +109,6 @@
 
     return nodeType?.outputs?.[index] || 'unknown';
   }
-
-  let groupSize = 0;
-  $effect(() => {
-    if (graph.graph.groups.length > groupSize) {
-      groupSize = graph.graph.groups.length;
-    }
-    if (graph.graph.groups.length < groupSize) {
-      console.error('We have lost a group!');
-    }
-  });
 </script>
 
 <svelte:window

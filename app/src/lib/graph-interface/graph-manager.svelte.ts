@@ -43,8 +43,6 @@ export class GraphManager extends EventEmitter<{
   status = $state<'loading' | 'idle' | 'error'>();
   loaded = false;
 
-  graph: Graph = $state({ id: 0, nodes: [], edges: [], groups: [] });
-
   // Snapshots of parent levels we navigated away from. Empty at root.
   // Entry i has the saved state of depth i (0 = root graph, 1 = first group, …).
   parentStack: {
@@ -59,6 +57,7 @@ export class GraphManager extends EventEmitter<{
 
   // Graph Data
   id = $state(0);
+  meta = $state<Graph['meta']>({});
   nodes = new SvelteMap<number, NodeInstance>();
   edges = $state<Edge[]>([]);
   groups: GroupDefinition[] = $state([]);
@@ -121,7 +120,7 @@ export class GraphManager extends EventEmitter<{
     const serialized = $state.snapshot({
       id: this.id,
       settings: this.settings,
-      meta: this.graph.meta,
+      meta: this.meta,
       groups,
       nodes,
       edges
@@ -331,8 +330,8 @@ export class GraphManager extends EventEmitter<{
 
     this.loaded = false;
     graph.groups ??= [];
+    this.meta = graph.meta;
     this.groups = graph.groups;
-    this.graph = graph;
     this.status = 'loading';
     this.id = graph.id;
 
@@ -954,6 +953,118 @@ export class GraphManager extends EventEmitter<{
     this.saveUndoGroup();
 
     return groupNode;
+  }
+
+  ungroupNode(nodeId: number) {
+    const groupNode = this.getNode(nodeId);
+    if (!groupNode || groupNode.type !== '__internal/group/instance') return false;
+
+    const groupId = groupNode.props?.groupId as number;
+    const group = this.getGroup(groupId);
+    if (!group) return false;
+
+    this.startUndoGroup();
+
+    const edgesToGroup = this.edges.filter(e => e[2].id === nodeId);
+    const edgesFromGroup = this.edges.filter(e => e[0].id === nodeId);
+
+    const groupInputNode = group.nodes.find(n => n.type === '__internal/group/input');
+    const groupOutputNode = group.nodes.find(n => n.type === '__internal/group/output');
+    const internalNodes = group.nodes.filter(
+      n => n.type !== '__internal/group/input' && n.type !== '__internal/group/output'
+    );
+
+    // Offset internal nodes so their average position matches the group node's position
+    let centerX = 0, centerY = 0;
+    for (const n of internalNodes) {
+      centerX += n.position[0];
+      centerY += n.position[1];
+    }
+    const offsetX = internalNodes.length ? groupNode.position[0] - centerX / internalNodes.length : 0;
+    const offsetY = internalNodes.length ? groupNode.position[1] - centerY / internalNodes.length : 0;
+
+    // Allocate new IDs that don't collide with anything in the current graph
+    const usedIds = new SvelteSet<number>([
+      ...this.nodes.keys(),
+      ...this.groups.map(g => g.id),
+      ...this.groups.flatMap(g => g.nodes.map(n => n.id))
+    ]);
+    const nextId = () => {
+      let id = 0;
+      while (usedIds.has(id)) id++;
+      usedIds.add(id);
+      return id;
+    };
+
+    // Map old internal IDs (including boundary nodes) to fresh IDs
+    const idMap = new Map<number, number>();
+    for (const n of group.nodes) {
+      idMap.set(n.id, nextId());
+    }
+
+    // Instantiate internal nodes and add them to the graph
+    const newNodes: NodeInstance[] = internalNodes.map(n => {
+      const nodeType = this.registry.getNode(n.type);
+      const node: NodeInstance = $state({
+        id: idMap.get(n.id)!,
+        type: n.type,
+        position: [n.position[0] + offsetX, n.position[1] + offsetY] as [number, number],
+        state: { type: nodeType },
+        props: n.props || {}
+      });
+      return node;
+    });
+
+    for (const node of newNodes) {
+      this.nodes.set(node.id, node);
+    }
+
+    // input_X socket on the group node → the external source that was feeding it
+    const inputIdxToExternal = new Map<number, { node: NodeInstance; socket: number }>();
+    for (const edge of edgesToGroup) {
+      const match = (edge[3] as string).match(/^input_(\d+)$/);
+      if (match) inputIdxToExternal.set(parseInt(match[1]), { node: edge[0], socket: edge[1] });
+    }
+
+    // All external nodes that received output from the group node
+    const externalOutputTargets = edgesFromGroup.map(e => ({ toNode: e[2], toSocket: e[3] }));
+
+    // Recreate internal edges, substituting boundary nodes with the real external peers
+    for (const [fromId, fromSocketIdx, toId, toSocketKey] of group.edges) {
+      let fromNode: NodeInstance | undefined;
+      let resolvedFromSocket = fromSocketIdx;
+
+      if (groupInputNode && fromId === groupInputNode.id) {
+        const ext = inputIdxToExternal.get(fromSocketIdx);
+        if (!ext) continue;
+        fromNode = ext.node;
+        resolvedFromSocket = ext.socket;
+      } else {
+        const newId = idMap.get(fromId);
+        if (newId !== undefined) fromNode = this.nodes.get(newId);
+      }
+
+      if (!fromNode) continue;
+
+      if (groupOutputNode && toId === groupOutputNode.id) {
+        for (const { toNode, toSocket } of externalOutputTargets) {
+          this.createEdge(fromNode, resolvedFromSocket, toNode, toSocket, { applyUpdate: false });
+        }
+      } else {
+        const newToId = idMap.get(toId);
+        if (newToId === undefined) continue;
+        const toNode = this.nodes.get(newToId);
+        if (!toNode) continue;
+        this.createEdge(fromNode, resolvedFromSocket, toNode, toSocketKey, { applyUpdate: false });
+      }
+    }
+
+    // Remove the group instance node (also cleans up its edges)
+    this.removeNode(groupNode);
+
+    this.saveUndoGroup();
+
+    return newNodes;
   }
 
   createNode({
