@@ -42,8 +42,12 @@ export function serializeNode(node: SerializedNode | NodeInstance): SerializedNo
   };
 }
 
-export function serializeEdge(edge: Edge): SerializedEdge {
-  return [edge[0].id, edge[1], edge[2].id, edge[3]];
+export function serializeEdge(edge: SerializedEdge | Edge): SerializedEdge {
+  if (typeof edge[0] === 'number' && typeof edge[2] === 'number') {
+    return [edge[0], edge[1], edge[2], edge[3]];
+  }
+  const e = edge as Edge;
+  return [e[0].id, e[1], e[2].id, e[3]];
 }
 
 const nodeHeightCache: Record<string, number> = {};

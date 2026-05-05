@@ -21,6 +21,26 @@ log.mute();
 export function expandGroups(graph: Graph): Graph {
   if (!graph.groups || graph.groups.length === 0) return graph;
 
+  function groupContainsSelf(groupId: number, visited = new Set<number>()): boolean {
+    if (visited.has(groupId)) return true;
+    visited.add(groupId);
+    const group = graph.groups!.find(g => g.id === groupId);
+    if (!group) return false;
+    for (const n of group.nodes) {
+      if (n.type === '__internal/group/instance') {
+        const nestedId = n.props?.groupId as number | undefined;
+        if (nestedId !== undefined && groupContainsSelf(nestedId, visited)) return true;
+      }
+    }
+    return false;
+  }
+
+  for (const group of graph.groups) {
+    if (groupContainsSelf(group.id)) {
+      throw new Error(`Circular group reference: group ${group.id} contains itself`);
+    }
+  }
+
   const nodes = [...graph.nodes];
   let edges = [...graph.edges];
 
@@ -57,10 +77,16 @@ export function expandGroups(graph: Graph): Graph {
       const newEdges: Graph['edges'] = [];
 
       // external_source → [inputBoundary →] internal_target
+      //
+      // External socket names are "input_N" where N equals the input boundary's
+      // output index. Match each external edge only to the internal edges that
+      // originate from that specific output slot — not a cartesian product of all.
       if (inputBoundary) {
         const fromInput = group.edges.filter(e => e[0] === inputBoundary.id);
         for (const extEdge of incomingExternal) {
-          for (const intEdge of fromInput) {
+          const inputIndex = parseInt((extEdge[3] as string).replace('input_', ''), 10);
+          const matchingIntEdges = fromInput.filter(e => e[1] === inputIndex);
+          for (const intEdge of matchingIntEdges) {
             const toId = idMap.get(intEdge[2]);
             if (toId !== undefined) newEdges.push([extEdge[0], extEdge[1], toId, intEdge[3]]);
           }

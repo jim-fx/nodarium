@@ -95,7 +95,7 @@
     randomSeed: { type: 'boolean', value: false }
   });
   $effect(() => {
-    if (graphSettings && graphSettingTypes) {
+    if (graphSettings && graphSettingTypes && manager?.loaded) {
       manager?.setSettings($state.snapshot(graphSettings));
     }
   });
@@ -255,20 +255,22 @@
     </Grid.Cell>
     <Grid.Cell>
       {#if pm.graph}
-        <GraphInterface
-          graph={pm.graph}
-          bind:this={graphInterface}
-          registry={nodeRegistry}
-          safePadding={{ right: sidebarOpen ? 321 : undefined }}
-          backgroundType={appSettings.value.nodeInterface.backgroundType}
-          snapToGrid={appSettings.value.nodeInterface.snapToGrid}
-          bind:activeNode
-          bind:showHelp={appSettings.value.nodeInterface.showHelp}
-          bind:settings={graphSettings}
-          bind:settingTypes={graphSettingTypes}
-          onsave={(g) => pm.saveGraph(g)}
-          onresult={(result) => handleUpdate(result as Graph)}
-        />
+        {#key pm.graph.id}
+          <GraphInterface
+            graph={pm.graph}
+            bind:this={graphInterface}
+            registry={nodeRegistry}
+            safePadding={{ right: sidebarOpen ? 321 : undefined }}
+            backgroundType={appSettings.value.nodeInterface.backgroundType}
+            snapToGrid={appSettings.value.nodeInterface.snapToGrid}
+            bind:activeNode
+            bind:showHelp={appSettings.value.nodeInterface.showHelp}
+            bind:settings={graphSettings}
+            bind:settingTypes={graphSettingTypes}
+            onsave={(g) => pm.saveGraph(g)}
+            onresult={(result) => handleUpdate(result as Graph)}
+          />
+        {/key}
       {/if}
       <Sidebar bind:open={sidebarOpen}>
         <Panel id="general" title="General" icon="i-[tabler--settings]">
@@ -322,7 +324,9 @@
           hidden={!appSettings.value.debug.advancedMode}
           icon="i-[tabler--code]"
         >
-          <GraphSource graph={manager?.serializeFullGraph()} />
+          {#if manager?.status === 'idle'}
+            <GraphSource graph={manager.serialize()} />
+          {/if}
         </Panel>
         <Panel
           id="benchmark"

@@ -7,11 +7,16 @@
     return group?.name || `Group#${groupId}`;
   }
 
-  function exitToGroup(groupId?: number) {
-    while (graph.graphStack.length > 0 && graph.graphStack.at(-1)?.groupId !== groupId) {
+  function exitToGroup(targetId?: number) {
+    while (graph.currentGroupId !== (targetId ?? null)) {
       graph.exitGroup();
     }
   }
+
+  // Intermediate groups: parent stack entries that are groups (not the root graph).
+  const intermediateGroups = $derived(
+    graph.parentStack.filter(e => e.id !== graph.id)
+  );
 </script>
 
 <div class="shadow" class:is-inside-group={graph.isInsideGroup}></div>
@@ -24,15 +29,23 @@
     >
       Root
     </button>
-    {#each graph.graphStack as group (group.groupId)}
+
+    {#each intermediateGroups as entry (entry.id)}
       <span class="i-[tabler--arrow-right]"></span>
       <button
         class="bg-layer-2 opacity-75 hover:opacity-100 cursor-pointer rounded-sm p-1 px-2"
-        onclick={() => exitToGroup(group.groupId)}
+        onclick={() => exitToGroup(entry.id)}
       >
-        {getGroupName(group.groupId)}
+        {getGroupName(entry.id)}
       </button>
     {/each}
+
+    <span class="i-[tabler--arrow-right]"></span>
+    <button
+      class="bg-layer-2 opacity-100 cursor-pointer rounded-sm p-1 px-2"
+    >
+      {getGroupName(graph.currentGroupId!)}
+    </button>
   </div>
 {/if}
 

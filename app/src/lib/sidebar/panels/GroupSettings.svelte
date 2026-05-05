@@ -12,15 +12,15 @@
   const { manager, node = $bindable() }: Props = $props();
 
   const activeGroup = $derived.by(() => {
+    if (node?.type === '__internal/group/instance') {
+      return manager.getGroup(node.props?.groupId as number);
+    }
+
     if (manager?.isInsideGroup) {
-      const activeGroupId = manager.graphStack?.at(-1)?.groupId;
+      const activeGroupId = manager.parentStack?.at(-1)?.id;
       if (activeGroupId !== undefined) {
         return manager.getGroup(activeGroupId);
       }
-    }
-
-    if (node?.type === '__internal/group/instance') {
-      return manager.getGroup(node.props?.groupId as number);
     }
   });
 

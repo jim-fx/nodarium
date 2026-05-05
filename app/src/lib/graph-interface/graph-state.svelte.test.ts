@@ -97,7 +97,7 @@ describe('enterGroupNode', () => {
     const { manager, state } = createFixture();
     state.activeNodeId = -1;
     state.enterGroupNode();
-    expect(manager.graphStack.length).toBe(0);
+    expect(manager.parentStack.length).toBe(0);
   });
 
   it('does nothing when the active node is not a group instance', () => {
@@ -106,7 +106,7 @@ describe('enterGroupNode', () => {
     assert.isDefined(node);
     state.activeNodeId = node!.id;
     state.enterGroupNode();
-    expect(manager.graphStack.length).toBe(0);
+    expect(manager.parentStack.length).toBe(0);
   });
 
   it('enters the group, pushes graphStack, and clears UI state', () => {
@@ -123,7 +123,7 @@ describe('enterGroupNode', () => {
 
     state.enterGroupNode();
 
-    expect(manager.graphStack.length).toBe(1);
+    expect(manager.parentStack.length).toBe(1);
     expect(state.activeNodeId).toBe(-1);
     expect(state.selectedNodes.size).toBe(0);
     expect(manager.isInsideGroup).toBe(true);
@@ -135,7 +135,7 @@ describe('exitGroupNode', () => {
     const { manager, state } = createFixture();
     const before = [...state.cameraPosition];
     state.exitGroupNode();
-    expect(manager.graphStack.length).toBe(0);
+    expect(manager.parentStack.length).toBe(0);
     expect(state.cameraPosition).toEqual(before);
   });
 
