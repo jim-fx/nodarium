@@ -41,9 +41,7 @@
     {/each}
 
     <span class="i-[tabler--arrow-right]"></span>
-    <button
-      class="bg-layer-2 opacity-100 cursor-pointer rounded-sm p-1 px-2"
-    >
+    <button class="bg-layer-2 opacity-100 cursor-pointer rounded-sm p-1 px-2">
       {getGroupName(graph.currentGroupId!)}
     </button>
   </div>

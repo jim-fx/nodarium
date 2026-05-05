@@ -876,7 +876,9 @@ export class GraphManager extends EventEmitter<{
       const edge = groupOutputs.values().next().value!;
       const outputType = edge[0].state.type?.outputs?.[edge[1]] || '*';
       outputs.push({
-        label: outputType === '*' ? 'Output' : outputType.charAt(0).toUpperCase() + outputType.slice(1),
+        label: outputType === '*'
+          ? 'Output'
+          : outputType.charAt(0).toUpperCase() + outputType.slice(1),
         type: edge[2].state.type?.inputs?.[edge[3]].type || '*'
       });
     }
