@@ -26,6 +26,13 @@
   const rightBump = $derived(
     !!nodeType?.outputs?.length && node.type !== '__internal/group/input'
   );
+  const cornerBottom = $derived(
+    node.type === '__internal/group/input'
+      ? (Object.keys(nodeType?.inputs ?? {}).length ? 0 : 10)
+      : node.type === '__internal/group/output'
+      ? (nodeType?.outputs?.length ? 0 : 10)
+      : 0
+  );
 
   const aspectRatio = 0.25;
 
@@ -35,6 +42,7 @@
       height: 34,
       y: 49,
       cornerTop,
+      cornerBottom,
       rightBump,
       aspectRatio
     })
@@ -45,6 +53,7 @@
       height: 40,
       y: 49,
       cornerTop,
+      cornerBottom,
       rightBump,
       aspectRatio
     })

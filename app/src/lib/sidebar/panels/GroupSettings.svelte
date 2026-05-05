@@ -1,26 +1,26 @@
 <script lang="ts">
   import type { GraphManager } from '$lib/graph-interface/graph-manager.svelte';
+  import { GraphState } from '$lib/graph-interface/graph-state.svelte';
   import type { NodeInstance } from '@nodarium/types';
-  import InputSelect from '../../../../../packages/ui/src/lib/inputs/InputSelect.svelte';
+  import { SocketTable } from '@nodarium/ui';
   import UnusedGroupsPanel from './UnusedGroupsPanel.svelte';
 
   type Props = {
     manager: GraphManager;
+    graphState: GraphState;
     node?: NodeInstance;
   };
 
-  const { manager, node = $bindable() }: Props = $props();
+  const { manager, graphState, node = $bindable() }: Props = $props();
 
   const activeGroup = $derived.by(() => {
     if (node?.type === '__internal/group/instance') {
-      return manager.getGroup(node.props?.groupId as number);
+      let group = manager.getGroup(node.props?.groupId as number);
+      if (group) return group;
     }
 
-    if (manager?.isInsideGroup) {
-      const activeGroupId = manager.parentStack?.at(-1)?.id;
-      if (activeGroupId !== undefined) {
-        return manager.getGroup(activeGroupId);
-      }
+    if (manager?.isInsideGroup && manager.currentGroupId !== null) {
+      return manager.getGroup(manager.currentGroupId);
     }
   });
 
@@ -29,6 +29,47 @@
     const name = (e.target as HTMLInputElement).value;
     if (activeGroup) manager.renameGroup(activeGroup.id, name);
   }
+
+  function handleRemoveInput(key: string) {
+    if (!activeGroup) return;
+    const group = manager.getGroup(activeGroup?.id);
+    const inputs = $state.snapshot(group?.inputs ?? {});
+    delete inputs[key];
+    activeGroup.inputs = inputs;
+    manager.nodes = manager.nodes;
+    manager.save();
+  }
+
+  const types = $derived(
+    Array.from(
+      new Set(
+        manager?.registry
+          ? manager.registry.getAllNodes()
+            .flatMap(n =>
+              Object.values(n.inputs ?? {})
+                .map(v => v.type)
+            )
+          : []
+      )
+    )
+  );
+
+  let outputType = $derived(activeGroup?.outputs?.[0]?.type ?? 'unknown');
+
+  $effect(() => {
+    if (!activeGroup) return;
+    const group = manager.getGroup(activeGroup?.id);
+    const outputs = $state.snapshot(group?.outputs ?? []);
+    if (outputs?.[0]?.type === outputType) return;
+    activeGroup.outputs = [
+      {
+        label: outputs[0]?.label ?? 'Output',
+        type: outputType
+      }
+    ];
+    manager.nodes = manager.nodes;
+    manager.save();
+  });
 </script>
 
 {#if activeGroup}
@@ -39,7 +80,7 @@
 
 {#if activeGroup}
   {#key activeGroup.id}
-    <div class="group-settings">
+    <div class="p-4 group-settings">
       <label for="group-name">Group name</label>
       <input
         id="group-name"
@@ -51,18 +92,33 @@
 
       <label for="group-name">Group Inputs</label>
       <div>
-        {#each Object.keys(activeGroup?.inputs ?? {}) as key (key)}
-          <div class="flex">
-            <InputSelect
-              value={activeGroup.inputs?.[key].type}
-              options={['seed', 'float', 'boolean']}
-            />
-            <input type="text" placeholder="Input {key}" />
-            <button>
-              🥊
-            </button>
-          </div>
-        {/each}
+        <SocketTable
+          {types}
+          onremove={handleRemoveInput}
+          bind:inputs={activeGroup.inputs}
+          colors={graphState?.colors?.getColors()}
+        />
+      </div>
+
+      <label for="group-name mb-2">Group output</label>
+      <div class="flex bg-layer-2 rounded-sm outline outline-outline w-min">
+        <span
+          style:background={graphState?.colors?.getColor(outputType)}
+          class="block opacity-50 min-w-2 ml-2 w-2 h-2 my-auto rounded-sm"
+        ></span>
+        <select
+          class="text-[0.9em] shrink-0 px-2 py-1 border-outline"
+          bind:value={outputType}
+        >
+          {#each types as type (type)}
+            <option>
+              <span
+                style="background: {graphState?.colors?.getColor(type)}; width: 5px; height: 5px; border-radius: 5px;"
+              ></span>
+              {type}
+            </option>
+          {/each}
+        </select>
       </div>
     </div>
   {/key}
@@ -77,10 +133,9 @@
     display: flex;
     flex-direction: column;
     gap: 0.4em;
-    padding: 1em;
   }
 
-  .group-settings label {
+  label {
     font-size: 0.8em;
     opacity: 0.7;
   }

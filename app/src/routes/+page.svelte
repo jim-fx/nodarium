@@ -349,7 +349,7 @@
           />
           {#key activeNode}
             <ActiveNodeSettings {manager} bind:node={activeNode} />
-            <GroupSettings {manager} bind:node={activeNode} />
+            <GroupSettings graphState={graphInterface?.state} {manager} bind:node={activeNode} />
           {/key}
         </Panel>
         <Panel

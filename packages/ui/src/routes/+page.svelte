@@ -11,6 +11,7 @@
     JsonViewer,
     ShortCut
   } from '$lib';
+  import SocketTable from '$lib/inputs/SocketTable.svelte';
   import Section from './Section.svelte';
   import Theme from './Theme.svelte';
   import ThemeSelector from './ThemeSelector.svelte';
@@ -36,6 +37,17 @@
     edges: [[0, 0, 1, 'input']],
     groups: [],
     settings: { seed: 42, enabled: true }
+  });
+
+  let socketTypes = $state({
+    input_0: {
+      'label': 'Input 0',
+      'type': 'path'
+    },
+    input_1: {
+      'label': 'Input 1',
+      'type': 'float'
+    }
   });
 
   function randomlyUpdateJson() {
@@ -148,6 +160,18 @@
         path="demo"
       />
     </div>
+  </Section>
+
+  <Section title="Socket Table">
+    <SocketTable
+      colors={{
+        seed: '#f00',
+        float: '#0f0',
+        path: '#00f'
+      }}
+      types={['seed', 'float', 'path']}
+      bind:inputs={socketTypes}
+    />
   </Section>
 
   <Section title="Shortcut">

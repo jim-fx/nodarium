@@ -365,7 +365,7 @@ export class GraphState {
     if (this.activeNodeId === -1) return;
     const node = this.graph.getNode(this.activeNodeId);
     if (!node || node.type !== '__internal/group/instance') return;
-    const ok = this.graph.enterGroup(this.activeNodeId, [...this.cameraPosition]);
+    const ok = this.graph.enterGroup(this.activeNodeId);
     if (ok) {
       this.activeNodeId = -1;
       this.clearSelection();
@@ -375,7 +375,6 @@ export class GraphState {
   exitGroupNode() {
     const result = this.graph.exitGroup();
     if (!result) return;
-    this.cameraPosition = result.camera;
     this.activeNodeId = result.nodeId;
     this.clearSelection();
   }

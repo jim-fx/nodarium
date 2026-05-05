@@ -48,7 +48,7 @@
 </script>
 
 {#if unusedTree.length}
-  <div class="panel">
+  <div class="panel p-4">
     <div class="header">
       <span>Unused groups</span>
       <button class="remove-all" onclick={() => manager.removeUnusedGroups()}>
@@ -78,8 +78,9 @@
 
 <style>
   .panel {
+    border-top: 1px solid var(--color-outline);
+    margin-top: -1px;
     border-bottom: 1px solid var(--color-outline);
-    padding: 0.75em 1em;
   }
 
   .header {

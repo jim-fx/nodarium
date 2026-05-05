@@ -51,7 +51,7 @@ export class GraphManager extends EventEmitter<{
     id: number;
     nodes: SerializedNode[];
     edges: SerializedEdge[];
-    cameraPosition: [number, number, number];
+    nodeId: number; // group instance node id that was entered to reach the next level
   }[] = $state([]);
 
   // ID of the currently active group, or null when at the root graph.
@@ -642,11 +642,11 @@ export class GraphManager extends EventEmitter<{
 
   isInsideGroup = $derived(this.currentGroupId !== null);
 
-  enterGroup(nodeId: number, cameraPosition: [number, number, number]): boolean {
+  enterGroup(nodeId: number): boolean {
     const groupNode = this.getNode(nodeId);
     if (!groupNode || groupNode.type !== '__internal/group/instance') return false;
 
-    log.log('entering group', { nodeId, cameraPosition });
+    log.log('entering group', { nodeId });
 
     const groupId = groupNode.props?.groupId as number;
     const group = this.getGroup(groupId);
@@ -657,7 +657,7 @@ export class GraphManager extends EventEmitter<{
       id: this.currentGroupId ?? this.id,
       nodes: [...this.nodes.values()].map(n => serializeNode(n)),
       edges: [...this.edges.values()].map(e => serializeEdge(e)),
-      cameraPosition
+      nodeId
     });
     this.currentGroupId = groupId;
 
@@ -685,6 +685,8 @@ export class GraphManager extends EventEmitter<{
     this.history.reset();
     this.execute();
     this.save();
+
+    return { nodeId: parent.nodeId };
   }
 
   createNodeId() {
