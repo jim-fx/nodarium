@@ -290,6 +290,9 @@ importers:
       '@types/eslint':
         specifier: ^9.6.1
         version: 9.6.1
+      '@types/node':
+        specifier: ^25.6.0
+        version: 25.6.0
       '@types/three':
         specifier: ^0.184.0
         version: 0.184.0

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { NodeInput } from '@nodarium/types';
   import '$lib/app.css';
   import {
     Details,
@@ -39,7 +40,7 @@
     settings: { seed: 42, enabled: true }
   });
 
-  let socketTypes = $state({
+  let socketTypes: Record<string, NodeInput> = $state({
     input_0: {
       'label': 'Input 0',
       'type': 'path'
