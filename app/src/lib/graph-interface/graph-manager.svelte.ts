@@ -474,8 +474,37 @@ export class GraphManager extends EventEmitter<{
 
     // Construct the group inputs on the fly
     if (node.type === '__internal/group/instance') {
-      const groupDefinition = this.getGroup(node.props?.groupId as number);
+      const groupId = node.props?.groupId as number;
+      if (!groupId) {
+        return {
+          ...node.state.type,
+          meta: {
+            title: 'Group',
+            ...node?.state?.type?.meta || {}
+          },
+          inputs: {
+            'groupId': {
+              type: 'select',
+              label: '',
+              value: this.groups[0].id,
+              internal: true,
+              options: this.groups.map((g) => ({
+                value: g.id,
+                label: g.name || `Group#${g.id}`
+              })).filter((g) => {
+                const activeIds = new SvelteSet([
+                  ...this.parentStack.filter(e => e.id !== this.id).map(e => e.id),
+                  ...(this.currentGroupId !== null ? [this.currentGroupId] : [])
+                ]);
+                return !activeIds.has(g.value);
+              })
+            }
+          },
+          outputs: []
+        } as NodeDefinition;
+      }
 
+      const groupDefinition = this.getGroup(node.props?.groupId as number);
       if (!groupDefinition) {
         log.error(`Group not found: ${node.props?.groupId}`);
         return;
@@ -834,8 +863,9 @@ export class GraphManager extends EventEmitter<{
 
     const inputs: Record<string, NodeInput> = {};
     [...groupInputs.values()].forEach((edge, i) => {
+      const internalInputDef = edge[2].state.type?.inputs?.[edge[3]];
       const input = {
-        label: `Input ${i}`,
+        label: internalInputDef?.label ?? edge[3],
         type: edge[0].state.type?.outputs?.[edge[1]] || '*'
       };
       inputs[`input_${i}`] = input as NodeInput;
@@ -844,8 +874,9 @@ export class GraphManager extends EventEmitter<{
     const outputs = [];
     if (groupOutputs.size) {
       const edge = groupOutputs.values().next().value!;
+      const outputType = edge[0].state.type?.outputs?.[edge[1]] || '*';
       outputs.push({
-        label: `Output`,
+        label: outputType === '*' ? 'Output' : outputType.charAt(0).toUpperCase() + outputType.slice(1),
         type: edge[2].state.type?.inputs?.[edge[3]].type || '*'
       });
     }
@@ -963,6 +994,8 @@ export class GraphManager extends EventEmitter<{
     const group = this.getGroup(groupId);
     if (!group) return false;
 
+    log.log('ungrouping node', { groupId, group });
+
     this.startUndoGroup();
 
     const edgesToGroup = this.edges.filter(e => e[2].id === nodeId);
@@ -980,8 +1013,12 @@ export class GraphManager extends EventEmitter<{
       centerX += n.position[0];
       centerY += n.position[1];
     }
-    const offsetX = internalNodes.length ? groupNode.position[0] - centerX / internalNodes.length : 0;
-    const offsetY = internalNodes.length ? groupNode.position[1] - centerY / internalNodes.length : 0;
+    const offsetX = internalNodes.length
+      ? groupNode.position[0] - centerX / internalNodes.length
+      : 0;
+    const offsetY = internalNodes.length
+      ? groupNode.position[1] - centerY / internalNodes.length
+      : 0;
 
     // Allocate new IDs that don't collide with anything in the current graph
     const usedIds = new SvelteSet<number>([
@@ -997,7 +1034,7 @@ export class GraphManager extends EventEmitter<{
     };
 
     // Map old internal IDs (including boundary nodes) to fresh IDs
-    const idMap = new Map<number, number>();
+    const idMap = new SvelteMap<number, number>();
     for (const n of group.nodes) {
       idMap.set(n.id, nextId());
     }
@@ -1020,7 +1057,7 @@ export class GraphManager extends EventEmitter<{
     }
 
     // input_X socket on the group node → the external source that was feeding it
-    const inputIdxToExternal = new Map<number, { node: NodeInstance; socket: number }>();
+    const inputIdxToExternal = new SvelteMap<number, { node: NodeInstance; socket: number }>();
     for (const edge of edgesToGroup) {
       const match = (edge[3] as string).match(/^input_(\d+)$/);
       if (match) inputIdxToExternal.set(parseInt(match[1]), { node: edge[0], socket: edge[1] });

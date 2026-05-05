@@ -67,6 +67,14 @@ export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: Gr
   });
 
   keymap.addShortcut({
+    key: 'g',
+    alt: true,
+    preventDefault: true,
+    description: 'Ungroup selected nodes',
+    callback: () => graphState.unGroupSelectedNodes()
+  });
+
+  keymap.addShortcut({
     key: 'Tab',
     preventDefault: true,
     description: 'Enter selected node group',

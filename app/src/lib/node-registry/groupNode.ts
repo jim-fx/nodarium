@@ -2,7 +2,8 @@ export const groupNode = {
   id: '__internal/group/instance',
   meta: { title: 'Group' },
   inputs: {
-    input: {
+    groupId: {
+      label: '',
       type: 'select',
       values: []
     }

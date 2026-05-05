@@ -5,6 +5,7 @@
   import { debounceAsyncFunction } from '$lib/helpers';
   import { createKeyMap } from '$lib/helpers/createKeyMap';
   import { debugNode } from '$lib/node-registry/debugNode';
+  import { groupNode } from '$lib/node-registry/groupNode.js';
   import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
   import NodeStore from '$lib/node-store/NodeStore.svelte';
   import PerformanceViewer from '$lib/performance/PerformanceViewer.svelte';
@@ -38,7 +39,7 @@
 
   const registryCache = new IndexDBCache('node-registry');
 
-  const nodeRegistry = new RemoteNodeRegistry('', registryCache, [debugNode]);
+  const nodeRegistry = new RemoteNodeRegistry('', registryCache, [debugNode, groupNode]);
   const workerRuntime = new WorkerRuntimeExecutor();
   const runtimeCache = new MemoryRuntimeCache();
   const memoryRuntime = new MemoryRuntimeExecutor(nodeRegistry, runtimeCache);

@@ -213,6 +213,10 @@ export class GraphState {
     };
   }
 
+  unGroupSelectedNodes() {
+    return this.graph.ungroupNode(this.activeNodeId);
+  }
+
   groupSelectedNodes() {
     return this.graph.groupNodes([...this.selectedNodes.keys(), this.activeNodeId]);
   }
