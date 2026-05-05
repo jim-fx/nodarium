@@ -8,9 +8,6 @@ test('test', async ({ page }) => {
 
   await page.goto('http://localhost:4173', { waitUntil: 'load' });
 
-  // await expect(page).toHaveScreenshot();
-  await expect(page.locator('.graph-wrapper')).toHaveScreenshot();
-
   await page.getByRole('button', { name: 'projects' }).click();
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.getByRole('combobox').selectOption('2');

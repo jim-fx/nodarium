@@ -18,6 +18,113 @@ import type { RuntimeNode } from './types';
 const log = createLogger('runtime-executor');
 log.mute();
 
+export function expandGroups(graph: Graph): Graph {
+  if (!graph.groups || graph.groups.length === 0) return graph;
+
+  function groupContainsSelf(groupId: number, visited = new Set<number>()): boolean {
+    if (visited.has(groupId)) return true;
+    visited.add(groupId);
+    const group = graph.groups!.find(g => g.id === groupId);
+    if (!group) return false;
+    for (const n of group.nodes) {
+      if (n.type === '__internal/group/instance') {
+        const nestedId = n.props?.groupId as number | undefined;
+        if (nestedId !== undefined && groupContainsSelf(nestedId, visited)) return true;
+      }
+    }
+    return false;
+  }
+
+  for (const group of graph.groups) {
+    if (groupContainsSelf(group.id)) {
+      throw new Error(`Circular group reference: group ${group.id} contains itself`);
+    }
+  }
+
+  const nodes = [...graph.nodes];
+  let edges = [...graph.edges];
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      if (node.type !== '__internal/group/instance') continue;
+
+      const groupId = node.props?.groupId as number | undefined;
+      if (groupId === undefined) continue;
+
+      const group = graph.groups.find(g => g.id === groupId);
+      if (!group) continue;
+
+      changed = true;
+
+      const ID_OFFSET = (node.id + 1) * 1_000_000;
+      const idMap = new Map<number, number>();
+
+      const inputBoundary = group.nodes.find(n => n.type === '__internal/group/input');
+      const outputBoundary = group.nodes.find(n => n.type === '__internal/group/output');
+
+      const realNodes = group.nodes.filter(
+        n => n.type !== '__internal/group/input' && n.type !== '__internal/group/output'
+      );
+
+      for (const n of realNodes) idMap.set(n.id, ID_OFFSET + n.id);
+
+      const incomingExternal = edges.filter(e => e[2] === node.id);
+      const outgoingExternal = edges.filter(e => e[0] === node.id);
+      const newEdges: Graph['edges'] = [];
+
+      // external_source → [inputBoundary →] internal_target
+      //
+      // External socket names are "input_N" where N equals the input boundary's
+      // output index. Match each external edge only to the internal edges that
+      // originate from that specific output slot — not a cartesian product of all.
+      if (inputBoundary) {
+        const fromInput = group.edges.filter(e => e[0] === inputBoundary.id);
+        for (const extEdge of incomingExternal) {
+          const inputIndex = parseInt((extEdge[3] as string).replace('input_', ''), 10);
+          const matchingIntEdges = fromInput.filter(e => e[1] === inputIndex);
+          for (const intEdge of matchingIntEdges) {
+            const toId = idMap.get(intEdge[2]);
+            if (toId !== undefined) newEdges.push([extEdge[0], extEdge[1], toId, intEdge[3]]);
+          }
+        }
+      }
+
+      // internal_source → [outputBoundary →] external_target
+      if (outputBoundary) {
+        const toOutput = group.edges.filter(e => e[2] === outputBoundary.id);
+        for (const extEdge of outgoingExternal) {
+          for (const intEdge of toOutput) {
+            const fromId = idMap.get(intEdge[0]);
+            if (fromId !== undefined) newEdges.push([fromId, intEdge[1], extEdge[2], extEdge[3]]);
+          }
+        }
+      }
+
+      // internal-to-internal edges (skip boundary edges)
+      for (const e of group.edges) {
+        if (e[0] === inputBoundary?.id || e[2] === outputBoundary?.id) continue;
+        const fromId = idMap.get(e[0]);
+        const toId = idMap.get(e[2]);
+        if (fromId !== undefined && toId !== undefined) newEdges.push([fromId, e[1], toId, e[3]]);
+      }
+
+      nodes.splice(i, 1);
+      for (const n of realNodes) nodes.push({ ...n, id: idMap.get(n.id)! });
+
+      edges = edges.filter(e => e[0] !== node.id && e[2] !== node.id);
+      edges.push(...newEdges);
+
+      break;
+    }
+  }
+
+  return { ...graph, nodes, edges };
+}
+
 function getValue(input: NodeInput, value?: unknown) {
   if (value === undefined && 'value' in input) {
     value = input.value;
@@ -75,7 +182,11 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       throw new Error('Node registry is not ready');
     }
 
-    await this.registry.load(graph.nodes.map((node) => node.type));
+    // Only load non-virtual types (virtual nodes are resolved locally)
+    const nonVirtualTypes = graph.nodes
+      .map(node => node.type)
+      .filter(t => !t.startsWith('__internal/'));
+    await this.registry.load(nonVirtualTypes);
 
     const typeMap = new Map<string, NodeDefinition>();
     for (const node of graph.nodes) {
@@ -163,6 +274,9 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     let a = performance.now();
     this.debugData = {};
 
+    // Expand group nodes into a flat graph before execution
+    graph = expandGroups(graph);
+
     // Then we add some metadata to the graph
     const [outputNode, nodes] = await this.addMetaData(graph);
     let b = performance.now();
@@ -219,7 +333,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
           if (inputNode) {
             if (results[inputNode.id] === undefined) {
               throw new Error(
-                `Node ${node.type} is missing input from node ${inputNode.type}`
+                `Node ${node.type} is missing input from node ${inputNode.type}#${inputNode.id}`
               );
             }
             return results[inputNode.id];

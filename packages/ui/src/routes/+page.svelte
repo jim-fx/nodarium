@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { NodeInput } from '@nodarium/types';
   import '$lib/app.css';
   import {
     Details,
@@ -8,8 +9,10 @@
     InputSelect,
     InputShape,
     InputVec3,
+    JsonViewer,
     ShortCut
   } from '$lib';
+  import SocketTable from '$lib/inputs/SocketTable.svelte';
   import Section from './Section.svelte';
   import Theme from './Theme.svelte';
   import ThemeSelector from './ThemeSelector.svelte';
@@ -20,11 +23,48 @@
   let vecValue = $state([0.2, 0.3, 0.4]);
   const options = ['strawberry', 'raspberry', 'chickpeas'];
   let selectValue = $state(0);
-  const d = $derived(options[selectValue]);
+  let selectValue2 = $state(0);
   let checked = $state(false);
   let colorValue = $state<[number, number, number]>([59, 130, 246]);
   let mirrorShape = $state(true);
   let detailsOpen = $state(false);
+  let jsonValue = $state({
+    id: 1,
+    nodes: [{ id: 0, type: 'max/test/node', position: [0, 0] }, {
+      id: 1,
+      type: 'max/test/other',
+      position: [100, 50]
+    }],
+    edges: [[0, 0, 1, 'input']],
+    groups: [],
+    settings: { seed: 42, enabled: true }
+  });
+
+  let socketTypes: Record<string, NodeInput> = $state({
+    input_0: {
+      'label': 'Input 0',
+      'type': 'path'
+    },
+    input_1: {
+      'label': 'Input 1',
+      'type': 'float'
+    }
+  });
+
+  function randomlyUpdateJson() {
+    const rand = Math.floor(Math.random() * 5);
+    if (rand === 0) {
+      jsonValue.nodes[0].position[0] += 1;
+    } else if (rand === 1) {
+      jsonValue.nodes[0].position[1] += 1;
+    } else if (rand === 2) {
+      jsonValue.settings.seed += 1;
+    } else if (rand === 3) {
+      jsonValue.settings.enabled = !jsonValue.settings.enabled;
+    } else if (rand === 4) {
+      jsonValue.id += Math.floor(Math.random() * 10 - 5);
+    }
+  }
 
   let points = $state([]);
   let theme = $state('dark');
@@ -55,8 +95,28 @@
     <InputVec3 bind:value={vecValue} />
   </Section>
 
-  <Section title="Select" value={d}>
+  <Section title="Select">
+    <p>
+      Select with simple values
+      <br>
+      <b>value={options[selectValue]}</b>
+    </p>
     <InputSelect bind:value={selectValue} {options} />
+    <br>
+    <br>
+    <p>
+      Select with <i>&lbrace;option: number, label: string&rbrace;[]</i>
+      <br>
+      <b>value={selectValue2}</b>
+    </p>
+    <InputSelect
+      bind:value={selectValue2}
+      options={[
+        { value: 0, label: 'Zero' },
+        { value: 1, label: 'One' },
+        { value: 2, label: 'Two' }
+      ]}
+    />
   </Section>
 
   <Section title="Checkbox" value={checked}>
@@ -84,6 +144,35 @@
     <Details title="More Information" bind:open={detailsOpen}>
       <p>Here is some more information that was previously hidden.</p>
     </Details>
+  </Section>
+
+  <Section title="JsonViewer">
+    {#snippet header()}
+      <button
+        onclick={() => randomlyUpdateJson()}
+        class="-mt-1 bg-layer-2 p-1 px-2 rounded-sm cursor-pointer"
+      >
+        update
+      </button>
+    {/snippet}
+    <div class="w-64 bg-layer-1 p-2 rounded">
+      <JsonViewer
+        value={jsonValue}
+        path="demo"
+      />
+    </div>
+  </Section>
+
+  <Section title="Socket Table">
+    <SocketTable
+      colors={{
+        seed: '#f00',
+        float: '#0f0',
+        path: '#00f'
+      }}
+      types={['seed', 'float', 'path']}
+      bind:inputs={socketTypes}
+    />
   </Section>
 
   <Section title="Shortcut">

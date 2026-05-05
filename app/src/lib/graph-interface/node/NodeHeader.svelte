@@ -1,11 +1,11 @@
 <script lang="ts">
   import { appSettings } from '$lib/settings/app-settings.svelte';
   import type { NodeInstance, Socket } from '@nodarium/types';
-  import { getGraphState } from '../graph-state.svelte';
+  import { getGraphManager, getGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers/index.js';
-  import { getSocketPosition } from '../helpers/nodeHelpers';
 
   const graphState = getGraphState();
+  const graph = getGraphManager();
 
   const { node }: { node: NodeInstance } = $props();
 
@@ -16,13 +16,24 @@
       graphState.setDownSocket?.({
         node,
         index: 0,
-        position: getSocketPosition?.(node, 0)
+        position: graphState.getSocketPosition?.(node, 0)
       });
     }
   }
 
   const cornerTop = 10;
-  const rightBump = $derived(!!node?.state?.type?.outputs?.length);
+  const nodeType = $derived(graph.getNodeType(node));
+  const rightBump = $derived(
+    !!nodeType?.outputs?.length && node.type !== '__internal/group/input'
+  );
+  const cornerBottom = $derived(
+    node.type === '__internal/group/input'
+      ? (Object.keys(nodeType?.inputs ?? {}).length ? 0 : 10)
+      : node.type === '__internal/group/output'
+      ? (nodeType?.outputs?.length ? 0 : 10)
+      : 0
+  );
+
   const aspectRatio = 0.25;
 
   const path = $derived(
@@ -31,6 +42,7 @@
       height: 34,
       y: 49,
       cornerTop,
+      cornerBottom,
       rightBump,
       aspectRatio
     })
@@ -41,6 +53,7 @@
       height: 40,
       y: 49,
       cornerTop,
+      cornerBottom,
       rightBump,
       aspectRatio
     })
@@ -70,15 +83,17 @@
     {#if appSettings.value.debug.advancedMode}
       <span class="bg-white text-black! mr-2 px-1 rounded-sm opacity-30">{node.id}</span>
     {/if}
-    {node.type.split('/').pop()}
+    {nodeType?.meta?.title || node.type?.split('/').pop()}
   </div>
-  <div
-    class="target"
-    role="button"
-    tabindex="0"
-    onmousedown={handleMouseDown}
-  >
-  </div>
+  {#if rightBump}
+    <div
+      class="target"
+      role="button"
+      tabindex="0"
+      onmousedown={handleMouseDown}
+    >
+    </div>
+  {/if}
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 100 100"

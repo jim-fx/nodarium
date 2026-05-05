@@ -9,7 +9,7 @@
 @source inline("{hover:,}{bg-,outline-,text-,}layer-3{/30,/50,}");
 @source inline("{hover:,}{bg-,outline-,text-,}active");
 @source inline("{hover:,}{bg-,outline-,text-,}selected");
-@source inline("{hover:,}{bg-,outline-,text-,}outline{!,}");
+@source inline("{hover:,}{bg-,outline-,text-,border-,divide-}outline{!,}");
 @source inline("{hover:,}{bg-,outline-,text-,}connection");
 @source inline("{hover:,}{bg-,outline-,text-,}text");
 

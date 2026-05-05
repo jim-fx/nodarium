@@ -12,9 +12,9 @@ env:
   CARGO_TARGET_DIR: target
 
 jobs:
-  release:
+  benchmark:
     runs-on: ubuntu-latest
-    container: git.max-richter.dev/max/nodarium-ci:bce06da456e3c008851ac006033cfff256015a47
+    container: git.max-richter.dev/max/nodarium-ci:a56e8f445edb6064ae7a7b3b783fb7445f1b4e69
 
     steps:
       - name: 📑 Checkout Code
@@ -23,37 +23,45 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITEA_TOKEN }}
 
-      - name: 💾 Setup pnpm Cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.PNPM_CACHE_FOLDER }}
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
+      - name: 🔧 Setup
+        uses: ./.gitea/actions/setup
 
-      - name: 🦀 Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: 📦 Install Dependencies
-        run: pnpm install --frozen-lockfile --store-dir ${{ env.PNPM_CACHE_FOLDER }}
-
-      - name: 🛠️Build Nodes
+      - name: 🛠️ Build Nodes
         run: pnpm build:nodes
 
       - name: 🏃 Execute Runtime
         run: pnpm run --filter @nodarium/app bench
 
-      - name: 📤 Upload Benchmark Results
-        uses: actions/upload-artifact@v3
-        with:
-          name: benchmark-data
-          path: app/benchmark/out/
-          compression: 9
+      - name: 🔑 Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.GIT_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          cat >> ~/.ssh/config <<'EOF'
+          Host git.max-richter.dev
+            Port 2222
+            IdentityFile ~/.ssh/id_ed25519
+            IdentitiesOnly yes
+          EOF
+          ssh-keyscan -p 2222 -H git.max-richter.dev >> ~/.ssh/known_hosts
+
+      - name: 📤 Push Results
+        env:
+          BENCH_REPO: "git@git.max-richter.dev:max/nodarium-benchmarks.git"
+        run: |
+          git config --global user.name "nodarium-bot"
+          git config --global user.email "nodarium-bot@max-richter.dev"
+
+          git clone git@git.max-richter.dev:max/nodarium-benchmarks.git target_bench_repo
+
+          BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          SAFE_PR_NAME=$(printf "%s" "$BRANCH" | tr '/' '-')
+          DEST_DIR="target_bench_repo/data/$SAFE_PR_NAME/$(date +%s)"
+          mkdir -p "$DEST_DIR"
+
+          cp app/benchmark/out/*.json "$DEST_DIR/"
+
+          cd target_bench_repo
+          git add .
+          git commit -m "Update benchmarks for $SAFE_PR_NAME: ${{ gitea.sha }}"
+          git push origin main

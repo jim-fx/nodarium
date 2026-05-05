@@ -47,11 +47,38 @@ export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: Gr
     key: 'Escape',
     description: 'Deselect nodes',
     callback: () => {
+      if (graph.isInsideGroup) {
+        graphState.exitGroupNode();
+        return;
+      }
       graphState.activeNodeId = -1;
       graphState.clearSelection();
       graphState.edgeEndPosition = null;
       (document.activeElement as HTMLElement)?.blur();
     }
+  });
+
+  keymap.addShortcut({
+    key: 'g',
+    ctrl: true,
+    preventDefault: true,
+    description: 'Group selected nodes',
+    callback: () => graphState.groupSelectedNodes()
+  });
+
+  keymap.addShortcut({
+    key: 'g',
+    alt: true,
+    preventDefault: true,
+    description: 'Ungroup selected nodes',
+    callback: () => graphState.unGroupSelectedNodes()
+  });
+
+  keymap.addShortcut({
+    key: 'Tab',
+    preventDefault: true,
+    description: 'Enter selected node group',
+    callback: () => graphState.enterGroupNode()
   });
 
   keymap.addShortcut({

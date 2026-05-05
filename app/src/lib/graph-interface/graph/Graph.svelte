@@ -7,11 +7,11 @@
   import AddMenu from '../components/AddMenu.svelte';
   import BoxSelection from '../components/BoxSelection.svelte';
   import Camera from '../components/Camera.svelte';
+  import GroupBreadcrumps from '../components/GroupBreadcrumps.svelte';
   import HelpView from '../components/HelpView.svelte';
   import Debug from '../debug/Debug.svelte';
   import EdgeEl from '../edges/Edge.svelte';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
-  import { getSocketPosition } from '../helpers/nodeHelpers';
   import NodeEl from '../node/Node.svelte';
   import { maxZoom, minZoom } from './constants';
   import { FileDropEventManager } from './drop.events';
@@ -39,8 +39,8 @@
       return [0, 0, 0, 0];
     }
 
-    const pos1 = getSocketPosition(fromNode, edge[1]);
-    const pos2 = getSocketPosition(toNode, edge[3]);
+    const pos1 = graphState.getSocketPosition(fromNode, edge[1]);
+    const pos2 = graphState.getSocketPosition(toNode, edge[3]);
     return [pos1[0], pos1[1], pos2[0], pos2[1]];
   }
 
@@ -97,10 +97,17 @@
   }
 
   function getSocketType(node: NodeInstance, index: number | string): string {
+    const nodeType = graph.getNodeType(node);
     if (typeof index === 'string') {
-      return node.state.type?.inputs?.[index].type || 'unknown';
+      return nodeType?.inputs?.[index].type || 'unknown';
     }
-    return node.state.type?.outputs?.[index] || 'unknown';
+
+    if (node.type === '__internal/group/input') {
+      const key = Object.keys(nodeType?.inputs || {})[index];
+      return nodeType?.inputs?.[key].type || 'unknown';
+    }
+
+    return nodeType?.outputs?.[index] || 'unknown';
   }
 </script>
 
@@ -114,6 +121,7 @@
   bind:this={graphState.wrapper}
   class="graph-wrapper"
   style="height: 100%"
+  class:is-inside-group={graph.isInsideGroup}
   class:is-panning={graphState.isPanning}
   class:is-hovering={graphState.hoveredNodeId !== -1}
   aria-label="Graph"
@@ -121,6 +129,7 @@
   tabindex="0"
   bind:clientWidth={graphState.width}
   bind:clientHeight={graphState.height}
+  style:--padding-right="{safePadding?.right || 0}px"
   onkeydown={(ev) => keymap.handleKeyboardEvent(ev)}
   onmousedown={(ev) => mouseEvents.handleMouseDown(ev)}
   oncontextmenu={(ev) => mouseEvents.handleContextMenu(ev)}
@@ -135,6 +144,8 @@
     ondragleave={(ev) => fileDropEvents.handleDragEnd(ev)}
   />
   <label for="drop-zone"></label>
+
+  <GroupBreadcrumps />
 
   <Canvas shadows={false} renderMode="on-demand" colorManagementEnabled={false}>
     <Camera
@@ -216,10 +227,10 @@
           style:transform={`scale(${graphState.cameraPosition[2] * 0.1})`}
           class:hovering-sockets={graphState.activeSocket}
         >
-          {#each graph.nodes.values() as node (node.id)}
+          {#each graph.nodeArray as node, index (node.id)}
             <NodeEl
-              {node}
-              inView={graphState.isNodeInView(node)}
+              bind:node={graph.nodeArray[index]}
+              inView={node ? graphState.isNodeInView(node) : false}
             />
           {/each}
         </div>

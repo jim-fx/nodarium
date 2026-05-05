@@ -2,12 +2,20 @@ type Color = { hue: number; saturation: number; lightness: number };
 
 export class ColorGenerator {
   private colors: Map<string, Color> = new Map();
-  private lightnessLevels = [10, 60];
+  // private lightnessLevels = [10, 60];
 
   constructor(predefined: Record<string, Color>) {
     for (const [id, colorStr] of Object.entries(predefined)) {
       this.colors.set(id, colorStr);
     }
+  }
+
+  public getColors() {
+    return Object.fromEntries(
+      this.colors.entries().map(([key, col]) => {
+        return [key, this.colorToHsl(col)];
+      })
+    );
   }
 
   public getColor(id: string): string {

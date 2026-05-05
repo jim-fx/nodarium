@@ -4,7 +4,8 @@
   import Grid from '$lib/grid';
   import { debounceAsyncFunction } from '$lib/helpers';
   import { createKeyMap } from '$lib/helpers/createKeyMap';
-  import { debugNode } from '$lib/node-registry/debugNode.js';
+  import { debugNode } from '$lib/node-registry/debugNode';
+  import { groupNode } from '$lib/node-registry/groupNode.js';
   import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
   import NodeStore from '$lib/node-store/NodeStore.svelte';
   import PerformanceViewer from '$lib/performance/PerformanceViewer.svelte';
@@ -21,6 +22,7 @@
   import Changelog from '$lib/sidebar/panels/Changelog.svelte';
   import ExportSettings from '$lib/sidebar/panels/ExportSettings.svelte';
   import GraphSource from '$lib/sidebar/panels/GraphSource.svelte';
+  import GroupSettings from '$lib/sidebar/panels/GroupSettings.svelte';
   import Keymap from '$lib/sidebar/panels/Keymap.svelte';
   import { panelState } from '$lib/sidebar/PanelState.svelte';
   import Sidebar from '$lib/sidebar/Sidebar.svelte';
@@ -37,7 +39,7 @@
 
   const registryCache = new IndexDBCache('node-registry');
 
-  const nodeRegistry = new RemoteNodeRegistry('', registryCache, [debugNode]);
+  const nodeRegistry = new RemoteNodeRegistry('', registryCache, [debugNode, groupNode]);
   const workerRuntime = new WorkerRuntimeExecutor();
   const runtimeCache = new MemoryRuntimeCache();
   const memoryRuntime = new MemoryRuntimeExecutor(nodeRegistry, runtimeCache);
@@ -94,7 +96,7 @@
     randomSeed: { type: 'boolean', value: false }
   });
   $effect(() => {
-    if (graphSettings && graphSettingTypes) {
+    if (graphSettings && graphSettingTypes && manager?.loaded) {
       manager?.setSettings($state.snapshot(graphSettings));
     }
   });
@@ -254,20 +256,22 @@
     </Grid.Cell>
     <Grid.Cell>
       {#if pm.graph}
-        <GraphInterface
-          graph={pm.graph}
-          bind:this={graphInterface}
-          registry={nodeRegistry}
-          safePadding={{ right: sidebarOpen ? 330 : undefined }}
-          backgroundType={appSettings.value.nodeInterface.backgroundType}
-          snapToGrid={appSettings.value.nodeInterface.snapToGrid}
-          bind:activeNode
-          bind:showHelp={appSettings.value.nodeInterface.showHelp}
-          bind:settings={graphSettings}
-          bind:settingTypes={graphSettingTypes}
-          onsave={(g) => pm.saveGraph(g)}
-          onresult={(result) => handleUpdate(result as Graph)}
-        />
+        {#key pm.graph.id}
+          <GraphInterface
+            graph={pm.graph}
+            bind:this={graphInterface}
+            registry={nodeRegistry}
+            safePadding={{ right: sidebarOpen ? 321 : undefined }}
+            backgroundType={appSettings.value.nodeInterface.backgroundType}
+            snapToGrid={appSettings.value.nodeInterface.snapToGrid}
+            bind:activeNode
+            bind:showHelp={appSettings.value.nodeInterface.showHelp}
+            bind:settings={graphSettings}
+            bind:settingTypes={graphSettingTypes}
+            onsave={(g) => pm.saveGraph(g)}
+            onresult={(result) => handleUpdate(result as Graph)}
+          />
+        {/key}
       {/if}
       <Sidebar bind:open={sidebarOpen}>
         <Panel id="general" title="General" icon="i-[tabler--settings]">
@@ -321,7 +325,9 @@
           hidden={!appSettings.value.debug.advancedMode}
           icon="i-[tabler--code]"
         >
-          <GraphSource graph={pm.graph ?? manager?.serialize()} />
+          {#if manager?.status === 'idle'}
+            <GraphSource graph={manager.serialize()} />
+          {/if}
         </Panel>
         <Panel
           id="benchmark"
@@ -336,12 +342,16 @@
           title="Graph Settings"
           icon="i-[custom--graph] bg-blue-400"
         >
+          <span class="block h-[1px]"></span>
           <NestedSettings
             id="graph-settings"
             type={graphSettingTypes}
             bind:value={graphSettings}
           />
-          <ActiveNodeSettings {manager} bind:node={activeNode} />
+          {#key activeNode}
+            <ActiveNodeSettings {manager} bind:node={activeNode} />
+            <GroupSettings graphState={graphInterface?.state} {manager} bind:node={activeNode} />
+          {/key}
         </Panel>
         <Panel
           id="changelog"

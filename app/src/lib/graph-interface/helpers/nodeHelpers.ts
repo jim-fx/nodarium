@@ -1,6 +1,16 @@
-import type { NodeDefinition, NodeInstance } from '@nodarium/types';
+import type {
+  Edge,
+  NodeDefinition,
+  NodeInstance,
+  SerializedEdge,
+  SerializedNode
+} from '@nodarium/types';
 
 export function getParameterHeight(node: NodeDefinition, inputKey: string) {
+  if (node.id === '__internal/group/input') {
+    return 50;
+  }
+
   const input = node.inputs?.[inputKey];
   if (!input) {
     return 0;
@@ -23,41 +33,30 @@ export function getParameterHeight(node: NodeDefinition, inputKey: string) {
   return 50;
 }
 
-export function getSocketPosition(
-  node: NodeInstance,
-  index: string | number
-): [number, number] {
-  if (typeof index === 'number') {
-    return [
-      (node?.state?.x ?? node.position[0]) + 20,
-      (node?.state?.y ?? node.position[1]) + 2.5 + 10 * index
-    ];
-  } else {
-    let height = 5;
-    const nodeType = node.state.type!;
-    const inputs = nodeType.inputs || {};
-    for (const inputKey in inputs) {
-      const h = getParameterHeight(nodeType, inputKey) / 10;
-      if (inputKey === index) {
-        height += h / 2;
-        break;
-      }
-      height += h;
-    }
-    return [
-      node?.state?.x ?? node.position[0],
-      (node?.state?.y ?? node.position[1]) + height
-    ];
+export function serializeNode(node: SerializedNode | NodeInstance): SerializedNode {
+  return {
+    id: node.id,
+    position: [...node.position],
+    type: node.type,
+    props: node.props
+  };
+}
+
+export function serializeEdge(edge: SerializedEdge | Edge): SerializedEdge {
+  if (typeof edge[0] === 'number' && typeof edge[2] === 'number') {
+    return [edge[0], edge[1], edge[2], edge[3]];
   }
+  const e = edge as Edge;
+  return [e[0].id, e[1], e[2].id, e[3]];
 }
 
 const nodeHeightCache: Record<string, number> = {};
 export function getNodeHeight(node: NodeDefinition) {
+  if (!node || !('inputs' in node)) {
+    return 5;
+  }
   if (node.id in nodeHeightCache) {
     return nodeHeightCache[node.id];
-  }
-  if (!node?.inputs) {
-    return 5;
   }
   let height = 5;
 
@@ -68,4 +67,35 @@ export function getNodeHeight(node: NodeDefinition) {
 
   nodeHeightCache[node.id] = height;
   return height;
+}
+
+export function areSocketsCompatible(
+  output: string | undefined,
+  inputs: string | (string | undefined)[] | undefined
+) {
+  if (output === '*') return true;
+  if (Array.isArray(inputs) && output) {
+    return inputs.includes('*') || inputs.includes(output);
+  }
+  return inputs === output;
+}
+
+export function areEdgesEqual(firstEdge: Edge, secondEdge: Edge) {
+  if (firstEdge[0].id !== secondEdge[0].id) {
+    return false;
+  }
+
+  if (firstEdge[1] !== secondEdge[1]) {
+    return false;
+  }
+
+  if (firstEdge[2].id !== secondEdge[2].id) {
+    return false;
+  }
+
+  if (firstEdge[3] !== secondEdge[3]) {
+    return false;
+  }
+
+  return true;
 }

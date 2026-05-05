@@ -1,11 +1,12 @@
 <script lang="ts">
   import type { NodeInstance } from '@nodarium/types';
-  import { getGraphState } from '../graph-state.svelte';
+  import { getGraphManager, getGraphState } from '../graph-state.svelte';
   import NodeHeader from './NodeHeader.svelte';
   import NodeParameter from './NodeParameter.svelte';
 
   let ref: HTMLDivElement;
 
+  const graph = getGraphManager();
   const graphState = getGraphState();
 
   type Props = {
@@ -30,8 +31,12 @@
   const zOffset = Math.random() - 0.5;
   const zLimit = 2 - zOffset;
 
-  const parameters = Object.entries(node.state?.type?.inputs || {}).filter(
-    (p) => p[1].type !== 'seed' && !('setting' in p[1]) && p[1]?.hidden !== true
+  const nodeType = $derived(graph.getNodeType(node));
+
+  const parameters = $derived(
+    Object.entries(nodeType?.inputs || {}).filter(
+      (p) => p[1].type !== 'seed' && !('setting' in p[1]) && p[1]?.hidden !== true
+    ) || {}
   );
 
   $effect(() => {

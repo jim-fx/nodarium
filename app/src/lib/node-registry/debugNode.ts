@@ -1,8 +1,12 @@
 export const debugNode = {
-  id: 'max/plantarium/debug',
+  id: '__internal/node/debug',
+  meta: {
+    title: 'Debug'
+  },
   inputs: {
     input: {
-      type: '*'
+      type: '*',
+      label: ''
     }
   },
   execute(_data: Int32Array): Int32Array {

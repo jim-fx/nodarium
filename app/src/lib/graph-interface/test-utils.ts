@@ -23,7 +23,11 @@ export function createMockNodeRegistry(nodes: NodeDefinition[]): NodeRegistry {
 
 export const mockFloatOutputNode: NodeDefinition = {
   id: 'test/node/output',
-  inputs: {},
+  inputs: {
+    'input': {
+      type: 'float'
+    }
+  },
   outputs: ['float'],
   meta: { title: 'Float Output' },
   execute: () => new Int32Array()
@@ -32,7 +36,7 @@ export const mockFloatOutputNode: NodeDefinition = {
 export const mockFloatInputNode: NodeDefinition = {
   id: 'test/node/input',
   inputs: { value: { type: 'float' } },
-  outputs: [],
+  outputs: ['float'],
   meta: { title: 'Float Input' },
   execute: () => new Int32Array()
 };

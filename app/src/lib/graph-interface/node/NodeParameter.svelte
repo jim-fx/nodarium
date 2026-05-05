@@ -2,7 +2,7 @@
   import type { NodeInput, NodeInstance, Socket } from '@nodarium/types';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers';
-  import { getParameterHeight, getSocketPosition } from '../helpers/nodeHelpers';
+  import { getParameterHeight } from '../helpers/nodeHelpers';
   import NodeInputEl from './NodeInput.svelte';
 
   type Props = {
@@ -19,7 +19,7 @@
 
   let { node = $bindable(), input, id, isLast }: Props = $props();
 
-  const nodeType = $derived(node.state.type!);
+  let nodeType = $derived(graph.getNodeType(node)!);
 
   const inputType = $derived(nodeType.inputs?.[id]);
 
@@ -29,14 +29,27 @@
   function handleMouseDown(ev: MouseEvent) {
     ev.preventDefault();
     ev.stopPropagation();
-    graphState.setDownSocket({
-      node,
-      index: id,
-      position: getSocketPosition(node, id)
-    });
+
+    if (node.type === '__internal/group/input') {
+      const outputIndex = Object.entries(nodeType?.inputs ?? {}).findIndex(([key]) => key === id);
+      graphState.setDownSocket({
+        node,
+        index: outputIndex,
+        position: graphState.getSocketPosition(node, outputIndex)
+      });
+    } else {
+      graphState.setDownSocket({
+        node,
+        index: id,
+        position: graphState.getSocketPosition(node, id)
+      });
+    }
   }
 
-  const leftBump = $derived(nodeType.inputs?.[id].internal !== true);
+  const leftBump = $derived(
+    nodeType.inputs?.[id].internal !== true && node.type !== '__internal/group/input'
+  );
+  const rightBump = $derived(node.type === '__internal/group/input');
   const cornerBottom = $derived(isLast ? 5 : 0);
   const aspectRatio = 0.5;
 
@@ -46,6 +59,7 @@
       height: 2000 / height,
       y: 50.5,
       cornerBottom,
+      rightBump,
       leftBump,
       aspectRatio
     })
@@ -55,6 +69,7 @@
       depth: 7,
       height: 2200 / height,
       y: 50.5,
+      rightBump,
       cornerBottom,
       leftBump,
       aspectRatio
@@ -76,6 +91,7 @@
 <div
   class="wrapper"
   data-node-type={node.type}
+  class:is-group-input={node.type === '__internal/group/input'}
   data-node-input={id}
   style:height="{height}px"
   style:--socket-color={hoverColor}
@@ -128,6 +144,11 @@
     border-radius: 50%;
     top: 50%;
     transform: translateY(-50%) translateX(-50%);
+  }
+
+  .is-group-input .target {
+    right: 0px;
+    transform: translateY(-50%) translateX(50%);
   }
 
   .possible-socket .target::before {

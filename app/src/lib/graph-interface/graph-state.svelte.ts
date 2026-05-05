@@ -5,7 +5,7 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { OrthographicCamera, Vector3 } from 'three';
 import type { GraphManager } from './graph-manager.svelte';
 import { ColorGenerator } from './graph/colors';
-import { getNodeHeight, getSocketPosition } from './helpers/nodeHelpers';
+import { getNodeHeight, getParameterHeight } from './helpers/nodeHelpers';
 
 const graphStateKey = Symbol('graph-state');
 export function getGraphState() {
@@ -152,10 +152,6 @@ export class GraphState {
     this.edges.delete(edgeId);
   }
 
-  getEdgeData() {
-    return this.edges;
-  }
-
   updateNodePosition(node: NodeInstance) {
     if (
       node.state.x === node.position[0]
@@ -190,29 +186,6 @@ export class GraphState {
     return 1;
   }
 
-  tryConnectToDebugNode(nodeId: number) {
-    const node = this.graph.nodes.get(nodeId);
-    if (!node) return;
-    if (node.type.endsWith('/debug')) return;
-    if (!node.state.type?.outputs?.length) return;
-    for (const _node of this.graph.nodes.values()) {
-      if (_node.type.endsWith('/debug')) {
-        this.graph.createEdge(node, 0, _node, 'input');
-        return;
-      }
-    }
-
-    const debugNode = this.graph.createNode({
-      type: 'max/plantarium/debug',
-      position: [node.position[0] + 30, node.position[1]],
-      props: {}
-    });
-
-    if (debugNode) {
-      this.graph.createEdge(node, 0, debugNode, 'input');
-    }
-  }
-
   copyNodes() {
     if (this.activeNodeId === -1 && !this.selectedNodes?.size) {
       return;
@@ -238,6 +211,14 @@ export class GraphState {
       nodes: nodes,
       edges: edges
     };
+  }
+
+  unGroupSelectedNodes() {
+    return this.graph.ungroupNode(this.activeNodeId);
+  }
+
+  groupSelectedNodes() {
+    return this.graph.groupNodes([...this.selectedNodes.keys(), this.activeNodeId]);
   }
 
   centerNode(node?: NodeInstance) {
@@ -301,7 +282,7 @@ export class GraphState {
         if (edge[3] === index) {
           node = edge[0];
           index = edge[1];
-          position = getSocketPosition(node, index);
+          position = this.getSocketPosition(node, index);
           this.graph.removeEdge(edge);
           break;
         }
@@ -321,7 +302,7 @@ export class GraphState {
         return {
           node,
           index,
-          position: getSocketPosition(node, index)
+          position: this.getSocketPosition(node, index)
         };
       });
   }
@@ -358,7 +339,8 @@ export class GraphState {
         for (const node of this.graph.nodes.values()) {
           const x = node.position[0];
           const y = node.position[1];
-          const height = getNodeHeight(node.state.type!);
+          const nodeType = this.graph.getNodeType(node);
+          const height = nodeType ? getNodeHeight(nodeType) : 20;
           if (downX > x && downX < x + 20 && downY > y && downY < y + height) {
             clickedNodeId = node.id;
             break;
@@ -370,7 +352,8 @@ export class GraphState {
   }
 
   isNodeInView(node: NodeInstance) {
-    const height = getNodeHeight(node.state.type!);
+    if (!node) return false;
+    const height = getNodeHeight(this.graph.getNodeType(node)!);
     const width = 20;
     return node.position[0] > this.cameraBounds[0] - width
       && node.position[0] < this.cameraBounds[1]
@@ -380,5 +363,58 @@ export class GraphState {
 
   openNodePalette() {
     this.addMenuPosition = [this.mousePosition[0], this.mousePosition[1]];
+  }
+
+  enterGroupNode() {
+    if (this.activeNodeId === -1) return;
+    const node = this.graph.getNode(this.activeNodeId);
+    if (!node || node.type !== '__internal/group/instance') return;
+    const ok = this.graph.enterGroup(this.activeNodeId);
+    if (ok) {
+      this.activeNodeId = -1;
+      this.clearSelection();
+    }
+  }
+
+  exitGroupNode() {
+    const result = this.graph.exitGroup();
+    if (!result) return;
+    this.activeNodeId = result.nodeId;
+    this.clearSelection();
+  }
+
+  getSocketPosition(
+    node: NodeInstance,
+    index: string | number
+  ): [number, number] {
+    if (node.type === '__internal/group/input' && typeof index === 'number') {
+      return [
+        (node?.state?.x ?? node.position[0]) + 20,
+        (node?.state?.y ?? node.position[1]) + 2.5 + 5 * index + 5
+      ];
+    }
+
+    if (typeof index === 'number') {
+      return [
+        (node?.state?.x ?? node.position[0]) + 20,
+        (node?.state?.y ?? node.position[1]) + 2.5 + 10 * index
+      ];
+    } else {
+      let height = 5;
+      const nodeType = this.graph.getNodeType(node)!;
+      const inputs = nodeType.inputs || {};
+      for (const inputKey in inputs) {
+        const h = getParameterHeight(nodeType, inputKey) / 10;
+        if (inputKey === index) {
+          height += h / 2;
+          break;
+        }
+        height += h;
+      }
+      return [
+        node?.state?.x ?? node.position[0],
+        (node?.state?.y ?? node.position[1]) + height
+      ];
+    }
   }
 }

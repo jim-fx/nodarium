@@ -6,7 +6,8 @@
     "qa": "pnpm lint && pnpm check && pnpm test",
     "format": "pnpm dprint fmt",
     "format:check": "pnpm dprint check",
-    "test": "pnpm run -r --parallel test",
+    "test:e2e": "pnpm run -r --parallel test:e2e",
+    "test:unit": "pnpm run -r --parallel test:unit",
     "check": "pnpm run -r --parallel check",
     "build": "pnpm build:nodes && pnpm build:app",
     "build:app": "BASE_PATH=/ui pnpm -r --filter 'ui' build && pnpm -r --filter 'app'... build",
@@ -19,6 +20,6 @@
   "packageManager": "pnpm@10.28.1+sha512.7d7dbbca9e99447b7c3bf7a73286afaaf6be99251eb9498baefa7d406892f67b879adb3a1d7e687fc4ccc1a388c7175fbaae567a26ab44d1067b54fcb0d6a316",
   "devDependencies": {
     "chokidar-cli": "catalog:",
-    "dprint": "^0.51.1"
+    "dprint": "^0.54.0"
   }
 }

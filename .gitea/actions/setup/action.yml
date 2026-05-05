@@ -1,0 +1,28 @@
+name: Setup
+description: Restore caches and install pnpm dependencies (run after checkout)
+
+runs:
+  using: composite
+  steps:
+    - name: 💾 Setup pnpm Cache
+      uses: actions/cache@v4
+      with:
+        path: .pnpm-store
+        key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-
+
+    - name: 🦀 Cache Cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: 📦 Install Dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile --store-dir .pnpm-store

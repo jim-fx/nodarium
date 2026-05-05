@@ -76,6 +76,24 @@ export type Socket = {
 
 export type Edge = [NodeInstance, number, NodeInstance, string];
 
+const SerializedEdgeSchema = z.tuple([z.number(), z.number(), z.number(), z.string()]);
+
+export type SerializedEdge = z.infer<typeof SerializedEdgeSchema>;
+
+export const GroupSchema = z.object({
+  id: z.number(),
+  name: z.string().optional(),
+  nodes: z.array(NodeSchema),
+  edges: z.array(z.tuple([z.number(), z.number(), z.number(), z.string()])),
+  inputs: z.record(z.string(), NodeInputSchema).optional(),
+  outputs: z.array(z.object({
+    type: z.string(),
+    label: z.string().optional()
+  })).optional()
+});
+
+export type GroupDefinition = z.infer<typeof GroupSchema>;
+
 export const GraphSchema = z.object({
   id: z.number(),
   meta: z
@@ -86,7 +104,8 @@ export const GraphSchema = z.object({
     .optional(),
   settings: z.record(z.string(), z.any()).optional(),
   nodes: z.array(NodeSchema),
-  edges: z.array(z.tuple([z.number(), z.number(), z.number(), z.string()]))
+  edges: z.array(SerializedEdgeSchema),
+  groups: z.array(GroupSchema)
 });
 
 export type Graph = z.infer<typeof GraphSchema>;

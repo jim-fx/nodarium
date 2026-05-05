@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createKeyMap } from '$lib/helpers/createKeyMap';
   import type { Graph, NodeInstance, NodeRegistry } from '@nodarium/types';
+  import { onMount } from 'svelte';
   import { GraphManager } from '../graph-manager.svelte';
   import { GraphState, setGraphManager, setGraphState } from '../graph-state.svelte';
   import { setupKeymaps } from '../keymaps';
@@ -28,6 +29,7 @@
     graph,
     registry,
     safePadding,
+    // eslint-disable-next-line no-useless-assignment
     settings = $bindable(),
     activeNode = $bindable(),
     backgroundType = $bindable('grid'),
@@ -82,7 +84,7 @@
 
   manager.on('save', (save) => onsave?.(save));
 
-  $effect(() => {
+  onMount(() => {
     if (graph) {
       manager.load(graph);
     }

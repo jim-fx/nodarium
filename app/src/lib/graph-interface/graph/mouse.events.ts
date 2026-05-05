@@ -190,7 +190,7 @@ export class MouseEventManager {
     // if we clicked on a node
     if (clickedNodeId !== -1) {
       if (event.ctrlKey && event.shiftKey) {
-        this.state.tryConnectToDebugNode(clickedNodeId);
+        this.graph.tryConnectToDebugNode(clickedNodeId);
         return;
       }
       if (this.state.activeNodeId === -1) {
