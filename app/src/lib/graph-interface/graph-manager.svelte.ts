@@ -559,9 +559,9 @@ export class GraphManager extends EventEmitter<{
           label: '',
           value: node.props?.groupId,
           internal: true,
-          options: this.graph.groups.map((g, i) => ({
+          options: this.graph.groups.map((g) => ({
             value: g.id,
-            label: g.name || `Group ${i + 1}`
+            label: g.name || `Group#${g.id}`
           }))
         },
         ...defaultInputs
@@ -863,7 +863,7 @@ export class GraphManager extends EventEmitter<{
       inputs[`input_${i}`] = input as NodeInput;
     });
 
-    const outputs = [...groupOutputs.values()].map((edge, i) => ({
+    const outputs = [groupOutputs.values().next().value!].map((edge, i) => ({
       label: `Output ${i}`,
       type: edge[2].state.type?.inputs?.[edge[3]].type || '*'
     }));

@@ -259,7 +259,7 @@
           graph={pm.graph}
           bind:this={graphInterface}
           registry={nodeRegistry}
-          safePadding={{ right: sidebarOpen ? 320 : undefined }}
+          safePadding={{ right: sidebarOpen ? 321 : undefined }}
           backgroundType={appSettings.value.nodeInterface.backgroundType}
           snapToGrid={appSettings.value.nodeInterface.snapToGrid}
           bind:activeNode

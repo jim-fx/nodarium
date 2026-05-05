@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { GraphManager } from '$lib/graph-interface/graph-manager.svelte';
   import type { NodeInstance } from '@nodarium/types';
+  import InputSelect from '../../../../../packages/ui/src/lib/inputs/InputSelect.svelte';
 
   type Props = {
     manager: GraphManager;
@@ -55,6 +56,22 @@
         value={groupName}
         oninput={handleRename}
       />
+
+      <label for="group-name">Group Inputs</label>
+      <div>
+        {#each Object.keys(activeGroup?.inputs ?? {}) as key (key)}
+          <div class="flex">
+            <InputSelect
+              value={activeGroup.inputs?.[key].type}
+              options={['seed', 'float', 'boolean']}
+            />
+            <input type="text" placeholder="Input {key}" />
+            <button>
+              🥊
+            </button>
+          </div>
+        {/each}
+      </div>
     </div>
   {/key}
 {/if}

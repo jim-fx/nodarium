@@ -204,6 +204,13 @@
 
   .input-boolean > label {
     order: 2;
+    font-size: 1em;
+    opacity: 0.9;
+  }
+
+  label {
+    font-size: 0.8em;
+    opacity: 0.7;
   }
 
   .first-level.input {

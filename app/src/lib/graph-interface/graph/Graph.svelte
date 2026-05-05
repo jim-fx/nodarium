@@ -154,8 +154,11 @@
   <label for="drop-zone"></label>
 
   {#if graph.isInsideGroup}
-    <button class="exit-group" onclick={() => graphState.exitGroupNode()}>
-      ↑ Exit Group
+    <button
+      class="exit-group flex items-center gap-1 p-1 text-sm px-2 bg-layer-2"
+      onclick={() => graphState.exitGroupNode()}
+    >
+      <span class="i-[tabler--arrow-left]"></span>Exit Group
     </button>
     <p class="group-name absolute">
       Group <b>{getGroupName()}</b>
@@ -283,13 +286,9 @@
     position: absolute;
     top: 12px;
     left: 12px;
-    z-index: 1000;
-    padding: 4px 12px;
-    background: var(--color-layer-2);
+    z-index: 10;
     border: 1px solid var(--stroke);
     border-radius: 4px;
-    color: inherit;
-    font-size: 0.85em;
     cursor: pointer;
     opacity: 0.85;
   }
