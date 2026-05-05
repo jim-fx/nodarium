@@ -172,6 +172,7 @@
   config={tutorialConfig}
   actions={{
     'setup-default': () => {
+      console.log('setup-default');
       const ts = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       pm.handleCreateProject(
         structuredClone(templates.defaultPlant) as unknown as Graph,
@@ -179,15 +180,16 @@
       );
     },
     'load-tutorial-template': () => {
+      console.log('load-tutorial-template');
       if (!pm.graph) return;
       const g = structuredClone(templates.tutorial) as unknown as Graph;
       g.id = pm.graph.id;
       g.meta = { ...pm.graph.meta };
-      pm.graph = g;
-      pm.saveGraph(g);
+      manager.load(g);
       graphInterface.state.centerNode(graphInterface.manager.getAllNodes()[0]);
     },
     'open-github-nodes': () => {
+      console.log('open-github-nodes');
       window.open(
         'https://github.com/jim-fx/nodarium/tree/main/nodes/max/plantarium',
         '__blank'
