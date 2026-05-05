@@ -7,6 +7,7 @@
   import AddMenu from '../components/AddMenu.svelte';
   import BoxSelection from '../components/BoxSelection.svelte';
   import Camera from '../components/Camera.svelte';
+  import GroupBreadcrumps from '../components/GroupBreadcrumps.svelte';
   import HelpView from '../components/HelpView.svelte';
   import Debug from '../debug/Debug.svelte';
   import EdgeEl from '../edges/Edge.svelte';
@@ -109,13 +110,15 @@
     return nodeType?.outputs?.[index] || 'unknown';
   }
 
-  function getGroupName() {
-    const groupId = graph.graphStack.at(-1)?.groupId;
-    if (groupId !== undefined) {
-      const group = graph.getGroup(groupId);
-      return group?.name || `Group#${groupId}`;
+  let groupSize = 0;
+  $effect(() => {
+    if (graph.graph.groups.length > groupSize) {
+      groupSize = graph.graph.groups.length;
     }
-  }
+    if (graph.graph.groups.length < groupSize) {
+      console.error('We have lost a group!');
+    }
+  });
 </script>
 
 <svelte:window
@@ -142,7 +145,6 @@
   oncontextmenu={(ev) => mouseEvents.handleContextMenu(ev)}
   {...fileDropEvents.getEventListenerProps()}
 >
-  <div class="shadow"></div>
   <input
     type="file"
     accept="application/wasm,application/json"
@@ -153,17 +155,7 @@
   />
   <label for="drop-zone"></label>
 
-  {#if graph.isInsideGroup}
-    <button
-      class="exit-group flex items-center gap-1 p-1 text-sm px-2 bg-layer-2"
-      onclick={() => graphState.exitGroupNode()}
-    >
-      <span class="i-[tabler--arrow-left]"></span>Exit Group
-    </button>
-    <p class="group-name absolute">
-      Group <b>{getGroupName()}</b>
-    </p>
-  {/if}
+  <GroupBreadcrumps />
 
   <Canvas shadows={false} renderMode="on-demand" colorManagementEnabled={false}>
     <Camera
@@ -273,30 +265,6 @@
     height: 100%;
   }
 
-  .group-name {
-    position: absolute;
-    left: calc(50% - var(--padding-right) / 2);
-    transition: left 0.3s ease;
-    top: 12px;
-    transform: translateX(-50%);
-    z-index: 1000;
-  }
-
-  .exit-group {
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    z-index: 10;
-    border: 1px solid var(--stroke);
-    border-radius: 4px;
-    cursor: pointer;
-    opacity: 0.85;
-  }
-
-  .exit-group:hover {
-    opacity: 1;
-  }
-
   .wrapper {
     position: absolute;
     z-index: 100;
@@ -306,22 +274,6 @@
 
   .is-hovering {
     cursor: pointer;
-  }
-
-  .shadow {
-    position: absolute;
-    top: -5px;
-    left: -5px;
-    right: calc(var(--padding-right) - 5px);
-    bottom: -5px;
-    z-index: 1;
-    transition: box-shadow 0.3s ease;
-    box-shadow: 0 0 0px 0px var(--color-layer-2) inset;
-    pointer-events: none;
-  }
-
-  .is-inside-group .shadow {
-    box-shadow: 0 0 0px 8px var(--color-layer-2) inset;
   }
 
   .is-panning {

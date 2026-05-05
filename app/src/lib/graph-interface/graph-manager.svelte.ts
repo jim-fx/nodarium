@@ -1,3 +1,4 @@
+import { clone } from '$lib/helpers';
 import throttle from '$lib/helpers/throttle';
 import { RemoteNodeRegistry } from '$lib/node-registry/index';
 import type {
@@ -16,47 +17,18 @@ import { fastHashString } from '@nodarium/utils';
 import { createLogger } from '@nodarium/utils';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import EventEmitter from './helpers/EventEmitter';
+import {
+  areEdgesEqual,
+  areSocketsCompatible,
+  serializeEdge,
+  serializeNode
+} from './helpers/nodeHelpers';
 import { HistoryManager } from './history-manager';
 
 const logger = createLogger('graph-manager');
 logger.mute();
 
 const remoteRegistry = new RemoteNodeRegistry('');
-
-const clone = 'structuredClone' in globalThis
-  ? globalThis.structuredClone
-  : (args: unknown) => JSON.parse(JSON.stringify(args));
-
-function areSocketsCompatible(
-  output: string | undefined,
-  inputs: string | (string | undefined)[] | undefined
-) {
-  if (output === '*') return true;
-  if (Array.isArray(inputs) && output) {
-    return inputs.includes('*') || inputs.includes(output);
-  }
-  return inputs === output;
-}
-
-function areEdgesEqual(firstEdge: Edge, secondEdge: Edge) {
-  if (firstEdge[0].id !== secondEdge[0].id) {
-    return false;
-  }
-
-  if (firstEdge[1] !== secondEdge[1]) {
-    return false;
-  }
-
-  if (firstEdge[2].id !== secondEdge[2].id) {
-    return false;
-  }
-
-  if (firstEdge[3] !== secondEdge[3]) {
-    return false;
-  }
-
-  return true;
-}
 
 export class GraphManager extends EventEmitter<{
   save: Graph;
@@ -129,26 +101,11 @@ export class GraphManager extends EventEmitter<{
   }
 
   serialize(): Graph {
-    const nodes = Array.from(this.nodes.values()).map((node) => ({
-      id: node.id,
-      position: [...node.position],
-      type: node.type,
-      props: node.props
-    })) as NodeInstance[];
-    const edges = this.edges.map((edge) => [
-      edge[0].id,
-      edge[1],
-      edge[2].id,
-      edge[3]
-    ]) as Graph['edges'];
+    const nodes = Array.from(this.nodes.values()).map((node) => serializeNode(node));
+    const edges = this.edges.map((edge) => serializeEdge(edge));
 
     const groups = this.graph.groups?.map((group) => {
-      const groupNodes = group.nodes.map((node) => ({
-        id: node.id,
-        position: [...node.position],
-        type: node.type,
-        props: node.props
-      })) as NodeInstance[];
+      const groupNodes = group.nodes.map((node) => serializeNode(node));
 
       return {
         id: group.id,
@@ -814,12 +771,39 @@ export class GraphManager extends EventEmitter<{
     return nodes;
   }
 
+  getUnusedGroups() {
+    const usedGroupIds = new SvelteSet<number>();
+    const queue: number[] = [];
+
+    for (const node of this.nodes.values()) {
+      if (node.type === '__internal/group/instance' && node.props?.groupId !== undefined) {
+        queue.push(node.props.groupId as number);
+      }
+    }
+
+    while (queue.length) {
+      const groupId = queue.pop()!;
+      if (usedGroupIds.has(groupId)) continue;
+      usedGroupIds.add(groupId);
+      const group = this.getGroup(groupId);
+      if (!group) continue;
+      for (const node of group.nodes) {
+        if (node.type === '__internal/group/instance' && node.props?.groupId !== undefined) {
+          const childId = node.props.groupId as number;
+          if (!usedGroupIds.has(childId)) queue.push(childId);
+        }
+      }
+    }
+
+    return this.graph.groups.filter(g => !usedGroupIds.has(g.id));
+  }
+
   removeUnusedGroups() {
-    const usedGroups = new SvelteSet(this.getAllNodes().map(n => n.props?.groupId));
-    const unusedGroupAmount = this.graph.groups.length - usedGroups.size;
-    this.graph.groups = this.graph.groups.filter(g => usedGroups.has(g.id));
+    const unused = this.getUnusedGroups();
+    const unusedIds = new SvelteSet(unused.map(g => g.id));
+    this.graph.groups = this.graph.groups.filter(g => !unusedIds.has(g.id));
     this.save();
-    return unusedGroupAmount;
+    return unused.length;
   }
 
   groupNodes(nodeIds: number[]) {
@@ -863,10 +847,14 @@ export class GraphManager extends EventEmitter<{
       inputs[`input_${i}`] = input as NodeInput;
     });
 
-    const outputs = [groupOutputs.values().next().value!].map((edge, i) => ({
-      label: `Output ${i}`,
-      type: edge[2].state.type?.inputs?.[edge[3]].type || '*'
-    }));
+    const outputs = [];
+    if (groupOutputs.size) {
+      const edge = groupOutputs.values().next().value!;
+      outputs.push({
+        label: `Output`,
+        type: edge[2].state.type?.inputs?.[edge[3]].type || '*'
+      });
+    }
 
     const groupPosition = [0, 0] as [number, number];
     const bounds: Box = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };

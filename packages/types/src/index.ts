@@ -8,6 +8,7 @@ export type {
   NodeDefinition,
   NodeId,
   NodeInstance,
+  SerializedEdge,
   SerializedNode,
   Socket
 } from './types';

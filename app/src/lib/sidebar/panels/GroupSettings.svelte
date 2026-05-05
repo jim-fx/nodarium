@@ -2,6 +2,7 @@
   import type { GraphManager } from '$lib/graph-interface/graph-manager.svelte';
   import type { NodeInstance } from '@nodarium/types';
   import InputSelect from '../../../../../packages/ui/src/lib/inputs/InputSelect.svelte';
+  import UnusedGroupsPanel from './UnusedGroupsPanel.svelte';
 
   type Props = {
     manager: GraphManager;
@@ -28,18 +29,9 @@
     const name = (e.target as HTMLInputElement).value;
     if (activeGroup) manager.renameGroup(activeGroup.id, name);
   }
-
-  const hasUnusedGroups = $derived.by(() => {
-    if (!manager) return false;
-    if (manager.isInsideGroup) return false;
-    if (manager.graph.groups.length === 0) return false;
-    return manager.graph.groups.filter(g => {
-      return !manager.graph.nodes.find(n => n.props?.groupId === g.id);
-    }).length;
-  });
 </script>
 
-{#if activeGroup || hasUnusedGroups}
+{#if activeGroup}
   <div class='{node?"border-l-2 pl-3.5!":""} bg-layer-2 flex items-center h-[70px] border-b-1 border-l-selected border-b-outline pl-4'>
     <h3>Group Settings</h3>
   </div>
@@ -76,12 +68,8 @@
   {/key}
 {/if}
 
-{#if hasUnusedGroups}
-  <div class="group-actions">
-    <button onclick={() => manager.removeUnusedGroups()}>
-      Remove ({hasUnusedGroups}) orphaned groups
-    </button>
-  </div>
+{#if manager && !manager.isInsideGroup}
+  <UnusedGroupsPanel {manager} />
 {/if}
 
 <style>
@@ -109,27 +97,5 @@
 
   .group-settings input:focus {
     outline: 1px solid var(--color-active);
-  }
-
-  .group-actions {
-    padding: 0.75em 1em;
-    border-bottom: 1px solid var(--color-outline);
-    margin-top: auto;
-  }
-
-  .group-actions button {
-    width: 100%;
-    padding: 0.4em 0.8em;
-    background: var(--color-layer-1);
-    border: 1px solid var(--color-outline);
-    border-radius: 4px;
-    color: var(--color-text);
-    font-family: var(--font-family);
-    font-size: 0.85em;
-    cursor: pointer;
-  }
-
-  .group-actions button:hover {
-    border-color: var(--color-active);
   }
 </style>
