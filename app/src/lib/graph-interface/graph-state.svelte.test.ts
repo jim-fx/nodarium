@@ -88,7 +88,7 @@ describe('groupSelectedNodes', () => {
     const groupNode = state.groupSelectedNodes();
     assert.isDefined(groupNode);
 
-    expect(manager.graph.groups.length).toBe(1);
+    expect(manager.groups.length).toBe(1);
   });
 });
 
@@ -137,26 +137,6 @@ describe('exitGroupNode', () => {
     state.exitGroupNode();
     expect(manager.parentStack.length).toBe(0);
     expect(state.cameraPosition).toEqual(before);
-  });
-
-  it('restores the camera position from before entry', () => {
-    const { manager, state } = createFixture();
-
-    const nodeA = manager.createNode({ type: 'test/node/output', position: [0, 0], props: {} });
-    assert.isDefined(nodeA);
-    const groupNode = manager.groupNodes([nodeA!.id]);
-    assert.isDefined(groupNode);
-
-    state.activeNodeId = groupNode!.id;
-    state.cameraPosition = [77, 88, 4];
-
-    state.enterGroupNode();
-    // Simulate camera moving inside the group
-    state.cameraPosition = [0, 0, 1];
-
-    state.exitGroupNode();
-
-    expect(state.cameraPosition).toEqual([77, 88, 4]);
   });
 
   it('clears activeNodeId and selection after exit', () => {
