@@ -173,9 +173,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   constructor(
     private registry: NodeRegistry,
     public cache?: SyncCache<Int32Array>
-  ) {
-    this.cache = undefined;
-  }
+  ) {}
 
   private async getNodeDefinitions(graph: Graph) {
     if (this.registry.status !== 'ready') {
@@ -314,6 +312,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         continue;
       }
 
+
       a = performance.now();
 
       // Collect the inputs for the node
@@ -399,7 +398,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         log.groupEnd();
       } catch (e) {
         log.groupEnd();
-        log.error(`Error executing node ${node_type.id || node.id}`, e);
+        throw e;
       }
     }
 

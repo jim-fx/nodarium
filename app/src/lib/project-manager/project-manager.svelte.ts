@@ -19,7 +19,7 @@ export class ProjectManager {
   }
 
   async saveGraph(g: Graph) {
-    db.saveGraph(g);
+    await db.saveGraph(g);
   }
 
   private async init() {

@@ -141,6 +141,7 @@ export class RemoteNodeRegistry implements NodeRegistry {
       wrapper = createWasmWrapper(wasmBuffer);
     } catch (error) {
       console.error(`Failed to create node wrapper for node: ${id}`, error);
+      throw error;
     }
 
     const rawDefinition = wrapper.get_definition();

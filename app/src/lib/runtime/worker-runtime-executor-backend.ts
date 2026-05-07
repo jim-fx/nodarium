@@ -2,6 +2,7 @@ import { debugNode } from '$lib/node-registry/debugNode';
 import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
 import type { Graph } from '@nodarium/types';
 import { createPerformanceStore } from '@nodarium/utils';
+import * as Comlink from 'comlink';
 import { MemoryRuntimeExecutor } from './runtime-executor';
 import { MemoryRuntimeCache } from './runtime-executor-cache';
 
@@ -38,6 +39,9 @@ export async function executeGraph(
   performanceStore.startRun();
   const res = await executor.execute(graph, settings);
   performanceStore.stopRun();
+  if (res?.buffer) {
+    return Comlink.transfer(res, [res.buffer]);
+  }
   return res;
 }
 

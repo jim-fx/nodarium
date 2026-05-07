@@ -38,7 +38,7 @@ export function serializeNode(node: SerializedNode | NodeInstance): SerializedNo
     id: node.id,
     position: [...node.position],
     type: node.type,
-    props: node.props
+    props: node.props ? JSON.parse(JSON.stringify(node.props)) : undefined
   };
 }
 
