@@ -46,7 +46,10 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter') { e.preventDefault(); confirm(); }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      confirm();
+    }
   }
 
   function handleCancel(e: Event) {
@@ -61,7 +64,9 @@
   class="m-auto bg-layer-1 border border-outline rounded-md p-0 text-text max-w-md w-full backdrop:bg-black/50"
   oncancel={handleCancel}
   onkeydown={handleKeydown}
-  onclick={(e) => { if (e.target === dialogEl) cancel(); }}
+  onclick={(e) => {
+    if (e.target === dialogEl) cancel();
+  }}
 >
   <div class="px-6 py-5 flex flex-col gap-3">
     <h3 class="m-0 text-sm font-semibold">{title}</h3>

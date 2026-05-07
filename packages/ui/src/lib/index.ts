@@ -9,13 +9,13 @@ export { default as InputVec3 } from './inputs/InputVec3.svelte';
 export { default as SocketTable } from './inputs/SocketTable.svelte';
 
 export { default as Button } from './Button.svelte';
+export { default as ConfirmDialog } from './ConfirmDialog.svelte';
 export { default as Details } from './Details.svelte';
 export { default as JsonViewer } from './JsonViewer.svelte';
 export { default as ShortCut } from './ShortCut.svelte';
 export { default as Spinner } from './Spinner.svelte';
 export { default as Toast } from './Toast.svelte';
 export { toast } from './toast.svelte';
-export { default as ConfirmDialog } from './ConfirmDialog.svelte';
 
 import Input from './Input.svelte';
 export default Input;

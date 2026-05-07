@@ -14,7 +14,9 @@
     title="Fit to view (.)"
     onclick={() => graphState.centerNode()}
     aria-label="Fit nodes to view"
-  >⊡</button>
+  >
+    ⊡
+  </button>
   <span>{Math.round(graphState.cameraPosition[2] * 10)}%</span>
 </div>
 
