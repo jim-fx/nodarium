@@ -46,7 +46,7 @@
       class="h-full w-8 cursor-pointer appearance-none p-0"
     />
   </label>
-  <div class="flex items-center gap-1 px-2 py-1">
+  <div class="flex items-center gap-1 px-2 py-1 border-l border-outline">
     <span class="pointer-events-none text-text opacity-30">#</span>
     <input
       type="text"
@@ -64,5 +64,6 @@
     margin-top: -1px;
     margin-right: -1px;
     height: calc(100% + 2px);
+    width: calc(100% + 2px);
   }
 </style>
