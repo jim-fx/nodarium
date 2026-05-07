@@ -7,7 +7,7 @@
   import { debugNode } from '$lib/node-registry/debugNode';
   import { groupNode } from '$lib/node-registry/groupNode.js';
   import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
-  import NodeStore from '$lib/node-store/NodeStore.svelte';
+
   import PerformanceViewer from '$lib/performance/PerformanceViewer.svelte';
   import { ProjectManager } from '$lib/project-manager/project-manager.svelte';
   import ProjectManagerEl from '$lib/project-manager/ProjectManager.svelte';
@@ -35,6 +35,7 @@
 
   let performanceStore = createPerformanceStore();
   let planty = $state<ReturnType<typeof Planty>>();
+  let pendingSave = false;
 
   const { data } = $props();
 
@@ -52,8 +53,8 @@
   );
 
   $effect(() => {
-    workerRuntime.useRegistryCache = appSettings.value.debug.cache.useRuntimeCache;
-    workerRuntime.useRuntimeCache = appSettings.value.debug.cache.useRegistryCache;
+    workerRuntime.useRegistryCache = appSettings.value.debug.cache.useRegistryCache;
+    workerRuntime.useRuntimeCache = appSettings.value.debug.cache.useRuntimeCache;
 
     if (appSettings.value.debug.cache.useRegistryCache) {
       nodeRegistry.cache = registryCache;
@@ -66,6 +67,16 @@
     } else {
       memoryRuntime.cache = undefined;
     }
+  });
+
+  $effect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (pendingSave) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
   });
 
   let activeNode = $state<NodeInstance | undefined>(undefined);
@@ -288,7 +299,7 @@
             bind:showHelp={appSettings.value.nodeInterface.showHelp}
             bind:settings={graphSettings}
             bind:settingTypes={graphSettingTypes}
-            onsave={(g) => pm.saveGraph(g)}
+            onsave={async (g) => { pendingSave = true; await pm.saveGraph(g); pendingSave = false; }}
             onresult={(result) => handleUpdate(result as Graph)}
           />
         {/key}
@@ -317,15 +328,7 @@
         <Panel id="exports" title="Exporter" icon="i-[tabler--package-export]">
           <ExportSettings {scene} />
         </Panel>
-        {#if 0 > 1}
-          <Panel
-            id="node-store"
-            title="Node Store"
-            icon="i-[tabler--database] bg-green-400"
-          >
-            <NodeStore registry={nodeRegistry} />
-          </Panel>
-        {/if}
+
         <Panel
           id="performance"
           title="Performance"
