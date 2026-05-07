@@ -13,19 +13,28 @@
       "max": 1,
       "value": 1
     },
-    "curviness": {
-      "type": "float",
-      "hidden": true,
-      "min": 0,
-      "max": 1,
-      "value": 0.5
-    },
     "depth": {
       "type": "integer",
       "min": 1,
       "max": 10,
       "hidden": true,
       "value": 1
+    },
+    "elasticity": {
+      "type": "float",
+      "description": "How rigid the stem is. 0 = rope (uniform droop), 1 = stiff rod (only the tip bends).",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "value": 0.3
+    },
+    "mode": {
+      "type": "select",
+      "internal": true,
+      "label": "Mode",
+      "options": ["closed-form", "chain"],
+      "hidden": true,
+      "description": "closed-form lerps each segment toward gravity; chain is a forward-kinematic cantilever where each segment rotates by an angle that grows along the stem."
     }
   }
 }

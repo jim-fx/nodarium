@@ -32,7 +32,7 @@ function writePath(scene: Group, data: Int32Array): Vector3[] {
 
   // Instanced spheres at points
   if (positions.length > 0) {
-    const sphereGeometry = new SphereGeometry(0.05, 8, 8); // keep low-poly
+    const sphereGeometry = new SphereGeometry(0.02, 8, 8); // keep low-poly
     const sphereMaterial = new MeshBasicMaterial({
       color: 0xff0000,
       depthTest: false

@@ -8,5 +8,6 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+glam = "0.30.10"
 nodarium_macros = { version = "0.1.0", path = "../../../../packages/macros" }
 nodarium_utils = { version = "0.1.0", path = "../../../../packages/utils" }

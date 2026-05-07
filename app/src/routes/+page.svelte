@@ -299,7 +299,11 @@
             bind:showHelp={appSettings.value.nodeInterface.showHelp}
             bind:settings={graphSettings}
             bind:settingTypes={graphSettingTypes}
-            onsave={async (g) => { pendingSave = true; await pm.saveGraph(g); pendingSave = false; }}
+            onsave={async (g) => {
+              pendingSave = true;
+              await pm.saveGraph(g);
+              pendingSave = false;
+            }}
             onresult={(result) => handleUpdate(result as Graph)}
           />
         {/key}

@@ -134,6 +134,14 @@ function getValue(input: NodeInput, value?: unknown) {
     return encodeFloat(value as number);
   }
 
+  if (input.type === 'select' && typeof value !== 'number') {
+    const index = input.options?.indexOf(value as string);
+    if (index === undefined || index < 0) {
+      throw new Error(`Unknown value ${value} for select input ${input.label}`);
+    }
+    return index;
+  }
+
   if (Array.isArray(value)) {
     if (input.type === 'vec3' || input.type === 'shape') {
       return [
@@ -158,6 +166,8 @@ function getValue(input: NodeInput, value?: unknown) {
   if (value instanceof Int32Array) {
     return value;
   }
+
+  console.log({ input, value });
 
   throw new Error(`Unknown input type ${input.type}`);
 }
@@ -311,7 +321,6 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         log.warn(`Node ${node.id} has no definition`);
         continue;
       }
-
 
       a = performance.now();
 

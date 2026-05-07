@@ -15,9 +15,9 @@
     },
     "strength": {
       "type": "float",
-      "min": 0.1,
-      "max": 10,
-      "value": 2
+      "min": 0,
+      "max": 1,
+      "value": 0.5
     },
     "fixBottom": {
       "type": "float",
@@ -56,7 +56,8 @@
     "preserveLength": {
       "type": "boolean",
       "label": "Preserve length",
-      "value": true
+      "value": true,
+      "hidden": true
     }
   }
 }

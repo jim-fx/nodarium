@@ -19,6 +19,33 @@
       "max": 64,
       "value": 1,
       "hidden": true
+    },
+    "yCurve": {
+      "type": "float",
+      "description": "Curl the leaf upward along its length (radians). 0 = flat, ~1.57 = 90° tip curl.",
+      "min": -3.14,
+      "max": 3.14,
+      "step": 0.05,
+      "value": 0,
+      "hidden": true
+    },
+    "yTwist": {
+      "type": "float",
+      "description": "Twist around the leaf's spine. Combined with yCurve, produces a 3D spiral.",
+      "min": -6.28,
+      "max": 6.28,
+      "step": 0.05,
+      "value": 0,
+      "hidden": true
+    },
+    "xCurve": {
+      "type": "float",
+      "description": "Curl each cross-section into an arc, mirrored around the midrib. 0 = flat, ~1.57 = U-shape.",
+      "min": -3.14,
+      "max": 3.14,
+      "step": 0.05,
+      "value": 0,
+      "hidden": true
     }
   }
 }

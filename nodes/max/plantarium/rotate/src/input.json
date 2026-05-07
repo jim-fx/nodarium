@@ -29,7 +29,7 @@
       "type": "boolean",
       "internal": true,
       "hidden": true,
-      "value": true,
+      "value": false,
       "description": "If multiple objects are connected, should we rotate them as one or spread them?"
     }
   }
