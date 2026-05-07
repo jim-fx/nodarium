@@ -78,7 +78,9 @@ pub fn execute(input: &[i32]) -> Vec<i32> {
                 continue;
             }
 
-            let branch_direction = rotate_vector_by_angle(orthogonal, direction, rotation_angle);
+            let up_angle = evaluate_float(args[10]) * PI / 180.0;
+            let tilted = (orthogonal * up_angle.cos() + direction * up_angle.sin()).normalize();
+            let branch_direction = rotate_vector_by_angle(tilted, direction, rotation_angle);
 
             log!(
                 "BRANCH depth: {}, branch_origin: {:?}, direction_at: {:?}, branch_direction: {:?}",
