@@ -33,6 +33,7 @@
 <script lang="ts">
   import { browser } from '$app/environment';
   import JsonViewer from './JsonViewer.svelte';
+  import { toast } from './toast.svelte';
 
   let {
     value,
@@ -70,6 +71,11 @@
   let prevJson = '';
   let flashTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  function copyValue() {
+    navigator.clipboard.writeText(JSON.stringify(key ? { [key]: value } : value, null, 2));
+    toast('Value copied to clipboard', 'success');
+  }
+
   $effect(() => {
     const json = JSON.stringify(value);
     if (prevJson && json !== prevJson) {
@@ -92,7 +98,7 @@
     <button
       class="text-text hover:bg-layer-3 cursor-pointer"
       title="Copy value"
-      onclick={() => navigator.clipboard.writeText(JSON.stringify({ [key]: value }, null, 2))}
+      onclick={() => copyValue()}
     >
       {key}
     </button><span class="text-text/40">: </span>
