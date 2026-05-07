@@ -207,6 +207,7 @@ export function createInstancedGeometryPool(
       existingInstance
       && instanceCount > existingInstance.geometry.userData.count
     ) {
+      existingInstance.geometry.dispose();
       scene.remove(existingInstance);
       instances.splice(instances.indexOf(existingInstance), 1);
       existingInstance = new InstancedMesh(geometry, material, instanceCount);
