@@ -2,15 +2,21 @@
   import type { NodeInput } from '@nodarium/types';
   import '$lib/app.css';
   import {
+    Button,
+    ConfirmDialog,
     Details,
     InputCheckbox,
     InputColor,
     InputNumber,
+    InputSearch,
     InputSelect,
     InputShape,
     InputVec3,
     JsonViewer,
-    ShortCut
+    ShortCut,
+    Spinner,
+    Toast,
+    toast
   } from '$lib';
   import SocketTable from '$lib/inputs/SocketTable.svelte';
   import Section from './Section.svelte';
@@ -68,6 +74,7 @@
 
   let points = $state([]);
   let theme = $state('dark');
+  let confirmOpen = $state(false);
 </script>
 
 <main class="flex flex-col gap-8 py-8">
@@ -75,6 +82,17 @@
     <h1 class="text-4xl">@nodarium/ui</h1>
     <ThemeSelector bind:theme />
   </div>
+
+  <Section title="Button">
+    <div class="flex flex-wrap gap-3 items-center">
+      <Button>Default</Button>
+      <Button variant="primary">Primary</Button>
+      <Button variant="destructive">Destructive</Button>
+      <Button variant="ghost">Ghost</Button>
+      <Button disabled>Disabled</Button>
+      <Button size="sm">Small</Button>
+    </div>
+  </Section>
 
   <Section title="InputNumber">
     <Theme />
@@ -93,6 +111,13 @@
 
   <Section title="Vec3" value={JSON.stringify(vecValue)}>
     <InputVec3 bind:value={vecValue} />
+  </Section>
+
+  <Section title="InputSearch" value={options[selectValue]}>
+    <div class="flex flex-col gap-2">
+      <p>Searchable select — type to filter</p>
+      <InputSearch bind:value={selectValue} {options} />
+    </div>
   </Section>
 
   <Section title="Select">
@@ -148,12 +173,12 @@
 
   <Section title="JsonViewer">
     {#snippet header()}
-      <button
+      <Button
         onclick={() => randomlyUpdateJson()}
         class="-mt-1 bg-layer-2 p-1 px-2 rounded-sm cursor-pointer"
       >
         update
-      </button>
+      </Button>
     {/snippet}
     <div class="w-64 bg-layer-1 p-2 rounded">
       <JsonViewer
@@ -182,7 +207,45 @@
       <ShortCut alt ctrl key="delete" />
     </div>
   </Section>
+
+  <Section title="Spinner">
+    <div class="flex gap-6 items-center">
+      <Spinner size={16} />
+      <Spinner size={24} />
+      <Spinner size={36} />
+    </div>
+  </Section>
+
+  <Section title="Toast">
+    <div class="flex gap-3">
+      <Button onclick={() => toast('Project saved successfully', 'success')}>
+        Success toast
+      </Button>
+      <Button onclick={() => toast('Something went wrong', 'error')}>
+        Error toast
+      </Button>
+      <Button onclick={() => toast('Graph is executing…', 'info')}>
+        Info toast
+      </Button>
+    </div>
+  </Section>
+
+  <Section title="ConfirmDialog">
+    <Button onclick={() => (confirmOpen = true)}>
+      Open dialog
+    </Button>
+    <ConfirmDialog
+      bind:open={confirmOpen}
+      title="Delete project?"
+      message="This action cannot be undone. The project and all its data will be permanently removed."
+      confirmLabel="Delete"
+      cancelLabel="Cancel"
+      onconfirm={() => toast('Project deleted', 'error')}
+    />
+  </Section>
 </main>
+
+<Toast />
 
 <style>
   main {
