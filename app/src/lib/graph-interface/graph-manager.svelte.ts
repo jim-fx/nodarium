@@ -1,4 +1,4 @@
-import { clone } from '$lib/helpers';
+import { clone, debounce } from '$lib/helpers';
 import throttle from '$lib/helpers/throttle';
 import { RemoteNodeRegistry } from '$lib/node-registry/index';
 import type {
@@ -309,17 +309,18 @@ export class GraphManager extends EventEmitter<{
       this.nodes.set(n.id, n);
     }
 
-    this.edges = graph.edges.map((edge) => {
+    this.edges = graph.edges.flatMap((edge) => {
       const from = this.nodes.get(edge[0]);
       const to = this.nodes.get(edge[2]);
       if (!from || !to) {
-        throw new Error('Edge references non-existing node');
+        log.warn('Dropping orphaned edge', edge);
+        return [];
       }
       from.state.children = from.state.children || [];
       from.state.children.push(to);
       to.state.parents = to.state.parents || [];
       to.state.parents.push(from);
-      return [from, edge[1], to, edge[3]] as Edge;
+      return [[from, edge[1], to, edge[3]] as Edge];
     });
 
     this.execute();
@@ -657,9 +658,9 @@ export class GraphManager extends EventEmitter<{
     const inputs = Object.entries(to.state?.type?.inputs ?? {});
     const outputs = from.state?.type?.outputs ?? [];
     for (let i = 0; i < inputs.length; i++) {
-      const [inputName, input] = inputs[0];
+      const [inputName, input] = inputs[i];
       for (let o = 0; o < outputs.length; o++) {
-        const output = outputs[0];
+        const output = outputs[o];
         if (input.type === output) {
           return this.createEdge(from, o, to, inputName);
         }
@@ -1239,20 +1240,18 @@ export class GraphManager extends EventEmitter<{
     this.save();
   }
 
+  private _emitSave = debounce(() => {
+    if (this.nodes.size === 0 && this.edges.length === 0) return;
+    const state = this.serialize();
+    this.emit('save', state);
+    log.log('saving graphs', state);
+  }, 300);
+
   save() {
     if (this.currentUndoGroup) return;
-    const state = this.serialize();
-    this.history.save(state);
-
-    // This is some stupid race condition where the graph-manager emits a save event
-    // when the graph is not fully loaded
-    if (this.nodes.size === 0 && this.edges.length === 0) {
-      return;
-    }
-
-    const fullState = this.serialize();
-    this.emit('save', fullState);
-    log.log('saving graphs', fullState);
+    // History snapshot is immediate; the IDB emit is debounced.
+    this.history.save(this.serialize());
+    this._emitSave();
   }
 
   getParentsOfNode(node: NodeInstance) {

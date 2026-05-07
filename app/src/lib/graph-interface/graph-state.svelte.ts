@@ -1,4 +1,4 @@
-import { animate, lerp } from '$lib/helpers';
+import { animate, debounce, lerp } from '$lib/helpers';
 import type { NodeInstance, SerializedEdge, SerializedNode, Socket } from '@nodarium/types';
 import { getContext, setContext } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -62,12 +62,20 @@ export class GraphState {
   colors = new ColorGenerator(predefinedColors);
 
   constructor(private graph: GraphManager) {
+    const saveCameraPosition = debounce(() => {
+      localStorage.setItem(
+        'cameraPosition',
+        `[${this.cameraPosition[0]},${this.cameraPosition[1]},${this.cameraPosition[2]}]`
+      );
+    }, 500);
+
     $effect.root(() => {
       $effect(() => {
-        localStorage.setItem(
-          'cameraPosition',
-          `[${this.cameraPosition[0]},${this.cameraPosition[1]},${this.cameraPosition[2]}]`
-        );
+        // Read values to subscribe to reactivity, then flush lazily.
+        void this.cameraPosition[0];
+        void this.cameraPosition[1];
+        void this.cameraPosition[2];
+        saveCameraPosition();
       });
     });
     const storedPosition = localStorage.getItem('cameraPosition');
@@ -157,6 +165,27 @@ export class GraphState {
     this.edges.delete(edgeId);
   }
 
+  private _dirtyPositions = new Set<NodeInstance>();
+  private _positionFlushPending = false;
+
+  private _flushPositions() {
+    for (const node of this._dirtyPositions) {
+      if (node.state['x'] !== undefined && node.state['y'] !== undefined) {
+        if (node.state.ref) {
+          node.state.ref.style.setProperty('--nx', `${node.state.x * 10}px`);
+          node.state.ref.style.setProperty('--ny', `${node.state.y * 10}px`);
+        }
+      } else {
+        if (node.state.ref) {
+          node.state.ref.style.setProperty('--nx', `${node.position[0] * 10}px`);
+          node.state.ref.style.setProperty('--ny', `${node.position[1] * 10}px`);
+        }
+      }
+    }
+    this._dirtyPositions.clear();
+    this._positionFlushPending = false;
+  }
+
   updateNodePosition(node: NodeInstance) {
     if (
       node.state.x === node.position[0]
@@ -166,16 +195,10 @@ export class GraphState {
       delete node.state.y;
     }
 
-    if (node.state['x'] !== undefined && node.state['y'] !== undefined) {
-      if (node.state.ref) {
-        node.state.ref.style.setProperty('--nx', `${node.state.x * 10}px`);
-        node.state.ref.style.setProperty('--ny', `${node.state.y * 10}px`);
-      }
-    } else {
-      if (node.state.ref) {
-        node.state.ref.style.setProperty('--nx', `${node.position[0] * 10}px`);
-        node.state.ref.style.setProperty('--ny', `${node.position[1] * 10}px`);
-      }
+    this._dirtyPositions.add(node);
+    if (!this._positionFlushPending) {
+      this._positionFlushPending = true;
+      requestAnimationFrame(() => this._flushPositions());
     }
   }
 
