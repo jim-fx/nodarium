@@ -1,3 +1,4 @@
+import { toast } from '@nodarium/ui';
 import { GraphSchema, type NodeId } from '@nodarium/types';
 import type { GraphManager } from '../graph-manager.svelte';
 import type { GraphState } from '../graph-state.svelte';
@@ -41,6 +42,9 @@ export class FileDropEventManager {
           props,
           position: pos
         });
+      }).catch((e) => {
+        toast(`Failed to load node: ${nodeId}`, 'error');
+        console.error(e);
       });
     } else if (event.dataTransfer.files.length) {
       const file = event.dataTransfer.files[0];
@@ -65,8 +69,13 @@ export class FileDropEventManager {
         reader.onload = (e) => {
           const buffer = e.target?.result as ArrayBuffer;
           if (buffer) {
-            const state = GraphSchema.parse(JSON.parse(buffer.toString()));
-            this.graph.load(state);
+            try {
+              const state = GraphSchema.parse(JSON.parse(buffer.toString()));
+              this.graph.load(state);
+            } catch (e) {
+              toast('Failed to load graph: invalid file', 'error');
+              console.error(e);
+            }
           }
         };
         reader.readAsText(file);
