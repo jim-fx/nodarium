@@ -475,6 +475,35 @@ export class GraphManager extends EventEmitter<{
     // Construct the group inputs on the fly
     if (node.type === '__internal/group/instance') {
       const groupId = node.props?.groupId as number;
+
+      let options = this.groups.map((g) => ({
+        value: g.id,
+        label: g.name || `Group#${g.id}`
+      })).filter((g) => {
+        const activeIds = new SvelteSet([
+          ...this.parentStack.filter(e => e.id !== this.id).map(e => e.id),
+          ...(this.currentGroupId !== null ? [this.currentGroupId] : [])
+        ]);
+        return !activeIds.has(g.value);
+      });
+
+      // Handle if multiple groups have the same name, by adding the groupid
+      const groupNames = new SvelteMap<string, number>();
+      for (const o of options) {
+        const value = groupNames.get(o.label) || 0;
+        groupNames.set(o.label, value + 1);
+      }
+      options = options.map(o => {
+        const amount = groupNames.get(o.label) || 0;
+        if (amount > 1) {
+          return {
+            label: `${o.label}#${o.value}`,
+            value: o.value
+          };
+        }
+        return o;
+      });
+
       if (!groupId) {
         return {
           ...node.state.type,
@@ -488,16 +517,7 @@ export class GraphManager extends EventEmitter<{
               label: '',
               value: this.groups?.[0]?.id,
               internal: true,
-              options: this.groups.map((g) => ({
-                value: g.id,
-                label: g.name || `Group#${g.id}`
-              })).filter((g) => {
-                const activeIds = new SvelteSet([
-                  ...this.parentStack.filter(e => e.id !== this.id).map(e => e.id),
-                  ...(this.currentGroupId !== null ? [this.currentGroupId] : [])
-                ]);
-                return !activeIds.has(g.value);
-              })
+              options
             }
           },
           outputs: []
@@ -523,16 +543,7 @@ export class GraphManager extends EventEmitter<{
           label: '',
           value: node.props?.groupId,
           internal: true,
-          options: this.groups.map((g) => ({
-            value: g.id,
-            label: g.name || `Group#${g.id}`
-          })).filter((g) => {
-            const activeIds = new SvelteSet([
-              ...this.parentStack.filter(e => e.id !== this.id).map(e => e.id),
-              ...(this.currentGroupId !== null ? [this.currentGroupId] : [])
-            ]);
-            return !activeIds.has(g.value);
-          })
+          options
         },
         ...defaultInputs
       };
