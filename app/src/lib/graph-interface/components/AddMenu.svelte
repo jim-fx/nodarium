@@ -185,6 +185,8 @@
         >
           {node.meta?.title ?? node.id.split('/').at(-1)}
         </div>
+      {:else}
+        <div class="no-results">No results for "{value}"</div>
       {/each}
     </div>
   </div>
@@ -240,5 +242,12 @@
   .result[aria-selected="true"] {
     background: var(--color-layer-2);
     opacity: 1;
+  }
+
+  .no-results {
+    padding: 1em 0.9em;
+    font-size: 0.85em;
+    opacity: 0.45;
+    font-style: italic;
   }
 </style>
