@@ -105,7 +105,6 @@ export const NodeInputSchema = z.union([
   NodeInputIntegerSchema,
   NodeInputShapeSchema,
   NodeInputSelectSchema,
-  NodeInputSeedSchema,
   NodeInputVec3Schema,
   NodeInputGeometrySchema,
   NodeInputPathSchema,
