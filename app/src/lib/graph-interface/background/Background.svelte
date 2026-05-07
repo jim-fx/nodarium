@@ -1,9 +1,11 @@
 <script lang="ts">
   import { appSettings } from '$lib/settings/app-settings.svelte';
-  import { T } from '@threlte/core';
+  import { T, useThrelte } from '@threlte/core';
   import { colors } from '../graph/colors.svelte';
   import BackgroundFrag from './Background.frag';
   import BackgroundVert from './Background.vert';
+
+  const { invalidate } = useThrelte();
 
   type Props = {
     minZoom?: number;
@@ -33,9 +35,16 @@
 
   let bw = $derived(width / cameraPosition[2]);
   let bh = $derived(height / cameraPosition[2]);
+
+  $effect(() => {
+    if (appSettings.value.theme) {
+      setTimeout(() => invalidate(), 10);
+    }
+  });
 </script>
 
 <T.Group
+  visible={!appSettings.value.theme.includes('contrast')}
   position.x={cameraPosition[0]}
   position.z={cameraPosition[1]}
   position.y={-1.0}
