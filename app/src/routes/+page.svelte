@@ -29,6 +29,7 @@
   import { tutorialConfig } from '$lib/tutorial/tutorial-config';
   import { Planty } from '@nodarium/planty';
   import type { Graph, NodeInstance } from '@nodarium/types';
+  import { Spinner } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
   import type { Group } from 'three';
 
@@ -69,6 +70,7 @@
 
   let activeNode = $state<NodeInstance | undefined>(undefined);
   let scene = $state<Group>(null!);
+  let isExecuting = $state(false);
 
   let sidebarOpen = $state(false);
   let graphInterface = $state<ReturnType<typeof GraphInterface>>(null!);
@@ -101,10 +103,16 @@
     }
   });
 
+  let timeout: ReturnType<typeof setTimeout>;
+
   async function update(
     g: Graph,
     s: Record<string, unknown> = $state.snapshot(graphSettings)
   ) {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      isExecuting = true;
+    }, 100);
     performanceStore.startRun();
     try {
       let a = performance.now();
@@ -129,6 +137,8 @@
     } catch (error) {
       console.log('errors', error);
     } finally {
+      clearTimeout(timeout);
+      isExecuting = false;
       performanceStore.stopRun();
     }
   }
@@ -248,13 +258,20 @@
   <header></header>
   <Grid.Row>
     <Grid.Cell>
-      <Viewer
-        bind:scene
-        bind:this={viewerComponent}
-        perf={performanceStore}
-        debugData={debugData}
-        centerCamera={appSettings.value.centerCamera}
-      />
+      <div class="viewer-cell">
+        <Viewer
+          bind:scene
+          bind:this={viewerComponent}
+          perf={performanceStore}
+          debugData={debugData}
+          centerCamera={appSettings.value.centerCamera}
+        />
+        {#if isExecuting}
+          <div class="viewer-spinner" aria-label="Executing graph">
+            <Spinner size={28} />
+          </div>
+        {/if}
+      </div>
     </Grid.Cell>
     <Grid.Cell>
       {#if pm.graph}
@@ -397,6 +414,20 @@
     color: white;
     display: grid;
     grid-template-rows: 0px 1fr;
+  }
+
+  .viewer-cell {
+    position: relative;
+    height: 100%;
+  }
+
+  .viewer-spinner {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    color: var(--color-text, #cecece);
+    opacity: 0.6;
+    pointer-events: none;
   }
 
   .wrapper :global(canvas) {
