@@ -31,6 +31,7 @@ pub fn execute(input: &[i32]) -> Vec<i32> {
     let depth = evaluate_int(args[6]);
 
     let octaves = evaluate_int(args[7]);
+    let preserve_length = evaluate_int(args[8]) != 0;
 
     let noise_x: HybridMulti<OpenSimplex> =
         HybridMulti::new(seed as u32 + 1).set_octaves(octaves as usize);
@@ -66,69 +67,81 @@ pub fn execute(input: &[i32]) -> Vec<i32> {
 
             let length = path.get_length() as f64;
 
-            // Record original segment lengths so we can re-project after displacement
-            let seg_lens: Vec<f32> = (0..path.length - 1)
-                .map(|k| {
-                    let p0 = Vec3::new(
-                        path.points[k * 4],
-                        path.points[k * 4 + 1],
-                        path.points[k * 4 + 2],
+            if preserve_length {
+                // Snapshot original positions so we can derive each segment's original
+                // direction even after we've modified earlier points.
+                let orig: Vec<f32> = path.points[..path.length * 4].to_vec();
+
+                // Anchor the base (fix_bottom=1 → scale=0, no displacement at root)
+                let scale0 = lerp(1.0, 0.0, fix_bottom);
+                path.points[0] += noise_x.get([j as f64, 0.0]) as f32
+                    * directional_strength[0]
+                    * strength
+                    * scale0;
+                path.points[1] += noise_y.get([j as f64, 0.0]) as f32
+                    * directional_strength[1]
+                    * strength
+                    * scale0;
+                path.points[2] += noise_z.get([j as f64, 0.0]) as f32
+                    * directional_strength[2]
+                    * strength
+                    * scale0;
+                let mut prev = Vec3::new(path.points[0], path.points[1], path.points[2]);
+
+                for i in 1..path.length {
+                    let a = i as f64 / (path.length - 1) as f64;
+                    let px = j as f64 + a * length * scale;
+                    let py = a * scale as f64;
+                    let sf = lerp(1.0, a as f32, fix_bottom);
+
+                    let orig_dir = Vec3::new(
+                        orig[i * 4] - orig[(i - 1) * 4],
+                        orig[i * 4 + 1] - orig[(i - 1) * 4 + 1],
+                        orig[i * 4 + 2] - orig[(i - 1) * 4 + 2],
                     );
-                    let p1 = Vec3::new(
-                        path.points[(k + 1) * 4],
-                        path.points[(k + 1) * 4 + 1],
-                        path.points[(k + 1) * 4 + 2],
+                    let orig_len = orig_dir.length();
+
+                    let perturb = Vec3::new(
+                        noise_x.get([px, py]) as f32 * directional_strength[0] * strength * sf,
+                        noise_y.get([px, py]) as f32 * directional_strength[1] * strength * sf,
+                        noise_z.get([px, py]) as f32 * directional_strength[2] * strength * sf,
                     );
-                    (p1 - p0).length()
-                })
-                .collect();
 
-            // Displace the first point (fix_bottom=1 → scale=0 here, anchoring the base)
-            let scale0 = lerp(1.0, 0.0, fix_bottom);
-            path.points[0] += noise_x.get([j as f64, 0.0]) as f32
-                * directional_strength[0]
-                * strength
-                * scale0;
-            path.points[1] += noise_y.get([j as f64, 0.0]) as f32
-                * directional_strength[1]
-                * strength
-                * scale0;
-            path.points[2] += noise_z.get([j as f64, 0.0]) as f32
-                * directional_strength[2]
-                * strength
-                * scale0;
-            let mut prev = Vec3::new(path.points[0], path.points[1], path.points[2]);
+                    // Perturb the original direction and rescale to original length.
+                    // Biasing toward orig_dir prevents the segment from folding back.
+                    let mut new_dir = orig_dir + perturb;
+                    let nd_len = new_dir.length();
+                    if nd_len > 0.0001 && orig_len > 0.0001 {
+                        new_dir *= orig_len / nd_len;
+                    } else {
+                        new_dir = orig_dir;
+                    }
 
-            for i in 1..path.length {
-                let a = i as f64 / (path.length - 1) as f64;
-
-                let px = j as f64 + a * length * scale;
-                let py = a * scale as f64;
-
-                let sf = lerp(1.0, a as f32, fix_bottom);
-                path.points[i * 4] +=
-                    noise_x.get([px, py]) as f32 * directional_strength[0] * strength * sf;
-                path.points[i * 4 + 1] +=
-                    noise_y.get([px, py]) as f32 * directional_strength[1] * strength * sf;
-                path.points[i * 4 + 2] +=
-                    noise_z.get([px, py]) as f32 * directional_strength[2] * strength * sf;
-
-                // Re-project onto sphere of radius seg_lens[i-1] centered at prev
-                let cur = Vec3::new(
-                    path.points[i * 4],
-                    path.points[i * 4 + 1],
-                    path.points[i * 4 + 2],
-                );
-                let dir = cur - prev;
-                let dir_len = dir.length();
-                if dir_len > 0.0001 {
-                    let corrected = prev + dir * (seg_lens[i - 1] / dir_len);
-                    path.points[i * 4] = corrected.x;
-                    path.points[i * 4 + 1] = corrected.y;
-                    path.points[i * 4 + 2] = corrected.z;
-                    prev = corrected;
-                } else {
+                    let cur = prev + new_dir;
+                    path.points[i * 4] = cur.x;
+                    path.points[i * 4 + 1] = cur.y;
+                    path.points[i * 4 + 2] = cur.z;
                     prev = cur;
+                }
+            } else {
+                for i in 0..path.length {
+                    let a = i as f64 / (path.length - 1) as f64;
+                    let px = j as f64 + a * length * scale;
+                    let py = a * scale as f64;
+                    let sf = lerp(1.0, a as f32, fix_bottom);
+
+                    path.points[i * 4] += noise_x.get([px, py]) as f32
+                        * directional_strength[0]
+                        * strength
+                        * sf;
+                    path.points[i * 4 + 1] += noise_y.get([px, py]) as f32
+                        * directional_strength[1]
+                        * strength
+                        * sf;
+                    path.points[i * 4 + 2] += noise_z.get([px, py]) as f32
+                        * directional_strength[2]
+                        * strength
+                        * sf;
                 }
             }
             path_data

@@ -52,6 +52,11 @@
       "max": 5,
       "value": 1,
       "hidden": true
+    },
+    "preserveLength": {
+      "type": "boolean",
+      "label": "Preserve length",
+      "value": true
     }
   }
 }
