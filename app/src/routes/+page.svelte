@@ -29,7 +29,7 @@
   import { tutorialConfig } from '$lib/tutorial/tutorial-config';
   import { Planty } from '@nodarium/planty';
   import type { Graph, NodeInstance } from '@nodarium/types';
-  import { Spinner } from '@nodarium/ui';
+  import { Spinner, Toast, toast } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
   import type { Group } from 'three';
 
@@ -135,7 +135,8 @@
       }
       viewerComponent?.update(graphResult);
     } catch (error) {
-      console.log('errors', error);
+      const msg = error instanceof Error ? error.message : String(error);
+      toast(`Execution failed: ${msg}`, 'error');
     } finally {
       clearTimeout(timeout);
       isExecuting = false;
@@ -383,6 +384,8 @@
     </Grid.Cell>
   </Grid.Row>
 </div>
+
+<Toast />
 
 <style>
   header {

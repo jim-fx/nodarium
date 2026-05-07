@@ -1,5 +1,6 @@
 import type { createKeyMap } from '$lib/helpers/createKeyMap';
 import { panelState } from '$lib/sidebar/PanelState.svelte';
+import { toast } from '@nodarium/ui';
 import FileSaver from 'file-saver';
 import type { GraphManager } from './graph-manager.svelte';
 import type { GraphState } from './graph-state.svelte';
@@ -146,6 +147,7 @@ export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: Gr
         type: 'application/json;charset=utf-8'
       });
       FileSaver.saveAs(blob, 'nodarium-graph.json');
+      toast('Graph downloaded', 'success', 1500);
     }
   });
 

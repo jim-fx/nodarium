@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button } from '@nodarium/ui';
+  import { Button, toast } from '@nodarium/ui';
   import FileSaver from 'file-saver';
   import type { Group } from 'three';
   import type { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
@@ -29,11 +29,12 @@
     exporter.parse(
       scene,
       (gltf) => {
-        // download .gltf file
         download(gltf as ArrayBuffer, 'plant', 'text/plain', 'gltf');
+        toast('Exported as GLTF', 'success');
       },
       (err) => {
-        console.log(err);
+        const msg = err instanceof Error ? err.message : String(err);
+        toast(`GLTF export failed: ${msg}`, 'error');
       }
     );
   }
@@ -46,9 +47,14 @@
         objExporter = new m.OBJExporter();
         return objExporter;
       }));
-    const result = exporter.parse(scene);
-    // download .obj file
-    download(result, 'plant', 'text/plain', 'obj');
+    try {
+      const result = exporter.parse(scene);
+      download(result, 'plant', 'text/plain', 'obj');
+      toast('Exported as OBJ', 'success');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast(`OBJ export failed: ${msg}`, 'error');
+    }
   }
 </script>
 
