@@ -742,25 +742,26 @@ export class GraphManager extends EventEmitter<{
     return id;
   }
 
-  createGraph(nodes: NodeInstance[], edges: [number, number, number, string][]) {
+  createGraph(nodes: SerializedNode[], edges: [number, number, number, string][]) {
     // map old ids to new ids
     const idMap = new SvelteMap<number, number>();
 
     let startId = this.createNodeId();
 
-    nodes = nodes.map((node) => {
+    const instances: NodeInstance[] = nodes.map((node) => {
       const id = startId++;
       idMap.set(node.id, id);
       const type = this.registry.getNode(node.type);
       if (!type && !node.type.startsWith('__internal/')) {
         throw new Error(`Node type not found: ${node.type}`);
       }
-      return { ...node, id, tmp: { type } };
+      const registryType = this.registry.getNode(node.type);
+      return { ...node, id, state: { type: registryType } };
     });
 
     const _edges = edges.map((edge) => {
-      const from = nodes.find((n) => n.id === idMap.get(edge[0]));
-      const to = nodes.find((n) => n.id === idMap.get(edge[2]));
+      const from = instances.find((n) => n.id === idMap.get(edge[0]));
+      const to = instances.find((n) => n.id === idMap.get(edge[2]));
 
       if (!from || !to) {
         throw new Error('Edge references non-existing node');
@@ -775,14 +776,15 @@ export class GraphManager extends EventEmitter<{
       return [from, edge[1], to, edge[3]] as Edge;
     });
 
-    for (const node of nodes) {
-      this.nodes.set(node.id, node);
+    for (const node of instances) {
+      const n = $state(node);
+      this.nodes.set(node.id, n);
     }
 
     this.edges.push(..._edges);
 
     this.save();
-    return nodes;
+    return instances;
   }
 
   getUnusedGroups() {

@@ -1,11 +1,16 @@
 import { animate, lerp } from '$lib/helpers';
-import type { NodeInstance, Socket } from '@nodarium/types';
+import type { NodeInstance, SerializedEdge, SerializedNode, Socket } from '@nodarium/types';
 import { getContext, setContext } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { OrthographicCamera, Vector3 } from 'three';
 import type { GraphManager } from './graph-manager.svelte';
 import { ColorGenerator } from './graph/colors';
-import { getNodeHeight, getParameterHeight } from './helpers/nodeHelpers';
+import {
+  getNodeHeight,
+  getParameterHeight,
+  serializeEdge,
+  serializeNode
+} from './helpers/nodeHelpers';
 
 const graphStateKey = Symbol('graph-state');
 export function getGraphState() {
@@ -95,8 +100,8 @@ export class GraphState {
   cameraPosition: [number, number, number] = $state([140, 100, 3.5]);
 
   clipboard: null | {
-    nodes: NodeInstance[];
-    edges: [number, number, number, string][];
+    nodes: SerializedNode[];
+    edges: SerializedEdge[];
   } = null;
 
   cameraBounds = $derived([
@@ -190,12 +195,10 @@ export class GraphState {
     if (this.activeNodeId === -1 && !this.selectedNodes?.size) {
       return;
     }
-    let nodes = [
-      this.activeNodeId,
-      ...(this.selectedNodes?.values() || [])
-    ]
+    const ids = new SvelteSet([this.activeNodeId, ...(this.selectedNodes?.values() || [])]);
+    let nodes = [...ids]
       .map((id) => this.graph.getNode(id))
-      .filter(b => !!b);
+      .filter((b): b is NodeInstance => !!b);
 
     const edges = this.graph.getEdgesBetweenNodes(nodes);
     nodes = nodes.map((node) => ({
@@ -203,13 +206,12 @@ export class GraphState {
       position: [
         this.mousePosition[0] - node.position[0],
         this.mousePosition[1] - node.position[1]
-      ],
-      tmp: undefined
+      ]
     }));
 
     this.clipboard = {
-      nodes: nodes,
-      edges: edges
+      nodes: nodes.map(n => serializeNode(n)),
+      edges: edges.map(e => serializeEdge(e))
     };
   }
 
@@ -255,13 +257,16 @@ export class GraphState {
   pasteNodes() {
     if (!this.clipboard) return;
 
-    const nodes = this.clipboard.nodes
-      .map((node) => {
-        node.position[0] = this.mousePosition[0] - node.position[0];
-        node.position[1] = this.mousePosition[1] - node.position[1];
-        return node;
-      })
-      .filter(Boolean) as NodeInstance[];
+    // Create fresh node objects — never mutate clipboard so repeat pastes work correctly.
+    // State is also spread (with cleared parents/children) so createGraph's mutations
+    // don't corrupt the clipboard's stored state references.
+    const nodes = this.clipboard.nodes.map((node) => ({
+      ...node,
+      position: [
+        this.mousePosition[0] - node.position[0],
+        this.mousePosition[1] - node.position[1]
+      ] as [number, number]
+    }));
 
     const newNodes = this.graph.createGraph(nodes, this.clipboard.edges);
     this.selectedNodes.clear();

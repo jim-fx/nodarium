@@ -228,7 +228,7 @@
           style:transform={`scale(${graphState.cameraPosition[2] * 0.1})`}
           class:hovering-sockets={graphState.activeSocket}
         >
-          {#each graph.nodeArray as node, index (node.id)}
+          {#each graph.nodeArray as node, index (node)}
             <NodeEl
               bind:node={graph.nodeArray[index]}
               inView={node ? graphState.isNodeInView(node) : false}

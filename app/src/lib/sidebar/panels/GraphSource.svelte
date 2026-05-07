@@ -8,7 +8,7 @@
     graph
       ? {
         ...graph,
-        nodes: graph.nodes.map((n: object) => ({ ...n, tmp: undefined, state: undefined }))
+        nodes: graph.nodes.map((n: object) => ({ ...n, state: undefined }))
       }
       : null
   );
