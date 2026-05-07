@@ -1,7 +1,7 @@
 <script lang="ts">
   import { localState } from '$lib/helpers/localState.svelte';
   import type { NodeInput } from '@nodarium/types';
-  import Input from '@nodarium/ui';
+  import Input, { Button as UiButton } from '@nodarium/ui';
   import { onMount } from 'svelte';
   import NestedSettings from './NestedSettings.svelte';
 
@@ -126,9 +126,9 @@
   {@const inputType = type[key]}
   <div class="input input-{inputType.type}" class:first-level={depth === 1}>
     {#if inputType.type === 'button'}
-      <button onclick={() => onButtonClick?.(id)}>
+      <UiButton onclick={() => onButtonClick?.(id)}>
         {inputType.label || key}
-      </button>
+      </UiButton>
     {:else}
       {#if inputType.label !== ''}
         <label for={id}>{inputType.label || key}</label>
@@ -222,13 +222,6 @@
 
   .first-level.input-boolean {
     gap: 10px;
-  }
-
-  button {
-    cursor: pointer;
-    background: var(--color-layer-2);
-    padding-block: 5px;
-    border-radius: 4px;
   }
 
   hr {

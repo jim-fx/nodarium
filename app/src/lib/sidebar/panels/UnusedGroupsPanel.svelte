@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { GraphManager } from '$lib/graph-interface/graph-manager.svelte';
+  import { Button } from '@nodarium/ui';
   import type { GroupDefinition } from '@nodarium/types';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
@@ -51,9 +52,9 @@
   <div class="panel p-4">
     <div class="header">
       <span>Unused groups</span>
-      <button class="remove-all" onclick={() => manager.removeUnusedGroups()}>
+      <Button size="sm" variant="destructive" onclick={() => manager.removeUnusedGroups()}>
         Remove all
-      </button>
+      </Button>
     </div>
 
     <ul class="tree">
@@ -92,20 +93,6 @@
     opacity: 0.7;
   }
 
-  .remove-all {
-    background: none;
-    border: 1px solid var(--color-outline);
-    border-radius: 4px;
-    color: var(--color-text);
-    cursor: pointer;
-    font-family: var(--font-family);
-    font-size: 0.85em;
-    padding: 0.2em 0.5em;
-  }
-
-  .remove-all:hover {
-    border-color: var(--color-active);
-  }
 
   .tree {
     list-style: none;

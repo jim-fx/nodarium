@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Button } from '@nodarium/ui';
   import { getGraphManager } from '../graph-state.svelte';
   const graph = getGraphManager();
 
@@ -23,27 +24,19 @@
 
 {#if graph.isInsideGroup}
   <div class="group-name flex gap-1 items-center">
-    <button
-      class="bg-layer-2 opacity-75 hover:opacity-100 cursor-pointer rounded-sm p-1 px-2"
-      onclick={() => exitToGroup()}
-    >
-      Root
-    </button>
+    <Button variant="ghost" size="sm" onclick={() => exitToGroup()}>Root</Button>
 
     {#each intermediateGroups as entry (entry.id)}
       <span class="i-[tabler--arrow-right]"></span>
-      <button
-        class="bg-layer-2 opacity-75 hover:opacity-100 cursor-pointer rounded-sm p-1 px-2"
-        onclick={() => exitToGroup(entry.id)}
-      >
+      <Button variant="ghost" size="sm" onclick={() => exitToGroup(entry.id)}>
         {getGroupName(entry.id)}
-      </button>
+      </Button>
     {/each}
 
     <span class="i-[tabler--arrow-right]"></span>
-    <button class="bg-layer-2 opacity-100 cursor-pointer rounded-sm p-1 px-2">
+    <Button variant="ghost" size="sm" class="opacity-100!">
       {getGroupName(graph.currentGroupId!)}
-    </button>
+    </Button>
   </div>
 {/if}
 

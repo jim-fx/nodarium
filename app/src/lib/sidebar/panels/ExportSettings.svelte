@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Button } from '@nodarium/ui';
   import FileSaver from 'file-saver';
   import type { Group } from 'three';
   import type { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
@@ -51,7 +52,7 @@
   }
 </script>
 
-<div class="p-4">
-  <button onclick={exportObj}>export obj</button>
-  <button onclick={exportGltf}>export gltf</button>
+<div class="p-4 flex gap-2">
+  <Button onclick={exportObj}>export obj</Button>
+  <Button onclick={exportGltf}>export gltf</Button>
 </div>
