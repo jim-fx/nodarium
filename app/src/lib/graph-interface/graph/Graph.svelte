@@ -16,6 +16,7 @@
   import { maxZoom, minZoom } from './constants';
   import { FileDropEventManager } from './drop.events';
   import { MouseEventManager } from './mouse.events';
+  import ZoomIndicator from './ZoomIndicator.svelte';
 
   const {
     keymap,
@@ -246,6 +247,8 @@
 {#if graphState.showHelp}
   <HelpView registry={graph.registry} />
 {/if}
+
+<ZoomIndicator {safePadding} />
 
 <style>
   .graph-wrapper {
