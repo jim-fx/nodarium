@@ -9,6 +9,7 @@ import { EdgeInteractionManager } from './edge.events';
 
 export class MouseEventManager {
   edgeInteractionManager: EdgeInteractionManager;
+  private pendingSelectionFrame = false;
 
   constructor(
     private graph: GraphManager,
@@ -282,24 +283,31 @@ export class MouseEventManager {
     if (this.state.boxSelection) {
       event.preventDefault();
       event.stopPropagation();
-      const mouseD = this.state.projectScreenToWorld(
-        this.state.mouseDown[0],
-        this.state.mouseDown[1]
-      );
-      const x1 = Math.min(mouseD[0], this.state.mousePosition[0]);
-      const x2 = Math.max(mouseD[0], this.state.mousePosition[0]);
-      const y1 = Math.min(mouseD[1], this.state.mousePosition[1]);
-      const y2 = Math.max(mouseD[1], this.state.mousePosition[1]);
-      for (const node of this.graph.nodes.values()) {
-        if (!node?.state) continue;
-        const x = node.position[0];
-        const y = node.position[1];
-        const height = getNodeHeight(node.state.type!);
-        if (x > x1 - 20 && x < x2 && y > y1 - height && y < y2) {
-          this.state.selectedNodes?.add(node.id);
-        } else {
-          this.state.selectedNodes?.delete(node.id);
-        }
+      if (!this.pendingSelectionFrame) {
+        this.pendingSelectionFrame = true;
+        requestAnimationFrame(() => {
+          this.pendingSelectionFrame = false;
+          if (!this.state.mouseDown) return;
+          const mouseD = this.state.projectScreenToWorld(
+            this.state.mouseDown[0],
+            this.state.mouseDown[1]
+          );
+          const x1 = Math.min(mouseD[0], this.state.mousePosition[0]);
+          const x2 = Math.max(mouseD[0], this.state.mousePosition[0]);
+          const y1 = Math.min(mouseD[1], this.state.mousePosition[1]);
+          const y2 = Math.max(mouseD[1], this.state.mousePosition[1]);
+          for (const node of this.graph.nodes.values()) {
+            if (!node?.state) continue;
+            const x = node.position[0];
+            const y = node.position[1];
+            const height = getNodeHeight(node.state.type!);
+            if (x > x1 - 20 && x < x2 && y > y1 - height && y < y2) {
+              this.state.selectedNodes?.add(node.id);
+            } else {
+              this.state.selectedNodes?.delete(node.id);
+            }
+          }
+        });
       }
       return;
     }
