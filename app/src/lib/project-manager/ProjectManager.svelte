@@ -1,7 +1,7 @@
 <script lang="ts">
   import { defaultPlant, lottaFaces, plant, simple } from '$lib/graph-templates';
   import type { Graph } from '$lib/types';
-  import { InputSelect } from '@nodarium/ui';
+  import { Button, ConfirmDialog, InputSelect, Spinner } from '@nodarium/ui';
   import type { ProjectManager } from './project-manager.svelte';
 
   const { projectManager } = $props<{ projectManager: ProjectManager }>();
@@ -31,16 +31,27 @@
     newProjectName = '';
     showNewProject = false;
   }
+
+  let pendingDeleteId = $state<number | null>(null);
+  let confirmOpen = $state(false);
+
+  function requestDelete(id: number, e: MouseEvent) {
+    e.stopPropagation();
+    pendingDeleteId = id;
+    confirmOpen = true;
+  }
+
+  function confirmDelete() {
+    if (pendingDeleteId !== null) {
+      projectManager.handleDeleteProject(pendingDeleteId);
+      pendingDeleteId = null;
+    }
+  }
 </script>
 
 <header class="flex justify-between px-4 h-[70px] border-b-1 border-outline items-center bg-layer-2">
   <h3>Project</h3>
-  <button
-    class="px-3 py-1 bg-layer-1 rounded"
-    onclick={() => (showNewProject = !showNewProject)}
-  >
-    New
-  </button>
+  <Button onclick={() => (showNewProject = !showNewProject)}>New</Button>
 </header>
 
 {#if showNewProject}
@@ -53,20 +64,11 @@
       onkeydown={(e) => e.key === 'Enter' && handleCreate()}
     />
     <InputSelect options={templates.map(t => t.name)} bind:value={selectedTemplateIndex} />
-    <button
-      class="cursor-pointer self-end px-3 py-1 bg-selected rounded"
-      onclick={() => handleCreate()}
-    >
-      Create
-    </button>
+    <Button variant="primary" class="self-end" onclick={() => handleCreate()}>Create</Button>
   </div>
 {/if}
 
 <div class="text-white min-h-screen">
-  {#if projectManager.loading}
-    <p>Loading...</p>
-  {/if}
-
   <ul>
     {#each projectManager.projects as project (project.id)}
       <li>
@@ -89,16 +91,35 @@
           <div class="flex justify-between items-center grow">
             <span>{project.meta?.title || 'Untitled'}</span>
             <button
-              class="text-layer-1! bg-red-500 w-7 text-xl rounded-sm cursor-pointer opacity-20 hover:opacity-80"
-              onclick={() => {
-                projectManager.handleDeleteProject(project.id!);
-              }}
+              class="opacity-20 hover:opacity-70 transition-opacity cursor-pointer p-1 rounded text-red-400"
+              onclick={(e) => requestDelete(project.id!, e)}
+              aria-label="Delete project"
             >
-              ×
+              <span class="i-[tabler--trash] w-4 h-4 block"></span>
             </button>
           </div>
         </div>
       </li>
+    {:else}
+      {#if projectManager.loading}
+        <div class="flex items-center gap-2 p-4">
+          <Spinner size={12} />
+          <p>Loading</p>
+        </div>
+      {:else}
+        <li class="px-4 py-8 text-center opacity-40 text-sm">
+          No projects yet.<br />Press <b>New</b> to create one.
+        </li>
+      {/if}
     {/each}
   </ul>
 </div>
+
+<ConfirmDialog
+  bind:open={confirmOpen}
+  title="Delete project?"
+  message="This cannot be undone. The project and all its data will be permanently removed."
+  confirmLabel="Delete"
+  cancelLabel="Cancel"
+  onconfirm={confirmDelete}
+/>

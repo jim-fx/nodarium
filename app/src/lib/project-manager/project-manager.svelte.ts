@@ -10,7 +10,9 @@ export class ProjectManager {
     'node.activeProjectId',
     undefined
   );
-  public readonly loading = $derived(this.graph?.id !== this.activeProjectId.value);
+  public readonly loading = $derived(
+    this.projects.length && this.graph?.id !== this.activeProjectId.value
+  );
 
   constructor() {
     this.init();
