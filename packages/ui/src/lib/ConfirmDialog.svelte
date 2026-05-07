@@ -58,7 +58,6 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_interactive_supports_focus -->
 <dialog
   bind:this={dialogEl}
   class="m-auto bg-layer-1 border border-outline rounded-md p-0 text-text max-w-md w-full backdrop:bg-black/50"
