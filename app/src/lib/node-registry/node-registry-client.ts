@@ -136,13 +136,14 @@ export class RemoteNodeRegistry implements NodeRegistry {
   }
 
   async register(id: string, wasmBuffer: ArrayBuffer) {
-    let wrapper: ReturnType<typeof createWasmWrapper> = null!;
-    try {
-      wrapper = createWasmWrapper(wasmBuffer);
-    } catch (error) {
-      console.error(`Failed to create node wrapper for node: ${id}`, error);
-      throw error;
-    }
+    const wrapper = (() => {
+      try {
+        return createWasmWrapper(wasmBuffer);
+      } catch (error) {
+        console.error(`Failed to create node wrapper for node: ${id}`, error);
+        throw error;
+      }
+    })();
 
     const rawDefinition = wrapper.get_definition();
     const definition = NodeDefinitionSchema.safeParse(rawDefinition);

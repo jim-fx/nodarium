@@ -165,7 +165,7 @@ export class GraphState {
     this.edges.delete(edgeId);
   }
 
-  private _dirtyPositions = new Set<NodeInstance>();
+  private _dirtyPositions = new SvelteSet<NodeInstance>();
   private _positionFlushPending = false;
 
   private _flushPositions() {

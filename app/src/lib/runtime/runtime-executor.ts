@@ -137,7 +137,8 @@ function getValue(input: NodeInput, value?: unknown) {
   if (input.type === 'select' && typeof value !== 'number') {
     const index = input.options?.indexOf(value as string);
     if (index === undefined || index < 0) {
-      throw new Error(`Unknown value ${value} for select input ${input.label}`);
+      // Defaultl to the first option
+      return 0;
     }
     return index;
   }
