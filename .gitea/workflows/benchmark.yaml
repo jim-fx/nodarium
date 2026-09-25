@@ -13,7 +13,13 @@ env:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
-    container: git.max-richter.dev/max/nodarium-ci:a56e8f445edb6064ae7a7b3b783fb7445f1b4e69
+    container:
+      image: git.max-richter.dev/max/nodarium-ci:a56e8f445edb6064ae7a7b3b783fb7445f1b4e69
+      # the runner shares the host with other services: a runaway benchmark
+      # should get OOM killed instead of swapping the whole host to a halt.
+      # Peak usage is ~1GB (cargo build) and ~0.8GB (benchmark), equal
+      # memory-swap disables swap for the container
+      options: --memory=2g --memory-swap=2g
 
     steps:
       - name: 📑 Checkout Code
