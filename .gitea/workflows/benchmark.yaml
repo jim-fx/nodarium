@@ -3,7 +3,7 @@ name: 📊 Benchmark the Runtime
 # push only: PRs are already benchmarked by the push to their branch
 on:
   push:
-    branches: ["*"]
+    branches: ["**"]
 
 env:
   PNPM_CACHE_FOLDER: .pnpm-store

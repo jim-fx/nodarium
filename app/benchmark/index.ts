@@ -6,8 +6,8 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { cpus, freemem, loadavg, totalmem } from 'node:os';
 import { resolve } from 'node:path';
 
-import { MemoryRuntimeExecutor } from '../src/lib/runtime/runtime-executor.ts';
 import { MemoryRuntimeCache } from '../src/lib/runtime/runtime-executor-cache.ts';
+import { MemoryRuntimeExecutor } from '../src/lib/runtime/runtime-executor.ts';
 import { BenchmarkRegistry } from './benchmarkRegistry.ts';
 
 import {
@@ -36,7 +36,8 @@ const templates: Record<string, Graph> = {
 
 function git(args: string) {
   try {
-    return execSync(`git ${args}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return execSync(`git ${args}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+      .trim();
   } catch {
     return null;
   }
@@ -45,7 +46,8 @@ function git(args: string) {
 function getCommitInfo() {
   return {
     sha: process.env.GITHUB_SHA || git('rev-parse HEAD'),
-    branch: process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || git('rev-parse --abbrev-ref HEAD'),
+    branch: process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME
+      || git('rev-parse --abbrev-ref HEAD'),
     message: git('log -1 --format=%s')
   };
 }
