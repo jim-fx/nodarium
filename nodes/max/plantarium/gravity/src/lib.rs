@@ -14,10 +14,9 @@ fn lerp_vec3(a: Vec3, b: Vec3, t: f32) -> Vec3 {
 }
 
 #[nodarium_execute]
-pub fn execute(input: &[i32]) -> Vec<i32> {
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     reset_call_count();
 
-    let args = split_args(input);
 
     let plants = split_args(args[0]);
     let depth = evaluate_int(args[2]);

@@ -1,3 +1,5 @@
+import type { NodeValue } from '@nodarium/types';
+
 export const debugNode = {
   id: '__internal/node/debug',
   meta: {
@@ -9,7 +11,7 @@ export const debugNode = {
       label: ''
     }
   },
-  execute(_data: Int32Array): Int32Array {
-    return _data;
+  execute(inputs: NodeValue[]): NodeValue {
+    return inputs[0];
   }
 } as const;

@@ -3,16 +3,14 @@ use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
     evaluate_float, evaluate_int, evaluate_vec3,
     geometry::{create_multiple_paths, wrap_multiple_paths},
-    log, reset_call_count, split_args,
-};
+    log, reset_call_count, };
 
 nodarium_definition_file!("src/input.json");
 
 #[nodarium_execute]
-pub fn execute(input: &[i32]) -> Vec<i32> {
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     reset_call_count();
 
-    let args = split_args(input);
 
     let amount = evaluate_int(args[1]) as usize;
     let path_resolution = evaluate_int(args[4]) as usize;

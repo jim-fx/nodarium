@@ -64,8 +64,23 @@ export const NodeSchema = z.object({
 
 export type SerializedNode = z.infer<typeof NodeSchema>;
 
+/**
+ * `len` i32 words at byte offset `ptr` inside a node module's memory.
+ * Only valid until that module is reset.
+ */
+export type WasmSlice = {
+  memory: WebAssembly.Memory;
+  ptr: number;
+  len: number;
+};
+
+export type NodeValue = Int32Array | WasmSlice;
+
 export type NodeDefinition = z.infer<typeof NodeDefinitionSchema> & {
-  execute(input: Int32Array): Int32Array;
+  /** Receives one value per input, in definition order */
+  execute(inputs: NodeValue[]): NodeValue;
+  /** Frees all results of previous executions, invalidating their WasmSlices */
+  reset?(): void;
 };
 
 export type Socket = {

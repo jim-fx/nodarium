@@ -13,8 +13,7 @@ use std::f32::consts::PI;
 nodarium_definition_file!("src/input.json");
 
 #[nodarium_execute]
-pub fn execute(input: &[i32]) -> Vec<i32> {
-    let args = split_args(input);
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     let paths = split_args(args[0]);
 

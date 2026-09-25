@@ -38,8 +38,7 @@ fn vec_normalize(v: &[f32; 3]) -> [f32; 3] {
 }
 
 #[nodarium_execute]
-pub fn execute(input: &[i32]) -> Vec<i32> {
-    let args = split_args(input);
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let input_path = split_args(args[0])[0];
     let size = evaluate_float(args[1]);
     let width_resolution = evaluate_int(args[2]).max(3) as usize;

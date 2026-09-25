@@ -16,7 +16,8 @@ export class BenchmarkRegistry implements NodeRegistry {
       const d = node.get_definition();
       return {
         ...d,
-        execute: node.execute
+        execute: node.execute,
+        reset: node.reset
       };
     }));
     for (const n of nodes) {
@@ -31,7 +32,8 @@ export class BenchmarkRegistry implements NodeRegistry {
     const d = wasm.get_definition();
     const node = {
       ...d,
-      execute: wasm.execute
+      execute: wasm.execute,
+      reset: wasm.reset
     };
     this.nodes.set(id, node);
     return node;

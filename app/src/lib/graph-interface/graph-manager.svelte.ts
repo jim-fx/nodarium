@@ -11,6 +11,7 @@ import type {
   NodeInput,
   NodeInstance,
   NodeRegistry,
+  NodeValue,
   SerializedEdge,
   SerializedNode,
   Socket
@@ -450,7 +451,7 @@ export class GraphManager extends EventEmitter<{
           title: 'Group Input'
         },
         inputs: groupInputs,
-        execute: (x: Int32Array) => x
+        execute: (inputs: NodeValue[]) => inputs[0]
       } as NodeDefinition;
     }
 
@@ -469,7 +470,7 @@ export class GraphManager extends EventEmitter<{
           title: 'Group Output'
         },
         outputs: [],
-        execute: (x: Int32Array) => x
+        execute: (inputs: NodeValue[]) => inputs[0]
       } as NodeDefinition;
     }
 

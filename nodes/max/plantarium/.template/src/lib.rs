@@ -1,12 +1,10 @@
-use macros::include_definition_file;
-use utils::{decode_float, encode_float, wrap_arg};
-use wasm_bindgen::prelude::*;
-use web_sys::console;
+use nodarium_macros::nodarium_definition_file;
+use nodarium_macros::nodarium_execute;
 
-include_definition_file!("src/input.json");
+nodarium_definition_file!("src/input.json");
 
-#[rustfmt::skip]
-#[wasm_bindgen]
-pub fn execute(input: &[i32]) -> Vec<i32> {
+#[nodarium_execute]
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
+    // args[i] holds the value of the i-th input of src/input.json
     vec![]
 }

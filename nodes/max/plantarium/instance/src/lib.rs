@@ -9,8 +9,7 @@ use nodarium_utils::{
 nodarium_definition_file!("src/input.json");
 
 #[nodarium_execute]
-pub fn execute(input: &[i32]) -> Vec<i32> {
-    let args = split_args(input);
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut inputs = split_args(args[0]);
 
     let mut geo_data = args[1].to_vec();

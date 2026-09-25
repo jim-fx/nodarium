@@ -14,10 +14,9 @@ fn lerp(a: f32, b: f32, t: f32) -> f32 {
 }
 
 #[nodarium_execute]
-pub fn execute(input: &[i32]) -> Vec<i32> {
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     reset_call_count();
 
-    let args = split_args(input);
 
     let plants = split_args(args[0]);
     let scale = (evaluate_float(args[1]) * 0.1) as f64;
