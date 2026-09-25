@@ -1,9 +1,8 @@
 name: 📊 Benchmark the Runtime
 
+# push only: PRs are already benchmarked by the push to their branch
 on:
   push:
-    branches: ["*"]
-  pull_request:
     branches: ["*"]
 
 env:
@@ -55,13 +54,21 @@ jobs:
           git clone git@git.max-richter.dev:max/nodarium-benchmarks.git target_bench_repo
 
           BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-          SAFE_PR_NAME=$(printf "%s" "$BRANCH" | tr '/' '-')
-          DEST_DIR="target_bench_repo/data/$SAFE_PR_NAME/$(date +%s)"
+          SAFE_BRANCH_NAME=$(printf "%s" "$BRANCH" | tr '/' '-')
+          DEST_DIR="target_bench_repo/data/$SAFE_BRANCH_NAME/$(date +%s)"
           mkdir -p "$DEST_DIR"
 
           cp app/benchmark/out/*.json "$DEST_DIR/"
 
           cd target_bench_repo
           git add .
-          git commit -m "Update benchmarks for $SAFE_PR_NAME: ${{ gitea.sha }}"
-          git push origin main
+          git commit -m "Update benchmarks for $SAFE_BRANCH_NAME: ${{ gitea.sha }}"
+
+          # other benchmark jobs may push at the same time
+          for attempt in 1 2 3 4 5; do
+            git push origin main && exit 0
+            echo "push failed (attempt $attempt), rebasing and retrying"
+            sleep $((attempt * 5))
+            git pull --rebase origin main
+          done
+          exit 1
