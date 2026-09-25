@@ -22,8 +22,6 @@ import defaultPlantTemplate from './templates/default.json' assert { type: 'json
 import lottaFacesTemplate from './templates/lotta-faces.json' assert { type: 'json' };
 import plantTemplate from './templates/plant.json' assert { type: 'json' };
 
-const registry = new BenchmarkRegistry();
-
 const SAMPLE_INTERVAL_MS = 200;
 
 const log = createLogger('bench');
@@ -106,6 +104,9 @@ function countGeometry(result: Int32Array): {
  * except the output node is served from the cache after the first run
  */
 async function run(g: GraphType, amount: number, cached: boolean) {
+  // a fresh registry per benchmark, wasm memories never shrink, so shared
+  // instances would keep the memory of the largest graph for all benchmarks
+  const registry = new BenchmarkRegistry();
   await registry.load(g.nodes.map(n => n.type) as NodeId[]);
 
   const r = new MemoryRuntimeExecutor(registry, cached ? new MemoryRuntimeCache() : undefined);
