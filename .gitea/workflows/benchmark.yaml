@@ -42,13 +42,15 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.GIT_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
+          # Gitea's ssh server only accepts connections through the public
+          # proxy (PROXY protocol), which serves it on port 22
           cat >> ~/.ssh/config <<'EOF'
           Host git.max-richter.dev
-            Port 2222
+            Port 22
             IdentityFile ~/.ssh/id_ed25519
             IdentitiesOnly yes
           EOF
-          ssh-keyscan -p 2222 -H git.max-richter.dev >> ~/.ssh/known_hosts
+          ssh-keyscan -p 22 -H git.max-richter.dev >> ~/.ssh/known_hosts
 
       - name: 📤 Push Results
         env:
