@@ -82,8 +82,8 @@ function countGeometry(result: Int32Array): {
     const faceCount = part[2] >>> 0;
 
     if (type === 2) {
-      // instance header: [type, vertices, faces, stem_depth, instance amount]
-      const instanceCount = part[4] >>> 0;
+      // instance header: [type, vertices, faces, instance amount, stem_depth]
+      const instanceCount = part[3] >>> 0;
 
       totalVertices += vertexCount * instanceCount;
       totalFaces += faceCount * instanceCount;
