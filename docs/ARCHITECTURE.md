@@ -43,4 +43,4 @@ For a more in-depth explanation have a look at [./NODE_DEFINITION.md](NODE_DEFIN
 
 ## How are the nodes executed?
 
-## How are the nodes stored?
+The runtime runs the graph bottom up and hands each node's result to the next node. It doesn't know what the data means, that is up to the node system the nodes belong to (for example [Plantarium](./PLANTARIUM.md)). How nodes and the runtime talk to each other is described in [ABI.md](./ABI.md).

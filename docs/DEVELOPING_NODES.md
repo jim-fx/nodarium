@@ -1,130 +1,65 @@
 # Developing Nodes
 
-This guide will help you developing your first Nodarium Node written in Rust. As an example we will implement a `cylinder` node, which generates a 3D model of a cylinder.
+This guide writes a Plantarium node in Rust. Nodes can be written in any language that compiles to WebAssembly, as long as they follow the [ABI](./ABI.md). Rust just gets most of it generated.
 
-## Prerequesites
+## Prerequisites
 
-You need to have [Rust](https://www.rust-lang.org/tools/install) and [wasm-pack](https://rustwasm.github.io/docs/wasm-pack/) installed. Rust is the language we are going to develop our node in and wasm-pack helps us compile our rust code into a webassembly file.
-
-```bash
-# install rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-# install wasm-pack
-cargo install wasm-pack
-```
-
-## Clone Template
+[Rust](https://www.rust-lang.org/tools/install) with the wasm target:
 
 ```bash
-wasm-pack new my-new-node --template https://github.com/jim-fx/nodarium_template
-cd my-new-node
+rustup target add wasm32-unknown-unknown
 ```
 
-## Setup Definition
+## Create the node
 
-Now we create the definition file of the node.
-Here we define what kind of inputs our node will expect and what kind of output it produces. If you want to dive deeper into this topic, have a look at [NODE_DEFINITION.md](./NODE_DEFINITION.md).
+Copy the template and give it a name:
 
-`src/definition.json`
+```bash
+cp -r nodes/max/plantarium/.template nodes/max/plantarium/cube
+```
+
+Then set `name = "cube"` in its `Cargo.toml`.
+
+## Define the inputs
+
+`src/input.json` says which inputs the node has and what it returns. See [NODE_DEFINITION.md](./NODE_DEFINITION.md).
 
 ```json
 {
-  "id": "my-name/my-namespace/zylinder-node",
-  "outputs": [
-    "geometry"
-  ],
+  "id": "max/plantarium/cube",
+  "outputs": ["geometry"],
   "inputs": {
-    "height": {
-      "type": "float",
-      "value": 2
-    },
-    "radius": {
-      "type": "float",
-      "value": 0.4
-    }
+    "size": { "type": "float", "value": 2 }
   }
 }
 ```
 
-If we take a look at the `src/lib.rs` file we see that `src/definition.json` is included with the following line:
+## Implement it
+
+`src/lib.rs`:
 
 ```rust
-include_definition_file!("src/definition.json");
-```
+use nodarium_macros::{nodarium_definition_file, nodarium_execute};
+use nodarium_utils::evaluate_float;
 
-This procedural rust macro loads the definition.json, validates its content and embeds it in our output file.
+nodarium_definition_file!("src/input.json");
 
-## Implement Node
+#[nodarium_execute]
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
+    // one slice per input, in the order of input.json
+    let size = evaluate_float(args[0]);
 
-This is the hardest part when developing a node, for now you can copy the following content into the `src/lib.rs` file:
-
-```rust
-use glam::Vec2;
-use wasm_bindgen::prelude::*;
-
-nodarium_macros::include_definition_file!("src/definition.json");
-
-#[wasm_bindgen]
-pub fn execute(input: &[i32]) -> Vec<i32> {
-    let arguments = nodarium_utils::split_args(input);
-
-    let height = nodarium_utils::evaluate_float(arguments[0]);
-    let radius = nodarium_utils::evaluate_float(arguments[1]);
-
-    let mut geometry_data = nodarium_utils::geometry::create_geometry_data(16, 16);
-
-    let geometry = nodarium_utils::geometry::wrap_geometry_data(&mut geometry_data);
-
-    // bottom circle
-    for i in 0..8 {
-        let x = radius * (2.0 * std::f32::consts::PI * i as f32 / 8.0).cos();
-        let y = radius * (2.0 * std::f32::consts::PI * i as f32 / 8.0).sin();
-
-        let vec = Vec2::new(x, y).normalize();
-
-        // bottom circle
-        geometry.positions[i * 3 + 0] = x;
-        geometry.positions[i * 3 + 1] = 0.0;
-        geometry.positions[i * 3 + 2] = y;
-
-        geometry.normals[i * 3 + 0] = vec[0];
-        geometry.normals[i * 3 + 1] = 0.0;
-        geometry.normals[i * 3 + 2] = vec[1];
-
-        // top circle
-        geometry.positions[24 + i * 3 + 0] = x;
-        geometry.positions[24 + i * 3 + 1] = height;
-        geometry.positions[24 + i * 3 + 2] = y;
-
-        geometry.normals[24 + i * 3 + 0] = vec[0];
-        geometry.normals[24 + i * 3 + 1] = 0.0;
-        geometry.normals[24 + i * 3 + 2] = vec[1];
-
-        geometry.faces[i * 6 + 0] = (i + 8) as i32;
-        geometry.faces[i * 6 + 1] = (i as i32 + 1) % 8;
-        geometry.faces[i * 6 + 2] = (i) as i32;
-
-        geometry.faces[i * 6 + 3] = 8 + (i % 8) as i32;
-        geometry.faces[i * 6 + 4] = 8 + (i as i32 + 1) % 8;
-        geometry.faces[i * 6 + 5] = (i as i32 + 1) % 8;
-    }
-
-    nodarium_utils::concat_arg_vecs(vec![geometry_data])
+    // build and return the geometry, see PLANTARIUM.md
+    vec![]
 }
 ```
 
-As you can see we import `glam` on the first line. Glam is a fantastic math library. Install it with the following command:
+`nodarium_definition_file!` checks the definition and embeds it into the `.wasm`. `#[nodarium_execute]` generates the exports the host needs. For a complete example have a look at the `box` node.
+
+## Build
 
 ```bash
-cargo add glam
+pnpm build:nodes
 ```
 
-## Build time
-
-We compile our node by running the following command:
-
-```bash
-wasm-pack build --release
-```
-
-This will produce a `.wasm` file in the `pkg/` directory of our node. To check if the node works, we can drag it onto the node-graph on https://nodes.max-richter.dev and see if it loads.
+This builds all nodes into `app/static/nodes/max/plantarium/`. Run `pnpm dev` and the node shows up in the app.
