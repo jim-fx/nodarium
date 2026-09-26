@@ -33,6 +33,7 @@
       "internal": true,
       "label": "Mode",
       "options": ["closed-form", "chain"],
+      "value": 1,
       "hidden": true,
       "description": "closed-form lerps each segment toward gravity; chain is a forward-kinematic cantilever where each segment rotates by an angle that grows along the stem."
     }

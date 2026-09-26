@@ -51,10 +51,11 @@
 
     // select input: use index into options
     if ('options' in node && Array.isArray(node.options)) {
-      if (typeof inputValue === 'string') {
-        return node.options.indexOf(inputValue);
+      const selected = inputValue ?? node.value;
+      if (typeof selected === 'string') {
+        return Math.max(0, node.options.indexOf(selected));
       }
-      return 0;
+      return typeof selected === 'number' ? selected : 0;
     }
 
     if (Array.isArray(inputValue) && node.type === 'vec3') {

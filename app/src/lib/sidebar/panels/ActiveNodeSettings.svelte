@@ -32,7 +32,7 @@
   }
   const nodeDefinition = node ? filterInputs(node.state.type?.inputs) : {};
 
-  type Store = Record<string, number | number[]>;
+  type Store = Record<string, number | number[] | string>;
   let store = $state<Store>(createStore(node?.props, nodeDefinition));
   function createStore(
     props: NodeInstance['props'],
@@ -42,7 +42,8 @@
     Object.keys(inputs).forEach((key) => {
       if (props) {
         const value = props[key] !== undefined ? props[key] : inputs[key].value;
-        if (Array.isArray(value) || typeof value === 'number') {
+        // older projects stored the name of the chosen select option
+        if (Array.isArray(value) || typeof value === 'number' || typeof value === 'string') {
           store[key] = value;
         } else if (typeof value === 'boolean') {
           store[key] = value ? 1 : 0;
@@ -64,7 +65,12 @@
       if (node && store) {
         needsUpdate = true;
         const value = store[key];
-        if (value !== undefined) {
+        if (typeof value === 'string') {
+          // node props store the index of the chosen select option
+          const input = nodeDefinition[key];
+          const options: unknown[] = input && 'options' in input ? input.options ?? [] : [];
+          node.props[key] = Math.max(0, options.indexOf(value));
+        } else if (value !== undefined) {
           node.props[key] = value;
         }
       }
