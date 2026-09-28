@@ -176,6 +176,9 @@ function getValue(input: NodeInput, value?: unknown) {
 
 export class MemoryRuntimeExecutor implements RuntimeExecutor {
   private definitionMap: Map<string, NodeDefinition> = new Map();
+  // every definition this executor has run, their modules keep results in
+  // memory until they are reset, even after they left the graph
+  private usedDefinitions = new Map<string, NodeDefinition>();
 
   private seed = Math.floor(Math.random() * 100000000);
   private debugData: Record<number, { type: string; data: Int32Array }> = {};
@@ -204,6 +207,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         const type = this.registry.getNode(node.type);
         if (type) {
           typeMap.set(node.type, type);
+          this.usedDefinitions.set(node.type, type);
         }
       }
     }
@@ -321,7 +325,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     }
 
     // free all results of the previous run, nothing below this may await
-    for (const definition of this.definitionMap.values()) {
+    for (const definition of this.usedDefinitions.values()) {
       definition.reset?.();
     }
 
