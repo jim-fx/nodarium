@@ -1,10 +1,12 @@
 import type { Graph, Graph as GraphType, NodeId } from '@nodarium/types';
 import { createLogger, createPerformanceStore, splitNestedArray } from '@nodarium/utils';
 
+import { execSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { freemem, loadavg, totalmem } from 'node:os';
+import { cpus, freemem, loadavg, totalmem } from 'node:os';
 import { resolve } from 'node:path';
 
+import { MemoryRuntimeCache } from '../src/lib/runtime/runtime-executor-cache.ts';
 import { MemoryRuntimeExecutor } from '../src/lib/runtime/runtime-executor.ts';
 import { BenchmarkRegistry } from './benchmarkRegistry.ts';
 
@@ -20,8 +22,7 @@ import defaultPlantTemplate from './templates/default.json' assert { type: 'json
 import lottaFacesTemplate from './templates/lotta-faces.json' assert { type: 'json' };
 import plantTemplate from './templates/plant.json' assert { type: 'json' };
 
-const registry = new BenchmarkRegistry();
-const r = new MemoryRuntimeExecutor(registry);
+const SAMPLE_INTERVAL_MS = 200;
 
 const log = createLogger('bench');
 
@@ -30,6 +31,33 @@ const templates: Record<string, Graph> = {
   'lotta-faces': lottaFacesTemplate as unknown as GraphType,
   default: defaultPlantTemplate as unknown as GraphType
 };
+
+function git(args: string) {
+  try {
+    return execSync(`git ${args}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+      .trim();
+  } catch {
+    return null;
+  }
+}
+
+function getCommitInfo() {
+  return {
+    sha: process.env.GITHUB_SHA || git('rev-parse HEAD'),
+    branch: process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME
+      || git('rev-parse --abbrev-ref HEAD'),
+    message: git('log -1 --format=%s')
+  };
+}
+
+// 0.1μs precision is plenty for timings in ms and keeps the result files small
+function roundRuns(data: Record<string, number[]>[]) {
+  return data.map(run =>
+    Object.fromEntries(
+      Object.entries(run).map(([key, values]) => [key, values.map(v => Math.round(v * 1e4) / 1e4)])
+    )
+  );
+}
 
 function average(values: number[]) {
   if (values.length === 0) return 0;
@@ -46,12 +74,15 @@ function countGeometry(result: Int32Array): {
   let totalFaces = 0;
 
   for (const part of parts) {
+    // 0: path, 1: geometry, 2: instances, only the last two are rendered
     const type = part[0];
+    if (type !== 1 && type !== 2) continue;
 
     const vertexCount = part[1] >>> 0;
     const faceCount = part[2] >>> 0;
 
     if (type === 2) {
+      // instance header: [type, vertices, faces, instance amount, stem_depth]
       const instanceCount = part[3] >>> 0;
 
       totalVertices += vertexCount * instanceCount;
@@ -68,22 +99,32 @@ function countGeometry(result: Int32Array): {
   };
 }
 
-async function run(g: GraphType, amount: number) {
+/**
+ * @param cached - run with the runtime cache and a fixed seed, so every node
+ * except the output node is served from the cache after the first run
+ */
+async function run(g: GraphType, amount: number, cached: boolean) {
+  // a fresh registry per benchmark, wasm memories never shrink, so shared
+  // instances would keep the memory of the largest graph for all benchmarks
+  const registry = new BenchmarkRegistry();
   await registry.load(g.nodes.map(n => n.type) as NodeId[]);
+
+  const r = new MemoryRuntimeExecutor(registry, cached ? new MemoryRuntimeCache() : undefined);
+  const settings = { randomSeed: !cached };
 
   log.log('loaded ' + g.nodes.length + ' nodes');
 
   log.log('warming up');
 
   for (let index = 0; index < 10; index++) {
-    await r.execute(g, { randomSeed: true });
+    await r.execute(g, settings);
   }
 
   const systemSamples: SystemSample[] = [];
 
   let previousCpuSnapshot = await readCpuSnapshot();
 
-  const sampler = setInterval(async () => {
+  async function sampleSystem() {
     try {
       const cpu = await measureCpuUsage(previousCpuSnapshot);
 
@@ -107,7 +148,9 @@ async function run(g: GraphType, amount: number) {
     } catch (err) {
       console.error(err);
     }
-  }, 1000);
+  }
+
+  const sampler = setInterval(sampleSystem, SAMPLE_INTERVAL_MS);
 
   log.log('executing');
 
@@ -118,11 +161,13 @@ async function run(g: GraphType, amount: number) {
   let res: Int32Array | undefined;
 
   const cgroupBefore = await readCgroupCpuStat();
+  const processCpuBefore = process.cpuUsage();
+  const wallBefore = performance.now();
 
   for (let i = 0; i < amount; i++) {
     r.perf?.startRun();
 
-    res = await r.execute(g, { randomSeed: true });
+    res = await r.execute(g, settings);
 
     r.perf?.stopRun();
 
@@ -133,15 +178,32 @@ async function run(g: GraphType, amount: number) {
   }
 
   const cgroupAfter = await readCgroupCpuStat();
+  const processCpu = process.cpuUsage(processCpuBefore);
+  const wall = performance.now() - wallBefore;
 
   clearInterval(sampler);
+  // short benchmarks finish before the first interval
+  await sampleSystem();
 
   log.log('finished');
 
+  // share of the whole machine used by this process, so the dashboard can
+  // tell our own load apart from other load on the runner
+  const ownCpuPercent = 100 * ((processCpu.user + processCpu.system) / 1000) / wall
+    / cpus().length;
+  const cpuUsagePercent = average(systemSamples.map(s => s.cpuUsagePercent));
+
   return {
-    data: r.perf.get(),
+    data: roundRuns(r.perf.get()),
     metadata: {
       timestamp: new Date().toISOString(),
+
+      commit: getCommitInfo(),
+
+      benchmark: {
+        iterations: amount,
+        cached
+      },
 
       machine: getMachineInfo(),
 
@@ -153,10 +215,13 @@ async function run(g: GraphType, amount: number) {
       },
 
       system: {
+        sampleIntervalMs: SAMPLE_INTERVAL_MS,
+        sampleCount: systemSamples.length,
+
         averages: {
-          cpuUsagePercent: average(
-            systemSamples.map(s => s.cpuUsagePercent)
-          ),
+          cpuUsagePercent,
+          ownCpuPercent,
+          otherCpuPercent: Math.max(0, cpuUsagePercent - ownCpuPercent),
 
           cpuStealPercent: average(
             systemSamples.map(s => s.cpuStealPercent)
@@ -170,8 +235,6 @@ async function run(g: GraphType, amount: number) {
             systemSamples.map(s => s.freeMemory)
           )
         },
-
-        samples: systemSamples,
 
         meminfo: await readProcMemInfo()
       },
@@ -190,16 +253,16 @@ async function main() {
   await mkdir(outPath, { recursive: true });
 
   for (const key in templates) {
-    log.log('executing ' + key);
+    for (const cached of [false, true]) {
+      const name = cached ? key + '-cached' : key;
+      log.log('executing ' + name);
 
-    const perfData = await run(templates[key], 100);
+      const perfData = await run(templates[key], 100, cached);
 
-    await writeFile(
-      resolve(outPath, key + '.json'),
-      JSON.stringify(perfData, null, 2)
-    );
+      await writeFile(resolve(outPath, name + '.json'), JSON.stringify(perfData));
 
-    await new Promise(res => setTimeout(res, 200));
+      await new Promise(res => setTimeout(res, 200));
+    }
   }
 }
 

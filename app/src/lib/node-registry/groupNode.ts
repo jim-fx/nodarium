@@ -1,3 +1,5 @@
+import type { NodeValue } from '@nodarium/types';
+
 export const groupNode = {
   id: '__internal/group/instance',
   meta: { title: 'Group' },
@@ -8,7 +10,7 @@ export const groupNode = {
       values: []
     }
   },
-  execute(_data: Int32Array): Int32Array {
-    return _data;
+  execute(inputs: NodeValue[]): NodeValue {
+    return inputs[0];
   }
 } as const;

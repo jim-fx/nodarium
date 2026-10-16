@@ -1,10 +1,9 @@
 name: 📊 Benchmark the Runtime
 
+# push only: PRs are already benchmarked by the push to their branch
 on:
   push:
-    branches: ["*"]
-  pull_request:
-    branches: ["*"]
+    branches: ["**"]
 
 env:
   PNPM_CACHE_FOLDER: .pnpm-store
@@ -14,7 +13,13 @@ env:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
-    container: git.max-richter.dev/max/nodarium-ci:a56e8f445edb6064ae7a7b3b783fb7445f1b4e69
+    container:
+      image: git.max-richter.dev/max/nodarium-ci:a56e8f445edb6064ae7a7b3b783fb7445f1b4e69
+      # the runner shares the host with other services: a runaway benchmark
+      # should get OOM killed instead of swapping the whole host to a halt.
+      # Peak usage is ~1GB (cargo build) and ~0.8GB (benchmark), equal
+      # memory-swap disables swap for the container
+      options: --memory=2g --memory-swap=2g
 
     steps:
       - name: 📑 Checkout Code
@@ -37,13 +42,15 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.GIT_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
+          # Gitea's ssh server only accepts connections through the public
+          # proxy (PROXY protocol), which serves it on port 22
           cat >> ~/.ssh/config <<'EOF'
           Host git.max-richter.dev
-            Port 2222
+            Port 22
             IdentityFile ~/.ssh/id_ed25519
             IdentitiesOnly yes
           EOF
-          ssh-keyscan -p 2222 -H git.max-richter.dev >> ~/.ssh/known_hosts
+          ssh-keyscan -p 22 -H git.max-richter.dev >> ~/.ssh/known_hosts
 
       - name: 📤 Push Results
         env:
@@ -55,13 +62,21 @@ jobs:
           git clone git@git.max-richter.dev:max/nodarium-benchmarks.git target_bench_repo
 
           BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-          SAFE_PR_NAME=$(printf "%s" "$BRANCH" | tr '/' '-')
-          DEST_DIR="target_bench_repo/data/$SAFE_PR_NAME/$(date +%s)"
+          SAFE_BRANCH_NAME=$(printf "%s" "$BRANCH" | tr '/' '-')
+          DEST_DIR="target_bench_repo/data/$SAFE_BRANCH_NAME/$(date +%s)"
           mkdir -p "$DEST_DIR"
 
           cp app/benchmark/out/*.json "$DEST_DIR/"
 
           cd target_bench_repo
           git add .
-          git commit -m "Update benchmarks for $SAFE_PR_NAME: ${{ gitea.sha }}"
-          git push origin main
+          git commit -m "Update benchmarks for $SAFE_BRANCH_NAME: ${{ gitea.sha }}"
+
+          # other benchmark jobs may push at the same time
+          for attempt in 1 2 3 4 5; do
+            git push origin main && exit 0
+            echo "push failed (attempt $attempt), rebasing and retrying"
+            sleep $((attempt * 5))
+            git pull --rebase origin main
+          done
+          exit 1

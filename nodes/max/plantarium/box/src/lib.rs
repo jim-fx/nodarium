@@ -2,17 +2,16 @@ use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
     encode_float, evaluate_float, geometry::calculate_normals,log,
-    split_args, wrap_arg,
+    wrap_arg,
 };
 
 nodarium_definition_file!("src/input.json");
 
 #[nodarium_execute]
-pub fn execute(input: &[i32]) -> Vec<i32> {
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
-    let args = split_args(input);
 
-    log!("WASM(cube): input: {:?} -> {:?}", input, args);
+    log!("WASM(cube): args: {:?}", args);
 
     let size = evaluate_float(args[0]);
 

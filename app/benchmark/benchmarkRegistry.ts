@@ -9,19 +9,16 @@ export class BenchmarkRegistry implements NodeRegistry {
   private nodes = new Map<string, NodeDefinition>();
 
   async load(nodeIds: NodeId[]): Promise<NodeDefinition[]> {
-    const nodes = await Promise.all(nodeIds.map(async id => {
+    // The runtime calls load() on every execution, reuse the instances like
+    // the app's registry does, a fresh wasm memory per execution adds up to
+    // gigabytes before it is garbage collected
+    const nodes = await Promise.all([...new Set(nodeIds)].map(async id => {
+      const loaded = this.nodes.get(id);
+      if (loaded) return loaded;
       const p = resolve('static/nodes/' + id + '.wasm');
       const file = await readFile(p);
-      const node = createWasmWrapper(file as unknown as ArrayBuffer);
-      const d = node.get_definition();
-      return {
-        ...d,
-        execute: node.execute
-      };
+      return this.register(id, file as unknown as ArrayBuffer);
     }));
-    for (const n of nodes) {
-      this.nodes.set(n.id, n);
-    }
     this.status = 'ready';
     return nodes;
   }
@@ -31,7 +28,8 @@ export class BenchmarkRegistry implements NodeRegistry {
     const d = wasm.get_definition();
     const node = {
       ...d,
-      execute: wasm.execute
+      execute: wasm.execute,
+      reset: wasm.reset
     };
     this.nodes.set(id, node);
     return node;
