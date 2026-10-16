@@ -52,7 +52,7 @@
     background: var(--color-layer-1);
     z-index: 10;
     position: relative;
-    max-height: 100vh;
+    max-height: 100%;
     overflow-y: auto;
   }
 

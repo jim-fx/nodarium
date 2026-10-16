@@ -6,6 +6,7 @@ import { hashGraph } from './graph-hash';
 import { createThumbnailWorker } from './thumbnail-worker';
 
 const THUMBNAIL_SIZE = 512;
+const PREVIEW_SIZE = 256;
 // How long the graph has to stay unchanged before a new thumbnail is rendered
 const IDLE_DELAY = 3000;
 // Give the active project a head start before rendering missing thumbnails
@@ -69,6 +70,21 @@ export class ThumbnailService {
     await db.saveThumbnail({ id, blob, graphHash: '' });
     this.hashes.set(id, '');
     this.setUrl(id, blob);
+  }
+
+  async copy(from: number, to: number) {
+    const thumbnail = await db.getThumbnail(from);
+    if (!thumbnail) return;
+    await db.saveThumbnail({ ...thumbnail, id: to });
+    this.hashes.set(to, thumbnail.graphHash);
+    this.setUrl(to, thumbnail.blob);
+  }
+
+  /** Render a graph that is not a project (e.g. a template), the result is not stored */
+  renderPreview(graph: Graph, size = PREVIEW_SIZE) {
+    const result = this.queue.then(() => this.worker.renderGraph(graph, size));
+    this.queue = result.then(() => undefined, () => undefined);
+    return result.then((blob) => (blob ? URL.createObjectURL(blob) : undefined));
   }
 
   remove(id: number) {

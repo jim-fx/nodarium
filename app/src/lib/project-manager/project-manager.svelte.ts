@@ -9,7 +9,7 @@ import { createProjectFile, parseProjectFile, previewToBlob } from './project-fi
 export class ProjectManager {
   public graph = $state<Graph>();
   public readonly thumbnails = new ThumbnailService();
-  private projects = $state<Graph[]>([]);
+  public projects = $state<Graph[]>([]);
   private activeProjectId = localState<number | undefined>(
     'node.activeProjectId',
     undefined
@@ -17,6 +17,24 @@ export class ProjectManager {
   public readonly loading = $derived(
     this.projects.length && this.graph?.id !== this.activeProjectId.value
   );
+  /** most recently modified first */
+  public readonly sortedProjects = $derived(
+    [...this.projects].sort((a, b) =>
+      (b.meta?.lastModified ?? '').localeCompare(a.meta?.lastModified ?? '')
+    )
+  );
+  public readonly activeProject = $derived(
+    this.projects.find((p) => p.id === this.activeProjectId.value)
+  );
+  /**
+   * Called when the open project is renamed, the graph manager has to know
+   * about the new title, otherwise its next save overwrites it
+   */
+  public onrenameactive?: (title: string) => void;
+
+  get activeId() {
+    return this.activeProjectId.value;
+  }
 
   constructor() {
     this.init();
@@ -24,6 +42,11 @@ export class ProjectManager {
 
   async saveGraph(g: Graph) {
     await db.saveGraph(g);
+    this.updateProjectEntry(g);
+  }
+
+  private updateProjectEntry(g: Graph) {
+    this.projects = this.projects.map((p) => (p.id === g.id ? g : p));
   }
 
   private async init() {
@@ -63,8 +86,8 @@ export class ProjectManager {
     }
 
     g.id = id;
-    if (!g.meta) g.meta = {};
-    g.meta.title = title;
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    g.meta = { ...g.meta, title, lastModified: new Date().toISOString() };
 
     db.saveGraph(g);
     this.projects = [...this.projects, g];
@@ -73,18 +96,41 @@ export class ProjectManager {
   }
 
   public async handleDeleteProject(projectId: number) {
+    const sorted = this.sortedProjects;
+    const index = sorted.findIndex((p) => p.id === projectId);
+    const neighbour = sorted[index + 1] ?? sorted[index - 1];
+
     await db.deleteGraph(projectId);
     this.thumbnails.remove(projectId);
-    if (this.projects.length === 1) {
+    this.projects = this.projects.filter((p) => p.id !== projectId);
+
+    if (!neighbour) {
       this.graph = undefined;
-      this.projects = [];
-    } else {
-      this.projects = this.projects.filter((p) => p.id !== projectId);
-      const id = this.projects[0].id;
-      if (id !== undefined) {
-        this.handleSelectProject(id);
-      }
+      this.activeProjectId.value = undefined;
+      this.handleCreateProject();
+    } else if (projectId === this.activeProjectId.value) {
+      this.handleSelectProject(neighbour.id);
     }
+  }
+
+  public async renameProject(id: number, title: string) {
+    title = title.trim();
+    const graph = await db.getGraph(id);
+    if (!title || !graph || graph.meta?.title === title) return;
+
+    if (id === this.activeProjectId.value) {
+      this.onrenameactive?.(title);
+    }
+    graph.meta = { ...graph.meta, title };
+    await this.saveGraph(graph);
+  }
+
+  public async duplicateProject(id: number) {
+    const graph = await db.getGraph(id);
+    if (!graph) return;
+    const newId = this.handleCreateProject(graph, `${graph.meta?.title || 'Untitled'} copy`);
+    await this.thumbnails.copy(id, newId);
+    return newId;
   }
 
   public async handleSelectProject(id: number) {
