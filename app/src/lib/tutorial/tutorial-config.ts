@@ -91,14 +91,15 @@ export const tutorialConfig: PlantyConfig = {
       position: 'right',
       highlight: { selector: '.tabs', padding: 4 },
       text:
-        'The **sidebar** holds all your tools:\n⚙️ Settings · ⌨️ Shortcuts · 📦 Export · 📁 Projects · 📊 Graph Settings\nEnable **Advanced Mode** in Settings to unlock performance and benchmark panels.',
+        'The **sidebar** holds all your tools:\n⚙️ Settings · ⌨️ Shortcuts · 📦 Export · 📊 Graph Settings\nEnable **Advanced Mode** in Settings to unlock performance and benchmark panels.',
       next: 'save_project'
     },
 
     save_project: {
-      position: 'right',
+      position: 'center',
+      highlight: { selector: '.title-bar', padding: 4 },
       text:
-        'Your work is saved in the **Projects panel** — rename it, create new projects, or switch between them anytime.',
+        'Your work is saved automatically. Click the **project name** to rename it, or use the **File** menu to create, open and export projects.',
       next: 'congrats'
     },
 

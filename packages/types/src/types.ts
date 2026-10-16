@@ -124,3 +124,12 @@ export const GraphSchema = z.object({
 });
 
 export type Graph = z.infer<typeof GraphSchema>;
+
+export const ProjectFileSchema = z.object({
+  format: z.literal('nodarium-project'),
+  version: z.literal(1),
+  graph: GraphSchema,
+  preview: z.string().startsWith('data:image/').optional()
+});
+
+export type ProjectFile = z.infer<typeof ProjectFileSchema>;

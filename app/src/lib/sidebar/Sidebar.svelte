@@ -12,8 +12,20 @@
 
 <div class="wrapper" class:visible={state.activePanel.value}>
   <div class="tabs">
-    <button aria-label="Close" onclick={() => state.toggleOpen()}>
-      <span class="absolute i-[tabler--chevron-left] w-6 h-6 block"></span>
+    <button
+      class="toggle"
+      aria-label={state.activePanel.value ? 'Close sidebar' : 'Open sidebar'}
+      title={state.activePanel.value ? 'Close sidebar' : 'Open sidebar'}
+      aria-expanded={!!state.activePanel.value}
+      onclick={() => state.toggleOpen()}
+    >
+      <span
+        class="
+          block w-5 h-5 {state.activePanel.value
+          ? 'i-[tabler--layout-sidebar-right-collapse]'
+          : 'i-[tabler--layout-sidebar-right-expand]'}
+        "
+      ></span>
     </button>
     {#each state.keys as panelId (panelId)}
       {#if !state.panels[panelId].hidden}
@@ -52,7 +64,7 @@
     background: var(--color-layer-1);
     z-index: 10;
     position: relative;
-    max-height: 100vh;
+    max-height: 100%;
     overflow-y: auto;
   }
 
@@ -70,6 +82,8 @@
     border: none;
     display: flex;
     align-items: center;
+    justify-content: center;
+    cursor: pointer;
     border-bottom: solid thin var(--color-outline);
     border-left: solid thin var(--color-outline);
     background: var(--color-layer-1);
@@ -77,6 +91,10 @@
 
   .tabs > button > span {
     opacity: 0.5;
+  }
+
+  .tabs > button:hover > span {
+    opacity: 1;
   }
 
   .tabs > button.active {
@@ -89,10 +107,6 @@
 
   .visible .tabs {
     margin-left: -1px;
-  }
-
-  .visible > .tabs button:first-child > span {
-    transform: scaleX(-1);
   }
 
   .visible {

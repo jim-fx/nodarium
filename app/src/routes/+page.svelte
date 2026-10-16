@@ -10,7 +10,7 @@
 
   import PerformanceViewer from '$lib/performance/PerformanceViewer.svelte';
   import { ProjectManager } from '$lib/project-manager/project-manager.svelte';
-  import ProjectManagerEl from '$lib/project-manager/ProjectManager.svelte';
+  import ProjectBrowser from '$lib/project-manager/ProjectBrowser.svelte';
   import Viewer from '$lib/result-viewer/Viewer.svelte';
   import { MemoryRuntimeCache, MemoryRuntimeExecutor, WorkerRuntimeExecutor } from '$lib/runtime';
   import type { SettingsValue } from '$lib/settings';
@@ -26,6 +26,7 @@
   import Keymap from '$lib/sidebar/panels/Keymap.svelte';
   import { panelState } from '$lib/sidebar/PanelState.svelte';
   import Sidebar from '$lib/sidebar/Sidebar.svelte';
+  import TitleBar from '$lib/title-bar/TitleBar.svelte';
   import { tutorialConfig } from '$lib/tutorial/tutorial-config';
   import { Planty } from '@nodarium/planty';
   import type { Graph, NodeInstance } from '@nodarium/types';
@@ -35,7 +36,9 @@
 
   let performanceStore = createPerformanceStore();
   let planty = $state<ReturnType<typeof Planty>>();
-  let pendingSave = false;
+  let pendingSave = $state(false);
+  let titleBar = $state<ReturnType<typeof TitleBar>>();
+  let projectBrowserOpen = $state(false);
 
   const { data } = $props();
 
@@ -89,6 +92,10 @@
   let debugData = $state<Record<number, { type: string; data: Int32Array }>>();
   const manager = $derived(graphInterface?.manager);
 
+  pm.onrenameactive = (title) => {
+    if (manager) manager.meta = { ...manager.meta, title };
+  };
+
   async function randomGenerate() {
     if (!manager) return;
     const g = manager.serialize();
@@ -101,6 +108,26 @@
       key: 'r',
       description: 'Regenerate the plant model',
       callback: () => randomGenerate()
+    },
+    {
+      key: 'o',
+      ctrl: true,
+      preventDefault: true,
+      description: 'Open project',
+      callback: () => (projectBrowserOpen = true)
+    },
+    {
+      key: 'n',
+      alt: true,
+      preventDefault: true,
+      description: 'New project',
+      callback: () => (projectBrowserOpen = true)
+    },
+    {
+      key: 'F2',
+      preventDefault: true,
+      description: 'Rename project',
+      callback: () => titleBar?.startRename()
     }
   ]);
 
@@ -145,6 +172,7 @@
         }
       }
       viewerComponent?.update(graphResult);
+      pm.thumbnails.schedule(g, graphResult);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       toast(`Execution failed: ${msg}`, 'error');
@@ -258,7 +286,7 @@
       }
       window.addEventListener('keydown', handleKeydown);
     },
-    'before:save_project': () => panelState.setActivePanel('projects'),
+    'before:save_project': () => panelState.setActivePanel(''),
     'before:export_tour': () => panelState.setActivePanel('exports'),
     'before:shortcuts_tour': () => panelState.setActivePanel('shortcuts'),
     'after:save_project': () => panelState.setActivePanel('graph-settings'),
@@ -267,7 +295,13 @@
 />
 
 <div class="wrapper manager-{manager?.status}">
-  <header></header>
+  <TitleBar
+    bind:this={titleBar}
+    projectManager={pm}
+    saving={pendingSave}
+    onopenprojects={() => (projectBrowserOpen = true)}
+    onstarttutorial={() => planty?.start()}
+  />
   <Grid.Row>
     <Grid.Cell>
       <div class="viewer-cell">
@@ -343,9 +377,6 @@
             <PerformanceViewer data={$performanceStore} />
           {/if}
         </Panel>
-        <Panel id="projects" icon="i-[tabler--folder-open]">
-          <ProjectManagerEl projectManager={pm} />
-        </Panel>
         <Panel
           id="graph-source"
           title="Graph Source"
@@ -392,38 +423,17 @@
   </Grid.Row>
 </div>
 
+<ProjectBrowser projectManager={pm} bind:open={projectBrowserOpen} />
+
 <Toast />
 
 <style>
-  header {
-    background-color: var(--color-layer-1);
-    display: flex;
-    align-items: center;
-    padding: 0 8px;
-  }
-
-  .tutorial-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 18px;
-    padding: 4px 6px;
-    border-radius: 6px;
-    opacity: 0.7;
-    transition: opacity 0.15s, background 0.15s;
-  }
-
-  .tutorial-btn:hover {
-    opacity: 1;
-    background: rgba(255, 255, 255, 0.08);
-  }
-
   .wrapper {
     height: 100vh;
     width: 100vw;
     color: white;
     display: grid;
-    grid-template-rows: 0px 1fr;
+    grid-template-rows: 36px minmax(0, 1fr);
   }
 
   .viewer-cell {

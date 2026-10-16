@@ -8,12 +8,11 @@ test('test', async ({ page }) => {
 
   await page.goto('http://localhost:4173', { waitUntil: 'load' });
 
-  await page.getByRole('button', { name: 'projects' }).click();
-  await page.getByRole('button', { name: 'New', exact: true }).click();
-  await page.getByRole('combobox').selectOption('2');
-  await page.getByRole('textbox', { name: 'Project name' }).click();
-  await page.getByRole('textbox', { name: 'Project name' }).fill('Test Project');
-  await page.getByRole('button', { name: 'Create' }).click();
+  await page.getByRole('button', { name: 'File', exact: true }).click();
+  await page.getByRole('menuitem', { name: /^New project/ }).click();
+  const projectBrowser = page.getByRole('dialog', { name: 'Projects' });
+  await projectBrowser.getByRole('button', { name: 'Simple', exact: true }).click();
+  await expect(projectBrowser).toBeHidden();
 
   const expectedNodes = [
     {
