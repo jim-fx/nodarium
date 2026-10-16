@@ -347,7 +347,7 @@ export class GraphManager extends EventEmitter<{
         new SvelteSet(
           [
             ...graph.nodes,
-            graph?.groups?.map(g => g.nodes).flat()
+            ...graph.groups.flatMap(g => g.nodes)
           ]
             .filter(n => n && 'type' in n)
             .map((n) => n.type)
@@ -566,6 +566,15 @@ export class GraphManager extends EventEmitter<{
     return node.state.type;
   }
 
+  // The Group Input node exposes its sockets as inputs, see getNodeType()
+  private getOutputSocketType(node: NodeInstance, index: number) {
+    const nodeType = this.getNodeType(node);
+    if (node.type === '__internal/group/input') {
+      return Object.values(nodeType?.inputs ?? {})[index]?.type;
+    }
+    return nodeType?.outputs?.[index];
+  }
+
   async loadNodeType(id: NodeId) {
     await this.registry.load([id]);
     const nodeType = this.registry.getNode(id);
@@ -681,6 +690,49 @@ export class GraphManager extends EventEmitter<{
     this.save();
   }
 
+  removeGroupInput(groupId: number, key: string) {
+    const group = this.getGroup(groupId);
+    if (!group?.inputs || !(key in group.inputs)) return;
+    log.log('removing group input', { groupId, key });
+
+    // Group Input sockets are positional, so the sockets after the removed one move up by one
+    const index = Object.keys(group.inputs).indexOf(key);
+    const inputs = { ...group.inputs };
+    delete inputs[key];
+    group.inputs = inputs;
+
+    this.startUndoGroup();
+
+    if (this.currentGroupId === groupId) {
+      for (const edge of this.edges.filter(e => e[0].type === '__internal/group/input')) {
+        if (edge[1] === index) this.removeEdge(edge, { applyDeletion: false });
+        else if (edge[1] > index) edge[1]--;
+      }
+    } else {
+      const inputNodeId = group.nodes.find(n => n.type === '__internal/group/input')?.id;
+      group.edges = group.edges
+        .filter(e => !(e[0] === inputNodeId && e[1] === index))
+        .map(e =>
+          e[0] === inputNodeId && e[1] > index ? [e[0], e[1] - 1, e[2], e[3]] as SerializedEdge : e
+        );
+    }
+
+    // Drop the edges into the removed socket on every instance of the group
+    const isInstance = (n?: SerializedNode) =>
+      n?.type === '__internal/group/instance' && n.props?.groupId === groupId;
+    for (const edge of this.edges.filter(e => isInstance(e[2]) && e[3] === key)) {
+      this.removeEdge(edge, { applyDeletion: false });
+    }
+    for (const level of [...this.parentStack, ...this.groups]) {
+      level.edges = level.edges.filter(e =>
+        !(e[3] === key && isInstance(level.nodes.find(n => n.id === e[2])))
+      );
+    }
+
+    this.saveUndoGroup();
+    this.execute();
+  }
+
   isInsideGroup = $derived(this.currentGroupId !== null);
 
   enterGroup(nodeId: number): boolean {
@@ -705,6 +757,8 @@ export class GraphManager extends EventEmitter<{
     log.log('entered group', { groupId, depth: this.parentStack.length });
     this.history.reset();
     this._init(group);
+    // Baseline for this level, otherwise the first edit inside the group can't be undone
+    this.save();
     return true;
   }
 
@@ -845,14 +899,15 @@ export class GraphManager extends EventEmitter<{
   }
 
   groupNodes(nodeIds: number[]) {
-    this.startUndoGroup();
-    this.removeUnusedGroups();
-
     const nodes = [
       ...new SvelteSet(nodeIds).values().map(id => this.getNode(id)).filter(Boolean)
-    ] as NodeInstance[];
+    ].filter(n =>
+      n!.type !== '__internal/group/input' && n!.type !== '__internal/group/output'
+    ) as NodeInstance[];
 
     if (!nodes.length) return;
+
+    this.startUndoGroup();
 
     log.log(`Grouping ${nodes.length} nodes`, { nodes });
 
@@ -869,34 +924,35 @@ export class GraphManager extends EventEmitter<{
       groupInputs.set(`${edge[0].id}-${edge[1]}`, edge);
     }
 
-    // And the same for the outputs
+    // And the same for the outputs, deduped by the internal source socket
+    //                ┌──external_a
+    // internal_out───┤
+    //                └──external_b
     const outgoingEdges = this.edges.filter((edge) => ids.has(edge[0].id) && !ids.has(edge[2].id));
     const groupOutputs = new SvelteMap<string, Edge>();
     for (const edge of outgoingEdges) {
-      groupOutputs.set(`${edge[2].id}-${edge[3]}`, edge);
+      groupOutputs.set(`${edge[0].id}-${edge[1]}`, edge);
     }
 
     const inputs: Record<string, NodeInput> = {};
     [...groupInputs.values()].forEach((edge, i) => {
-      const internalInputDef = edge[2].state.type?.inputs?.[edge[3]];
+      const internalInputDef = this.getNodeType(edge[2])?.inputs?.[edge[3]];
       const input = {
         label: internalInputDef?.label ?? edge[3],
-        type: edge[0].state.type?.outputs?.[edge[1]] || '*'
+        type: this.getOutputSocketType(edge[0], edge[1]) || '*'
       };
       inputs[`input_${i}`] = input as NodeInput;
     });
 
-    const outputs = [];
-    if (groupOutputs.size) {
-      const edge = groupOutputs.values().next().value!;
-      const outputType = edge[0].state.type?.outputs?.[edge[1]] || '*';
-      outputs.push({
+    const outputs = [...groupOutputs.values()].map((edge) => {
+      const outputType = this.getOutputSocketType(edge[0], edge[1]) || '*';
+      return {
         label: outputType === '*'
           ? 'Output'
           : outputType.charAt(0).toUpperCase() + outputType.slice(1),
-        type: edge[2].state.type?.inputs?.[edge[3]].type || '*'
-      });
-    }
+        type: outputType
+      };
+    });
 
     const groupPosition = [0, 0] as [number, number];
     const bounds: Box = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
@@ -915,6 +971,14 @@ export class GraphManager extends EventEmitter<{
     // internal edge wiring and external edge socket naming.
     const inputIndexByEdgeKey = new SvelteMap<string, number>();
     [...groupInputs.keys()].forEach((key, i) => inputIndexByEdgeKey.set(key, i));
+    const outputIndexByEdgeKey = new SvelteMap<string, number>();
+    [...groupOutputs.keys()].forEach((key, i) => outputIndexByEdgeKey.set(key, i));
+
+    // Fan-out connections collapse into the same boundary edge, keep only one
+    const uniqueBy = <T>(getKey: (e: T) => string) => {
+      const seen = new SvelteSet<string>();
+      return (e: T) => !seen.has(getKey(e)) && !!seen.add(getKey(e));
+    };
 
     // Allocate all needed IDs up front so sequential calls never collide.
     const usedIds = new SvelteSet<number>([
@@ -952,10 +1016,11 @@ export class GraphManager extends EventEmitter<{
         const idx = inputIndexByEdgeKey.get(`${edge[0].id}-${edge[1]}`) ?? 0;
         return [groupInputNode.id, idx, edge[2].id, edge[3]];
       } else if (!ids.has(edge[2].id)) {
-        return [edge[0].id, edge[1], groupOutputNode.id, 'out_0'];
+        const idx = outputIndexByEdgeKey.get(`${edge[0].id}-${edge[1]}`) ?? 0;
+        return [edge[0].id, edge[1], groupOutputNode.id, `out_${idx}`];
       }
       return [edge[0].id, edge[1], edge[2].id, edge[3]];
-    }) as [number, number, number, string][];
+    }).filter(uniqueBy(e => e.join('-'))) as [number, number, number, string][];
 
     const groupId = nextId();
     const groupDefinition: GroupDefinition = {
@@ -985,10 +1050,11 @@ export class GraphManager extends EventEmitter<{
         const idx = inputIndexByEdgeKey.get(`${edge[0].id}-${edge[1]}`) ?? 0;
         return [edge[0], edge[1], groupNode, `input_${idx}`] as Edge;
       } else if (ids.has(edge[0].id)) {
-        return [groupNode, 0, edge[2], edge[3]] as Edge;
+        const idx = outputIndexByEdgeKey.get(`${edge[0].id}-${edge[1]}`) ?? 0;
+        return [groupNode, idx, edge[2], edge[3]] as Edge;
       }
       return edge;
-    });
+    }).filter(uniqueBy((e: Edge) => this.getEdgeId(e)));
 
     this.nodes.set(groupNode.id, groupNode);
     this.edges = externalEdges;
@@ -1064,7 +1130,8 @@ export class GraphManager extends EventEmitter<{
         type: n.type,
         position: [n.position[0] + offsetX, n.position[1] + offsetY] as [number, number],
         state: { type: nodeType },
-        props: n.props || {}
+        // Copy, the group definition (and its other instances) must not share these props
+        props: $state.snapshot(n.props) || {}
       });
       return node;
     });
@@ -1073,15 +1140,22 @@ export class GraphManager extends EventEmitter<{
       this.nodes.set(node.id, node);
     }
 
-    // input_X socket on the group node → the external source that was feeding it
+    // Group Input sockets are positional: socket i belongs to the i-th key of group.inputs
+    const inputKeys = Object.keys(group.inputs ?? {});
+
+    // input socket index on the group node → the external source that was feeding it
     const inputIdxToExternal = new SvelteMap<number, { node: NodeInstance; socket: number }>();
     for (const edge of edgesToGroup) {
-      const match = (edge[3] as string).match(/^input_(\d+)$/);
-      if (match) inputIdxToExternal.set(parseInt(match[1]), { node: edge[0], socket: edge[1] });
+      const idx = inputKeys.indexOf(edge[3]);
+      if (idx !== -1) inputIdxToExternal.set(idx, { node: edge[0], socket: edge[1] });
     }
 
     // All external nodes that received output from the group node
-    const externalOutputTargets = edgesFromGroup.map(e => ({ toNode: e[2], toSocket: e[3] }));
+    const externalOutputTargets = edgesFromGroup.map(e => ({
+      fromSocket: e[1],
+      toNode: e[2],
+      toSocket: e[3]
+    }));
 
     // Recreate internal edges, substituting boundary nodes with the real external peers
     for (const [fromId, fromSocketIdx, toId, toSocketKey] of group.edges) {
@@ -1090,7 +1164,13 @@ export class GraphManager extends EventEmitter<{
 
       if (groupInputNode && fromId === groupInputNode.id) {
         const ext = inputIdxToExternal.get(fromSocketIdx);
-        if (!ext) continue;
+        if (!ext) {
+          // Unconnected group input: keep the value that was set on the group node
+          const value = groupNode.props?.[inputKeys[fromSocketIdx]];
+          const toNode = this.nodes.get(idMap.get(toId)!);
+          if (value !== undefined && toNode?.props) toNode.props[toSocketKey] = value;
+          continue;
+        }
         fromNode = ext.node;
         resolvedFromSocket = ext.socket;
       } else {
@@ -1101,7 +1181,10 @@ export class GraphManager extends EventEmitter<{
       if (!fromNode) continue;
 
       if (groupOutputNode && toId === groupOutputNode.id) {
-        for (const { toNode, toSocket } of externalOutputTargets) {
+        // Older groups used "Out" for their single output
+        const outputIndex = Number(/^out_(\d+)$/.exec(toSocketKey)?.[1] ?? 0);
+        for (const { fromSocket, toNode, toSocket } of externalOutputTargets) {
+          if (fromSocket !== outputIndex) continue;
           this.createEdge(fromNode, resolvedFromSocket, toNode, toSocket, { applyUpdate: false });
         }
       } else {
@@ -1214,11 +1297,23 @@ export class GraphManager extends EventEmitter<{
     return edge;
   }
 
+  // History entries are full graphs (see serialize()), so inside a group the
+  // live level has to be taken from the active group, not the root nodes.
+  private restoreState(state: Graph) {
+    this.groups = state.groups ?? [];
+    if (this.currentGroupId === null) {
+      this._init(state);
+      return;
+    }
+    const group = this.getGroup(this.currentGroupId);
+    if (group) this._init(group);
+  }
+
   undo() {
     log.log('undo');
     const nextState = this.history.undo();
     if (nextState) {
-      this._init(nextState);
+      this.restoreState(nextState);
       this.emit('save', this.serialize());
     }
   }
@@ -1227,7 +1322,7 @@ export class GraphManager extends EventEmitter<{
     log.log('redo');
     const nextState = this.history.redo();
     if (nextState) {
-      this._init(nextState);
+      this.restoreState(nextState);
       this.emit('save', this.serialize());
     }
   }

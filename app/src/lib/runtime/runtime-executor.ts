@@ -79,26 +79,41 @@ export function expandGroups(graph: Graph): Graph {
 
       // external_source → [inputBoundary →] internal_target
       //
-      // External socket names are "input_N" where N equals the input boundary's
-      // output index. Match each external edge only to the internal edges that
-      // originate from that specific output slot — not a cartesian product of all.
+      // The input boundary's sockets are positional: output index N of the
+      // boundary belongs to the N-th key of group.inputs (keys can have gaps
+      // after a removal). Match each external edge only to the internal edges
+      // that originate from that specific output slot — not a cartesian product of all.
+      const propOverrides = new Map<number, NonNullable<typeof node.props>>();
       if (inputBoundary) {
+        const inputKeys = Object.keys(group.inputs ?? {});
         const fromInput = group.edges.filter(e => e[0] === inputBoundary.id);
         for (const extEdge of incomingExternal) {
-          const inputIndex = parseInt((extEdge[3] as string).replace('input_', ''), 10);
+          const inputIndex = inputKeys.indexOf(extEdge[3]);
           const matchingIntEdges = fromInput.filter(e => e[1] === inputIndex);
           for (const intEdge of matchingIntEdges) {
             const toId = idMap.get(intEdge[2]);
             if (toId !== undefined) newEdges.push([extEdge[0], extEdge[1], toId, intEdge[3]]);
           }
         }
+
+        // Unconnected group inputs pass the value set on the group node through
+        const connected = new Set(incomingExternal.map(e => e[3]));
+        for (const intEdge of fromInput) {
+          const key = inputKeys[intEdge[1]];
+          const value = node.props?.[key];
+          if (key === undefined || connected.has(key) || value === undefined) continue;
+          propOverrides.set(intEdge[2], { ...propOverrides.get(intEdge[2]), [intEdge[3]]: value });
+        }
       }
 
       // internal_source → [outputBoundary →] external_target
+      // Group output socket N is the "out_N" input of the output boundary
+      // (older groups used "Out" for their single output).
       if (outputBoundary) {
         const toOutput = group.edges.filter(e => e[2] === outputBoundary.id);
         for (const extEdge of outgoingExternal) {
           for (const intEdge of toOutput) {
+            if (Number(/^out_(\d+)$/.exec(intEdge[3])?.[1] ?? 0) !== extEdge[1]) continue;
             const fromId = idMap.get(intEdge[0]);
             if (fromId !== undefined) newEdges.push([fromId, intEdge[1], extEdge[2], extEdge[3]]);
           }
@@ -114,7 +129,12 @@ export function expandGroups(graph: Graph): Graph {
       }
 
       nodes.splice(i, 1);
-      for (const n of realNodes) nodes.push({ ...n, id: idMap.get(n.id)! });
+      for (const n of realNodes) {
+        const props = propOverrides.has(n.id)
+          ? { ...n.props, ...propOverrides.get(n.id) }
+          : n.props;
+        nodes.push({ ...n, id: idMap.get(n.id)!, props });
+      }
 
       edges = edges.filter(e => e[0] !== node.id && e[2] !== node.id);
       edges.push(...newEdges);
