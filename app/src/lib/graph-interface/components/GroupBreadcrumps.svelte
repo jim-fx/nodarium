@@ -15,8 +15,8 @@
   }
 
   // Intermediate groups: parent stack entries that are groups (not the root graph).
-  const intermediateGroups = $derived(
-    graph.parentStack.filter(e => e.id !== graph.id)
+  const intermediateGroupIds = $derived(
+    graph.parentStack.flatMap(e => e.id === null ? [] : [e.id])
   );
 </script>
 
@@ -26,10 +26,10 @@
   <div class="group-name flex gap-1 items-center">
     <Button variant="ghost" size="sm" onclick={() => exitToGroup()}>Root</Button>
 
-    {#each intermediateGroups as entry (entry.id)}
+    {#each intermediateGroupIds as groupId (groupId)}
       <span class="i-[tabler--arrow-right]"></span>
-      <Button variant="ghost" size="sm" onclick={() => exitToGroup(entry.id)}>
-        {getGroupName(entry.id)}
+      <Button variant="ghost" size="sm" onclick={() => exitToGroup(groupId)}>
+        {getGroupName(groupId)}
       </Button>
     {/each}
 
