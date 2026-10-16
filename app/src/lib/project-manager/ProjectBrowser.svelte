@@ -234,7 +234,7 @@
       </div>
       <button
         type="button"
-        class="mt-auto flex h-12 w-full cursor-pointer items-center gap-3 border-x-0 border-b-0 border-t border-outline bg-transparent px-5 text-left text-sm hover:bg-layer-2 font-(--font-family)"
+        class="mt-auto flex h-15 w-full cursor-pointer items-center gap-3 border-x-0 border-b-0 border-t border-outline bg-transparent px-5 text-left text-sm hover:bg-layer-2 font-(--font-family)"
         onclick={() => importInput?.click()}
       >
         <span class="block h-4 w-4 i-[tabler--upload]"></span>
