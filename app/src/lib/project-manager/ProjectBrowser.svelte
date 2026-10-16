@@ -217,8 +217,8 @@
     </header>
 
     <aside class="row-span-2 flex min-h-0 flex-col border-r border-outline">
-      <div class="border-b border-outline px-5 pb-2.5 pt-4.5 text-xs opacity-50">
-        New from template
+      <div class="flex h-11 shrink-0 items-center border-b border-outline px-5 text-xs">
+        <span class="opacity-50">New from template</span>
       </div>
       <div class="min-h-0 overflow-y-auto">
         {#each projectTemplates as template (template.name)}
@@ -299,10 +299,8 @@
                 {@render thumbnail(url, 'h-36 w-full p-2 box-border')}
               </button>
             {/if}
-            <span
-              class="flex h-6.5 items-center border-t border-outline px-2.5 text-[11px] opacity-50"
-            >
-              {formatRelativeTime(project.meta?.lastModified)}
+            <span class="flex h-6.5 items-center border-t border-outline px-2.5 text-[11px]">
+              <span class="opacity-50">{formatRelativeTime(project.meta?.lastModified)}</span>
             </span>
           </li>
         {:else}
@@ -314,7 +312,7 @@
     </section>
 
     <footer class="flex items-center gap-2 border-t border-outline px-5">
-      <label class="flex cursor-pointer items-center gap-2.5 text-sm">
+      <label class="flex cursor-pointer items-center gap-2.5 whitespace-nowrap text-sm">
         <InputCheckbox bind:value={showOnStartup.value} />
         Show on startup
       </label>
