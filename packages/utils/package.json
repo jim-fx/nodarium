@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest",
+    "test:unit": "vitest run",
     "format": "dprint fmt -c '../../.dprint.jsonc' .",
     "format:check": "dprint check -c '../../.dprint.jsonc' ."
   },
