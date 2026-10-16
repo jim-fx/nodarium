@@ -6,7 +6,7 @@
   import Panel from '$lib/sidebar/Panel.svelte';
   import Sidebar from '$lib/sidebar/Sidebar.svelte';
   import { type NodeId, type NodeInstance } from '@nodarium/types';
-  import { concatEncodedArrays, createWasmWrapper, encodeNestedArray } from '@nodarium/utils';
+  import { createWasmWrapper, encodeNestedArray } from '@nodarium/utils';
 
   const registryCache = new IndexDBCache('node-registry');
   const nodeRegistry = new RemoteNodeRegistry('', registryCache);
@@ -55,8 +55,11 @@
       if (keys[0] === 'plant') {
         ins = [[0, 0, 0, 0, 0, 0, 0, 0], ...ins];
       }
-      const inputs = concatEncodedArrays(encodeNestedArray(ins));
-      nodeWasmWrapper?.execute(inputs);
+      const inputs = ins.map((v) =>
+        Array.isArray(v) ? Int32Array.from(encodeNestedArray(v)) : Int32Array.of(v)
+      );
+      nodeWasmWrapper.reset();
+      nodeWasmWrapper.execute(inputs);
     }
   });
 </script>

@@ -9,11 +9,10 @@ use nodarium_utils::{
 nodarium_definition_file!("src/input.json");
 
 #[nodarium_execute]
-pub fn execute(input: &[i32]) -> Vec<i32> {
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
-    log!("DEBUG args: {:?}", input);
+    log!("DEBUG args: {:?}", args);
 
-    let args = split_args(input);
 
     let plants = split_args(args[0]);
     let axis = evaluate_int(args[1]); // 0 =x, 1 = y, 2 = z

@@ -18,78 +18,30 @@ fn add_line_numbers(input: String) -> String {
 
 #[proc_macro_attribute]
 pub fn nodarium_execute(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let input_fn = parse_macro_input!(item as syn::ItemFn);
-    let _fn_name = &input_fn.sig.ident;
-    let _fn_vis = &input_fn.vis;
-    let fn_body = &input_fn.block;
+    let mut inner_fn = parse_macro_input!(item as syn::ItemFn);
+    let inner_ident = syn::Ident::new("__nodarium_execute_inner", inner_fn.sig.ident.span());
+    inner_fn.sig.ident = inner_ident.clone();
 
-    let first_arg_ident = if let Some(syn::FnArg::Typed(pat_type)) = input_fn.sig.inputs.first() {
-        if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
-            &pat_ident.ident
-        } else {
-            panic!("Expected a simple identifier for the first argument");
-        }
-    } else {
-        panic!("The execute function must have at least one argument (the input slice)");
-    };
-
-    // We create a wrapper that handles the C ABI and pointer math
+    // Exports the Nodarium ABI v1 (see docs/ABI.md) around the user function,
+    // which receives one slice per input: fn execute(args: &[&[i32]]) -> Vec<i32>
     let expanded = quote! {
-        extern "C" {
-            fn host_log_panic(ptr: *const u8, len: usize);
-            fn host_log(ptr: *const u8, len: usize);
-        }
+        #inner_fn
 
-        fn setup_panic_hook() {
-            static SET_HOOK: std::sync::Once = std::sync::Once::new();
-            SET_HOOK.call_once(|| {
-                std::panic::set_hook(Box::new(|info| {
-                    let msg = info.to_string();
-                    unsafe { host_log_panic(msg.as_ptr(), msg.len()); }
-                }));
-            });
-        }
-        
         #[no_mangle]
-        pub extern "C" fn __alloc(len: usize) -> *mut i32 {
-            let mut buf = Vec::with_capacity(len);
-            let ptr = buf.as_mut_ptr();
-            std::mem::forget(buf);
-            ptr
+        pub extern "C" fn nodarium_alloc(bytes: usize) -> *mut i32 {
+            nodarium_utils::abi::alloc(bytes)
         }
 
         #[no_mangle]
-        pub extern "C" fn __free(ptr: *mut i32, len: usize) {
-            unsafe {
-                let _ = Vec::from_raw_parts(ptr, 0, len);
-            }
+        pub extern "C" fn nodarium_reset() {
+            nodarium_utils::abi::reset()
         }
-
-        static mut OUTPUT_BUFFER: Vec<i32> = Vec::new();
 
         #[no_mangle]
-        pub extern "C" fn execute(ptr: *const i32, len: usize) -> *mut i32 {
-            setup_panic_hook();
-            // 1. Convert raw pointer to slice
-            let input = unsafe { core::slice::from_raw_parts(ptr, len) };
-
-            // 2. Call the logic (which we define below)
-            let result_data: Vec<i32> = internal_logic(input);
-
-            // 3. Use the static buffer for the result
-            let result_len = result_data.len();
-            unsafe {
-                OUTPUT_BUFFER.clear();
-                OUTPUT_BUFFER.reserve(result_len + 1);
-                OUTPUT_BUFFER.push(result_len as i32);
-                OUTPUT_BUFFER.extend(result_data);
-                
-                OUTPUT_BUFFER.as_mut_ptr()
-            }
-        }
-
-        fn internal_logic(#first_arg_ident: &[i32]) -> Vec<i32> {
-            #fn_body
+        pub extern "C" fn nodarium_execute(args_ptr: *const u32, argc: usize) -> *const u32 {
+            nodarium_utils::abi::setup_panic_hook();
+            let args = unsafe { nodarium_utils::abi::read_args(args_ptr, argc) };
+            nodarium_utils::abi::store_result(#inner_ident(&args))
         }
     };
 

@@ -9,10 +9,9 @@ use nodarium_utils::{
 nodarium_definition_file!("src/inputs.json");
 
 #[nodarium_execute]
-pub fn execute(input: &[i32]) -> Vec<i32> {
-    log!("WASM(output): input: {:?}", input);
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
+    log!("WASM(output): args: {:?}", args);
 
-    let args = split_args(input);
 
     log!("WASM(output) args: {:?}", args);
 
