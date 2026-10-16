@@ -100,12 +100,12 @@
   function getSocketType(node: NodeInstance, index: number | string): string {
     const nodeType = graph.getNodeType(node);
     if (typeof index === 'string') {
-      return nodeType?.inputs?.[index].type || 'unknown';
+      return nodeType?.inputs?.[index]?.type || 'unknown';
     }
 
     if (node.type === '__internal/group/input') {
       const key = Object.keys(nodeType?.inputs || {})[index];
-      return nodeType?.inputs?.[key].type || 'unknown';
+      return nodeType?.inputs?.[key]?.type || 'unknown';
     }
 
     return nodeType?.outputs?.[index] || 'unknown';

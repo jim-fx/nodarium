@@ -32,12 +32,8 @@
 
   function handleRemoveInput(key: string) {
     if (!activeGroup) return;
-    const group = manager.getGroup(activeGroup?.id);
-    const inputs = $state.snapshot(group?.inputs ?? {});
-    delete inputs[key];
-    activeGroup.inputs = inputs;
+    manager.removeGroupInput(activeGroup.id, key);
     manager.nodes = manager.nodes;
-    manager.save();
   }
 
   const types = $derived(
@@ -61,11 +57,15 @@
     const group = manager.getGroup(activeGroup?.id);
     const outputs = $state.snapshot(group?.outputs ?? []);
     if (outputs?.[0]?.type === outputType) return;
+    // No output yet and the user hasn't picked a type, don't invent one
+    if (!outputs.length && outputType === 'unknown') return;
+    // The panel only edits the first output, keep the others
     activeGroup.outputs = [
       {
         label: outputs[0]?.label ?? 'Output',
         type: outputType
-      }
+      },
+      ...outputs.slice(1)
     ];
     manager.nodes = manager.nodes;
     manager.save();

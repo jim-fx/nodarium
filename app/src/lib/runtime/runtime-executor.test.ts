@@ -161,4 +161,38 @@ describe('expandGroups', () => {
     expect(result.nodes.map(n => n.id)).toContain(remappedB);
     expect(result.edges.length).toBe(0);
   });
+  it('passes values set on the group node to unconnected group inputs', () => {
+    const groupId = 5;
+    const groupNodeId = 4;
+    const remappedB = (groupNodeId + 1) * 1_000_000 + 2;
+    const remappedD = (groupNodeId + 1) * 1_000_000 + 3;
+
+    const graph: Graph = {
+      id: 1,
+      nodes: [
+        node(1, 'test/node/output'),
+        node(groupNodeId, '__internal/group/instance', { groupId, input_0: 3, input_1: 7 })
+      ],
+      edges: [edge(1, 0, groupNodeId, 'input_0')], // input_0 is connected, input_1 is not
+      groups: [{
+        id: groupId,
+        nodes: [
+          node(6, '__internal/group/input'),
+          node(2, 'test/node/output', { input: 1 }),
+          node(3, 'test/node/output', { input: 1 })
+        ],
+        edges: [
+          edge(6, 0, 2, 'input'),
+          edge(6, 1, 3, 'input')
+        ],
+        inputs: { input_0: { type: 'float' }, input_1: { type: 'float' } }
+      }]
+    };
+
+    const result = expandGroups(graph);
+
+    expect(result.edges).toEqual([edge(1, 0, remappedB, 'input')]);
+    expect(result.nodes.find(n => n.id === remappedB)?.props).toEqual({ input: 1 });
+    expect(result.nodes.find(n => n.id === remappedD)?.props).toEqual({ input: 7 });
+  });
 });

@@ -24,7 +24,12 @@
   }
 
   function realizePotentialRow() {
-    if (inputs) inputs[`input_${Object.keys(inputs).length}`] = potentialRow as NodeInput;
+    if (inputs) {
+      // Keys can have gaps after a removal, don't overwrite an existing input
+      let i = Object.keys(inputs).length;
+      while (`input_${i}` in inputs) i++;
+      inputs[`input_${i}`] = potentialRow as NodeInput;
+    }
     potentialRow = undefined;
   }
 
