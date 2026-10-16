@@ -145,6 +145,7 @@
         }
       }
       viewerComponent?.update(graphResult);
+      pm.thumbnails.schedule(g, graphResult);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       toast(`Execution failed: ${msg}`, 'error');

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { defaultPlant, lottaFaces, plant, simple } from '$lib/graph-templates';
   import type { Graph } from '$lib/types';
-  import { Button, ConfirmDialog, InputSelect, Spinner } from '@nodarium/ui';
+  import { Button, ConfirmDialog, InputSelect, Spinner, toast } from '@nodarium/ui';
   import type { ProjectManager } from './project-manager.svelte';
 
   const { projectManager } = $props<{ projectManager: ProjectManager }>();
@@ -41,6 +41,26 @@
     confirmOpen = true;
   }
 
+  let importInput = $state<HTMLInputElement>();
+
+  async function handleImport(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    try {
+      await projectManager.importProject(file);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      toast(`Import failed: ${msg}`, 'error');
+    }
+  }
+
+  function handleExport(id: number, e: MouseEvent) {
+    e.stopPropagation();
+    projectManager.exportProject(id);
+  }
+
   function confirmDelete() {
     if (pendingDeleteId !== null) {
       projectManager.handleDeleteProject(pendingDeleteId);
@@ -51,7 +71,17 @@
 
 <header class="flex justify-between px-4 h-[70px] border-b-1 border-outline items-center bg-layer-2">
   <h3>Project</h3>
-  <Button onclick={() => (showNewProject = !showNewProject)}>New</Button>
+  <div class="flex gap-2">
+    <Button onclick={() => importInput?.click()}>Import</Button>
+    <Button onclick={() => (showNewProject = !showNewProject)}>New</Button>
+  </div>
+  <input
+    bind:this={importInput}
+    type="file"
+    accept=".json,application/json"
+    class="hidden"
+    onchange={handleImport}
+  />
 </header>
 
 {#if showNewProject}
@@ -88,8 +118,24 @@
           e.key === 'Enter'
           && projectManager.handleSelectProject(project.id!)}
         >
-          <div class="flex justify-between items-center grow">
-            <span>{project.meta?.title || 'Untitled'}</span>
+          <div class="flex items-center gap-3 grow min-w-0">
+            {#if projectManager.thumbnails.urls.get(project.id)}
+              <img
+                src={projectManager.thumbnails.urls.get(project.id)}
+                alt=""
+                class="w-[52px] h-[52px] shrink-0 object-contain bg-layer-0 border border-outline"
+              />
+            {:else}
+              <span class="w-[52px] h-[52px] shrink-0 bg-layer-0 border border-outline"></span>
+            {/if}
+            <span class="grow truncate">{project.meta?.title || 'Untitled'}</span>
+            <button
+              class="opacity-20 hover:opacity-70 transition-opacity cursor-pointer p-1 rounded"
+              onclick={(e) => handleExport(project.id!, e)}
+              aria-label="Export project"
+            >
+              <span class="i-[tabler--download] w-4 h-4 block"></span>
+            </button>
             <button
               class="opacity-20 hover:opacity-70 transition-opacity cursor-pointer p-1 rounded text-red-400"
               onclick={(e) => requestDelete(project.id!, e)}
