@@ -300,7 +300,7 @@ export class MouseEventManager {
             if (!node?.state) continue;
             const x = node.position[0];
             const y = node.position[1];
-            const height = getNodeHeight(node.state.type!);
+            const height = getNodeHeight(this.graph.getNodeType(node)!);
             if (x > x1 - 20 && x < x2 && y > y1 - height && y < y2) {
               this.state.selectedNodes?.add(node.id);
             } else {

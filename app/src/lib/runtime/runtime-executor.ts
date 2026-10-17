@@ -45,6 +45,17 @@ export function expandGroups(graph: Graph): Graph {
   const nodes = [...graph.nodes];
   let edges = [...graph.edges];
 
+  // Expanded nodes get an ID derived from the instance they come from, so the
+  // IDs (and the cache entries keyed by them) stay the same between runs. Unlike
+  // an offset per level this stays in the safe integer range at any nesting depth.
+  const usedIds = new Set(nodes.map(n => n.id));
+  function createExpandedId(instanceId: number, nodeId: number) {
+    let id = hashString53(`${instanceId}/${nodeId}`);
+    while (usedIds.has(id)) id = (id + 1) % Number.MAX_SAFE_INTEGER;
+    usedIds.add(id);
+    return id;
+  }
+
   let changed = true;
   while (changed) {
     changed = false;
@@ -61,7 +72,6 @@ export function expandGroups(graph: Graph): Graph {
 
       changed = true;
 
-      const ID_OFFSET = (node.id + 1) * 1_000_000;
       const idMap = new Map<number, number>();
 
       const inputBoundary = group.nodes.find(n => n.type === '__internal/group/input');
@@ -71,7 +81,7 @@ export function expandGroups(graph: Graph): Graph {
         n => n.type !== '__internal/group/input' && n.type !== '__internal/group/output'
       );
 
-      for (const n of realNodes) idMap.set(n.id, ID_OFFSET + n.id);
+      for (const n of realNodes) idMap.set(n.id, createExpandedId(node.id, n.id));
 
       const incomingExternal = edges.filter(e => e[2] === node.id);
       const outgoingExternal = edges.filter(e => e[0] === node.id);
@@ -96,11 +106,12 @@ export function expandGroups(graph: Graph): Graph {
           }
         }
 
-        // Unconnected group inputs pass the value set on the group node through
+        // Unconnected group inputs pass the value set on the group node through,
+        // or the group input's default, which the group node's widget shows
         const connected = new Set(incomingExternal.map(e => e[3]));
         for (const intEdge of fromInput) {
           const key = inputKeys[intEdge[1]];
-          const value = node.props?.[key];
+          const value = node.props?.[key] ?? group.inputs?.[key]?.value;
           if (key === undefined || connected.has(key) || value === undefined) continue;
           propOverrides.set(intEdge[2], { ...propOverrides.get(intEdge[2]), [intEdge[3]]: value });
         }

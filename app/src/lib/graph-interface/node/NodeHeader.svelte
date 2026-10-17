@@ -63,10 +63,7 @@
 
   function getSocketType(s: Socket | null) {
     if (!s) return 'unknown';
-    if (typeof s.index === 'string') {
-      return s.node.state.type?.inputs?.[s.index].type || 'unknown';
-    }
-    return s.node.state.type?.outputs?.[s.index] || 'unknown';
+    return graph.getSocketType(s.node, s.index) || 'unknown';
   }
   const socketType = $derived(getSocketType(graphState.activeSocket));
   const hoverColor = $derived(graphState.colors.getColor(socketType));

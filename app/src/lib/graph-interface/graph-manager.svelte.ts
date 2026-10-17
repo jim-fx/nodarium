@@ -47,7 +47,7 @@ export class GraphManager extends EventEmitter<{
   // Snapshots of parent levels we navigated away from. Empty at root.
   // Entry i has the saved state of depth i (0 = root graph, 1 = first group, …).
   parentStack: {
-    id: number;
+    id: number | null; // group id of this level, null for the root graph
     nodes: SerializedNode[];
     edges: SerializedEdge[];
     nodeId: number; // group instance node id that was entered to reach the next level
@@ -170,15 +170,16 @@ export class GraphManager extends EventEmitter<{
 
   dropNodeOnEdge(nodeId: number, edge: Edge) {
     const draggedNode = this.getNode(nodeId);
-    if (!draggedNode || !draggedNode.state?.type) return;
+    if (!draggedNode) return;
 
     const [fromNode, fromSocketIdx, toNode, toSocketKey] = edge;
 
-    const draggedInputs = Object.entries(draggedNode.state.type.inputs ?? {});
-    const draggedOutputs = draggedNode.state.type.outputs ?? [];
+    const dragged = this.getNodeSockets(draggedNode);
+    const draggedInputs = Object.entries(dragged.inputs);
+    const draggedOutputs = dragged.outputs;
 
-    const edgeOutputSocketType = fromNode.state?.type?.outputs?.[fromSocketIdx];
-    const targetInput = toNode.state?.type?.inputs?.[toSocketKey];
+    const edgeOutputSocketType = this.getSocketType(fromNode, fromSocketIdx);
+    const targetInput = this.getNodeSockets(toNode).inputs[toSocketKey];
     const targetAcceptedTypes = [targetInput?.type, ...(targetInput?.accepts || [])];
 
     const bestInputEntry = draggedInputs.find(([, input]) => {
@@ -213,10 +214,11 @@ export class GraphManager extends EventEmitter<{
 
   getPossibleDropOnEdges(nodeId: number): Edge[] {
     const draggedNode = this.getNode(nodeId);
-    if (!draggedNode || !draggedNode.state?.type) return [];
+    if (!draggedNode) return [];
 
-    const draggedInputs = Object.values(draggedNode.state.type.inputs ?? {});
-    const draggedOutputs = draggedNode.state.type.outputs ?? [];
+    const dragged = this.getNodeSockets(draggedNode);
+    const draggedInputs = Object.values(dragged.inputs);
+    const draggedOutputs = dragged.outputs;
 
     // Optimization: Pre-calculate parents to avoid cycles
     const parentIds = new SvelteSet(this.getParentsOfNode(draggedNode).map(n => n.id));
@@ -231,7 +233,7 @@ export class GraphManager extends EventEmitter<{
       if (fromNode.id === nodeId || toNode.id === nodeId) return false;
 
       // 3. Check if edge.source can plug into ANY draggedNode.input
-      const edgeOutputSocketType = fromNode.state?.type?.outputs?.[fromSocketIdx];
+      const edgeOutputSocketType = this.getSocketType(fromNode, fromSocketIdx);
       const canPlugIntoDragged = draggedInputs.some(input => {
         const acceptedTypes = [input.type, ...(input.accepts || [])];
         return areSocketsCompatible(edgeOutputSocketType, acceptedTypes);
@@ -240,7 +242,7 @@ export class GraphManager extends EventEmitter<{
       if (!canPlugIntoDragged) return false;
 
       // 4. Check if ANY draggedNode.output can plug into edge.target
-      const targetInput = toNode.state?.type?.inputs?.[toSocketKey];
+      const targetInput = this.getNodeSockets(toNode).inputs[toSocketKey];
       const targetAcceptedTypes = [targetInput?.type, ...(targetInput?.accepts || [])];
 
       const draggedCanPlugIntoTarget = draggedOutputs.some(outputType =>
@@ -255,7 +257,7 @@ export class GraphManager extends EventEmitter<{
     const node = this.nodes.get(nodeId);
     if (!node) return;
     if (node.type.endsWith('/debug')) return;
-    if (!node.state.type?.outputs?.length) return;
+    if (!this.getNodeSockets(node).outputs.length) return;
     let debugNode = this.nodes.values().find(n => n.type.endsWith('/debug'));
 
     if (!debugNode) {
@@ -303,10 +305,7 @@ export class GraphManager extends EventEmitter<{
     this.nodes.clear();
     for (const node of graph.nodes) {
       const n = $state(node) as NodeInstance;
-      const registryType = this.registry.getNode(node.type);
-      n.state = registryType ? { type: registryType } : {};
-      const resolvedType = this.getNodeType(n);
-      if (resolvedType) n.state = { type: resolvedType };
+      n.state = { type: this.registry.getNode(node.type) };
       this.nodes.set(n.id, n);
     }
 
@@ -317,14 +316,23 @@ export class GraphManager extends EventEmitter<{
         log.warn('Dropping orphaned edge', edge);
         return [];
       }
-      from.state.children = from.state.children || [];
-      from.state.children.push(to);
-      to.state.parents = to.state.parents || [];
-      to.state.parents.push(from);
       return [[from, edge[1], to, edge[3]] as Edge];
     });
+    this.updateRelations();
 
     this.execute();
+  }
+
+  // Rebuilds state.parents and state.children from the edges
+  private updateRelations() {
+    for (const node of this.nodes.values()) {
+      node.state.parents = [];
+      node.state.children = [];
+    }
+    for (const [from, , to] of this.edges) {
+      from.state.children?.push(to);
+      to.state.parents?.push(from);
+    }
   }
 
   async load(graph: Graph) {
@@ -474,20 +482,18 @@ export class GraphManager extends EventEmitter<{
       } as NodeDefinition;
     }
 
-    // Construct the group inputs on the fly
+    // Construct the group inputs on the fly. This has to start from the registry
+    // type, a group's inputs and outputs change while its instances are loaded.
     if (node.type === '__internal/group/instance') {
       const groupId = node.props?.groupId as number;
+      const baseType = this.registry.getNode(node.type);
 
+      // The groups on the navigation path can't be placed inside themselves
+      const activeIds = new SvelteSet([...this.parentStack.map(e => e.id), this.currentGroupId]);
       let options = this.groups.map((g) => ({
         value: g.id,
         label: g.name || `Group#${g.id}`
-      })).filter((g) => {
-        const activeIds = new SvelteSet([
-          ...this.parentStack.filter(e => e.id !== this.id).map(e => e.id),
-          ...(this.currentGroupId !== null ? [this.currentGroupId] : [])
-        ]);
-        return !activeIds.has(g.value);
-      });
+      })).filter((g) => !activeIds.has(g.value));
 
       // Handle if multiple groups have the same name, by adding the groupid
       const groupNames = new SvelteMap<string, number>();
@@ -508,10 +514,11 @@ export class GraphManager extends EventEmitter<{
 
       if (!groupId) {
         return {
-          ...node.state.type,
+          ...baseType,
+          id: '__internal/group/instance' as NodeId,
           meta: {
             title: 'Group',
-            ...node?.state?.type?.meta || {}
+            ...baseType?.meta || {}
           },
           inputs: {
             'groupId': {
@@ -532,13 +539,6 @@ export class GraphManager extends EventEmitter<{
         return;
       }
 
-      const defaultInputs = {
-        ...(node.state.type?.inputs || {}),
-        ...groupDefinition?.inputs
-      };
-
-      delete defaultInputs['groupId'];
-
       const inputs = {
         'groupId': {
           type: 'select',
@@ -547,14 +547,15 @@ export class GraphManager extends EventEmitter<{
           internal: true,
           options
         },
-        ...defaultInputs
+        ...groupDefinition.inputs
       };
 
       const groupType = {
-        ...node.state.type,
+        ...baseType,
+        id: '__internal/group/instance' as NodeId,
         meta: {
           title: 'Group',
-          ...node?.state?.type?.meta || {}
+          ...baseType?.meta || {}
         },
         inputs,
         outputs: groupDefinition?.outputs?.map(o => o.type)
@@ -566,13 +567,22 @@ export class GraphManager extends EventEmitter<{
     return node.state.type;
   }
 
-  // The Group Input node exposes its sockets as inputs, see getNodeType()
-  private getOutputSocketType(node: NodeInstance, index: number) {
+  // The sockets edges can connect to. The Group Input node exposes its output
+  // sockets as inputs, see getNodeType().
+  getNodeSockets(node: NodeInstance): {
+    inputs: Record<string, NodeInput>;
+    outputs: string[];
+  } {
     const nodeType = this.getNodeType(node);
     if (node.type === '__internal/group/input') {
-      return Object.values(nodeType?.inputs ?? {})[index]?.type;
+      return { inputs: {}, outputs: Object.values(nodeType?.inputs ?? {}).map(i => i.type) };
     }
-    return nodeType?.outputs?.[index];
+    return { inputs: nodeType?.inputs ?? {}, outputs: nodeType?.outputs ?? [] };
+  }
+
+  getSocketType(node: NodeInstance, index: string | number): string | undefined {
+    const { inputs, outputs } = this.getNodeSockets(node);
+    return typeof index === 'string' ? inputs[index]?.type : outputs[index];
   }
 
   async loadNodeType(id: NodeId) {
@@ -647,8 +657,8 @@ export class GraphManager extends EventEmitter<{
 
       for (const [to, toSocket] of inputSockets) {
         for (const [from, fromSocket] of outputSockets) {
-          const outputType = from.state?.type?.outputs?.[fromSocket];
-          const inputType = to?.state?.type?.inputs?.[toSocket]?.type;
+          const outputType = this.getSocketType(from, fromSocket);
+          const inputType = this.getSocketType(to, toSocket);
           if (outputType === inputType) {
             this.createEdge(from, fromSocket, to, toSocket, {
               applyUpdate: false
@@ -665,8 +675,8 @@ export class GraphManager extends EventEmitter<{
   }
 
   smartConnect(from: NodeInstance, to: NodeInstance): Edge | undefined {
-    const inputs = Object.entries(to.state?.type?.inputs ?? {});
-    const outputs = from.state?.type?.outputs ?? [];
+    const inputs = Object.entries(this.getNodeSockets(to).inputs);
+    const outputs = this.getNodeSockets(from).outputs;
     for (let i = 0; i < inputs.length; i++) {
       const [inputName, input] = inputs[i];
       for (let o = 0; o < outputs.length; o++) {
@@ -747,7 +757,7 @@ export class GraphManager extends EventEmitter<{
 
     // Snapshot current level and push it onto the parent stack.
     this.parentStack.push({
-      id: this.currentGroupId ?? this.id,
+      id: this.currentGroupId,
       nodes: [...this.nodes.values()].map(n => serializeNode(n)),
       edges: [...this.edges.values()].map(e => serializeEdge(e)),
       nodeId
@@ -755,10 +765,7 @@ export class GraphManager extends EventEmitter<{
     this.currentGroupId = groupId;
 
     log.log('entered group', { groupId, depth: this.parentStack.length });
-    this.history.reset();
     this._init(group);
-    // Baseline for this level, otherwise the first edit inside the group can't be undone
-    this.save();
     return true;
   }
 
@@ -774,70 +781,68 @@ export class GraphManager extends EventEmitter<{
     }
 
     const parent = this.parentStack.pop()!;
-    this.currentGroupId = this.parentStack.length === 0 ? null : parent.id;
+    this.currentGroupId = parent.id;
     this._init(parent);
 
-    this.history.reset();
     this.execute();
     this.save();
 
     return { nodeId: parent.nodeId };
   }
 
-  createNodeId() {
-    const ids = [
+  // Returns a function that hands out unused IDs. IDs are kept unique across
+  // all levels (including the parent levels we navigated away from) and the
+  // group IDs, so a node can't be mistaken for one of another level.
+  private createIdAllocator() {
+    const usedIds = new SvelteSet<number>([
       ...this.nodes.keys(),
+      ...this.parentStack.flatMap(s => s.nodes.map(n => n.id)),
       ...this.groups.map(g => g.id),
       ...this.groups.flatMap(g => g.nodes.map(n => n.id))
-    ];
+    ]);
+    return () => {
+      let id = 0;
+      while (usedIds.has(id)) id++;
+      usedIds.add(id);
+      return id;
+    };
+  }
 
-    let id = 0;
-    while (ids.includes(id)) {
-      id++;
-    }
-    return id;
+  createNodeId() {
+    return this.createIdAllocator()();
   }
 
   createGraph(nodes: SerializedNode[], edges: [number, number, number, string][]) {
+    // A level has a single Group Input and Output node, pasting must not add another
+    // one (only the first one is used). Their edges are dropped with them.
+    nodes = nodes.filter(n =>
+      n.type !== '__internal/group/input' && n.type !== '__internal/group/output'
+    );
+
     // map old ids to new ids
     const idMap = new SvelteMap<number, number>();
-
-    let startId = this.createNodeId();
+    const nextId = this.createIdAllocator();
 
     const instances: NodeInstance[] = nodes.map((node) => {
-      const id = startId++;
-      idMap.set(node.id, id);
       const type = this.registry.getNode(node.type);
       if (!type && !node.type.startsWith('__internal/')) {
         throw new Error(`Node type not found: ${node.type}`);
       }
-      const registryType = this.registry.getNode(node.type);
-      return { ...node, id, state: { type: registryType } };
-    });
-
-    const _edges = edges.map((edge) => {
-      const from = instances.find((n) => n.id === idMap.get(edge[0]));
-      const to = instances.find((n) => n.id === idMap.get(edge[2]));
-
-      if (!from || !to) {
-        throw new Error('Edge references non-existing node');
-      }
-
-      to.state.parents = to.state.parents || [];
-      to.state.parents.push(from);
-
-      from.state.children = from.state.children || [];
-      from.state.children.push(to);
-
-      return [from, edge[1], to, edge[3]] as Edge;
+      const instance: NodeInstance = $state({ ...node, id: nextId(), state: { type } });
+      idMap.set(node.id, instance.id);
+      return instance;
     });
 
     for (const node of instances) {
-      const n = $state(node);
-      this.nodes.set(node.id, n);
+      this.nodes.set(node.id, node);
     }
 
-    this.edges.push(..._edges);
+    for (const [fromId, fromSocket, toId, toSocket] of edges) {
+      const from = instances.find((n) => n.id === idMap.get(fromId));
+      const to = instances.find((n) => n.id === idMap.get(toId));
+      if (from && to) this.edges.push([from, fromSocket, to, toSocket]);
+    }
+    this.updateRelations();
 
     this.save();
     return instances;
@@ -869,7 +874,7 @@ export class GraphManager extends EventEmitter<{
 
     // Every group on the navigation path is used by definition.
     for (const entry of this.parentStack) {
-      if (entry.id !== this.id) usedGroupIds.add(entry.id);
+      if (entry.id !== null) usedGroupIds.add(entry.id);
     }
     if (this.currentGroupId !== null) usedGroupIds.add(this.currentGroupId);
 
@@ -937,15 +942,21 @@ export class GraphManager extends EventEmitter<{
     const inputs: Record<string, NodeInput> = {};
     [...groupInputs.values()].forEach((edge, i) => {
       const internalInputDef = this.getNodeType(edge[2])?.inputs?.[edge[3]];
+      const type = this.getSocketType(edge[0], edge[1]) || '*';
+      // The group node's widget starts at the value the internal node runs with
+      const value = internalInputDef?.type === type
+        ? edge[2].props?.[edge[3]] ?? internalInputDef.value
+        : undefined;
       const input = {
         label: internalInputDef?.label ?? edge[3],
-        type: this.getOutputSocketType(edge[0], edge[1]) || '*'
+        type,
+        ...(value !== undefined && { value: $state.snapshot(value) })
       };
       inputs[`input_${i}`] = input as NodeInput;
     });
 
     const outputs = [...groupOutputs.values()].map((edge) => {
-      const outputType = this.getOutputSocketType(edge[0], edge[1]) || '*';
+      const outputType = this.getSocketType(edge[0], edge[1]) || '*';
       return {
         label: outputType === '*'
           ? 'Output'
@@ -981,17 +992,7 @@ export class GraphManager extends EventEmitter<{
     };
 
     // Allocate all needed IDs up front so sequential calls never collide.
-    const usedIds = new SvelteSet<number>([
-      ...this.nodes.keys(),
-      ...this.groups.map(g => g.id),
-      ...this.groups.flatMap(g => g.nodes.map(n => n.id))
-    ]);
-    const nextId = () => {
-      let id = 0;
-      while (usedIds.has(id)) id++;
-      usedIds.add(id);
-      return id;
-    };
+    const nextId = this.createIdAllocator();
 
     const groupInputNode: NodeInstance = {
       id: nextId(),
@@ -1064,6 +1065,9 @@ export class GraphManager extends EventEmitter<{
       this.removeNode(node);
     }
 
+    // The edges were replaced wholesale, removeEdge() didn't update the relations
+    this.updateRelations();
+
     this.saveUndoGroup();
 
     return groupNode;
@@ -1104,17 +1108,7 @@ export class GraphManager extends EventEmitter<{
       : 0;
 
     // Allocate new IDs that don't collide with anything in the current graph
-    const usedIds = new SvelteSet<number>([
-      ...this.nodes.keys(),
-      ...this.groups.map(g => g.id),
-      ...this.groups.flatMap(g => g.nodes.map(n => n.id))
-    ]);
-    const nextId = () => {
-      let id = 0;
-      while (usedIds.has(id)) id++;
-      usedIds.add(id);
-      return id;
-    };
+    const nextId = this.createIdAllocator();
 
     // Map old internal IDs (including boundary nodes) to fresh IDs
     const idMap = new SvelteMap<number, number>();
@@ -1165,8 +1159,9 @@ export class GraphManager extends EventEmitter<{
       if (groupInputNode && fromId === groupInputNode.id) {
         const ext = inputIdxToExternal.get(fromSocketIdx);
         if (!ext) {
-          // Unconnected group input: keep the value that was set on the group node
-          const value = groupNode.props?.[inputKeys[fromSocketIdx]];
+          // Unconnected group input: keep the value the group node ran with
+          const key = inputKeys[fromSocketIdx];
+          const value = groupNode.props?.[key] ?? group.inputs?.[key]?.value;
           const toNode = this.nodes.get(idMap.get(toId)!);
           if (value !== undefined && toNode?.props) toNode.props[toSocketKey] = value;
           continue;
@@ -1253,19 +1248,12 @@ export class GraphManager extends EventEmitter<{
       return;
     }
 
-    const fromType = this.getNodeType(from);
-    const toType = this.getNodeType(to);
-
     // check if socket types match
-    const fromSocketType = from.type === '__internal/group/input'
-      ? fromType?.inputs?.[Object.keys(fromType?.inputs || {})[fromSocket]].type
-      : fromType?.outputs?.[fromSocket];
-    const toSocketType = [toType?.inputs?.[toSocket]?.type];
-    if (toType?.inputs?.[toSocket]?.accepts) {
-      toSocketType.push(...(toType?.inputs?.[toSocket]?.accepts || []));
-    }
+    const fromSocketType = this.getSocketType(from, fromSocket);
+    const toInput = this.getNodeSockets(to).inputs[toSocket];
+    const toSocketType = [toInput?.type, ...(toInput?.accepts || [])];
 
-    if (!areSocketsCompatible(fromSocketType, toSocketType)) {
+    if (!toInput || !areSocketsCompatible(fromSocketType, toSocketType)) {
       log.error(
         `Socket types do not match: ${fromSocketType} !== ${toSocketType}`
       );
@@ -1297,16 +1285,30 @@ export class GraphManager extends EventEmitter<{
     return edge;
   }
 
-  // History entries are full graphs (see serialize()), so inside a group the
-  // live level has to be taken from the active group, not the root nodes.
+  // History entries are full graphs (see serialize()) and one history spans all
+  // levels. The parent snapshots are refreshed from the restored graph, and if
+  // a group on the navigation path doesn't exist in it (e.g. undoing the
+  // grouping) we end up at the deepest level that still does.
   private restoreState(state: Graph) {
     this.groups = state.groups ?? [];
-    if (this.currentGroupId === null) {
-      this._init(state);
-      return;
+
+    // group ids of the levels below the root, the last one is the current group
+    const path = [...this.parentStack.slice(1).map(e => e.id!), this.currentGroupId!];
+    let level: { nodes: SerializedNode[]; edges: SerializedEdge[] } = state;
+    let depth = 0;
+    for (; depth < this.parentStack.length; depth++) {
+      const entry = this.parentStack[depth];
+      const group = this.getGroup(path[depth]);
+      const instance = level.nodes.find(n => n.id === entry.nodeId);
+      if (!group || instance?.props?.groupId !== group.id) break;
+      entry.nodes = level.nodes.map(n => serializeNode(n));
+      entry.edges = level.edges.map(e => serializeEdge(e));
+      level = group;
     }
-    const group = this.getGroup(this.currentGroupId);
-    if (group) this._init(group);
+
+    this.parentStack = this.parentStack.slice(0, depth);
+    this.currentGroupId = depth === 0 ? null : path[depth - 1];
+    this._init(level);
   }
 
   undo() {
@@ -1369,38 +1371,29 @@ export class GraphManager extends EventEmitter<{
   getPossibleNodes(socket: Socket): NodeDefinition[] {
     const allDefinitions = this.getNodeDefinitions();
 
-    const nodeType = socket.node.state?.type;
-    if (!nodeType) {
-      return [];
+    // dragging from an input, look for definitions with a matching output
+    if (typeof socket.index === 'string') {
+      const input = this.getNodeSockets(socket.node).inputs[socket.index];
+      if (!input) return [];
+      const accepted = [input.type, ...(input.accepts ?? [])];
+      return allDefinitions.filter(d =>
+        d.outputs?.some(output => areSocketsCompatible(output, accepted))
+      );
     }
 
-    const definitions = typeof socket.index === 'string'
-      ? allDefinitions.filter(s => {
-        return s.outputs?.find(_s =>
-          Object
-            .values(nodeType?.inputs || {})
-            .map(s => s.type)
-            .includes(_s as NodeInput['type'])
-        );
-      })
-      : allDefinitions.filter(s =>
-        Object
-          .values(s.inputs ?? {})
-          .find(s => {
-            if (s.hidden) return false;
-            if (nodeType.outputs?.includes(s.type)) {
-              return true;
-            }
-            return s.accepts?.find(a => nodeType.outputs?.includes(a));
-          })
-      );
-
-    return definitions;
+    // dragging from an output, look for definitions with a matching input
+    const outputType = this.getSocketType(socket.node, socket.index);
+    if (!outputType) return [];
+    return allDefinitions.filter(d =>
+      Object.values(d.inputs ?? {}).some(input =>
+        !input.hidden && areSocketsCompatible(outputType, [input.type, ...(input.accepts ?? [])])
+      )
+    );
   }
 
   getPossibleSockets({ node, index }: Socket): [NodeInstance, string | number][] {
-    const nodeType = this.getNodeType(node);
-    if (!nodeType) return [];
+    const ownType = this.getSocketType(node, index);
+    if (!ownType) return [];
 
     const sockets: [NodeInstance, string | number][] = [];
 
@@ -1412,14 +1405,10 @@ export class GraphManager extends EventEmitter<{
         (n) => n.id !== node.id && !children.has(n.id)
       );
 
-      const ownType = nodeType?.inputs?.[index].type;
-
       for (const node of nodes) {
-        const nodeType = this.getNodeType(node);
-        const inputs = nodeType?.outputs;
-        if (!inputs) continue;
-        for (let index = 0; index < inputs.length; index++) {
-          if (inputs[index] === ownType) {
+        const outputs = this.getNodeSockets(node).outputs;
+        for (let index = 0; index < outputs.length; index++) {
+          if (outputs[index] === ownType) {
             sockets.push([node, index]);
           }
         }
@@ -1444,13 +1433,8 @@ export class GraphManager extends EventEmitter<{
           }
         });
 
-      const ownType = node.type === '__internal/group/input'
-        ? nodeType.inputs?.[Object.keys(nodeType?.inputs || {})[index]].type
-        : nodeType.outputs?.[index];
-
       for (const node of nodes) {
-        const inputs = this.getNodeType(node)?.inputs;
-        if (!inputs) continue;
+        const inputs = this.getNodeSockets(node).inputs;
         for (const key in inputs) {
           const otherType = [inputs[key].type];
           otherType.push(...(inputs[key].accepts || []));

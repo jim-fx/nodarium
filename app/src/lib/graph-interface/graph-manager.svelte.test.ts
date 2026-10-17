@@ -541,6 +541,183 @@ describe('groups', () => {
     expect(ungroupedSourceOf(nodeF.id).type).toBe('test/node/input');
     expect(ungroupedSourceOf(nodeC.id).type).toBe('test/node/output');
   });
+
+  it('should give new group nodes their sockets for connecting', () => {
+    const { manager, nodeB } = createChain();
+    const groupNode = manager.groupNodes([nodeB.id]);
+    assert.isDefined(groupNode);
+
+    // P → Q, the group node can be dropped on it
+    const nodeP = manager.createNode({ type: 'test/node/output', position: [0, 100], props: {} });
+    const nodeQ = manager.createNode({ type: 'test/node/input', position: [200, 100], props: {} });
+    assert.isDefined(nodeP);
+    assert.isDefined(nodeQ);
+    const edgePQ = manager.createEdge(nodeP, 0, nodeQ, 'value');
+    assert.isDefined(edgePQ);
+    expect(manager.getPossibleDropOnEdges(groupNode.id)).toEqual([edgePQ]);
+
+    const possibleNodes = manager.getPossibleNodes({ node: groupNode, index: 0, position: [0, 0] });
+    expect(possibleNodes.map(n => n.id).sort()).toEqual(['test/node/input', 'test/node/output']);
+
+    const nodeR = manager.createNode({ type: 'test/node/input', position: [200, 200], props: {} });
+    assert.isDefined(nodeR);
+    expect(manager.smartConnect(groupNode, nodeR)).toBeDefined();
+  });
+
+  it('should update loaded group nodes when the group definition changes', () => {
+    const { manager, nodeB } = createChain();
+    const groupNode = manager.groupNodes([nodeB.id]);
+    assert.isDefined(groupNode);
+    const groupId = groupNode.props?.groupId as number;
+
+    // Reload the level, so the group node is created from the serialized graph
+    manager.enterGroup(groupNode.id);
+    manager.exitGroup();
+    const loadedGroupNode = manager.getNode(groupNode.id);
+    assert.isDefined(loadedGroupNode);
+    expect(Object.keys(manager.getNodeType(loadedGroupNode)?.inputs ?? {})).toEqual([
+      'groupId',
+      'input_0'
+    ]);
+
+    manager.removeGroupInput(groupId, 'input_0');
+    expect(Object.keys(manager.getNodeType(loadedGroupNode)?.inputs ?? {})).toEqual(['groupId']);
+  });
+
+  it('should update the parents and children when grouping', () => {
+    const { manager, nodeA, nodeB, nodeC } = createChain();
+    const groupNode = manager.groupNodes([nodeB.id]);
+    assert.isDefined(groupNode);
+
+    expect(manager.getNode(nodeA.id)?.state.children).toEqual([groupNode]);
+    expect(groupNode.state.parents).toEqual([manager.getNode(nodeA.id)]);
+    expect(groupNode.state.children).toEqual([manager.getNode(nodeC.id)]);
+    expect(manager.getNode(nodeC.id)?.state.parents).toEqual([groupNode]);
+  });
+
+  it('should start the group input at the value of the internal node', () => {
+    const { manager, nodeB } = createChain();
+    nodeB.props = { input: 0.25 };
+    const groupNode = manager.groupNodes([nodeB.id]);
+    assert.isDefined(groupNode);
+
+    const group = manager.getGroup(groupNode.props?.groupId as number);
+    expect(group?.inputs?.input_0?.value).toBe(0.25);
+  });
+
+  it('should not paste a second group input or output node', () => {
+    const { manager, nodeB } = createChain();
+    const groupNode = manager.groupNodes([nodeB.id]);
+    assert.isDefined(groupNode);
+    manager.enterGroup(groupNode.id);
+
+    const level = manager.serialize().groups[0];
+    manager.createGraph(level.nodes, level.edges);
+
+    const types = [...manager.nodes.values()].map(n => n.type);
+    expect(types.filter(t => t === '__internal/group/input')).toHaveLength(1);
+    expect(types.filter(t => t === '__internal/group/output')).toHaveLength(1);
+    expect(types.filter(t => t === 'test/node/output')).toHaveLength(2);
+  });
+
+  it('should not reuse the IDs of existing nodes when pasting', () => {
+    const { manager, nodeA, nodeB, nodeC } = createChain();
+    manager.removeNode(nodeB);
+
+    const pasted = manager.createGraph([
+      { id: 0, type: 'test/node/output', position: [0, 0] },
+      { id: 1, type: 'test/node/output', position: [0, 0] }
+    ], [[0, 0, 1, 'input']]);
+
+    expect(manager.nodes.size).toBe(4);
+    expect(pasted.map(n => n.id)).not.toContain(nodeA.id);
+    expect(pasted.map(n => n.id)).not.toContain(nodeC.id);
+    expect(manager.getNode(nodeC.id)?.type).toBe('test/node/input');
+    expect(pasted[1].state.parents).toEqual([pasted[0]]);
+  });
+
+  it('should not reuse the IDs of the parent levels inside a group', () => {
+    const { manager, nodeB } = createChain();
+    const groupNode = manager.groupNodes([nodeB.id]);
+    assert.isDefined(groupNode);
+    const rootIds = [...manager.nodes.keys()];
+
+    manager.enterGroup(groupNode.id);
+    const node = manager.createNode({ type: 'test/node/output', position: [0, 0], props: {} });
+    assert.isDefined(node);
+    expect(rootIds).not.toContain(node.id);
+  });
+
+  it('should undo an edit made inside a group after leaving it', () => {
+    const { manager, nodeB } = createChain();
+    const groupNode = manager.groupNodes([nodeB.id]);
+    assert.isDefined(groupNode);
+    const groupNodeCount = manager.serialize().groups[0].nodes.length;
+
+    manager.enterGroup(groupNode.id);
+    manager.createNode({ type: 'test/node/output', position: [50, 50], props: {} });
+    manager.exitGroup();
+    expect(manager.serialize().groups[0].nodes).toHaveLength(groupNodeCount + 1);
+
+    manager.undo();
+    expect(manager.isInsideGroup).toBe(false);
+    expect(manager.serialize().groups[0].nodes).toHaveLength(groupNodeCount);
+  });
+
+  it('should leave a group when undoing to before it existed', () => {
+    const { manager, nodeA, nodeB, nodeC } = createChain();
+    const groupNode = manager.groupNodes([nodeB.id]);
+    assert.isDefined(groupNode);
+
+    manager.enterGroup(groupNode.id);
+    manager.undo();
+
+    expect(manager.isInsideGroup).toBe(false);
+    expect(manager.parentStack).toHaveLength(0);
+    expect([...manager.nodes.keys()].sort()).toEqual([nodeA.id, nodeB.id, nodeC.id].sort());
+    expect(manager.serialize().groups).toHaveLength(0);
+  });
+
+  it('should keep the parent levels when undoing inside a nested group', () => {
+    const { manager, nodeA, nodeB, nodeC } = createChain();
+    const outer = manager.groupNodes([nodeB.id]);
+    assert.isDefined(outer);
+    manager.enterGroup(outer.id);
+    const inner = manager.groupNodes([nodeB.id]);
+    assert.isDefined(inner);
+    manager.enterGroup(inner.id);
+    const innerTypes = [...manager.nodes.values()].map(n => n.type).sort();
+
+    manager.createNode({ type: 'test/node/output', position: [50, 50], props: {} });
+    manager.undo();
+
+    expect(manager.currentGroupId).toBe(inner.props?.groupId);
+    expect(manager.parentStack).toHaveLength(2);
+    expect([...manager.nodes.values()].map(n => n.type).sort()).toEqual(innerTypes);
+
+    manager.exitGroup();
+    manager.exitGroup();
+    const graph = manager.serialize();
+    expect(graph.nodes.map(n => n.id).sort()).toEqual([nodeA.id, nodeC.id, outer.id].sort());
+  });
+
+  it('should not mistake the root graph for a group with the same id', () => {
+    const { manager, nodeB } = createChain();
+    const outer = manager.groupNodes([nodeB.id]);
+    assert.isDefined(outer);
+    const outerGroupId = outer.props?.groupId as number;
+    manager.id = outerGroupId;
+
+    manager.enterGroup(outer.id);
+    const inner = manager.groupNodes([nodeB.id]);
+    assert.isDefined(inner);
+    manager.enterGroup(inner.id);
+
+    const graph = manager.serialize();
+    expect(graph.nodes.map(n => n.id)).toContain(outer.id);
+    const outerGroup = graph.groups.find(g => g.id === outerGroupId);
+    expect(outerGroup?.nodes.map(n => n.id)).toContain(inner.id);
+  });
 });
 
 describe('removeGroupInput', () => {

@@ -33,7 +33,6 @@
   function handleRemoveInput(key: string) {
     if (!activeGroup) return;
     manager.removeGroupInput(activeGroup.id, key);
-    manager.nodes = manager.nodes;
   }
 
   const types = $derived(
@@ -67,7 +66,6 @@
       },
       ...outputs.slice(1)
     ];
-    manager.nodes = manager.nodes;
     manager.save();
   });
 </script>

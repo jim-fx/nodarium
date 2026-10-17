@@ -12,6 +12,7 @@
   import Debug from '../debug/Debug.svelte';
   import EdgeEl from '../edges/Edge.svelte';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
+  import { areSocketsCompatible } from '../helpers/nodeHelpers';
   import NodeEl from '../node/Node.svelte';
   import { maxZoom, minZoom } from './constants';
   import { FileDropEventManager } from './drop.events';
@@ -53,42 +54,29 @@
     });
     if (!newNode) return;
 
-    if (graphState.activeSocket) {
-      if (typeof graphState.activeSocket.index === 'number') {
-        const socketType = graphState.activeSocket.node.state?.type?.outputs?.[
-          graphState.activeSocket.index
-        ];
+    const socket = graphState.activeSocket;
+    if (socket) {
+      const newSockets = graph.getNodeSockets(newNode);
+      if (typeof socket.index === 'number') {
+        const socketType = graph.getSocketType(socket.node, socket.index);
 
-        const input = Object.entries(newNode?.state?.type?.inputs || {}).find(
-          (inp) => inp[1].type === socketType
+        const input = Object.entries(newSockets.inputs).find(([, input]) =>
+          areSocketsCompatible(socketType, [input.type, ...(input.accepts ?? [])])
         );
 
         if (input) {
-          graph.createEdge(
-            graphState.activeSocket.node,
-            graphState.activeSocket.index,
-            newNode,
-            input[0]
-          );
+          graph.createEdge(socket.node, socket.index, newNode, input[0]);
         }
       } else {
-        const socketType = graphState.activeSocket.node.state?.type?.inputs?.[
-          graphState.activeSocket.index
-        ];
+        const input = graph.getNodeSockets(socket.node).inputs[socket.index];
+        const accepted = [input?.type, ...(input?.accepts ?? [])];
 
-        const output = newNode.state?.type?.outputs?.find((out) => {
-          if (socketType?.type === out) return true;
-          if ((socketType?.accepts as string[])?.includes(out)) return true;
-          return false;
-        });
+        const outputIndex = newSockets.outputs.findIndex((output) =>
+          areSocketsCompatible(output, accepted)
+        );
 
-        if (output) {
-          graph.createEdge(
-            newNode,
-            output.indexOf(output),
-            graphState.activeSocket.node,
-            graphState.activeSocket.index
-          );
+        if (outputIndex !== -1) {
+          graph.createEdge(newNode, outputIndex, socket.node, socket.index);
         }
       }
     }
@@ -98,17 +86,7 @@
   }
 
   function getSocketType(node: NodeInstance, index: number | string): string {
-    const nodeType = graph.getNodeType(node);
-    if (typeof index === 'string') {
-      return nodeType?.inputs?.[index]?.type || 'unknown';
-    }
-
-    if (node.type === '__internal/group/input') {
-      const key = Object.keys(nodeType?.inputs || {})[index];
-      return nodeType?.inputs?.[key]?.type || 'unknown';
-    }
-
-    return nodeType?.outputs?.[index] || 'unknown';
+    return graph.getSocketType(node, index) || 'unknown';
   }
 </script>
 
