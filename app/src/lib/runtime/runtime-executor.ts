@@ -200,6 +200,11 @@ function getValue(input: NodeInput, value?: unknown) {
     return value;
   }
 
+  // an unconnected input without a default, like the geometry of the output node
+  if (value === undefined) {
+    return [0, 1, 1, 1];
+  }
+
   console.log({ input, value });
 
   throw new Error(`Unknown input type ${input.type}`);

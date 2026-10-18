@@ -176,6 +176,8 @@
       viewerComponent?.update(graphResult);
       pm.thumbnails.schedule(g, graphResult);
     } catch (error) {
+      // the viewer would keep showing the geometry of the previous graph otherwise
+      viewerComponent?.update(new Int32Array());
       const msg = error instanceof Error ? error.message : String(error);
       toast(`Execution failed: ${msg}`, 'error');
     } finally {

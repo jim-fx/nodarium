@@ -1,6 +1,7 @@
-import type { Graph } from '@nodarium/types';
+import type { Graph, NodeDefinition, NodeValue } from '@nodarium/types';
 import { describe, expect, it } from 'vitest';
-import { expandGroups } from './runtime-executor';
+import { createMockNodeRegistry } from '../graph-interface/test-utils';
+import { expandGroups, MemoryRuntimeExecutor } from './runtime-executor';
 
 // Helpers to build minimal serialized nodes/edges
 function node(id: number, type: string, props?: Record<string, number>) {
@@ -288,5 +289,28 @@ describe('expandGroups', () => {
 
     // The runtime cache is keyed by node ID, so the IDs must not change between runs
     expect(expandGroups(graph).nodes.map(n => n.id)).toEqual(ids);
+  });
+});
+
+describe('MemoryRuntimeExecutor', () => {
+  it('runs an output node that has nothing connected', async () => {
+    let received: NodeValue[] = [];
+    const output = {
+      id: 'test/node/output',
+      inputs: { input: { type: 'path', accepts: ['geometry'], external: true } },
+      outputs: [],
+      execute: (inputs: NodeValue[]) => {
+        received = inputs;
+        return inputs[0];
+      }
+    } as unknown as NodeDefinition;
+    const runtime = new MemoryRuntimeExecutor(createMockNodeRegistry([output]));
+
+    const graph: Graph = { id: 0, nodes: [node(0, output.id)], edges: [], groups: [] };
+    const result = await runtime.execute(graph, {});
+
+    // an empty nested array, the viewer shows no geometry for it
+    expect([...received[0] as Int32Array]).toEqual([0, 1, 1, 1]);
+    expect([...result]).toEqual([0, 1, 1, 1]);
   });
 });
