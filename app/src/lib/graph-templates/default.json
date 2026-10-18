@@ -54,7 +54,6 @@
         "length": 1.6,
         "thickness": 0.69,
         "amount": 36,
-        "offsetSingle": 0.5,
         "lowestBranch": 0.46,
         "highestBranch": 1,
         "depth": 1,

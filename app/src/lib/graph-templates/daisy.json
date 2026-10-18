@@ -183,7 +183,6 @@
         "amount": 1,
         "lowestBranch": 1,
         "highestBranch": 1,
-        "offsetSingle": 0.5,
         "length": 0.002,
         "thickness": 1,
         "angle": 90,

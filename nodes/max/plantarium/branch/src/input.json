@@ -31,7 +31,7 @@
     "offsetSingle": {
       "type": "float",
       "hidden": true,
-      "description": "Used to offset every second branch",
+      "description": "Moves every second branch up toward the next one, 1 makes pairs",
       "min": 0,
       "max": 1,
       "value": 0

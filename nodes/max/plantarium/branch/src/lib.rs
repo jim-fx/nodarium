@@ -45,6 +45,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         let lowest_branch = ctx.float(args[4]);
         let highest_branch = ctx.float(args[5]);
         let taper = ctx.float(args[11]);
+        // the distance between two neighbouring branches along the path
+        let step = (highest_branch - lowest_branch) / (branch_amount - 1).max(1) as f32;
 
         for i in 0..branch_amount {
             let a = i as f32 / (branch_amount - 1).max(1) as f32;
@@ -58,16 +60,16 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             // alpha goes along the branch, so the thickness can follow a curve
             let alphas = (0..resolution).map(|j| j as f32 / (resolution - 1) as f32);
             let thickness = ctx.float_along(args[2], alphas);
+            // every even branch moves up by a part of the step, 1 puts it at the height of the
+            // next one, so the branches grow in pairs
             let offset_single = if i % 2 == 0 {
-                ctx.float(args[3])
+                ctx.float(args[3]) * step
             } else {
                 0.0
             };
 
-            let (branch_origin, orthogonal, direction) = interpolate_along_path(
-                path.points,
-                root_alpha + (offset_single - 0.5) * 6.0 / resolution as f32,
-            );
+            let (branch_origin, orthogonal, direction) =
+                interpolate_along_path(path.points, root_alpha + offset_single);
 
             let rotation_angle = (ctx.float(args[9]) * PI / 180.0) * i as f32;
 
