@@ -429,10 +429,11 @@ export class GraphState {
       ];
     } else {
       let height = 5;
-      const nodeType = this.graph.getNodeType(node)!;
-      const inputs = nodeType.inputs || {};
+      // the node type is missing when its wasm failed to load
+      const nodeType = this.graph.getNodeType(node);
+      const inputs = nodeType?.inputs || {};
       for (const inputKey in inputs) {
-        const h = getParameterHeight(nodeType, inputKey) / 10;
+        const h = getParameterHeight(nodeType!, inputKey) / 10;
         if (inputKey === index) {
           height += h / 2;
           break;
