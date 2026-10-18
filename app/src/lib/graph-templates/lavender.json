@@ -10,7 +10,7 @@
     },
     {
       "id": 12,
-      "position": [90, 80],
+      "position": [90, 105],
       "type": "max/plantarium/random",
       "props": { "min": 3.8, "max": 5.6 }
     },
@@ -22,7 +22,7 @@
     },
     {
       "id": 14,
-      "position": [180, 80],
+      "position": [180, 115],
       "type": "max/plantarium/shape",
       "props": {
         "shape": [
@@ -49,7 +49,7 @@
     },
     {
       "id": 15,
-      "position": [210, 125],
+      "position": [210, 115],
       "type": "max/plantarium/leaf",
       "props": { "size": 0.22, "yCurve": -0.7, "xCurve": -0.6 }
     },
@@ -67,13 +67,13 @@
     },
     {
       "id": 17,
-      "position": [210, 170],
+      "position": [210, 140],
       "type": "max/plantarium/shape",
       "props": { "shape": [50, 100, 45, 94, 40, 82, 37, 66, 37, 48, 39, 32, 42, 18, 46, 8, 50, 0] }
     },
     {
       "id": 18,
-      "position": [240, 125],
+      "position": [240, 120],
       "type": "max/plantarium/leaf",
       "props": { "size": 0.075, "yCurve": -1.9, "xCurve": 1.4 }
     },
@@ -91,13 +91,13 @@
     },
     {
       "id": 20,
-      "position": [90, 125],
+      "position": [90, 80],
       "type": "max/plantarium/vec3",
       "props": { "0": 0, "1": 0, "2": 0 }
     },
     {
       "id": 21,
-      "position": [60, 80],
+      "position": [60, 85],
       "type": "max/plantarium/random",
       "props": { "min": -0.4, "max": 0.4 }
     },
@@ -115,20 +115,20 @@
     },
     {
       "id": 24,
-      "position": [180, 125],
+      "position": [180, 80],
       "type": "max/plantarium/rotate",
       "props": { "axis": 1, "angle": 0 }
     },
     {
       "id": 25,
-      "position": [150, 125],
+      "position": [150, 110],
       "type": "max/plantarium/random",
       "props": { "min": 0, "max": 6.28 }
     },
-    { "id": 26, "position": [240, 215], "type": "max/plantarium/alpha", "props": {} },
+    { "id": 26, "position": [210, 170], "type": "max/plantarium/alpha", "props": {} },
     {
       "id": 27,
-      "position": [270, 215],
+      "position": [240, 145],
       "type": "max/plantarium/curve",
       "props": {
         "curve": [

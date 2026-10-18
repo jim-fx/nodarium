@@ -69,7 +69,7 @@
     },
     {
       "id": 15,
-      "position": [240, 170],
+      "position": [270, 120],
       "type": "max/plantarium/leaf",
       "props": { "size": 0.17, "yCurve": -1.8, "xCurve": 0.9 }
     },
@@ -79,10 +79,10 @@
       "type": "max/plantarium/instance",
       "props": { "amount": 22, "lowestInstance": 0.32, "highestInstance": 0.9, "rotation": 2.4 }
     },
-    { "id": 17, "position": [240, 215], "type": "max/plantarium/alpha", "props": {} },
+    { "id": 17, "position": [210, 170], "type": "max/plantarium/alpha", "props": {} },
     {
       "id": 18,
-      "position": [270, 215],
+      "position": [240, 150],
       "type": "max/plantarium/curve",
       "props": {
         "curve": [

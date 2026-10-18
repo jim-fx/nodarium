@@ -4,13 +4,13 @@
     { "id": 9, "position": [220, 80], "type": "max/plantarium/output", "props": {} },
     {
       "id": 10,
-      "position": [95, 80],
+      "position": [70, 80],
       "type": "max/plantarium/stem",
       "props": { "amount": 5, "length": 11, "thickness": 0.1 }
     },
     {
       "id": 14,
-      "position": [195, 80],
+      "position": [190, 80],
       "type": "max/plantarium/gravity",
       "props": {
         "strength": 0.38,
@@ -23,7 +23,7 @@
     },
     {
       "id": 15,
-      "position": [120, 80],
+      "position": [100, 80],
       "type": "max/plantarium/noise",
       "props": {
         "strength": 4.9,
@@ -36,19 +36,19 @@
     },
     {
       "id": 16,
-      "position": [70, 80],
+      "position": [40, 80],
       "type": "max/plantarium/vec3",
       "props": { "0": 0, "1": 0, "2": 0 }
     },
     {
       "id": 17,
-      "position": [45, 80],
+      "position": [10, 85],
       "type": "max/plantarium/random",
       "props": { "min": -2, "max": 2 }
     },
     {
       "id": 18,
-      "position": [170, 80],
+      "position": [160, 80],
       "type": "max/plantarium/branch",
       "props": {
         "length": 1.6,
@@ -63,7 +63,7 @@
     },
     {
       "id": 19,
-      "position": [145, 80],
+      "position": [130, 80],
       "type": "max/plantarium/gravity",
       "props": {
         "strength": 0.38,
@@ -76,7 +76,7 @@
     },
     {
       "id": 20,
-      "position": [70, 120],
+      "position": [40, 107.5],
       "type": "max/plantarium/random",
       "props": { "min": 0.073, "max": 0.15 }
     }
