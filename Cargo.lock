@@ -219,6 +219,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "random_int"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
 name = "rotate"
 version = "0.1.0"
 dependencies = [

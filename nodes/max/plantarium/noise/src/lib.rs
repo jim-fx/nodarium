@@ -26,9 +26,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     let directional_strength = ctx.vec3(args[5]);
 
-    let depth = int(args[6]);
+    let depth = ctx.int(args[6]);
 
-    let octaves = int(args[7]);
+    let octaves = ctx.int(args[7]);
     let preserve_length = int(args[8]) != 0;
 
     let noise_x: HybridMulti<OpenSimplex> =

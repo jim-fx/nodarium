@@ -12,7 +12,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
 
 
-    let amount = int(args[1]) as usize;
+    let amount = ctx.int(args[1]).max(0) as usize;
     let path_resolution = int(args[4]) as usize;
 
     log!("stem args: {:?}", args);

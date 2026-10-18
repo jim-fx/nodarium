@@ -75,6 +75,25 @@ impl Ctx {
         values
     }
 
+    /// Reads an integer input, a plain value or the expression of a `random_int` node.
+    /// Like `float`, every call draws a new random value.
+    pub fn int(&mut self, arg: &[i32]) -> i32 {
+        if arg.len() == 1 {
+            return arg[0];
+        }
+
+        match split_args(arg).as_slice() {
+            [v] => self.int(v),
+            [[4], min, max, [seed]] => {
+                let (min, max) = (self.int(min), self.int(max));
+                let (min, max) = (min.min(max), min.max(max));
+                let range = (max as i64 - min as i64 + 1) as u64;
+                (min as i64 + (self.random_u32(*seed) as u64 % range) as i64) as i32
+            }
+            _ => 0,
+        }
+    }
+
     pub fn vec3(&mut self, arg: &[i32]) -> [f32; 3] {
         let args = split_args(arg);
 
@@ -109,6 +128,24 @@ impl Ctx {
         self.calls = (self.calls + 512) % i32::MAX;
 
         min + value * (max - min)
+    }
+
+    /// A uniformly distributed random number. Unlike `random`, which reads a noise
+    /// and gives values near the middle of the range more often, every value is
+    /// equally likely, so a `random_int` reaches its min and max as often as the
+    /// values between them.
+    fn random_u32(&mut self, seed: i32) -> u32 {
+        // lowbias32 by Chris Wellons
+        let mut x = (seed as u32) ^ (self.calls as u32).wrapping_mul(0x9e37_79b9);
+        x ^= x >> 16;
+        x = x.wrapping_mul(0x21f0_aaad);
+        x ^= x >> 15;
+        x = x.wrapping_mul(0x735a_2d97);
+        x ^= x >> 15;
+
+        self.calls = (self.calls + 512) % i32::MAX;
+
+        x
     }
 }
 
@@ -160,8 +197,9 @@ fn curve(points: &[f32], x: f32) -> f32 {
         + (t3 - t2) * h * tangent(i + 1)
 }
 
-/// Reads an integer, select, boolean or seed input. These are never
-/// connected to an expression, so they always hold a single value.
+/// Reads a select, boolean or seed input, or an integer input that is set by a
+/// setting. These are never connected to an expression, so they always hold a
+/// single value.
 pub fn int(arg: &[i32]) -> i32 {
     arg[0]
 }
@@ -281,6 +319,53 @@ mod tests {
         let mut once = Ctx::default();
         once.float(&random);
         assert_eq!(ctx.float(&random), once.float(&random));
+    }
+
+    fn random_int_expr(min: i32, max: i32, seed: i32) -> Vec<i32> {
+        concat_args(vec![&[4], &[min], &[max], &[seed]])
+    }
+
+    #[test]
+    fn test_int_plain_and_wrapped() {
+        let mut ctx = Ctx::default();
+        assert_eq!(ctx.int(&[7]), 7);
+        assert_eq!(ctx.int(&concat_args(vec![&[7]])), 7);
+    }
+
+    #[test]
+    fn test_random_int_covers_its_range() {
+        let random = random_int_expr(3, 6, 42);
+        let mut ctx = Ctx::default();
+
+        let mut counts = [0; 4];
+        for _ in 0..1000 {
+            let v = ctx.int(&random);
+            assert!((3..=6).contains(&v), "{}", v);
+            counts[(v - 3) as usize] += 1;
+        }
+        // every value is about equally likely
+        assert!(counts.iter().all(|&c| (200..300).contains(&c)), "{:?}", counts);
+    }
+
+    #[test]
+    fn test_random_int_is_the_same_every_run() {
+        let random = random_int_expr(0, 100, 7);
+
+        let run = || {
+            let mut ctx = Ctx::default();
+            (0..8).map(|_| ctx.int(&random)).collect::<Vec<_>>()
+        };
+
+        assert_eq!(run(), run());
+    }
+
+    #[test]
+    fn test_random_int_swapped_and_equal_bounds() {
+        let mut ctx = Ctx::default();
+        for _ in 0..50 {
+            assert!((2..=5).contains(&ctx.int(&random_int_expr(5, 2, 1))));
+            assert_eq!(ctx.int(&random_int_expr(4, 4, 1)), 4);
+        }
     }
 
     #[test]

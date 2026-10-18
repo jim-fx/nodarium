@@ -14,7 +14,13 @@ A `float` input is either a plain value or an **expression** produced by the `ma
                      curve: min + curve(value) * (max - min), value clamped to 0-1
 ```
 
-`a`, `b`, `min`, `max` and `value` can be expressions themselves. The points of a curve are plain values, sorted by x from 0 to 1. Between them the curve is a monotone cubic, so it never overshoots a point. Nodes read these inputs with a `Ctx`, created once per execution: `ctx.float` and `ctx.vec3`. Calling them again gives a new random value, which is how a single `random` node gives every stem a different length. A new `Ctx` starts the random values from the beginning, so a node gives the same result every time it runs. `integer`, `select`, `boolean` and `seed` inputs are never expressions, `int` reads them.
+An `integer` input that isn't set by a setting is a plain value or the expression of the `random_int` node:
+
+```
+[4, min, max, seed]  random_int: a whole number from min to max, both included, every one equally likely
+```
+
+`a`, `b`, `min`, `max` and `value` can be expressions themselves. The points of a curve are plain values, sorted by x from 0 to 1. Between them the curve is a monotone cubic, so it never overshoots a point. Nodes read these inputs with a `Ctx`, created once per execution: `ctx.float`, `ctx.vec3` and `ctx.int`. Calling them again gives a new random value, which is how a single `random` node gives every stem a different length, and a `random_int` node every branch a different number of leaves. A new `Ctx` starts the random values from the beginning, so a node gives the same result every time it runs. `select`, `boolean` and `seed` inputs and `integer` inputs set by a setting (the resolutions) are never expressions, `int` reads them.
 
 `branch` and `instance` set `ctx.alpha` before they evaluate the inputs of each branch or instance, for example its `length` or `size`: alpha is where it sits on its parent path. `stem` and `branch` read `thickness` with `ctx.float_along` at every point of the path they create, there alpha goes along that path. `float_along` draws random values once, so a `random` thickness stays the same along the path. The path is then multiplied by `1 - alpha * taper`: `taper` 1 (the default) makes a cone, 0 leaves the profile to the thickness input. Everywhere else alpha is 0. The second word of the alpha expression keeps it from being read as a plain value.
 

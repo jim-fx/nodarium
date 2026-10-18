@@ -5,7 +5,6 @@ use glam::Vec3;
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::encode_float;
-use nodarium_utils::int;
 use nodarium_utils::Ctx;
 use nodarium_utils::log;
 use nodarium_utils::wrap_arg;
@@ -42,7 +41,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
     let input_path = split_args(args[0])[0];
     let size = ctx.float(args[1]);
-    let width_resolution = int(args[2]).max(3) as usize;
+    let width_resolution = ctx.int(args[2]).max(3) as usize;
     let y_curve = ctx.float(args[3]);
     let y_twist = ctx.float(args[4]);
     let x_curve = ctx.float(args[5]);

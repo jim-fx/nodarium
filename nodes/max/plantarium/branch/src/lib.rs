@@ -21,7 +21,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut output: Vec<Vec<i32>> = Vec::new();
 
     let resolution = int(args[8]).max(4) as usize;
-    let depth = int(args[6]);
+    let depth = ctx.int(args[6]);
 
     let mut max_depth = 0;
     for path_data in paths.iter() {
@@ -40,7 +40,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
         let path = wrap_path(path_data);
 
-        let branch_amount = int(args[7]).max(1);
+        let branch_amount = ctx.int(args[7]).max(1);
 
         let lowest_branch = ctx.float(args[4]);
         let highest_branch = ctx.float(args[5]);

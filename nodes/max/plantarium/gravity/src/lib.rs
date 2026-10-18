@@ -19,7 +19,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
 
     let plants = split_args(args[0]);
-    let depth = int(args[2]);
+    let depth = ctx.int(args[2]);
     let elasticity = ctx.float(args[3]).clamp(0.0, 1.0);
     let mode = int(args[4]); // 0 = closed-form, 1 = verlet
     // 0 → sqrt (rope), 1 → ~4.5 (only the tip droops)

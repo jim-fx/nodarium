@@ -1,0 +1,22 @@
+{
+  "id": "max/plantarium/random_int",
+  "meta": {
+    "description": "A random whole number from min to max, both included"
+  },
+  "outputs": [
+    "integer"
+  ],
+  "inputs": {
+    "min": {
+      "type": "integer",
+      "value": 1
+    },
+    "max": {
+      "type": "integer",
+      "value": 5
+    },
+    "seed": {
+      "type": "seed"
+    }
+  }
+}
