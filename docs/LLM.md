@@ -213,4 +213,9 @@ npm run test         # unit (vitest) + e2e (playwright)
 npm run test:unit    # vitest only
 npm run test:e2e     # playwright only
 npm run bench        # benchmark runner
+npm run render-graph fern palm        # screenshots of templates
+npm run render-graph templates        # screenshots of all json templates
+npm run render-graph my.nodarium.json # screenshot of an exported project or a bare graph
 ```
+
+`render-graph` executes the graph with the compiled nodes in `static/nodes` (run `pnpm build:nodes` in the root after changing a node) and writes `screenshots/<name>.png` with three views: front, side and from above. Stems are brown, instanced geometry (leaves, flowers) is green, the line is the ground. It prints one line of JSON per graph with the triangle and instance counts and the bounding box. The seed is fixed (`--seed`), so two screenshots of the same graph are identical. Use it to review a graph after changing it, see `docs/PLANT_TEMPLATES.md` for the plants the templates model.

@@ -15,7 +15,8 @@
     "format:check": "dprint check -c '../.dprint.jsonc' .",
     "lint": "eslint .",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "bench": "tsx ./benchmark/index.ts"
+    "bench": "tsx ./benchmark/index.ts",
+    "render-graph": "tsx ./scripts/render-graph.ts"
   },
   "dependencies": {
     "@nodarium/planty": "workspace:*",
