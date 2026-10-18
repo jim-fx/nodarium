@@ -28,6 +28,9 @@ pub fn extrude_path(input_path: PathData, res_x: usize) -> Vec<i32> {
 
     let path: &[f32] = input_path.points;
 
+    // a segment without length has no direction, it keeps the one before it
+    let mut last_dir = Vec3::NEG_Y;
+
     for i in 0..input_path.length {
         let index_offset = i * res_x * 6;
         let position_offset = i * res_x;
@@ -55,14 +58,16 @@ pub fn extrude_path(input_path: PathData, res_x: usize) -> Vec<i32> {
                 path[i * 4 - 2] - path[i * 4 + 6],
             )
         })
-        .normalize();
+        .try_normalize()
+        .unwrap_or(last_dir);
+        last_dir = segment_dir;
 
         // In our case the up vector is always the Y axis
         let up_vector = Vec3::NEG_Y;
 
         let binormal = up_vector.cross(segment_dir);
 
-        let rotation_angle = up_vector.dot(segment_dir).acos();
+        let rotation_angle = up_vector.dot(segment_dir).clamp(-1.0, 1.0).acos();
 
         let rotation_matrix = Mat4::from_axis_angle(binormal, rotation_angle);
 
@@ -114,4 +119,32 @@ pub fn extrude_path(input_path: PathData, res_x: usize) -> Vec<i32> {
     }
 
     geometry_data
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::geometry::{create_path, wrap_path, wrap_path_mut};
+
+    fn extrude(points: &[[f32; 4]]) -> Vec<f32> {
+        let mut data = create_path(points.len(), 0);
+        let path = wrap_path_mut(&mut data);
+        for (i, p) in points.iter().enumerate() {
+            path.points[i * 4..i * 4 + 4].copy_from_slice(p);
+        }
+        let mut geometry = extrude_path(wrap_path(&data), 8);
+        wrap_geometry_data(&mut geometry).positions.to_vec()
+    }
+
+    #[test]
+    fn test_extrude_collapsed_path() {
+        let positions = extrude(&[[1.0, 2.0, 3.0, 0.1], [1.0, 2.0, 3.0, 0.1], [1.0, 2.0, 3.0, 0.1]]);
+        assert!(positions.iter().all(|v| v.is_finite()));
+    }
+
+    #[test]
+    fn test_extrude_path_with_a_collapsed_segment() {
+        let positions = extrude(&[[0.0, 0.0, 0.0, 0.1], [0.0, 1.0, 0.0, 0.1], [0.0, 1.0, 0.0, 0.1]]);
+        assert!(positions.iter().all(|v| v.is_finite()));
+    }
 }
