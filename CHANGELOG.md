@@ -1,3 +1,143 @@
+# v0.0.7 (2026-10-18)
+
+- Add plant templates modelled on real species, including a new Salvia officinalis (sage) template.
+- Add a title bar with menus and a project browser window.
+- Render project thumbnails in a worker and import/export project files.
+- Add a /garden route that plants the recent projects.
+- Lay out the nodes of a graph in columns (Shift+F).
+- Add toasts, a zoom indicator and a confirm dialog when deleting a project.
+- Render templates and projects to screenshots headlessly (`pnpm render-graph`).
+- Add a language agnostic node ABI v1.
+
+Plant templates describe real species, from the agave to the weeping willow, and are documented in `PLANT_TEMPLATES.md`.
+
+- Agave, bamboo, fern, ornamental grass, lavender, palm, sapling, weeping willow and sage
+- Sage with opposite decussate leaves, axillary leaf tufts and whorls of two-lipped flowers
+- Fern and lavender grow from a crown at the golden angle, lavender from a low woody framework
+- Bamboo grows as a grove of almost straight culms, the grass gets real leaf blades
+- The birch sapling gets a slender trunk, hanging twigs and small rhombic leaves
+- Shaped with the new alpha, curve and angle inputs
+- Test graphs (Plant, Simple, Lotta Faces) are no longer listed in the project browser
+
+New nodes and inputs make it possible to vary branches and leaves along their parent.
+
+- Alpha node for where a branch or instance sits on its parent path
+- Curve node that shapes a 0-1 value
+- Stem and branch thickness can follow alpha along the path
+- Instances can tilt along their path with an angle input
+- Phyllotactic spiral and upward angle for branches
+- Noise can preserve segment lengths during displacement
+
+- Keep the values of a graph when its number inputs are rendered
+- Extrude paths with segments of zero length without NaN positions
+- Only center the camera on a finite bounding box, a NaN geometry turned the view black
+- Show every leaf and flower after switching projects, some stayed hidden until a reload
+- Fix undo inside groups, multi-output wiring and input removal
+- Nest branches below their parent and orient instances sideways
+- Give vertical and collapsed path segments a valid frame
+- Instantiate a node module only when it is executed
+- Load each node once and list nodes by their .wasm files
+- Reset modules of node types that left the graph
+- Keep rendering edges of a node whose type failed to load
+- Fix pasting nodes and the graph background on theme switch
+
+- Evaluate float expressions lazily on a per-run context
+- Use the new button component everywhere
+
+- Make tracked benchmark results reliable and run them in CI
+- Cover the runtime cache, module resets and the wasm wrapper with tests
+- Add UX guidelines
+- Format the layout of all graph templates
+
+---
+
+- [a48c4ae](https://git.max-richter.dev/max/nodarium/commit/a48c4aeffea0a1bce87258752a243469df362728) test(e2e): create the project from the Default Plant template
+- [d3ba40e](https://git.max-richter.dev/max/nodarium/commit/d3ba40eec3bb21b4d1c9cc60e7818d1d428cd50f) feat(templates): make the plant templates more realistic
+- [f56ea15](https://git.max-richter.dev/max/nodarium/commit/f56ea15379c0da8efe06db5ace814227c3e02a6c) feat(templates): add a Salvia officinalis (sage) template
+- [07249c2](https://git.max-richter.dev/max/nodarium/commit/07249c201b96ecf707dd78598c9510e44b475afb) fix(viewer): show every instanced geometry after switching graphs
+- [9e70480](https://git.max-richter.dev/max/nodarium/commit/9e704806e2a60ce625243bf84a2d17b77027309d) fix(viewer): only center the camera on a finite bounding box
+- [510571b](https://git.max-richter.dev/max/nodarium/commit/510571b5bd64bd3004b030d50abc0a28f56f39de) fix(utils): extrude paths with segments of zero length
+- [4dcb424](https://git.max-richter.dev/max/nodarium/commit/4dcb42442810f52e1002acceb8e18e251ffd2a21) fix(ui): keep the value of a number input when it is rendered
+- [3205c9d](https://git.max-richter.dev/max/nodarium/commit/3205c9dec28abed3bf8b6e316b4df808c6e3b4e8) chore(templates): hide the Plant, Simple and Lotta Faces templates in the project browser
+- [8406158](https://git.max-richter.dev/max/nodarium/commit/8406158a375f9f74efcefa46a9d04fb06ae642aa) Merge pull request 'Feat/plant templates alpha' (#53) from feat/plant-templates-alpha into main
+- [5aa76cb](https://git.max-richter.dev/max/nodarium/commit/5aa76cb069ec3b1c6ee4358d673da13bad2cac02) chore(templates): format the layout of all graph templates
+- [39f4c55](https://git.max-richter.dev/max/nodarium/commit/39f4c5577ad868dedd78be2a24f7a5c0b8c35512) feat(graph): lay out the nodes of a graph in columns
+- [580244d](https://git.max-richter.dev/max/nodarium/commit/580244d345d256a67c4e77c85bf5068ce2c48bab) feat(templates): shape the plant templates with alpha, curve and angle
+- [6e66003](https://git.max-richter.dev/max/nodarium/commit/6e660038bb2bbce8020421e96015376e35e25bd1) feat(nodes): tilt instances along their path with an angle input
+- [9e4066e](https://git.max-richter.dev/max/nodarium/commit/9e4066e99dfc9d49d5384f6b431f6dd158405f8d) Merge pull request 'Feat/alpha node' (#51) from feat/alpha-node into main
+- [ced2d1e](https://git.max-richter.dev/max/nodarium/commit/ced2d1e452cbc47236334fdb87acb7ce44363355) fix(performance): draw graphs with a single point or a flat line
+- [6e2a677](https://git.max-richter.dev/max/nodarium/commit/6e2a67768bf1b226526a01d1ec25335f420a06fb) fix(thumbnails): send plain graphs to the thumbnail worker
+- [393a1dd](https://git.max-richter.dev/max/nodarium/commit/393a1dd09414e0ed210c8e5c40144490f87e2f45) fix(graph): keep rendering edges of a node whose type failed to load
+- [21e2b0c](https://git.max-richter.dev/max/nodarium/commit/21e2b0c883911af684996ffd241e3851bc21754a) fix(utils): instantiate a node module only when it is executed
+- [89c70c5](https://git.max-richter.dev/max/nodarium/commit/89c70c5c811aae258d8fcb4887bebbacd4c5d41d) feat(nodes): let stem and branch thickness follow alpha along the path
+- [f84e1a0](https://git.max-richter.dev/max/nodarium/commit/f84e1a038516a265877db340b8fb3286cbb8916f) feat(nodes): show only the curve and a value socket on the curve node
+- [180047b](https://git.max-richter.dev/max/nodarium/commit/180047b46e9e109ff50f0598eac76a42f42e4eca) feat(nodes): add curve node that shapes a 0-1 value
+- [a9b1667](https://git.max-richter.dev/max/nodarium/commit/a9b166737707f0f01253f1a8ef0a51adb65650dc) fix(macros): rebuild a node when its definition file changes
+- [96cd148](https://git.max-richter.dev/max/nodarium/commit/96cd14834e62899fb262fbe320738e6217470a79) fix(utils): give vertical and collapsed path segments a valid frame
+- [c4e290b](https://git.max-richter.dev/max/nodarium/commit/c4e290b6a6e7f35a7525c44f7d9bf27337dfedf1) feat(nodes): add alpha node for where a branch or instance sits on its parent
+- [b092582](https://git.max-richter.dev/max/nodarium/commit/b0925824e05c417e0a78b755d7f9acea5a59f17f) refactor(utils): evaluate float expressions lazily on a per-run Ctx
+- [a2cb937](https://git.max-richter.dev/max/nodarium/commit/a2cb93774dce63e70cb19978ff684b77ca054ad4) chore: remove the wasm route and format the plant templates doc
+- [4a42513](https://git.max-richter.dev/max/nodarium/commit/4a425130c87ea099dc572b80fc5e8cb21d2d319d) feat(scripts): render templates and projects to screenshots headlessly
+- [a15fe01](https://git.max-richter.dev/max/nodarium/commit/a15fe019b63d6f8b624bd14d5455430500c2de83) feat(garden): add /garden route that plants the recent projects
+- [79a729a](https://git.max-richter.dev/max/nodarium/commit/79a729a39f9a9223a2ca2b73668727caded7fa34) feat(templates): add plant templates modelled on real species
+- [b2feeda](https://git.max-richter.dev/max/nodarium/commit/b2feeda566bdacea3af5b634a87d67601671bd55) fix(registry): list nodes by their .wasm files and load each node once
+- [ef90fea](https://git.max-richter.dev/max/nodarium/commit/ef90fea50dbb06c585b399cd8844ab13c4ec7e2a) fix(nodes): nest branches below their parent and orient instances sideways
+- [2b6a2d5](https://git.max-richter.dev/max/nodarium/commit/2b6a2d52db87737da6517264d961dea93a478a8c) Merge pull request 'fix(groups): fix the remaining node group bugs' (#50) from fix/remaining-group-bugs into main
+- [86100ee](https://git.max-richter.dev/max/nodarium/commit/86100ee043f9f8a2529bad76ae029d0c6fd78ee2) fix(groups): fix the remaining node group bugs
+- [7d9b055](https://git.max-richter.dev/max/nodarium/commit/7d9b055f0d91ffa3fc46b7be1fad1f6659cde334) Merge pull request 'feat: project ui' (#47) from feat/project-ui into main
+- [650a3c1](https://git.max-richter.dev/max/nodarium/commit/650a3c1ab2d9ed4acc93b36dc587d971e07f7f86) Merge branch 'main' into feat/project-ui
+- [3ece245](https://git.max-richter.dev/max/nodarium/commit/3ece24588b04ab0bd2dac185af5c11e3837f8549) Merge pull request 'fix(groups): fix undo inside groups, multi-output wiring and input removal' (#49) from fix/group-bugs into main
+- [b6f6d8c](https://git.max-richter.dev/max/nodarium/commit/b6f6d8c688c33791f79431792fce3c086be05d4f) test(e2e): create the project through the title bar's project browser
+- [0c76d20](https://git.max-richter.dev/max/nodarium/commit/0c76d204f415fb192b6ff4990eeeb4f5f21b7658) Merge branch 'main' into feat/project-ui
+- [08e98a3](https://git.max-richter.dev/max/nodarium/commit/08e98a352ad681c8f1f34b4ef2b6b8efdcadc3d9) Merge branch 'main' into fix/group-bugs
+- [b06a390](https://git.max-richter.dev/max/nodarium/commit/b06a390f21c0893bc0559eb9888c18c711b8a847) Merge pull request 'Feat/wasm abi v1' (#45) from feat/wasm-abi-v1 into main
+- [59fca8a](https://git.max-richter.dev/max/nodarium/commit/59fca8abc862084cc0895e56d7fd2d6eaa02b6cb) fix(groups): fix undo inside groups, multi-output wiring and input removal
+- [92bd1ca](https://git.max-richter.dev/max/nodarium/commit/92bd1ca89e5ffb5c6f030ff2c6c9ca58887128c2) feat(ui): use sidebar panel icons for the sidebar toggle
+- [9cc4534](https://git.max-richter.dev/max/nodarium/commit/9cc4534d7da5e6e4c20350b06587a3206d635293) fix(ui): keep project browser borders at full opacity and centre the template label
+- [c0a5052](https://git.max-richter.dev/max/nodarium/commit/c0a5052683b44985a2d7cb3c8b78c6230db31d41) fix(ui): align the project browser import button with the footer
+- [a023167](https://git.max-richter.dev/max/nodarium/commit/a0231679d336212d5788a1fa21e99a97efbfc3d5) feat(ui): add a title bar with menus and a project browser window
+- [9aa324a](https://git.max-richter.dev/max/nodarium/commit/9aa324a6e97f4da17e22a312eef1b46d5da89165) feat: render project thumbnails in a worker and add project file import/export
+- [07ac241](https://git.max-richter.dev/max/nodarium/commit/07ac241d118285d894a7421ee2c7689f0e20ab89) test(utils): cover the wasm wrapper with hand written test modules
+- [1470484](https://git.max-richter.dev/max/nodarium/commit/147048470f9e7a42dd03e164e29cfe23a726aa84) test(runtime): cover the structural cache keys and module resets
+- [8f89cdd](https://git.max-richter.dev/max/nodarium/commit/8f89cdd7c08eb3045faeea7efaaf2fe45b457f51) fix(runtime): reset modules of node types that left the graph
+- [d18f4ee](https://git.max-richter.dev/max/nodarium/commit/d18f4eec1483ad3ade03aeea3975d253b7b6b965) fix(ui): keep the chosen select option of node settings, default gravity to chain
+- [cb3b9c0](https://git.max-richter.dev/max/nodarium/commit/cb3b9c048bc8ce7c982f9da2c7cd96fdd64e1a4a) docs: keep the host node-agnostic, formats belong to node systems
+- [2841c86](https://git.max-richter.dev/max/nodarium/commit/2841c8637272c7e7f9afb60ae21a70e377d98540) fix(benchmark): read the instance count from the right header field
+- [a53e974](https://git.max-richter.dev/max/nodarium/commit/a53e9742688ea91f118142966ebef9fe3ff10d3d) fix(ci): push benchmark results through gitea's ssh port 22
+- [a2e1473](https://git.max-richter.dev/max/nodarium/commit/a2e14732b78f32a13358dee2fa4b6812483b45d9) ci(benchmark): limit the benchmark container to 2GB without swap
+- [f5b0890](https://git.max-richter.dev/max/nodarium/commit/f5b0890aed71c9733b965a404dcecc6a1c52113c) fix(benchmark): reuse wasm instances instead of creating them per run
+- [bc978e7](https://git.max-richter.dev/max/nodarium/commit/bc978e7ca751f228ee14004681a868e4e21891fd) fix(ci): benchmark branches containing a slash, format benchmark
+- [520aaeb](https://git.max-richter.dev/max/nodarium/commit/520aaeb004f3abe9ecad4541bf2bb9116753beee) feat(benchmark): make tracked results reliable
+- [210c12e](https://git.max-richter.dev/max/nodarium/commit/210c12e9f6777696f8b22532c2dbbe1db4594ea6) feat(runtime): add language agnostic node ABI v1
+- [4dd5f63](https://git.max-richter.dev/max/nodarium/commit/4dd5f633d4de97f2511c7d099e9977f3385de4c0) fix: make eslint/typescript happy
+- [e6c368a](https://git.max-richter.dev/max/nodarium/commit/e6c368afaa484cdacbed4702dee5c67a9d917b1c) feat: update some nodes a bit
+- [581daa1](https://git.max-richter.dev/max/nodarium/commit/581daa1be771550ef2e8b24a76cfb2b523e6737c) feat(noise): add preserveLength toggle
+- [f652b71](https://git.max-richter.dev/max/nodarium/commit/f652b712df20dbe439265208c3dd362b948f5bb3) fix: remove redundant schema from union
+- [68ae625](https://git.max-richter.dev/max/nodarium/commit/68ae62527fba1af4dc6994cdb9cc12684da2683a) feat(noise): preserve segment lengths during displacement
+- [49746c6](https://git.max-richter.dev/max/nodarium/commit/49746c607927b319f049efe40e03881f61037109) feat(branch): phyllotactic spiral and upward angle
+- [e5df19b](https://git.max-richter.dev/max/nodarium/commit/e5df19b6d88ca183616311423ec90ec374153366) feat(ui): animate toasts
+- [415be50](https://git.max-richter.dev/max/nodarium/commit/415be50ae08477ed00d809ce18389b33fc665bb7) feat(ui): show toast after copying jsontree node
+- [f0f4c00](https://git.max-richter.dev/max/nodarium/commit/f0f4c001379d1b1dd8ac4c7293e683a78eac85a0) feat: use beforeunload to make sure graph is saved
+- [3c5f897](https://git.max-richter.dev/max/nodarium/commit/3c5f897b267e7d770259f05ac101cc5dec679d3d) feat: bunch of small fixes
+- [ed0c470](https://git.max-richter.dev/max/nodarium/commit/ed0c47068a68bed712ee667d5ed376fd23d3de5c) fix: dispose unused geometry
+- [a039bdd](https://git.max-richter.dev/max/nodarium/commit/a039bddba18a6e3ba6029332f77e44164f67b2ae) feat: debounce cameraPosition saving
+- [5fa9d36](https://git.max-richter.dev/max/nodarium/commit/5fa9d36b348037f9a528f64c9af0c0420a6be7e9) feat: debounce box selection for performance
+- [7d788f7](https://git.max-richter.dev/max/nodarium/commit/7d788f7e195aa9c1172840501b116e55522cf56f) feat: surface error when dropping wasm node
+- [bd6dfeb](https://git.max-richter.dev/max/nodarium/commit/bd6dfeb4669e2c5f3cb555f37cb8307fbe9e9a93) fix: remove unused svelte-ignore comment
+- [36f02ca](https://git.max-richter.dev/max/nodarium/commit/36f02cabd35a4b906eb85840bba770df151dac01) chore: format
+- [3a78ad5](https://git.max-richter.dev/max/nodarium/commit/3a78ad5ee3121add86b69114e70d5981ac55d83f) docs: add ux guidelines
+- [9a7a716](https://git.max-richter.dev/max/nodarium/commit/9a7a7166b79ab4c980a1830b2359556fb479d41d) fix: pasting nodes
+- [4aff387](https://git.max-richter.dev/max/nodarium/commit/4aff3874d35450b9e7fd1be74be47f0cf4101c5e) feat: show toast on some errors
+- [f415eda](https://git.max-richter.dev/max/nodarium/commit/f415edab57081778bef957356ea6585173123d59) fix: automatically update graph background on theme swtich
+- [7439596](https://git.max-richter.dev/max/nodarium/commit/743959639f33298f9679d3d2433be3c28af40ba5) feat: no results state in add menu
+- [d9b8b36](https://git.max-richter.dev/max/nodarium/commit/d9b8b3668664b23785835c7fae96cdd2db630b71) feat: update some inputs
+- [ebf1396](https://git.max-richter.dev/max/nodarium/commit/ebf13967a4adb258abdc270437d988cd74b50b50) feat: use new button component everyhwerre
+- [a4f51ef](https://git.max-richter.dev/max/nodarium/commit/a4f51efeaddb02e7f59963b1be0e01c5312b30fa) feat: add spinning icon
+- [308626b](https://git.max-richter.dev/max/nodarium/commit/308626bcdc6b6162c393d0c6f3ac00fbb4789e5d) feat: add toast component
+- [73155dc](https://git.max-richter.dev/max/nodarium/commit/73155dcb46586e1e65be0b85fc1061a3377fb26f) feat: show confirm when deleting project
+- [84afd15](https://git.max-richter.dev/max/nodarium/commit/84afd15746faf76e271c97cd2e99d72a03d2d152) feat: add #id to group name when duplicates exist
+- [af40db3](https://git.max-richter.dev/max/nodarium/commit/af40db3386b5f55321850ff405e550ade82132ba) feat: add ZoomIndicator to graph
+
 # v0.0.6 (2026-05-05)
 
 ## Features
