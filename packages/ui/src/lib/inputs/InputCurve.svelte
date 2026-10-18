@@ -108,18 +108,23 @@
 
 <svelte:window onmousemove={handleMouseMove} onmouseup={handleMouseUp} />
 
-<div class="w-full aspect-square bg-layer-2 p-[7px] rounded-[5px] outline-1 outline-outline">
+<div class="group relative w-full aspect-square">
+  <div class="size-full overflow-hidden bg-layer-2 rounded-[5px] outline-1 outline-outline">
+    <svg class="size-full" viewBox="0 0 100 100">
+      <path d={areaPath} class="fill-layer-3 opacity-30" />
+      <path d={linePath} class="fill-none stroke-layer-3" />
+    </svg>
+  </div>
+  <!-- the points are drawn above the clipped curve, so the ones on the edges show in full -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <svg
-    class="group size-full overflow-visible"
+    class="absolute inset-0 size-full overflow-visible"
     viewBox="0 0 100 100"
     bind:this={svgElement}
     aria-label="Curve editor"
     onmousedown={handleMouseDown}
     oncontextmenu={handleContextMenu}
   >
-    <path d={areaPath} class="fill-layer-3 opacity-30" />
-    <path d={linePath} class="fill-none stroke-layer-3" />
     {#each groupedPoints as p, i (i)}
       <circle
         class="cursor-pointer stroke-layer-3 opacity-0 transition-opacity group-hover:opacity-100 hover:fill-layer-3"
