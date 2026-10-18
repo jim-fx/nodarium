@@ -48,6 +48,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         for i in 0..branch_amount {
             let a = i as f32 / (branch_amount - 1).max(1) as f32;
 
+            let root_alpha = (a * (highest_branch - lowest_branch) + lowest_branch)
+                .min(1.0)
+                .max(0.0);
+            ctx.alpha = root_alpha;
+
             let length = ctx.float(args[1]);
             let thickness = ctx.float(args[2]);
             let offset_single = if i % 2 == 0 {
@@ -55,10 +60,6 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             } else {
                 0.0
             };
-
-            let root_alpha = (a * (highest_branch - lowest_branch) + lowest_branch)
-                .min(1.0)
-                .max(0.0);
 
             let (branch_origin, orthogonal, direction) = interpolate_along_path(
                 path.points,

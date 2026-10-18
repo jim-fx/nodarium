@@ -7,6 +7,9 @@ use noise::{core::open_simplex::open_simplex_2d, permutationtable::PermutationTa
 /// time the node runs.
 #[derive(Default)]
 pub struct Ctx {
+    /// Where the branch or instance a node is placing sits on its parent path,
+    /// from 0 at the base to 1 at the tip. The `alpha` node reads it.
+    pub alpha: f32,
     calls: i32,
 }
 
@@ -33,6 +36,7 @@ impl Ctx {
                 let (min, max) = (self.float(min), self.float(max));
                 self.random(min, max, *seed)
             }
+            [[2], ..] => self.alpha,
             _ => 0.0,
         };
 
@@ -121,6 +125,19 @@ mod tests {
         let first = run();
         assert_ne!(first[0], first[1]);
         assert_eq!(first, run());
+    }
+
+    #[test]
+    fn test_alpha() {
+        let alpha = concat_args(vec![&[2], &[0]]);
+        let doubled = concat_args(vec![&[0], &[2], &alpha, &[encode_float(2.0)]]);
+
+        let mut ctx = Ctx::default();
+        assert_eq!(ctx.float(&alpha), 0.0);
+
+        ctx.alpha = 0.25;
+        assert_eq!(ctx.float(&alpha), 0.25);
+        assert_eq!(ctx.float(&doubled), 0.5);
     }
 
     #[test]

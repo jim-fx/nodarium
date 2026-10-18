@@ -44,11 +44,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
         for i in 0..amount {
             let alpha = lowest_instance
-                + (i as f32 / (amount - 1) as f32) * (highest_instance - lowest_instance);
+                + (i as f32 / (amount - 1).max(1) as f32) * (highest_instance - lowest_instance);
+            ctx.alpha = alpha;
 
             let point = path.get_point_at(alpha);
             let tangent = Vec3::from_slice(&path.get_direction_at(alpha)).normalize();
-            let size = point[3] + 0.01;
+            let size = (point[3] + 0.01) * ctx.float(args[7]);
 
             // the geometry grows along its -z axis, its face looks along +y.
             // It sticks out sideways from the path, turned around the path by the rotation,

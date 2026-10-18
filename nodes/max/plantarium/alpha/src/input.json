@@ -1,0 +1,10 @@
+{
+  "id": "max/plantarium/alpha",
+  "meta": {
+    "description": "Where a branch or instance sits on its parent path, from 0 at the base to 1 at the tip"
+  },
+  "outputs": [
+    "float"
+  ],
+  "inputs": {}
+}
