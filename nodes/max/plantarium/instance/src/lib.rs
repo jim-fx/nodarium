@@ -60,12 +60,15 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             } else {
                 Vec3::NEG_Z
             };
-            let out = Quat::from_axis_angle(tangent, i as f32 * rotation) * base;
+            let around = Quat::from_axis_angle(tangent, i as f32 * rotation) * base;
+            // the angle tilts it along the path, positive toward the tip
+            let angle = ctx.float(args[8]).to_radians();
+            let out = around * angle.cos() + tangent * angle.sin();
             let up = Vec3::Y - out * Vec3::Y.dot(out);
             let face = if up.length_squared() > 1e-6 {
                 up.normalize()
             } else {
-                tangent
+                tangent * angle.cos() - around * angle.sin()
             };
             let back = -out;
             let across = face.cross(back);
