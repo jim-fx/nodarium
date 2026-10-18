@@ -151,6 +151,12 @@
       "position": [180, 155],
       "type": "max/plantarium/curve",
       "props": { "curve": [0, 0, 0.4, 0, 1, 1], "min": 35, "max": 60 }
+    },
+    {
+      "id": 33,
+      "position": [240, 140],
+      "type": "max/plantarium/random_int",
+      "props": { "min": 2, "max": 5 }
     }
   ],
   "edges": [
@@ -176,6 +182,7 @@
     [30, 0, 28, "b"],
     [28, 0, 14, "length"],
     [31, 0, 32, "value"],
-    [32, 0, 14, "angle"]
+    [32, 0, 14, "angle"],
+    [33, 0, 19, "amount"]
   ]
 }

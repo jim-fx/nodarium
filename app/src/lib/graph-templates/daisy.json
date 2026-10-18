@@ -281,7 +281,7 @@
     },
     {
       "id": 29,
-      "position": [-120, 65],
+      "position": [-120, 95],
       "type": "max/plantarium/random",
       "props": {
         "min": 0.92,
@@ -302,7 +302,7 @@
     },
     {
       "id": 31,
-      "position": [-90, 40],
+      "position": [-90, 70],
       "type": "max/plantarium/random",
       "props": {
         "min": 0.78,
@@ -323,7 +323,7 @@
     },
     {
       "id": 33,
-      "position": [-90, 70],
+      "position": [-90, 100],
       "type": "max/plantarium/shape",
       "props": {
         "shape": [
@@ -371,6 +371,24 @@
       "position": [0, 0],
       "type": "max/plantarium/output",
       "props": {}
+    },
+    {
+      "id": 37,
+      "position": [-120, 65],
+      "type": "max/plantarium/random_int",
+      "props": {
+        "min": 20,
+        "max": 30
+      }
+    },
+    {
+      "id": 38,
+      "position": [-90, 40],
+      "type": "max/plantarium/random_int",
+      "props": {
+        "min": 12,
+        "max": 20
+      }
     }
   ],
   "edges": [
@@ -541,6 +559,18 @@
       0,
       36,
       "input"
+    ],
+    [
+      37,
+      0,
+      30,
+      "amount"
+    ],
+    [
+      38,
+      0,
+      32,
+      "amount"
     ]
   ]
 }

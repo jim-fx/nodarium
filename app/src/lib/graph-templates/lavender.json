@@ -164,7 +164,7 @@
     },
     {
       "id": 33,
-      "position": [150, 165],
+      "position": [150, 195],
       "type": "max/plantarium/curve",
       "props": {
         "curve": [0.4, 0.75, 0.6, 0.6944, 0.8, 0.4028, 1.0, 0.2361],
@@ -172,19 +172,25 @@
         "max": 360
       }
     },
-    { "id": 34, "position": [120, 185], "type": "max/plantarium/alpha", "props": {} },
+    { "id": 34, "position": [120, 215], "type": "max/plantarium/alpha", "props": {} },
     {
       "id": 35,
-      "position": [150, 200],
+      "position": [150, 230],
       "type": "max/plantarium/curve",
       "props": { "curve": [0, 1, 0.5, 1, 0.52, 0, 1, 0], "min": 50, "max": 80 }
     },
-    { "id": 36, "position": [120, 220], "type": "max/plantarium/alpha", "props": {} },
+    { "id": 36, "position": [120, 250], "type": "max/plantarium/alpha", "props": {} },
     {
       "id": 37,
       "position": [150, 135],
       "type": "max/plantarium/random",
       "props": { "min": 3.4, "max": 4.0 }
+    },
+    {
+      "id": 38,
+      "position": [150, 165],
+      "type": "max/plantarium/random_int",
+      "props": { "min": 3, "max": 5 }
     }
   ],
   "edges": [
@@ -206,6 +212,7 @@
     [33, 0, 29, "rotation"],
     [36, 0, 35, "value"],
     [35, 0, 29, "angle"],
-    [37, 0, 29, "length"]
+    [37, 0, 29, "length"],
+    [38, 0, 29, "amount"]
   ]
 }

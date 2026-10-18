@@ -187,7 +187,7 @@
     },
     {
       "id": 29,
-      "position": [-120, -30],
+      "position": [-120, 70],
       "type": "max/plantarium/random_int",
       "props": {
         "min": 40,
