@@ -15,6 +15,9 @@ export class WorkerRuntimeExecutor implements RuntimeExecutor {
   async getDebugData() {
     return await this.worker.getDebugData();
   }
+  async getNodeTimings() {
+    return await this.worker.getNodeTimings();
+  }
   set useRuntimeCache(useCache: boolean) {
     this.worker.setUseRuntimeCache(useCache);
   }

@@ -52,3 +52,7 @@ export function getPerformanceData() {
 export function getDebugData() {
   return executor.getDebugData();
 }
+
+export function getNodeTimings() {
+  return executor.getNodeTimings();
+}

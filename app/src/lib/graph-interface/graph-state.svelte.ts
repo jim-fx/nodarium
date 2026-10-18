@@ -127,6 +127,7 @@ export class GraphState {
   snapToGrid = $state(false);
   backgroundType = $state<'grid' | 'dots' | 'none'>('grid');
   showHelp = $state(false);
+  nodeTimings = $state<Record<number, number>>({});
 
   cameraDown = [0, 0];
   mouseDownNodeId = -1;

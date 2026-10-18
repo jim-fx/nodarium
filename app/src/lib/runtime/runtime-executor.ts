@@ -213,6 +213,9 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
   private seed = Math.floor(Math.random() * 100000000);
   private debugData: Record<number, { type: string; data: Int32Array }> = {};
+  // execution time in ms of every node of the last run, cached nodes keep
+  // the time of the run that computed their result
+  private nodeTimings: Record<number, number> = {};
 
   perf?: PerformanceStore;
 
@@ -350,6 +353,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     // structural cache keys: a node's key is derived from its own input
     // values and the keys of its input nodes, so we never hash result data
     const cacheKeys: Record<string, number> = {};
+    const nodeTimings: Record<number, number> = {};
 
     if (settings['randomSeed']) {
       this.seed = Math.floor(Math.random() * 100000000);
@@ -428,6 +432,9 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
             log.log(`Using cached value for ${node_type.id || node.id}`);
             this.perf?.addPoint('cache-hit', 1);
             results[node.id] = cachedValue as Int32Array;
+            if (node.id in this.nodeTimings) {
+              nodeTimings[node.id] = this.nodeTimings[node.id];
+            }
             if (node.state.debugNode && node_type.outputs) {
               this.debugData[node.id] = {
                 type: node_type.outputs[0],
@@ -456,6 +463,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
           this.cache.set(inputHash, readNodeValue(results[node.id]));
         }
 
+        nodeTimings[node.id] = b - a;
         this.perf?.addPoint('node/' + node_type.id, b - a);
         log.log('Result:', results[node.id]);
         log.groupEnd();
@@ -473,6 +481,8 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       this.cache.size = sortedNodes.length * 2;
     }
 
+    this.nodeTimings = nodeTimings;
+
     this.perf?.endPoint('runtime');
 
     return res as unknown as Int32Array;
@@ -484,5 +494,9 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
   getPerformanceData() {
     return this.perf?.get();
+  }
+
+  getNodeTimings() {
+    return this.nodeTimings;
   }
 }

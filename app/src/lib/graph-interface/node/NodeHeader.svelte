@@ -67,6 +67,14 @@
   }
   const socketType = $derived(getSocketType(graphState.activeSocket));
   const hoverColor = $derived(graphState.colors.getColor(socketType));
+
+  const timing = $derived(graphState.nodeTimings[node.id]);
+  function formatTiming(ms: number) {
+    if (ms < 1) return '<1ms';
+    if (ms < 10) return `${ms.toFixed(1)}ms`;
+    if (ms < 1000) return `${Math.round(ms)}ms`;
+    return `${(ms / 1000).toFixed(2)}s`;
+  }
 </script>
 
 <div
@@ -81,6 +89,9 @@
       <span class="bg-white text-black! mr-2 px-1 rounded-sm opacity-30">{node.id}</span>
     {/if}
     {nodeType?.meta?.title || node.type?.split('/').pop()}
+    {#if appSettings.value.debug.advancedMode && timing !== undefined}
+      <span class="ml-auto mr-6 text-xs opacity-50">{formatTiming(timing)}</span>
+    {/if}
   </div>
   {#if rightBump}
     <div

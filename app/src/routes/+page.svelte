@@ -90,6 +90,7 @@
   let graphInterface = $state<ReturnType<typeof GraphInterface>>(null!);
   let viewerComponent = $state<ReturnType<typeof Viewer>>();
   let debugData = $state<Record<number, { type: string; data: Int32Array }>>();
+  let nodeTimings = $state<Record<number, number>>({});
   const manager = $derived(graphInterface?.manager);
 
   pm.onrenameactive = (title) => {
@@ -171,6 +172,7 @@
           );
         }
       }
+      nodeTimings = await runtime.getNodeTimings();
       viewerComponent?.update(graphResult);
       pm.thumbnails.schedule(g, graphResult);
     } catch (error) {
@@ -333,6 +335,7 @@
             bind:showHelp={appSettings.value.nodeInterface.showHelp}
             bind:settings={graphSettings}
             bind:settingTypes={graphSettingTypes}
+            {nodeTimings}
             onsave={async (g) => {
               pendingSave = true;
               await pm.saveGraph(g);

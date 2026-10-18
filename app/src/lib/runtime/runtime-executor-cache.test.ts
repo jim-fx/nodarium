@@ -154,3 +154,27 @@ describe('runtime reset', () => {
     expect(seeded.reset).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('runtime node timings', () => {
+  it('times every executed node and keeps the time of cached nodes', async () => {
+    const executor = createExecutor();
+    await executor.execute(graph(), {});
+    const first = executor.getNodeTimings();
+
+    expect(Object.keys(first).map(Number).sort()).toEqual([0, 1, 2, 3]);
+
+    await executor.execute(graph({ value: 5 }), {});
+    const second = executor.getNodeTimings();
+
+    expect(second[3]).toBe(first[3]);
+    expect(Object.keys(second).map(Number).sort()).toEqual([0, 1, 2, 3]);
+  });
+
+  it('drops nodes that left the graph', async () => {
+    const executor = createExecutor();
+    await executor.execute(graph(), {});
+    await executor.execute(singleNodeGraph(left.id), {});
+
+    expect(Object.keys(executor.getNodeTimings()).map(Number).sort()).toEqual([0, 1]);
+  });
+});
