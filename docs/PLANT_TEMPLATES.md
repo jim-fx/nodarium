@@ -14,6 +14,12 @@ Proportions are relative. The garden scales every plant to the same height, so o
 - `gravity` in the default chain mode bends a path by at most 90°. With `mode: 0` (closed-form) it pulls every segment toward straight down without overshooting. That is how the hanging willow twigs are made.
 - `branch`, `gravity`, `noise` and `instance` only change the deepest paths by default. Instancing on a path _before_ branching it puts geometry only on that level, as in the grass, where the plumes sit on the flowering stems but not on the leaf blades.
 - Paths taper linearly to zero unless `taper` is lowered. Every random value comes from the same seed.
+- `random` draws from simplex noise, so its values gather around the middle of the range. To spread stems evenly around the plant, `branch` them from a short stem at the golden angle instead of turning them by a random angle.
+- `branch` turns branch i by `i * rotation` around its parent, starting from the side (0°), 90° points down and 270° up. The rotation is read per branch, so an `alpha -> curve` into it can give every branch its own angle: the value at the alpha of branch i is the wanted angle divided by i. Branch 0 always points to the side.
+- `gravity` with a negative `strength` in chain mode bends a path up instead of down, which makes shoots grow upward. It turns every segment by the same amount, so a path that is already upright tips over to the other side.
+- Two `instance` nodes put leaves in opposite pairs: with `rotation 1.57`, the second one starts two steps lower, so its leaf k + 2 sits at the height of leaf k of the first and is turned 180° from it. A curve on its size hides the two extra leaves at the bottom.
+- A `branch` with an almost zero `length` is a point on its parent. An `instance` on it puts its instances in a ring around that point, a true whorl.
+- The shape editor sorts the points of a shape by y, so an outline has to go down from y 100 to 0 without turning back.
 
 ## Agave: _Agave americana_ (century plant)
 
@@ -75,6 +81,16 @@ Family Arecaceae.
 
 **Template:** a leaning trunk (noise in x and z only). Its thickness is an `alpha -> curve` with `taper 0`: a swollen base, then a slender column that only thins out inside the crown. 26 fronds sit in the top of the trunk at the golden angle (137.5°). An `alpha -> curve` tilts them by age: the lowest, oldest fronds start 20° below horizontal, the highest, youngest ones 75° above. Gravity arches them further. The youngest fronds are also shorter. Each frond has 120 narrow leaflets from 14% (the petiole) to the tip, in two ranks (`rotation 3.14`). They meet the rachis at an acute angle (`angle 30`, toward the frond tip), droop (`yCurve 1.0`) and are folded (`xCurve -0.5`). An `alpha -> curve` on their size makes them short at the base of the frond, longest past the middle and short at the tip. Fruit is not modelled.
 
+## Sage: _Salvia officinalis_ (common sage, garden sage)
+
+Family Lamiaceae.
+
+**Parts:** woody base (the plant is an evergreen subshrub), square young stems, opposite leaves with long petioles, small axillary leaf tufts, and terminal racemes of verticillasters. Each verticillaster is a false whorl of 4–12 flowers with a bell-shaped, two-lipped calyx and a two-lipped violet corolla.
+
+**Structure:** A rounded mound 30–60 (80) cm tall and at least as wide. Woody stems spread from the base, lie on the ground at first and then rise (they are _decumbent_). Their leafy shoots grow upward. The leaves are opposite and decussate, grey-green, oblong-elliptic, 2–8 × 0.8–2.5 cm (about 3:1), with a wedge-shaped to rounded base, a blunt tip and a finely crenulate margin. The upper surface is wrinkled (_rugose_), the lower one white with hairs. The petiole is up to 3 cm. The leaves keep about the same size along the shoot, get smaller toward its tip, and often carry tufts of small leaves in their axils. In early summer the shoots end in erect flowering stems with a few pairs of smaller leaves and a raceme 4–18 cm long. The verticillasters are spaced well apart (_remote_). The calyx is 8–14 mm, often purplish. The corolla is 15–30 mm, with a tube that is mostly inside the calyx, a straight to slightly sickle-shaped hooded upper lip (_galea_) and a broad, three-lobed lower lip that bends down.
+
+**Template:** a short woody crown with 9 woody stems at the golden angle, spread evenly around the plant. They start 8–42° above the ground, a negative gravity bends them up and noise makes them gnarled. Each carries 7 shoots from 35% up. An `alpha -> curve` into the branch `rotation` turns them to alternating sides of up (225°, 315°, ...), a weak negative gravity straightens them further. Every shoot has 8 opposite, decussate leaf pairs (two `instance` nodes, see above) and 8 smaller pairs turned 90° from them as the axillary tufts. The leaf shape has a petiole a third as long as the blade, an oblong blade 2.8 times as long as wide, and a crenate margin. Each shoot ends in a flowering stem (a `branch` at its tip, `angle 90`) with 3 pairs of small, almost sessile leaves and 7 verticillasters in its upper half. Every verticillaster is a branch of length 0.002 with 6 flowers in a ring. A flower is three instances on the same point: a calyx rolled into a toothed bell (`xCurve 2.2`), the upper lip (`xCurve -1.6`, a hood) and the lower lip, which has no width inside the calyx and bends down past its mouth (`yCurve 1.5`). Random sizes make some flowers buds. Bracts, the square stems and the hairs are missing.
+
 ## Sapling: _Betula pendula_ (silver birch), young tree
 
 Family Betulaceae.
@@ -103,5 +119,6 @@ Family Salicaceae.
 - [Cenchrus purpurascens, NZ Flora](https://nzflora.info/factsheet/Taxon/Cenchrus-purpurascens.html), [AusGrass2](https://ausgrass2.myspecies.info/node/1494)
 - [Lavandula angustifolia, Trees and Shrubs Online](https://www.treesandshrubsonline.org/articles/lavandula/lavandula-angustifolia/)
 - [Cocos nucifera, Australian Tropical Rainforest Plants](https://apps.lucidcentral.org/rainforest/text/entities/Cocos_nucifera.htm), [NParks](https://www.nparks.gov.sg/florafaunaweb/flora/5/6/5618)
+- [Salvia officinalis, Trees and Shrubs Online](https://www.treesandshrubsonline.org/articles/salvia/salvia-officinalis/), [Go Botany](https://gobotany.nativeplanttrust.org/species/salvia/officinalis/), [Horticultural Flora of South-eastern Australia](https://hortflora.rbg.vic.gov.au/taxon/ada1d1da-5340-11e7-b82b-005056b0018f), [Giardino della Flora Appenninica](https://giardinocapracotta.unimol.it/en/?p=3277), [Flora of Tropical East Africa via POWO](https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:456833-1/general-information)
 - [Betula pendula, Virginia Tech Dendrology](https://dendro.cnre.vt.edu/dendrology/carddetail.cfm?ID=15), [Trees and Shrubs Online](https://www.treesandshrubsonline.org/articles/betula/betula-pendula/)
 - [Salix babylonica, Flora of North America](https://floranorthamerica.org/Salix%20babylonica), [Oregon State Landscape Plants](https://landscapeplants.oregonstate.edu/plants/salix-babylonica)

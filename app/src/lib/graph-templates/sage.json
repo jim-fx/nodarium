@@ -1,0 +1,746 @@
+{
+  "settings": { "resolution.circle": 12, "resolution.curve": 32, "randomSeed": false },
+  "nodes": [
+    {
+      "id": 10,
+      "position": [-600, 0],
+      "type": "max/plantarium/stem",
+      "props": { "amount": 1, "length": 0.15, "thickness": 0.11, "taper": 0 }
+    },
+    {
+      "id": 11,
+      "position": [-570, 0],
+      "type": "max/plantarium/branch",
+      "props": {
+        "amount": 9,
+        "lowestBranch": 0.1,
+        "highestBranch": 0.9,
+        "length": 2.4,
+        "thickness": 0.8,
+        "angle": 30,
+        "rotation": 137.5,
+        "taper": 0.35
+      }
+    },
+    {
+      "id": 12,
+      "position": [-600, 45],
+      "type": "max/plantarium/random",
+      "props": { "min": 1.7, "max": 2.8 }
+    },
+    {
+      "id": 13,
+      "position": [-600, 75],
+      "type": "max/plantarium/random",
+      "props": { "min": 8, "max": 42 }
+    },
+    {
+      "id": 14,
+      "position": [-540, 0],
+      "type": "max/plantarium/gravity",
+      "props": { "strength": -0.3, "elasticity": 0.25 }
+    },
+    {
+      "id": 15,
+      "position": [-510, 0],
+      "type": "max/plantarium/noise",
+      "props": { "scale": 1.6, "strength": 0.18, "fixBottom": 1, "octaves": 2 }
+    },
+    {
+      "id": 16,
+      "position": [-480, 0],
+      "type": "max/plantarium/branch",
+      "props": {
+        "amount": 7,
+        "lowestBranch": 0.35,
+        "highestBranch": 1.0,
+        "length": 1.8,
+        "thickness": 0.4,
+        "angle": 55,
+        "rotation": 137.5,
+        "taper": 0.4
+      }
+    },
+    {
+      "id": 17,
+      "position": [-510, 35],
+      "type": "max/plantarium/random",
+      "props": { "min": 1.3, "max": 2.2 }
+    },
+    {
+      "id": 18,
+      "position": [-510, 65],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0.35,
+          0.625,
+          0.4583,
+          0.625,
+          0.5667,
+          0.4375,
+          0.675,
+          0.2176,
+          0.7833,
+          0.2118,
+          0.8917,
+          0.1194,
+          1.0,
+          0.1505
+        ],
+        "min": 0,
+        "max": 360
+      }
+    },
+    { "id": 19, "position": [-540, 85], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 20,
+      "position": [-510, 100],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 1, 0.4042, 1, 0.4242, 0, 1, 0], "min": 55, "max": 80 }
+    },
+    { "id": 21, "position": [-540, 120], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 22,
+      "position": [-450, 0],
+      "type": "max/plantarium/gravity",
+      "props": { "strength": -0.55, "elasticity": 0.1 }
+    },
+    {
+      "id": 23,
+      "position": [-480, 55],
+      "type": "max/plantarium/random",
+      "props": { "min": -0.35, "max": -0.1 }
+    },
+    {
+      "id": 24,
+      "position": [-420, 0],
+      "type": "max/plantarium/noise",
+      "props": { "scale": 2.2, "strength": 0.12, "fixBottom": 1 }
+    },
+    {
+      "id": 25,
+      "position": [-450, 35],
+      "type": "max/plantarium/shape",
+      "props": {
+        "shape": [
+          50,
+          100,
+          48.6,
+          98,
+          48.4,
+          88,
+          48.2,
+          78,
+          46,
+          75.5,
+          42,
+          73,
+          41.5,
+          71.5,
+          39.2,
+          70,
+          39.2,
+          68.0,
+          37.4,
+          66,
+          37.85,
+          63.5,
+          36.5,
+          61,
+          37.2,
+          58.0,
+          36.1,
+          55,
+          37.0,
+          52.0,
+          36.1,
+          49,
+          37.15,
+          46.0,
+          36.4,
+          43,
+          37.6,
+          40.0,
+          37,
+          37,
+          38.35,
+          34.0,
+          37.9,
+          31,
+          39.4,
+          28.0,
+          39.1,
+          25,
+          40.75,
+          22.0,
+          40.6,
+          19,
+          42.4,
+          16.25,
+          42.4,
+          13.5,
+          44.35,
+          11.0,
+          44.5,
+          8.5,
+          46.45,
+          6.5,
+          46.6,
+          4.5,
+          48.4,
+          1.8,
+          50,
+          0
+        ]
+      }
+    },
+    {
+      "id": 26,
+      "position": [-420, 35],
+      "type": "max/plantarium/leaf",
+      "props": { "size": 0.22, "yCurve": 0.5, "xCurve": 0.45, "yTwist": 0.1 }
+    },
+    {
+      "id": 27,
+      "position": [-420, 60],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [0, 0.55, 0.2, 0.9, 0.4, 1.02, 0.65, 1.0, 0.85, 0.85, 1, 0.62],
+        "min": 0,
+        "max": 1
+      }
+    },
+    { "id": 28, "position": [-450, 80], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 29,
+      "position": [-420, 95],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 0.0471, 0, 0.0714, 1, 1, 1], "min": 0, "max": 1 }
+    },
+    { "id": 30, "position": [-450, 115], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 31,
+      "position": [-390, 40],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 1 }
+    },
+    {
+      "id": 32,
+      "position": [-390, 0],
+      "type": "max/plantarium/instance",
+      "props": {
+        "amount": 8,
+        "lowestInstance": 0.12,
+        "highestInstance": 0.97,
+        "rotation": 1.5708,
+        "angle": 45
+      }
+    },
+    {
+      "id": 33,
+      "position": [-360, 0],
+      "type": "max/plantarium/instance",
+      "props": {
+        "amount": 10,
+        "lowestInstance": -0.12286,
+        "highestInstance": 0.97,
+        "rotation": 1.5708,
+        "angle": 45
+      }
+    },
+    {
+      "id": 34,
+      "position": [-360, 40],
+      "type": "max/plantarium/leaf",
+      "props": { "size": 0.22, "yCurve": 0.5, "xCurve": 0.5, "yTwist": 0.1 }
+    },
+    {
+      "id": 35,
+      "position": [-390, 80],
+      "type": "max/plantarium/shape",
+      "props": {
+        "shape": [
+          50,
+          100,
+          48.6,
+          96,
+          48.4,
+          82,
+          42,
+          74,
+          37,
+          64,
+          36,
+          50,
+          37.5,
+          34,
+          41,
+          20,
+          45.5,
+          8,
+          50,
+          0
+        ]
+      }
+    },
+    {
+      "id": 36,
+      "position": [-390, 110],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [0, 0, 0.2, 0.25, 0.45, 0.42, 0.75, 0.38, 0.92, 0.2, 1, 0],
+        "min": 0,
+        "max": 1
+      }
+    },
+    { "id": 37, "position": [-420, 130], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 38,
+      "position": [-390, 145],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 0.0471, 0, 0.0714, 1, 1, 1], "min": 0, "max": 1 }
+    },
+    { "id": 39, "position": [-420, 165], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 40,
+      "position": [-360, 65],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 1 }
+    },
+    {
+      "id": 41,
+      "position": [-330, 0],
+      "type": "max/plantarium/instance",
+      "props": {
+        "amount": 9,
+        "lowestInstance": -0.00143,
+        "highestInstance": 0.97,
+        "rotation": 1.5708,
+        "angle": 15
+      }
+    },
+    {
+      "id": 42,
+      "position": [-300, 0],
+      "type": "max/plantarium/instance",
+      "props": {
+        "amount": 11,
+        "lowestInstance": -0.24429,
+        "highestInstance": 0.97,
+        "rotation": 1.5708,
+        "angle": 15
+      }
+    },
+    {
+      "id": 43,
+      "position": [-270, 0],
+      "type": "max/plantarium/branch",
+      "props": {
+        "amount": 1,
+        "lowestBranch": 1,
+        "highestBranch": 1,
+        "offsetSingle": 0.5,
+        "length": 2,
+        "thickness": 0.7,
+        "angle": 90,
+        "rotation": 0,
+        "taper": 0.75
+      }
+    },
+    {
+      "id": 44,
+      "position": [-300, 40],
+      "type": "max/plantarium/random",
+      "props": { "min": 1.5, "max": 2.6 }
+    },
+    {
+      "id": 45,
+      "position": [-240, 0],
+      "type": "max/plantarium/gravity",
+      "props": { "strength": -0.3, "elasticity": 0.4 }
+    },
+    {
+      "id": 46,
+      "position": [-210, 0],
+      "type": "max/plantarium/noise",
+      "props": { "scale": 1.4, "strength": 0.1, "fixBottom": 1 }
+    },
+    {
+      "id": 47,
+      "position": [-240, 35],
+      "type": "max/plantarium/shape",
+      "props": {
+        "shape": [
+          50,
+          100,
+          48.8,
+          97,
+          48.6,
+          92,
+          45.5,
+          89.5,
+          41,
+          86,
+          40.3,
+          83.5,
+          38,
+          81,
+          38.1,
+          77.5,
+          36.6,
+          74,
+          37.25,
+          69.5,
+          36.3,
+          65,
+          37.25,
+          60.5,
+          36.6,
+          56,
+          37.8,
+          51.5,
+          37.4,
+          47,
+          38.8,
+          42.5,
+          38.6,
+          38,
+          40.2,
+          33.5,
+          40.2,
+          29,
+          42.0,
+          24.5,
+          42.2,
+          20,
+          44.2,
+          16.0,
+          44.6,
+          12,
+          46.6,
+          8.75,
+          47,
+          5.5,
+          48.8,
+          2,
+          50,
+          0
+        ]
+      }
+    },
+    {
+      "id": 48,
+      "position": [-210, 35],
+      "type": "max/plantarium/leaf",
+      "props": { "size": 0.22, "yCurve": 0.55, "xCurve": 0.4 }
+    },
+    {
+      "id": 49,
+      "position": [-210, 60],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0.85, 0.15, 0.62, 0.3, 0.4, 1, 0.3], "min": 0, "max": 1 }
+    },
+    { "id": 50, "position": [-240, 80], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 51,
+      "position": [-210, 95],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, -0.012, 0, 0.012, 1, 1, 1], "min": 0, "max": 1 }
+    },
+    { "id": 52, "position": [-240, 115], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 53,
+      "position": [-180, 40],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 1 }
+    },
+    {
+      "id": 54,
+      "position": [-180, 0],
+      "type": "max/plantarium/instance",
+      "props": {
+        "amount": 3,
+        "lowestInstance": 0.06,
+        "highestInstance": 0.3,
+        "rotation": 1.5708,
+        "angle": 30
+      }
+    },
+    {
+      "id": 55,
+      "position": [-150, 0],
+      "type": "max/plantarium/instance",
+      "props": {
+        "amount": 5,
+        "lowestInstance": -0.18,
+        "highestInstance": 0.3,
+        "rotation": 1.5708,
+        "angle": 30
+      }
+    },
+    {
+      "id": 56,
+      "position": [-120, 0],
+      "type": "max/plantarium/branch",
+      "props": {
+        "amount": 7,
+        "lowestBranch": 0.52,
+        "highestBranch": 1.0,
+        "offsetSingle": 0,
+        "length": 0.002,
+        "thickness": 0.7,
+        "angle": 90,
+        "rotation": 0,
+        "taper": 0
+      }
+    },
+    {
+      "id": 57,
+      "position": [-90, 65],
+      "type": "max/plantarium/random",
+      "props": { "min": 0.35, "max": 1.1 }
+    },
+    {
+      "id": 58,
+      "position": [-150, 55],
+      "type": "max/plantarium/shape",
+      "props": {
+        "shape": [
+          50,
+          100,
+          41,
+          97,
+          38,
+          88,
+          35,
+          76,
+          31,
+          64,
+          26,
+          52,
+          20,
+          40,
+          13,
+          28,
+          7,
+          18,
+          2,
+          12,
+          0,
+          8,
+          10,
+          6.5,
+          4,
+          5,
+          22,
+          3.5,
+          34,
+          2.5,
+          44,
+          1,
+          50,
+          0
+        ]
+      }
+    },
+    {
+      "id": 59,
+      "position": [-120, 55],
+      "type": "max/plantarium/leaf",
+      "props": { "size": 0.083, "yCurve": -0.15, "xCurve": 2.2 }
+    },
+    {
+      "id": 60,
+      "position": [-90, 0],
+      "type": "max/plantarium/instance",
+      "props": {
+        "amount": 6,
+        "lowestInstance": 0,
+        "highestInstance": 1,
+        "rotation": 1.0472,
+        "angle": 45,
+        "size": 1
+      }
+    },
+    {
+      "id": 61,
+      "position": [-120, 80],
+      "type": "max/plantarium/shape",
+      "props": {
+        "shape": [
+          50,
+          100,
+          42,
+          97,
+          41,
+          85,
+          41,
+          70,
+          40.5,
+          58,
+          38,
+          52,
+          34,
+          46,
+          32,
+          38,
+          31.5,
+          28,
+          32.5,
+          18,
+          35.5,
+          10,
+          41,
+          4,
+          50,
+          0
+        ]
+      }
+    },
+    {
+      "id": 62,
+      "position": [-90, 40],
+      "type": "max/plantarium/leaf",
+      "props": { "size": 0.16, "yCurve": 0.4, "xCurve": -1.6 }
+    },
+    {
+      "id": 63,
+      "position": [-60, 0],
+      "type": "max/plantarium/instance",
+      "props": {
+        "amount": 6,
+        "lowestInstance": 0,
+        "highestInstance": 1,
+        "rotation": 1.0472,
+        "angle": 45,
+        "size": 1
+      }
+    },
+    {
+      "id": 64,
+      "position": [-90, 95],
+      "type": "max/plantarium/shape",
+      "props": {
+        "shape": [
+          50,
+          100,
+          50,
+          62,
+          43,
+          59,
+          33,
+          55,
+          25,
+          50,
+          24.5,
+          45,
+          31,
+          41,
+          28,
+          37,
+          25.5,
+          31,
+          25,
+          24,
+          26.5,
+          16,
+          30,
+          9,
+          37,
+          4,
+          42,
+          2,
+          45,
+          0
+        ]
+      }
+    },
+    {
+      "id": 65,
+      "position": [-60, 40],
+      "type": "max/plantarium/leaf",
+      "props": { "size": 0.13, "yCurve": 1.5, "xCurve": 0.35 }
+    },
+    {
+      "id": 66,
+      "position": [-30, 0],
+      "type": "max/plantarium/instance",
+      "props": {
+        "amount": 6,
+        "lowestInstance": 0,
+        "highestInstance": 1,
+        "rotation": 1.0472,
+        "angle": 45,
+        "size": 1
+      }
+    },
+    { "id": 67, "position": [0, 0], "type": "max/plantarium/output", "props": {} }
+  ],
+  "edges": [
+    [10, 0, 11, "plant"],
+    [12, 0, 11, "length"],
+    [13, 0, 11, "angle"],
+    [11, 0, 14, "plant"],
+    [14, 0, 15, "plant"],
+    [15, 0, 16, "plant"],
+    [17, 0, 16, "length"],
+    [19, 0, 18, "value"],
+    [18, 0, 16, "rotation"],
+    [21, 0, 20, "value"],
+    [20, 0, 16, "angle"],
+    [16, 0, 22, "plant"],
+    [23, 0, 22, "strength"],
+    [22, 0, 24, "plant"],
+    [25, 0, 26, "shape"],
+    [28, 0, 27, "value"],
+    [30, 0, 29, "value"],
+    [27, 0, 31, "a"],
+    [29, 0, 31, "b"],
+    [24, 0, 32, "plant"],
+    [26, 0, 32, "geometry"],
+    [27, 0, 32, "size"],
+    [32, 0, 33, "plant"],
+    [26, 0, 33, "geometry"],
+    [31, 0, 33, "size"],
+    [35, 0, 34, "shape"],
+    [37, 0, 36, "value"],
+    [39, 0, 38, "value"],
+    [36, 0, 40, "a"],
+    [38, 0, 40, "b"],
+    [33, 0, 41, "plant"],
+    [34, 0, 41, "geometry"],
+    [40, 0, 41, "size"],
+    [41, 0, 42, "plant"],
+    [34, 0, 42, "geometry"],
+    [40, 0, 42, "size"],
+    [42, 0, 43, "plant"],
+    [44, 0, 43, "length"],
+    [43, 0, 45, "plant"],
+    [45, 0, 46, "plant"],
+    [47, 0, 48, "shape"],
+    [50, 0, 49, "value"],
+    [52, 0, 51, "value"],
+    [49, 0, 53, "a"],
+    [51, 0, 53, "b"],
+    [46, 0, 54, "plant"],
+    [48, 0, 54, "geometry"],
+    [49, 0, 54, "size"],
+    [54, 0, 55, "plant"],
+    [48, 0, 55, "geometry"],
+    [53, 0, 55, "size"],
+    [55, 0, 56, "plant"],
+    [58, 0, 59, "shape"],
+    [56, 0, 60, "plant"],
+    [59, 0, 60, "geometry"],
+    [61, 0, 62, "shape"],
+    [60, 0, 63, "plant"],
+    [62, 0, 63, "geometry"],
+    [57, 0, 63, "size"],
+    [64, 0, 65, "shape"],
+    [63, 0, 66, "plant"],
+    [65, 0, 66, "geometry"],
+    [57, 0, 66, "size"],
+    [66, 0, 67, "input"]
+  ]
+}

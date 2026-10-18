@@ -6,6 +6,7 @@ import {
   grass,
   lavender,
   palm,
+  sage,
   sapling,
   willow
 } from '$lib/graph-templates';
@@ -29,5 +30,6 @@ export const projectTemplates: ProjectTemplate[] = [
   { name: 'Palm', graph: toGraph(palm) },
   { name: 'Sapling', graph: toGraph(sapling) },
   { name: 'Lavender', graph: toGraph(lavender) },
+  { name: 'Sage', graph: toGraph(sage) },
   { name: 'Bamboo', graph: toGraph(bamboo) }
 ];
