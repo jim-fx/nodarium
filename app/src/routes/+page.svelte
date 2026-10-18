@@ -412,7 +412,9 @@
             bind:value={graphSettings}
           />
           {#key activeNode}
-            <ActiveNodeSettings {manager} bind:node={activeNode} />
+            {#key activeNode?.exposed?.join()}
+              <ActiveNodeSettings {manager} bind:node={activeNode} />
+            {/key}
             <GroupSettings graphState={graphInterface?.state} {manager} bind:node={activeNode} />
           {/key}
         </Panel>

@@ -565,7 +565,58 @@ export class GraphManager extends EventEmitter<{
       return groupType;
     }
 
-    return node.state.type;
+    return this.getExposedNodeType(node.state.type, node.exposed);
+  }
+
+  private exposedNodeTypes = new WeakMap<NodeDefinition, Map<string, NodeDefinition>>();
+
+  // The node type with the exposed hidden inputs shown on the node. Cached, so
+  // all nodes with the same exposed inputs share one definition.
+  private getExposedNodeType(type: NodeDefinition | undefined, exposed?: string[]) {
+    if (!type?.inputs || !exposed?.some(key => type.inputs?.[key]?.hidden)) return type;
+
+    const cacheKey = exposed.join(',');
+    let cache = this.exposedNodeTypes.get(type);
+    if (!cache) {
+      // Not reactive, getNodeType() is called inside $derived where state can't be written
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity
+      cache = new Map();
+      this.exposedNodeTypes.set(type, cache);
+    }
+
+    let exposedType = cache.get(cacheKey);
+    if (!exposedType) {
+      exposedType = {
+        ...type,
+        inputs: Object.fromEntries(
+          Object.entries(type.inputs).map(([key, input]) => [
+            key,
+            exposed.includes(key) ? { ...input, hidden: false } : input
+          ])
+        )
+      };
+      cache.set(cacheKey, exposedType);
+    }
+    return exposedType;
+  }
+
+  // Shows or hides one of the hidden inputs of a node on the node itself.
+  // Edges into an input that gets hidden again are removed.
+  setInputExposed(node: NodeInstance, key: string, exposed: boolean) {
+    const current = node.exposed ?? [];
+    if (current.includes(key) === exposed) return;
+
+    this.startUndoGroup();
+    if (exposed) {
+      node.exposed = [...current, key];
+    } else {
+      node.exposed = current.filter(k => k !== key);
+      for (const edge of this.getEdgesToNode(node)) {
+        if (edge[3] === key) this.removeEdge(edge, { applyDeletion: false });
+      }
+    }
+    this.saveUndoGroup();
+    this.execute();
   }
 
   // The sockets edges can connect to. The Group Input node exposes its output
@@ -1140,7 +1191,8 @@ export class GraphManager extends EventEmitter<{
         position: [n.position[0] + offsetX, n.position[1] + offsetY] as [number, number],
         state: { type: nodeType },
         // Copy, the group definition (and its other instances) must not share these props
-        props: $state.snapshot(n.props) || {}
+        props: $state.snapshot(n.props) || {},
+        ...(n.exposed?.length ? { exposed: [...n.exposed] } : {})
       });
       return node;
     });
@@ -1451,6 +1503,7 @@ export class GraphManager extends EventEmitter<{
       for (const node of nodes) {
         const inputs = this.getNodeSockets(node).inputs;
         for (const key in inputs) {
+          if (inputs[key].hidden) continue;
           const otherType = [inputs[key].type];
           otherType.push(...(inputs[key].accepts || []));
 

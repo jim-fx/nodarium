@@ -19,8 +19,9 @@
     if (!node) return {};
     return Object.fromEntries(
       Object.entries(inputs ?? {})
-        .filter(([, value]) => {
-          return value.hidden === true;
+        // exposed inputs are edited on the node itself
+        .filter(([key, value]) => {
+          return value.hidden === true && !node.exposed?.includes(key);
         })
         .map(([key, value]) => {
           const v = value as InternalNodeInput;
@@ -105,5 +106,17 @@
     id="activeNodeSettings"
     bind:value={store}
     type={nodeDefinition}
+    inputAction={pinButton}
   />
 {/if}
+
+{#snippet pinButton(key: string)}
+  <button
+    type="button"
+    aria-label="Show on node"
+    class="flex cursor-pointer items-center border-none bg-transparent p-0 opacity-50 hover:opacity-100"
+    onclick={() => node && manager.setInputExposed(node, key, true)}
+  >
+    <span class="block h-4 w-4 i-[tabler--pin]"></span>
+  </button>
+{/snippet}

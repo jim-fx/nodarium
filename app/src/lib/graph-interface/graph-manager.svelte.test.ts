@@ -1,6 +1,8 @@
 import { expandGroups } from '$lib/runtime/runtime-executor';
+import type { NodeDefinition } from '@nodarium/types';
 import { assert, describe, expect, it } from 'vitest';
 import { GraphManager } from './graph-manager.svelte';
+import { getNodeHeight } from './helpers/nodeHelpers';
 import {
   createMockNodeRegistry,
   mockFloatInputNode,
@@ -775,5 +777,80 @@ describe('removeGroupInput', () => {
     setup.manager.removeGroupInput(setup.groupId, 'input_0');
     setup.manager.exitGroup();
     expectInputRemoved(setup);
+  });
+});
+
+describe('setInputExposed', () => {
+  const mockHiddenInputNode: NodeDefinition = {
+    id: 'test/node/hidden',
+    inputs: {
+      value: { type: 'float' },
+      strength: { type: 'float', hidden: true }
+    },
+    outputs: [],
+    meta: { title: 'Hidden Input' },
+    execute: () => new Int32Array()
+  };
+
+  function setup() {
+    const registry = createMockNodeRegistry([mockFloatInputNode, mockHiddenInputNode]);
+    const manager = new GraphManager(registry);
+    const source = manager.createNode({ type: 'test/node/input', position: [0, 0], props: {} });
+    const nodeA = manager.createNode({ type: 'test/node/hidden', position: [100, 0], props: {} });
+    const nodeB = manager.createNode({ type: 'test/node/hidden', position: [100, 100], props: {} });
+    assert.isDefined(source);
+    assert.isDefined(nodeA);
+    assert.isDefined(nodeB);
+    return { manager, source, nodeA, nodeB };
+  }
+
+  it('should only show the input on the exposed node', () => {
+    const { manager, nodeA, nodeB } = setup();
+    manager.setInputExposed(nodeA, 'strength', true);
+
+    expect(manager.getNodeType(nodeA)?.inputs?.strength.hidden).toBe(false);
+    expect(manager.getNodeType(nodeB)?.inputs?.strength.hidden).toBe(true);
+    expect(getNodeHeight(manager.getNodeType(nodeA)!)).toBeGreaterThan(
+      getNodeHeight(manager.getNodeType(nodeB)!)
+    );
+  });
+
+  it('should only accept edges into exposed inputs', () => {
+    const { manager, source, nodeA, nodeB } = setup();
+    manager.setInputExposed(nodeA, 'strength', true);
+
+    const sockets = manager.getPossibleSockets({ node: source, index: 0, position: [0, 0] })
+      .map(([node, key]) => `${node.id}-${key}`);
+    expect(sockets).toContain(`${nodeA.id}-strength`);
+    expect(sockets).not.toContain(`${nodeB.id}-strength`);
+  });
+
+  it('should save the exposed inputs with the node', () => {
+    const { manager, nodeA, nodeB } = setup();
+    manager.setInputExposed(nodeA, 'strength', true);
+
+    const graph = manager.serialize();
+    expect(graph.nodes.find(n => n.id === nodeA.id)?.exposed).toEqual(['strength']);
+    expect(graph.nodes.find(n => n.id === nodeB.id)).not.toHaveProperty('exposed');
+  });
+
+  it('should remove edges into an input that is hidden again', () => {
+    const { manager, source, nodeA } = setup();
+    manager.setInputExposed(nodeA, 'strength', true);
+    manager.createEdge(source, 0, nodeA, 'strength');
+    manager.createEdge(source, 0, nodeA, 'value');
+
+    manager.setInputExposed(nodeA, 'strength', false);
+
+    expect(manager.serialize().edges).toEqual([[source.id, 0, nodeA.id, 'value']]);
+    expect(manager.getNodeType(nodeA)?.inputs?.strength.hidden).toBe(true);
+  });
+
+  it('should undo exposing an input', () => {
+    const { manager, nodeA } = setup();
+    manager.setInputExposed(nodeA, 'strength', true);
+    manager.undo();
+
+    expect(manager.getNode(nodeA.id)?.exposed ?? []).toEqual([]);
   });
 });

@@ -2,7 +2,7 @@
   import { localState } from '$lib/helpers/localState.svelte';
   import type { NodeInput } from '@nodarium/types';
   import Input, { Button as UiButton } from '@nodarium/ui';
-  import { onMount } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
   import NestedSettings from './NestedSettings.svelte';
 
   type Button = { type: 'button'; label?: string };
@@ -29,13 +29,23 @@
     value: SettingsValue;
     type: SettingsType;
     onButtonClick?: (id: string) => void;
+    // rendered next to the label of each input
+    inputAction?: Snippet<[key: string]>;
     depth?: number;
   };
 
   // Local persistent state for <details> sections
   const openSections = localState<Record<string, boolean>>('open-details', {});
 
-  let { id, key = '', value = $bindable(), type, onButtonClick, depth = 0 }: Props = $props();
+  let {
+    id,
+    key = '',
+    value = $bindable(),
+    type,
+    onButtonClick,
+    inputAction,
+    depth = 0
+  }: Props = $props();
 
   function isNodeInput(v: SettingsNode | undefined): v is InputType {
     return !!v && typeof v === 'object' && 'type' in v;
@@ -131,7 +141,14 @@
         {inputType.label || key}
       </UiButton>
     {:else}
-      {#if inputType.label !== ''}
+      {#if inputAction}
+        <div class="label-row flex items-center justify-between gap-2">
+          {#if inputType.label !== ''}
+            <label for={id}>{inputType.label || key}</label>
+          {/if}
+          {@render inputAction(key)}
+        </div>
+      {:else if inputType.label !== ''}
         <label for={id}>{inputType.label || key}</label>
       {/if}
       <Input {id} input={inputType} bind:value={internalValue} />
@@ -141,6 +158,7 @@
   {#each Object.keys(type ?? {}).filter((k) => k !== 'title') as childKey (childKey)}
     <NestedSettings
       {onButtonClick}
+      {inputAction}
       id={`${id}.${childKey}`}
       key={childKey}
       bind:value
@@ -159,6 +177,7 @@
       {#each Object.keys(type[key] as SettingsGroup).filter((k) => k !== 'title') as childKey (childKey)}
         <NestedSettings
           {onButtonClick}
+          {inputAction}
           id={`${id}.${childKey}`}
           key={childKey}
           bind:value={value[key] as SettingsValue}
@@ -203,10 +222,16 @@
     align-items: center;
   }
 
-  .input-boolean > label {
+  .input-boolean > label,
+  .input-boolean > .label-row > label {
     order: 2;
     font-size: 1em;
     opacity: 0.9;
+  }
+
+  .input-boolean > .label-row {
+    order: 2;
+    flex-grow: 1;
   }
 
   label {

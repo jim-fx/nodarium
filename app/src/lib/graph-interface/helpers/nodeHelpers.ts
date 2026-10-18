@@ -38,7 +38,8 @@ export function serializeNode(node: SerializedNode | NodeInstance): SerializedNo
     id: node.id,
     position: [...node.position],
     type: node.type,
-    props: node.props ? JSON.parse(JSON.stringify(node.props)) : undefined
+    props: node.props ? JSON.parse(JSON.stringify(node.props)) : undefined,
+    ...(node.exposed?.length ? { exposed: [...node.exposed] } : {})
   };
 }
 
@@ -50,13 +51,15 @@ export function serializeEdge(edge: SerializedEdge | Edge): SerializedEdge {
   return [e[0].id, e[1], e[2].id, e[3]];
 }
 
-const nodeHeightCache: Record<string, number> = {};
+// Keyed by definition, nodes with exposed inputs have their own definition
+const nodeHeightCache = new WeakMap<NodeDefinition, number>();
 export function getNodeHeight(node: NodeDefinition) {
   if (!node || !('inputs' in node)) {
     return 5;
   }
-  if (node.id in nodeHeightCache) {
-    return nodeHeightCache[node.id];
+  const cached = nodeHeightCache.get(node);
+  if (cached !== undefined) {
+    return cached;
   }
   let height = 5;
 
@@ -65,7 +68,7 @@ export function getNodeHeight(node: NodeDefinition) {
     height += h;
   }
 
-  nodeHeightCache[node.id] = height;
+  nodeHeightCache.set(node, height);
   return height;
 }
 

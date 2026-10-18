@@ -55,6 +55,8 @@ export const NodeSchema = z.object({
   props: z
     .record(z.string(), z.union([z.number(), z.array(z.number())]))
     .optional(),
+  // hidden inputs that are shown on this node
+  exposed: z.array(z.string()).optional(),
   meta: z
     .object({
       title: z.string().optional(),

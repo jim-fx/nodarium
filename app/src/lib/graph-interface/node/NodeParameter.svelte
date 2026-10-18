@@ -23,6 +23,9 @@
 
   const inputType = $derived(nodeType.inputs?.[id]);
 
+  // a hidden input that is shown on this node, see GraphManager.setInputExposed()
+  const isExposed = $derived(node.state?.type?.inputs?.[id]?.hidden === true);
+
   const socketId = $derived(`${node.id}-${id}`);
   const height = $derived(getParameterHeight(nodeType, id));
 
@@ -96,7 +99,21 @@
 >
   {#key id && graphId}
     <div class="content" class:disabled={graph?.inputSockets?.has(socketId)}>
-      {#if inputType?.label !== ''}
+      {#if isExposed}
+        <div class="flex items-center justify-between gap-2">
+          {#if inputType?.label !== ''}
+            <label for={elementId} title={input.description}>{input.label || id}</label>
+          {/if}
+          <button
+            type="button"
+            aria-label="Hide from node"
+            class="flex cursor-pointer items-center border-none bg-transparent p-0 opacity-50 hover:opacity-100"
+            onclick={() => graph.setInputExposed(node, id, false)}
+          >
+            <span class="block h-3.5 w-3.5 i-[tabler--pin-filled]"></span>
+          </button>
+        </div>
+      {:else if inputType?.label !== ''}
         <label for={elementId} title={input.description}>{input.label || id}</label>
       {/if}
       {#if inputType?.external !== true}
