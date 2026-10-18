@@ -4,6 +4,7 @@
   import {
     InputCheckbox,
     InputColor,
+    InputCurve,
     InputNumber,
     InputSelect,
     InputShape,
@@ -28,6 +29,8 @@
   />
 {:else if input.type === 'shape'}
   <InputShape bind:value={value as number[]} />
+{:else if input.type === 'curve'}
+  <InputCurve bind:value={value as number[]} />
 {:else if input.type === 'color'}
   <InputColor bind:value={value as [number, number, number]} />
 {:else if input.type === 'integer'}

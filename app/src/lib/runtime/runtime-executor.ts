@@ -176,7 +176,7 @@ function getValue(input: NodeInput, value?: unknown) {
   }
 
   if (Array.isArray(value)) {
-    if (input.type === 'vec3' || input.type === 'shape') {
+    if (input.type === 'vec3' || input.type === 'shape' || input.type === 'curve') {
       return [
         0,
         value.length + 1,

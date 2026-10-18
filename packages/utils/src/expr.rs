@@ -37,6 +37,12 @@ impl Ctx {
                 self.random(min, max, *seed)
             }
             [[2], ..] => self.alpha,
+            [[3], value, min, max, points @ ..] => {
+                let x = self.float(value).clamp(0.0, 1.0);
+                let (min, max) = (self.float(min), self.float(max));
+                let points: Vec<f32> = points.iter().map(|p| decode_float(p[0])).collect();
+                min + curve(&points, x) * (max - min)
+            }
             _ => 0.0,
         };
 
@@ -82,6 +88,54 @@ impl Ctx {
 
         min + value * (max - min)
     }
+}
+
+/// Reads the curve through `points` (`x0, y0, x1, y1, ...`, sorted by x) at `x`. Between two
+/// points it is a monotone cubic (Steffen), so it never overshoots the points.
+fn curve(points: &[f32], x: f32) -> f32 {
+    let n = points.len() / 2;
+    if n < 2 {
+        return x;
+    }
+
+    let px = |i: usize| points[i * 2];
+    let py = |i: usize| points[i * 2 + 1];
+    let slope = |i: usize| {
+        let h = px(i + 1) - px(i);
+        if h > 0.0 {
+            (py(i + 1) - py(i)) / h
+        } else {
+            0.0
+        }
+    };
+    let tangent = |i: usize| {
+        if i == 0 {
+            return slope(0);
+        }
+        if i == n - 1 {
+            return slope(n - 2);
+        }
+        let (s0, s1) = (slope(i - 1), slope(i));
+        if s0 * s1 <= 0.0 {
+            return 0.0;
+        }
+        let (h0, h1) = (px(i) - px(i - 1), px(i + 1) - px(i));
+        let p = (s0 * h1 + s1 * h0) / (h0 + h1);
+        s0.signum() * 2.0 * s0.abs().min(s1.abs()).min(0.5 * p.abs())
+    };
+
+    let i = (0..n - 1).find(|&i| x <= px(i + 1)).unwrap_or(n - 2);
+    let h = px(i + 1) - px(i);
+    if h <= 0.0 {
+        return py(i + 1);
+    }
+
+    let t = ((x - px(i)) / h).clamp(0.0, 1.0);
+    let (t2, t3) = (t * t, t * t * t);
+    (2.0 * t3 - 3.0 * t2 + 1.0) * py(i)
+        + (t3 - 2.0 * t2 + t) * h * tangent(i)
+        + (-2.0 * t3 + 3.0 * t2) * py(i + 1)
+        + (t3 - t2) * h * tangent(i + 1)
 }
 
 /// Reads an integer, select, boolean or seed input. These are never
@@ -138,6 +192,52 @@ mod tests {
         ctx.alpha = 0.25;
         assert_eq!(ctx.float(&alpha), 0.25);
         assert_eq!(ctx.float(&doubled), 0.5);
+    }
+
+    fn curve_expr(value: f32, min: f32, max: f32, points: &[f32]) -> Vec<i32> {
+        let words: Vec<[i32; 1]> = points.iter().map(|p| [encode_float(*p)]).collect();
+        let mut parts: Vec<&[i32]> = vec![&[3]];
+        let (value, min, max) = ([encode_float(value)], [encode_float(min)], [encode_float(max)]);
+        parts.extend([&value[..], &min[..], &max[..]]);
+        parts.extend(words.iter().map(|w| &w[..]));
+        concat_args(parts)
+    }
+
+    #[test]
+    fn test_curve_line() {
+        let line = [0.0, 0.0, 1.0, 1.0];
+        let mut ctx = Ctx::default();
+
+        assert_eq!(ctx.float(&curve_expr(0.25, 0.0, 1.0, &line)), 0.25);
+        assert_eq!(ctx.float(&curve_expr(0.5, 2.0, 4.0, &line)), 3.0);
+        // the input is clamped to 0-1
+        assert_eq!(ctx.float(&curve_expr(-1.0, 0.0, 1.0, &line)), 0.0);
+        assert_eq!(ctx.float(&curve_expr(2.0, 0.0, 1.0, &line)), 1.0);
+    }
+
+    #[test]
+    fn test_curve_bell() {
+        let bell = [0.0, 0.0, 0.5, 1.0, 1.0, 0.0];
+        let mut ctx = Ctx::default();
+
+        assert_eq!(ctx.float(&curve_expr(0.5, 0.0, 1.0, &bell)), 1.0);
+        assert_eq!(ctx.float(&curve_expr(0.25, 0.0, 1.0, &bell)), 0.625);
+
+        // the peak is the highest value, the curve does not overshoot it
+        for i in 0..=100 {
+            let y = ctx.float(&curve_expr(i as f32 / 100.0, 0.0, 1.0, &bell));
+            assert!((0.0..=1.0).contains(&y), "{} at {}", y, i);
+        }
+    }
+
+    #[test]
+    fn test_curve_plateau_stays_flat() {
+        let plateau = [0.0, 0.0, 0.3, 1.0, 0.7, 1.0, 1.0, 0.0];
+        let mut ctx = Ctx::default();
+
+        for i in 30..=70 {
+            assert_eq!(ctx.float(&curve_expr(i as f32 / 100.0, 0.0, 1.0, &plateau)), 1.0);
+        }
     }
 
     #[test]

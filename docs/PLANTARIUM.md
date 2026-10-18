@@ -4,15 +4,17 @@ Plantarium is the node system in `nodes/max/plantarium`. Its nodes generate plan
 
 ## Numbers
 
-A `float` input is either a plain value or an **expression** produced by the `math`, `random` or `alpha` node:
+A `float` input is either a plain value or an **expression** produced by the `math`, `random`, `alpha` or `curve` node:
 
 ```
 [0, op, a, b]        math: a + b, a - b, a * b, a / b  (op 0-3)
 [1, min, max, seed]  random value between min and max
 [2, 0]               alpha: where the branch or instance being placed sits on its parent path, 0 to 1
+[3, value, min, max, x0, y0, x1, y1, ...]
+                     curve: min + curve(value) * (max - min), value clamped to 0-1
 ```
 
-`a`, `b`, `min` and `max` can be expressions themselves. Nodes read these inputs with a `Ctx`, created once per execution: `ctx.float` and `ctx.vec3`. Calling them again gives a new random value, which is how a single `random` node gives every stem a different length. A new `Ctx` starts the random values from the beginning, so a node gives the same result every time it runs. `integer`, `select`, `boolean` and `seed` inputs are never expressions, `int` reads them.
+`a`, `b`, `min`, `max` and `value` can be expressions themselves. The points of a curve are plain values, sorted by x from 0 to 1. Between them the curve is a monotone cubic, so it never overshoots a point. Nodes read these inputs with a `Ctx`, created once per execution: `ctx.float` and `ctx.vec3`. Calling them again gives a new random value, which is how a single `random` node gives every stem a different length. A new `Ctx` starts the random values from the beginning, so a node gives the same result every time it runs. `integer`, `select`, `boolean` and `seed` inputs are never expressions, `int` reads them.
 
 `branch` and `instance` set `ctx.alpha` before they evaluate the inputs of each branch or instance, for example its `length` or `size`. Everywhere else alpha is 0. The second word of the alpha expression keeps it from being read as a plain value.
 

@@ -134,7 +134,7 @@ type GroupDefinition = {
 
 ### NodeInput socket types
 
-`float` | `integer` | `boolean` | `select` | `seed` | `vec3` | `geometry` | `path` | `shape` | `color` | `*` (wildcard)
+`float` | `integer` | `boolean` | `select` | `seed` | `vec3` | `geometry` | `path` | `shape` | `curve` | `color` | `*` (wildcard)
 
 Each input can have: `value` (default), `label`, `hidden`, `external`, `setting` (link to graph setting), `accepts` (extra compatible types).
 

@@ -52,6 +52,12 @@ export const NodeInputShapeSchema = z.object({
   value: z.array(z.number()).optional()
 });
 
+export const NodeInputCurveSchema = z.object({
+  ...DefaultOptionsSchema.shape,
+  type: z.literal('curve'),
+  value: z.array(z.number()).optional()
+});
+
 export const NodeInputBooleanSchema = z.object({
   ...DefaultOptionsSchema.shape,
   type: z.literal('boolean'),
@@ -104,6 +110,7 @@ export const NodeInputSchema = z.union([
   NodeInputColorSchema,
   NodeInputIntegerSchema,
   NodeInputShapeSchema,
+  NodeInputCurveSchema,
   NodeInputSelectSchema,
   NodeInputVec3Schema,
   NodeInputGeometrySchema,
