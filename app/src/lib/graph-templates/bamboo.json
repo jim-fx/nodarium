@@ -104,7 +104,7 @@
       "id": 21,
       "position": [30, 85],
       "type": "max/plantarium/random",
-      "props": { "min": -0.8, "max": 0.8 }
+      "props": { "min": -4, "max": 4 }
     },
     {
       "id": 22,
@@ -116,7 +116,7 @@
       "id": 23,
       "position": [90, 125],
       "type": "max/plantarium/random",
-      "props": { "min": 0.08, "max": 0.38 }
+      "props": { "min": 0.02, "max": 0.12 }
     },
     {
       "id": 24,
@@ -128,7 +128,7 @@
       "id": 25,
       "position": [120, 110],
       "type": "max/plantarium/random",
-      "props": { "min": 0, "max": 6.28 }
+      "props": { "min": 0, "max": 25.13 }
     },
     { "id": 26, "position": [30, 155], "type": "max/plantarium/alpha", "props": {} },
     {
