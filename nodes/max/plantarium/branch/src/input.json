@@ -92,6 +92,15 @@
       "max": 90,
       "step": 1,
       "value": 0
+    },
+    "taper": {
+      "type": "float",
+      "description": "How much the thickness tapers to the tip. 1 = a cone, 0 = the thickness input alone sets the profile.",
+      "hidden": true,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "value": 1
     }
   }
 }

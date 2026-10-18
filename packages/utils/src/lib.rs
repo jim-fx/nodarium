@@ -1,9 +1,9 @@
 pub mod abi;
 mod encoding;
-mod nodes;
+mod expr;
 mod tree;
 pub use encoding::*;
-pub use nodes::reset_call_count;
+pub use expr::*;
 pub use tree::*;
 pub mod geometry;
 

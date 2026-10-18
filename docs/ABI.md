@@ -40,13 +40,13 @@ The node definition JSON (see [NODE_DEFINITION.md](./NODE_DEFINITION.md)) is sto
 
 When an input isn't connected, the host passes the value of its field:
 
-| Type                             | Value                             |
-| -------------------------------- | --------------------------------- |
-| `float`                          | one word, the bits of an `f32`    |
-| `integer`, `seed`                | one word                          |
-| `boolean`                        | one word, `0` or `1`              |
-| `select`                         | one word, the index of the option |
-| `vec3`, `shape` and other arrays | `[0, n + 1, ...values, 1, 1]`     |
+| Type                                      | Value                             |
+| ----------------------------------------- | --------------------------------- |
+| `float`                                   | one word, the bits of an `f32`    |
+| `integer`, `seed`                         | one word                          |
+| `boolean`                                 | one word, `0` or `1`              |
+| `select`                                  | one word, the index of the option |
+| `vec3`, `shape`, `curve` and other arrays | `[0, n + 1, ...values, 1, 1]`     |
 
 When it is connected, the node receives exactly what the other node returned.
 

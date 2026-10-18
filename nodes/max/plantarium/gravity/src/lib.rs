@@ -2,9 +2,9 @@ use glam::Vec3;
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    concat_args, evaluate_float, evaluate_int,
+    concat_args, int,
     geometry::{wrap_path, wrap_path_mut},
-    log, reset_call_count, split_args,
+    log, split_args, Ctx,
 };
 
 nodarium_definition_file!("src/input.json");
@@ -15,13 +15,13 @@ fn lerp_vec3(a: Vec3, b: Vec3, t: f32) -> Vec3 {
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
-    reset_call_count();
+    let mut ctx = Ctx::default();
 
 
     let plants = split_args(args[0]);
-    let depth = evaluate_int(args[2]);
-    let elasticity = evaluate_float(args[3]).clamp(0.0, 1.0);
-    let mode = evaluate_int(args[4]); // 0 = closed-form, 1 = verlet
+    let depth = int(args[2]);
+    let elasticity = ctx.float(args[3]).clamp(0.0, 1.0);
+    let mode = int(args[4]); // 0 = closed-form, 1 = verlet
     // 0 → sqrt (rope), 1 → ~4.5 (only the tip droops)
     let bend_exponent = 0.5 + elasticity * 4.0;
 
@@ -52,7 +52,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 // anchored base outward, so segment lengths are preserved by
                 // construction (no iteration, no rescaling, no oscillation).
 
-                let raw_strength = evaluate_float(args[1]);
+                let raw_strength = ctx.float(args[1]);
                 let gravity_dir = Vec3::new(0.0, -1.0, 0.0);
 
                 // Tip bend angle in radians. PI/2 = horizontal tip at strength=1.
@@ -131,7 +131,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                     let length = direction.length();
 
                     let curviness = elasticity.max(0.0001);
-                    let strength_arg = evaluate_float(args[1]) * 10.0;
+                    let strength_arg = ctx.float(args[1]) * 10.0;
                     let strength = strength_arg / curviness * strength_arg;
 
                     log!(

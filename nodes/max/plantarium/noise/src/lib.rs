@@ -2,8 +2,7 @@ use glam::Vec3;
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    concat_args, evaluate_float, evaluate_int, evaluate_vec3, geometry::wrap_path_mut,
-    reset_call_count, split_args,
+    concat_args, geometry::wrap_path_mut, int, split_args, Ctx,
 };
 use noise::{HybridMulti, MultiFractal, NoiseFn, OpenSimplex};
 
@@ -15,22 +14,22 @@ fn lerp(a: f32, b: f32, t: f32) -> f32 {
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
-    reset_call_count();
+    let mut ctx = Ctx::default();
 
 
     let plants = split_args(args[0]);
-    let scale = (evaluate_float(args[1]) * 0.1) as f64;
-    let strength = evaluate_float(args[2]);
-    let fix_bottom = evaluate_float(args[3]);
+    let scale = (ctx.float(args[1]) * 0.1) as f64;
+    let strength = ctx.float(args[2]);
+    let fix_bottom = ctx.float(args[3]);
 
     let seed = args[4][0];
 
-    let directional_strength = evaluate_vec3(args[5]);
+    let directional_strength = ctx.vec3(args[5]);
 
-    let depth = evaluate_int(args[6]);
+    let depth = int(args[6]);
 
-    let octaves = evaluate_int(args[7]);
-    let preserve_length = evaluate_int(args[8]) != 0;
+    let octaves = int(args[7]);
+    let preserve_length = int(args[8]) != 0;
 
     let noise_x: HybridMulti<OpenSimplex> =
         HybridMulti::new(seed as u32 + 1).set_octaves(octaves as usize);

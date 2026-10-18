@@ -260,6 +260,17 @@ pub fn get_direction_at_path(path: &[f32], alpha: f32) -> [f32; 3] {
     [dx / norm, dy / norm, dz / norm]
 }
 
+/// The direction of a segment and a vector orthogonal to it. A vertical segment has no
+/// orthogonal in the horizontal plane, it gets one along the z axis instead.
+fn segment_frame(start: Vec3, end: Vec3) -> (Vec3, Vec3) {
+    let tangent = (end - start).try_normalize().unwrap_or(Vec3::Y);
+    let orthogonal = tangent
+        .cross(Vec3::Y)
+        .try_normalize()
+        .unwrap_or_else(|| tangent.cross(Vec3::X).normalize());
+    (orthogonal, tangent)
+}
+
 /// A function that interpolates a position along a path given by `points_data` at a position
 /// specified by `alpha` (ranging from 0.0 to 1.0), calculates an orthogonal vector to the path,
 /// and returns the direction of the path at that point.
@@ -313,7 +324,11 @@ pub fn interpolate_along_path(points_data: &[f32], _alpha: f32) -> (Vec4, Vec3, 
     for (i, &length) in segment_lengths.iter().enumerate() {
         if accumulated_length + length >= target_length {
             // Calculate the position within this segment.
-            let segment_alpha = (target_length - accumulated_length) / length;
+            let segment_alpha = if length > 0.0 {
+                (target_length - accumulated_length) / length
+            } else {
+                0.0
+            };
             let start_index = i * 4;
             let end_index = (i + 1) * 4;
             let start_point = vec4(
@@ -329,20 +344,7 @@ pub fn interpolate_along_path(points_data: &[f32], _alpha: f32) -> (Vec4, Vec3, 
                 points_data[end_index + 3],
             );
             let position = start_point + (end_point - start_point) * segment_alpha;
-
-            // Calculate the tangent vector to the path at this segment.
-            let tangent = (end_point.xyz() - start_point.xyz()).normalize();
-
-            // Calculate an orthogonal vector. Assume using the global up vector (0, 1, 0)
-            let global_up = vec3(0.0, 1.0, 0.0);
-            let orthogonal = tangent.cross(global_up).normalize();
-
-            // If the orthogonal vector is zero, choose another axis.
-            let orthogonal = if orthogonal.length_squared() == 0.0 {
-                tangent.cross(vec3(1.0, 0.0, 0.0)).normalize()
-            } else {
-                orthogonal
-            };
+            let (orthogonal, tangent) = segment_frame(start_point.xyz(), end_point.xyz());
 
             return (position, orthogonal, tangent);
         }
@@ -364,7 +366,37 @@ pub fn interpolate_along_path(points_data: &[f32], _alpha: f32) -> (Vec4, Vec3, 
         points_data[last_end_index + 2],
         points_data[last_end_index + 3],
     );
-    let last_tangent = (last_end_point.xyz() - last_start_point.xyz()).normalize();
-    let last_orthogonal = last_tangent.cross(vec3(0.0, 1.0, 0.0)).normalize();
+    let (last_orthogonal, last_tangent) =
+        segment_frame(last_start_point.xyz(), last_end_point.xyz());
     (last_end_point, last_orthogonal, last_tangent)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_frame(path: &[f32], alpha: f32) {
+        let (position, orthogonal, tangent) = interpolate_along_path(path, alpha);
+
+        assert!(position.is_finite(), "position {:?}", position);
+        assert!(orthogonal.is_normalized(), "orthogonal {:?}", orthogonal);
+        assert!(tangent.is_normalized(), "tangent {:?}", tangent);
+        assert!(orthogonal.dot(tangent).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_interpolate_along_vertical_path() {
+        let path = [0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.5, 0.0, 2.0, 0.0, 0.0];
+
+        for alpha in [0.0, 0.3, 0.5, 1.0] {
+            assert_frame(&path, alpha);
+        }
+    }
+
+    #[test]
+    fn test_interpolate_along_collapsed_path() {
+        let path = [1.0, 2.0, 3.0, 1.0, 1.0, 2.0, 3.0, 0.0];
+
+        assert_frame(&path, 0.5);
+    }
 }

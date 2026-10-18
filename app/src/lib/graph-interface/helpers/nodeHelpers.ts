@@ -21,7 +21,7 @@ export function getParameterHeight(node: NodeDefinition, inputKey: string) {
   if ('setting' in input) return 0;
   if (input.hidden) return 0;
 
-  if (input.type === 'shape' && input.external !== true) {
+  if ((input.type === 'shape' || input.type === 'curve') && input.external !== true) {
     return 200;
   }
   if (

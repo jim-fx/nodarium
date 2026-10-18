@@ -7,6 +7,7 @@
     Details,
     InputCheckbox,
     InputColor,
+    InputCurve,
     InputNumber,
     InputSearch,
     InputSelect,
@@ -33,6 +34,7 @@
   let checked = $state(false);
   let colorValue = $state<[number, number, number]>([59, 130, 246]);
   let mirrorShape = $state(true);
+  let curvePoints = $state([0, 0, 1, 1]);
   let detailsOpen = $state(false);
   let jsonValue = $state({
     id: 1,
@@ -162,6 +164,12 @@
     {/snippet}
     <div style:width="300px">
       <InputShape bind:value={points} mirror={mirrorShape} />
+    </div>
+  </Section>
+
+  <Section title="Curve" value={curvePoints}>
+    <div style:width="300px">
+      <InputCurve bind:value={curvePoints} />
     </div>
   </Section>
 

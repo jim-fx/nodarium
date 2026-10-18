@@ -2,8 +2,7 @@ use glam::{Mat4, Vec3};
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    concat_args, evaluate_float, evaluate_int, geometry::wrap_path_mut, log,
-    split_args,
+    concat_args, geometry::wrap_path_mut, int, log, split_args, Ctx,
 };
 
 nodarium_definition_file!("src/input.json");
@@ -14,9 +13,10 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     log!("DEBUG args: {:?}", args);
 
 
+    let mut ctx = Ctx::default();
     let plants = split_args(args[0]);
-    let axis = evaluate_int(args[1]); // 0 =x, 1 = y, 2 = z
-    let spread = evaluate_int(args[3]);
+    let axis = int(args[1]); // 0 =x, 1 = y, 2 = z
+    let spread = int(args[3]);
 
     let output: Vec<Vec<i32>> = plants
         .iter()
@@ -31,7 +31,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
             let path = wrap_path_mut(&mut path_data);
 
-            let angle = evaluate_float(args[2]);
+            let angle = ctx.float(args[2]);
 
             let origin = [path.points[0], path.points[1], path.points[2]];
 

@@ -39,8 +39,9 @@
   const path = $derived(
     points
       .map((point, i) => {
-        const x = (i / (points.length - 1)) * 100;
-        const y = 100 - ((point - internalMin) / (internalMax - internalMin)) * 100;
+        // a single point or a flat line would divide by zero
+        const x = (i / (points.length - 1 || 1)) * 100;
+        const y = 100 - ((point - internalMin) / (internalMax - internalMin || 1)) * 100;
         return `${x},${y}`;
       })
       .join(' ')

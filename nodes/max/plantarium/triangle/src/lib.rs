@@ -1,7 +1,7 @@
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    decode_float, encode_float, evaluate_int, wrap_arg, log
+    encode_float, wrap_arg, log, Ctx
 };
 
 nodarium_definition_file!("src/input.json");
@@ -10,8 +10,8 @@ nodarium_definition_file!("src/input.json");
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
 
-    let size = evaluate_int(args[0]);
-    let decoded = decode_float(size);
+    let decoded = Ctx::default().float(args[0]);
+    let size = encode_float(decoded);
     let negative_size = encode_float(-decoded);
 
     log!("WASM(triangle): input: {:?} -> {}", args[0],decoded);

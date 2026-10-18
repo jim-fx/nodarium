@@ -1,5 +1,3 @@
-use crate::decode_float;
-
 pub fn split_args(args: &[i32]) -> Vec<&[i32]> {
     let mut out_args: Vec<&[i32]> = Vec::new();
     let mut depth = 0;
@@ -127,77 +125,6 @@ pub fn wrap_arg(arg: &[i32]) -> Vec<i32> {
     out_args
 }
 
-pub fn evaluate_node(input_args: &[i32]) -> i32 {
-    let node_type = input_args[0];
-
-    match node_type {
-        0 => crate::nodes::math_node(&input_args[1..]),
-        1 => crate::nodes::random_node(&input_args[1..]),
-        _ => 0,
-    }
-}
-
-pub fn evaluate_vec3(input_args: &[i32]) -> Vec<f32> {
-    if input_args.len() == 3 {
-        return vec![
-            decode_float(input_args[0]),
-            decode_float(input_args[1]),
-            decode_float(input_args[2]),
-        ];
-    }
-
-    let args = split_args(input_args);
-
-    assert!(
-        args.len() == 3,
-        "Failed to evaluate Vec3 - Expected 3 arguments, got {} \n {:?}",
-        args.len(),
-        args
-    );
-
-    let x = evaluate_float(args[0]);
-    let y = evaluate_float(args[1]);
-    let z = evaluate_float(args[2]);
-
-    vec![x, y, z]
-}
-
-pub fn evaluate_float(arg: &[i32]) -> f32 {
-    let res = decode_float(evaluate_int(arg));
-    if res.is_nan() {
-        0.0
-    } else {
-        res
-    }
-}
-
-pub fn evaluate_int(input_args: &[i32]) -> i32 {
-    if input_args.len() == 1 {
-        return input_args[0];
-    }
-
-    let args = split_args(input_args);
-
-    let mut resolved: Vec<i32> = Vec::new();
-
-    for arg in args {
-        if arg.len() == 1 {
-            resolved.push(arg[0]);
-        } else if arg.len() == 4 && arg[0] == 0 && arg[1] == 3 {
-            resolved.push(arg[2]);
-            resolved.push(arg[3]);
-        } else {
-            resolved.push(evaluate_int(arg));
-        }
-    }
-
-    if resolved.len() > 1 {
-        evaluate_node(&resolved)
-    } else {
-        resolved[0]
-    }
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -218,20 +145,6 @@ mod tests {
         assert_eq!(args[0].len(), 29);
         assert_eq!(args[1][0], 1086324736);
         assert_eq!(args[2][0], 1053609165);
-    }
-
-    #[test]
-    fn test_recursive_evaluation() {
-        let input = vec![
-            0, 3, 0, 0, 0, 5, 0, 2, 1073741824, 1073741824, 1, 5, 1073741824,
-        ];
-        // this is an encoded version of a math node that multiplies 2 * 2
-        // and another math node that adds 2 to that result
-        // the numbers are f32 floats encoded as two i32's
-
-        let result = evaluate_float(&input);
-
-        assert_eq!(result, 6.0);
     }
 
     #[test]
