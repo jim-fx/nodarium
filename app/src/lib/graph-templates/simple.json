@@ -12,19 +12,13 @@
   "nodes": [
     {
       "id": 9,
-      "position": [
-        215,
-        85
-      ],
+      "position": [215, 85],
       "type": "max/plantarium/output",
       "props": {}
     },
     {
       "id": 10,
-      "position": [
-        165,
-        72.5
-      ],
+      "position": [155, 85],
       "type": "max/plantarium/stem",
       "props": {
         "amount": 4,
@@ -34,10 +28,7 @@
     },
     {
       "id": 11,
-      "position": [
-        190,
-        77.5
-      ],
+      "position": [185, 85],
       "type": "max/plantarium/noise",
       "props": {
         "plant": 0,

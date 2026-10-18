@@ -2,1361 +2,1366 @@
   "id": 96544,
   "settings": { "resolution.circle": 64, "resolution.curve": 64, "randomSeed": false },
   "nodes": [
-    { "id": 0, "position": [0, 0], "type": "max/plantarium/float", "props": { "value": 0 } },
+    {
+      "id": 0,
+      "position": [-6297.5, 3372.5],
+      "type": "max/plantarium/float",
+      "props": { "value": 0 }
+    },
     {
       "id": 1,
-      "position": [30, 0],
+      "position": [-6267.5, 3360],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 2,
-      "position": [60, 0],
+      "position": [-6237.5, 3347.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 3,
-      "position": [90, 0],
+      "position": [-6207.5, 3335],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 4,
-      "position": [120, 0],
+      "position": [-6177.5, 3322.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 5,
-      "position": [150, 0],
+      "position": [-6147.5, 3310],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 6,
-      "position": [180, 0],
+      "position": [-6117.5, 3297.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 7,
-      "position": [210, 0],
+      "position": [-6087.5, 3285],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 8,
-      "position": [240, 0],
+      "position": [-6057.5, 3272.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 9,
-      "position": [270, 0],
+      "position": [-6027.5, 3260],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 10,
-      "position": [300, 0],
+      "position": [-5997.5, 3247.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 11,
-      "position": [330, 0],
+      "position": [-5967.5, 3235],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 12,
-      "position": [360, 0],
+      "position": [-5937.5, 3222.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 13,
-      "position": [390, 0],
+      "position": [-5907.5, 3210],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 14,
-      "position": [420, 0],
+      "position": [-5877.5, 3197.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 15,
-      "position": [0, 40],
+      "position": [-5847.5, 3185],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 16,
-      "position": [30, 40],
+      "position": [-5817.5, 3172.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 17,
-      "position": [60, 40],
+      "position": [-5787.5, 3160],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 18,
-      "position": [90, 40],
+      "position": [-5757.5, 3147.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 19,
-      "position": [120, 40],
+      "position": [-5727.5, 3135],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 20,
-      "position": [150, 40],
+      "position": [-5697.5, 3122.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 21,
-      "position": [180, 40],
+      "position": [-5667.5, 3110],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 22,
-      "position": [210, 40],
+      "position": [-5637.5, 3097.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 23,
-      "position": [240, 40],
+      "position": [-5607.5, 3085],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 24,
-      "position": [270, 40],
+      "position": [-5577.5, 3072.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 25,
-      "position": [300, 40],
+      "position": [-5547.5, 3060],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 26,
-      "position": [330, 40],
+      "position": [-5517.5, 3047.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 27,
-      "position": [360, 40],
+      "position": [-5487.5, 3035],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 28,
-      "position": [390, 40],
+      "position": [-5457.5, 3022.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 29,
-      "position": [420, 40],
+      "position": [-5427.5, 3010],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 30,
-      "position": [0, 80],
+      "position": [-5397.5, 2997.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 31,
-      "position": [30, 80],
+      "position": [-5367.5, 2985],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 32,
-      "position": [60, 80],
+      "position": [-5337.5, 2972.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 33,
-      "position": [90, 80],
+      "position": [-5307.5, 2960],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 34,
-      "position": [120, 80],
+      "position": [-5277.5, 2947.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 35,
-      "position": [150, 80],
+      "position": [-5247.5, 2935],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 36,
-      "position": [180, 80],
+      "position": [-5217.5, 2922.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 37,
-      "position": [210, 80],
+      "position": [-5187.5, 2910],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 38,
-      "position": [240, 80],
+      "position": [-5157.5, 2897.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 39,
-      "position": [270, 80],
+      "position": [-5127.5, 2885],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 40,
-      "position": [300, 80],
+      "position": [-5097.5, 2872.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 41,
-      "position": [330, 80],
+      "position": [-5067.5, 2860],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 42,
-      "position": [360, 80],
+      "position": [-5037.5, 2847.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 43,
-      "position": [390, 80],
+      "position": [-5007.5, 2835],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 44,
-      "position": [420, 80],
+      "position": [-4977.5, 2822.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 45,
-      "position": [0, 120],
+      "position": [-4947.5, 2810],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 46,
-      "position": [30, 120],
+      "position": [-4917.5, 2797.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 47,
-      "position": [60, 120],
+      "position": [-4887.5, 2785],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 48,
-      "position": [90, 120],
+      "position": [-4857.5, 2772.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 49,
-      "position": [120, 120],
+      "position": [-4827.5, 2760],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 50,
-      "position": [150, 120],
+      "position": [-4797.5, 2747.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 51,
-      "position": [180, 120],
+      "position": [-4767.5, 2735],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 52,
-      "position": [210, 120],
+      "position": [-4737.5, 2722.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 53,
-      "position": [240, 120],
+      "position": [-4707.5, 2710],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 54,
-      "position": [270, 120],
+      "position": [-4677.5, 2697.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 55,
-      "position": [300, 120],
+      "position": [-4647.5, 2685],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 56,
-      "position": [330, 120],
+      "position": [-4617.5, 2672.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 57,
-      "position": [360, 120],
+      "position": [-4587.5, 2660],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 58,
-      "position": [390, 120],
+      "position": [-4557.5, 2647.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 59,
-      "position": [420, 120],
+      "position": [-4527.5, 2635],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 60,
-      "position": [0, 160],
+      "position": [-4497.5, 2622.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 61,
-      "position": [30, 160],
+      "position": [-4467.5, 2610],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 62,
-      "position": [60, 160],
+      "position": [-4437.5, 2597.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 63,
-      "position": [90, 160],
+      "position": [-4407.5, 2585],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 64,
-      "position": [120, 160],
+      "position": [-4377.5, 2572.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 65,
-      "position": [150, 160],
+      "position": [-4347.5, 2560],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 66,
-      "position": [180, 160],
+      "position": [-4317.5, 2547.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 67,
-      "position": [210, 160],
+      "position": [-4287.5, 2535],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 68,
-      "position": [240, 160],
+      "position": [-4257.5, 2522.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 69,
-      "position": [270, 160],
+      "position": [-4227.5, 2510],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 70,
-      "position": [300, 160],
+      "position": [-4197.5, 2497.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 71,
-      "position": [330, 160],
+      "position": [-4167.5, 2485],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 72,
-      "position": [360, 160],
+      "position": [-4137.5, 2472.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 73,
-      "position": [390, 160],
+      "position": [-4107.5, 2460],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 74,
-      "position": [420, 160],
+      "position": [-4077.5, 2447.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 75,
-      "position": [0, 200],
+      "position": [-4047.5, 2435],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 76,
-      "position": [30, 200],
+      "position": [-4017.5, 2422.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 77,
-      "position": [60, 200],
+      "position": [-3987.5, 2410],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 78,
-      "position": [90, 200],
+      "position": [-3957.5, 2397.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 79,
-      "position": [120, 200],
+      "position": [-3927.5, 2385],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 80,
-      "position": [150, 200],
+      "position": [-3897.5, 2372.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 81,
-      "position": [180, 200],
+      "position": [-3867.5, 2360],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 82,
-      "position": [210, 200],
+      "position": [-3837.5, 2347.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 83,
-      "position": [240, 200],
+      "position": [-3807.5, 2335],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 84,
-      "position": [270, 200],
+      "position": [-3777.5, 2322.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 85,
-      "position": [300, 200],
+      "position": [-3747.5, 2310],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 86,
-      "position": [330, 200],
+      "position": [-3717.5, 2297.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 87,
-      "position": [360, 200],
+      "position": [-3687.5, 2285],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 88,
-      "position": [390, 200],
+      "position": [-3657.5, 2272.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 89,
-      "position": [420, 200],
+      "position": [-3627.5, 2260],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 90,
-      "position": [0, 240],
+      "position": [-3597.5, 2247.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 91,
-      "position": [30, 240],
+      "position": [-3567.5, 2235],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 92,
-      "position": [60, 240],
+      "position": [-3537.5, 2222.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 93,
-      "position": [90, 240],
+      "position": [-3507.5, 2210],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 94,
-      "position": [120, 240],
+      "position": [-3477.5, 2197.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 95,
-      "position": [150, 240],
+      "position": [-3447.5, 2185],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 96,
-      "position": [180, 240],
+      "position": [-3417.5, 2172.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 97,
-      "position": [210, 240],
+      "position": [-3387.5, 2160],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 98,
-      "position": [240, 240],
+      "position": [-3357.5, 2147.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 99,
-      "position": [270, 240],
+      "position": [-3327.5, 2135],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 100,
-      "position": [300, 240],
+      "position": [-3297.5, 2122.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 101,
-      "position": [330, 240],
+      "position": [-3267.5, 2110],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 102,
-      "position": [360, 240],
+      "position": [-3237.5, 2097.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 103,
-      "position": [390, 240],
+      "position": [-3207.5, 2085],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 104,
-      "position": [420, 240],
+      "position": [-3177.5, 2072.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 105,
-      "position": [0, 280],
+      "position": [-3147.5, 2060],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 106,
-      "position": [30, 280],
+      "position": [-3117.5, 2047.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 107,
-      "position": [60, 280],
+      "position": [-3087.5, 2035],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 108,
-      "position": [90, 280],
+      "position": [-3057.5, 2022.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 109,
-      "position": [120, 280],
+      "position": [-3027.5, 2010],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 110,
-      "position": [150, 280],
+      "position": [-2997.5, 1997.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 111,
-      "position": [180, 280],
+      "position": [-2967.5, 1985],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 112,
-      "position": [210, 280],
+      "position": [-2937.5, 1972.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 113,
-      "position": [240, 280],
+      "position": [-2907.5, 1960],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 114,
-      "position": [270, 280],
+      "position": [-2877.5, 1947.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 115,
-      "position": [300, 280],
+      "position": [-2847.5, 1935],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 116,
-      "position": [330, 280],
+      "position": [-2817.5, 1922.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 117,
-      "position": [360, 280],
+      "position": [-2787.5, 1910],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 118,
-      "position": [390, 280],
+      "position": [-2757.5, 1897.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 119,
-      "position": [420, 280],
+      "position": [-2727.5, 1885],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 120,
-      "position": [0, 320],
+      "position": [-2697.5, 1872.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 121,
-      "position": [30, 320],
+      "position": [-2667.5, 1860],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 122,
-      "position": [60, 320],
+      "position": [-2637.5, 1847.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 123,
-      "position": [90, 320],
+      "position": [-2607.5, 1835],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 124,
-      "position": [120, 320],
+      "position": [-2577.5, 1822.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 125,
-      "position": [150, 320],
+      "position": [-2547.5, 1810],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 126,
-      "position": [180, 320],
+      "position": [-2517.5, 1797.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 127,
-      "position": [210, 320],
+      "position": [-2487.5, 1785],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 128,
-      "position": [240, 320],
+      "position": [-2457.5, 1772.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 129,
-      "position": [270, 320],
+      "position": [-2427.5, 1760],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 130,
-      "position": [300, 320],
+      "position": [-2397.5, 1747.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 131,
-      "position": [330, 320],
+      "position": [-2367.5, 1735],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 132,
-      "position": [360, 320],
+      "position": [-2337.5, 1722.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 133,
-      "position": [390, 320],
+      "position": [-2307.5, 1710],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 134,
-      "position": [420, 320],
+      "position": [-2277.5, 1697.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 135,
-      "position": [0, 360],
+      "position": [-2247.5, 1685],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 136,
-      "position": [30, 360],
+      "position": [-2217.5, 1672.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 137,
-      "position": [60, 360],
+      "position": [-2187.5, 1660],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 138,
-      "position": [90, 360],
+      "position": [-2157.5, 1647.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 139,
-      "position": [120, 360],
+      "position": [-2127.5, 1635],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 140,
-      "position": [150, 360],
+      "position": [-2097.5, 1622.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 141,
-      "position": [180, 360],
+      "position": [-2067.5, 1610],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 142,
-      "position": [210, 360],
+      "position": [-2037.5, 1597.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 143,
-      "position": [240, 360],
+      "position": [-2007.5, 1585],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 144,
-      "position": [270, 360],
+      "position": [-1977.5, 1572.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 145,
-      "position": [300, 360],
+      "position": [-1947.5, 1560],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 146,
-      "position": [330, 360],
+      "position": [-1917.5, 1547.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 147,
-      "position": [360, 360],
+      "position": [-1887.5, 1535],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 148,
-      "position": [390, 360],
+      "position": [-1857.5, 1522.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 149,
-      "position": [420, 360],
+      "position": [-1827.5, 1510],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 150,
-      "position": [0, 400],
+      "position": [-1797.5, 1497.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 151,
-      "position": [30, 400],
+      "position": [-1767.5, 1485],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 152,
-      "position": [60, 400],
+      "position": [-1737.5, 1472.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 153,
-      "position": [90, 400],
+      "position": [-1707.5, 1460],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 154,
-      "position": [120, 400],
+      "position": [-1677.5, 1447.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 155,
-      "position": [150, 400],
+      "position": [-1647.5, 1435],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 156,
-      "position": [180, 400],
+      "position": [-1617.5, 1422.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 157,
-      "position": [210, 400],
+      "position": [-1587.5, 1410],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 158,
-      "position": [240, 400],
+      "position": [-1557.5, 1397.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 159,
-      "position": [270, 400],
+      "position": [-1527.5, 1385],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 160,
-      "position": [300, 400],
+      "position": [-1497.5, 1372.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 161,
-      "position": [330, 400],
+      "position": [-1467.5, 1360],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 162,
-      "position": [360, 400],
+      "position": [-1437.5, 1347.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 163,
-      "position": [390, 400],
+      "position": [-1407.5, 1335],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 164,
-      "position": [420, 400],
+      "position": [-1377.5, 1322.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 165,
-      "position": [0, 440],
+      "position": [-1347.5, 1310],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 166,
-      "position": [30, 440],
+      "position": [-1317.5, 1297.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 167,
-      "position": [60, 440],
+      "position": [-1287.5, 1285],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 168,
-      "position": [90, 440],
+      "position": [-1257.5, 1272.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 169,
-      "position": [120, 440],
+      "position": [-1227.5, 1260],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 170,
-      "position": [150, 440],
+      "position": [-1197.5, 1247.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 171,
-      "position": [180, 440],
+      "position": [-1167.5, 1235],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 172,
-      "position": [210, 440],
+      "position": [-1137.5, 1222.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 173,
-      "position": [240, 440],
+      "position": [-1107.5, 1210],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 174,
-      "position": [270, 440],
+      "position": [-1077.5, 1197.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 175,
-      "position": [300, 440],
+      "position": [-1047.5, 1185],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 176,
-      "position": [330, 440],
+      "position": [-1017.5, 1172.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 177,
-      "position": [360, 440],
+      "position": [-987.5, 1160],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 178,
-      "position": [390, 440],
+      "position": [-957.5, 1147.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 179,
-      "position": [420, 440],
+      "position": [-927.5, 1135],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 180,
-      "position": [0, 480],
+      "position": [-897.5, 1122.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 181,
-      "position": [30, 480],
+      "position": [-867.5, 1110],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 182,
-      "position": [60, 480],
+      "position": [-837.5, 1097.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 183,
-      "position": [90, 480],
+      "position": [-807.5, 1085],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 184,
-      "position": [120, 480],
+      "position": [-777.5, 1072.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 185,
-      "position": [150, 480],
+      "position": [-747.5, 1060],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 186,
-      "position": [180, 480],
+      "position": [-717.5, 1047.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 187,
-      "position": [210, 480],
+      "position": [-687.5, 1035],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 188,
-      "position": [240, 480],
+      "position": [-657.5, 1022.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 189,
-      "position": [270, 480],
+      "position": [-627.5, 1010],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 190,
-      "position": [300, 480],
+      "position": [-597.5, 997.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 191,
-      "position": [330, 480],
+      "position": [-567.5, 985],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 192,
-      "position": [360, 480],
+      "position": [-537.5, 972.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 193,
-      "position": [390, 480],
+      "position": [-507.5, 960],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 194,
-      "position": [420, 480],
+      "position": [-477.5, 947.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 195,
-      "position": [0, 520],
+      "position": [-447.5, 935],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 196,
-      "position": [30, 520],
+      "position": [-417.5, 922.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 197,
-      "position": [60, 520],
+      "position": [-387.5, 910],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 198,
-      "position": [90, 520],
+      "position": [-357.5, 897.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 199,
-      "position": [120, 520],
+      "position": [-327.5, 885],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 200,
-      "position": [150, 520],
+      "position": [-297.5, 872.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 201,
-      "position": [180, 520],
+      "position": [-267.5, 860],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 202,
-      "position": [210, 520],
+      "position": [-237.5, 847.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 203,
-      "position": [240, 520],
+      "position": [-207.5, 835],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 204,
-      "position": [270, 520],
+      "position": [-177.5, 822.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 205,
-      "position": [300, 520],
+      "position": [-147.5, 810],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 206,
-      "position": [330, 520],
+      "position": [-117.5, 797.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 207,
-      "position": [360, 520],
+      "position": [-87.5, 785],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 208,
-      "position": [390, 520],
+      "position": [-57.5, 772.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 209,
-      "position": [420, 520],
+      "position": [-27.5, 760],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 210,
-      "position": [0, 560],
+      "position": [2.5, 747.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 211,
-      "position": [30, 560],
+      "position": [32.5, 735],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 212,
-      "position": [60, 560],
+      "position": [62.5, 722.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 213,
-      "position": [90, 560],
+      "position": [92.5, 710],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 214,
-      "position": [120, 560],
+      "position": [122.5, 697.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 215,
-      "position": [150, 560],
+      "position": [152.5, 685],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 216,
-      "position": [180, 560],
+      "position": [182.5, 672.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 217,
-      "position": [210, 560],
+      "position": [212.5, 660],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 218,
-      "position": [240, 560],
+      "position": [242.5, 647.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 219,
-      "position": [270, 560],
+      "position": [272.5, 635],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 220,
-      "position": [300, 560],
+      "position": [302.5, 622.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 221,
-      "position": [330, 560],
+      "position": [332.5, 610],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 222,
-      "position": [360, 560],
+      "position": [362.5, 597.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 223,
-      "position": [390, 560],
+      "position": [392.5, 585],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 0.05 }
     },
     {
       "id": 224,
-      "position": [420, 560],
+      "position": [422.5, 572.5],
       "type": "max/plantarium/math",
       "props": { "op_type": 1, "a": 1, "b": 0.075 }
     },
     { "id": 225, "position": [512.5, 555], "type": "max/plantarium/output", "props": {} },
     {
       "id": 226,
-      "position": [455, 560],
+      "position": [452.5, 555],
       "type": "max/plantarium/stem",
       "props": { "amount": 126, "length": 5, "thickness": 1 }
     },
     {
       "id": 227,
-      "position": [485, 560],
+      "position": [482.5, 555],
       "type": "max/plantarium/noise",
       "props": { "scale": 3.3, "strength": 5.3 }
     }

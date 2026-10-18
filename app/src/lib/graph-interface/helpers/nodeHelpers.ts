@@ -69,6 +69,27 @@ export function getNodeHeight(node: NodeDefinition) {
   return height;
 }
 
+// distance from the top of a node to the socket of one of its inputs
+export function getInputSocketOffset(node: NodeDefinition | undefined, inputKey: string) {
+  let height = 5;
+  for (const key in node?.inputs ?? {}) {
+    const h = getParameterHeight(node!, key) / 10;
+    if (key === inputKey) {
+      return height + h / 2;
+    }
+    height += h;
+  }
+  return height;
+}
+
+// distance from the top of a node to the socket of one of its outputs
+export function getOutputSocketOffset(nodeType: string, index: number) {
+  if (nodeType === '__internal/group/input') {
+    return 2.5 + 5 * index + 5;
+  }
+  return 2.5 + 10 * index;
+}
+
 export function areSocketsCompatible(
   output: string | undefined,
   inputs: string | (string | undefined)[] | undefined

@@ -12,10 +12,7 @@
   "nodes": [
     {
       "id": 9,
-      "position": [
-        215,
-        85
-      ],
+      "position": [215, 85],
       "type": "max/plantarium/output",
       "props": {}
     }

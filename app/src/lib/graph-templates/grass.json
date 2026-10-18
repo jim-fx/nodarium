@@ -4,25 +4,25 @@
     { "id": 10, "position": [390, 80], "type": "max/plantarium/output", "props": {} },
     {
       "id": 11,
-      "position": [120, 80],
+      "position": [150, 80],
       "type": "max/plantarium/stem",
       "props": { "amount": 22, "length": 6.5, "thickness": 0.035 }
     },
     {
       "id": 12,
-      "position": [90, 125],
+      "position": [120, 105],
       "type": "max/plantarium/random",
       "props": { "min": 5.5, "max": 7.5 }
     },
     {
       "id": 13,
-      "position": [210, 80],
+      "position": [240, 80],
       "type": "max/plantarium/gravity",
       "props": { "strength": 0.5, "elasticity": 0.6 }
     },
     {
       "id": 14,
-      "position": [180, 125],
+      "position": [210, 110],
       "type": "max/plantarium/random",
       "props": { "min": 0.3, "max": 0.6 }
     },
@@ -34,61 +34,67 @@
     },
     {
       "id": 16,
-      "position": [90, 80],
+      "position": [120, 80],
       "type": "max/plantarium/vec3",
       "props": { "0": 0, "1": 0, "2": 0 }
     },
     {
       "id": 17,
-      "position": [60, 80],
+      "position": [90, 85],
       "type": "max/plantarium/random",
       "props": { "min": -0.3, "max": 0.3 }
     },
     {
       "id": 18,
-      "position": [150, 80],
+      "position": [180, 80],
       "type": "max/plantarium/rotate",
       "props": { "axis": 0, "angle": 0 }
     },
     {
       "id": 19,
-      "position": [120, 125],
+      "position": [150, 125],
       "type": "max/plantarium/random",
       "props": { "min": 0.1, "max": 0.55 }
     },
     {
       "id": 20,
-      "position": [180, 80],
+      "position": [210, 80],
       "type": "max/plantarium/rotate",
       "props": { "axis": 1, "angle": 0 }
     },
     {
       "id": 21,
-      "position": [150, 125],
+      "position": [180, 110],
       "type": "max/plantarium/random",
       "props": { "min": 0, "max": 6.28 }
     },
     {
       "id": 22,
-      "position": [210, 170],
+      "position": [210, 140],
       "type": "max/plantarium/shape",
       "props": { "shape": [50, 100, 48, 85, 47, 60, 47.5, 30, 49, 10, 50, 0] }
     },
     {
       "id": 23,
-      "position": [240, 125],
+      "position": [240, 115],
       "type": "max/plantarium/leaf",
-      "props": { "size": 0.15, "yCurve": -1.1 }
+      "props": { "size": 0.15, "yCurve": -0.6 }
     },
     {
       "id": 24,
-      "position": [240, 80],
+      "position": [270, 80],
       "type": "max/plantarium/instance",
-      "props": { "amount": 140, "lowestInstance": 0.82, "highestInstance": 1, "rotation": 2.4 }
+      "props": {
+        "amount": 140,
+        "lowestInstance": 0.82,
+        "highestInstance": 1,
+        "rotation": 2.4,
+        "angle": 30
+      }
     },
     {
       "id": 25,
-      "position": [270, 80],
+      "position": [300, 80],
       "type": "max/plantarium/branch",
       "props": {
         "amount": 6,
@@ -102,27 +108,38 @@
     },
     {
       "id": 26,
-      "position": [240, 170],
+      "position": [270, 120],
       "type": "max/plantarium/random",
       "props": { "min": 3.2, "max": 5 }
     },
     {
       "id": 27,
-      "position": [240, 215],
+      "position": [270, 150],
       "type": "max/plantarium/random",
       "props": { "min": 50, "max": 85 }
     },
     {
       "id": 28,
-      "position": [300, 80],
+      "position": [330, 80],
       "type": "max/plantarium/gravity",
       "props": { "strength": 0.9, "elasticity": 0.25 }
     },
     {
       "id": 29,
-      "position": [270, 125],
+      "position": [300, 135],
       "type": "max/plantarium/random",
       "props": { "min": 0.75, "max": 1 }
+    },
+    { "id": 30, "position": [210, 170], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 31,
+      "position": [240, 140],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [0, 0.49, 0.82, 0.49, 0.86, 0.77, 0.95, 0.93, 1, 0.52],
+        "min": 0,
+        "max": 1.3
+      }
     }
   ],
   "edges": [
@@ -145,6 +162,8 @@
     [25, 0, 28, "plant"],
     [29, 0, 28, "strength"],
     [28, 0, 15, "plant"],
-    [15, 0, 10, "input"]
+    [15, 0, 10, "input"],
+    [30, 0, 31, "value"],
+    [31, 0, 24, "size"]
   ]
 }

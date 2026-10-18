@@ -178,6 +178,16 @@ export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: Gr
   });
 
   keymap.addShortcut({
+    key: 'F',
+    shift: true,
+    description: 'Format nodes',
+    callback: () => {
+      if (!graphState.isBodyFocused()) return;
+      graphState.formatNodes();
+    }
+  });
+
+  keymap.addShortcut({
     key: 'f',
     description: 'Smart Connect Nodes',
     callback: () => {
