@@ -47,10 +47,14 @@
 
     if (geometries && scene && centerCamera) {
       const aabb = new Box3().setFromObject(scene);
-      center = aabb
-        .getCenter(new Vector3())
-        .max(new Vector3(-4, -4, -4))
-        .min(new Vector3(4, 4, 4));
+      // a single geometry with NaN positions would move the camera to NaN
+      const finite = [aabb.min, aabb.max].every((v) => v.toArray().every(Number.isFinite));
+      if (finite) {
+        center = aabb
+          .getCenter(new Vector3())
+          .max(new Vector3(-4, -4, -4))
+          .min(new Vector3(4, 4, 4));
+      }
     }
     _invalidate();
   };
