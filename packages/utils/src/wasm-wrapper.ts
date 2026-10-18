@@ -56,11 +56,20 @@ export function createWasmWrapper(buffer: ArrayBuffer) {
   };
 
   const module = new WebAssembly.Module(buffer);
-  const instance = new WebAssembly.Instance(module, importObject);
-  memory = instance.exports.memory as WebAssembly.Memory;
-  const mem = memory;
+
+  // Every instance reserves a large virtual memory region and Firefox only allows ~1000 of them
+  // per process (shared with workers), so a module is only instantiated once it is executed
+  let instance: WebAssembly.Instance | undefined;
+  function getExports() {
+    if (!instance) {
+      instance = new WebAssembly.Instance(module, importObject);
+      memory = instance.exports.memory as WebAssembly.Memory;
+    }
+    return instance.exports;
+  }
 
   function executeV1(exports: NodariumExports, inputs: NodeValue[]): WasmSlice {
+    const mem = exports.memory;
     const table = new Uint32Array(inputs.length * 2);
 
     for (let i = 0; i < inputs.length; i++) {
@@ -91,6 +100,7 @@ export function createWasmWrapper(buffer: ArrayBuffer) {
   }
 
   function executeLegacy(exports: LegacyExports, inputs: NodeValue[]): Int32Array {
+    const mem = exports.memory;
     // the legacy ABI expects all inputs concatenated, with scalars inlined
     const args = concatEncodedArrays(
       inputs.map(input => {
@@ -113,15 +123,18 @@ export function createWasmWrapper(buffer: ArrayBuffer) {
     return out;
   }
 
-  const isV1 = typeof instance.exports.nodarium_execute === 'function';
+  const isV1 = WebAssembly.Module.exports(module).some(
+    (e) => e.name === 'nodarium_execute' && e.kind === 'function'
+  );
 
   function execute(inputs: NodeValue[]): NodeValue {
-    if (isV1) return executeV1(instance.exports as NodariumExports, inputs);
-    return executeLegacy(instance.exports as LegacyExports, inputs);
+    if (isV1) return executeV1(getExports() as NodariumExports, inputs);
+    return executeLegacy(getExports() as LegacyExports, inputs);
   }
 
   function reset() {
-    if (isV1) (instance.exports as NodariumExports).nodarium_reset();
+    // nothing to reset before the first execution
+    if (isV1 && instance) (instance.exports as NodariumExports).nodarium_reset();
   }
 
   function get_definition() {
