@@ -50,6 +50,13 @@ describe('InputNumber', () => {
     await expect.element(input).toHaveValue(100);
   });
 
+  it('should not snap value to the step on init', async () => {
+    render(InputNumber, { value: 0.002, step: 0.05 });
+
+    const input = page.getByRole('spinbutton');
+    await expect.element(input).toHaveValue(0.002);
+  });
+
   it('should not clamp value on init when value is below min', async () => {
     render(InputNumber, { value: -50, min: 0, max: 10 });
 

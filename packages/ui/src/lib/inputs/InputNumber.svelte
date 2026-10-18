@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-
   interface Props {
     value?: number;
     step?: number;
@@ -110,10 +108,6 @@
   function stepDown(e: MouseEvent) {
     value = snap(value - (e.shiftKey ? step! * 10 : step!));
   }
-
-  onMount(() => {
-    value = snap(value);
-  });
 </script>
 
 <svelte:window onkeydown={windowKeyDown} />
