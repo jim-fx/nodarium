@@ -104,6 +104,9 @@ export function createGeometryPool(parentScene: Group, material: Material) {
       faceCount,
       hash
     };
+    // three.js keeps the bounds it computed once, they are needed again for the new positions
+    geometry.boundingBox = null;
+    geometry.boundingSphere = null;
 
     if (!existingMesh) {
       const mesh = new Mesh(geometry, material);
@@ -209,16 +212,19 @@ export function createInstancedGeometryPool(
     ) {
       existingInstance.geometry.dispose();
       scene.remove(existingInstance);
-      instances.splice(instances.indexOf(existingInstance), 1);
+      // replace it at the same index, the update loop walks this list by index
+      const slot = instances.indexOf(existingInstance);
       existingInstance = new InstancedMesh(geometry, material, instanceCount);
       scene.add(existingInstance);
-      instances.push(existingInstance);
+      instances[slot] = existingInstance;
     } else if (!existingInstance) {
       existingInstance = new InstancedMesh(geometry, material, instanceCount);
       scene.add(existingInstance);
       instances.push(existingInstance);
     } else {
       existingInstance.count = instanceCount;
+      // it was hidden while a graph with fewer instanced geometries was shown
+      existingInstance.visible = true;
     }
 
     // update the matrices
@@ -247,6 +253,11 @@ export function createInstancedGeometryPool(
     };
 
     existingInstance.instanceMatrix.needsUpdate = true;
+    // the frustum culling uses the bounds of the previous geometry and matrices otherwise
+    geometry.boundingBox = null;
+    geometry.boundingSphere = null;
+    existingInstance.boundingBox = null;
+    existingInstance.boundingSphere = null;
   }
 
   return {
