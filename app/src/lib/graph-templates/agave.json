@@ -1,0 +1,92 @@
+{
+  "settings": { "resolution.circle": 24, "resolution.curve": 32, "randomSeed": false },
+  "nodes": [
+    { "id": 10, "position": [330, 80], "type": "max/plantarium/output", "props": {} },
+    {
+      "id": 11,
+      "position": [240, 80],
+      "type": "max/plantarium/stem",
+      "props": { "amount": 1, "length": 1.2, "thickness": 0.3 }
+    },
+    {
+      "id": 12,
+      "position": [210, 125],
+      "type": "max/plantarium/shape",
+      "props": {
+        "shape": [
+          50,
+          100,
+          46,
+          97,
+          44.5,
+          92,
+          43.5,
+          85,
+          42.6,
+          80,
+          43.4,
+          76,
+          42.4,
+          70,
+          43.2,
+          64,
+          42.6,
+          58,
+          43.6,
+          52,
+          43.2,
+          46,
+          44.4,
+          40,
+          44.4,
+          34,
+          45.6,
+          28,
+          45.8,
+          22,
+          47,
+          16,
+          47.6,
+          10,
+          48.8,
+          5,
+          50,
+          0
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "position": [240, 125],
+      "type": "max/plantarium/leaf",
+      "props": { "size": 0.17, "yCurve": -1.1, "xCurve": 0.7 }
+    },
+    {
+      "id": 14,
+      "position": [270, 80],
+      "type": "max/plantarium/instance",
+      "props": { "amount": 18, "lowestInstance": 0.02, "highestInstance": 0.3, "rotation": 2.4 }
+    },
+    {
+      "id": 15,
+      "position": [240, 170],
+      "type": "max/plantarium/leaf",
+      "props": { "size": 0.21, "yCurve": -1.45, "xCurve": 0.9 }
+    },
+    {
+      "id": 16,
+      "position": [300, 80],
+      "type": "max/plantarium/instance",
+      "props": { "amount": 22, "lowestInstance": 0.32, "highestInstance": 0.9, "rotation": 2.4 }
+    }
+  ],
+  "edges": [
+    [12, 0, 13, "shape"],
+    [12, 0, 15, "shape"],
+    [11, 0, 14, "plant"],
+    [13, 0, 14, "geometry"],
+    [14, 0, 16, "plant"],
+    [15, 0, 16, "geometry"],
+    [16, 0, 10, "input"]
+  ]
+}

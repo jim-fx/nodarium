@@ -1,0 +1,145 @@
+{
+  "settings": { "resolution.circle": 24, "resolution.curve": 40, "randomSeed": false },
+  "nodes": [
+    { "id": 10, "position": [300, 80], "type": "max/plantarium/output", "props": {} },
+    {
+      "id": 11,
+      "position": [30, 80],
+      "type": "max/plantarium/stem",
+      "props": { "amount": 1, "length": 4.5, "thickness": 0.42 }
+    },
+    {
+      "id": 12,
+      "position": [60, 80],
+      "type": "max/plantarium/noise",
+      "props": { "scale": 1.5, "strength": 0.3, "octaves": 2 }
+    },
+    {
+      "id": 13,
+      "position": [90, 80],
+      "type": "max/plantarium/branch",
+      "props": {
+        "amount": 7,
+        "length": 4.5,
+        "thickness": 0.75,
+        "lowestBranch": 0.5,
+        "highestBranch": 0.97,
+        "rotation": 137.5,
+        "angle": 55
+      }
+    },
+    {
+      "id": 14,
+      "position": [60, 125],
+      "type": "max/plantarium/random",
+      "props": { "min": 3.8, "max": 5.2 }
+    },
+    {
+      "id": 15,
+      "position": [60, 170],
+      "type": "max/plantarium/random",
+      "props": { "min": 45, "max": 70 }
+    },
+    {
+      "id": 16,
+      "position": [120, 80],
+      "type": "max/plantarium/gravity",
+      "props": { "strength": 0.8, "elasticity": 0.65 }
+    },
+    {
+      "id": 17,
+      "position": [150, 80],
+      "type": "max/plantarium/noise",
+      "props": { "scale": 3, "strength": 0.25 }
+    },
+    {
+      "id": 18,
+      "position": [180, 80],
+      "type": "max/plantarium/branch",
+      "props": {
+        "amount": 40,
+        "length": 3.2,
+        "thickness": 0.05,
+        "lowestBranch": 0.2,
+        "highestBranch": 1,
+        "rotation": 137.5,
+        "angle": 10
+      }
+    },
+    {
+      "id": 19,
+      "position": [150, 125],
+      "type": "max/plantarium/random",
+      "props": { "min": 2, "max": 3.4 }
+    },
+    {
+      "id": 20,
+      "position": [210, 80],
+      "type": "max/plantarium/gravity",
+      "props": { "strength": 0.3, "elasticity": 0.3, "mode": 0 }
+    },
+    {
+      "id": 21,
+      "position": [240, 80],
+      "type": "max/plantarium/noise",
+      "props": { "scale": 2, "strength": 0.08 }
+    },
+    {
+      "id": 22,
+      "position": [210, 125],
+      "type": "max/plantarium/shape",
+      "props": {
+        "shape": [
+          50,
+          100,
+          47,
+          95,
+          45,
+          86,
+          44,
+          74,
+          44,
+          60,
+          44.6,
+          46,
+          45.6,
+          32,
+          47,
+          18,
+          48.8,
+          6,
+          50,
+          0
+        ]
+      }
+    },
+    {
+      "id": 23,
+      "position": [240, 125],
+      "type": "max/plantarium/leaf",
+      "props": { "size": 0.22, "yCurve": 1.4 }
+    },
+    {
+      "id": 24,
+      "position": [270, 80],
+      "type": "max/plantarium/instance",
+      "props": { "amount": 36, "lowestInstance": 0.04, "highestInstance": 1, "rotation": 2.4 }
+    }
+  ],
+  "edges": [
+    [11, 0, 12, "plant"],
+    [12, 0, 13, "plant"],
+    [14, 0, 13, "length"],
+    [15, 0, 13, "angle"],
+    [13, 0, 16, "plant"],
+    [16, 0, 17, "plant"],
+    [17, 0, 18, "plant"],
+    [19, 0, 18, "length"],
+    [18, 0, 20, "plant"],
+    [20, 0, 21, "plant"],
+    [21, 0, 24, "plant"],
+    [22, 0, 23, "shape"],
+    [23, 0, 24, "geometry"],
+    [24, 0, 10, "input"]
+  ]
+}
