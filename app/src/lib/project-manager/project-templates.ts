@@ -1,10 +1,13 @@
 import {
   agave,
   bamboo,
+  daisy,
   defaultPlant,
   fern,
   grass,
+  ladyFern,
   lavender,
+  maidenhair,
   palm,
   sage,
   sapling,
@@ -31,5 +34,8 @@ export const projectTemplates: ProjectTemplate[] = [
   { name: 'Sapling', graph: toGraph(sapling) },
   { name: 'Lavender', graph: toGraph(lavender) },
   { name: 'Sage', graph: toGraph(sage) },
-  { name: 'Bamboo', graph: toGraph(bamboo) }
+  { name: 'Bamboo', graph: toGraph(bamboo) },
+  { name: 'Lady Fern', graph: toGraph(ladyFern) },
+  { name: 'Maidenhair Fern', graph: toGraph(maidenhair) },
+  { name: 'Daisy', graph: toGraph(daisy) }
 ];
