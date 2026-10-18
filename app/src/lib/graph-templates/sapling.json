@@ -32,13 +32,13 @@
       "id": 14,
       "position": [90, 125],
       "type": "max/plantarium/random",
-      "props": { "min": 2.4, "max": 3.8 }
+      "props": { "min": 2.7, "max": 3.5 }
     },
     {
       "id": 15,
       "position": [90, 170],
       "type": "max/plantarium/random",
-      "props": { "min": 25, "max": 50 }
+      "props": { "min": -7, "max": 7 }
     },
     {
       "id": 16,
@@ -137,22 +137,61 @@
       "id": 23,
       "position": [270, 80],
       "type": "max/plantarium/instance",
-      "props": { "amount": 9, "lowestInstance": 0.15, "highestInstance": 1, "rotation": 2.4 }
+      "props": {
+        "amount": 9,
+        "lowestInstance": 0.15,
+        "highestInstance": 1,
+        "rotation": 2.4,
+        "angle": 40
+      }
+    },
+    { "id": 24, "position": [120, 170], "type": "max/plantarium/math", "props": { "op_type": 2 } },
+    { "id": 25, "position": [90, 260], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 26,
+      "position": [120, 260],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0.8, 0.28, 0.8, 0.45, 1, 0.75, 0.7, 1, 0.3], "min": 0, "max": 1 }
+    },
+    { "id": 27, "position": [150, 170], "type": "max/plantarium/math", "props": { "op_type": 0 } },
+    { "id": 28, "position": [150, 260], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 29,
+      "position": [180, 260],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 0.28, 0, 1, 1], "min": 25, "max": 55 }
+    },
+    { "id": 30, "position": [210, 170], "type": "max/plantarium/math", "props": { "op_type": 2 } },
+    { "id": 31, "position": [210, 260], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 32,
+      "position": [240, 260],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 1, 0.15, 1, 1, 0.45], "min": 0, "max": 1 }
     }
   ],
   "edges": [
     [11, 0, 12, "plant"],
     [12, 0, 13, "plant"],
-    [14, 0, 13, "length"],
-    [15, 0, 13, "angle"],
     [13, 0, 16, "plant"],
     [16, 0, 17, "plant"],
     [17, 0, 18, "plant"],
-    [19, 0, 18, "length"],
     [18, 0, 20, "plant"],
     [20, 0, 23, "plant"],
     [21, 0, 22, "shape"],
     [22, 0, 23, "geometry"],
-    [23, 0, 10, "input"]
+    [23, 0, 10, "input"],
+    [14, 0, 24, "a"],
+    [25, 0, 26, "value"],
+    [26, 0, 24, "b"],
+    [24, 0, 13, "length"],
+    [15, 0, 27, "b"],
+    [28, 0, 29, "value"],
+    [29, 0, 27, "a"],
+    [27, 0, 13, "angle"],
+    [19, 0, 30, "a"],
+    [31, 0, 32, "value"],
+    [32, 0, 30, "b"],
+    [30, 0, 18, "length"]
   ]
 }
