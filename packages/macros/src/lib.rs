@@ -67,8 +67,12 @@ pub fn nodarium_definition_file(input: TokenStream) -> TokenStream {
     // We use the span from the input path literal
     let bytes = syn::LitByteStr::new(json_content.as_bytes(), path_lit.span());
     let len = json_content.len();
+    let full_path_str = full_path.to_string_lossy().to_string();
 
     let expanded = quote! {
+        // the file is read above, include it too so cargo rebuilds the node when it changes
+        const _: &[u8] = include_bytes!(#full_path_str);
+
         #[link_section = "nodarium_definition"]
         static DEFINITION_DATA: [u8; #len] = *#bytes;
         
