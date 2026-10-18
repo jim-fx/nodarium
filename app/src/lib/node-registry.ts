@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 export async function getWasm(id: `${string}/${string}/${string}`) {
-  const filePath = path.resolve(`./static/nodes/${id}`);
+  const filePath = path.resolve(`./static/nodes/${id}.wasm`);
 
   try {
     await fs.access(filePath);
@@ -40,11 +40,12 @@ export async function getNode(id: `${string}/${string}/${string}`) {
 
 export async function getCollectionNodes(userId: `${string}/${string}`) {
   const nodes = await fs.readdir(path.resolve(`./static/nodes/${userId}`));
+  // the directory holds the compiled `<node>.wasm` files, the id of a node is without the extension
   return nodes
-    .filter((n) => n !== 'pkg' && n !== '.template')
+    .filter((n) => n.endsWith('.wasm'))
     .map((n) => {
       return {
-        id: `${userId}/${n}`
+        id: `${userId}/${n.slice(0, -'.wasm'.length)}`
       };
     });
 }

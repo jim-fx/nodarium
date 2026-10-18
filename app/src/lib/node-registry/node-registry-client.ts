@@ -12,6 +12,7 @@ log.mute();
 export class RemoteNodeRegistry implements NodeRegistry {
   status: 'loading' | 'ready' | 'error' = 'loading';
   private nodes: Map<string, NodeDefinition> = new Map();
+  private pending: Map<string, Promise<NodeDefinition | undefined>> = new Map();
 
   constructor(
     private url: string,
@@ -104,23 +105,24 @@ export class RemoteNodeRegistry implements NodeRegistry {
   async load(nodeIds: `${string}/${string}/${string}`[]) {
     const a = performance.now();
 
+    // older collection listings name the nodes after their files, `<node>.wasm`
+    const ids = nodeIds.map((id) => id.replace(/\.wasm$/, '') as typeof id);
+
     const nodes = (await Promise.all(
-      [...new Set(nodeIds).values()].map(async (id) => {
+      [...new Set(ids).values()].map((id) => {
         if (this.nodes.has(id)) {
           return this.nodes.get(id)!;
         }
 
         if (id.startsWith('__internal/')) return;
 
-        const wasmBuffer = await this.fetchNodeWasm(id);
-
-        try {
-          return await this.register(id, wasmBuffer);
-        } catch (e) {
-          console.log('Failed to register: ', id);
-          console.error(e);
-          return;
+        // every node is only instantiated once, even when it is requested again while loading
+        let pending = this.pending.get(id);
+        if (!pending) {
+          pending = this.fetchAndRegister(id).finally(() => this.pending.delete(id));
+          this.pending.set(id, pending);
         }
+        return pending;
       })
     )).filter(Boolean) as NodeDefinition[];
 
@@ -133,6 +135,18 @@ export class RemoteNodeRegistry implements NodeRegistry {
     this.status = 'ready';
 
     return nodes;
+  }
+
+  private async fetchAndRegister(id: `${string}/${string}/${string}`) {
+    const wasmBuffer = await this.fetchNodeWasm(id);
+
+    try {
+      return await this.register(id, wasmBuffer);
+    } catch (e) {
+      console.log('Failed to register: ', id);
+      console.error(e);
+      return;
+    }
   }
 
   async register(id: string, wasmBuffer: ArrayBuffer) {
