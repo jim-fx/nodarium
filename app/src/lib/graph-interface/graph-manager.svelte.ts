@@ -20,6 +20,7 @@ import { fastHashString } from '@nodarium/utils';
 import { createLogger } from '@nodarium/utils';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import EventEmitter from './helpers/EventEmitter';
+import { layoutGraph } from './helpers/layoutGraph';
 import {
   areEdgesEqual,
   areSocketsCompatible,
@@ -671,6 +672,20 @@ export class GraphManager extends EventEmitter<{
 
     this.nodes.delete(node.id);
     this.execute();
+    this.save();
+  }
+
+  // arranges the nodes of the current level in columns, see layoutGraph
+  formatNodes() {
+    const positions = layoutGraph(
+      [...this.nodes.values()],
+      this.edges.map((e) => serializeEdge(e)),
+      (node) => this.getNodeType(node)
+    );
+    for (const node of this.nodes.values()) {
+      const position = positions.get(node.id);
+      if (position) node.position = position;
+    }
     this.save();
   }
 

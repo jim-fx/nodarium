@@ -6,8 +6,9 @@ import type { OrthographicCamera, Vector3 } from 'three';
 import type { GraphManager } from './graph-manager.svelte';
 import { ColorGenerator } from './graph/colors';
 import {
+  getInputSocketOffset,
   getNodeHeight,
-  getParameterHeight,
+  getOutputSocketOffset,
   serializeEdge,
   serializeNode
 } from './helpers/nodeHelpers';
@@ -277,6 +278,26 @@ export class GraphState {
     });
   }
 
+  // lays out the nodes and lets them glide to their new positions
+  formatNodes() {
+    const nodes = [...this.graph.nodes.values()];
+    const from = nodes.map((node) => [
+      node.state.x ?? node.position[0],
+      node.state.y ?? node.position[1]
+    ]);
+
+    this.graph.formatNodes();
+
+    const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
+    animate(500, (a: number) => {
+      nodes.forEach((node, i) => {
+        node.state.x = a === 1 ? node.position[0] : lerp(from[i][0], node.position[0], ease(a));
+        node.state.y = a === 1 ? node.position[1] : lerp(from[i][1], node.position[1], ease(a));
+        this.updateNodePosition(node);
+      });
+    });
+  }
+
   pasteNodes() {
     if (!this.clipboard) return;
 
@@ -415,34 +436,17 @@ export class GraphState {
     node: NodeInstance,
     index: string | number
   ): [number, number] {
-    if (node.type === '__internal/group/input' && typeof index === 'number') {
-      return [
-        (node?.state?.x ?? node.position[0]) + 20,
-        (node?.state?.y ?? node.position[1]) + 2.5 + 5 * index + 5
-      ];
-    }
-
     if (typeof index === 'number') {
       return [
         (node?.state?.x ?? node.position[0]) + 20,
-        (node?.state?.y ?? node.position[1]) + 2.5 + 10 * index
+        (node?.state?.y ?? node.position[1]) + getOutputSocketOffset(node.type, index)
       ];
     } else {
-      let height = 5;
       // the node type is missing when its wasm failed to load
       const nodeType = this.graph.getNodeType(node);
-      const inputs = nodeType?.inputs || {};
-      for (const inputKey in inputs) {
-        const h = getParameterHeight(nodeType!, inputKey) / 10;
-        if (inputKey === index) {
-          height += h / 2;
-          break;
-        }
-        height += h;
-      }
       return [
         node?.state?.x ?? node.position[0],
-        (node?.state?.y ?? node.position[1]) + height
+        (node?.state?.y ?? node.position[1]) + getInputSocketOffset(nodeType, index)
       ];
     }
   }
