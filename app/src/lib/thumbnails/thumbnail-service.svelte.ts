@@ -82,7 +82,8 @@ export class ThumbnailService {
 
   /** Render a graph that is not a project (e.g. a template), the result is not stored */
   renderPreview(graph: Graph, size = PREVIEW_SIZE) {
-    const result = this.queue.then(() => this.worker.renderGraph(graph, size));
+    // $state proxies can not be sent to the worker
+    const result = this.queue.then(() => this.worker.renderGraph($state.snapshot(graph), size));
     this.queue = result.then(() => undefined, () => undefined);
     return result.then((blob) => (blob ? URL.createObjectURL(blob) : undefined));
   }
@@ -96,7 +97,7 @@ export class ThumbnailService {
 
   private backfill(graphs: Graph[]) {
     for (const graph of graphs) {
-      this.enqueue(graph, () => this.worker.renderGraph(graph, THUMBNAIL_SIZE));
+      this.enqueue(graph, () => this.worker.renderGraph($state.snapshot(graph), THUMBNAIL_SIZE));
     }
   }
 
