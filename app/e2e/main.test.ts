@@ -11,7 +11,7 @@ test('test', async ({ page }) => {
   await page.getByRole('button', { name: 'File', exact: true }).click();
   await page.getByRole('menuitem', { name: /^New project/ }).click();
   const projectBrowser = page.getByRole('dialog', { name: 'Projects' });
-  await projectBrowser.getByRole('button', { name: 'Simple', exact: true }).click();
+  await projectBrowser.getByRole('button', { name: 'Default Plant', exact: true }).click();
   await expect(projectBrowser).toBeHidden();
 
   const expectedNodes = [
@@ -19,17 +19,17 @@ test('test', async ({ page }) => {
       id: '10',
       type: 'max/plantarium/stem',
       props: {
-        amount: 4,
-        length: 4,
-        thickness: 0.2
+        amount: 5,
+        length: 11,
+        thickness: 0.1
       }
     },
     {
-      id: '11',
+      id: '15',
       type: 'max/plantarium/noise',
       props: {
-        scale: 0.5,
-        strength: 5
+        scale: 2.2,
+        strength: 4.9
       }
     },
     {
