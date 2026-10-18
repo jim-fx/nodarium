@@ -6,8 +6,9 @@
     const min = Math.min(...points);
     return points
       .map((point, i) => {
-        const x = (i / (points.length - 1)) * 100;
-        const y = 100 - ((point - min) / (max - min)) * 100;
+        // a single point or a flat line would divide by zero
+        const x = (i / (points.length - 1 || 1)) * 100;
+        const y = 100 - ((point - min) / (max - min || 1)) * 100;
         return `${x},${y}`;
       })
       .join(' ');
