@@ -88,7 +88,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 direction,
                 branch_direction
             );
-            let mut branch_data = create_path(resolution, depth + 1);
+            // a branch is always one layer deeper than the path it grows on
+            let mut branch_data = create_path(resolution, path_data[3] + 1);
             let branch = wrap_path_mut(&mut branch_data);
 
             for j in 0..resolution {

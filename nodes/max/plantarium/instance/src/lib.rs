@@ -30,7 +30,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let depth = evaluate_int(args[6]);
 
     for path_data in inputs.iter() {
-        if path_data[3] < (max_depth - depth + 1) {
+        // skip everything that is not a path, e.g. instances from a previous instance node
+        if path_data[2] != 0 || path_data[3] < (max_depth - depth + 1) {
             continue;
         }
 
@@ -45,22 +46,33 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 + (i as f32 / (amount - 1) as f32) * (highest_instance - lowest_instance);
 
             let point = path.get_point_at(alpha);
-            let tangent = path.get_direction_at(alpha);
+            let tangent = Vec3::from_slice(&path.get_direction_at(alpha)).normalize();
             let size = point[3] + 0.01;
 
-            let axis_rotation = Quat::from_axis_angle(
-                Vec3::from_slice(&tangent).normalize(),
-                i as f32 * rotation,
-            );
+            // the geometry grows along its -z axis, its face looks along +y.
+            // It sticks out sideways from the path, turned around the path by the rotation,
+            // and faces up to the light as far as it can
+            let side = tangent.cross(Vec3::Y);
+            let base = if side.length_squared() > 1e-6 {
+                side.normalize()
+            } else {
+                Vec3::NEG_Z
+            };
+            let out = Quat::from_axis_angle(tangent, i as f32 * rotation) * base;
+            let up = Vec3::Y - out * Vec3::Y.dot(out);
+            let face = if up.length_squared() > 1e-6 {
+                up.normalize()
+            } else {
+                tangent
+            };
+            let back = -out;
+            let across = face.cross(back);
 
-            let path_rotation = Quat::from_rotation_arc(Vec3::Y, Vec3::from_slice(&tangent).normalize());
-
-            let rotation = path_rotation * axis_rotation;
-
-            let transform = Mat4::from_scale_rotation_translation(
-                Vec3::new(size, size, size),
-                rotation,
-                Vec3::from_slice(&point),
+            let transform = Mat4::from_cols(
+                (across * size).extend(0.0),
+                (face * size).extend(0.0),
+                (back * size).extend(0.0),
+                Vec3::from_slice(&point).extend(1.0),
             );
 
             transforms.push(transform);
