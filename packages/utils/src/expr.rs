@@ -53,6 +53,28 @@ impl Ctx {
         }
     }
 
+    /// Evaluates `arg` at each of `alphas`, e.g. at every point of a path. Random values
+    /// are drawn once, so only what depends on alpha changes from one alpha to the next.
+    pub fn float_along(&mut self, arg: &[i32], alphas: impl IntoIterator<Item = f32>) -> Vec<f32> {
+        let (alpha, calls) = (self.alpha, self.calls);
+        let mut end = calls;
+
+        let values = alphas
+            .into_iter()
+            .map(|a| {
+                self.alpha = a;
+                self.calls = calls;
+                let v = self.float(arg);
+                end = self.calls;
+                v
+            })
+            .collect();
+
+        self.alpha = alpha;
+        self.calls = end;
+        values
+    }
+
     pub fn vec3(&mut self, arg: &[i32]) -> [f32; 3] {
         let args = split_args(arg);
 
@@ -238,6 +260,27 @@ mod tests {
         for i in 30..=70 {
             assert_eq!(ctx.float(&curve_expr(i as f32 / 100.0, 0.0, 1.0, &plateau)), 1.0);
         }
+    }
+
+    #[test]
+    fn test_float_along_draws_random_once() {
+        let alpha = concat_args(vec![&[2], &[0]]);
+        let random = concat_args(vec![&[1], &[encode_float(1.0)], &[encode_float(2.0)], &[42]]);
+        // alpha + random
+        let sum = concat_args(vec![&[0], &[0], &alpha, &random]);
+
+        let mut ctx = Ctx::default();
+        ctx.alpha = 0.7;
+        let values = ctx.float_along(&sum, [0.0, 0.5, 1.0]);
+        let r = values[0];
+        assert!((1.0..=2.0).contains(&r));
+        assert_eq!(values, vec![r, r + 0.5, r + 1.0]);
+        assert_eq!(ctx.alpha, 0.7);
+
+        // the next random value is the same as after evaluating it once
+        let mut once = Ctx::default();
+        once.float(&random);
+        assert_eq!(ctx.float(&random), once.float(&random));
     }
 
     #[test]

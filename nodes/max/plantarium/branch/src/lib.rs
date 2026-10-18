@@ -44,6 +44,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
         let lowest_branch = ctx.float(args[4]);
         let highest_branch = ctx.float(args[5]);
+        let taper = ctx.float(args[11]);
 
         for i in 0..branch_amount {
             let a = i as f32 / (branch_amount - 1).max(1) as f32;
@@ -54,7 +55,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             ctx.alpha = root_alpha;
 
             let length = ctx.float(args[1]);
-            let thickness = ctx.float(args[2]);
+            // alpha goes along the branch, so the thickness can follow a curve
+            let alphas = (0..resolution).map(|j| j as f32 / (resolution - 1) as f32);
+            let thickness = ctx.float_along(args[2], alphas);
             let offset_single = if i % 2 == 0 {
                 ctx.float(args[3])
             } else {
@@ -99,7 +102,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 branch.points[j * 4] = branch_origin[0] + branch_direction[0] * _a * length;
                 branch.points[j * 4 + 1] = branch_origin[1] + branch_direction[1] * _a * length;
                 branch.points[j * 4 + 2] = branch_origin[2] + branch_direction[2] * _a * length;
-                branch.points[j * 4 + 3] = branch_origin[3] * thickness * (1.0 - _a);
+                branch.points[j * 4 + 3] = branch_origin[3] * thickness[j] * (1.0 - _a * taper);
             }
 
             output.push(branch_data);
