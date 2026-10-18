@@ -1,19 +1,19 @@
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    evaluate_float, evaluate_int, evaluate_vec3,
+    int,
     geometry::{create_multiple_paths, wrap_multiple_paths},
-    log, reset_call_count, };
+    log, Ctx, };
 
 nodarium_definition_file!("src/input.json");
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
-    reset_call_count();
+    let mut ctx = Ctx::default();
 
 
-    let amount = evaluate_int(args[1]) as usize;
-    let path_resolution = evaluate_int(args[4]) as usize;
+    let amount = int(args[1]) as usize;
+    let path_resolution = int(args[4]) as usize;
 
     log!("stem args: {:?}", args);
 
@@ -22,9 +22,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut stems = wrap_multiple_paths(&mut stem_data);
 
     for stem in stems.iter_mut() {
-        let origin = evaluate_vec3(args[0]);
-        let length = evaluate_float(args[2]);
-        let thickness = evaluate_float(args[3]);
+        let origin = ctx.vec3(args[0]);
+        let length = ctx.float(args[2]);
+        let thickness = ctx.float(args[3]);
         let amount_points = stem.points.len() / 4;
 
         for i in 0..amount_points {

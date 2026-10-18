@@ -5,8 +5,8 @@ use glam::Vec3;
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::encode_float;
-use nodarium_utils::evaluate_float;
-use nodarium_utils::evaluate_int;
+use nodarium_utils::int;
+use nodarium_utils::Ctx;
 use nodarium_utils::log;
 use nodarium_utils::wrap_arg;
 use nodarium_utils::{split_args, decode_float};
@@ -39,12 +39,13 @@ fn vec_normalize(v: &[f32; 3]) -> [f32; 3] {
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
+    let mut ctx = Ctx::default();
     let input_path = split_args(args[0])[0];
-    let size = evaluate_float(args[1]);
-    let width_resolution = evaluate_int(args[2]).max(3) as usize;
-    let y_curve = evaluate_float(args[3]);
-    let y_twist = evaluate_float(args[4]);
-    let x_curve = evaluate_float(args[5]);
+    let size = ctx.float(args[1]);
+    let width_resolution = int(args[2]).max(3) as usize;
+    let y_curve = ctx.float(args[3]);
+    let y_twist = ctx.float(args[4]);
+    let x_curve = ctx.float(args[5]);
     let path_length = (input_path.len() - 4) / 2;
 
     let slice_count = path_length;

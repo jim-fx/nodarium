@@ -40,14 +40,16 @@ Then set `name = "cube"` in its `Cargo.toml`.
 
 ```rust
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
-use nodarium_utils::evaluate_float;
+use nodarium_utils::Ctx;
 
 nodarium_definition_file!("src/input.json");
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
+    let mut ctx = Ctx::default();
+
     // one slice per input, in the order of input.json
-    let size = evaluate_float(args[0]);
+    let size = ctx.float(args[0]);
 
     // build and return the geometry, see PLANTARIUM.md
     vec![]

@@ -11,7 +11,7 @@ A `float` or `integer` input is either a plain value or an **expression** produc
 [1, min, max, seed]  random value between min and max
 ```
 
-`a`, `b`, `min` and `max` can be expressions themselves. Nodes read these inputs with `evaluate_float`, `evaluate_int` and `evaluate_vec3`. Calling them again gives a new random value, which is how a single `random` node gives every stem a different length.
+`a`, `b`, `min` and `max` can be expressions themselves. Nodes read these inputs with a `Ctx`, created once per execution: `ctx.float` and `ctx.vec3`. Calling them again gives a new random value, which is how a single `random` node gives every stem a different length. A new `Ctx` starts the random values from the beginning, so a node gives the same result every time it runs. `integer`, `select`, `boolean` and `seed` inputs are never expressions, `int` reads them.
 
 ## Path
 

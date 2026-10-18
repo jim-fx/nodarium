@@ -1,7 +1,7 @@
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    concat_args, evaluate_int,
+    concat_args, int,
     geometry::{extrude_path, wrap_path},
     log, split_args,
 };
@@ -18,7 +18,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     assert_eq!(args.len(), 2, "Expected 2 arguments, got {}", args.len());
     let inputs = split_args(args[0]);
 
-    let resolution = evaluate_int(args[1]) as usize;
+    let resolution = int(args[1]) as usize;
 
     log!("inputs: {}, resolution: {}", inputs.len(), resolution);
 

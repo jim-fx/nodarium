@@ -1,15 +1,16 @@
 use glam::{Mat4, Quat, Vec3};
 use nodarium_macros::{nodarium_execute, nodarium_definition_file};
 use nodarium_utils::{
-    concat_args, evaluate_float, evaluate_int,
+    concat_args, int,
     geometry::{create_instance_data, wrap_geometry_data, wrap_instance_data, wrap_path},
-    split_args,
+    split_args, Ctx,
 };
 
 nodarium_definition_file!("src/input.json");
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
+    let mut ctx = Ctx::default();
     let mut inputs = split_args(args[0]);
 
     let mut geo_data = args[1].to_vec();
@@ -26,8 +27,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         max_depth = max_depth.max(path_data[3]);
     }
 
-    let rotation = evaluate_float(args[5]);
-    let depth = evaluate_int(args[6]);
+    let rotation = ctx.float(args[5]);
+    let depth = int(args[6]);
 
     for path_data in inputs.iter() {
         // skip everything that is not a path, e.g. instances from a previous instance node
@@ -35,9 +36,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             continue;
         }
 
-        let amount = evaluate_int(args[2]);
-        let lowest_instance = evaluate_float(args[3]);
-        let highest_instance = evaluate_float(args[4]);
+        let amount = int(args[2]);
+        let lowest_instance = ctx.float(args[3]);
+        let highest_instance = ctx.float(args[4]);
 
         let path = wrap_path(path_data);
 
