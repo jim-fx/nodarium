@@ -1,3 +1,57 @@
+# v0.0.8 (2026-10-20)
+
+## Features
+
+- Add a random_int node for random whole numbers, so counts such as leaves per branch vary like in nature (#57).
+- Add lady fern, maidenhair fern and daisy plant templates.
+- Show the execution time of each node in its header in advanced mode (#23).
+- Expose hidden inputs per node (#58).
+- Add switchable viewer materials (Plant, Clay, Matcap, Wireframe, Normals, Faces) with rendered previews in the settings.
+- Attach the debug node with Shift+right-click and draw instances in the debug view.
+- Make branch resolution adaptive.
+- Add an "about" section.
+
+## Plant Templates
+
+- Templates draw counts that vary in nature with random_int: bamboo leaves, daisy rays, lady fern pinnae and lavender flower stems
+- Lady fern fronds grow from a stem node and are rotated at random around the plant
+- The default plant and the leaf default shape are updated
+- The plant templates doc has a new section on modelling realistic plants
+
+## Runtime
+
+- Name the failed node in execution errors, with its unconnected inputs and the panic location
+- Highlight the failed node in the editor and log every error in a new Errors panel in advanced mode
+
+## Fixes
+
+- Branches sit exactly between lowestBranch and highestBranch, no more bare rachis at the tip of a frond
+- Clear the viewer when a graph has no result instead of showing the previous plant (#55)
+- Graphs with only the output node run and show nothing instead of failing with "Unknown input type path"
+
+---
+
+- [777ac3b](https://git.max-richter.dev/max/nodarium/commit/777ac3b163b6d738e7fe42e3905ed8ee7d55ad96) test: update e2e screen size so nodes are visible
+- [2fa0fb2](https://git.max-richter.dev/max/nodarium/commit/2fa0fb22462b4b90d1bd6a0a9b1f4552303914d8) test(app): update e2e expected values
+- [78a2d8d](https://git.max-richter.dev/max/nodarium/commit/78a2d8d3d33bead4ce9c3e2510eeef15825f895f) chore: dprint fmt
+- [69be793](https://git.max-richter.dev/max/nodarium/commit/69be793c0fc43219ed9e6fb87f6abda4b0d7100d) feat: add "about" section
+- [57c522b](https://git.max-richter.dev/max/nodarium/commit/57c522b18265fb0de33c1efef8e6bef973d8dc68) feat(planty): cleanup a lot of stuff
+- [cbf9451](https://git.max-richter.dev/max/nodarium/commit/cbf945101792fd60d962aef24914b1a3282e46b7) chore: update default plant a bit
+- [178f240](https://git.max-richter.dev/max/nodarium/commit/178f24006e8fc496b7b7863e698757adf48ac2b1) feat(runtime): name the failed node in execution errors
+- [02dccdf](https://git.max-richter.dev/max/nodarium/commit/02dccdf188f2f8c4cc0751ba33e1d71cefeb3dd9) fix(nodes): give the leaf a default shape
+- [a0b2cd6](https://git.max-richter.dev/max/nodarium/commit/a0b2cd6929ecf7bc6abc567c012d208769e51cbf) chore: update ci to pin gitea ssh id
+- [7c06877](https://git.max-richter.dev/max/nodarium/commit/7c0687730fbcea620c416a9945b80fd39899d4d6) feat: make branch resolution adaptive
+- [7ecf1f7](https://git.max-richter.dev/max/nodarium/commit/7ecf1f798a057d3bd99c57e0d39fabacbb3d426e) feat(debug): attach the debug node with shift+right-click and draw instances
+- [93a0f23](https://git.max-richter.dev/max/nodarium/commit/93a0f23e79777f9ec91e534bb4003ffadf7fc5cc) feat(viewer): add switchable materials with previews in the settings
+- [388ba4b](https://git.max-richter.dev/max/nodarium/commit/388ba4b436e7445652c446f0d2ca844972644905) feat: allow to expose hidden inputs per node
+- [cfbe15e](https://git.max-richter.dev/max/nodarium/commit/cfbe15e7e0d28f2529cac99c5d58185c479acf65) feat(templates): grow the lady fern fronds from a stem node
+- [53e72db](https://git.max-richter.dev/max/nodarium/commit/53e72db34aec7808327a0d3a353de27213504506) fix(nodes): place branches where lowestBranch and highestBranch say
+- [f80364c](https://git.max-richter.dev/max/nodarium/commit/f80364cfc5ad29eae076eb28418621054d245e12) feat(templates): draw counts that vary in nature with random_int
+- [a8b917b](https://git.max-richter.dev/max/nodarium/commit/a8b917be4e3c59b4959e96f7024951b789aa01c8) feat(nodes): add random_int node for random counts
+- [959cf95](https://git.max-richter.dev/max/nodarium/commit/959cf95431fc97e0524fd779314523c6388ef059) feat(templates): add lady fern, maidenhair fern and daisy templates
+- [d1bc01f](https://git.max-richter.dev/max/nodarium/commit/d1bc01f57e1e1ec11e596314b59cf693aaae12dd) fix(viewer): clear the old geometry when a graph has no result
+- [e86f953](https://git.max-richter.dev/max/nodarium/commit/e86f95330be31ed5e1f1f195b6a855d9862269f8) feat(graph): show the execution time of each node in its header
+
 # v0.0.7 (2026-10-18)
 
 ## Features
