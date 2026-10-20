@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test';
 
+// nodes outside of the camera are not rendered, the default plant needs the room
+test.use({ viewport: { width: 1920, height: 1080 } });
+
 test('test', async ({ page }) => {
   // Listen for console messages
   page.on('console', msg => {
