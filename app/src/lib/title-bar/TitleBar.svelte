@@ -5,6 +5,7 @@
   import { panelState } from '$lib/sidebar/PanelState.svelte';
   import { ConfirmDialog, type Menu, MenuBar, type MenuEntry, toast } from '@nodarium/ui';
   import { tick } from 'svelte';
+  import AboutDialog from './AboutDialog.svelte';
 
   const RECENT_PROJECTS = 5;
 
@@ -56,6 +57,7 @@
   }
 
   let confirmDelete = $state(false);
+  let showAbout = $state(false);
 
   function withActive(fn: (id: number) => void) {
     return () => {
@@ -145,6 +147,7 @@
         { label: 'Keyboard shortcuts', onselect: () => panelState.setActivePanel('shortcuts') },
         { label: 'Changelog', onselect: () => panelState.setActivePanel('changelog') },
         'separator',
+        { label: 'About', onselect: () => (showAbout = true) },
         {
           label: 'Source code',
           onselect: () => window.open('https://github.com/jim-fx/nodarium', '_blank')
@@ -204,6 +207,8 @@
     onchange={handleImport}
   />
 </header>
+
+<AboutDialog bind:open={showAbout} />
 
 <ConfirmDialog
   bind:open={confirmDelete}
