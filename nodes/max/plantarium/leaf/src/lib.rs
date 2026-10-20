@@ -39,13 +39,18 @@ fn vec_normalize(v: &[f32; 3]) -> [f32; 3] {
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
-    let input_path = split_args(args[0])[0];
+    // A connected shape node wraps the path in another bracket, the default value does not
+    let input_path = match split_args(args[0]).first() {
+        Some(path) if path.len() > 1 => *path,
+        _ => args[0],
+    };
     let size = ctx.float(args[1]);
     let width_resolution = ctx.int(args[2]).max(3) as usize;
     let y_curve = ctx.float(args[3]);
     let y_twist = ctx.float(args[4]);
     let x_curve = ctx.float(args[5]);
-    let path_length = (input_path.len() - 4) / 2;
+    let path_length = input_path.len().saturating_sub(4) / 2;
+    assert!(path_length >= 2, "leaf shape needs at least two points, got {}", path_length);
 
     let slice_count = path_length;
     let face_amount = (slice_count - 1) * (width_resolution - 1) * 2;
