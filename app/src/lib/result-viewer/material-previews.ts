@@ -1,4 +1,12 @@
-import { AgXToneMapping, Box3, Mesh, PerspectiveCamera, Scene, SphereGeometry, WebGLRenderer } from 'three';
+import {
+  AgXToneMapping,
+  Box3,
+  Mesh,
+  PerspectiveCamera,
+  Scene,
+  SphereGeometry,
+  WebGLRenderer
+} from 'three';
 import { matcapLoaded, materials, setHeightRange } from './materials';
 
 const SIZE = 128;

@@ -36,25 +36,26 @@
 
     <div class="flex flex-col gap-3 text-xs leading-relaxed opacity-75">
       <p class="m-0">
-        I'm a media designer by training, a Blender nerd and a developer. Nodarium is the thing where
-        all of that ended up in one place.
+        I'm a media designer by training, a Blender nerd and a developer. Nodarium is the thing
+        where all of that ended up in one place.
       </p>
       <p class="m-0">
         It goes back to
-        <a href={PLANTARIUM_URL} target="_blank" rel="noopener" class="underline">Plantarium</a>, a node based tool for generating 3D plants that I started in
-        2020. I love Blender's geometry nodes, I love plants, and I wanted to make something like
-        that for the browser.
+        <a href={PLANTARIUM_URL} target="_blank" rel="noopener" class="underline">Plantarium</a>, a
+        node based tool for generating 3D plants that I started in 2020. I love Blender's geometry
+        nodes, I love plants, and I wanted to make something like that for the browser.
       </p>
       <p class="m-0">
         Nodarium started in February 2024 as my
-        <a href={THESIS_URL} target="_blank" rel="noopener" class="underline">bachelor thesis</a>. I had found WebAssembly super
-        interesting, so the plan was a visual programming language where every node is its own
-        WebAssembly module. That way people can write their own nodes and share them without having
-        to trust each other's code. Plants stayed as the first thing to build with it.
+        <a href={THESIS_URL} target="_blank" rel="noopener" class="underline">bachelor thesis</a>. I
+        had found WebAssembly super interesting, so the plan was a visual programming language where
+        every node is its own WebAssembly module. That way people can write their own nodes and
+        share them without having to trust each other's code. Plants stayed as the first thing to
+        build with it.
       </p>
       <p class="m-0">
-        The thesis was supposed to be three months of sweat and tears. I handed it in and then
-        kept going, because I wasn't done with it.
+        The thesis was supposed to be three months of sweat and tears. I handed it in and then kept
+        going, because I wasn't done with it.
       </p>
     </div>
 

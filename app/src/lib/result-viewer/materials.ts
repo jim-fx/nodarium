@@ -187,7 +187,8 @@ export const materials = [
   {
     id: 'matcap',
     name: 'Matcap',
-    create: () => new MeshMatcapMaterial({ color: 0xffffff, matcap: matcapTexture, side: DoubleSide })
+    create: () =>
+      new MeshMatcapMaterial({ color: 0xffffff, matcap: matcapTexture, side: DoubleSide })
   },
   {
     id: 'wireframe',
