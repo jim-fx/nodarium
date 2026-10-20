@@ -4,19 +4,35 @@
   import { splitNestedArray } from '@nodarium/utils';
   import type { PerformanceStore } from '@nodarium/utils';
   import { Canvas } from '@threlte/core';
-  import { DoubleSide } from 'three';
-  import { type Group, MeshMatcapMaterial, TextureLoader } from 'three';
+  import { untrack } from 'svelte';
+  import { Box3, type Group, type Material } from 'three';
   import { createGeometryPool, createInstancedGeometryPool } from './geometryPool';
+  import { getMaterial, matcapLoaded, setHeightRange } from './materials';
   import Scene from './Scene.svelte';
 
-  const loader = new TextureLoader();
-  const matcap = loader.load('/matcap_green.jpg');
-  matcap.colorSpace = 'srgb';
-  const material = new MeshMatcapMaterial({
-    color: 0xffffff,
-    matcap,
-    side: DoubleSide
+  // created on first use, switching back and forth keeps the compiled shaders
+  const materialCache: Record<string, Material> = {};
+  function loadMaterial(id: string) {
+    const entry = getMaterial(id);
+    materialCache[entry.id] ??= entry.create();
+    return materialCache[entry.id];
+  }
+
+  let material = loadMaterial(appSettings.value.material.id);
+  const bounds = new Box3();
+
+  $effect(() => {
+    const id = appSettings.value.material.id;
+    untrack(() => {
+      material = loadMaterial(id);
+      setHeightRange(material, bounds);
+      geometryPool?.setMaterial(material);
+      instancePool?.setMaterial(material);
+      sceneComponent?.invalidate();
+    });
   });
+
+  matcapLoaded.then(() => sceneComponent?.invalidate());
 
   let sceneComponent = $state<ReturnType<typeof Scene>>();
   let fps = $state<number[]>([]);
@@ -34,6 +50,13 @@
 
     let meshes = geometryPool.update(inputs.filter((i) => i[0] === 1));
     let faces = instancePool.update(inputs.filter((i) => i[0] === 2));
+
+    // the pools keep hidden meshes with stale geometry around
+    bounds.makeEmpty();
+    group.traverseVisible((child) => {
+      if ('isMesh' in child) bounds.expandByObject(child);
+    });
+    setHeightRange(material, bounds);
 
     return {
       totalFaces: meshes.totalFaces + faces.totalFaces,

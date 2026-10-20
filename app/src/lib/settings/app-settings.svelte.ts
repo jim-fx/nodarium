@@ -32,6 +32,14 @@ export const AppSettingTypes = {
     type: 'button',
     label: '🌱 Open Planty'
   },
+  material: {
+    title: 'Material',
+    id: {
+      type: 'custom',
+      label: '',
+      value: 'plant' as string
+    }
+  },
   nodeInterface: {
     title: 'Node Interface',
     backgroundType: {
@@ -53,11 +61,6 @@ export const AppSettingTypes = {
   },
   debug: {
     title: 'Debug',
-    wireframe: {
-      type: 'boolean',
-      label: 'Wireframe',
-      value: false
-    },
     useWorker: {
       type: 'boolean',
       label: 'Execute in WebWorker',

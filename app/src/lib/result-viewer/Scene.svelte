@@ -2,7 +2,7 @@
   import { colors } from '$lib/graph-interface/graph/colors.svelte';
   import { T, useTask, useThrelte } from '@threlte/core';
   import { Grid } from '@threlte/extras';
-  import { Box3, type BufferGeometry, type Group, Mesh, MeshBasicMaterial, Vector3 } from 'three';
+  import { Box3, type BufferGeometry, type Group, Mesh, Vector3 } from 'three';
   import { appSettings } from '../settings/app-settings.svelte';
   import Camera from './Camera.svelte';
   import Debug from './Debug.svelte';
@@ -68,26 +68,6 @@
       && 'material' in child
     );
   }
-
-  function isMatCapMaterial(material: unknown): material is MeshBasicMaterial {
-    return (
-      material !== null
-      && typeof material === 'object'
-      && 'isMaterial' in material
-      && material.isMaterial === true
-      && 'matcap' in material
-    );
-  }
-
-  $effect(() => {
-    const wireframe = appSettings.value.debug.wireframe;
-    scene.traverse(function(child) {
-      if (isMesh(child) && isMatCapMaterial(child.material) && child.visible) {
-        child.material.wireframe = wireframe;
-      }
-    });
-    _invalidate();
-  });
 </script>
 
 <Camera {center} {centerCamera} />

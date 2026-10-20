@@ -7,7 +7,10 @@
 
   type Button = { type: 'button'; label?: string };
 
-  type InputType = NodeInput | Button;
+  // rendered by the customInput snippet of the parent
+  type Custom = { type: 'custom'; label?: string; value: string };
+
+  type InputType = NodeInput | Button | Custom;
 
   type SettingsNode = InputType | SettingsGroup;
 
@@ -31,6 +34,7 @@
     onButtonClick?: (id: string) => void;
     // rendered next to the label of each input
     inputAction?: Snippet<[key: string]>;
+    customInput?: Snippet<[value: string, setValue: (value: string) => void]>;
     depth?: number;
   };
 
@@ -44,6 +48,7 @@
     type,
     onButtonClick,
     inputAction,
+    customInput,
     depth = 0
   }: Props = $props();
 
@@ -51,7 +56,7 @@
     return !!v && typeof v === 'object' && 'type' in v;
   }
 
-  function getDefaultValue(): NodeInput['value'] | undefined {
+  function getDefaultValue(): NodeInput['value'] | string | undefined {
     if (key === '' || key === 'title') return;
 
     const node = type[key] as SettingsNode;
@@ -140,6 +145,11 @@
       <UiButton onclick={() => onButtonClick?.(id)}>
         {inputType.label || key}
       </UiButton>
+    {:else if inputType.type === 'custom'}
+      {#if inputType.label !== ''}
+        <label for={id}>{inputType.label || key}</label>
+      {/if}
+      {@render customInput?.(String(internalValue), (v) => (internalValue = v))}
     {:else}
       {#if inputAction}
         <div class="label-row flex items-center justify-between gap-2">
@@ -159,6 +169,7 @@
     <NestedSettings
       {onButtonClick}
       {inputAction}
+      {customInput}
       id={`${id}.${childKey}`}
       key={childKey}
       bind:value
@@ -178,6 +189,7 @@
         <NestedSettings
           {onButtonClick}
           {inputAction}
+          {customInput}
           id={`${id}.${childKey}`}
           key={childKey}
           bind:value={value[key] as SettingsValue}

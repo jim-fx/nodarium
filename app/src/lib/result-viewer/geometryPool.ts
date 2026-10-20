@@ -116,6 +116,10 @@ export function createGeometryPool(parentScene: Group, material: Material) {
   }
 
   return {
+    setMaterial(newMaterial: Material) {
+      material = newMaterial;
+      for (const mesh of meshes) mesh.material = material;
+    },
     update(newData: Int32Array[]) {
       totalVertices = 0;
       totalFaces = 0;
@@ -261,6 +265,10 @@ export function createInstancedGeometryPool(
   }
 
   return {
+    setMaterial(newMaterial: Material) {
+      material = newMaterial;
+      for (const instance of instances) instance.material = material;
+    },
     update(newData: Int32Array[]) {
       totalVertices = 0;
       totalFaces = 0;

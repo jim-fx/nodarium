@@ -15,6 +15,7 @@
   import { MemoryRuntimeCache, MemoryRuntimeExecutor, WorkerRuntimeExecutor } from '$lib/runtime';
   import type { SettingsValue } from '$lib/settings';
   import { appSettings, AppSettingTypes } from '$lib/settings/app-settings.svelte';
+  import MaterialPicker from '$lib/settings/MaterialPicker.svelte';
   import NestedSettings from '$lib/settings/NestedSettings.svelte';
   import Panel from '$lib/sidebar/Panel.svelte';
   import ActiveNodeSettings from '$lib/sidebar/panels/ActiveNodeSettings.svelte';
@@ -354,7 +355,11 @@
             onButtonClick={handleSettingsButton}
             bind:value={appSettings.value}
             type={AppSettingTypes}
-          />
+          >
+            {#snippet customInput(value, setValue)}
+              <MaterialPicker {value} onchange={setValue} />
+            {/snippet}
+          </NestedSettings>
         </Panel>
         <Panel
           id="shortcuts"
