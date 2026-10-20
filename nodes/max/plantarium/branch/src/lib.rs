@@ -20,7 +20,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     let mut output: Vec<Vec<i32>> = Vec::new();
 
-    let resolution = int(args[8]).max(4) as usize;
+    let max_resolution = int(args[8]).max(4) as usize;
     let depth = ctx.int(args[6]);
 
     let mut max_depth = 0;
@@ -39,6 +39,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         }
 
         let path = wrap_path(path_data);
+        let path_length = path.get_length();
 
         let branch_amount = ctx.int(args[7]).max(1);
 
@@ -57,6 +58,14 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             ctx.alpha = root_alpha;
 
             let length = ctx.float(args[1]);
+            // a branch as long as its parent path gets the full resolution, shorter ones get
+            // fewer points
+            let resolution = if path_length > 0.0 {
+                ((max_resolution as f32 * length / path_length).round() as usize)
+                    .clamp(4, max_resolution)
+            } else {
+                max_resolution
+            };
             // alpha goes along the branch, so the thickness can follow a curve
             let alphas = (0..resolution).map(|j| j as f32 / (resolution - 1) as f32);
             let thickness = ctx.float_along(args[2], alphas);
