@@ -1,3 +1,4 @@
+import { debugNode } from '$lib/node-registry/debugNode';
 import { expandGroups } from '$lib/runtime/runtime-executor';
 import type { NodeDefinition } from '@nodarium/types';
 import { assert, describe, expect, it } from 'vitest';
@@ -852,5 +853,44 @@ describe('setInputExposed', () => {
     manager.undo();
 
     expect(manager.getNode(nodeA.id)?.exposed ?? []).toEqual([]);
+  });
+});
+
+describe('tryConnectToDebugNode', () => {
+  function setup() {
+    const registry = createMockNodeRegistry([mockFloatOutputNode, mockFloatInputNode, debugNode]);
+    const manager = new GraphManager(registry);
+    const a = manager.createNode({ type: 'test/node/input', position: [0, 0], props: {} });
+    const b = manager.createNode({ type: 'test/node/input', position: [100, 50], props: {} });
+    assert.isDefined(a);
+    assert.isDefined(b);
+    return { manager, a, b };
+  }
+
+  it('places the debug node above and to the right of the debugged node', () => {
+    const { manager, a } = setup();
+    const debug = manager.tryConnectToDebugNode(a.id);
+    assert.isDefined(debug);
+    expect(debug.position[0]).toBeGreaterThan(a.position[0] + 20);
+    expect(debug.position[1] + getNodeHeight(manager.getNodeType(debug)!)).toBeLessThan(
+      a.position[1]
+    );
+    expect(manager.getEdgesToNode(debug).map(e => e[0].id)).toEqual([a.id]);
+  });
+
+  it('moves the existing debug node every time, also when it is already connected', () => {
+    const { manager, a, b } = setup();
+    const debug = manager.tryConnectToDebugNode(a.id);
+    assert.isDefined(debug);
+
+    expect(manager.tryConnectToDebugNode(b.id)).toBe(debug);
+    expect(debug.position[0]).toBeGreaterThan(b.position[0]);
+    expect(manager.getEdgesToNode(debug).map(e => e[0].id)).toEqual([b.id]);
+
+    const before = [...debug.position];
+    b.position = [300, 300];
+    manager.tryConnectToDebugNode(b.id);
+    expect(debug.position).not.toEqual(before);
+    expect([...manager.nodes.values()].filter(n => n.type.endsWith('/debug'))).toHaveLength(1);
   });
 });

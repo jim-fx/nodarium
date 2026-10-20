@@ -153,7 +153,18 @@ export class MouseEventManager {
     this.state.addMenuPosition = null;
   }
 
+  private connectToDebugNode(nodeId: number) {
+    if (nodeId === -1) return;
+    const debugNode = this.graph.tryConnectToDebugNode(nodeId);
+    if (debugNode) this.state.updateNodePosition(debugNode);
+  }
+
   handleContextMenu(event: MouseEvent) {
+    // shift right click on a node attaches the debug node instead
+    if (event.shiftKey && this.state.getNodeIdFromEvent(event) !== -1) {
+      event.preventDefault();
+      return;
+    }
     if (!this.state.addMenuPosition) {
       event.preventDefault();
       this.state.openNodePalette();
@@ -163,6 +174,7 @@ export class MouseEventManager {
   handleMouseDown(event: MouseEvent) {
     // Right click
     if (event.button === 2) {
+      if (event.shiftKey) this.connectToDebugNode(this.state.getNodeIdFromEvent(event));
       return;
     }
 
@@ -191,7 +203,7 @@ export class MouseEventManager {
     // if we clicked on a node
     if (clickedNodeId !== -1) {
       if (event.ctrlKey && event.shiftKey) {
-        this.graph.tryConnectToDebugNode(clickedNodeId);
+        this.connectToDebugNode(clickedNodeId);
         return;
       }
       if (this.state.activeNodeId === -1) {

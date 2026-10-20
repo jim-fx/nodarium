@@ -24,6 +24,7 @@ import { layoutGraph } from './helpers/layoutGraph';
 import {
   areEdgesEqual,
   areSocketsCompatible,
+  getNodeHeight,
   serializeEdge,
   serializeNode
 } from './helpers/nodeHelpers';
@@ -264,12 +265,23 @@ export class GraphManager extends EventEmitter<{
     if (!debugNode) {
       debugNode = this.createNode({
         type: '__internal/node/debug',
-        position: [node.position[0] + 30, node.position[1]],
+        position: [0, 0],
         props: {}
       });
     }
+    if (!debugNode) return;
 
-    if (debugNode) {
+    // above and to the right of the debugged node, nodes are 20 units wide
+    const debugType = this.getNodeType(debugNode);
+    const height = debugType ? getNodeHeight(debugType) : 5;
+    debugNode.position = [node.position[0] + 25, node.position[1] - height - 5];
+
+    const alreadyConnected = this.getEdgesToNode(debugNode).some(e =>
+      e[0].id === node.id && e[1] === 0
+    );
+    if (alreadyConnected) {
+      this.save();
+    } else {
       this.createEdge(node, 0, debugNode, 'input');
     }
 

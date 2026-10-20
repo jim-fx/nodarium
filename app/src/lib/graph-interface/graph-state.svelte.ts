@@ -372,7 +372,7 @@ export class GraphState {
     const mx = event.clientX - this.rect.x;
     const my = event.clientY - this.rect.y;
 
-    if (event.button === 0) {
+    if (event.button === 0 || event.button === 2) {
       // check if the clicked element is a node
       if (event.target instanceof HTMLElement) {
         const nodeElement = event.target.closest('.node');

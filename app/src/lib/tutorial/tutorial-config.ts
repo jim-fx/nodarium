@@ -189,7 +189,7 @@ export const tutorialConfig: PlantyConfig = {
     debug_intro: {
       position: 'bottom-right',
       text:
-        'Add a **Debug node** from the Add Menu (Shift+A or right-click). It accepts `*` wildcard inputs — connect any socket to inspect the data flowing through.\nEnable **Advanced Mode** in Settings to also see Performance and Graph Source panels.',
+        'Add a **Debug node** from the Add Menu (Shift+A or right-click). It accepts `*` wildcard inputs — connect any socket to inspect the data flowing through. **Shift+right-click** a node to attach it there directly.\nEnable **Advanced Mode** in Settings to also see Performance and Graph Source panels.',
       next: 'debug_done'
     },
 
