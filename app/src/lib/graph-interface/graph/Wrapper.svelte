@@ -19,6 +19,7 @@
     showHelp?: boolean;
     settingTypes?: Record<string, unknown>;
     nodeTimings?: Record<number, number>;
+    errorNodeId?: number;
 
     safePadding?: { left?: number; right?: number; bottom?: number; top?: number };
 
@@ -38,6 +39,7 @@
     showHelp = $bindable(false),
     settingTypes = $bindable(),
     nodeTimings = {},
+    errorNodeId,
     onsave,
     onresult
   }: Props = $props();
@@ -57,6 +59,7 @@
     state.snapToGrid = snapToGrid;
     state.showHelp = showHelp;
     state.nodeTimings = nodeTimings;
+    state.errorNodeId = errorNodeId;
   });
 
   setGraphState(state);

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { concatEncodedArrays } from './flatTree';
-import { createWasmWrapper, isWasmSlice, readNodeValue } from './wasm-wrapper';
+import { createWasmWrapper, isWasmSlice, readNodeValue, WasmPanicError } from './wasm-wrapper';
 
 // see fixtures/*.wat for what these modules do
 function load(name: string) {
@@ -86,8 +86,18 @@ describe('createWasmWrapper with the ABI v1', () => {
     const node = load('v1');
     node.reset();
 
-    expect(() => node.execute([])).toThrow(WebAssembly.RuntimeError);
+    expect(() => node.execute([])).toThrow(WasmPanicError);
+    expect(() => node.execute([])).toThrow('no inputs');
     expect(error).toHaveBeenCalledWith('RUST PANIC:', 'no inputs');
+  });
+
+  it('splits the location off the panic message', () => {
+    const error = new WasmPanicError(
+      'panicked at nodes/leaf/src/lib.rs:42:41:\nindex out of bounds: the len is 0 but the index is 0'
+    );
+
+    expect(error.message).toBe('index out of bounds: the len is 0 but the index is 0');
+    expect(error.location).toBe('nodes/leaf/src/lib.rs:42:41');
   });
 });
 

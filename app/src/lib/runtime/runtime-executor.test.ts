@@ -1,6 +1,7 @@
 import type { Graph, NodeDefinition, NodeValue } from '@nodarium/types';
 import { describe, expect, it } from 'vitest';
 import { createMockNodeRegistry } from '../graph-interface/test-utils';
+import { NodeExecutionError } from './errors';
 import { expandGroups, MemoryRuntimeExecutor } from './runtime-executor';
 
 // Helpers to build minimal serialized nodes/edges
@@ -312,5 +313,73 @@ describe('MemoryRuntimeExecutor', () => {
     // an empty nested array, the viewer shows no geometry for it
     expect([...received[0] as Int32Array]).toEqual([0, 1, 1, 1]);
     expect([...result]).toEqual([0, 1, 1, 1]);
+  });
+
+  const output = {
+    id: 'test/node/output',
+    inputs: { input: { type: 'path', accepts: ['geometry'], external: true } },
+    outputs: [],
+    execute: (inputs: NodeValue[]) => inputs[0]
+  } as unknown as NodeDefinition;
+  const leaf = {
+    id: 'test/node/leaf',
+    meta: { title: 'Leaf' },
+    inputs: {
+      shape: { type: 'shape', external: true },
+      size: { type: 'float', value: 1 }
+    },
+    outputs: ['geometry'],
+    execute: () => {
+      throw new Error('index out of bounds');
+    }
+  } as unknown as NodeDefinition;
+
+  it('names the failed node and its unconnected inputs', async () => {
+    const runtime = new MemoryRuntimeExecutor(createMockNodeRegistry([output, leaf]));
+    const graph: Graph = {
+      id: 0,
+      nodes: [node(0, output.id), node(1, leaf.id)],
+      edges: [edge(1, 0, 0, 'input')],
+      groups: []
+    };
+
+    const error = await runtime.execute(graph, {}).catch(e => e);
+
+    expect(error).toBeInstanceOf(NodeExecutionError);
+    expect(error.message).toBe('Leaf failed: index out of bounds (unconnected input "shape")');
+    expect(runtime.getLastError()).toMatchObject({
+      nodeId: 1,
+      nodeType: leaf.id,
+      nodeTitle: 'Leaf',
+      missingInputs: ['shape']
+    });
+
+    // a successful run clears the error
+    await runtime.execute({ ...graph, nodes: [node(0, output.id)], edges: [] }, {});
+    expect(runtime.getLastError()).toBeUndefined();
+  });
+
+  it('points errors inside a group at the group node', async () => {
+    const runtime = new MemoryRuntimeExecutor(createMockNodeRegistry([output, leaf]));
+    const graph = {
+      id: 0,
+      nodes: [node(0, output.id), {
+        ...node(5, '__internal/group/instance'),
+        props: { groupId: 1 }
+      }],
+      edges: [edge(5, 0, 0, 'input')],
+      groups: [{
+        id: 1,
+        inputs: {},
+        nodes: [
+          node(10, '__internal/group/output'),
+          node(11, leaf.id)
+        ],
+        edges: [edge(11, 0, 10, 'out_0')]
+      }]
+    } as unknown as Graph;
+
+    await expect(runtime.execute(graph, {})).rejects.toThrow('Leaf failed');
+    expect(runtime.getLastError()?.nodeId).toBe(5);
   });
 });

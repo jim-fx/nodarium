@@ -56,3 +56,7 @@ export function getDebugData() {
 export function getNodeTimings() {
   return executor.getNodeTimings();
 }
+
+export function getLastError() {
+  return executor.getLastError();
+}

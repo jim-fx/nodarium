@@ -12,7 +12,13 @@
   import { ProjectManager } from '$lib/project-manager/project-manager.svelte';
   import ProjectBrowser from '$lib/project-manager/ProjectBrowser.svelte';
   import Viewer from '$lib/result-viewer/Viewer.svelte';
-  import { MemoryRuntimeCache, MemoryRuntimeExecutor, WorkerRuntimeExecutor } from '$lib/runtime';
+  import {
+    getErrorInfo,
+    MemoryRuntimeCache,
+    MemoryRuntimeExecutor,
+    WorkerRuntimeExecutor
+  } from '$lib/runtime';
+  import { errorLog } from '$lib/runtime/error-log.svelte';
   import type { SettingsValue } from '$lib/settings';
   import { appSettings, AppSettingTypes } from '$lib/settings/app-settings.svelte';
   import MaterialPicker from '$lib/settings/MaterialPicker.svelte';
@@ -21,6 +27,7 @@
   import ActiveNodeSettings from '$lib/sidebar/panels/ActiveNodeSettings.svelte';
   import BenchmarkPanel from '$lib/sidebar/panels/BenchmarkPanel.svelte';
   import Changelog from '$lib/sidebar/panels/Changelog.svelte';
+  import ErrorLog from '$lib/sidebar/panels/ErrorLog.svelte';
   import ExportSettings from '$lib/sidebar/panels/ExportSettings.svelte';
   import GraphSource from '$lib/sidebar/panels/GraphSource.svelte';
   import GroupSettings from '$lib/sidebar/panels/GroupSettings.svelte';
@@ -92,6 +99,7 @@
   let viewerComponent = $state<ReturnType<typeof Viewer>>();
   let debugData = $state<Record<number, { type: string; data: Int32Array }>>();
   let nodeTimings = $state<Record<number, number>>({});
+  let errorNodeId = $state<number>();
   const manager = $derived(graphInterface?.manager);
 
   pm.onrenameactive = (title) => {
@@ -174,13 +182,18 @@
         }
       }
       nodeTimings = await runtime.getNodeTimings();
+      errorNodeId = undefined;
       viewerComponent?.update(graphResult);
       pm.thumbnails.schedule(g, graphResult);
     } catch (error) {
       // the viewer would keep showing the geometry of the previous graph otherwise
       viewerComponent?.update(new Int32Array());
-      const msg = error instanceof Error ? error.message : String(error);
-      toast(`Execution failed: ${msg}`, 'error');
+      // errors from the worker lose everything but their message on the way here
+      const info = (await Promise.resolve(runtime.getLastError()).catch(() => undefined))
+        ?? getErrorInfo(error);
+      errorNodeId = info.nodeId;
+      errorLog.add(info);
+      toast(info.message, 'error', 6000);
     } finally {
       clearTimeout(timeout);
       isExecuting = false;
@@ -189,6 +202,11 @@
   }
 
   const handleUpdate = debounceAsyncFunction(update);
+
+  function focusNode(nodeId: number) {
+    const node = manager?.getNode(nodeId);
+    if (node) graphInterface.state.centerNode(node);
+  }
 
   function handleSettingsButton(id: string) {
     switch (id) {
@@ -339,6 +357,7 @@
             bind:settings={graphSettings}
             bind:settingTypes={graphSettingTypes}
             {nodeTimings}
+            {errorNodeId}
             onsave={async (g) => {
               pendingSave = true;
               await pm.saveGraph(g);
@@ -396,6 +415,14 @@
           {#if manager?.status === 'idle'}
             <GraphSource graph={manager.serialize()} />
           {/if}
+        </Panel>
+        <Panel
+          id="errors"
+          title="Errors"
+          hidden={!appSettings.value.debug.advancedMode}
+          icon="i-[tabler--alert-triangle] bg-red-400"
+        >
+          <ErrorLog onfocusnode={focusNode} />
         </Panel>
         <Panel
           id="benchmark"

@@ -128,6 +128,8 @@ export class GraphState {
   backgroundType = $state<'grid' | 'dots' | 'none'>('grid');
   showHelp = $state(false);
   nodeTimings = $state<Record<number, number>>({});
+  /** Node that made the last execution fail */
+  errorNodeId = $state<number>();
 
   cameraDown = [0, 0];
   mouseDownNodeId = -1;

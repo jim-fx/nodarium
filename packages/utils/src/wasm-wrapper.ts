@@ -32,13 +32,29 @@ function viewNodeValue(value: NodeValue): Int32Array {
   return new Int32Array(value.memory.buffer, value.ptr, value.len);
 }
 
+/** A Rust panic inside a node, carries the panic message instead of "unreachable" */
+export class WasmPanicError extends Error {
+  /** Source location of the panic, like "src/lib.rs:42:41" */
+  location?: string;
+
+  constructor(panic: string, options?: ErrorOptions) {
+    // panics are formatted as "panicked at <file>:<line>:<col>:\n<message>"
+    const match = /^panicked at (\S+):\n([\s\S]*)$/.exec(panic);
+    super(match ? match[2] : panic, options);
+    this.name = 'WasmPanicError';
+    this.location = match?.[1];
+  }
+}
+
 export function createWasmWrapper(buffer: ArrayBuffer) {
   let memory: WebAssembly.Memory | undefined;
+  let lastPanic: string | undefined;
 
   const logPanic = (ptr: number, len: number) => {
     if (!memory) return;
     const view = new Uint8Array(memory.buffer, ptr, len);
-    console.error('RUST PANIC:', new TextDecoder().decode(view));
+    lastPanic = new TextDecoder().decode(view);
+    console.error('RUST PANIC:', lastPanic);
   };
   const log = (ptr: number, len: number) => {
     if (!memory) return;
@@ -128,8 +144,14 @@ export function createWasmWrapper(buffer: ArrayBuffer) {
   );
 
   function execute(inputs: NodeValue[]): NodeValue {
-    if (isV1) return executeV1(getExports() as NodariumExports, inputs);
-    return executeLegacy(getExports() as LegacyExports, inputs);
+    lastPanic = undefined;
+    try {
+      if (isV1) return executeV1(getExports() as NodariumExports, inputs);
+      return executeLegacy(getExports() as LegacyExports, inputs);
+    } catch (error) {
+      if (lastPanic !== undefined) throw new WasmPanicError(lastPanic, { cause: error });
+      throw error;
+    }
   }
 
   function reset() {

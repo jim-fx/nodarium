@@ -23,12 +23,15 @@
 
   const isActive = $derived(graphState.activeNodeId === node.id);
   const isSelected = $derived(graphState.selectedNodes.has(node.id));
+  const hasError = $derived(graphState.errorNodeId === node.id);
   const strokeColor = $derived(
     appSettings.value.theme
       && (isSelected
         ? colors.selected
         : isActive
         ? colors.active
+        : hasError
+        ? colors.error
         : colors.outline)
   );
 
@@ -90,4 +93,4 @@
   />
 </T.Mesh>
 
-<NodeHtml bind:node {inView} {isActive} {isSelected} z={zoom} />
+<NodeHtml bind:node {inView} {isActive} {isSelected} {hasError} z={zoom} />

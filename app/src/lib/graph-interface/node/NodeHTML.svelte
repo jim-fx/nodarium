@@ -14,6 +14,7 @@
     position?: 'absolute' | 'fixed' | 'relative';
     isActive?: boolean;
     isSelected?: boolean;
+    hasError?: boolean;
     inView?: boolean;
     z?: number;
   };
@@ -23,6 +24,7 @@
     position = 'absolute',
     isActive = false,
     isSelected = false,
+    hasError = false,
     inView = true,
     z = 2
   }: Props = $props();
@@ -53,6 +55,7 @@
   style:--cz={z + zOffset}
   style:display={inView && z > zLimit ? 'block' : 'none'}
   class:selected={isSelected}
+  class:error={hasError}
   class:out-of-view={!inView}
   data-node-id={node.id}
   data-node-type={node.type}
@@ -82,6 +85,11 @@
     opacity: calc((var(--cz) - 2.5) / 3.5);
     font-weight: 300;
     --stroke: var(--color-outline);
+    --stroke-width: 2px;
+  }
+
+  .node.error {
+    --stroke: var(--color-error);
     --stroke-width: 2px;
   }
 

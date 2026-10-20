@@ -14,12 +14,17 @@ import {
   type PerformanceStore,
   readNodeValue
 } from '@nodarium/utils';
+import { getErrorInfo, NodeExecutionError, type RuntimeErrorInfo } from './errors';
 import type { RuntimeNode } from './types';
 
 const log = createLogger('runtime-executor');
 log.mute();
 
-export function expandGroups(graph: Graph): Graph {
+/**
+ * @param origins filled with the ID of the outermost group node every expanded
+ * node comes from, so errors can point at a node that is visible in the editor
+ */
+export function expandGroups(graph: Graph, origins?: Map<number, number>): Graph {
   if (!graph.groups || graph.groups.length === 0) return graph;
 
   function groupContainsSelf(groupId: number, visited = new Set<number>()): boolean {
@@ -81,7 +86,11 @@ export function expandGroups(graph: Graph): Graph {
         n => n.type !== '__internal/group/input' && n.type !== '__internal/group/output'
       );
 
-      for (const n of realNodes) idMap.set(n.id, createExpandedId(node.id, n.id));
+      for (const n of realNodes) {
+        const id = createExpandedId(node.id, n.id);
+        idMap.set(n.id, id);
+        origins?.set(id, origins.get(node.id) ?? node.id);
+      }
 
       const incomingExternal = edges.filter(e => e[2] === node.id);
       const outgoingExternal = edges.filter(e => e[0] === node.id);
@@ -221,6 +230,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   // execution time in ms of every node of the last run, cached nodes keep
   // the time of the run that computed their result
   private nodeTimings: Record<number, number> = {};
+  private lastError: RuntimeErrorInfo | undefined;
 
   perf?: PerformanceStore;
 
@@ -322,13 +332,24 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   }
 
   async execute(graph: Graph, settings: Record<string, unknown>) {
+    this.lastError = undefined;
+    try {
+      return await this.executeGraph(graph, settings);
+    } catch (error) {
+      this.lastError = getErrorInfo(error);
+      throw error;
+    }
+  }
+
+  private async executeGraph(graph: Graph, settings: Record<string, unknown>) {
     this.perf?.addPoint('runtime');
 
     let a = performance.now();
     this.debugData = {};
 
     // Expand group nodes into a flat graph before execution
-    graph = expandGroups(graph);
+    const origins = new Map<number, number>();
+    graph = expandGroups(graph, origins);
 
     // Then we add some metadata to the graph
     const [outputNode, nodes] = await this.addMetaData(graph);
@@ -380,6 +401,15 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       a = performance.now();
 
       const keyParts: (string | number)[] = [node.type];
+      // inputs that fell back to an empty value, nodes may panic on these
+      const missingInputs: string[] = [];
+      const nodeError = (cause: unknown) =>
+        new NodeExecutionError(
+          cause,
+          { id: origins.get(node.id) ?? node.id, type: node.type },
+          node_type,
+          missingInputs
+        );
 
       // Collect the inputs for the node
       const inputs = Object.entries(node_type.inputs || {}).map(
@@ -390,8 +420,8 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
             : undefined;
           if (inputNode) {
             if (results[inputNode.id] === undefined) {
-              throw new Error(
-                `Node ${node.type} is missing input from node ${inputNode.type}#${inputNode.id}`
+              throw nodeError(
+                `input "${key}" did not receive a result from ${inputNode.type}#${inputNode.id}`
               );
             }
             keyParts.push(cacheKeys[inputNode.id]);
@@ -408,6 +438,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
             // If the value is stored in the node itself, we use that value
             value = getValue(input, node.props[key]);
           } else {
+            if (!('value' in input) || input.value === undefined) missingInputs.push(key);
             value = getValue(input);
           }
 
@@ -474,7 +505,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         log.groupEnd();
       } catch (e) {
         log.groupEnd();
-        throw e;
+        throw nodeError(e);
       }
     }
 
@@ -503,5 +534,10 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
   getNodeTimings() {
     return this.nodeTimings;
+  }
+
+  /** Details of the error of the last run, if it failed */
+  getLastError() {
+    return this.lastError;
   }
 }
