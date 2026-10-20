@@ -50,7 +50,9 @@ jobs:
             IdentityFile ~/.ssh/id_ed25519
             IdentitiesOnly yes
           EOF
-          ssh-keyscan -p 22 -H git.max-richter.dev >> ~/.ssh/known_hosts
+          # Gitea's host key, pinned: ssh-keyscan asks for every key type,
+          # and Gitea logs each one it doesn't have as a failed login.
+          echo "git.max-richter.dev ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCdSw3zsLJfaylQeCRR/WONLn4aq9hd2xUFbE0R7e5b4qxB50GAHmT5w3jth2nGeYLVQsTPEaAW+4XYeqQVEAQzzgJgEvy2hCSCdHEB6e3nf/bAXZDy3yGTdPGc7T8NaSNBEDegt7x9GT5Gq9HFrMyknSx9PBXpo3k75KYmKvP5sNMpALQ4EJGAKna0fLKp2YjM45SU2sM9x2G09a0xAklJcbMIuIHwiUMSrAuDhADuJZ3e7Q8Y/h9YkTs1tvYgmKvIQCaf+Qk0vHdTeDdotd0M/XXkYX4lttppH2ipS084+Z6IMLooEjBWsuC+0WXg6MtxktIpMPBjAfmVY0yzmFTNai6AXGDRtU/6rHiAmZNmYo/px/Oc1wxQZxkwLBRC9LCv+KJi6xeFdmKUevjwVFJZKcRjQEXbN7DD9l4dOJtVtrihHZl3X1rt7oQM6+A2JwoKmK7BTSm8e09UoqNBMZ9UWuo4s4mqmilgDzCwAyeubOlTHdFdYdvN5WqiLsVQlUPVpLGSVflflwT6rYVWL5WuGRqJszxbANq8uyjzD3lghxS8jiGCbvEfOKFcFy9jmYVXKpCApKQj+9dTuV/ihFSpzYVFrVpxCjvaxZGgZaaaAUVFZr/71CSkodcc4wmtR6/x7e+Ht26ZwmWw/pc3hy9sev4wDLqXZbzkkbKIkybitQ==" >> ~/.ssh/known_hosts
 
       - name: 📤 Push Results
         env:
