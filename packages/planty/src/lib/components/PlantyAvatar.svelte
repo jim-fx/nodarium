@@ -6,9 +6,11 @@
     x: number;
     y: number;
     mood?: Mood;
+    /** Called while the user drags the avatar */
+    ondrag?: () => void;
   }
 
-  let { x = $bindable(0), y = $bindable(0), mood = 'idle' }: Props = $props();
+  let { x = $bindable(0), y = $bindable(0), mood = 'idle', ondrag }: Props = $props();
 
   // ── Drag ─────────────────────────────────────────────────────────────
   let dragging = $state(false);
@@ -29,6 +31,7 @@
     if (!dragging) return;
     x = Math.max(Math.min(e.clientX - dragOffsetX, window.innerWidth - 45), 5);
     y = Math.max(Math.min(e.clientY - dragOffsetY, window.innerHeight - 75), 5);
+    ondrag?.();
   }
 
   function onPointerUp() {
@@ -99,8 +102,7 @@
 
 <div
   class="avatar"
-  role="button"
-  tabindex="0"
+  aria-hidden="true"
   in:scale={{ duration: 400, delay: 300 }}
   class:mood-idle={displayMood === 'idle'}
   class:mood-thinking={displayMood === 'thinking'}
@@ -421,6 +423,14 @@
   		transform: scaleY(0.05);
   	}
   }
+  @media (prefers-reduced-motion: reduce) {
+  	.avatar,
+  	.avatar * {
+  		animation: none !important;
+  		transition: none !important;
+  	}
+  }
+
   .pupil {
   	transform-box: fill-box;
   	transform-origin: center;

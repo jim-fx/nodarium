@@ -33,20 +33,54 @@ export class DialogRunner {
     return { id: choice.next, node };
   }
 
-  /** Walk the main path (first choice for choice nodes) and return all node IDs. */
-  getMainPath(): string[] {
-    const path: string[] = [];
+  /** Follow the `next` links from `id` and return all node IDs, including `id`. */
+  getChain(id: string): string[] {
+    const chain: string[] = [];
     const visited = new Set<string>();
-    let id: string | null = this.config.start;
-    while (id && !visited.has(id)) {
-      visited.add(id);
-      path.push(id);
-      const node = this.getNode(id);
-      if (!node) break;
-      const next = node.choices?.[0]?.next ?? node.next;
-      if (next) id = next;
-      else break;
+    let current: string | null | undefined = id;
+    while (current && !visited.has(current) && this.getNode(current)) {
+      visited.add(current);
+      chain.push(current);
+      current = this.getNode(current)?.next;
     }
-    return path;
+    return chain;
+  }
+
+  /** Return a list of problems: missing start, dangling links and unreachable nodes. */
+  validate(): string[] {
+    const problems: string[] = [];
+    const { start, nodes } = this.config;
+    if (!nodes[start]) problems.push(`start node "${start}" does not exist`);
+
+    for (const [id, node] of Object.entries(nodes)) {
+      if (node.next && !nodes[node.next]) {
+        problems.push(`"${id}" links to missing node "${node.next}"`);
+      }
+      for (const choice of node.choices ?? []) {
+        if (choice.next && !nodes[choice.next]) {
+          problems.push(
+            `choice "${choice.label}" of "${id}" links to missing node "${choice.next}"`
+          );
+        }
+      }
+    }
+
+    const reachable = new Set<string>();
+    const queue = nodes[start] ? [start] : [];
+    while (queue.length) {
+      const id = queue.pop()!;
+      if (reachable.has(id)) continue;
+      reachable.add(id);
+      const node = nodes[id];
+      const links = [node.next, ...(node.choices ?? []).map((c) => c.next)];
+      for (const link of links) {
+        if (link && nodes[link]) queue.push(link);
+      }
+    }
+    for (const id of Object.keys(nodes)) {
+      if (!reachable.has(id)) problems.push(`"${id}" is unreachable`);
+    }
+
+    return problems;
   }
 }

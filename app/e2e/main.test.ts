@@ -6,6 +6,11 @@ test('test', async ({ page }) => {
     console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`);
   });
 
+  // keep the tutorial from auto-starting on the first visit
+  await page.addInitScript(() => {
+    localStorage.setItem('planty:nodarium-tutorial:seen', 'e2e');
+  });
+
   await page.goto('http://localhost:4173', { waitUntil: 'load' });
 
   await page.getByRole('button', { name: 'File', exact: true }).click();

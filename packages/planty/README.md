@@ -1,65 +1,101 @@
-# Svelte library
+# @nodarium/planty
 
-Everything you need to build a Svelte library, powered by [`sv`](https://npmjs.com/package/sv).
+Planty is a small in-app tour guide for Svelte 5. A dialog graph describes the steps; each step
+can move the avatar, highlight an element, run an app action and wait for the user to do
+something before it continues.
 
-Read more about creating a library [in the docs](https://svelte.dev/docs/kit/packaging).
+## Usage
 
-## Creating a project
+```svelte
+<script lang="ts">
+  import { Planty, type PlantyConfig } from '@nodarium/planty';
 
-If you're seeing this, you've probably already done this step. Congrats!
+  const config: PlantyConfig = {
+    id: 'my-tour',
+    start: 'hello',
+    nodes: {
+      hello: {
+        position: 'center',
+        text: '# Hi!\nWant a tour?',
+        choices: [
+          { label: 'Yes', next: 'canvas' },
+          { label: 'No thanks', next: null }
+        ]
+      },
+      canvas: {
+        position: 'bottom-left',
+        highlight: { selector: '#canvas', padding: 12 },
+        text: 'Add a node to continue.'
+      }
+    }
+  };
 
-```sh
-# create a new project in the current directory
-npx sv create
+  let planty: ReturnType<typeof Planty>;
+</script>
 
-# create a new project in my-app
-npx sv create my-app
+<Planty
+  bind:this={planty}
+  {config}
+  autoStart
+  hooks={{
+    'action:canvas': (advance) => editor.on('node-added', advance)
+  }}
+/>
+<button onclick={() => planty.start()}>Tutorial</button>
 ```
 
-To recreate this project with the same configuration:
+## Config
+
+| Field                 | Description                                                                                         |
+| --------------------- | --------------------------------------------------------------------------------------------------- |
+| `id`                  | Unique id, also used for the `planty:<id>:seen` localStorage key of `autoStart`                     |
+| `start`               | Id of the first node                                                                                |
+| `avatar`              | `name` (used as the bubble's accessible label) and `defaultPosition`                                |
+| `nodes[id].text`      | Bubble text. Supports `# heading`, `**bold**`, `*italic*`, `` `code` `` and line breaks             |
+| `nodes[id].position`  | An anchor (`top-left`, `top-right`, `bottom-left`, `bottom-right`, `center`, `right`) or `{ x, y }` |
+| `nodes[id].highlight` | `{ selector }` or `{ hookName }` plus optional `padding`                                            |
+| `nodes[id].action`    | Name of an entry in `actions` to run when the node is entered                                       |
+| `nodes[id].next`      | Id of the next node, shows a **Next** button                                                        |
+| `nodes[id].choices`   | Buttons with `next` (navigate, `null` ends the tour) or `action` (run an action and stay)           |
+
+A node without `next` or `choices` ends the tour after a few seconds. `DialogRunner#validate()`
+lists dangling links and unreachable nodes, Planty also logs them as a warning.
+
+## Props
+
+| Prop           | Description                                                                         |
+| -------------- | ----------------------------------------------------------------------------------- |
+| `config`       | The dialog graph                                                                    |
+| `actions`      | `Record<string, () => void \| Cleanup>`, referenced by `action` in nodes or choices |
+| `hooks`        | Step hooks, see below                                                               |
+| `autoStart`    | Start on mount unless the tour has been started before in this browser              |
+| `onStepChange` | Called with the id and node whenever a node is entered                              |
+| `onComplete`   | Called when the tour is closed or ends                                              |
+
+`bind:this` exposes `start()`, `stop()`, `next()` and `registerHook(name, fn)`.
+
+### Hooks
+
+| Key             | Signature                      | When                                                 |
+| --------------- | ------------------------------ | ---------------------------------------------------- |
+| `before:<node>` | `(id, node) => void`           | Before the avatar moves to the node                  |
+| `after:<node>`  | `(id, node) => void`           | When the user leaves the node                        |
+| `action:<node>` | `(advance) => void \| Cleanup` | After the node is shown, call `advance()` to move on |
+| `<hookName>`    | `() => Element \| null`        | Resolves the element for a `{ hookName }` highlight  |
+
+Cleanups returned by actions and `action:` hooks run as soon as the user leaves the node, closes
+the tour or restarts it, so listeners never outlive their step.
+
+## Keyboard
+
+**Enter** finishes the typing animation or goes to the next step, **Esc** closes the tour.
+Clicking the text also finishes the animation. Animations are skipped when the user prefers
+reduced motion.
+
+## Development
 
 ```sh
-# recreate this project
-pnpm dlx sv@0.15.1 create --template library --types ts --add prettier eslint tailwindcss="plugins:none" --install pnpm planty
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-Everything inside `src/lib` is part of your library, everything inside `src/routes` can be used as a showcase or preview app.
-
-## Building
-
-To build your library:
-
-```sh
-npm pack
-```
-
-To create a production version of your showcase app:
-
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
-
-## Publishing
-
-Go into the `package.json` and give your package the desired name through the `"name"` option. Also consider adding a `"license"` field and point it to a `LICENSE` file which you can create from a template (one popular option is the [MIT license](https://opensource.org/license/mit/)).
-
-To publish your library to [npm](https://www.npmjs.com):
-
-```sh
-npm publish
+pnpm dev     # demo page in src/routes
+pnpm check
+pnpm lint
 ```

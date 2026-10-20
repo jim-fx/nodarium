@@ -37,7 +37,7 @@ export const AppSettingTypes = {
     id: {
       type: 'custom',
       label: '',
-      value: 'plant' as string
+      value: 'matcap' as string
     }
   },
   nodeInterface: {

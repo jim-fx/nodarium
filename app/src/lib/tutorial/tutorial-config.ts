@@ -33,7 +33,7 @@ export const tutorialConfig: PlantyConfig = {
 
     tour_viewer: {
       position: 'top-left',
-      highlight: { selector: '.cell:first-child', padding: 8 },
+      highlight: { selector: '[data-planty="viewer"]', padding: 8 },
       text:
         'This is the **3D viewer** — the live preview of your plant.\nLeft-click to rotate · right-click to pan · scroll to zoom.',
       next: 'try_params'
@@ -51,7 +51,7 @@ export const tutorialConfig: PlantyConfig = {
       position: 'center',
       action: 'load-tutorial-template',
       text:
-        "Now let's build your own plant from scratch!\nI've loaded a blank project — it only has an **Output** node. Your goal: connect nodes to make a plant.",
+        "Now let's build your own plant from scratch!\nI've cleared the project — it only has an **Output** node. Your goal: connect nodes to make a plant.",
       next: 'add_stem_node'
     },
 
@@ -75,7 +75,7 @@ export const tutorialConfig: PlantyConfig = {
       position: 'bottom-right',
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
-        "Let's add some randomness! Add a **Random** node and connect its output to the **thickness** or **length** input of the Stem node.\nThe default min/max range is small — **Ctrl+drag** any number field to exceed its normal limits.",
+        "Let's add some randomness! Add a **Random** node and connect its output to the **length** input of the Stem node.\nIt picks a value between *min* and *max* — try 3 and 8. **Ctrl+drag** any number field to exceed its normal limits.",
       next: 'prompt_regenerate'
     },
 
@@ -99,7 +99,7 @@ export const tutorialConfig: PlantyConfig = {
       position: 'center',
       highlight: { selector: '.title-bar', padding: 4 },
       text:
-        'Your work is saved automatically. Click the **project name** to rename it, or use the **File** menu to create, open and export projects.',
+        'Your work is saved automatically. Click the **project name** (or press **F2**) to rename it, or use the **File** menu to create, open and export projects.',
       next: 'congrats'
     },
 
@@ -111,6 +111,7 @@ export const tutorialConfig: PlantyConfig = {
         { label: '🔗 How do node connections work?', next: 'connections_intro' },
         { label: '💡 Ideas for improving this plant', next: 'improvements_hint' },
         { label: '⌨️ Keyboard shortcuts', next: 'shortcuts_tour' },
+        { label: '📦 Exporting my plant', next: 'export_tour' },
         { label: "I'm ready to build!", next: null }
       ]
     },
@@ -134,7 +135,7 @@ export const tutorialConfig: PlantyConfig = {
 
     tour_viewer_nerd: {
       position: 'top-left',
-      highlight: { selector: '.cell:first-child', padding: 8 },
+      highlight: { selector: '[data-planty="viewer"]', padding: 8 },
       text:
         'The **3D viewer** uses `@threlte/core` (Svelte + Three.js). Mesh data streams from WASM execution results. OrbitControls: left-drag rotate, right-drag pan, scroll zoom.',
       next: 'tour_runtime_nerd'
@@ -152,7 +153,7 @@ export const tutorialConfig: PlantyConfig = {
     connections_intro: {
       position: 'bottom-right',
       text:
-        'Node sockets are **type-checked**. The coloured dots tell you what kind of data flows through:\n🔵 `number` · 🟢 `vec3` · 🟣 `shape` · ⚪ `*` (wildcard)',
+        'Node sockets are **type-checked**. Each data type — `path`, `float`, `vec3`, … — has its own socket colour, and `*` sockets accept anything.',
       next: 'connections_rules'
     },
 
@@ -178,7 +179,7 @@ export const tutorialConfig: PlantyConfig = {
     params_tip: {
       position: 'right',
       text:
-        'Pro tips:\n• Parameters can be connected from other nodes — drag an edge to the input socket\n• The **Random Seed** in Graph Settings gives you the same result every run\n• **f** key smart-connects two selected nodes · **Ctrl+Delete** removes a node and restores its edges',
+        'Pro tips:\n• Parameters can be connected from other nodes — drag an edge to the input socket\n• Turn on **randomSeed** in Graph Settings to get a new variation on every change — leave it off for reproducible results\n• **f** key smart-connects two selected nodes · **Ctrl+Delete** removes a node and restores its edges',
       choices: [
         { label: '🔗 How connections work', next: 'connections_intro' },
         { label: '💡 Plant improvement ideas', next: 'improvements_hint' },
@@ -224,14 +225,14 @@ export const tutorialConfig: PlantyConfig = {
     export_tour: {
       position: 'right',
       text:
-        'Export your 3D model from the **📦 Export** panel:\n**GLB** — standard for 3D apps (Blender, Three.js)\n**OBJ** — legacy format · **STL** — 3D printing · **PNG** — screenshot',
+        'Export your 3D model from the **📦 Exporter** panel:\n**glTF** — standard for 3D apps (Blender, Three.js)\n**OBJ** — widely supported, geometry only',
       next: 'congrats'
     },
 
     improvements_hint: {
       position: 'center',
       text:
-        '# Ideas to grow your plant 🌿\n• Add a **Vec3** node → connect to *origin* on the Stem to spread stems across 3D space\n• Use a **Random** node on a parameter so each run produces a unique shape\n• Chain **multiple Stem nodes** with different settings for complex branching\n• Add a **Gravity** or **Branch** node for even more organic results',
+        '# Ideas to grow your plant 🌿\n• Add a **Branch** node after the Stem — chain several for finer branching\n• Add a **Gravity** node to make the stems droop\n• Raise the Stem *amount* and use a **Random** node on a parameter so each run produces a unique shape\n• Connect a **Vec3** node to the Stem *origin* to move where it grows',
       choices: [
         { label: '⌨️ Keyboard shortcuts', next: 'shortcuts_tour' },
         { label: "Let's build! 🌿", next: null }

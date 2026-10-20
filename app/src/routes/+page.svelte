@@ -4,6 +4,7 @@
   import Grid from '$lib/grid';
   import { debounceAsyncFunction } from '$lib/helpers';
   import { createKeyMap } from '$lib/helpers/createKeyMap';
+  import { localState } from '$lib/helpers/localState.svelte';
   import { debugNode } from '$lib/node-registry/debugNode';
   import { groupNode } from '$lib/node-registry/groupNode.js';
   import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
@@ -35,9 +36,10 @@
   import { panelState } from '$lib/sidebar/PanelState.svelte';
   import Sidebar from '$lib/sidebar/Sidebar.svelte';
   import TitleBar from '$lib/title-bar/TitleBar.svelte';
+  import { tutorialChecks } from '$lib/tutorial/tutorial-checks';
   import { tutorialConfig } from '$lib/tutorial/tutorial-config';
-  import { Planty } from '@nodarium/planty';
-  import type { Graph, NodeInstance } from '@nodarium/types';
+  import { Planty, type StepActionHook } from '@nodarium/planty';
+  import type { Edge, Graph, NodeInstance } from '@nodarium/types';
   import { Spinner, Toast, toast } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
   import type { Group } from 'three';
@@ -47,6 +49,10 @@
   let pendingSave = $state(false);
   let titleBar = $state<ReturnType<typeof TitleBar>>();
   let projectBrowserOpen = $state(false);
+  /** The project the tutorial builds in, reused on every run (-1 = none yet) */
+  const tutorialProjectId = localState('node.tutorialProjectId', -1);
+  /** Set while the tutorial waits for the user to press R */
+  let onRegenerate: (() => void) | undefined;
 
   const { data } = $props();
 
@@ -106,6 +112,21 @@
     if (manager) manager.meta = { ...manager.meta, title };
   };
 
+  /** Tutorial step hook that advances once the graph passes `check` */
+  function waitForGraph(check: (edges: Edge[]) => boolean): StepActionHook {
+    return (advance) => {
+      const m = manager;
+      if (!m) return;
+      if (check(m.edges)) {
+        advance();
+        return;
+      }
+      return m.on('save', () => {
+        if (check(m.edges)) advance();
+      });
+    };
+  }
+
   async function randomGenerate() {
     if (!manager) return;
     const g = manager.serialize();
@@ -117,7 +138,10 @@
     {
       key: 'r',
       description: 'Regenerate the plant model',
-      callback: () => randomGenerate()
+      callback: () => {
+        randomGenerate();
+        onRegenerate?.();
+      }
     },
     {
       key: 'o',
@@ -243,17 +267,25 @@
 <Planty
   bind:this={planty}
   config={tutorialConfig}
+  autoStart
   actions={{
-    'setup-default': () => {
-      console.log('setup-default');
-      const ts = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      pm.handleCreateProject(
-        structuredClone(templates.defaultPlant) as unknown as Graph,
-        `Tutorial Project (${ts})`
-      );
+    'setup-default': async () => {
+      const graph = structuredClone(templates.defaultPlant) as unknown as Graph;
+      const existing = pm.projects.find((p) => p.id === tutorialProjectId.value);
+      if (!existing) {
+        tutorialProjectId.value = pm.handleCreateProject(graph, 'Tutorial Project');
+        return;
+      }
+      graph.id = existing.id;
+      graph.meta = { ...existing.meta, lastModified: new Date().toISOString() };
+      if (pm.activeId === existing.id && manager) {
+        manager.load(graph);
+      } else {
+        await pm.saveGraph(graph);
+        await pm.handleSelectProject(existing.id);
+      }
     },
     'load-tutorial-template': () => {
-      console.log('load-tutorial-template');
       if (!pm.graph) return;
       const g = structuredClone(templates.tutorial) as unknown as Graph;
       g.id = pm.graph.id;
@@ -262,52 +294,20 @@
       graphInterface.state.centerNode(graphInterface.manager.getAllNodes()[0]);
     },
     'open-github-nodes': () => {
-      console.log('open-github-nodes');
       window.open(
         'https://github.com/jim-fx/nodarium/tree/main/nodes/max/plantarium',
-        '__blank'
+        '_blank',
+        'noopener'
       );
     }
   }}
   hooks={{
-    'action:add_stem_node': (cb) => {
-      const unsub = manager.on('save', () => {
-        const allNodes = graphInterface.manager.getAllNodes();
-        const stemNode = allNodes.find(n => n.type === 'max/plantarium/stem');
-        if (stemNode && graphInterface.manager.edges.length) {
-          unsub();
-          (cb as () => void)();
-        }
-      });
-    },
-    'action:add_noise_node': (cb) => {
-      const unsub = manager.on('save', () => {
-        const allNodes = graphInterface.manager.getAllNodes();
-        const noiseNode = allNodes.find(n => n.type === 'max/plantarium/noise');
-        if (noiseNode && graphInterface.manager.edges.length > 1) {
-          unsub();
-          (cb as () => void)();
-        }
-      });
-    },
-    'action:add_random_node': (cb) => {
-      const unsub = manager.on('save', () => {
-        const allNodes = graphInterface.manager.getAllNodes();
-        const noiseNode = allNodes.find(n => n.type === 'max/plantarium/random');
-        if (noiseNode && graphInterface.manager.edges.length > 2) {
-          unsub();
-          (cb as () => void)();
-        }
-      });
-    },
-    'action:prompt_regenerate': (cb) => {
-      function handleKeydown(e: KeyboardEvent) {
-        if (e.key === 'r') {
-          window.removeEventListener('keydown', handleKeydown);
-          (cb as () => void)();
-        }
-      }
-      window.addEventListener('keydown', handleKeydown);
+    'action:add_stem_node': waitForGraph(tutorialChecks.stemToOutput),
+    'action:add_noise_node': waitForGraph(tutorialChecks.noiseBetweenStemAndOutput),
+    'action:add_random_node': waitForGraph(tutorialChecks.randomOnStem),
+    'action:prompt_regenerate': (advance) => {
+      onRegenerate = advance;
+      return () => (onRegenerate = undefined);
     },
     'before:save_project': () => panelState.setActivePanel(''),
     'before:export_tour': () => panelState.setActivePanel('exports'),
@@ -327,7 +327,7 @@
   />
   <Grid.Row>
     <Grid.Cell>
-      <div class="viewer-cell">
+      <div class="viewer-cell" data-planty="viewer">
         <Viewer
           bind:scene
           bind:this={viewerComponent}
