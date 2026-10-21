@@ -102,40 +102,32 @@
     }
   }
 
-  let internalValue = $state(getDefaultValue());
+  // The value as shown by the input, always derived from `value`
+  const internalValue = $derived(getDefaultValue());
 
-  let open = $state(false);
-
-  // Sync internalValue back into `value`
-  $effect(() => {
-    if (key === '' || internalValue === undefined) return;
+  function setInternalValue(newValue: unknown) {
+    if (key === '' || newValue === undefined) return;
 
     const node = type[key];
+    let result = newValue;
 
+    // select input: the input works with an index into options
     if (
       isNodeInput(node)
       && 'options' in node
       && Array.isArray(node.options)
-      && typeof internalValue === 'number'
+      && typeof newValue === 'number'
     ) {
-      value[key] = node?.options?.[internalValue];
-    } else if (internalValue !== undefined) {
-      value[key] = internalValue;
+      result = node.options[newValue];
     }
-  });
 
-  onMount(() => {
-    open = openSections.value[id];
-
-    // Persist <details> open/closed state for groups
-    if (depth > 0 && !isNodeInput(type[key!])) {
-      $effect(() => {
-        if (open !== undefined) {
-          openSections.value[id] = open;
-        }
-      });
+    if (result !== undefined && value[key] !== result) {
+      value[key] = result as SettingsValue[string];
     }
-  });
+  }
+
+  // Populate `value` with the defaults of inputs that have no value yet
+  onMount(() => setInternalValue(internalValue));
 </script>
 
 {#if key && isNodeInput(type?.[key])}
@@ -149,7 +141,7 @@
       {#if inputType.label !== ''}
         <label for={id}>{inputType.label || key}</label>
       {/if}
-      {@render customInput?.(String(internalValue), (v) => (internalValue = v))}
+      {@render customInput?.(String(internalValue), setInternalValue)}
     {:else}
       {#if inputAction}
         <div class="label-row flex items-center justify-between gap-2">
@@ -161,7 +153,7 @@
       {:else if inputType.label !== ''}
         <label for={id}>{inputType.label || key}</label>
       {/if}
-      <Input {id} input={inputType} bind:value={internalValue} />
+      <Input {id} input={inputType} bind:value={() => internalValue, setInternalValue} />
     {/if}
   </div>
 {:else if depth === 0}
@@ -182,7 +174,7 @@
   {#if depth > 0}
     <hr />
   {/if}
-  <details bind:open>
+  <details bind:open={() => openSections.value[id] ?? false, (v) => (openSections.value[id] = v)}>
     <summary><p>{(type[key] as SettingsGroup).title || key}</p></summary>
     <div class="content">
       {#each Object.keys(type[key] as SettingsGroup).filter((k) => k !== 'title') as childKey (childKey)}

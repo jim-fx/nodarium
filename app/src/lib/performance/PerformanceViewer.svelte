@@ -177,6 +177,25 @@
   );
 </script>
 
+{#snippet row(
+  value: string | number,
+  unit: string | undefined,
+  label: string,
+  type?: string,
+  hint?: string,
+  clickable = true
+)}
+  <tr>
+    <td>{value}{#if unit}<span>{unit}</span>{/if}</td>
+    <td
+      class:active={type !== undefined && activeType === type}
+      onclick={type !== undefined && clickable ? () => (activeType = type) : undefined}
+    >
+      {label}{#if hint}<span>{hint}</span>{/if}
+    </td>
+  </tr>
+{/snippet}
+
 {#if data.length !== 0}
   {#if activeType === 'cache-hit'}
     <Monitor
@@ -208,34 +227,13 @@
 
     <table>
       <tbody>
-        <tr>
-          <td>
-            {computedTotalDisplay}<span>ms</span>
-          </td>
-          <td
-            class:active={activeType === 'total'}
-            onclick={() => (activeType = 'total')}
-          >
-            total<span>({computedFps}fps)</span>
-          </td>
-        </tr>
+        {@render row(computedTotalDisplay, 'ms', 'total', 'total', `(${computedFps}fps)`)}
 
         {#each performanceData as [key, value] (key)}
-          <tr>
-            <td>{round(value)}<span>ms</span></td>
-            <td
-              class:active={activeType === key}
-              onclick={() => (activeType = key)}
-            >
-              {key}
-            </td>
-          </tr>
+          {@render row(round(value), 'ms', key, key)}
         {/each}
 
-        <tr>
-          <td>{data.length}</td>
-          <td>Samples</td>
-        </tr>
+        {@render row(data.length, undefined, 'Samples')}
       </tbody>
 
       <tbody>
@@ -243,26 +241,10 @@
       </tbody>
 
       <tbody>
-        <tr>
-          <td>{showAverage ? cacheRatio.average : cacheRatio.onlyLast}<span>%</span></td>
-          <td
-            class:active={activeType === 'cache-hit'}
-            onclick={() => (activeType = 'cache-hit')}
-          >
-            cache hits
-          </td>
-        </tr>
+        {@render row(showAverage ? cacheRatio.average : cacheRatio.onlyLast, '%', 'cache hits', 'cache-hit')}
 
         {#each nodePerformanceData as [key, value] (key)}
-          <tr>
-            <td>{round(value)}<span>ms</span></td>
-            <td
-              class:active={activeType === key}
-              onclick={() => (activeType = key)}
-            >
-              {key.split('/').slice(-1).join('/')}
-            </td>
-          </tr>
+          {@render row(round(value), 'ms', key.split('/').slice(-1).join('/'), key, undefined, false)}
         {/each}
       </tbody>
 
@@ -271,25 +253,11 @@
       </tbody>
 
       <tbody>
-        <tr>
-          <td>{humanizeNumber(getLast('total-vertices'))}</td>
-          <td>Vertices</td>
-        </tr>
-        <tr>
-          <td>{humanizeNumber(getLast('total-faces'))}</td>
-          <td>Faces</td>
-        </tr>
+        {@render row(humanizeNumber(getLast('total-vertices')), undefined, 'Vertices')}
+        {@render row(humanizeNumber(getLast('total-faces')), undefined, 'Faces')}
 
         {#each viewerPerformanceData as [key, value] (key)}
-          <tr>
-            <td>{round(value)}<span>ms</span></td>
-            <td
-              class:active={activeType === key}
-              onclick={() => (activeType = key)}
-            >
-              {key.split('/').slice(-1).join('/')}
-            </td>
-          </tr>
+          {@render row(round(value), 'ms', key.split('/').slice(-1).join('/'), key)}
         {/each}
       </tbody>
     </table>

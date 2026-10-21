@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { NodeId, NodeInstance } from '@nodarium/types';
   import { HTML } from '@threlte/extras';
-  import { onMount } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
 
   type Props = {
@@ -25,7 +25,6 @@
   const graph = getGraphManager();
   const graphState = getGraphState();
 
-  let input: HTMLInputElement;
   let value = $state<string>();
   let activeNodeId = $state<NodeId>();
 
@@ -136,10 +135,10 @@
     }
   });
 
-  onMount(() => {
-    input.disabled = false;
-    setTimeout(() => input.focus(), 50);
-  });
+  const focusOnMount: Attachment<HTMLInputElement> = (el) => {
+    const timeout = setTimeout(() => el.focus(), 50);
+    return () => clearTimeout(timeout);
+  };
 </script>
 
 <HTML
@@ -155,10 +154,9 @@
         aria-label="Search for a node type"
         role="searchbox"
         placeholder="Search..."
-        disabled={false}
         onkeydown={handleKeyDown}
         bind:value
-        bind:this={input}
+        {@attach focusOnMount}
       />
     </div>
 

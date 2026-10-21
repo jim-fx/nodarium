@@ -13,7 +13,7 @@
     node: NodeInstance | undefined;
   };
 
-  const { manager, node = $bindable() }: Props = $props();
+  const { manager, node }: Props = $props();
 
   function filterInputs(inputs?: Record<string, NodeInput>) {
     if (!node) return {};
@@ -31,9 +31,12 @@
         })
     );
   }
+  // The parent re-creates this panel for every node, so initial values are enough
+  // svelte-ignore state_referenced_locally
   const nodeDefinition = node ? filterInputs(node.state.type?.inputs) : {};
 
   type Store = Record<string, number | number[] | string>;
+  // svelte-ignore state_referenced_locally
   let store = $state<Store>(createStore(node?.props, nodeDefinition));
   function createStore(
     props: NodeInstance['props'],

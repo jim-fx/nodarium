@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createKeyMap } from '#lib/helpers/createKeyMap.ts';
-  import type { Graph, NodeInstance, NodeRegistry } from '@nodarium/types';
+  import type { Graph, NodeRegistry } from '@nodarium/types';
   import { onMount } from 'svelte';
   import { GraphManager } from '../graph-manager.svelte';
   import { GraphState, setGraphManager, setGraphState } from '../graph-state.svelte';
@@ -13,7 +13,6 @@
 
     settings?: Record<string, unknown>;
 
-    activeNode?: NodeInstance;
     backgroundType?: 'grid' | 'dots' | 'none';
     snapToGrid?: boolean;
     showHelp?: boolean;
@@ -33,7 +32,6 @@
     safePadding,
     // eslint-disable-next-line no-useless-assignment
     settings = $bindable(),
-    activeNode = $bindable(),
     backgroundType = $bindable('grid'),
     snapToGrid = $bindable(true),
     showHelp = $bindable(false),
@@ -65,14 +63,6 @@
   setGraphState(state);
 
   setupKeymaps(keymap, manager, state);
-
-  $effect(() => {
-    if (state.activeNodeId !== -1) {
-      activeNode = manager.getNode(state.activeNodeId);
-    } else if (activeNode) {
-      activeNode = undefined;
-    }
-  });
 
   $effect(() => {
     if (!state.addMenuPosition) {

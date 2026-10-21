@@ -54,49 +54,23 @@
   const inputColor = $derived(graphState.colors.getColor(inputType));
   const outputColor = $derived(graphState.colors.getColor(outputType));
 
-  let points = $state<Vector3[]>([]);
+  const points = $derived.by(() => {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
 
-  let lastId: string | null = null;
-  const curveId = $derived(`${x1}-${y1}-${x2}-${y2}`);
-
-  function update() {
-    const new_x = x2 - x1;
-    const new_y = y2 - y1;
-    if (lastId === curveId) {
-      return;
-    }
-    lastId = curveId;
-
-    const length = Math.floor(
-      Math.sqrt(Math.pow(new_x, 2) + Math.pow(new_y, 2)) / 4
-    );
-
+    const length = Math.floor(Math.sqrt(dx * dx + dy * dy) / 4);
     const samples = Math.max(length * 16, 10);
 
     curve.v0.set(0, 0);
-    curve.v1.set(new_x / 2, 0);
-    curve.v2.set(new_x / 2, new_y);
-    curve.v3.set(new_x, new_y);
+    curve.v1.set(dx / 2, 0);
+    curve.v2.set(dx / 2, dy);
+    curve.v3.set(dx, dy);
 
-    points = curve
-      .getPoints(samples)
-      .map((p) => new Vector3(p.x, 0, p.y))
-      .flat();
-
-    if (id) {
-      graphState.setEdgeGeometry(
-        id,
-        x1,
-        y1,
-        $state.snapshot(points) as unknown as Vector3[]
-      );
-    }
-  }
+    return curve.getPoints(samples).map((p) => new Vector3(p.x, 0, p.y));
+  });
 
   $effect(() => {
-    if (x1 || x2 || y1 || y2) {
-      update();
-    }
+    if (id) graphState.setEdgeGeometry(id, x1, y1, points);
   });
 
   onDestroy(() => {

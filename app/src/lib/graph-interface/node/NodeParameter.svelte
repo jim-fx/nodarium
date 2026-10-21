@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { NodeInput, NodeInstance, Socket } from '@nodarium/types';
-  import { getGraphManager, getGraphState } from '../graph-state.svelte';
+  import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers';
   import { getParameterHeight } from '../helpers/nodeHelpers';
   import NodeInputEl from './NodeInput.svelte';
@@ -12,8 +12,8 @@
     isLast?: boolean;
   };
 
-  const graph = getGraphManager();
-  const graphState = getGraphState();
+  const graph = tryGetGraphManager();
+  const graphState = tryGetGraphState();
   const graphId = graph?.id;
   const elementId = `input-${Math.random().toString(36).substring(7)}`;
 

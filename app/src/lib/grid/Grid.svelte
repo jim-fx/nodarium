@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { onMount, setContext, type Snippet } from 'svelte';
+  import type { Snippet } from 'svelte';
+  import { setGridId } from './context';
 
   const { children, id }: { children?: Snippet<[{ id?: string }]>; id?: string } = $props();
 
-  onMount(() => {
-    setContext('grid-id', id);
-  });
+  // svelte-ignore state_referenced_locally
+  setGridId(id);
 </script>
 
 {@render children?.({ id })}

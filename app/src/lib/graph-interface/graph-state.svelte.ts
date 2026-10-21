@@ -1,6 +1,6 @@
 import { animate, debounce, lerp } from '#lib/helpers/index.ts';
 import type { NodeInstance, SerializedEdge, SerializedNode, Socket } from '@nodarium/types';
-import { getContext, setContext } from 'svelte';
+import { createContext } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { OrthographicCamera, Vector3 } from 'three';
 import type { GraphManager } from './graph-manager.svelte';
@@ -14,22 +14,23 @@ import {
   serializeNode
 } from './helpers/nodeHelpers';
 
-const graphStateKey = Symbol('graph-state');
-export function getGraphState() {
-  return getContext<GraphState>(graphStateKey);
-}
-export function setGraphState(graphState: GraphState) {
-  return setContext(graphStateKey, graphState);
-}
+const [getGraphState, setGraphState, hasGraphState] = createContext<GraphState>();
+const [getGraphManager, setGraphManager, hasGraphManager] = createContext<GraphManager>();
 
-const graphManagerKey = Symbol('graph-manager');
-export function getGraphManager() {
-  return getContext<GraphManager>(graphManagerKey);
-}
+// For node components that are also rendered outside of a graph, e.g. in the node store.
+// Typed as always present because everything that needs them only runs inside a graph.
+const tryGetGraphState = () => (hasGraphState() ? getGraphState() : undefined) as GraphState;
+const tryGetGraphManager = () =>
+  (hasGraphManager() ? getGraphManager() : undefined) as GraphManager;
 
-export function setGraphManager(manager: GraphManager) {
-  return setContext(graphManagerKey, manager);
-}
+export {
+  getGraphManager,
+  getGraphState,
+  setGraphManager,
+  setGraphState,
+  tryGetGraphManager,
+  tryGetGraphState
+};
 
 type EdgeData = {
   x1: number;

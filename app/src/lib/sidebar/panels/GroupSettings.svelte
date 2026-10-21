@@ -11,7 +11,7 @@
     node?: NodeInstance;
   };
 
-  const { manager, graphState, node = $bindable() }: Props = $props();
+  const { manager, graphState, node }: Props = $props();
 
   const activeGroup = $derived.by(() => {
     if (node?.type === '__internal/group/instance') {

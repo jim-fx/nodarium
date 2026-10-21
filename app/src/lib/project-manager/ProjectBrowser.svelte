@@ -9,6 +9,7 @@
     InputSelect,
     type MenuEntry,
     MenuList,
+    modal,
     toast
   } from '@nodarium/ui';
   import { onMount, tick } from 'svelte';
@@ -28,22 +29,15 @@
     if (showOnStartup.value) open = true;
   });
 
-  let dialogEl = $state<HTMLDialogElement>();
   let search = $state('');
   let sortBy = $state(0);
   let selectedId = $state<number>();
 
-  $effect(() => {
-    if (!dialogEl) return;
-    if (open && !dialogEl.open) {
-      search = '';
-      selectedId = pm.activeId;
-      dialogEl.showModal();
-      loadTemplatePreviews();
-    } else if (!open && dialogEl.open) {
-      dialogEl.close();
-    }
-  });
+  function handleShow() {
+    search = '';
+    selectedId = pm.activeId;
+    loadTemplatePreviews();
+  }
 
   const projects = $derived.by(() => {
     const query = search.trim().toLowerCase();
@@ -171,7 +165,7 @@
 {/snippet}
 
 <dialog
-  bind:this={dialogEl}
+  {@attach modal(open, handleShow)}
   aria-label="Projects"
   class="
     m-auto h-[min(680px,calc(100vh-32px))] max-h-none w-[min(1080px,calc(100vw-32px))] max-w-none
@@ -183,7 +177,7 @@
     close();
   }}
   onclick={(e) => {
-    if (e.target === dialogEl) close();
+    if (e.target === e.currentTarget) close();
   }}
   onpointerdown={(e) => {
     if (contextMenu && !(e.target as HTMLElement).closest('[role="menu"]')) {

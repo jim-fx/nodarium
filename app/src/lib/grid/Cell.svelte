@@ -1,18 +1,13 @@
 <script lang="ts">
-  import { getContext, type Snippet } from 'svelte';
+  import type { Snippet } from 'svelte';
+  import { getGridRow } from './context';
 
-  let index = $state(-1);
+  const row = getGridRow();
+  const index = row.registerCell();
+  const sizes = row.sizes;
   let wrapper: HTMLDivElement;
 
   const { children }: { children?: Snippet } = $props();
-
-  $effect(() => {
-    if (index === -1) {
-      index = getContext<() => number>('registerCell')();
-    }
-  });
-
-  const sizes = getContext<{ value: string[] }>('sizes');
 
   let downWidth = 0;
   let mouseDown = false;

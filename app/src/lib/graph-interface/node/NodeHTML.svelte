@@ -1,13 +1,13 @@
 <script lang="ts">
   import type { NodeInstance } from '@nodarium/types';
-  import { getGraphManager, getGraphState } from '../graph-state.svelte';
+  import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
   import NodeHeader from './NodeHeader.svelte';
   import NodeParameter from './NodeParameter.svelte';
 
   let ref: HTMLDivElement;
 
-  const graph = getGraphManager();
-  const graphState = getGraphState();
+  const graph = tryGetGraphManager();
+  const graphState = tryGetGraphState();
 
   type Props = {
     node: NodeInstance;

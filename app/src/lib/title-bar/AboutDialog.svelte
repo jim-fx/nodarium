@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button } from '@nodarium/ui';
+  import { Button, modal } from '@nodarium/ui';
 
   const PLANTARIUM_URL = 'https://github.com/jim-fx/plantarium';
   const THESIS_URL = 'https://github.com/jim-fx/bachelor';
@@ -9,25 +9,14 @@
   };
 
   let { open = $bindable(false) }: Props = $props();
-
-  let dialogEl: HTMLDialogElement;
-
-  $effect(() => {
-    if (!dialogEl) return;
-    if (open) {
-      dialogEl.showModal();
-    } else {
-      dialogEl.close();
-    }
-  });
 </script>
 
 <dialog
-  bind:this={dialogEl}
+  {@attach modal(open)}
   class="m-auto max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-md border border-outline bg-layer-1 p-0 text-text backdrop:bg-black/50"
   onclose={() => (open = false)}
   onclick={(e) => {
-    if (e.target === dialogEl) open = false;
+    if (e.target === e.currentTarget) open = false;
   }}
 >
   <div class="flex flex-col gap-3 px-6 py-5">

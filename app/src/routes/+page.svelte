@@ -2,8 +2,8 @@
   import GraphInterface from '#lib/graph-interface/index.ts';
   import * as templates from '#lib/graph-templates/index.ts';
   import Grid from '#lib/grid/index.ts';
-  import { debounceAsyncFunction } from '#lib/helpers/index.ts';
   import { createKeyMap } from '#lib/helpers/createKeyMap.ts';
+  import { debounceAsyncFunction } from '#lib/helpers/index.ts';
   import { localState } from '#lib/helpers/localState.svelte.ts';
   import { debugNode } from '#lib/node-registry/debugNode.ts';
   import { groupNode } from '#lib/node-registry/groupNode.ts';
@@ -13,15 +13,15 @@
   import { ProjectManager } from '#lib/project-manager/project-manager.svelte.ts';
   import ProjectBrowser from '#lib/project-manager/ProjectBrowser.svelte';
   import Viewer from '#lib/result-viewer/Viewer.svelte';
+  import { errorLog } from '#lib/runtime/error-log.svelte.ts';
   import {
     getErrorInfo,
     MemoryRuntimeCache,
     MemoryRuntimeExecutor,
     WorkerRuntimeExecutor
   } from '#lib/runtime/index.ts';
-  import { errorLog } from '#lib/runtime/error-log.svelte.ts';
-  import type { SettingsValue } from '#lib/settings/index.ts';
   import { appSettings, AppSettingTypes } from '#lib/settings/app-settings.svelte.ts';
+  import type { SettingsValue } from '#lib/settings/index.ts';
   import MaterialPicker from '#lib/settings/MaterialPicker.svelte';
   import NestedSettings from '#lib/settings/NestedSettings.svelte';
   import Panel from '#lib/sidebar/Panel.svelte';
@@ -39,7 +39,7 @@
   import { tutorialChecks } from '#lib/tutorial/tutorial-checks.ts';
   import { tutorialConfig } from '#lib/tutorial/tutorial-config.ts';
   import { Planty, type StepActionHook } from '@nodarium/planty';
-  import type { Edge, Graph, NodeInstance } from '@nodarium/types';
+  import type { Edge, Graph } from '@nodarium/types';
   import { Spinner, Toast, toast } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
   import type { Group } from 'three';
@@ -86,17 +86,10 @@
     }
   });
 
-  $effect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (pendingSave) {
-        e.preventDefault();
-      }
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  });
+  function handleBeforeUnload(e: BeforeUnloadEvent) {
+    if (pendingSave) e.preventDefault();
+  }
 
-  let activeNode = $state<NodeInstance | undefined>(undefined);
   let scene = $state<Group>(null!);
   let isExecuting = $state(false);
 
@@ -107,6 +100,11 @@
   let nodeTimings = $state<Record<number, number>>({});
   let errorNodeId = $state<number>();
   const manager = $derived(graphInterface?.manager);
+  const activeNode = $derived(
+    graphInterface?.state.activeNodeId !== undefined && graphInterface.state.activeNodeId !== -1
+      ? manager?.getNode(graphInterface.state.activeNodeId)
+      : undefined
+  );
 
   pm.onrenameactive = (title) => {
     if (manager) manager.meta = { ...manager.meta, title };
@@ -263,6 +261,7 @@
 </script>
 
 <svelte:document onkeydown={applicationKeymap.handleKeyboardEvent} />
+<svelte:window onbeforeunload={handleBeforeUnload} />
 
 <Planty
   bind:this={planty}
@@ -352,7 +351,6 @@
             safePadding={{ right: sidebarOpen ? 321 : undefined }}
             backgroundType={appSettings.value.nodeInterface.backgroundType}
             snapToGrid={appSettings.value.nodeInterface.snapToGrid}
-            bind:activeNode
             bind:showHelp={appSettings.value.nodeInterface.showHelp}
             bind:settings={graphSettings}
             bind:settingTypes={graphSettingTypes}
@@ -445,9 +443,9 @@
           />
           {#key activeNode}
             {#key activeNode?.exposed?.join()}
-              <ActiveNodeSettings {manager} bind:node={activeNode} />
+              <ActiveNodeSettings {manager} node={activeNode} />
             {/key}
-            <GroupSettings graphState={graphInterface?.state} {manager} bind:node={activeNode} />
+            <GroupSettings graphState={graphInterface?.state} {manager} node={activeNode} />
           {/key}
         </Panel>
         <Panel

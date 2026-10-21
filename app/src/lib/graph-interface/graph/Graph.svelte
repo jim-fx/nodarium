@@ -7,9 +7,9 @@
   import AddMenu from '../components/AddMenu.svelte';
   import BoxSelection from '../components/BoxSelection.svelte';
   import Camera from '../components/Camera.svelte';
-  import OverlayScale from '../components/OverlayScale.svelte';
   import GroupBreadcrumps from '../components/GroupBreadcrumps.svelte';
   import HelpView from '../components/HelpView.svelte';
+  import OverlayScale from '../components/OverlayScale.svelte';
   import Debug from '../debug/Debug.svelte';
   import EdgeEl from '../edges/Edge.svelte';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';

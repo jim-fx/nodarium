@@ -1,11 +1,11 @@
 <script lang="ts">
   import { appSettings } from '#lib/settings/app-settings.svelte.ts';
   import type { NodeInstance, Socket } from '@nodarium/types';
-  import { getGraphManager, getGraphState } from '../graph-state.svelte';
+  import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers/index.js';
 
-  const graphState = getGraphState();
-  const graph = getGraphManager();
+  const graphState = tryGetGraphState();
+  const graph = tryGetGraphManager();
 
   const { node }: { node: NodeInstance } = $props();
 

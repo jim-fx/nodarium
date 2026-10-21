@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { NodeDefinition, NodeRegistry } from '@nodarium/types';
-  import { onMount } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
 
   let mx = $state(0);
   let my = $state(0);
@@ -8,7 +8,6 @@
   let node: NodeDefinition | undefined = $state(undefined);
   let input: string | undefined = $state(undefined);
 
-  let wrapper: HTMLDivElement;
   type Props = { registry: NodeRegistry };
   const { registry }: Props = $props();
 
@@ -38,13 +37,14 @@
     input = nodeInput || undefined;
   }
 
-  onMount(() => {
-    const style = wrapper.parentElement?.style;
+  // Show the help cursor on the element the help view is placed in
+  const helpCursor: Attachment<HTMLElement> = (el) => {
+    const style = el.parentElement?.style;
     style?.setProperty('cursor', 'help');
     return () => {
       style?.removeProperty('cursor');
     };
-  });
+  };
 </script>
 
 <svelte:window onmousemove={handleMouseOver} />
@@ -54,7 +54,7 @@
   class:visible={node}
   bind:clientWidth={width}
   style="--my: {my}px; --mx: {Math.min(mx, window.innerWidth - width - 20)}px"
-  bind:this={wrapper}
+  {@attach helpCursor}
 >
   <p class="m-0 text-light opacity-40 flex items-center gap-3 mb-4">
     <span class="i-tabler-help block w-4 h-4"></span>

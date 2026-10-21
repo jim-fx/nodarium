@@ -9,6 +9,7 @@ export { default as InputShape } from './inputs/InputShape.svelte';
 export { default as InputVec3 } from './inputs/InputVec3.svelte';
 export { default as SocketTable } from './inputs/SocketTable.svelte';
 
+export { modal } from './attachments';
 export { default as Button } from './Button.svelte';
 export { default as ConfirmDialog } from './ConfirmDialog.svelte';
 export { default as Details } from './Details.svelte';

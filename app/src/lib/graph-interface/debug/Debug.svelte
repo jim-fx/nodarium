@@ -3,14 +3,9 @@
   import { T } from '@threlte/core';
   import { MeshLineGeometry, MeshLineMaterial } from '@threlte/extras';
   import { Color, Vector3 } from 'three';
-  import { lines, points, rects } from './store.js';
+  import { type DebugLine, debugState } from './debug.svelte';
 
-  type Line = {
-    points: Vector3[];
-    color?: Color;
-  };
-
-  function getEachKey(value: Vector3 | Box | Line): string {
+  function getEachKey(value: Vector3 | Box | DebugLine): string {
     if ('x' in value) {
       return [value.x, value.y, value.z].join('-');
     }
@@ -26,7 +21,7 @@
   }
 </script>
 
-{#each $points as point (getEachKey(point))}
+{#each debugState.points as point (getEachKey(point))}
   <T.Mesh
     position.x={point.x}
     position.y={point.y}
@@ -38,7 +33,7 @@
   </T.Mesh>
 {/each}
 
-{#each $rects as rect, i (getEachKey(rect))}
+{#each debugState.rects as rect, i (getEachKey(rect))}
   <T.Mesh
     position.x={(rect.minX + rect.maxX) / 2}
     position.y={0}
@@ -53,7 +48,7 @@
   </T.Mesh>
 {/each}
 
-{#each $lines as line (getEachKey(line))}
+{#each debugState.lines as line (getEachKey(line))}
   <T.Mesh position.y={1}>
     <MeshLineGeometry points={line.points} />
     <MeshLineMaterial
