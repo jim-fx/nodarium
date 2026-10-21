@@ -199,9 +199,10 @@ fn curve(points: &[f32], x: f32) -> f32 {
 
 /// Reads a select, boolean or seed input, or an integer input that is set by a
 /// setting. These are never connected to an expression, so they always hold a
-/// single value.
+/// single value. An empty input (nothing connected) reads as 0 instead of
+/// panicking.
 pub fn int(arg: &[i32]) -> i32 {
-    arg[0]
+    arg.first().copied().unwrap_or(0)
 }
 
 #[cfg(test)]
@@ -229,7 +230,12 @@ mod tests {
 
     #[test]
     fn test_random_is_the_same_every_run() {
-        let random = concat_args(vec![&[1], &[encode_float(1.0)], &[encode_float(2.0)], &[42]]);
+        let random = concat_args(vec![
+            &[1],
+            &[encode_float(1.0)],
+            &[encode_float(2.0)],
+            &[42],
+        ]);
 
         let run = || {
             let mut ctx = Ctx::default();
@@ -257,7 +263,11 @@ mod tests {
     fn curve_expr(value: f32, min: f32, max: f32, points: &[f32]) -> Vec<i32> {
         let words: Vec<[i32; 1]> = points.iter().map(|p| [encode_float(*p)]).collect();
         let mut parts: Vec<&[i32]> = vec![&[3]];
-        let (value, min, max) = ([encode_float(value)], [encode_float(min)], [encode_float(max)]);
+        let (value, min, max) = (
+            [encode_float(value)],
+            [encode_float(min)],
+            [encode_float(max)],
+        );
         parts.extend([&value[..], &min[..], &max[..]]);
         parts.extend(words.iter().map(|w| &w[..]));
         concat_args(parts)
@@ -296,14 +306,22 @@ mod tests {
         let mut ctx = Ctx::default();
 
         for i in 30..=70 {
-            assert_eq!(ctx.float(&curve_expr(i as f32 / 100.0, 0.0, 1.0, &plateau)), 1.0);
+            assert_eq!(
+                ctx.float(&curve_expr(i as f32 / 100.0, 0.0, 1.0, &plateau)),
+                1.0
+            );
         }
     }
 
     #[test]
     fn test_float_along_draws_random_once() {
         let alpha = concat_args(vec![&[2], &[0]]);
-        let random = concat_args(vec![&[1], &[encode_float(1.0)], &[encode_float(2.0)], &[42]]);
+        let random = concat_args(vec![
+            &[1],
+            &[encode_float(1.0)],
+            &[encode_float(2.0)],
+            &[42],
+        ]);
         // alpha + random
         let sum = concat_args(vec![&[0], &[0], &alpha, &random]);
 
@@ -344,7 +362,11 @@ mod tests {
             counts[(v - 3) as usize] += 1;
         }
         // every value is about equally likely
-        assert!(counts.iter().all(|&c| (200..300).contains(&c)), "{:?}", counts);
+        assert!(
+            counts.iter().all(|&c| (200..300).contains(&c)),
+            "{:?}",
+            counts
+        );
     }
 
     #[test]

@@ -1,3 +1,15 @@
+/// Splits a framed list like `[0, 1, ...parts, 1, 1]` into its parts. A part is
+/// either a single value (one word) or a framed group that keeps its brackets.
+///
+/// A framed group starts with `[0, count, ...]` and ends with `[1, ...]`, where
+/// `count` is the distance from the group's first word to the next bracket
+/// word, minus one. It points at the group's own closing bracket when the
+/// payload holds only values (a path, or the arguments of a math node), and at
+/// a nested group's opening when single values precede it. The second word of
+/// a closing bracket counts the single values that follow the group at the
+/// same level, so the scanner can skip past them. Because a value of 0 is
+/// indistinguishable from an opening bracket, the scan is driven by these
+/// counts, not by the words themselves.
 pub fn split_args(args: &[i32]) -> Vec<&[i32]> {
     let mut out_args: Vec<&[i32]> = Vec::new();
     let mut depth = 0;
@@ -129,77 +141,78 @@ pub fn wrap_arg(arg: &[i32]) -> Vec<i32> {
 mod tests {
 
     use super::*;
+    use crate::{concat_args, encode_float};
 
-    #[rustfmt::skip]
     #[test]
-    fn test_split_args() {
-        let input = [
-            0, 1, 0, 28, 0, 2, 1048576000, 0, 20, 0, 4, 0, 0, 1073741824, 0, 9, 0, 5, 0, 0,
-            1073741824, 1073741824, 1, 1, 1, 0, 1, 1, 1, 4, 1041865114, 1, 5, 1086324736,
-            1053609165, 54,
-        ];
+    fn test_split_args_bare_values() {
+        // like the expression of a random node: four single values
+        let input = concat_args(vec![&[1], &[0], &[encode_float(1.0)], &[42]]);
 
         let args = split_args(&input);
-        println!("{:?}", args[0]);
 
-        assert_eq!(args[0].len(), 29);
-        assert_eq!(args[1][0], 1086324736);
-        assert_eq!(args[2][0], 1053609165);
+        assert_eq!(args, vec![&[1][..], &[0], &[encode_float(1.0)], &[42]]);
     }
 
     #[test]
-    fn test_get_args_input_a() {
-        let input_a = vec![0, 4, 1, 2, 3, 0, 7, 1, 2, 4, 2, 4, 1, 1, 1, 1];
-        // -> [1, 2, 3, [1, 2, 4, 2, 4]]
+    fn test_split_args_groups() {
+        // like the output of a node that produces a list of paths
+        let path = [0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1];
+        let input = concat_arg_vecs(vec![path.to_vec(), path.to_vec()]);
 
-        let args = split_args(&input_a);
+        let args = split_args(&input);
 
-        println!("{:?}", args);
-
-        assert_eq!(args.len(), 4);
-        assert_eq!(args[0], [1]);
-        assert_eq!(args[1], [2]);
-        assert_eq!(args[2], [3]);
-        assert_eq!(args[3], [0, 7, 1, 2, 4, 2, 4, 1]);
+        assert_eq!(args, vec![&path[..], &path]);
     }
 
     #[test]
-    fn test_get_args_input_b() {
-        let input_b = vec![0, 3, 7, 1, 0, 4, 4, 2, 4, 1, 2, 2, 0, 3, 2, 3, 1, 1, 1, 1];
-        // -> [1,[4,2,4], 2, [2,3]]
+    fn test_split_args_values_then_group() {
+        let group = [0, 4, 4, 2, 4, 1, 1];
+        let input = concat_args(vec![&[1], &[2], &[3], &group]);
 
-        let args = split_args(&input_b);
+        let args = split_args(&input);
 
-        assert_eq!(args.len(), 5);
-        assert_eq!(args[0], [7]);
-        assert_eq!(args[1], [1]);
-        assert_eq!(args[2], [0, 4, 4, 2, 4]);
-        assert_eq!(args[3], [2]);
-        assert_eq!(args[4], [0, 3, 2, 3]);
+        assert_eq!(args, vec![&[1][..], &[2], &[3], &group]);
     }
 
     #[test]
-    fn test_get_args_nested_inputs() {
-        let input = vec![
-            0, 3, 0, 2, 0, 3, 0, 0, 0, 3, 7549747, 127, 1, 1, 0, 3, 0, 128, 1, 1, 1, 1, 0, 3, 0,
-            128, 1, 1, 1, 1,
-        ];
+    fn test_split_args_group_then_value_then_group() {
+        let first = [0, 4, 4, 2, 4, 1, 1];
+        let second = [0, 3, 2, 3, 1, 1];
+        // values after a group raise the group's closing count, which tells
+        // split_args how far to skip past them
+        let input = concat_args(vec![&first, &[7], &second, &[2]]);
 
-        // each math node has 4 numbers
-        // 0 -> type of node (0 -> math node)
-        // 1 -> op_type for math operation (0 -> add, 1 -> sub, 2 -> mul, 3 -> div)
-        // 2 -> first number
-        // 3 -> second number
+        let args = split_args(&input);
+
+        assert_eq!(
+            args,
+            vec![&[0, 4, 4, 2, 4, 1, 2][..], &[7], &[0, 3, 2, 3, 1, 2], &[2]]
+        );
+    }
+
+    #[test]
+    fn test_split_args_nested_groups() {
+        // a math node whose second operand is another math node: the inner
+        // group is framed exactly like a top level one
+        let inner = concat_args(vec![&[0], &[2], &[encode_float(2.0)], &[encode_float(2.0)]]);
+        // three single values lead to the nested group, so the outer count is 4
+        let mut input = vec![0, 4, 0, 0, encode_float(2.0)];
+        input.extend_from_slice(&inner);
+        input.extend_from_slice(&[1, 1]);
 
         let args = split_args(&input);
 
         assert_eq!(args.len(), 4);
         assert_eq!(args[0], [0]);
-        assert_eq!(args[1], [2]);
-        assert_eq!(args[3], [0, 3, 0, 128]);
+        assert_eq!(args[1], [0]);
+        assert_eq!(args[2], [encode_float(2.0)]);
+        assert_eq!(args[3], inner);
 
-        let nested_args = split_args(args[2]);
-
-        assert_eq!(nested_args.len(), 4);
+        // the nested group splits into the math node's own operands
+        let inner_args = split_args(args[3]);
+        assert_eq!(
+            inner_args,
+            vec![&[0][..], &[2], &[encode_float(2.0)], &[encode_float(2.0)]]
+        );
     }
 }

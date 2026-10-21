@@ -144,7 +144,7 @@ pub fn wrap_path(input: &[i32]) -> PathData<'_> {
     let points_slice = &rest[PATH_HEADER_SIZE..rest.len() - 2];
 
     assert!(
-        points_slice.len() % 4 == 0,
+        points_slice.len().is_multiple_of(4),
         "Points slice does not match the expected size. {}",
         points_slice.len()
     );
@@ -285,7 +285,7 @@ fn segment_frame(start: Vec3, end: Vec3) -> (Vec3, Vec3) {
 pub fn interpolate_along_path(points_data: &[f32], _alpha: f32) -> (Vec4, Vec3, Vec3) {
     let alpha = _alpha.min(0.999999).max(0.000001);
     assert!(
-        points_data.len() % 4 == 0,
+        points_data.len().is_multiple_of(4),
         "The points data must be a multiple of 4."
     );
 
