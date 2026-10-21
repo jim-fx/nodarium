@@ -1,0 +1,23 @@
+{
+  "id": "max/plantarium/join",
+  "meta": {
+    "description": "Joins multiple paths into one, for example to add roots to a plant"
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "a": {
+      "type": "path"
+    },
+    "b": {
+      "type": "path"
+    },
+    "c": {
+      "type": "path"
+    },
+    "d": {
+      "type": "path"
+    }
+  }
+}
