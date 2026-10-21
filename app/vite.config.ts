@@ -24,7 +24,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@nodarium/planty': path.resolve(__dirname, '../packages/planty/src/lib/index.ts')
+      '@nodarium/planty': path.resolve(import.meta.dirname, '../packages/planty/src/lib/index.ts')
     }
   },
   ssr: {

@@ -435,7 +435,7 @@
         <Panel
           id="graph-settings"
           title="Graph Settings"
-          icon="i-[custom--graph] bg-blue-400"
+          icon="c-[custom--graph] bg-blue-400"
         >
           <span class="block h-[1px]"></span>
           <NestedSettings
