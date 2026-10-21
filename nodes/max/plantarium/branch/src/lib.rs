@@ -31,6 +31,13 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         max_depth = max_depth.max(path_data[3]);
     }
 
+    // the longest path sets the point density, so branches on every level share it
+    let reference_length = paths
+        .iter()
+        .filter(|p| p[2] == 0)
+        .map(|p| wrap_path(p).get_length())
+        .fold(0.0_f32, f32::max);
+
     let path_count = paths
         .iter()
         .filter(|p| p[2] == 0 && p[3] >= (max_depth - depth + 1))
@@ -45,7 +52,6 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         }
 
         let path = wrap_path(path_data);
-        let path_length = path.get_length();
 
         // alpha is where this parent path sits among all paths, from 0 at the first to 1 at the last
         ctx.alpha = path_index as f32 / (path_count - 1).max(1) as f32;
@@ -71,10 +77,10 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
             let length = ctx.float(args[1]);
             let taper = ctx.float(args[11]);
-            // a branch as long as its parent path gets the full resolution, shorter ones get
-            // fewer points
-            let resolution = if path_length > 0.0 {
-                ((max_resolution as f32 * length / path_length).round() as usize)
+            // a branch as long as the longest path gets the full resolution, shorter ones get
+            // fewer points, no matter which layer they grow on
+            let resolution = if reference_length > 0.0 {
+                ((max_resolution as f32 * length / reference_length).round() as usize)
                     .clamp(4, max_resolution)
             } else {
                 max_resolution

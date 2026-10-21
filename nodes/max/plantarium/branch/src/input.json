@@ -70,7 +70,7 @@
     },
     "resolution_curve": {
       "type": "integer",
-      "description": "The resolution of a branch as long as its parent path, shorter branches get fewer points.",
+      "description": "The resolution of a branch as long as the longest path, shorter branches get fewer points.",
       "value": 32,
       "min": 3,
       "max": 64,
