@@ -8,6 +8,8 @@ on:
       - "Dockerfile.ci"
       - ".gitea/workflows/build-ci-image.yaml"
 
+  workflow_dispatch:
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
