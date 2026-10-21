@@ -1,4 +1,7 @@
-import { createGeometryPool, createInstancedGeometryPool } from '#lib/result-viewer/geometryPool.ts';
+import {
+  createGeometryPool,
+  createInstancedGeometryPool
+} from '#lib/result-viewer/geometryPool.ts';
 import { splitNestedArray } from '@nodarium/utils';
 import {
   Box3,

@@ -277,7 +277,10 @@ describe('muted nodes with mismatched types', () => {
     outputs: ['vec3'],
     execute: ([a]: Int32Array[]) => Int32Array.of(a[0])
   } as unknown as NodeDefinition;
-  const vecOut = { ...output, inputs: { input: { type: 'vec3', value: 0 } } } as unknown as NodeDefinition;
+  const vecOut = {
+    ...output,
+    inputs: { input: { type: 'vec3', value: 0 } }
+  } as unknown as NodeDefinition;
 
   it('drops the bypassed value when the child cannot accept the source type', async () => {
     // S(integer) → [toVec muted] → vec(vec3) → Out; the integer must not reach the vec3 input

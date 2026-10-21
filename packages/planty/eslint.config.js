@@ -33,7 +33,9 @@ export default defineConfig(
         parser: ts.parser,
         svelteConfig: {
           compilerOptions: {
-            runes: (/** @type {{ filename: string }} */ { filename }) => (filename.split(/[/\\]/).includes('node_modules') ? undefined : true)
+            runes: (
+              /** @type {{ filename: string }} */ { filename }
+            ) => (filename.split(/[/\\]/).includes('node_modules') ? undefined : true)
           }
         }
       }

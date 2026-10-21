@@ -24,11 +24,15 @@ const postDevPackagePlugin = () => {
 const { BASE_URL = '' } = process.env;
 
 export default defineConfig({
-  plugins: [tailwindcss(), sveltekit({
+  plugins: [
+    tailwindcss(),
+    sveltekit({
       preprocess: vitePreprocess(),
       paths: { base: BASE_URL === '/' ? '' : (BASE_URL as `/${string}`) },
       adapter: adapter()
-    }), postDevPackagePlugin()],
+    }),
+    postDevPackagePlugin()
+  ],
   test: {
     expect: { requireAssertions: true },
     projects: [

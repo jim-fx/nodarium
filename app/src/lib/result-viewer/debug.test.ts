@@ -74,7 +74,40 @@ describe('updateDebugScene', () => {
     const data = instances(2);
     // scale 2 at (1, 2, 3) and scale 1 at (1, 2, 13)
     new Float32Array(data.buffer).set(
-      [2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 1, 2, 3, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 13, 1],
+      [
+        2,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        1,
+        2,
+        3,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        2,
+        13,
+        1
+      ],
       26
     );
     updateDebugScene(group, { 1: { type: 'path', data: wrap(data) } });

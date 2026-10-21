@@ -346,7 +346,8 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         const sourceType = source && this.definitionMap.get(source.type)?.outputs?.[0];
         const input = this.definitionMap.get(node.type)?.inputs?.[key];
         const compatible = source === inputNode
-          || (!!input && areSocketsCompatible(sourceType as string, [input.type, ...(input.accepts || [])]));
+          || (!!input
+            && areSocketsCompatible(sourceType as string, [input.type, ...(input.accepts || [])]));
         if (source && compatible) {
           node.state.inputNodes[key] = source;
           source.state.children.push(node);
