@@ -15,4 +15,4 @@ nodarium_types = { version = "0.1.0", path = "../types" }
 quote = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
-syn = { version = "2.0", features = ["full"] }
+syn = { version = "3.0", features = ["full"] }

@@ -10,7 +10,7 @@ description = "A collection of utilities for Nodarium"
 crate-type = ["rlib"]
 
 [dependencies]
-glam = "0.30.10"
+glam = "0.34.1"
 noise = "0.9.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
