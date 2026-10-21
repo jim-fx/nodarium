@@ -5,6 +5,7 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { OrthographicCamera, Vector3 } from 'three';
 import type { GraphManager } from './graph-manager.svelte';
 import { ColorGenerator } from './graph/colors';
+import { maxZoom, minZoom } from './graph/constants';
 import {
   getInputSocketOffset,
   getNodeHeight,
@@ -250,33 +251,65 @@ export class GraphState {
     return this.graph.groupNodes([...this.selectedNodes.keys(), this.activeNodeId]);
   }
 
-  centerNode(node?: NodeInstance) {
-    const average = [0, 0, 4];
-    if (node) {
-      average[0] = node.position[0] + (this.safePadding?.right || 0) / 10;
-      average[1] = node.position[1];
-      average[2] = 10;
-    } else {
-      for (const node of this.graph.nodes.values()) {
-        average[0] += node.position[0];
-        average[1] += node.position[1];
-      }
-      average[0] = (average[0] / this.graph.nodes.size)
-        + (this.safePadding?.right || 0) / (average[2] * 2);
-      average[1] /= this.graph.nodes.size;
+  // Computes the camera [x, y, zoom] that fits the bounding box of the given nodes
+  // into the part of the view that is not covered by the safe padding.
+  private getFitCamera(nodes: NodeInstance[]): [number, number, number] | undefined {
+    if (!nodes.length) return;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const node of nodes) {
+      const type = this.graph.getNodeType(node);
+      const x = node.state.x ?? node.position[0];
+      const y = node.state.y ?? node.position[1];
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + 20);
+      maxY = Math.max(maxY, y + (type ? getNodeHeight(type) : 20));
     }
 
-    const camX = this.cameraPosition[0];
-    const camY = this.cameraPosition[1];
-    const camZ = this.cameraPosition[2];
+    const pad = this.safePadding;
+    const margin = 40; // px of breathing room around the box
+    const left = (pad?.left || 0) + margin;
+    const right = (pad?.right || 0) + margin;
+    const top = (pad?.top || 0) + margin;
+    const bottom = (pad?.bottom || 0) + margin;
 
+    const availableWidth = Math.max(this.width - left - right, 1);
+    const availableHeight = Math.max(this.height - top - bottom, 1);
+
+    const boxWidth = maxX - minX;
+    const boxHeight = maxY - minY;
+
+    // A single node should not be blown up to fill the whole screen
+    const maxFitZoom = nodes.length === 1 ? 10 : maxZoom;
+    const zoom = Math.max(
+      minZoom,
+      Math.min(maxFitZoom, availableWidth / boxWidth, availableHeight / boxHeight)
+    );
+
+    // Shift the camera so the box center lands in the center of the available area
+    const x = (minX + maxX) / 2 - (left - right) / 2 / zoom;
+    const y = (minY + maxY) / 2 - (top - bottom) / 2 / zoom;
+    return [x, y, zoom];
+  }
+
+  // Fits the node (or all nodes) into the current view
+  centerNode(node?: NodeInstance) {
+    const target = this.getFitCamera(node ? [node] : [...this.graph.nodes.values()]);
+    if (!target) return;
+
+    const from = [...this.cameraPosition];
     const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
-    const easeZoom = (t: number) => t * t * (3 - 2 * t);
 
+    // Position and zoom share one easing so the view stays consistent while animating
     animate(500, (a: number) => {
-      this.cameraPosition[0] = lerp(camX, average[0], ease(a));
-      this.cameraPosition[1] = lerp(camY, average[1], ease(a));
-      this.cameraPosition[2] = lerp(camZ, average[2], easeZoom(a));
+      const t = ease(a);
+      this.cameraPosition[0] = lerp(from[0], target[0], t);
+      this.cameraPosition[1] = lerp(from[1], target[1], t);
+      this.cameraPosition[2] = lerp(from[2], target[2], t);
       if (this.mouseDown) return false;
     });
   }

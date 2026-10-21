@@ -7,6 +7,7 @@
   import AddMenu from '../components/AddMenu.svelte';
   import BoxSelection from '../components/BoxSelection.svelte';
   import Camera from '../components/Camera.svelte';
+  import OverlayScale from '../components/OverlayScale.svelte';
   import GroupBreadcrumps from '../components/GroupBreadcrumps.svelte';
   import HelpView from '../components/HelpView.svelte';
   import Debug from '../debug/Debug.svelte';
@@ -26,6 +27,8 @@
     keymap: ReturnType<typeof createKeyMap>;
     safePadding?: { left?: number; right?: number; bottom?: number; top?: number };
   } = $props();
+
+  let overlayEl = $state<HTMLElement>();
 
   const graph = getGraphManager();
   const graphState = getGraphState();
@@ -197,13 +200,15 @@
 
       <Debug />
 
+      <OverlayScale el={overlayEl} />
+
       <HTML transform={false}>
         <div
           role="tree"
           id="graph"
           tabindex="0"
           class="wrapper"
-          style:transform={`scale(${graphState.cameraPosition[2] * 0.1})`}
+          bind:this={overlayEl}
           class:hovering-sockets={graphState.activeSocket}
         >
           {#each graph.nodeArray as node, index (node)}
