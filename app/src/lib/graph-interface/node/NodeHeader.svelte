@@ -3,6 +3,7 @@
   import type { NodeInstance, Socket } from '@nodarium/types';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers/index.js';
+  import { getNodeHeight } from '../helpers/nodeHelpers';
 
   const graphState = tryGetGraphState();
   const graph = tryGetGraphManager();
@@ -26,8 +27,12 @@
   const rightBump = $derived(
     !!nodeType?.outputs?.length && node.type !== '__internal/group/input'
   );
+  // a node without visible parameters is only the header, so it needs the bottom corners too
+  const headerOnly = $derived(!!nodeType && getNodeHeight(nodeType) <= 5);
   const cornerBottom = $derived(
-    node.type === '__internal/group/input'
+    headerOnly
+      ? 10
+      : node.type === '__internal/group/input'
       ? (Object.keys(nodeType?.inputs ?? {}).length ? 0 : 10)
       : node.type === '__internal/group/output'
       ? (nodeType?.outputs?.length ? 0 : 10)
