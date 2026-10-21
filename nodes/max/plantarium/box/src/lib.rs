@@ -5,7 +5,7 @@ use nodarium_utils::{
     wrap_arg, Ctx,
 };
 
-nodarium_definition_file!("src/input.json");
+nodarium_definition_file!("src/definition.json");
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {

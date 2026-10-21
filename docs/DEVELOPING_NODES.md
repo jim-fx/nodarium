@@ -22,7 +22,7 @@ Then set `name = "cube"` in its `Cargo.toml`.
 
 ## Define the inputs
 
-`src/input.json` says which inputs the node has and what it returns. See [NODE_DEFINITION.md](./NODE_DEFINITION.md).
+`src/definition.json` says which inputs the node has and what it returns. See [NODE_DEFINITION.md](./NODE_DEFINITION.md).
 
 ```json
 {
@@ -42,13 +42,13 @@ Then set `name = "cube"` in its `Cargo.toml`.
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::Ctx;
 
-nodarium_definition_file!("src/input.json");
+nodarium_definition_file!("src/definition.json");
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
 
-    // one slice per input, in the order of input.json
+    // one slice per input, in the order of definition.json
     let size = ctx.float(args[0]);
 
     // build and return the geometry, see PLANTARIUM.md

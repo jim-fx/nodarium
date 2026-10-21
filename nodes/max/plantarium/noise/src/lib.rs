@@ -6,7 +6,7 @@ use nodarium_utils::{
 };
 use noise::{HybridMulti, MultiFractal, NoiseFn, OpenSimplex};
 
-nodarium_definition_file!("src/input.json");
+nodarium_definition_file!("src/definition.json");
 
 fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + t * (b - a)

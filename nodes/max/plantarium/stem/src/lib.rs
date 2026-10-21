@@ -5,7 +5,7 @@ use nodarium_utils::{
     geometry::{create_multiple_paths, wrap_multiple_paths},
     log, Ctx, };
 
-nodarium_definition_file!("src/input.json");
+nodarium_definition_file!("src/definition.json");
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {

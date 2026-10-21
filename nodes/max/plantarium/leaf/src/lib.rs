@@ -10,7 +10,7 @@ use nodarium_utils::log;
 use nodarium_utils::wrap_arg;
 use nodarium_utils::{split_args, decode_float};
 
-nodarium_definition_file!("src/input.json");
+nodarium_definition_file!("src/definition.json");
 
 fn calculate_y(x: f32) -> f32 {
     let term1 = (x * PI * 2.0).sin().abs();

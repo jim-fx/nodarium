@@ -6,7 +6,7 @@ use nodarium_utils::{
     split_args, Ctx,
 };
 
-nodarium_definition_file!("src/input.json");
+nodarium_definition_file!("src/definition.json");
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {

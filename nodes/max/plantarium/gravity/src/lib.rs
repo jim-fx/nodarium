@@ -7,7 +7,7 @@ use nodarium_utils::{
     log, split_args, Ctx,
 };
 
-nodarium_definition_file!("src/input.json");
+nodarium_definition_file!("src/definition.json");
 
 fn lerp_vec3(a: Vec3, b: Vec3, t: f32) -> Vec3 {
     a + (b - a) * t

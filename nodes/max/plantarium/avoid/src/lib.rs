@@ -8,7 +8,7 @@ use nodarium_utils::{
 
 use std::f32::consts::TAU;
 
-nodarium_definition_file!("src/input.json");
+nodarium_definition_file!("src/definition.json");
 
 const MAX_SMOOTHING: f32 = 10.0;
 
