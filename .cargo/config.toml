@@ -1,0 +1,7 @@
+# Node modules intentionally import host functions (`env.nodarium_log`,
+# `env.nodarium_panic`). Since Rust 1.96 rustc no longer passes
+# `--allow-undefined` to wasm-ld for wasm targets
+# (rust-lang/rust#149868), so undefined symbols became link errors.
+# Add it back for node builds; the host provides these imports.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=--allow-undefined"]
