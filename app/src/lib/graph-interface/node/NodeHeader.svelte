@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { appSettings } from '$lib/settings/app-settings.svelte';
+  import { appSettings } from '#lib/settings/app-settings.svelte.ts';
   import type { NodeInstance, Socket } from '@nodarium/types';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers/index.js';

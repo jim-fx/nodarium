@@ -1,4 +1,6 @@
+import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import tailwindcss from '@tailwindcss/vite';
 import { playwright } from '@vitest/browser-playwright';
 import { exec } from 'node:child_process';
@@ -19,8 +21,14 @@ const postDevPackagePlugin = () => {
   } as const;
 };
 
+const { BASE_URL = '' } = process.env;
+
 export default defineConfig({
-  plugins: [tailwindcss(), sveltekit(), postDevPackagePlugin()],
+  plugins: [tailwindcss(), sveltekit({
+      preprocess: vitePreprocess(),
+      paths: { base: BASE_URL === '/' ? '' : (BASE_URL as `/${string}`) },
+      adapter: adapter()
+    }), postDevPackagePlugin()],
   test: {
     expect: { requireAssertions: true },
     projects: [

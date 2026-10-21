@@ -1,6 +1,6 @@
-import * as templates from '$lib/graph-templates';
-import { localState } from '$lib/helpers/localState.svelte';
-import { ThumbnailService } from '$lib/thumbnails/thumbnail-service.svelte';
+import * as templates from '#lib/graph-templates/index.ts';
+import { localState } from '#lib/helpers/localState.svelte.ts';
+import { ThumbnailService } from '#lib/thumbnails/thumbnail-service.svelte.ts';
 import type { Graph } from '@nodarium/types';
 import FileSaver from 'file-saver';
 import * as db from './project-database.svelte';

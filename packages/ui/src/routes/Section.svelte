@@ -1,12 +1,12 @@
 <script lang="ts">
   import { type Snippet } from 'svelte';
-  let { title, value, header, children, class: _class } = $props<{
+  let { title, value, header, children, class: _class }: {
     title?: string;
     value?: unknown;
     header?: Snippet;
     children?: Snippet;
     class?: string;
-  }>();
+  } = $props();
 </script>
 
 <section class="border-outline border-1/2 bg-layer-1 rounded border mb-4 p-4 flex flex-col gap-4 {_class}">
@@ -21,6 +21,6 @@
     </div>
   </h3>
   <div>
-    {@render children()}
+    {@render children?.()}
   </div>
 </section>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { localState } from '$lib/helpers/localState.svelte';
+  import { localState } from '#lib/helpers/localState.svelte.ts';
   import type { NodeInput } from '@nodarium/types';
   import Input, { Button as UiButton } from '@nodarium/ui';
   import { onMount, type Snippet } from 'svelte';

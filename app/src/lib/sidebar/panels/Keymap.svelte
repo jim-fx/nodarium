@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { createKeyMap, ShortCut } from '$lib/helpers/createKeyMap';
+  import type { createKeyMap, ShortCut } from '#lib/helpers/createKeyMap.ts';
   import { ShortCut as ShortCutEl } from '@nodarium/ui';
   import { get } from 'svelte/store';
 

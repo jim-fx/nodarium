@@ -1,5 +1,5 @@
 <script lang="ts">
-  import localStore from '$lib/helpers/localStore';
+  import localStore from '#lib/helpers/localStore.ts';
   import { T, useTask } from '@threlte/core';
   import { OrbitControls } from '@threlte/extras';
   import { onMount } from 'svelte';

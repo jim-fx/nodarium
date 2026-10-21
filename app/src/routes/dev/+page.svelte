@@ -1,10 +1,10 @@
 <script lang="ts">
-  import NodeHTML from '$lib/graph-interface/node/NodeHTML.svelte';
-  import Grid from '$lib/grid';
-  import { localState } from '$lib/helpers/localState.svelte';
-  import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
-  import Panel from '$lib/sidebar/Panel.svelte';
-  import Sidebar from '$lib/sidebar/Sidebar.svelte';
+  import NodeHTML from '#lib/graph-interface/node/NodeHTML.svelte';
+  import Grid from '#lib/grid/index.ts';
+  import { localState } from '#lib/helpers/localState.svelte.ts';
+  import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
+  import Panel from '#lib/sidebar/Panel.svelte';
+  import Sidebar from '#lib/sidebar/Sidebar.svelte';
   import { type NodeId, type NodeInstance } from '@nodarium/types';
   import { createWasmWrapper, encodeNestedArray } from '@nodarium/utils';
 

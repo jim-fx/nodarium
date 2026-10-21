@@ -5,9 +5,9 @@
 </script>
 
 <script lang="ts">
-  import { humanizeDuration } from '$lib/helpers';
-  import { localState } from '$lib/helpers/localState.svelte';
-  import Monitor from '$lib/performance/Monitor.svelte';
+  import { humanizeDuration } from '#lib/helpers/index.ts';
+  import { localState } from '#lib/helpers/localState.svelte.ts';
+  import Monitor from '#lib/performance/Monitor.svelte';
   import { Button, InputNumber } from '@nodarium/ui';
   import { writable } from 'svelte/store';
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { NodeInput } from '@nodarium/types';
-  import '$lib/app.css';
+  import '#lib/app.css';
   import {
     Button,
     ConfirmDialog,
@@ -18,8 +18,8 @@
     Spinner,
     Toast,
     toast
-  } from '$lib';
-  import SocketTable from '$lib/inputs/SocketTable.svelte';
+  } from '#lib';
+  import SocketTable from '#lib/inputs/SocketTable.svelte';
   import Section from './Section.svelte';
   import Theme from './Theme.svelte';
   import ThemeSelector from './ThemeSelector.svelte';

@@ -1,4 +1,4 @@
-import { localState } from '$lib/helpers/localState.svelte';
+import { localState } from '#lib/helpers/localState.svelte.ts';
 
 const themes = [
   'dark',

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { GraphManager } from '$lib/graph-interface/graph-manager.svelte';
+  import type { GraphManager } from '#lib/graph-interface/graph-manager.svelte.ts';
   import type { GroupDefinition } from '@nodarium/types';
   import { Button } from '@nodarium/ui';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';

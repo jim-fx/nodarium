@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { humanizeNumber } from '$lib/helpers';
+  import { humanizeNumber } from '#lib/helpers/index.ts';
   import { InputCheckbox } from '@nodarium/ui';
   import type { PerformanceData } from '@nodarium/utils';
   import BarSplit from './BarSplit.svelte';

@@ -1,4 +1,4 @@
-import { isObject, mergeDeep } from '$lib/helpers/deepMerge';
+import { isObject, mergeDeep } from '#lib/helpers/deepMerge.ts';
 import { describe, expect, it } from 'vitest';
 
 describe('deepMerge', () => {

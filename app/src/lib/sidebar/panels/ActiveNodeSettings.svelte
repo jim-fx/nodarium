@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { GraphManager } from '$lib/graph-interface/graph-manager.svelte';
-  import NestedSettings from '$lib/settings/NestedSettings.svelte';
+  import type { GraphManager } from '#lib/graph-interface/graph-manager.svelte.ts';
+  import NestedSettings from '#lib/settings/NestedSettings.svelte';
   import type { NodeId, NodeInput, NodeInstance } from '@nodarium/types';
 
   type InternalNodeInput = NodeInput & {

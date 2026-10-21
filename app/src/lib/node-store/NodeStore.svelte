@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { RemoteNodeRegistry } from '$lib/node-registry/index';
+  import type { RemoteNodeRegistry } from '#lib/node-registry/index.ts';
   import BreadCrumbs from './BreadCrumbs.svelte';
   import DraggableNode from './DraggableNode.svelte';
 

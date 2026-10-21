@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { formatRelativeTime } from '$lib/helpers/formatRelativeTime';
-  import { localState } from '$lib/helpers/localState.svelte';
+  import { formatRelativeTime } from '#lib/helpers/formatRelativeTime.ts';
+  import { localState } from '#lib/helpers/localState.svelte.ts';
   import type { Graph } from '@nodarium/types';
   import {
     Button,

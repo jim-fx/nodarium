@@ -3,7 +3,7 @@
   import { panelState as state } from './PanelState.svelte';
 
   // eslint-disable-next-line no-useless-assignment
-  let { children, open = $bindable(false) } = $props<{ children?: Snippet; open?: boolean }>();
+  let { children, open = $bindable(false) }: { children?: Snippet; open?: boolean } = $props();
 
   $effect(() => {
     open = !!state.activePanel.value;

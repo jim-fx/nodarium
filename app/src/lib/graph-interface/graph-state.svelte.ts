@@ -1,4 +1,4 @@
-import { animate, debounce, lerp } from '$lib/helpers';
+import { animate, debounce, lerp } from '#lib/helpers/index.ts';
 import type { NodeInstance, SerializedEdge, SerializedNode, Socket } from '@nodarium/types';
 import { getContext, setContext } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';

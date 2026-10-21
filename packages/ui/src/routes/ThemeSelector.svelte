@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { InputSelect } from '$lib';
+  import { InputSelect } from '#lib';
   const themes = [
     'dark',
     'light',

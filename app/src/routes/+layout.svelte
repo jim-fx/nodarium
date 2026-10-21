@@ -1,9 +1,9 @@
 <script lang="ts">
   import '@nodarium/ui/app.css';
   import '../app.css';
-  import * as config from '$lib/config';
+  import * as config from '#lib/config.ts';
   import type { Snippet } from 'svelte';
-  const { children } = $props<{ children?: Snippet }>();
+  const { children }: { children?: Snippet } = $props();
 </script>
 
 {@render children?.()}

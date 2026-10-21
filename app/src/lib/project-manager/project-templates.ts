@@ -12,7 +12,7 @@ import {
   sage,
   sapling,
   willow
-} from '$lib/graph-templates';
+} from '#lib/graph-templates/index.ts';
 import type { Graph } from '@nodarium/types';
 
 export type ProjectTemplate = {

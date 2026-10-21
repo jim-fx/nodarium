@@ -1,7 +1,7 @@
 <script lang="ts">
-  import Planty from '$lib/components/Planty.svelte';
-  import PlantyAvatar, { type Mood } from '$lib/components/PlantyAvatar.svelte';
-  import type { PlantyConfig } from '$lib/types.js';
+  import Planty from '#lib/components/Planty.svelte';
+  import PlantyAvatar, { type Mood } from '#lib/components/PlantyAvatar.svelte';
+  import type { PlantyConfig } from '#lib/types.js';
   import { onMount } from 'svelte';
   import ThemeSelector from './ThemeSelector.svelte';
 

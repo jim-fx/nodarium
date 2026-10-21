@@ -1,4 +1,4 @@
-import { appSettings } from '$lib/settings/app-settings.svelte';
+import { appSettings } from '#lib/settings/app-settings.svelte.ts';
 import { Color, LinearSRGBColorSpace } from 'three';
 
 const variables = [

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createKeyMap } from '$lib/helpers/createKeyMap';
+  import { createKeyMap } from '#lib/helpers/createKeyMap.ts';
   import type { Graph, NodeInstance, NodeRegistry } from '@nodarium/types';
   import { onMount } from 'svelte';
   import { GraphManager } from '../graph-manager.svelte';

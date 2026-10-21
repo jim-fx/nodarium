@@ -1,6 +1,6 @@
-import { debugNode } from '$lib/node-registry/debugNode';
-import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
-import { MemoryRuntimeExecutor } from '$lib/runtime/runtime-executor';
+import { debugNode } from '#lib/node-registry/debugNode.ts';
+import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
+import { MemoryRuntimeExecutor } from '#lib/runtime/runtime-executor.ts';
 import type { Graph } from '@nodarium/types';
 import * as Comlink from 'comlink';
 

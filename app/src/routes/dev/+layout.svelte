@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  const { children } = $props<{ children?: Snippet }>();
+  const { children }: { children?: Snippet } = $props();
 </script>
 
 <main class="w-screen overflow-x-hidden">
-  {@render children()}
+  {@render children?.()}
 </main>

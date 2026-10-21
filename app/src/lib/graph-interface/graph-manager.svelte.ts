@@ -1,6 +1,6 @@
-import { clone, debounce } from '$lib/helpers';
-import throttle from '$lib/helpers/throttle';
-import { RemoteNodeRegistry } from '$lib/node-registry/index';
+import { clone, debounce } from '#lib/helpers/index.ts';
+import throttle from '#lib/helpers/throttle.ts';
+import { RemoteNodeRegistry } from '#lib/node-registry/index.ts';
 import type {
   Box,
   Edge,

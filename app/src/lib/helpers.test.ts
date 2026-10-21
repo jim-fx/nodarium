@@ -1,4 +1,4 @@
-import { clone, debounce, humanizeDuration, humanizeNumber, lerp, snapToGrid } from '$lib/helpers';
+import { clone, debounce, humanizeDuration, humanizeNumber, lerp, snapToGrid } from '#lib/helpers/index.ts';
 import { describe, expect, it } from 'vitest';
 
 describe('helpers', () => {

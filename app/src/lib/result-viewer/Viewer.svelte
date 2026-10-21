@@ -1,6 +1,6 @@
 <script lang="ts">
-  import SmallPerformanceViewer from '$lib/performance/SmallPerformanceViewer.svelte';
-  import { appSettings } from '$lib/settings/app-settings.svelte';
+  import SmallPerformanceViewer from '#lib/performance/SmallPerformanceViewer.svelte';
+  import { appSettings } from '#lib/settings/app-settings.svelte.ts';
   import { splitNestedArray } from '@nodarium/utils';
   import type { PerformanceStore } from '@nodarium/utils';
   import { Canvas } from '@threlte/core';

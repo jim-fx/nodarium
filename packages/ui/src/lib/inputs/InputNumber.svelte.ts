@@ -21,7 +21,7 @@ describe('InputNumber', () => {
   });
 
   it('should not render step buttons when step is undefined', async () => {
-    const screen = render(InputNumber, { value: 0.5 });
+    const screen = await render(InputNumber, { value: 0.5 });
 
     const buttons = screen.locator.getByRole('button');
     const count = buttons.all().length;

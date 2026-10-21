@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { getMaterialPreviews } from '$lib/result-viewer/material-previews';
-  import { materials } from '$lib/result-viewer/materials';
+  import { getMaterialPreviews } from '#lib/result-viewer/material-previews.ts';
+  import { materials } from '#lib/result-viewer/materials.ts';
 
   type Props = {
     value: string;

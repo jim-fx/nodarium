@@ -1,5 +1,5 @@
-import type { createKeyMap } from '$lib/helpers/createKeyMap';
-import { panelState } from '$lib/sidebar/PanelState.svelte';
+import type { createKeyMap } from '#lib/helpers/createKeyMap.ts';
+import { panelState } from '#lib/sidebar/PanelState.svelte.ts';
 import { toast } from '@nodarium/ui';
 import FileSaver from 'file-saver';
 import type { GraphManager } from './graph-manager.svelte';

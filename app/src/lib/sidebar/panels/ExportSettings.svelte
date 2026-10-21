@@ -16,7 +16,7 @@
     FileSaver.saveAs(blob, name + '.' + extension);
   };
 
-  const { scene } = $props<{ scene: Group }>();
+  const { scene }: { scene: Group } = $props();
 
   let gltfExporter: GLTFExporter;
   async function exportGltf() {

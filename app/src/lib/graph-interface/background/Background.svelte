@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { appSettings } from '$lib/settings/app-settings.svelte';
+  import { appSettings } from '#lib/settings/app-settings.svelte.ts';
   import { T, useThrelte } from '@threlte/core';
   import { colors } from '../graph/colors.svelte';
   import BackgroundFrag from './Background.frag';

@@ -1,43 +1,43 @@
 <script lang="ts">
-  import GraphInterface from '$lib/graph-interface';
-  import * as templates from '$lib/graph-templates';
-  import Grid from '$lib/grid';
-  import { debounceAsyncFunction } from '$lib/helpers';
-  import { createKeyMap } from '$lib/helpers/createKeyMap';
-  import { localState } from '$lib/helpers/localState.svelte';
-  import { debugNode } from '$lib/node-registry/debugNode';
-  import { groupNode } from '$lib/node-registry/groupNode.js';
-  import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
+  import GraphInterface from '#lib/graph-interface/index.ts';
+  import * as templates from '#lib/graph-templates/index.ts';
+  import Grid from '#lib/grid/index.ts';
+  import { debounceAsyncFunction } from '#lib/helpers/index.ts';
+  import { createKeyMap } from '#lib/helpers/createKeyMap.ts';
+  import { localState } from '#lib/helpers/localState.svelte.ts';
+  import { debugNode } from '#lib/node-registry/debugNode.ts';
+  import { groupNode } from '#lib/node-registry/groupNode.ts';
+  import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
 
-  import PerformanceViewer from '$lib/performance/PerformanceViewer.svelte';
-  import { ProjectManager } from '$lib/project-manager/project-manager.svelte';
-  import ProjectBrowser from '$lib/project-manager/ProjectBrowser.svelte';
-  import Viewer from '$lib/result-viewer/Viewer.svelte';
+  import PerformanceViewer from '#lib/performance/PerformanceViewer.svelte';
+  import { ProjectManager } from '#lib/project-manager/project-manager.svelte.ts';
+  import ProjectBrowser from '#lib/project-manager/ProjectBrowser.svelte';
+  import Viewer from '#lib/result-viewer/Viewer.svelte';
   import {
     getErrorInfo,
     MemoryRuntimeCache,
     MemoryRuntimeExecutor,
     WorkerRuntimeExecutor
-  } from '$lib/runtime';
-  import { errorLog } from '$lib/runtime/error-log.svelte';
-  import type { SettingsValue } from '$lib/settings';
-  import { appSettings, AppSettingTypes } from '$lib/settings/app-settings.svelte';
-  import MaterialPicker from '$lib/settings/MaterialPicker.svelte';
-  import NestedSettings from '$lib/settings/NestedSettings.svelte';
-  import Panel from '$lib/sidebar/Panel.svelte';
-  import ActiveNodeSettings from '$lib/sidebar/panels/ActiveNodeSettings.svelte';
-  import BenchmarkPanel from '$lib/sidebar/panels/BenchmarkPanel.svelte';
-  import Changelog from '$lib/sidebar/panels/Changelog.svelte';
-  import ErrorLog from '$lib/sidebar/panels/ErrorLog.svelte';
-  import ExportSettings from '$lib/sidebar/panels/ExportSettings.svelte';
-  import GraphSource from '$lib/sidebar/panels/GraphSource.svelte';
-  import GroupSettings from '$lib/sidebar/panels/GroupSettings.svelte';
-  import Keymap from '$lib/sidebar/panels/Keymap.svelte';
-  import { panelState } from '$lib/sidebar/PanelState.svelte';
-  import Sidebar from '$lib/sidebar/Sidebar.svelte';
-  import TitleBar from '$lib/title-bar/TitleBar.svelte';
-  import { tutorialChecks } from '$lib/tutorial/tutorial-checks';
-  import { tutorialConfig } from '$lib/tutorial/tutorial-config';
+  } from '#lib/runtime/index.ts';
+  import { errorLog } from '#lib/runtime/error-log.svelte.ts';
+  import type { SettingsValue } from '#lib/settings/index.ts';
+  import { appSettings, AppSettingTypes } from '#lib/settings/app-settings.svelte.ts';
+  import MaterialPicker from '#lib/settings/MaterialPicker.svelte';
+  import NestedSettings from '#lib/settings/NestedSettings.svelte';
+  import Panel from '#lib/sidebar/Panel.svelte';
+  import ActiveNodeSettings from '#lib/sidebar/panels/ActiveNodeSettings.svelte';
+  import BenchmarkPanel from '#lib/sidebar/panels/BenchmarkPanel.svelte';
+  import Changelog from '#lib/sidebar/panels/Changelog.svelte';
+  import ErrorLog from '#lib/sidebar/panels/ErrorLog.svelte';
+  import ExportSettings from '#lib/sidebar/panels/ExportSettings.svelte';
+  import GraphSource from '#lib/sidebar/panels/GraphSource.svelte';
+  import GroupSettings from '#lib/sidebar/panels/GroupSettings.svelte';
+  import Keymap from '#lib/sidebar/panels/Keymap.svelte';
+  import { panelState } from '#lib/sidebar/PanelState.svelte.ts';
+  import Sidebar from '#lib/sidebar/Sidebar.svelte';
+  import TitleBar from '#lib/title-bar/TitleBar.svelte';
+  import { tutorialChecks } from '#lib/tutorial/tutorial-checks.ts';
+  import { tutorialConfig } from '#lib/tutorial/tutorial-config.ts';
   import { Planty, type StepActionHook } from '@nodarium/planty';
   import type { Edge, Graph, NodeInstance } from '@nodarium/types';
   import { Spinner, Toast, toast } from '@nodarium/ui';

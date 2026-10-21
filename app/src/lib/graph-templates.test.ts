@@ -1,5 +1,5 @@
-import { grid } from '$lib/graph-templates/grid';
-import { tree } from '$lib/graph-templates/tree';
+import { grid } from '#lib/graph-templates/grid.ts';
+import { tree } from '#lib/graph-templates/tree.ts';
 import { describe, expect, it } from 'vitest';
 
 describe('graph-templates', () => {

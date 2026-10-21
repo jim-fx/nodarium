@@ -31,7 +31,7 @@
 </script>
 
 <script lang="ts">
-  import { browser } from '$app/environment';
+  import { browser } from '$app/env';
   import JsonViewer from './JsonViewer.svelte';
   import { toast } from './toast.svelte';
 

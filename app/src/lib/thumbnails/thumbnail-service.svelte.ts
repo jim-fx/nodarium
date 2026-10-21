@@ -1,4 +1,4 @@
-import * as db from '$lib/project-manager/project-database.svelte';
+import * as db from '#lib/project-manager/project-database.svelte.ts';
 import type { Graph } from '@nodarium/types';
 import * as Comlink from 'comlink';
 import { SvelteMap } from 'svelte/reactivity';

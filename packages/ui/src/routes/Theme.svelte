@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { InputColor } from '$lib';
+  import { InputColor } from '#lib';
 
   const colors = [
     'layer-0',

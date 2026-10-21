@@ -1,5 +1,5 @@
-import { debugNode } from '$lib/node-registry/debugNode';
-import { IndexDBCache, RemoteNodeRegistry } from '$lib/node-registry/index';
+import { debugNode } from '#lib/node-registry/debugNode.ts';
+import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
 import type { Graph } from '@nodarium/types';
 import { createPerformanceStore } from '@nodarium/utils';
 import * as Comlink from 'comlink';

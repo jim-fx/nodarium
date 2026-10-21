@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { colors } from '$lib/graph-interface/graph/colors.svelte';
+  import { colors } from '#lib/graph-interface/graph/colors.svelte.ts';
   import { T, useTask, useThrelte } from '@threlte/core';
   import { Grid } from '@threlte/extras';
   import { Box3, type BufferGeometry, type Group, Mesh, Vector3 } from 'three';

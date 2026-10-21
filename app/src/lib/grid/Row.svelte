@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { localState } from '$lib/helpers/localState.svelte';
+  import { localState } from '#lib/helpers/localState.svelte.ts';
   import { getContext, setContext } from 'svelte';
 
   const gridId = getContext<string>('grid-id') || 'grid-0';

@@ -1,5 +1,5 @@
-import { debugNode } from '$lib/node-registry/debugNode';
-import { expandGroups } from '$lib/runtime/runtime-executor';
+import { debugNode } from '#lib/node-registry/debugNode.ts';
+import { expandGroups } from '#lib/runtime/runtime-executor.ts';
 import type { NodeDefinition } from '@nodarium/types';
 import { assert, describe, expect, it } from 'vitest';
 import { GraphManager } from './graph-manager.svelte';

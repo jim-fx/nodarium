@@ -1,4 +1,4 @@
-import { animate, lerp } from '$lib/helpers';
+import { animate, lerp } from '#lib/helpers/index.ts';
 import { type NodeInstance } from '@nodarium/types';
 import type { GraphManager } from '../graph-manager.svelte';
 import { type GraphState } from '../graph-state.svelte';

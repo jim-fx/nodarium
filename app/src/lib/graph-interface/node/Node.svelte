@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { appSettings } from '$lib/settings/app-settings.svelte';
+  import { appSettings } from '#lib/settings/app-settings.svelte.ts';
   import type { NodeInstance } from '@nodarium/types';
   import { T } from '@threlte/core';
   import { type Mesh } from 'three';

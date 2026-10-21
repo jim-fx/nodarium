@@ -1,5 +1,5 @@
 <script lang="ts">
-  import NodeHtml from '$lib/graph-interface/node/NodeHTML.svelte';
+  import NodeHtml from '#lib/graph-interface/node/NodeHTML.svelte';
   import type { NodeDefinition, NodeId, NodeInstance } from '@nodarium/types';
   import { onMount } from 'svelte';
 

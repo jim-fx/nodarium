@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
 function mergeRecursive<T>(current: T, initial: T): T {
   if (typeof initial === 'number') {

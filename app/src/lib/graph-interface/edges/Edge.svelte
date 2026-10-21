@@ -24,7 +24,7 @@
 </script>
 
 <script lang="ts">
-  import { appSettings } from '$lib/settings/app-settings.svelte';
+  import { appSettings } from '#lib/settings/app-settings.svelte.ts';
   import { T } from '@threlte/core';
   import { MeshLineGeometry, MeshLineMaterial } from '@threlte/extras';
   import { onDestroy } from 'svelte';

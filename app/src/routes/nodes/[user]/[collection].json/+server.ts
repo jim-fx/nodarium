@@ -1,5 +1,4 @@
-import * as registry from '$lib/node-registry';
-import { json } from '@sveltejs/kit';
+import * as registry from '#lib/node-registry.ts';
 import type { EntryGenerator, RequestHandler } from './$types';
 
 export const prerender = true;
@@ -16,5 +15,5 @@ export const entries: EntryGenerator = async () => {
 export const GET: RequestHandler = async function GET({ params }) {
   const namespaces = await registry.getCollection(`${params.user}/${params.collection}`);
 
-  return json(namespaces);
+  return Response.json(namespaces);
 };

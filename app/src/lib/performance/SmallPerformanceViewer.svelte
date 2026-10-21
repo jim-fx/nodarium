@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { humanizeDuration, humanizeNumber } from '$lib/helpers';
-  import { localState } from '$lib/helpers/localState.svelte';
+  import { humanizeDuration, humanizeNumber } from '#lib/helpers/index.ts';
+  import { localState } from '#lib/helpers/localState.svelte.ts';
   import type { PerformanceData, PerformanceStore } from '@nodarium/utils';
   import SmallGraph from './SmallGraph.svelte';
 

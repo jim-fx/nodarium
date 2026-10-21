@@ -7,16 +7,16 @@
     icon = '',
     title = '',
     classes = '',
-    hidden,
+    hidden = false,
     children
-  } = $props<{
+  }: {
     id: string;
     icon?: string;
     title?: string;
     classes?: string;
     hidden?: boolean;
     children?: Snippet;
-  }>();
+  } = $props();
 
   let panel = $state<Panel>(null!);
 

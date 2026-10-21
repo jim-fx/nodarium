@@ -1,6 +1,5 @@
-import { getNode } from '$lib/node-registry';
-import * as registry from '$lib/node-registry';
-import { json } from '@sveltejs/kit';
+import { getNode } from '#lib/node-registry.ts';
+import * as registry from '#lib/node-registry.ts';
 import type { EntryGenerator, RequestHandler } from './$types';
 
 export const prerender = true;
@@ -25,7 +24,7 @@ export const GET: RequestHandler = async function GET({ params }) {
 
   try {
     const node = await getNode(nodeId);
-    return json(node);
+    return Response.json(node);
   } catch (err) {
     console.log(err);
     return new Response('Not found', { status: 404 });

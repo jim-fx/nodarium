@@ -1,4 +1,6 @@
+import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import tailwindcss from '@tailwindcss/vite';
 import { playwright } from '@vitest/browser-playwright';
 import path from 'path';
@@ -11,7 +13,7 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     comlink(),
-    sveltekit(),
+    sveltekit({ preprocess: vitePreprocess(), adapter: adapter() }),
     glsl(),
     wasm()
   ],

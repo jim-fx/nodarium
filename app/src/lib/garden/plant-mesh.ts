@@ -1,4 +1,4 @@
-import { createGeometryPool, createInstancedGeometryPool } from '$lib/result-viewer/geometryPool';
+import { createGeometryPool, createInstancedGeometryPool } from '#lib/result-viewer/geometryPool.ts';
 import { splitNestedArray } from '@nodarium/utils';
 import { Box3, Group, type InstancedMesh, type Material, type Mesh } from 'three';
 import { PLANT_MAX_HEIGHT, PLANT_MAX_RADIUS } from './config';

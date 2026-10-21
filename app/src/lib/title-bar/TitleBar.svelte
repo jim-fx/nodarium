@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { formatRelativeTime } from '$lib/helpers/formatRelativeTime';
-  import type { ProjectManager } from '$lib/project-manager/project-manager.svelte';
-  import { appSettings, AppSettingTypes } from '$lib/settings/app-settings.svelte';
-  import { panelState } from '$lib/sidebar/PanelState.svelte';
+  import { formatRelativeTime } from '#lib/helpers/formatRelativeTime.ts';
+  import type { ProjectManager } from '#lib/project-manager/project-manager.svelte.ts';
+  import { appSettings, AppSettingTypes } from '#lib/settings/app-settings.svelte.ts';
+  import { panelState } from '#lib/sidebar/PanelState.svelte.ts';
   import { ConfirmDialog, type Menu, MenuBar, type MenuEntry, toast } from '@nodarium/ui';
   import { tick } from 'svelte';
   import AboutDialog from './AboutDialog.svelte';

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { localState } from '$lib/helpers/localState.svelte';
-  import * as db from '$lib/project-manager/project-database.svelte';
+  import { localState } from '#lib/helpers/localState.svelte.ts';
+  import * as db from '#lib/project-manager/project-database.svelte.ts';
   import type { Graph } from '@nodarium/types';
   import { Canvas } from '@threlte/core';
   import { onMount } from 'svelte';

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Graph } from '$lib/types';
+  import type { Graph } from '#lib/types.ts';
   import { JsonViewer } from '@nodarium/ui';
 
   const { graph }: { graph?: Graph } = $props();

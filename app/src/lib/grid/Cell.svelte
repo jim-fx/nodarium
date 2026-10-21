@@ -4,7 +4,7 @@
   let index = $state(-1);
   let wrapper: HTMLDivElement;
 
-  const { children } = $props<{ children?: Snippet }>();
+  const { children }: { children?: Snippet } = $props();
 
   $effect(() => {
     if (index === -1) {

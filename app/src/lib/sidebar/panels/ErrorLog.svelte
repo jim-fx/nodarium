@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { errorLog, type ErrorLogEntry } from '$lib/runtime/error-log.svelte';
+  import { errorLog, type ErrorLogEntry } from '#lib/runtime/error-log.svelte.ts';
   import { Button } from '@nodarium/ui';
 
   type Props = {
