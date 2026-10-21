@@ -24,6 +24,7 @@
   </div>
 
   <div class="labels mt-2">
+    <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
     {#each values as _label, i (i)}
       <div class="text-{colors[i]}-400">{labels[i]}</div>
     {/each}
