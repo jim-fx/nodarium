@@ -1,0 +1,54 @@
+{
+  "id": "max/plantarium/avoid",
+  "meta": {
+    "description": "Pushes stems apart in 3D so they do not overlap, wherever along their length they meet. The base of every stem stays where it is, so the paths still grow from their parent."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The stems to push apart."
+    },
+    "radius": {
+      "type": "float",
+      "min": 0,
+      "step": 0.01,
+      "value": 0.25,
+      "description": "The gap to keep between the surfaces of two stems."
+    },
+    "strength": {
+      "type": "float",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "value": 1,
+      "description": "How much of an overlap is removed. 1 removes it fully, smaller values move the stems more gently."
+    },
+    "smoothing": {
+      "type": "float",
+      "min": 0,
+      "max": 10,
+      "step": 0.05,
+      "value": 0.5,
+      "description": "How much a bend is shared with the neighbouring points. Values above 1 repeat the smoothing and spread the bend further along the stem, lower values follow the push more directly."
+    },
+    "iterations": {
+      "type": "integer",
+      "min": 1,
+      "max": 64,
+      "value": 8,
+      "hidden": true,
+      "description": "How often the stems are moved. More iterations spread a dense group more evenly."
+    },
+    "depth": {
+      "type": "integer",
+      "min": 1,
+      "max": 10,
+      "value": 1,
+      "hidden": true,
+      "description": "On which layer of paths to work, counted from the outermost. 1 is the layer of branches and leaves, higher values reach down to the trunk."
+    }
+  }
+}
