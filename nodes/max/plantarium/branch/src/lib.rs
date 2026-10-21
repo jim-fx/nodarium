@@ -31,6 +31,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         max_depth = max_depth.max(path_data[3]);
     }
 
+    let path_count = paths
+        .iter()
+        .filter(|p| p[2] == 0 && p[3] >= (max_depth - depth + 1))
+        .count();
+    let mut path_index = 0;
+
     for path_data in paths.iter() {
         // if this is not a path ignore it
         if path_data[2] != 0 || path_data[3] < (max_depth - depth + 1) {
@@ -41,13 +47,19 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         let path = wrap_path(path_data);
         let path_length = path.get_length();
 
+        // alpha is where this parent path sits among all paths, from 0 at the first to 1 at the last
+        ctx.alpha = path_index as f32 / (path_count - 1).max(1) as f32;
+        path_index += 1;
         let branch_amount = ctx.int(args[7]).max(1);
 
         let lowest_branch = ctx.float(args[4]);
         let highest_branch = ctx.float(args[5]);
-        let taper = ctx.float(args[11]);
         // the distance between two neighbouring branches along the path
         let step = (highest_branch - lowest_branch) / (branch_amount - 1).max(1) as f32;
+
+        // each branch reads the rotation step itself, so a random node gives every
+        // branch its own turn around the path
+        let mut turn = 0.0;
 
         for i in 0..branch_amount {
             let a = i as f32 / (branch_amount - 1).max(1) as f32;
@@ -58,6 +70,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             ctx.alpha = root_alpha;
 
             let length = ctx.float(args[1]);
+            let taper = ctx.float(args[11]);
             // a branch as long as its parent path gets the full resolution, shorter ones get
             // fewer points
             let resolution = if path_length > 0.0 {
@@ -80,7 +93,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             let (branch_origin, orthogonal, direction) =
                 interpolate_along_path(path.points, root_alpha + offset_single);
 
-            let rotation_angle = (ctx.float(args[9]) * PI / 180.0) * i as f32;
+            let rotation_angle = turn;
+            turn += ctx.float(args[9]) * PI / 180.0;
 
             // check if diration contains NaN
             if orthogonal[0].is_nan() || orthogonal[1].is_nan() || orthogonal[2].is_nan() {

@@ -21,7 +21,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     let mut stems = wrap_multiple_paths(&mut stem_data);
 
-    for stem in stems.iter_mut() {
+    let stem_count = stems.iter_mut().count();
+
+    for (index, stem) in stems.iter_mut().enumerate() {
+        // alpha is where this stem sits among all stems, from 0 at the first to 1 at the last
+        ctx.alpha = index as f32 / (stem_count - 1).max(1) as f32;
         let origin = ctx.vec3(args[0]);
         let length = ctx.float(args[2]);
         let amount_points = stem.points.len() / 4;

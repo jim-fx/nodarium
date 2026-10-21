@@ -44,15 +44,19 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         Some(path) if path.len() > 1 => *path,
         _ => args[0],
     };
-    let size = ctx.float(args[1]);
     let width_resolution = ctx.int(args[2]).max(3) as usize;
-    let y_curve = ctx.float(args[3]);
-    let y_twist = ctx.float(args[4]);
-    let x_curve = ctx.float(args[5]);
     let path_length = input_path.len().saturating_sub(4) / 2;
     assert!(path_length >= 2, "leaf shape needs at least two points, got {}", path_length);
 
     let slice_count = path_length;
+    let segs = (slice_count - 1).max(1) as f32;
+
+    // alpha goes along the leaf, so every setting can change from base to tip
+    let slice_alphas = || (0..slice_count).map(|i| i as f32 / segs);
+    let size = ctx.float_along(args[1], slice_alphas());
+    let y_curve = ctx.float_along(args[3], slice_alphas());
+    let y_twist = ctx.float_along(args[4], slice_alphas());
+    let x_curve = ctx.float_along(args[5], slice_alphas());
     let face_amount = (slice_count - 1) * (width_resolution - 1) * 2;
     let position_amount = slice_count * width_resolution;
 
@@ -108,10 +112,6 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     // each slice by walking the FK chain. At each step we bend around the
     // current binormal (curls the leaf) and twist around the current tangent
     // (rotates the bend plane → spiral).
-    let segs = (slice_count - 1).max(1) as f32;
-    let bend_per_step = y_curve / segs;
-    let twist_per_step = y_twist / segs;
-
     let mut centers: Vec<Vec3> = Vec::with_capacity(slice_count);
     let mut frame_n: Vec<Vec3> = Vec::with_capacity(slice_count);
     let mut frame_b: Vec<Vec3> = Vec::with_capacity(slice_count);
@@ -129,6 +129,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         frame_b.push(binormal);
 
         if i + 1 < slice_count {
+            let bend_per_step = y_curve[i] / segs;
+            let twist_per_step = y_twist[i] / segs;
             let pz_curr = decode_float(input_path[2 + i * 2 + 1]);
             let pz_next = decode_float(input_path[2 + (i + 1) * 2 + 1]);
             let seg_len = pz_next - pz_curr;
@@ -171,12 +173,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             // x_curve / hw. Because theta = x_curve * t is signed around the
             // midrib, sin/cos give a mirrored arc (left and right edges curl
             // the same direction).
-            let theta = x_curve * t;
+            let theta = x_curve[i] * t;
             let (sin_t, cos_t) = theta.sin_cos();
-            let (b_arc, n_arc) = if x_curve.abs() < 0.0001 {
+            let (b_arc, n_arc) = if x_curve[i].abs() < 0.0001 {
                 (t * hw, 0.0)
             } else {
-                let r = hw / x_curve;
+                let r = hw / x_curve[i];
                 (r * sin_t, r * (1.0 - cos_t))
             };
             // Cross-section bulge follows the rotated local frame
@@ -189,9 +191,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             positions[pos_idx] = [world.x, world.y, world.z];
 
             let flat_idx = offset + pos_idx * 3;
-            out[flat_idx + 0] = encode_float(world.x * size);
-            out[flat_idx + 1] = encode_float(world.y * size);
-            out[flat_idx + 2] = encode_float(world.z * size);
+            out[flat_idx + 0] = encode_float(world.x * size[i]);
+            out[flat_idx + 1] = encode_float(world.y * size[i]);
+            out[flat_idx + 2] = encode_float(world.z * size[i]);
         }
     }
 

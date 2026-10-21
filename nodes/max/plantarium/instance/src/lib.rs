@@ -27,8 +27,13 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         max_depth = max_depth.max(path_data[3]);
     }
 
-    let rotation = ctx.float(args[5]);
     let depth = ctx.int(args[6]);
+
+    let path_count = inputs
+        .iter()
+        .filter(|p| p[2] == 0 && p[3] >= (max_depth - depth + 1))
+        .count();
+    let mut path_index = 0;
 
     for path_data in inputs.iter() {
         // skip everything that is not a path, e.g. instances from a previous instance node
@@ -36,11 +41,18 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             continue;
         }
 
+        // alpha is where this parent path sits among all paths, from 0 at the first to 1 at the last
+        ctx.alpha = path_index as f32 / (path_count - 1).max(1) as f32;
+        path_index += 1;
         let amount = ctx.int(args[2]);
         let lowest_instance = ctx.float(args[3]);
         let highest_instance = ctx.float(args[4]);
 
         let path = wrap_path(path_data);
+
+        // each instance reads the rotation step itself, so a random node gives every
+        // instance its own turn around the path
+        let mut turn = 0.0;
 
         for i in 0..amount {
             let alpha = lowest_instance
@@ -60,7 +72,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             } else {
                 Vec3::NEG_Z
             };
-            let around = Quat::from_axis_angle(tangent, i as f32 * rotation) * base;
+            let around = Quat::from_axis_angle(tangent, turn) * base;
+            turn += ctx.float(args[5]);
             // the angle tilts it along the path, positive toward the tip
             let angle = ctx.float(args[8]).to_radians();
             let out = around * angle.cos() + tangent * angle.sin();

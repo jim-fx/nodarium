@@ -18,13 +18,14 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
 
     let plants = split_args(args[0]);
-    let scale = (ctx.float(args[1]) * 0.1) as f64;
-    let strength = ctx.float(args[2]);
-    let fix_bottom = ctx.float(args[3]);
-
     let seed = args[4][0];
 
-    let directional_strength = ctx.vec3(args[5]);
+    let directional_args = split_args(args[5]);
+    assert!(
+        directional_args.len() == 3,
+        "Failed to evaluate Vec3 - Expected 3 arguments, got {}",
+        directional_args.len()
+    );
 
     let depth = ctx.int(args[6]);
 
@@ -65,32 +66,50 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
             let length = path.get_length() as f64;
 
+            // alpha goes along the path, so every setting can change from base to tip
+            let alphas: Vec<f32> = (0..path.length)
+                .map(|i| i as f32 / (path.length - 1).max(1) as f32)
+                .collect();
+            let scale: Vec<f64> = ctx
+                .float_along(args[1], alphas.iter().copied())
+                .iter()
+                .map(|v| (v * 0.1) as f64)
+                .collect();
+            let strength = ctx.float_along(args[2], alphas.iter().copied());
+            let fix_bottom = ctx.float_along(args[3], alphas.iter().copied());
+            let directional_strength: Vec<[f32; 3]> = {
+                let x = ctx.float_along(directional_args[0], alphas.iter().copied());
+                let y = ctx.float_along(directional_args[1], alphas.iter().copied());
+                let z = ctx.float_along(directional_args[2], alphas.iter().copied());
+                (0..path.length).map(|i| [x[i], y[i], z[i]]).collect()
+            };
+
             if preserve_length {
                 // Snapshot original positions so we can derive each segment's original
                 // direction even after we've modified earlier points.
                 let orig: Vec<f32> = path.points[..path.length * 4].to_vec();
 
                 // Anchor the base (fix_bottom=1 → scale=0, no displacement at root)
-                let scale0 = lerp(1.0, 0.0, fix_bottom);
+                let scale0 = lerp(1.0, 0.0, fix_bottom[0]);
                 path.points[0] += noise_x.get([j as f64, 0.0]) as f32
-                    * directional_strength[0]
-                    * strength
+                    * directional_strength[0][0]
+                    * strength[0]
                     * scale0;
                 path.points[1] += noise_y.get([j as f64, 0.0]) as f32
-                    * directional_strength[1]
-                    * strength
+                    * directional_strength[0][1]
+                    * strength[0]
                     * scale0;
                 path.points[2] += noise_z.get([j as f64, 0.0]) as f32
-                    * directional_strength[2]
-                    * strength
+                    * directional_strength[0][2]
+                    * strength[0]
                     * scale0;
                 let mut prev = Vec3::new(path.points[0], path.points[1], path.points[2]);
 
                 for i in 1..path.length {
                     let a = i as f64 / (path.length - 1) as f64;
-                    let px = j as f64 + a * length * scale;
-                    let py = a * scale as f64;
-                    let sf = lerp(1.0, a as f32, fix_bottom);
+                    let px = j as f64 + a * length * scale[i];
+                    let py = a * scale[i];
+                    let sf = lerp(1.0, a as f32, fix_bottom[i]);
 
                     let orig_dir = Vec3::new(
                         orig[i * 4] - orig[(i - 1) * 4],
@@ -100,9 +119,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                     let orig_len = orig_dir.length();
 
                     let perturb = Vec3::new(
-                        noise_x.get([px, py]) as f32 * directional_strength[0] * strength * sf,
-                        noise_y.get([px, py]) as f32 * directional_strength[1] * strength * sf,
-                        noise_z.get([px, py]) as f32 * directional_strength[2] * strength * sf,
+                        noise_x.get([px, py]) as f32 * directional_strength[i][0] * strength[i] * sf,
+                        noise_y.get([px, py]) as f32 * directional_strength[i][1] * strength[i] * sf,
+                        noise_z.get([px, py]) as f32 * directional_strength[i][2] * strength[i] * sf,
                     );
 
                     // Perturb the original direction and rescale to original length.
@@ -124,21 +143,21 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             } else {
                 for i in 0..path.length {
                     let a = i as f64 / (path.length - 1) as f64;
-                    let px = j as f64 + a * length * scale;
-                    let py = a * scale as f64;
-                    let sf = lerp(1.0, a as f32, fix_bottom);
+                    let px = j as f64 + a * length * scale[i];
+                    let py = a * scale[i];
+                    let sf = lerp(1.0, a as f32, fix_bottom[i]);
 
                     path.points[i * 4] += noise_x.get([px, py]) as f32
-                        * directional_strength[0]
-                        * strength
+                        * directional_strength[i][0]
+                        * strength[i]
                         * sf;
                     path.points[i * 4 + 1] += noise_y.get([px, py]) as f32
-                        * directional_strength[1]
-                        * strength
+                        * directional_strength[i][1]
+                        * strength[i]
                         * sf;
                     path.points[i * 4 + 2] += noise_z.get([px, py]) as f32
-                        * directional_strength[2]
-                        * strength
+                        * directional_strength[i][2]
+                        * strength[i]
                         * sf;
                 }
             }

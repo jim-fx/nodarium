@@ -20,11 +20,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     let plants = split_args(args[0]);
     let depth = ctx.int(args[2]);
-    let elasticity = ctx.float(args[3]).clamp(0.0, 1.0);
     let mode = int(args[4]); // 0 = closed-form, 1 = verlet
-    // 0 → sqrt (rope), 1 → ~4.5 (only the tip droops)
-    let bend_exponent = 0.5 + elasticity * 4.0;
-
     let mut max_depth = 0;
     for path_data in plants.iter() {
         if path_data[2] != 0 {
@@ -32,6 +28,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         }
         max_depth = max_depth.max(path_data[3]);
     }
+
+    let path_count = plants.iter().filter(|p| p[2] == 0).count();
+    let mut path_index = 0;
 
     let output: Vec<Vec<i32>> = plants
         .iter()
@@ -41,8 +40,19 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 return path_data;
             }
 
+            // alpha is where this path sits among all paths, from 0 at the first to 1 at the last
+            ctx.alpha = path_index as f32 / (path_count - 1).max(1) as f32;
+            path_index += 1;
+            let elasticity = ctx.float(args[3]).clamp(0.0, 1.0);
+            // 0 → sqrt (rope), 1 → ~4.5 (only the tip droops)
+            let bend_exponent = 0.5 + elasticity * 4.0;
+
             let path = wrap_path(&path_data);
             let mut output_data = path_data.clone();
+
+            // alpha goes along the path, so the strength can change from base to tip
+            let alphas = (0..path.length).map(|i| i as f32 / (path.length - 1).max(1) as f32);
+            let strengths = ctx.float_along(args[1], alphas);
             let output = wrap_path_mut(&mut output_data);
 
             if mode == 1 {
@@ -52,11 +62,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 // anchored base outward, so segment lengths are preserved by
                 // construction (no iteration, no rescaling, no oscillation).
 
-                let raw_strength = ctx.float(args[1]);
                 let gravity_dir = Vec3::new(0.0, -1.0, 0.0);
-
-                // Tip bend angle in radians. PI/2 = horizontal tip at strength=1.
-                let max_angle = raw_strength * std::f32::consts::FRAC_PI_2;
 
                 let original: Vec<Vec3> = (0..path.length)
                     .map(|i| {
@@ -86,6 +92,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                     } else {
                         1.0
                     };
+                    // Tip bend angle in radians. PI/2 = horizontal tip at strength=1.
+                    let max_angle = strengths[seg_idx] * std::f32::consts::FRAC_PI_2;
                     let bend_angle = max_angle * alpha.powf(bend_exponent);
 
                     let rest_dir = rest_dirs[seg_idx];
@@ -131,7 +139,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                     let length = direction.length();
 
                     let curviness = elasticity.max(0.0001);
-                    let strength_arg = ctx.float(args[1]) * 10.0;
+                    let strength_arg = strengths[i] * 10.0;
                     let strength = strength_arg / curviness * strength_arg;
 
                     log!(

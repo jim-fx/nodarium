@@ -18,6 +18,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let axis = int(args[1]); // 0 =x, 1 = y, 2 = z
     let spread = int(args[3]);
 
+    let path_count = plants.iter().filter(|p| p[2] == 0).count();
+    let mut path_index = 0;
+
     let output: Vec<Vec<i32>> = plants
         .iter()
         .enumerate()
@@ -31,6 +34,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
             let path = wrap_path_mut(&mut path_data);
 
+            // alpha is where this path sits among all paths, from 0 at the first to 1 at the last
+            ctx.alpha = path_index as f32 / (path_count - 1).max(1) as f32;
+            path_index += 1;
             let angle = ctx.float(args[2]);
 
             let origin = [path.points[0], path.points[1], path.points[2]];
