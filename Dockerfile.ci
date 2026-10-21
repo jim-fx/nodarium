@@ -1,4 +1,4 @@
-FROM node:25-bookworm-slim
+FROM node:26-trixie-slim
 
 ENV RUSTUP_HOME=/usr/local/rustup \
   CARGO_HOME=/usr/local/cargo \
@@ -6,16 +6,16 @@ ENV RUSTUP_HOME=/usr/local/rustup \
 
 RUN apt-get update && apt-get install -y \
   openssh-client \
-  ca-certificates=20230311+deb12u1 \
-  gpg=2.2.40-1.1+deb12u2 \
-  gpg-agent=2.2.40-1.1+deb12u2 \
-  curl=7.88.1-10+deb12u14 \
-  git=1:2.39.5-0+deb12u3 \
-  jq=1.6-2.1+deb12u1 \
-  g++=4:12.2.0-3 \
-  rclone=1.60.1+dfsg-2+b5 \
-  xvfb=2:21.1.7-3+deb12u11 \
-  xauth=1:1.1.2-1 \
+  ca-certificates=20250419+deb13u1 \
+  gpg=2.4.7-21+deb13u1+b5 \
+  gpg-agent=2.4.7-21+deb13u1+b5 \
+  curl=8.14.1-2+deb13u7 \
+  git=1:2.47.3-0+deb13u1 \
+  jq=1.7.1-6+deb13u4 \
+  g++=4:14.2.0-1 \
+  rclone=1.60.1+dfsg-4 \
+  xvfb=2:21.1.16-1.3+deb13u4 \
+  xauth=1:1.1.2-1.1 \
   --no-install-recommends \
   # Install Rust
   && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
