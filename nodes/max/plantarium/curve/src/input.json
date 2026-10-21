@@ -1,7 +1,7 @@
 {
   "id": "max/plantarium/curve",
   "meta": {
-    "description": "Shapes a value from 0 to 1 with a curve and scales the result to min and max"
+    "description": "Shapes a value from 0 to 1 with a curve and scales the result to min and max. Uses alpha when no value is connected"
   },
   "outputs": [
     "float"
