@@ -80,11 +80,13 @@
       uColorDark: { value: colors['layer-1'] },
       uStrokeColor: { value: colors.outline.clone() },
       uSectionHeights: { value: [5, 10] },
+      uIsMuted: { value: false },
       uNumSections: { value: 2 },
       uWidth: { value: 20 },
       uHeight: { value: 200 },
       uZoom: { value: 1.0 }
     }}
+    uniforms.uIsMuted.value={node.state.muted}
     uniforms.uZoom.value={zoomValue}
     uniforms.uHeight.value={height}
     uniforms.uSectionHeights.value={sectionHeights}

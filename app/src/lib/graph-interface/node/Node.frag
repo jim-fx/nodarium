@@ -7,6 +7,7 @@ uniform float uZoom;
 uniform vec3 uColorDark;
 uniform vec3 uColorBright;
 uniform vec3 uStrokeColor;
+uniform bool uIsMuted;
 
 const float uHeaderHeight = 5.0; 
 uniform float uSectionHeights[16]; 
@@ -80,9 +81,12 @@ void main(){
     if (abs(y - dividerY) < strokeWidth * 0.25) isDivider = true;
   }
 
+  float alpha = 1.0;
+  if(uIsMuted) alpha = 0.5;
+
   if (sceneSDF > -strokeWidth || isDivider) {
-    gl_FragColor = vec4(uStrokeColor, 1.0);
+    gl_FragColor = vec4(uStrokeColor, alpha);
   } else {
-    gl_FragColor = vec4(finalColor, 1.0);
+    gl_FragColor = vec4(finalColor, alpha);
   }
 }

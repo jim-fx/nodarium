@@ -8,4 +8,4 @@ type RuntimeState = {
   debugNode?: boolean;
 };
 
-export type RuntimeNode = SerializedNode & { state: RuntimeState };
+export type RuntimeNode = null | (SerializedNode & { state: RuntimeState });

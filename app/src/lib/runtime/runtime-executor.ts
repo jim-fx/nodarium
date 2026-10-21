@@ -14,6 +14,7 @@ import {
   type PerformanceStore,
   readNodeValue
 } from '@nodarium/utils';
+import { areSocketsCompatible } from '../graph-interface/helpers/nodeHelpers';
 import { getErrorInfo, NodeExecutionError, type RuntimeErrorInfo } from './errors';
 import type { RuntimeNode } from './types';
 
@@ -76,6 +77,19 @@ export function expandGroups(graph: Graph, origins?: Map<number, number>): Graph
       if (!group) continue;
 
       changed = true;
+
+      // A muted group isn't expanded, it passes its first input through
+      if (node.muted === true) {
+        const firstKey = Object.keys(group.inputs ?? {})[0];
+        const incoming = edges.find(e => e[2] === node.id && e[3] === firstKey);
+        const outgoing = edges.filter(e => e[0] === node.id);
+        edges = edges.filter(e => e[0] !== node.id && e[2] !== node.id);
+        if (incoming) {
+          for (const out of outgoing) edges.push([incoming[0], incoming[1], out[2], out[3]]);
+        }
+        nodes.splice(i, 1);
+        break;
+      }
 
       const idMap = new Map<number, number>();
 
@@ -214,8 +228,6 @@ function getValue(input: NodeInput, value?: unknown) {
     return [0, 1, 1, 1];
   }
 
-  console.log({ input, value });
-
   throw new Error(`Unknown input type ${input.type}`);
 }
 
@@ -267,8 +279,9 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     // First, lets check if all nodes have a definition
     this.definitionMap = await this.getNodeDefinitions(graph);
 
-    const graphNodes = graph.nodes.map(node => {
+    let graphNodes = graph.nodes.map(node => {
       const n = node as RuntimeNode;
+      if (!n) return null;
       n.state = {
         depth: 0,
         children: [],
@@ -278,13 +291,13 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       return n;
     });
 
-    const outputNode = graphNodes.find((node) => node.type.endsWith('/output'));
+    const outputNode = graphNodes.find((node) => node?.type.endsWith('/output'));
     if (!outputNode) {
       throw new Error('No output node found');
     }
 
     const nodeMap = new Map(
-      graphNodes.map((node) => [node.id, node])
+      graphNodes.filter(n => n !== null).map((node) => [node.id, node])
     );
 
     // loop through all edges and assign the parent and child nodes to each node
@@ -299,14 +312,60 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       }
     }
 
+    // Remove all muted nodes from the graph, a muted node passes the node
+    // connected to its first input through to its children
+    const isBypassed = (node: NonNullable<RuntimeNode>) =>
+      node.muted === true && !node.type.endsWith('/debug') && !node.type.endsWith('/output');
+
+    type LiveNode = NonNullable<RuntimeNode>;
+    const resolveSource = (node: LiveNode): LiveNode | undefined => {
+      const seen = new Set<number>();
+      let current: LiveNode | undefined = node;
+      while (current && isBypassed(current)) {
+        if (seen.has(current.id)) return undefined;
+        seen.add(current.id);
+        const inputs: Record<string, unknown> = this.definitionMap.get(current.type)?.inputs || {};
+        const firstInput: string | undefined = Object.keys(inputs)[0];
+        current = firstInput
+          ? current.state.inputNodes[firstInput] as LiveNode | undefined
+          : undefined;
+      }
+      return current;
+    };
+
+    graphNodes = graphNodes.filter(n => n && !isBypassed(n));
+    for (const node of graphNodes) {
+      if (!node) continue;
+      node.state.children = [];
+    }
+    for (const node of graphNodes) {
+      if (!node) continue;
+      for (const [key, inputNode] of Object.entries(node.state.inputNodes)) {
+        const source = resolveSource(inputNode as NonNullable<RuntimeNode>);
+        // a bypassed value is dropped if the child cannot accept its type
+        const sourceType = source && this.definitionMap.get(source.type)?.outputs?.[0];
+        const input = this.definitionMap.get(node.type)?.inputs?.[key];
+        const compatible = source === inputNode
+          || (!!input && areSocketsCompatible(sourceType as string, [input.type, ...(input.accepts || [])]));
+        if (source && compatible) {
+          node.state.inputNodes[key] = source;
+          source.state.children.push(node);
+        } else {
+          delete node.state.inputNodes[key];
+        }
+      }
+      node.state.parents = Object.values(node.state.inputNodes);
+    }
+
     const nodes = new Map<number, RuntimeNode>();
 
     // loop through all the nodes and assign each nodes its depth
-    const stack = [outputNode, ...graphNodes.filter(n => n.type.endsWith('/debug'))];
+    const stack = [outputNode, ...graphNodes.filter(n => n?.type.endsWith('/debug'))];
     while (stack.length) {
       const node = stack.pop();
       if (!node) continue;
       for (const parent of node.state.parents) {
+        if (!parent) continue;
         parent.state = parent.state || {};
         parent.state.depth = node.state.depth + 1;
         stack.push(parent);
@@ -315,6 +374,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     }
 
     for (const node of graphNodes) {
+      if (!node) continue;
       if (node.type.endsWith('/debug')) {
         node.state = node.state || {};
         const parent = node.state.parents[0];
@@ -370,7 +430,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
     // we execute the nodes from the bottom up
     const sortedNodes = nodes.sort(
-      (a, b) => (b.state?.depth || 0) - (a.state?.depth || 0)
+      (a, b) => (b?.state?.depth || 0) - (a?.state?.depth || 0)
     );
 
     // here we store the intermediate results of the nodes, results of wasm
@@ -391,6 +451,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     }
 
     for (const node of sortedNodes) {
+      if (!node) continue;
       const node_type = this.definitionMap.get(node.type)!;
 
       if (!node_type || !node.state || !node_type.execute) {

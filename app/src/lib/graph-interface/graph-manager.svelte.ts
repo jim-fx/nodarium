@@ -318,7 +318,7 @@ export class GraphManager extends EventEmitter<{
     this.nodes.clear();
     for (const node of graph.nodes) {
       const n = $state(node) as NodeInstance;
-      n.state = { type: this.registry.getNode(node.type) };
+      n.state = { type: this.registry.getNode(node.type), muted: node.muted };
       this.nodes.set(n.id, n);
     }
 
@@ -1362,6 +1362,46 @@ export class GraphManager extends EventEmitter<{
     this.execute();
 
     return edge;
+  }
+
+  /**
+   * The input a muted node passes through to its outputs: the first input that
+   * can be wired. A group instance skips its internal group selector.
+   */
+  getMutePassthroughInput(node: NodeInstance): string | undefined {
+    const inputs = this.getNodeType(node)?.inputs;
+    if (!inputs) return;
+    const isGroup = node.type === '__internal/group/instance';
+    const [key, input] = Object.entries(inputs).find(([k]) => !(isGroup && k === 'groupId')) ?? [];
+    if (!key || !input) return;
+    // setting and seed inputs can't be wired, so nothing could pass through
+    if (input.type === 'seed' || input.setting) return;
+    return key;
+  }
+
+  muteNodes(nodeIds: number[]) {
+    nodeIds.forEach(id => this.muteNode(id, false));
+    this.save();
+    this.execute();
+  }
+
+  muteNode(activeNodeId: number, executeImmediately = true): void {
+    const node = this.getNode(activeNodeId);
+    if (!node) return;
+    if (!this.getMutePassthroughInput(node)) return;
+    if (node.type === '__internal/group/output') return;
+    if (node.type === '__internal/group/input') return;
+    if (node.type.endsWith('/debug')) return;
+    if (node.type.endsWith('/output')) return;
+    // const firstInputType = firstInput.type;
+    // const outputType = nodeType.outputs?.[0];
+    // check if nodes first input has the same type as the nodes output
+    // if (firstInputType !== outputType) return;
+    node.state.muted = !node.state.muted;
+    if (executeImmediately) {
+      this.save();
+      this.execute();
+    }
   }
 
   // History entries are full graphs (see serialize()) and one history spans all

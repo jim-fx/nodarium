@@ -13,7 +13,7 @@
 
 <div class="wrapper">
   <div class="bars">
-    {#each values as value, i (value)}
+    {#each values as value, i (i)}
       <div
         class="bar bg-{colors[i]}-400"
         style:width={(value / total) * 100 + '%'}
@@ -24,7 +24,7 @@
   </div>
 
   <div class="labels mt-2">
-    {#each values as _label, i (_label)}
+    {#each values as _label, i (i)}
       <div class="text-{colors[i]}-400">{labels[i]}</div>
     {/each}
   </div>

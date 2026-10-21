@@ -68,6 +68,17 @@ export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: Gr
   });
 
   keymap.addShortcut({
+    key: 'm',
+    ctrl: false,
+    preventDefault: false,
+    description: 'Mute selected node',
+    callback: () =>
+      graph.muteNodes(
+        [...new Set([graphState.activeNodeId, ...graphState.selectedNodes.values()])]
+      )
+  });
+
+  keymap.addShortcut({
     key: 'g',
     alt: true,
     preventDefault: true,

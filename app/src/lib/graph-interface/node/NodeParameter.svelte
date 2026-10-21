@@ -86,6 +86,7 @@
 
   const socketType = $derived(getSocketType(graphState.activeSocket));
   const hoverColor = $derived(graphState.colors.getColor(socketType));
+  const disabled = $derived(graph?.inputSockets?.has(socketId));
 </script>
 
 <div
@@ -98,7 +99,7 @@
   class:possible-socket={graphState?.possibleSocketIds.has(socketId)}
 >
   {#key id && graphId}
-    <div class="content" class:disabled={graph?.inputSockets?.has(socketId)}>
+    <div class="content" class:disabled={disabled}>
       {#if isExposed}
         <div class="flex items-center justify-between gap-2">
           {#if inputType?.label !== ''}

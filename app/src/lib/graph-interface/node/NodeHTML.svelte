@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { NodeInstance } from '@nodarium/types';
+  import MutedEdge from '../edges/MutedEdge.svelte';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
   import NodeHeader from './NodeHeader.svelte';
   import NodeParameter from './NodeParameter.svelte';
@@ -41,6 +42,15 @@
     ) || {}
   );
 
+  const showMutedEdge = $derived.by(() => {
+    const firstInput = graph?.getMutePassthroughInput(node);
+    if (!firstInput) return false;
+    if (graph?.getEdgesToNode(node).some((e) => e[3] === firstInput) !== true) return false;
+    const inputType = nodeType?.inputs?.[firstInput]?.type;
+    const outputType = nodeType?.outputs?.[0];
+    return inputType === outputType;
+  });
+
   $effect(() => {
     if ('state' in node && !node.state.ref) {
       node.state.ref = ref;
@@ -49,9 +59,14 @@
   });
 </script>
 
+{#if node.state.muted && node.state.children?.length && showMutedEdge}
+  <MutedEdge {node} {z} />
+{/if}
+
 <div
   class="node {position}"
   class:active={isActive}
+  class:muted={node.state.muted}
   style:--cz={z + zOffset}
   style:display={inView && z > zLimit ? 'block' : 'none'}
   class:selected={isSelected}
@@ -86,6 +101,10 @@
     font-weight: 300;
     --stroke: var(--color-outline);
     --stroke-width: 2px;
+  }
+
+  .node.muted {
+    opacity: 0.5;
   }
 
   .node.error {

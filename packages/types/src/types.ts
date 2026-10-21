@@ -18,6 +18,7 @@ export type NodeId = z.infer<typeof NodeIdSchema>;
 export type NodeRuntimeState = {
   depth?: number;
   mesh?: any;
+  muted?: boolean;
   parents?: NodeInstance[];
   children?: NodeInstance[];
   inputNodes?: Record<string, NodeInstance>;
@@ -57,6 +58,7 @@ export const NodeSchema = z.object({
     .optional(),
   // hidden inputs that are shown on this node
   exposed: z.array(z.string()).optional(),
+  muted: z.boolean().optional(),
   meta: z
     .object({
       title: z.string().optional(),
