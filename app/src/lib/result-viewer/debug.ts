@@ -1,10 +1,10 @@
 import { splitNestedArray } from '@nodarium/utils';
 import {
+  ArrowHelper,
   BufferGeometry,
   Color,
   Float32BufferAttribute,
   Group,
-  InstancedMesh,
   Line,
   LineBasicMaterial,
   LineSegments,
@@ -15,12 +15,15 @@ import {
   PointsMaterial,
   Vector3
 } from 'three';
-import { createGeometryPool, createInstancedGeometryPool } from './geometryPool';
+import { createGeometryPool } from './geometryPool';
 
 // one color per stem depth, branches of branches get the next color
 const depthColors = ['#ff5c5c', '#ffb347', '#4dd2ff', '#c084fc', '#5eea8c'].map((c) =>
   new Color(c)
 );
+const INSTANCE_COLOR = new Color('#5eea8c');
+// instances are tiny next to the plant, their arrows are drawn this much longer
+const INSTANCE_ARROW_SCALE = 100;
 const RING_SEGMENTS = 12;
 // drawn on top of the result
 const RENDER_ORDER = 999;
@@ -132,39 +135,8 @@ function createPathDebug(paths: Int32Array[]) {
   return group;
 }
 
-/** the x, y and z axes of every instance, scaled like the instance */
-function createInstanceAxes(mesh: InstancedMesh) {
-  const positions: number[] = [];
-  const colors: number[] = [];
-  const matrix = new Matrix4();
-  const origin = new Vector3();
-  const axis = new Vector3();
-  const axisColors = [new Color('#ff5c5c'), new Color('#5eea8c'), new Color('#4d8dff')];
-
-  for (let i = 0; i < mesh.count; i++) {
-    mesh.getMatrixAt(i, matrix);
-    origin.setFromMatrixPosition(matrix);
-    for (let c = 0; c < 3; c++) {
-      axis.setFromMatrixColumn(matrix, c).add(origin);
-      positions.push(origin.x, origin.y, origin.z, axis.x, axis.y, axis.z);
-      const color = axisColors[c];
-      colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
-    }
-  }
-
-  const geometry = new BufferGeometry();
-  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
-  const axes = new LineSegments(
-    geometry,
-    new LineBasicMaterial({ vertexColors: true, depthTest: false })
-  );
-  axes.renderOrder = RENDER_ORDER;
-  return axes;
-}
-
-/** geometries and instances as a wireframe, instances also show their orientation */
-function createGeometryDebug(geometries: Int32Array[], instances: Int32Array[]) {
+/** geometries as a wireframe */
+function createGeometryDebug(geometries: Int32Array[]) {
   const group = new Group();
   const material = new MeshBasicMaterial({
     color: '#4dd2ff',
@@ -175,15 +147,47 @@ function createGeometryDebug(geometries: Int32Array[], instances: Int32Array[]) 
   });
 
   createGeometryPool(group, material).update(geometries);
-  createInstancedGeometryPool(group, material).update(instances);
-
-  const instancedMeshes: InstancedMesh[] = [];
   group.traverse((child) => {
     (child as Mesh).renderOrder = RENDER_ORDER;
-    if (child instanceof InstancedMesh) instancedMeshes.push(child);
   });
-  for (const mesh of instancedMeshes) {
-    group.add(createInstanceAxes(mesh));
+
+  return group;
+}
+
+/**
+ * Instances as an arrow from their location along the direction they grow in. The geometry
+ * grows along its -z axis. Instances are often tiny next to the plant, so the arrows are
+ * scaled up by a fixed factor, they still grow and shrink with the size of the instances.
+ */
+function createInstanceDebug(instances: Int32Array[]) {
+  const group = new Group();
+  const matrix = new Matrix4();
+  const origin = new Vector3();
+  const direction = new Vector3();
+
+  for (const data of instances) {
+    // 0: type, 1: vertices, 2: faces, 3: instances, 4: depth, followed by the faces,
+    // the positions and normals of the geometry, then a matrix for every instance
+    const vertices = data[1];
+    const faces = data[2];
+    const count = data[3];
+    const offset = 5 + faces * 3 + vertices * 6;
+    const f32 = new Float32Array(data.buffer, data.byteOffset, data.length);
+
+    for (let i = 0; i < count; i++) {
+      matrix.fromArray(f32, offset + i * 16);
+      origin.setFromMatrixPosition(matrix);
+      direction.setFromMatrixColumn(matrix, 2).negate();
+      const length = direction.length() * INSTANCE_ARROW_SCALE;
+      if (!(length > 0)) continue;
+
+      const arrow = new ArrowHelper(direction.normalize(), origin.clone(), length, INSTANCE_COLOR);
+      (arrow.line.material as LineBasicMaterial).depthTest = false;
+      (arrow.cone.material as MeshBasicMaterial).depthTest = false;
+      arrow.line.renderOrder = RENDER_ORDER;
+      arrow.cone.renderOrder = RENDER_ORDER;
+      group.add(arrow);
+    }
   }
 
   return group;
@@ -192,7 +196,6 @@ function createGeometryDebug(geometries: Int32Array[], instances: Int32Array[]) 
 function clearGroup(group: Group) {
   group.traverse((child) => {
     if (child === group) return;
-    if (child instanceof InstancedMesh) child.dispose();
     // @ts-expect-error three.js runtime fields
     child.geometry?.dispose?.();
     // @ts-expect-error three.js runtime fields
@@ -217,8 +220,7 @@ export function updateDebugScene(
     const instances = items.filter((item) => item[0] === 2);
 
     if (paths.length) group.add(createPathDebug(paths));
-    if (geometries.length || instances.length) {
-      group.add(createGeometryDebug(geometries, instances));
-    }
+    if (geometries.length) group.add(createGeometryDebug(geometries));
+    if (instances.length) group.add(createInstanceDebug(instances));
   }
 }

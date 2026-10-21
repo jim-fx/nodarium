@@ -1,5 +1,5 @@
 import { concatEncodedArrays } from '@nodarium/utils';
-import { Group, InstancedMesh, Line, Points } from 'three';
+import { ArrowHelper, Group, Line, LineSegments, Points, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { updateDebugScene } from './debug';
 
@@ -34,13 +34,15 @@ function instances(count: number) {
 function collect(group: Group) {
   const lines: Line[] = [];
   const points: Points[] = [];
-  const meshes: InstancedMesh[] = [];
+  const segments: LineSegments[] = [];
+  const arrows: ArrowHelper[] = [];
   group.traverse((child) => {
-    if (child instanceof InstancedMesh) meshes.push(child);
+    if (child instanceof ArrowHelper) arrows.push(child);
     else if (child instanceof Points) points.push(child);
-    else if (child instanceof Line && !('isLineSegments' in child)) lines.push(child);
+    else if (child instanceof LineSegments) segments.push(child);
+    else if (child instanceof Line && !(child.parent instanceof ArrowHelper)) lines.push(child);
   });
-  return { lines, points, meshes };
+  return { lines, points, segments, arrows };
 }
 
 describe('updateDebugScene', () => {
@@ -54,17 +56,37 @@ describe('updateDebugScene', () => {
 
     updateDebugScene(group, { 1: { type: 'path', data } });
 
-    const { lines, points, meshes } = collect(group);
+    const { lines, points, arrows } = collect(group);
     expect(lines).toHaveLength(2);
     expect(points[0].geometry.getAttribute('position').count).toBe(5);
-    expect(meshes).toHaveLength(1);
-    expect(meshes[0].count).toBe(4);
+    // an arrow for every instance
+    expect(arrows).toHaveLength(4);
   });
 
   it('draws a single geometry that is not wrapped in a list', () => {
     const group = new Group();
     updateDebugScene(group, { 1: { type: 'path', data: wrap(instances(2)) } });
-    expect(collect(group).meshes[0].count).toBe(2);
+    expect(collect(group).arrows).toHaveLength(2);
+  });
+
+  it('points an instance along its -z axis, as long as its size, scaled up', () => {
+    const group = new Group();
+    const data = instances(2);
+    // scale 2 at (1, 2, 3) and scale 1 at (1, 2, 13)
+    new Float32Array(data.buffer).set(
+      [2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 1, 2, 3, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 13, 1],
+      26
+    );
+    updateDebugScene(group, { 1: { type: 'path', data: wrap(data) } });
+
+    const arrows = collect(group).arrows;
+    expect(arrows.map((a) => a.position.toArray())).toEqual([[1, 2, 3], [1, 2, 13]]);
+    // an arrow points along +y until it is rotated
+    for (const arrow of arrows) {
+      const direction = new Vector3(0, 1, 0).applyQuaternion(arrow.quaternion);
+      expect(direction.distanceTo(new Vector3(0, 0, -1))).toBeLessThan(1e-6);
+    }
+    expect(arrows.map((a) => a.cone.position.y)).toEqual([200, 100]);
   });
 
   it('skips single values and clears the previous result', () => {
