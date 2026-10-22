@@ -7,6 +7,7 @@
   import { untrack } from 'svelte';
   import { Box3, type Group, type Material } from 'three';
   import { createGeometryPool, createInstancedGeometryPool } from './geometryPool';
+  import type { ForceGizmo, GizmoChange, GizmoMode } from './gizmos';
   import { getMaterial, matcapLoaded, setHeightRange } from './materials';
   import Scene from './Scene.svelte';
 
@@ -69,9 +70,28 @@
     centerCamera: boolean;
     perf: PerformanceStore;
     debugData?: Record<number, { type: string; data: Int32Array }>;
+    gizmos?: ForceGizmo[];
+    ongizmochange?: (nodeId: number, change: GizmoChange) => void;
+    ongizmostart?: () => void;
+    ongizmoend?: () => void;
   };
 
-  let { scene = $bindable(), centerCamera, debugData, perf }: Props = $props();
+  let {
+    scene = $bindable(),
+    centerCamera,
+    debugData,
+    perf,
+    gizmos = [],
+    ongizmochange,
+    ongizmostart,
+    ongizmoend
+  }: Props = $props();
+
+  let gizmoMode = $state<GizmoMode>('translate');
+  const gizmoModes: { mode: GizmoMode; label: string; icon: string }[] = [
+    { mode: 'translate', label: 'Move', icon: 'i-[tabler--arrows-move]' },
+    { mode: 'scale', label: 'Scale', icon: 'i-[tabler--arrows-maximize]' }
+  ];
 
   export const update = function update(result: Int32Array) {
     perf.addPoint('split-result');
@@ -93,14 +113,35 @@
   <SmallPerformanceViewer {fps} store={perf} />
 {/if}
 
-<div style="height: 100%">
+<div class="relative" style="height: 100%">
   <Canvas>
     <Scene
       bind:this={sceneComponent}
       {centerCamera}
       {debugData}
+      {gizmos}
+      {gizmoMode}
+      {ongizmochange}
+      {ongizmostart}
+      {ongizmoend}
       bind:scene
       bind:fps
     />
   </Canvas>
+  {#if gizmos.some((g) => g.radius !== undefined)}
+    <div class="absolute top-3 left-3 flex overflow-hidden rounded border border-outline bg-layer-1">
+      {#each gizmoModes as { mode, label, icon } (mode)}
+        <button
+          type="button"
+          aria-label={label}
+          aria-pressed={gizmoMode === mode}
+          title={label}
+          class="flex h-8 w-8 cursor-pointer items-center justify-center border-none text-text {gizmoMode === mode ? 'bg-selected text-white' : 'bg-transparent hover:bg-layer-2'}"
+          onclick={() => (gizmoMode = mode)}
+        >
+          <span class="block h-4 w-4 {icon}"></span>
+        </button>
+      {/each}
+    </div>
+  {/if}
 </div>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { NodeInput, NodeInstance } from '@nodarium/types';
   import { Input } from '@nodarium/ui';
+  import { untrack } from 'svelte';
   import type { GraphManager } from '../graph-manager.svelte';
 
   type Props = {
@@ -43,17 +44,30 @@
     return false;
   }
 
+  // The prop can also change from outside, for example when a value is dragged in the viewer
+  $effect(() => {
+    const b = $state.snapshot(node?.props?.[id]);
+    untrack(() => {
+      if (b === undefined) return;
+      const a = $state.snapshot(value);
+      const isDiff = Array.isArray(b) ? diffArray(b, a as number[] | number) : a !== b;
+      if (isDiff) value = structuredClone(b) as number;
+    });
+  });
+
   $effect(() => {
     const a = $state.snapshot(value);
-    const b = $state.snapshot(node?.props?.[id]);
-    const isDiff = Array.isArray(a) ? diffArray(a, b) : a !== b;
-    if (value !== undefined && isDiff) {
-      node.props = { ...node.props, [id]: a };
-      if (graph) {
-        graph.save();
-        graph.execute();
+    untrack(() => {
+      const b = $state.snapshot(node?.props?.[id]);
+      const isDiff = Array.isArray(a) ? diffArray(a, b) : a !== b;
+      if (value !== undefined && isDiff) {
+        node.props = { ...node.props, [id]: a };
+        if (graph) {
+          graph.save();
+          graph.execute();
+        }
       }
-    }
+    });
   });
 </script>
 

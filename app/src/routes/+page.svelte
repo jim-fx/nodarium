@@ -12,6 +12,7 @@
   import PerformanceViewer from '#lib/performance/PerformanceViewer.svelte';
   import { ProjectManager } from '#lib/project-manager/project-manager.svelte.ts';
   import ProjectBrowser from '#lib/project-manager/ProjectBrowser.svelte';
+  import { collectForceGizmos, type GizmoChange, gizmoProps } from '#lib/result-viewer/gizmos.ts';
   import Viewer from '#lib/result-viewer/Viewer.svelte';
   import { errorLog } from '#lib/runtime/error-log.svelte.ts';
   import {
@@ -105,6 +106,27 @@
       ? manager?.getNode(graphInterface.state.activeNodeId)
       : undefined
   );
+
+  const gizmos = $derived(
+    manager
+      ? collectForceGizmos(
+        manager.nodes.values(),
+        manager.edges,
+        graphInterface.state.activeNodeId,
+        (node, input) => {
+          const definition = node.state?.type?.inputs?.[input];
+          return definition && 'value' in definition ? definition.value : undefined;
+        }
+      )
+      : []
+  );
+
+  function handleGizmoChange(nodeId: number, change: GizmoChange) {
+    const node = manager?.getNode(nodeId);
+    if (!node) return;
+    node.props = { ...node.props, ...gizmoProps(node, change) };
+    manager.execute();
+  }
 
   pm.onrenameactive = (title) => {
     if (manager) manager.meta = { ...manager.meta, title };
@@ -332,6 +354,10 @@
           bind:this={viewerComponent}
           perf={performanceStore}
           debugData={debugData}
+          {gizmos}
+          ongizmochange={handleGizmoChange}
+          ongizmostart={() => manager?.startUndoGroup()}
+          ongizmoend={() => manager?.saveUndoGroup()}
           centerCamera={appSettings.value.centerCamera}
         />
         {#if isExecuting}
