@@ -6,7 +6,7 @@
   import { appSettings } from '../settings/app-settings.svelte';
   import Camera from './Camera.svelte';
   import Debug from './Debug.svelte';
-  import type { ForceGizmo, GizmoChange, GizmoMode } from './gizmos';
+  import type { Gizmo, GizmoChange, GizmoMode } from './gizmos';
   import Gizmos from './Gizmos.svelte';
 
   const { renderStage, invalidate: _invalidate } = useThrelte();
@@ -16,7 +16,7 @@
     debugData?: Record<number, { type: string; data: Int32Array }>;
     scene: Group;
     centerCamera: boolean;
-    gizmos?: ForceGizmo[];
+    gizmos?: Gizmo[];
     gizmoMode?: GizmoMode;
     ongizmochange?: (nodeId: number, change: GizmoChange) => void;
     ongizmostart?: () => void;

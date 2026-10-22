@@ -12,7 +12,13 @@
   import PerformanceViewer from '#lib/performance/PerformanceViewer.svelte';
   import { ProjectManager } from '#lib/project-manager/project-manager.svelte.ts';
   import ProjectBrowser from '#lib/project-manager/ProjectBrowser.svelte';
-  import { collectForceGizmos, type GizmoChange, gizmoProps } from '#lib/result-viewer/gizmos.ts';
+  import { type ProbePath, readPaths } from '#lib/result-viewer/gizmo-paths.ts';
+  import {
+    addProbe,
+    collectGizmos,
+    type GizmoChange,
+    probeSource
+  } from '#lib/result-viewer/gizmos.ts';
   import Viewer from '#lib/result-viewer/Viewer.svelte';
   import { errorLog } from '#lib/runtime/error-log.svelte.ts';
   import {
@@ -43,6 +49,7 @@
   import type { Edge, Graph } from '@nodarium/types';
   import { Spinner, Toast, toast } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
+  import { untrack } from 'svelte';
   import type { Group } from 'three';
 
   let performanceStore = createPerformanceStore();
@@ -107,24 +114,41 @@
       : undefined
   );
 
+  /** The paths that come into the active node, for the gizmos of nodes that work on paths */
+  let probe = $state.raw<{ sourceId: number; paths: ProbePath[] }>();
+  const probeSourceOfActive = $derived(
+    manager && activeNode ? probeSource(activeNode.type, activeNode.id, manager.edges) : undefined
+  );
+
   const gizmos = $derived(
     manager
-      ? collectForceGizmos(
+      ? collectGizmos(
         manager.nodes.values(),
         manager.edges,
         graphInterface.state.activeNodeId,
         (node, input) => {
           const definition = node.state?.type?.inputs?.[input];
           return definition && 'value' in definition ? definition.value : undefined;
-        }
+        },
+        probe && probe.sourceId === probeSourceOfActive?.nodeId ? probe.paths : []
       )
       : []
   );
 
+  // selecting a node that needs the paths coming in runs the graph, they are collected on the way
+  const probeKey = $derived(
+    probeSourceOfActive && activeNode
+      ? `${activeNode.id}:${probeSourceOfActive.nodeId}:${probeSourceOfActive.output}`
+      : undefined
+  );
+  $effect(() => {
+    if (probeKey !== undefined) untrack(() => manager?.execute());
+  });
+
   function handleGizmoChange(nodeId: number, change: GizmoChange) {
     const node = manager?.getNode(nodeId);
     if (!node) return;
-    node.props = { ...node.props, ...gizmoProps(node, change) };
+    node.props = { ...node.props, ...change };
     manager.execute();
   }
 
@@ -208,12 +232,12 @@
     performanceStore.startRun();
     try {
       let a = performance.now();
-      const graphResult = await runtime.execute(g, s);
+      const probed = addProbe(g, graphInterface?.state.activeNodeId ?? -1);
+      const graphResult = await runtime.execute(probed.graph, s);
       let b = performance.now();
 
       if (appSettings.value.debug.useWorker) {
         let perfData = await runtime.getPerformanceData();
-        debugData = await runtime.getDebugData();
         let lastRun = perfData?.at(-1);
         if (lastRun?.total) {
           lastRun.runtime = lastRun.total;
@@ -225,6 +249,16 @@
           );
         }
       }
+      const debugResult = await runtime.getDebugData();
+      probe = probed.sourceId === undefined
+        ? undefined
+        : { sourceId: probed.sourceId, paths: readPaths(debugResult[probed.sourceId]?.data) };
+      // the output of a node that is only watched for the gizmo is not drawn
+      debugData = probed.hidden
+        ? Object.fromEntries(
+          Object.entries(debugResult).filter(([id]) => Number(id) !== probed.sourceId)
+        )
+        : debugResult;
       nodeTimings = await runtime.getNodeTimings();
       errorNodeId = undefined;
       viewerComponent?.update(graphResult);

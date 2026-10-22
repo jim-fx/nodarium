@@ -7,7 +7,7 @@
   import { untrack } from 'svelte';
   import { Box3, type Group, type Material } from 'three';
   import { createGeometryPool, createInstancedGeometryPool } from './geometryPool';
-  import type { ForceGizmo, GizmoChange, GizmoMode } from './gizmos';
+  import type { Gizmo, GizmoChange, GizmoMode } from './gizmos';
   import { getMaterial, matcapLoaded, setHeightRange } from './materials';
   import Scene from './Scene.svelte';
 
@@ -70,7 +70,7 @@
     centerCamera: boolean;
     perf: PerformanceStore;
     debugData?: Record<number, { type: string; data: Int32Array }>;
-    gizmos?: ForceGizmo[];
+    gizmos?: Gizmo[];
     ongizmochange?: (nodeId: number, change: GizmoChange) => void;
     ongizmostart?: () => void;
     ongizmoend?: () => void;
@@ -128,7 +128,7 @@
       bind:fps
     />
   </Canvas>
-  {#if gizmos.some((g) => g.radius !== undefined)}
+  {#if gizmos.some((g) => g.kind === 'force')}
     <div class="absolute top-3 left-3 flex overflow-hidden rounded border border-outline bg-layer-1">
       {#each gizmoModes as { mode, label, icon } (mode)}
         <button
