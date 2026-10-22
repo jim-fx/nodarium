@@ -501,7 +501,7 @@ mod tests {
     #[test]
     fn only_paths_on_the_selected_depth_move() {
         let point_amount = 5;
-        let path_size = point_amount * 4 + 6;
+        let path_size = point_amount * 4 + 9;
         let mut data = create_multiple_paths(4, point_amount, 0);
         for path in 0..4 {
             // the last two paths sit one layer deeper

@@ -102,15 +102,17 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         let snap_point = path.get_point_at(snap_alpha);
 
         // Build the truncated path: header + kept points + interpolated snap point + closing bracket
-        let mut new_path = Vec::with_capacity(new_point_count * 4 + 6);
+        let header_end = path_data.len() - path.length * 4 - 2;
+        let mut new_path = Vec::with_capacity(header_end + new_point_count * 4 + 2);
         new_path.push(0); // opening bracket
-        new_path.push((new_point_count * 4 + 3) as i32); // inner count
-        new_path.push(0); // node type
-        new_path.push(path_data[3]); // depth
+        new_path.push((header_end - 2 + new_point_count * 4 + 1) as i32); // inner count
+
+        // node type, depth and the link to the parent stay as they are
+        new_path.extend_from_slice(&path_data[2..header_end]);
 
         // Copy original points 0..=snap_idx
         for i in 0..=snap_idx {
-            let base = 4 + i * 4;
+            let base = header_end + i * 4;
             new_path.extend_from_slice(&path_data[base..base + 4]);
         }
 
@@ -149,7 +151,7 @@ mod tests {
     }
 
     fn path_point_count(path_data: &[i32]) -> usize {
-        ((path_data[1] - 3) / 4) as usize
+        ((path_data[1] - 6) / 4) as usize
     }
 
     #[test]

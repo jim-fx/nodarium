@@ -166,7 +166,7 @@ areSocketsCompatible(outputType: string, inputType: string | string[]): boolean
 Every node exposes a single function: `execute(input: Int32Array): Int32Array`.
 Data encoding (Plantarium):
 
-- `[0, stemDepth, ...x,y,z,thickness]` — path
+- `[0, stemDepth, id, parentId, parentAlpha, ...x,y,z,thickness]` — path (`parentId` is -1 without a parent, see `PLANTARIUM.md`)
 - `[1, vertexCount, faceCount, ...faces, ...vertices, ...normals]` — geometry
 - `[2, vertexCount, faceCount, instanceCount, stemDepth, ...]` — instances
 

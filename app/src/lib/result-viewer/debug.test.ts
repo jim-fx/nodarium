@@ -11,11 +11,11 @@ function wrap(item: Int32Array) {
   return data;
 }
 
-// [0, depth, ...x y z thickness]
+// [0, depth, id, parent id, parent alpha, ...x y z thickness]
 function path(depth: number, points: number[][]) {
-  const data = new Int32Array(2 + points.length * 4);
-  data.set([0, depth]);
-  new Float32Array(data.buffer).set(points.flat(), 2);
+  const data = new Int32Array(5 + points.length * 4);
+  data.set([0, depth, 0, -1, 0]);
+  new Float32Array(data.buffer).set(points.flat(), 5);
   return data;
 }
 

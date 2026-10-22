@@ -27,8 +27,10 @@ An `integer` input that isn't set by a setting is a plain value or the expressio
 ## Path
 
 ```
-[0, stem_depth, ...points]    each point: x, y, z, thickness
+[0, stem_depth, id, parent_id, parent_alpha, ...points]    each point: x, y, z, thickness
 ```
+
+`id` is unique among the paths of a list. `parent_id` is the `id` of the path this one grows on, `-1` for a path that has no parent. `parent_alpha` is an `f32`, where along the length of the parent (0 to 1) the path is attached. `stem` gives its paths the ids 0, 1, 2 and so on, `branch` gives every new branch the next free id and links it to the path it grows on. `join` shifts the ids of each list it joins, so they stay unique. A node that removes a path leaves the links of its children pointing at nothing, nodes that follow a parent must ignore a `parent_id` they can't find. A node that shortens a path changes what `parent_alpha` of its children means.
 
 ## Geometry
 

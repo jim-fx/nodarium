@@ -41,11 +41,14 @@ function splitItems(data: Int32Array) {
   return items;
 }
 
+// type, depth, id, parent id and where on the parent the path is attached
+const PATH_HEADER_SIZE = 5;
+
 function pathPoints(data: Int32Array) {
   const f32 = new Float32Array(data.buffer, data.byteOffset, data.length);
   const points: [Vector3, number][] = [];
-  // 0: type, 1: depth, followed by x y z thickness per point
-  for (let i = 2; i + 3 < f32.length; i += 4) {
+  // the header is followed by x y z thickness per point
+  for (let i = PATH_HEADER_SIZE; i + 3 < f32.length; i += 4) {
     points.push([new Vector3(f32[i], f32[i + 1], f32[i + 2]), f32[i + 3]]);
   }
   return points;
