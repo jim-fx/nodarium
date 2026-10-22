@@ -11,6 +11,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "apply_force"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -53,6 +62,15 @@ dependencies = [
 name = "float"
 version = "0.1.0"
 dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "force"
+version = "0.1.0"
+dependencies = [
+ "glam",
  "nodarium_macros",
  "nodarium_utils",
 ]

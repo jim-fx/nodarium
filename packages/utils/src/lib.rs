@@ -1,9 +1,11 @@
 pub mod abi;
 mod encoding;
 mod expr;
+mod force;
 mod tree;
 pub use encoding::*;
 pub use expr::*;
+pub use force::*;
 pub use tree::*;
 pub mod geometry;
 

@@ -16,7 +16,8 @@ const DefaultOptionsSchema = z.object({
         z.literal('seed'),
         z.literal('vec3'),
         z.literal('geometry'),
-        z.literal('path')
+        z.literal('path'),
+        z.literal('force')
       ])
     )
     .optional(),
@@ -97,6 +98,12 @@ export const NodeInputPathSchema = z.object({
   value: z.array(z.number()).optional()
 });
 
+export const NodeInputForceSchema = z.object({
+  ...DefaultOptionsSchema.shape,
+  type: z.literal('force'),
+  value: z.array(z.number()).optional()
+});
+
 export const NodeInputAnySchema = z.object({
   ...DefaultOptionsSchema.shape,
   type: z.literal('*'),
@@ -115,6 +122,7 @@ export const NodeInputSchema = z.union([
   NodeInputVec3Schema,
   NodeInputGeometrySchema,
   NodeInputPathSchema,
+  NodeInputForceSchema,
   NodeInputAnySchema
 ]);
 

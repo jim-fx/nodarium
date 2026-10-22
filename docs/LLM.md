@@ -134,7 +134,7 @@ type GroupDefinition = {
 
 ### NodeInput socket types
 
-`float` | `integer` | `boolean` | `select` | `seed` | `vec3` | `geometry` | `path` | `shape` | `curve` | `color` | `*` (wildcard)
+`float` | `integer` | `boolean` | `select` | `seed` | `vec3` | `geometry` | `path` | `force` | `shape` | `curve` | `color` | `*` (wildcard)
 
 Each input can have: `value` (default), `label`, `hidden`, `external`, `setting` (link to graph setting), `accepts` (extra compatible types).
 
@@ -167,6 +167,7 @@ Every node exposes a single function: `execute(input: Int32Array): Int32Array`.
 Data encoding (Plantarium):
 
 - `[0, stemDepth, id, parentId, parentAlpha, ...x,y,z,thickness]` — path (`parentId` is -1 without a parent, see `PLANTARIUM.md`)
+- `[3, kind, x, y, z, strength, radius, falloff]` — force (a point force pulls towards its position)
 - `[1, vertexCount, faceCount, ...faces, ...vertices, ...normals]` — geometry
 - `[2, vertexCount, faceCount, instanceCount, stemDepth, ...]` — instances
 

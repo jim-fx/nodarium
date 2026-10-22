@@ -1,0 +1,41 @@
+{
+  "id": "max/plantarium/apply_force",
+  "meta": {
+    "description": "Bends paths under the influence of forces. The base of every path stays where it is and the paths keep their length. Branches follow the stem they grow on, so a bent structure still touches."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The paths to bend."
+    },
+    "force": {
+      "type": "force",
+      "description": "The forces that act on the paths. Several forces add up."
+    },
+    "strength": {
+      "type": "float",
+      "step": 0.05,
+      "value": 1,
+      "description": "How far the paths are bent by the forces. Alpha goes along the path, so the strength can change from base to tip."
+    },
+    "stiffness": {
+      "type": "float",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "value": 0.3,
+      "description": "How much of the path stays rigid. 0 bends the whole path evenly, 1 keeps the base straight and bends only the tip."
+    },
+    "depth": {
+      "type": "integer",
+      "min": 1,
+      "max": 10,
+      "value": 1,
+      "hidden": true,
+      "description": "On which layers of paths to work, counted from the outermost. 1 is the layer of branches and leaves, higher values reach down to the trunk. Branches always follow the paths they grow on, also on layers that are not bent."
+    }
+  }
+}

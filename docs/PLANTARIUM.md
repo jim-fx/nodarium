@@ -32,6 +32,14 @@ An `integer` input that isn't set by a setting is a plain value or the expressio
 
 `id` is unique among the paths of a list. `parent_id` is the `id` of the path this one grows on, `-1` for a path that has no parent. `parent_alpha` is an `f32`, where along the length of the parent (0 to 1) the path is attached. `stem` gives its paths the ids 0, 1, 2 and so on, `branch` gives every new branch the next free id and links it to the path it grows on. `join` shifts the ids of each list it joins, so they stay unique. A node that removes a path leaves the links of its children pointing at nothing, nodes that follow a parent must ignore a `parent_id` they can't find. A node that shortens a path changes what `parent_alpha` of its children means.
 
+## Force
+
+```
+[3, kind, x, y, z, strength, radius, falloff]    all but the first two words are f32
+```
+
+A `force` output is a list of these, so a later node can combine forces. `kind` 0 is a point force: it pulls towards `x, y, z`, a negative `strength` pushes away. It reaches `radius` far, `falloff` 0 keeps the full strength up to the radius and 1 fades it smoothly to nothing at the radius. `Force::sample` in `nodarium_utils` gives the push at a position, `decode_forces` and `sample_forces` read a list of them. `apply_force` bends paths with them: the base of a path stays, the segments keep their length. Paths follow the spot on their parent they grow on, so a bent stem carries its branches. `PathStructure` and `follow_parents` in `nodarium_utils::geometry` do that for any node that moves paths.
+
 ## Geometry
 
 ```
