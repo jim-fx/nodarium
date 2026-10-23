@@ -1,11 +1,14 @@
 <script lang="ts">
-  import { humanizeNumber } from '#lib/helpers/index.ts';
   import * as templates from '#lib/graph-templates/index.ts';
+  import { humanizeNumber } from '#lib/helpers/index.ts';
   import { debugNode } from '#lib/node-registry/debugNode.ts';
   import { groupNode } from '#lib/node-registry/groupNode.ts';
   import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
   import Viewer from '#lib/result-viewer/Viewer.svelte';
   import { MemoryRuntimeExecutor } from '#lib/runtime/index.ts';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
   import type { Graph } from '@nodarium/types';
   import { Spinner, toast } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
@@ -24,9 +27,13 @@
   const runtime = new MemoryRuntimeExecutor(nodeRegistry);
   const perf = createPerformanceStore();
 
-  let selected = $state(entries.find((e) => e.name === 'fern')?.name ?? entries[0].name);
   const vertices = $derived($perf?.at(-1)?.['total-vertices']?.[0] || 0);
   const faces = $derived($perf?.at(-1)?.['total-faces']?.[0] || 0);
+  const defaultTemplate = entries.find((e) => e.name === 'fern')?.name ?? entries[0].name;
+  const requested = $derived(page.url.searchParams.get('template'));
+  const selected = $derived(
+    entries.find((entry) => entry.name === requested)?.name ?? defaultTemplate
+  );
 
   let scene = $state<Group>(null!);
   let viewer = $state<ReturnType<typeof Viewer>>();
@@ -36,8 +43,8 @@
     return name.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
   }
 
-  async function generate(randomSeed: boolean) {
-    const entry = entries.find((e) => e.name === selected);
+  async function generate(randomSeed: boolean, template = selected) {
+    const entry = entries.find((e) => e.name === template);
     if (!entry || !viewer) return;
     isExecuting = true;
     perf.startRun();
@@ -56,8 +63,11 @@
   }
 
   function select(name: string) {
-    selected = name;
-    generate(false);
+    if (name === selected) return;
+
+    const url = resolve(`/template?template=${encodeURIComponent(name)}`);
+
+    void goto(url, { replace: true, reset: false });
   }
 
   function onkeydown(event: KeyboardEvent) {
@@ -66,7 +76,7 @@
   }
 
   $effect(() => {
-    if (viewer) generate(false);
+    if (viewer) generate(false, selected);
   });
 </script>
 
