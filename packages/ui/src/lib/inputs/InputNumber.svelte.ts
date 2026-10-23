@@ -69,8 +69,31 @@ describe('InputNumber', () => {
     unitSettings.unit = 'cm';
     try {
       render(InputNumber, { value: 0.25, unit: 'm' });
-      await expect.element(page.getByRole('spinbutton')).toHaveValue(25);
+      await expect.element(page.getByRole('textbox')).toHaveValue('25');
       await expect.element(page.getByTestId('unit-label')).toHaveTextContent('cm');
+    } finally {
+      unitSettings.unit = 'm';
+    }
+  });
+
+  it('should read typed units', async () => {
+    unitSettings.unit = 'cm';
+    try {
+      const screen = render(InputNumber, { value: 0.25, unit: 'm' });
+      const input = page.getByRole('textbox');
+      await input.fill('1m');
+      await input.element().blur();
+      await expect.element(input).toHaveValue('100');
+      await input.fill('50mm');
+      await input.element().blur();
+      await expect.element(input).toHaveValue('5');
+      await input.fill('12');
+      await input.element().blur();
+      await expect.element(input).toHaveValue('12');
+      await input.fill('abc');
+      await input.element().blur();
+      await expect.element(input).toHaveValue('12');
+      void screen;
     } finally {
       unitSettings.unit = 'm';
     }

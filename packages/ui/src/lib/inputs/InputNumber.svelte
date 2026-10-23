@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { roundDisplay, UNIT_FACTORS, unitSettings } from '../units.svelte';
+  import { parseLength, roundDisplay, UNIT_FACTORS, unitSettings } from '../units.svelte';
 
   interface Props {
     value?: number;
@@ -38,11 +38,12 @@
     return +v.toFixed(3 + Math.round(Math.log10(factor)));
   }
 
+  // the auto step follows the magnitude of the shown value, so 25 cm snaps to 10 cm and not to 0.1 m
   function getAutoStep(v: number): number {
-    const abs = Math.abs(v);
-    if (abs === 0) return 0.1; // fallback for 0
+    const abs = Math.abs(v * factor);
+    if (abs === 0) return 0.1 / factor; // fallback for 0
     const exponent = Math.floor(Math.log10(abs));
-    return Math.pow(10, exponent);
+    return Math.pow(10, exponent) / factor;
   }
 
   let dragging = $state(false);
@@ -112,6 +113,17 @@
       : '20px'
   );
 
+  // length inputs are text, so "10cm" or "5mm" can be typed, a plain number is read in the project unit
+  function onChange(e: Event & { currentTarget: HTMLInputElement }) {
+    const text = e.currentTarget.value;
+    const parsed = unit ? parseLength(text) : parseFloat(text);
+    if (parsed !== undefined && Number.isFinite(parsed)) {
+      value = parsed;
+    }
+    // show the parsed value in the project unit again, also when the text was invalid
+    e.currentTarget.value = String(roundDisplay(value * factor));
+  }
+
   function stepUp(e: MouseEvent) {
     value = snap(value + (e.shiftKey ? step! * 10 : step!));
   }
@@ -148,12 +160,14 @@
 
     <input
       bind:this={inputEl}
-      bind:value={() => displayValue, (v) => (value = v / factor)}
+      value={displayValue}
+      onchange={onChange}
       {id}
       step={step ? step * factor : step}
       min={min * factor}
       max={max * factor}
-      type="number"
+      type={unit ? 'text' : 'number'}
+      inputmode="decimal"
       onkeydown={onKeyDown}
       onmousedown={onMouseDown}
       class="w-full min-w-full cursor-pointer bg-transparent px-2 py-1 text-center font-tabular text-text outline-none appearance-none"

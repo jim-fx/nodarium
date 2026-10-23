@@ -24,3 +24,19 @@ export function fromDisplay(value: number, unit: ProjectUnit = unitSettings.unit
 export function roundDisplay(value: number): number {
   return +value.toPrecision(10);
 }
+
+const LENGTH_PATTERN = /^(-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)\s*(mm|cm|m)?$/i;
+
+/**
+ * Parses typed text like "10", "2,5cm" or "300 mm" to meters,
+ * a number without a unit is read in the project unit. Returns undefined if it is not a length.
+ */
+export function parseLength(
+  text: string,
+  fallback: ProjectUnit = unitSettings.unit
+): number | undefined {
+  const match = LENGTH_PATTERN.exec(text.trim().replace(',', '.'));
+  if (!match) return undefined;
+  const unit = (match[2]?.toLowerCase() as ProjectUnit | undefined) ?? fallback;
+  return fromDisplay(parseFloat(match[1]), unit);
+}

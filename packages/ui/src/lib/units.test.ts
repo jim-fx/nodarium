@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fromDisplay, roundDisplay, toDisplay } from './units.svelte';
+import { fromDisplay, parseLength, roundDisplay, toDisplay } from './units.svelte';
 
 describe('units', () => {
   it('converts meters to the display unit', () => {
@@ -16,5 +16,13 @@ describe('units', () => {
 
   it('removes float noise', () => {
     expect(roundDisplay(0.1 * 3)).toBe(0.3);
+  });
+
+  it('parses typed lengths', () => {
+    expect(parseLength('10m', 'cm')).toBe(10);
+    expect(parseLength('10 cm', 'm')).toBeCloseTo(0.1);
+    expect(parseLength('5mm', 'm')).toBeCloseTo(0.005);
+    expect(parseLength('2,5', 'cm')).toBeCloseTo(0.025);
+    expect(parseLength('abc', 'm')).toBeUndefined();
   });
 });
