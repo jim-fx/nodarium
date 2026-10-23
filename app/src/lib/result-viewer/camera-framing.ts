@@ -22,7 +22,9 @@ const MARGIN = 1.25;
 export function frameBounds(
   min: readonly number[],
   max: readonly number[],
-  fovDegrees = 50
+  fovDegrees = 50,
+  /** width / height of the viewport, the narrower axis decides how far away the camera has to be */
+  aspect = 1
 ): Framing | undefined {
   if (![...min, ...max].every(Number.isFinite)) return undefined;
 
@@ -36,7 +38,11 @@ export function frameBounds(
   const size = empty ? 0 : Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
   const radius = empty ? EMPTY_RADIUS : Math.max(size / 2, MIN_RADIUS);
 
-  const distance = (radius * MARGIN) / Math.sin((fovDegrees * Math.PI) / 360);
+  const halfFov = (fovDegrees * Math.PI) / 360;
+  const halfHorizontal = Math.atan(
+    Math.tan(halfFov) * (Number.isFinite(aspect) && aspect > 0 ? aspect : 1)
+  );
+  const distance = (radius * MARGIN) / Math.sin(Math.min(halfFov, halfHorizontal));
 
   return {
     center,

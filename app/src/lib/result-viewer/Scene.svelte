@@ -15,13 +15,14 @@
   import ScaleViewer from './ScaleViewer.svelte';
   import { updateViewScale } from './view-scale.svelte';
 
-  const { renderStage, invalidate: _invalidate } = useThrelte();
+  const { renderStage, invalidate: _invalidate, size } = useThrelte();
 
   type Props = {
     fps: number[];
     debugData?: Record<number, { type: string; data: Int32Array }>;
     scene: Group;
     centerCamera: boolean;
+    projectId?: number;
     gizmos?: Gizmo[];
     gizmoMode?: GizmoMode;
     ongizmochange?: (nodeId: number, change: GizmoChange) => void;
@@ -31,6 +32,7 @@
 
   let {
     centerCamera,
+    projectId,
     fps = $bindable(),
     scene = $bindable(),
     debugData,
@@ -48,11 +50,19 @@
 
   const gridSection = $derived(gridSectionSize(framing?.radius ?? 4));
 
+  const aspect = $derived($size.height > 0 ? $size.width / $size.height : 1);
+
+  // a narrower viewer needs more distance to keep the plant in view
+  $effect(() => {
+    void aspect;
+    untrack(measure);
+  });
+
   function measure() {
     if (!scene) return;
     const aabb = new Box3().setFromObject(scene);
     // a single geometry with NaN positions would move the camera to NaN
-    const next = frameBounds(aabb.min.toArray(), aabb.max.toArray());
+    const next = frameBounds(aabb.min.toArray(), aabb.max.toArray(), 50, aspect);
     if (next) {
       bounds = aabb;
       framing = next;
@@ -116,7 +126,7 @@
   <ScaleViewer {bounds} />
 {/if}
 
-<Camera {framing} {frameRequest} {centerCamera} />
+<Camera {framing} {frameRequest} {centerCamera} {projectId} />
 
 <Debug {debugData} />
 

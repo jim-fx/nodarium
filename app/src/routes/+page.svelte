@@ -403,6 +403,7 @@
           ongizmostart={() => manager?.startUndoGroup()}
           ongizmoend={() => manager?.saveUndoGroup()}
           centerCamera={appSettings.value.centerCamera}
+          projectId={pm.activeId}
         />
         {#if isExecuting}
           <div class="viewer-spinner" aria-label="Executing graph">

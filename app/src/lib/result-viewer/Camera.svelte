@@ -1,8 +1,7 @@
 <script lang="ts">
-  import localStore from '#lib/helpers/localStore.ts';
   import { T, useTask } from '@threlte/core';
   import { OrbitControls } from '@threlte/extras';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { Vector3 } from 'three';
   import type { PerspectiveCamera, Vector3Tuple } from 'three';
   import type { OrbitControls as OrbitControlsType } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -16,28 +15,36 @@
     /** Bumped to frame the content again, even if it did not change */
     frameRequest?: number;
     centerCamera: boolean;
+    projectId?: number;
   };
 
-  const { framing, frameRequest = 0, centerCamera }: Props = $props();
+  const { framing, frameRequest = 0, centerCamera, projectId }: Props = $props();
 
-  const cameraTransform = localStore<{
-    camera: Vector3Tuple;
-    target: Vector3Tuple;
-  }>('nodes.camera.transform', {
-    camera: [10, 10, 10],
-    target: [0, 0, 0]
-  });
+  type Transform = { camera: Vector3Tuple; target: Vector3Tuple };
+
+  const storageKey = (id: number | undefined) => `nodes.camera.transform.${id ?? 'none'}`;
+
+  function readTransform(id: number | undefined): Transform | undefined {
+    try {
+      const stored = localStorage.getItem(storageKey(id));
+      if (!stored) return undefined;
+      const t = JSON.parse(stored) as Transform;
+      return [...t.camera, ...t.target].every(Number.isFinite) ? t : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  const initial = untrack(() => readTransform(projectId));
 
   function saveCameraState() {
     if (!camera || !controls) return;
-    let cPos = camera.position.toArray();
-    let tPos = controls.target.toArray();
-    // check if tPos is NaN or tPos is NaN
+    const cPos = camera.position.toArray();
+    const tPos = controls.target.toArray();
     if (tPos.some((v) => isNaN(v)) || cPos.some((v) => isNaN(v))) return;
-    $cameraTransform = {
-      camera: cPos,
-      target: tPos
-    };
+    try {
+      localStorage.setItem(storageKey(projectId), JSON.stringify({ camera: cPos, target: tPos }));
+    } catch { /* storage unavailable */ }
   }
 
   /** How much the content has to grow or shrink before the camera zooms with it */
@@ -83,6 +90,13 @@
   });
   task.stop();
 
+  /** The user grabbed the camera, so the animation must not fight them */
+  function stopAnimation() {
+    if (!animating) return;
+    animating = false;
+    task.stop();
+  }
+
   function animateTo(f: Framing, fit: boolean) {
     goalTarget.set(...f.center);
     goalDistance = fit ? f.distance : undefined;
@@ -106,15 +120,43 @@
     animateTo(framing, requested || resized);
   });
 
+  // Each project remembers where its camera was, a new one gets framed once its content arrives
+  let currentProject = untrack(() => projectId);
+  let fitPending = false;
+  $effect(() => {
+    const id = projectId;
+    if (id === currentProject || !camera || !controls) return;
+    currentProject = id;
+    stopAnimation();
+    const t = readTransform(id);
+    if (t) {
+      camera.position.fromArray(t.camera);
+      controls.target.fromArray(t.target);
+      controls.update();
+      lastRadius = undefined;
+      fitPending = false;
+    } else {
+      fitPending = true;
+    }
+  });
+
+  $effect(() => {
+    if (!fitPending || !framing || !controls) return;
+    fitPending = false;
+    untrack(() => animateTo(framing, true));
+  });
+
   onMount(() => {
-    controls?.target.fromArray($cameraTransform.target);
+    const t = initial ?? { camera: [10, 10, 10], target: [0, 0, 0] } as Transform;
+    camera?.position.fromArray(t.camera);
+    controls?.target.fromArray(t.target);
     controls?.update();
   });
 </script>
 
 <T.PerspectiveCamera
   bind:ref={camera}
-  position={$cameraTransform.camera}
+  position={initial?.camera ?? [10, 10, 10]}
   makeDefault
   fov={50}
   near={framing?.near ?? 0.1}
@@ -124,6 +166,7 @@
     bind:ref={controls}
     minDistance={framing ? framing.radius * 0.02 : 0}
     maxDistance={framing ? framing.radius * 50 : Infinity}
+    on:start={stopAnimation}
     on:change={saveCameraState}
   />
 </T.PerspectiveCamera>

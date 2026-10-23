@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { damp, frameBounds, gridSectionSize } from './camera-framing';
 
 describe('frameBounds', () => {
+  it('moves further away for a portrait viewport so the sides stay in view', () => {
+    const wide = frameBounds([0, 0, 0], [1, 1, 1], 50, 2)!;
+    const square = frameBounds([0, 0, 0], [1, 1, 1], 50, 1)!;
+    const portrait = frameBounds([0, 0, 0], [1, 1, 1], 50, 0.5)!;
+    expect(wide.distance).toBeCloseTo(square.distance);
+    expect(portrait.distance).toBeGreaterThan(square.distance);
+  });
+
   it('centers the box', () => {
     const f = frameBounds([-1, 0, -1], [1, 10, 1])!;
     expect(f.center).toEqual([0, 5, 0]);

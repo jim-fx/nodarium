@@ -68,6 +68,8 @@
   type Props = {
     scene: Group;
     centerCamera: boolean;
+    /** The camera is remembered per project */
+    projectId?: number;
     perf: PerformanceStore;
     debugData?: Record<number, { type: string; data: Int32Array }>;
     gizmos?: Gizmo[];
@@ -79,6 +81,7 @@
   let {
     scene = $bindable(),
     centerCamera,
+    projectId,
     debugData,
     perf,
     gizmos = [],
@@ -118,6 +121,7 @@
     <Scene
       bind:this={sceneComponent}
       {centerCamera}
+      {projectId}
       {debugData}
       {gizmos}
       {gizmoMode}
