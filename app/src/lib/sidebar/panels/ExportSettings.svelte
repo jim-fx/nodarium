@@ -2,6 +2,7 @@
   import { Button, toast } from '@nodarium/ui';
   import FileSaver from 'file-saver';
   import type { Group } from 'three';
+  import { createExportScene } from './exportScene';
   import type { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
   import type { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
 
@@ -27,15 +28,16 @@
       }));
 
     exporter.parse(
-      scene,
-      (gltf) => {
-        download(gltf as ArrayBuffer, 'plant', 'text/plain', 'gltf');
-        toast('Exported as GLTF', 'success');
+      createExportScene(scene),
+      (glb) => {
+        download(glb as ArrayBuffer, 'plant', 'model/gltf-binary', 'glb');
+        toast('Exported as GLB', 'success');
       },
       (err) => {
         const msg = err instanceof Error ? err.message : String(err);
-        toast(`GLTF export failed: ${msg}`, 'error');
-      }
+        toast(`GLB export failed: ${msg}`, 'error');
+      },
+      { binary: true }
     );
   }
 
@@ -48,7 +50,7 @@
         return objExporter;
       }));
     try {
-      const result = exporter.parse(scene);
+      const result = exporter.parse(createExportScene(scene));
       download(result, 'plant', 'text/plain', 'obj');
       toast('Exported as OBJ', 'success');
     } catch (err) {
@@ -60,5 +62,5 @@
 
 <div class="p-4 flex gap-2">
   <Button onclick={exportObj}>export obj</Button>
-  <Button onclick={exportGltf}>export gltf</Button>
+  <Button onclick={exportGltf}>export glb</Button>
 </div>
