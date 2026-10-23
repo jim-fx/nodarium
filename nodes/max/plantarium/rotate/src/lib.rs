@@ -32,11 +32,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 return path_data;
             }
 
-            let path = wrap_path_mut(&mut path_data);
-
             // alpha is where this path sits among all paths, from 0 at the first to 1 at the last
-            ctx.set_path(&_path_data, path_index, path_count);
+            ctx.set_path(&path_data, path_index, path_count);
             path_index += 1;
+
+            let path = wrap_path_mut(&mut path_data);
             let angle = ctx.float(args[2]);
 
             let origin = [path.points[0], path.points[1], path.points[2]];

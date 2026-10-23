@@ -22,6 +22,19 @@ describe('frameBounds', () => {
     }
   });
 
+  it('keeps the depth range the same for every scale, so tiny models do not z-fight', () => {
+    const ratio = (size: number) => {
+      const f = frameBounds([0, 0, 0], [size, size, size])!;
+      return f.far / f.near;
+    };
+
+    for (const size of [0.001, 0.005, 0.2, 5, 5000]) {
+      // a 24 bit depth buffer resolves about 1e5 well
+      expect(ratio(size)).toBeLessThan(2e5);
+      expect(ratio(size)).toBeCloseTo(ratio(1), 0);
+    }
+  });
+
   it('has a minimum radius for flat or single point content', () => {
     const f = frameBounds([1, 1, 1], [1, 1, 1])!;
     expect(f.radius).toBeGreaterThan(0);

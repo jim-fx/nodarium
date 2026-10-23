@@ -42,8 +42,10 @@ export function frameBounds(
     center,
     radius,
     distance,
+    // both follow the radius, so the ratio stays the same (about 1e5) for a plant in mm or in km
+    // and the depth buffer keeps its precision. The camera can't leave 50 radii from the center.
     near: radius / 1000,
-    far: Math.max(distance + radius * 100, 100)
+    far: distance + radius * 100
   };
 }
 
