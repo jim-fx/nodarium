@@ -16,7 +16,7 @@ export function getParameterHeight(node: NodeDefinition, inputKey: string) {
     return 0;
   }
 
-  if (inputKey === 'seed') return 0;
+  if (inputKey === 'seed' || input.type === 'creator') return 0;
   if (!node.inputs) return 0;
   if ('setting' in input) return 0;
   if (input.hidden) return 0;

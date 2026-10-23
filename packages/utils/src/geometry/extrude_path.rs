@@ -1,4 +1,4 @@
-use super::{create_geometry_data, wrap_geometry_data, PathData};
+use super::{create_geometry_data, set_geometry_path_id, wrap_geometry_data, PathData};
 use glam::{Mat4, Vec3};
 
 fn create_circle(res: usize) -> Vec<f32> {
@@ -16,7 +16,9 @@ pub fn extrude_path(input_path: PathData, res_x: usize) -> Vec<i32> {
 
     // a single point has no direction and nothing to extrude
     if point_amount < 2 || res_x == 0 {
-        return create_geometry_data(0, 0);
+        let mut empty = create_geometry_data(0, 0);
+        set_geometry_path_id(&mut empty, input_path.link.id);
+        return empty;
     }
 
     // the tube itself, a duplicated ring and an apex vertex that close the end
@@ -31,6 +33,7 @@ pub fn extrude_path(input_path: PathData, res_x: usize) -> Vec<i32> {
     let circle = create_circle(res_x);
 
     let mut geometry_data = create_geometry_data(vertices_amount, face_amount);
+    set_geometry_path_id(&mut geometry_data, input_path.link.id);
 
     let geometry = wrap_geometry_data(&mut geometry_data);
 
@@ -190,6 +193,28 @@ mod tests {
         }
         let mut geometry = extrude_path(wrap_path(&data), 8);
         wrap_geometry_data(&mut geometry).positions.to_vec()
+    }
+
+    #[test]
+    fn the_geometry_knows_the_path_it_was_made_from() {
+        use crate::geometry::{geometry_path_id, set_path_link, PathLink};
+
+        let mut data = create_path(3, 1);
+        set_path_link(&mut data, PathLink::child(5, 8, 0.5, 2));
+        let id = wrap_path(&data).link.id;
+        wrap_path_mut(&mut data)
+            .points
+            .copy_from_slice(&[0.0, 0.0, 0.0, 0.1, 0.0, 1.0, 0.0, 0.1, 0.0, 2.0, 0.0, 0.1]);
+
+        assert_eq!(geometry_path_id(&extrude_path(wrap_path(&data), 8)), id);
+
+        // a single point has nothing to extrude, the geometry still belongs to the path
+        let mut point = create_path(1, 1);
+        set_path_link(&mut point, PathLink::root(1, 0));
+        assert_eq!(
+            geometry_path_id(&extrude_path(wrap_path(&point), 8)),
+            wrap_path(&point).link.id
+        );
     }
 
     #[test]

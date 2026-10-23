@@ -5,6 +5,7 @@ use glam::Vec3;
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::encode_float;
+use nodarium_utils::geometry::NO_PATH;
 use nodarium_utils::Ctx;
 use nodarium_utils::log;
 use nodarium_utils::wrap_arg;
@@ -97,7 +98,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let vertex_amount = position_amount * layers;
 
     let out_length = 
-        3  // metadata
+        4  // metadata
         + face_amount * 3 // indices
         + vertex_amount * 3  // positions
         + vertex_amount * 3; // normals
@@ -109,7 +110,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     out[0] = 1;
     out[1] = vertex_amount.try_into().unwrap();
     out[2] = face_amount.try_into().unwrap();
-    let mut offset = 3;
+    // not made from a path
+    out[3] = NO_PATH;
+    let mut offset = 4;
 
     // Writing Indices
     let mut idx = 0;

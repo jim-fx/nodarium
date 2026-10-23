@@ -22,6 +22,14 @@ const log = createLogger('runtime-executor');
 log.mute();
 
 /**
+ * The id a node writes into the paths it makes, so every path knows which node made it.
+ * Node ids can be larger than 32 bits (nodes of a group instance), the wasm side reads an i32.
+ */
+export function toCreatorId(nodeId: number): number {
+  return (nodeId | 0) ^ (Math.floor(nodeId / 2 ** 32) | 0);
+}
+
+/**
  * @param origins filled with the ID of the outermost group node every expanded
  * node comes from, so errors can point at a node that is visible in the editor
  */
@@ -477,7 +485,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       const inputs = Object.entries(node_type.inputs || {}).map(
         ([key, input]): NodeValue => {
           // check if the input is connected to another node
-          const inputNode = !input.setting && input.type !== 'seed'
+          const inputNode = !input.setting && input.type !== 'seed' && input.type !== 'creator'
             ? node.state.inputNodes[key]
             : undefined;
           if (inputNode) {
@@ -493,6 +501,8 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
           let value: number | number[] | Int32Array;
           if (input.type === 'seed') {
             value = this.seed;
+          } else if (input.type === 'creator') {
+            value = toCreatorId(node.id);
           } else if (input.setting) {
             // If the input is linked to a setting, we use that value
             value = getValue(input, settings[input.setting]);

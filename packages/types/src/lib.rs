@@ -94,6 +94,16 @@ pub struct NodeInputSeed {
     pub value: Option<i32>,
 }
 
+/// Filled in by the host with the id of the graph node, it can't be wired or set.
+#[derive(Serialize, Deserialize)]
+pub struct NodeInputCreator {
+    #[serde(flatten)]
+    pub default_options: DefaultOptions,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<i32>,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct NodeInputVec3 {
     #[serde(flatten)]
@@ -148,6 +158,7 @@ pub enum NodeInput {
     boolean(NodeInputBoolean),
     select(NodeInputSelect),
     seed(NodeInputSeed),
+    creator(NodeInputCreator),
     vec3(NodeInputVec3),
     shape(NodeInputShape),
     curve(NodeInputCurve),

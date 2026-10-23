@@ -86,7 +86,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 return None;
             }
             // alpha is where this path sits among all bent paths, from 0 at the first to 1 at the last
-            ctx.alpha = path_index as f32 / (affected_count - 1).max(1) as f32;
+            ctx.set_path(path_data, path_index, affected_count);
             path_index += 1;
 
             let length = wrap_path(path_data).length;
@@ -146,6 +146,7 @@ mod tests {
                 id,
                 parent_id,
                 parent_alpha,
+                ..PathLink::root(0, 0)
             },
         );
         let path = wrap_path_mut(&mut data);

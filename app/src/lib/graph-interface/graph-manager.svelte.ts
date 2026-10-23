@@ -1374,8 +1374,8 @@ export class GraphManager extends EventEmitter<{
     const isGroup = node.type === '__internal/group/instance';
     const [key, input] = Object.entries(inputs).find(([k]) => !(isGroup && k === 'groupId')) ?? [];
     if (!key || !input) return;
-    // setting and seed inputs can't be wired, so nothing could pass through
-    if (input.type === 'seed' || input.setting) return;
+    // setting, seed and creator inputs can't be wired, so nothing could pass through
+    if (input.type === 'seed' || input.type === 'creator' || input.setting) return;
     return key;
   }
 

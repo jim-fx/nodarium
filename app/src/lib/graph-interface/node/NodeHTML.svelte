@@ -38,7 +38,9 @@
 
   const parameters = $derived(
     Object.entries(nodeType?.inputs || {}).filter(
-      (p) => p[1].type !== 'seed' && !('setting' in p[1]) && p[1]?.hidden !== true
+      (p) =>
+        p[1].type !== 'seed' && p[1].type !== 'creator' && !('setting' in p[1])
+        && p[1]?.hidden !== true
     ) || {}
   );
 

@@ -84,6 +84,13 @@ export const NodeInputSeedSchema = z.object({
   value: z.number().optional()
 });
 
+// filled in by the host with the id of the graph node, it can't be wired or set
+export const NodeInputCreatorSchema = z.object({
+  ...DefaultOptionsSchema.shape,
+  type: z.literal('creator'),
+  value: z.number().optional()
+});
+
 export const NodeInputVec3Schema = z.object({
   ...DefaultOptionsSchema.shape,
   type: z.literal('vec3'),
@@ -117,6 +124,7 @@ export const NodeInputAnySchema = z.object({
 
 export const NodeInputSchema = z.union([
   NodeInputSeedSchema,
+  NodeInputCreatorSchema,
   NodeInputBooleanSchema,
   NodeInputFloatSchema,
   NodeInputColorSchema,

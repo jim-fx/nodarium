@@ -2,52 +2,63 @@ use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
     concat_arg_vecs,
-    geometry::{path_link, set_path_link, PathLink, NO_PARENT},
+    geometry::{path_id, path_link, set_path_link, PathLink},
     split_args,
 };
+use std::collections::HashSet;
 
 nodarium_definition_file!("src/definition.json");
 
-/// Shifts the ids of a list of paths, so they stay unique next to the paths joined before them.
-fn shift_ids(path: &mut [i32], offset: i32) {
+/// Gives the ids of a list of paths a new salt, so they stay unique next to the paths joined
+/// before them. The links inside the list stay intact, parents are salted the same way.
+fn resalt_ids(path: &mut [i32], salt: i32) {
     let link = path_link(path);
     set_path_link(
         path,
         PathLink {
-            id: link.id + offset,
+            id: path_id(link.id, salt, 0),
             parent_id: if link.has_parent() {
-                link.parent_id + offset
+                path_id(link.parent_id, salt, 0)
             } else {
-                NO_PARENT
+                link.parent_id
             },
-            parent_alpha: link.parent_alpha,
+            ..link
         },
     );
+}
+
+/// A path is a list item of type 0 with a full header and at least a point.
+fn is_path(item: &[i32]) -> bool {
+    item.len() > 9 && item[2] == 0
 }
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut output: Vec<Vec<i32>> = Vec::new();
-    // every list numbers its paths from the start, the next list continues after the last id
-    let mut next_id = 0;
+    // ids are made of the node that created the path, so lists from different nodes don't
+    // clash and keep their ids. Only the same list joined twice does.
+    let mut seen: HashSet<i32> = HashSet::new();
 
-    for arg in args.iter() {
+    for (slot, arg) in args.iter().enumerate() {
         // an unconnected input is empty, a wrapped list is at least [0, n, 1, n]
         if arg.len() < 4 {
             continue;
         }
 
-        let mut highest_id = -1;
-        for item in split_args(arg) {
-            let mut item = item.to_vec();
-            // type 0 is a path, the header holds type, depth and the link
-            if item.len() > 7 && item[2] == 0 {
-                highest_id = highest_id.max(path_link(&item).id);
-                shift_ids(&mut item, next_id);
+        let items: Vec<Vec<i32>> = split_args(arg).iter().map(|item| item.to_vec()).collect();
+        let clashes = items
+            .iter()
+            .any(|item| is_path(item) && seen.contains(&path_link(item).id));
+
+        for mut item in items {
+            if is_path(&item) {
+                if clashes {
+                    resalt_ids(&mut item, slot as i32 + 1);
+                }
+                seen.insert(path_link(&item).id);
             }
             output.push(item);
         }
-        next_id += highest_id + 1;
     }
 
     concat_arg_vecs(output)
@@ -61,42 +72,61 @@ mod tests {
         split_args,
     };
 
-    fn list_with_branch() -> Vec<i32> {
-        let mut data = create_multiple_paths(2, 3, 1);
-        // path 1 grows on path 0
-        let start = 2 + (3 * 4 + 5 + 4);
+    /// Two paths of the node `creator`, the second grows on the first.
+    fn list_with_branch(creator: i32) -> Vec<i32> {
+        let mut data = create_multiple_paths(2, 3, 1, creator);
+        let first = path_link(&data[2..]).id;
+        let start = 2 + (3 * 4 + 7 + 4);
         set_path_link(
             &mut data[start..],
-            PathLink {
-                id: 1,
-                parent_id: 0,
-                parent_alpha: 0.5,
-            },
+            PathLink::child(creator, first, 0.5, 0),
         );
         data
     }
 
+    fn links(result: &[i32]) -> Vec<PathLink> {
+        split_args(result).iter().map(|p| path_link(p)).collect()
+    }
+
     #[test]
-    fn ids_of_the_second_list_continue_after_the_first() {
-        let a = list_with_branch();
-        let b = list_with_branch();
+    fn lists_of_different_nodes_keep_their_ids() {
+        let a = list_with_branch(1);
+        let b = list_with_branch(2);
         let result = __nodarium_execute_inner(&[&a, &b, &[], &[]]);
-        let links: Vec<PathLink> = split_args(&result).iter().map(|p| path_link(p)).collect();
+        let joined = links(&result);
+
+        let expected: Vec<PathLink> = links(&a).into_iter().chain(links(&b)).collect();
+        assert_eq!(joined, expected);
+        let mut ids: Vec<i32> = joined.iter().map(|l| l.id).collect();
+        ids.sort();
+        ids.dedup();
+        assert_eq!(ids.len(), 4);
+    }
+
+    #[test]
+    fn the_same_list_joined_twice_gets_unique_ids_and_keeps_its_links() {
+        let a = list_with_branch(1);
+        let result = __nodarium_execute_inner(&[&a, &a, &[], &[]]);
+        let links = links(&result);
 
         assert_eq!(links.len(), 4);
-        let ids: Vec<i32> = links.iter().map(|l| l.id).collect();
-        assert_eq!(ids, vec![0, 1, 2, 3]);
-        assert_eq!(links[1].parent_id, 0);
-        assert_eq!(links[3].parent_id, 2);
+        let mut ids: Vec<i32> = links.iter().map(|l| l.id).collect();
+        ids.sort();
+        ids.dedup();
+        assert_eq!(ids.len(), 4);
+
+        // the first copy is untouched, the second points at its own first path
+        assert_eq!(links[0], path_link(&split_args(&a)[0]));
+        assert_eq!(links[3].parent_id, links[2].id);
         assert_eq!(links[3].parent_alpha, 0.5);
+        assert_eq!(links[3].creator, 1);
     }
 
     #[test]
     fn paths_without_a_parent_keep_having_none() {
-        let a = list_with_branch();
-        let b = list_with_branch();
-        let result = __nodarium_execute_inner(&[&a, &b, &[], &[]]);
-        let links: Vec<PathLink> = split_args(&result).iter().map(|p| path_link(p)).collect();
+        let a = list_with_branch(1);
+        let result = __nodarium_execute_inner(&[&a, &a, &[], &[]]);
+        let links = links(&result);
 
         assert!(!links[0].has_parent());
         assert!(!links[2].has_parent());

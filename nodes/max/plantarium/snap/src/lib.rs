@@ -138,7 +138,7 @@ mod tests {
     };
 
     fn make_paths(amount: usize, point_count: usize, depth: i32) -> Vec<i32> {
-        let mut data = create_multiple_paths(amount, point_count, depth);
+        let mut data = create_multiple_paths(amount, point_count, depth, 0);
         for stem in wrap_multiple_paths(&mut data).iter_mut() {
             for i in 0..stem.points.len() / 4 {
                 stem.points[i * 4] = 0.0;

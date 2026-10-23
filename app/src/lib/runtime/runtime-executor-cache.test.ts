@@ -1,7 +1,7 @@
 import type { Graph, NodeDefinition, NodeValue } from '@nodarium/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockNodeRegistry } from '../graph-interface/test-utils';
-import { MemoryRuntimeExecutor } from './runtime-executor';
+import { MemoryRuntimeExecutor, toCreatorId } from './runtime-executor';
 import { MemoryRuntimeCache } from './runtime-executor-cache';
 
 // Every node sums its inputs, so results depend on everything the cache key
@@ -28,11 +28,12 @@ const add = sumNode('test/cache/add', { a: { type: 'integer' }, b: { type: 'inte
 const left = sumNode('test/cache/left', { value: { type: 'integer', value: 1 } });
 const right = sumNode('test/cache/right', { value: { type: 'integer', value: 2 } });
 const seeded = sumNode('test/cache/seeded', { seed: { type: 'seed' } });
+const creator = sumNode('test/cache/creator', { creator: { type: 'creator' } });
 const setting = sumNode('test/cache/setting', {
   value: { type: 'integer', setting: 'resolution' }
 });
 
-const registry = createMockNodeRegistry([output, add, left, right, seeded, setting]);
+const registry = createMockNodeRegistry([output, add, left, right, seeded, creator, setting]);
 
 // output <- add <- (left, right)
 function graph(leftProps?: Record<string, number>): Graph {
@@ -140,6 +141,49 @@ describe('runtime cache keys', () => {
 
     await executor.execute(singleNodeGraph(seeded.id), { randomSeed: true });
     expect(calls[seeded.id]).toBe(1);
+  });
+});
+
+describe('creator inputs', () => {
+  beforeEach(() => {
+    calls = {};
+  });
+
+  it('receive the id of the node they belong to', async () => {
+    const executor = createExecutor();
+    const result = await executor.execute(singleNodeGraph(creator.id), {});
+
+    // the node under test has id 1
+    expect(result).toEqual(Int32Array.of(1));
+  });
+
+  it('are the same in every run, so ids made from them stay', async () => {
+    const executor = createExecutor();
+    const first = await executor.execute(singleNodeGraph(creator.id), { randomSeed: true });
+    const second = await executor.execute(singleNodeGraph(creator.id), { randomSeed: true });
+
+    expect(second).toEqual(first);
+  });
+});
+
+describe('toCreatorId', () => {
+  it('keeps ids that fit into 32 bits', () => {
+    expect(toCreatorId(0)).toBe(0);
+    expect(toCreatorId(42)).toBe(42);
+    expect(toCreatorId(2 ** 31 - 1)).toBe(2 ** 31 - 1);
+  });
+
+  it('folds the ids of expanded group nodes into an i32 without losing the difference', () => {
+    const a = 2 ** 40 + 5;
+    const b = 2 ** 41 + 5;
+
+    for (const id of [a, b, Number.MAX_SAFE_INTEGER]) {
+      const folded = toCreatorId(id);
+      expect(Number.isInteger(folded)).toBe(true);
+      expect(folded).toBeGreaterThanOrEqual(-(2 ** 31));
+      expect(folded).toBeLessThan(2 ** 31);
+    }
+    expect(toCreatorId(a)).not.toBe(toCreatorId(b));
   });
 });
 

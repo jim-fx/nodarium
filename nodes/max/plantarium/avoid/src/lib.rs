@@ -345,7 +345,7 @@ mod tests {
     };
 
     fn straight_stems(amount: usize) -> Vec<i32> {
-        let mut data = create_multiple_paths(amount, 5, 0);
+        let mut data = create_multiple_paths(amount, 5, 0, 0);
         for stem in wrap_multiple_paths(&mut data).iter_mut() {
             for i in 0..stem.points.len() / 4 {
                 stem.points[i * 4] = 0.0;
@@ -390,7 +390,7 @@ mod tests {
     fn stems_crossing_at_different_heights_are_separated() {
         // a vertical stem and a horizontal one that crosses it at a different
         // alpha than the point it is compared to
-        let mut data = create_multiple_paths(2, 5, 0);
+        let mut data = create_multiple_paths(2, 5, 0, 0);
         {
             let mut stems = wrap_multiple_paths(&mut data);
             for i in 0..5 {
@@ -473,7 +473,7 @@ mod tests {
 
     #[test]
     fn a_zero_radius_leaves_stems_without_thickness_alone() {
-        let mut data = create_multiple_paths(2, 5, 0);
+        let mut data = create_multiple_paths(2, 5, 0, 0);
         for stem in wrap_multiple_paths(&mut data).iter_mut() {
             for point in stem.points.iter_mut() {
                 *point = 0.0;
@@ -501,8 +501,9 @@ mod tests {
     #[test]
     fn only_paths_on_the_selected_depth_move() {
         let point_amount = 5;
-        let path_size = point_amount * 4 + 9;
-        let mut data = create_multiple_paths(4, point_amount, 0);
+        // header, points and the four brackets
+        let path_size = point_amount * 4 + 7 + 4;
+        let mut data = create_multiple_paths(4, point_amount, 0, 0);
         for path in 0..4 {
             // the last two paths sit one layer deeper
             data[2 + path * path_size + 3] = if path < 2 { 0 } else { 1 };

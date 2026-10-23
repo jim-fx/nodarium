@@ -1,7 +1,9 @@
-use super::GeometryData;
+use super::{GeometryData, NO_PATH};
 
 pub struct InstanceData<'a> {
     pub instances: &'a mut [f32], // View into `data`
+    /// For every instance the id of the path it sits on, `NO_PATH` for none.
+    pub path_ids: &'a mut [i32], // View into `data`
     pub instance_amount: usize,
     pub positions: &'a mut [f32], // View into `data`
     pub normals: &'a mut [f32],   // View into `data`
@@ -21,6 +23,16 @@ impl InstanceData<'_> {
         for i in 0..self.faces.len() {
             self.faces[i] = geometry.faces[i];
         }
+    }
+
+    pub fn set_path_id(&mut self, index: usize, path_id: i32) {
+        assert!(
+            index < self.path_ids.len(),
+            "Instance out of bounds. index: {} len: {}",
+            index,
+            self.path_ids.len()
+        );
+        self.path_ids[index] = path_id;
     }
 
     pub fn set_transformation_matrix(&mut self, index: usize, matrix: &[f32; 16]) {
@@ -44,6 +56,8 @@ static INSTANCE_HEADER_SIZE: usize = 5;
 // 2: face amount
 // 3: stem_depth
 // 4: instance amount
+// followed by faces, positions, normals, a 4x4 matrix per instance and the id of the path each
+// instance sits on
 
 pub fn create_instance_data(
     vertex_amount: usize,
@@ -53,6 +67,7 @@ pub fn create_instance_data(
     let amount = INSTANCE_HEADER_SIZE // definition (type, vertex_amount, face_amount, instance_amount)
       + 4 // opening and closing brackets
       + instance_amount * 16  // instances stored as 4x4 matrices
+      + instance_amount // the id of the path each instance sits on
       + vertex_amount * 3  // positions
       + vertex_amount * 3  // normals
       + face_amount * 3; // faces
@@ -66,6 +81,8 @@ pub fn create_instance_data(
     geo[4] = face_amount as i32;
     geo[5] = instance_amount as i32;
     geo[6] = 1; // stem_depth
+    // no instance sits on a path until it is set
+    geo[amount - 2 - instance_amount..amount - 2].fill(NO_PATH);
 
     geo[amount - 2] = 1; // closing bracket
     geo[amount - 1] = 1; // closing bracket
@@ -88,7 +105,8 @@ pub fn wrap_instance_data(instances: &mut [i32]) -> InstanceData<'_> {
     let (faces, rest) = rest.split_at_mut(face_amount * 3);
     let (positions_slice, rest) = rest.split_at_mut(vertices_amount * 3);
     let (normals_slice, rest) = rest.split_at_mut(vertices_amount * 3);
-    let (instances_slice, _) = rest.split_at_mut(instance_amount * 16);
+    let (instances_slice, rest) = rest.split_at_mut(instance_amount * 16);
+    let (path_ids, _) = rest.split_at_mut(instance_amount);
 
     let positions: &mut [f32] = unsafe {
         std::slice::from_raw_parts_mut(
@@ -110,6 +128,7 @@ pub fn wrap_instance_data(instances: &mut [i32]) -> InstanceData<'_> {
 
     InstanceData {
         instances,
+        path_ids,
         instance_amount,
         positions,
         normals,

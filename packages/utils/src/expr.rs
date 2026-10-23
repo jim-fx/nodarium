@@ -1,5 +1,71 @@
+use crate::geometry::{path_link, wrap_path};
 use crate::{decode_float, log, split_args};
 use noise::{core::open_simplex::open_simplex_2d, permutationtable::PermutationTable, Vector2};
+
+/// What the `path_info` node can read about the path a node is working on.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PathField {
+    /// From 0 at the first path to 1 at the last.
+    Position,
+    /// The number of the path among the paths its creator made on the same parent, the first is 0.
+    /// It stays the same when other paths come or go.
+    Index,
+    /// How many paths the node works on.
+    Count,
+    /// The layer of the path: 1 for a stem, one more for every branching.
+    Depth,
+    /// Where on its parent the path grows, from 0 at the base to 1 at the tip.
+    /// Paths that grow on their own (stems) have 0.
+    ParentPosition,
+    /// How long the path is.
+    Length,
+}
+
+impl PathField {
+    /// The order of the options of the `path_info` node.
+    pub fn from_index(index: i32) -> Option<Self> {
+        Some(match index {
+            0 => Self::Position,
+            1 => Self::Index,
+            2 => Self::Count,
+            3 => Self::Depth,
+            4 => Self::ParentPosition,
+            5 => Self::Length,
+            _ => return None,
+        })
+    }
+}
+
+/// The path a node is working on, set by `Ctx::set_path` before the inputs of that path are read.
+/// A `branch` or `instance` works on the path it places its branches or instances on.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct PathInfo {
+    /// The number of the path among the paths its creator made on the same parent.
+    pub index: usize,
+    /// The place of the path among the paths the node works on, `position` is derived from it.
+    pub rank: usize,
+    pub count: usize,
+    pub depth: i32,
+    pub parent_position: f32,
+    pub length: f32,
+}
+
+impl PathInfo {
+    pub fn position(&self) -> f32 {
+        self.rank as f32 / self.count.saturating_sub(1).max(1) as f32
+    }
+
+    pub fn read(&self, field: PathField) -> f32 {
+        match field {
+            PathField::Position => self.position(),
+            PathField::Index => self.index as f32,
+            PathField::Count => self.count as f32,
+            PathField::Depth => self.depth as f32,
+            PathField::ParentPosition => self.parent_position,
+            PathField::Length => self.length,
+        }
+    }
+}
 
 /// Evaluates the float expressions produced by the `math` and `random` nodes.
 ///
@@ -10,10 +76,46 @@ pub struct Ctx {
     /// Where the branch or instance a node is placing sits on its parent path,
     /// from 0 at the base to 1 at the tip. The `alpha` node reads it.
     pub alpha: f32,
+    /// The path the node is working on. The `path_info` node reads it.
+    pub path: PathInfo,
     calls: i32,
 }
 
 impl Ctx {
+    /// Starts working on `path`, the `rank`-th of `count` paths. Alpha is the position of the
+    /// path among all paths, so `alpha` reads the same as `path_info` with position until a node
+    /// sets it to something else, for example the place of a branch on its parent.
+    ///
+    /// The random values a path draws start from its id, so they stay the same when paths
+    /// before it come or go.
+    pub fn set_path(&mut self, path: &[i32], rank: usize, count: usize) {
+        let link = path_link(path);
+        self.seed_path(link.id);
+        self.set_path_info(PathInfo {
+            index: link.index.max(0) as usize,
+            rank,
+            count,
+            depth: path[3],
+            parent_position: if link.has_parent() {
+                link.parent_alpha
+            } else {
+                0.0
+            },
+            length: wrap_path(path).get_length(),
+        });
+    }
+
+    /// Makes the random values that follow depend on the path with this id.
+    pub fn seed_path(&mut self, id: i32) {
+        self.calls = (id as u32 % 100_000) as i32;
+    }
+
+    /// Like `set_path`, for a path that doesn't exist yet, e.g. a stem that is about to be made.
+    pub fn set_path_info(&mut self, info: PathInfo) {
+        self.path = info;
+        self.alpha = info.position();
+    }
+
     pub fn float(&mut self, arg: &[i32]) -> f32 {
         if arg.len() == 1 {
             return decode_float(arg[0]);
@@ -37,6 +139,9 @@ impl Ctx {
                 self.random(min, max, *seed)
             }
             [[2], ..] => self.alpha,
+            [[5], [field]] => PathField::from_index(*field)
+                .map(|field| self.path.read(field))
+                .unwrap_or(0.0),
             [[3], value, min, max, points @ ..] => {
                 let x = self.float(value).clamp(0.0, 1.0);
                 let (min, max) = (self.float(min), self.float(max));
@@ -245,6 +350,121 @@ mod tests {
         let first = run();
         assert_ne!(first[0], first[1]);
         assert_eq!(first, run());
+    }
+
+    #[test]
+    fn test_path_info() {
+        let info = |field: i32| concat_args(vec![&[5], &[field]]);
+
+        let mut ctx = Ctx::default();
+        // nothing set yet
+        assert_eq!(ctx.float(&info(2)), 0.0);
+
+        ctx.set_path_info(PathInfo {
+            index: 4,
+            rank: 1,
+            count: 3,
+            depth: 2,
+            parent_position: 0.4,
+            length: 2.5,
+        });
+        assert_eq!(ctx.float(&info(0)), 0.5);
+        assert_eq!(ctx.float(&info(1)), 4.0);
+        assert_eq!(ctx.float(&info(2)), 3.0);
+        assert_eq!(ctx.float(&info(3)), 2.0);
+        assert_eq!(ctx.float(&info(4)), 0.4);
+        assert_eq!(ctx.float(&info(5)), 2.5);
+        // an unknown field reads as 0 instead of panicking
+        assert_eq!(ctx.float(&info(99)), 0.0);
+        // and alpha starts out as the position of the path
+        assert_eq!(ctx.float(&concat_args(vec![&[2], &[0]])), 0.5);
+
+        // the info is an expression like the others, a curve can read it
+        let curve = concat_args(vec![
+            &[3],
+            &info(0),
+            &[encode_float(0.0)],
+            &[encode_float(10.0)],
+            &[encode_float(0.0)],
+            &[encode_float(0.0)],
+            &[encode_float(1.0)],
+            &[encode_float(1.0)],
+        ]);
+        assert_eq!(ctx.float(&curve), 5.0);
+    }
+
+    #[test]
+    fn test_set_path_reads_the_path() {
+        use crate::geometry::{create_path, set_path_link, wrap_path_mut, PathLink};
+
+        // a branch of depth 2 that grows at 0.4 of its parent, 3 units long
+        let mut path = create_path(4, 2);
+        set_path_link(
+            &mut path,
+            PathLink {
+                id: 7,
+                parent_id: 3,
+                parent_alpha: 0.4,
+                creator: 2,
+                index: 6,
+            },
+        );
+        for (i, point) in wrap_path_mut(&mut path).points.chunks_exact_mut(4).enumerate() {
+            point.copy_from_slice(&[0.0, i as f32, 0.0, 1.0]);
+        }
+
+        let info = |field: i32| concat_args(vec![&[5], &[field]]);
+        let mut ctx = Ctx::default();
+        ctx.set_path(&path, 1, 3);
+
+        // the position is the place among the paths of the node, the index belongs to the path
+        assert_eq!(ctx.float(&info(0)), 0.5);
+        assert_eq!(ctx.float(&info(1)), 6.0);
+        assert_eq!(ctx.float(&info(2)), 3.0);
+        assert_eq!(ctx.float(&info(3)), 2.0);
+        assert_eq!(ctx.float(&info(4)), 0.4);
+        assert_eq!(ctx.float(&info(5)), 3.0);
+
+        // a path that grows on its own has no parent position
+        let stem = create_path(4, 1);
+        ctx.set_path(&stem, 0, 1);
+        assert_eq!(ctx.float(&info(4)), 0.0);
+        assert_eq!(ctx.float(&info(3)), 1.0);
+    }
+
+    #[test]
+    fn a_path_draws_the_same_random_values_wherever_it_sits_in_the_list() {
+        use crate::geometry::{create_path, set_path_link, PathLink};
+
+        let draw = |ctx: &mut Ctx| {
+            let expr = concat_args(vec![
+                &[1],
+                &[encode_float(0.0)],
+                &[encode_float(1.0)],
+                &[1234],
+            ]);
+            (ctx.float(&expr), ctx.float(&expr))
+        };
+        let path = |creator: i32, index: i32| {
+            let mut data = create_path(3, 1);
+            set_path_link(&mut data, PathLink::root(creator, index));
+            data
+        };
+        let (a, b) = (path(1, 0), path(1, 1));
+
+        // b first or after a, with other draws in between: b sees the same values
+        let mut ctx = Ctx::default();
+        ctx.set_path(&b, 0, 1);
+        let alone = draw(&mut ctx);
+
+        let mut ctx = Ctx::default();
+        ctx.set_path(&a, 0, 2);
+        let of_a = draw(&mut ctx);
+        ctx.set_path(&b, 1, 2);
+        let after_a = draw(&mut ctx);
+
+        assert_eq!(alone, after_a);
+        assert_ne!(of_a, after_a);
     }
 
     #[test]
