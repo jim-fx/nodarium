@@ -1,7 +1,7 @@
 import * as templates from '#lib/graph-templates/index.ts';
 import { localState } from '#lib/helpers/localState.svelte.ts';
 import { ThumbnailService } from '#lib/thumbnails/thumbnail-service.svelte.ts';
-import type { Graph } from '@nodarium/types';
+import type { Graph, ProjectUnit } from '@nodarium/types';
 import FileSaver from 'file-saver';
 import * as db from './project-database.svelte';
 import { createProjectFile, parseProjectFile, previewToBlob } from './project-file';
@@ -31,6 +31,7 @@ export class ProjectManager {
    * about the new title, otherwise its next save overwrites it
    */
   public onrenameactive?: (title: string) => void;
+  public onunitactive?: (unit: ProjectUnit) => void;
 
   get activeId() {
     return this.activeProjectId.value;
@@ -122,6 +123,17 @@ export class ProjectManager {
       this.onrenameactive?.(title);
     }
     graph.meta = { ...graph.meta, title };
+    await this.saveGraph(graph);
+  }
+
+  public async setProjectUnit(id: number, unit: ProjectUnit) {
+    const graph = await db.getGraph(id);
+    if (!graph || graph.meta?.unit === unit) return;
+
+    if (id === this.activeProjectId.value) {
+      this.onunitactive?.(unit);
+    }
+    graph.meta = { ...graph.meta, unit };
     await this.saveGraph(graph);
   }
 

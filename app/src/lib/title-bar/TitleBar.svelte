@@ -3,7 +3,15 @@
   import type { ProjectManager } from '#lib/project-manager/project-manager.svelte.ts';
   import { appSettings, AppSettingTypes } from '#lib/settings/app-settings.svelte.ts';
   import { panelState } from '#lib/sidebar/PanelState.svelte.ts';
-  import { ConfirmDialog, type Menu, MenuBar, type MenuEntry, toast } from '@nodarium/ui';
+  import type { ProjectUnit } from '@nodarium/types';
+  import {
+    ConfirmDialog,
+    type Menu,
+    MenuBar,
+    type MenuEntry,
+    toast,
+    UNIT_FACTORS
+  } from '@nodarium/ui';
   import { tick } from 'svelte';
   import AboutDialog from './AboutDialog.svelte';
 
@@ -83,6 +91,7 @@
   type ViewSettings = {
     showGrid: boolean;
     centerCamera: boolean;
+    showUnits: boolean;
     theme: string;
     nodeInterface: { snapToGrid: boolean };
   };
@@ -128,6 +137,19 @@
           label: 'Snap to grid',
           checked: settings.nodeInterface.snapToGrid,
           onselect: () => (settings.nodeInterface.snapToGrid = !settings.nodeInterface.snapToGrid)
+        },
+        {
+          label: 'Show units',
+          checked: settings.showUnits,
+          onselect: () => (settings.showUnits = !settings.showUnits)
+        },
+        {
+          label: 'Unit',
+          items: (Object.keys(UNIT_FACTORS) as ProjectUnit[]).map((unit) => ({
+            label: unit,
+            checked: (pm.activeProject?.meta?.unit ?? 'm') === unit,
+            onselect: withActive((id) => pm.setProjectUnit(id, unit))
+          }))
         },
         'separator',
         {

@@ -21,6 +21,7 @@ export { default as ShortCut } from './ShortCut.svelte';
 export { default as Spinner } from './Spinner.svelte';
 export { default as Toast } from './Toast.svelte';
 export { toast } from './toast.svelte';
+export { fromDisplay, toDisplay, UNIT_FACTORS, unitSettings } from './units.svelte';
 
 import Input from './Input.svelte';
 export default Input;

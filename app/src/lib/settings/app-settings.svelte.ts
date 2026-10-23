@@ -28,6 +28,11 @@ export const AppSettingTypes = {
     label: 'Center Camera',
     value: true
   },
+  showUnits: {
+    type: 'boolean',
+    label: 'Show Units',
+    value: true
+  },
   clippy: {
     type: 'button',
     label: '🌱 Open Planty'

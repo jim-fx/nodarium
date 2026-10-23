@@ -11,6 +11,7 @@
     type Vec3
   } from './gizmos';
   import GizmoSphere from './GizmoSphere.svelte';
+  import { viewScale } from './view-scale.svelte';
 
   type Props = GizmoHandlers & {
     gizmo: Extract<Gizmo, { kind: 'force' | 'position' }>;
@@ -21,7 +22,9 @@
 
   // a plain position has no radius to scale
   const activeMode = $derived<GizmoMode>(gizmo.kind === 'force' ? mode : 'translate');
-  const radius = $derived(gizmo.kind === 'force' ? gizmo.radius : GIZMO_STYLE.positionSize);
+  const radius = $derived(
+    gizmo.kind === 'force' ? gizmo.radius : GIZMO_STYLE.positionSize * viewScale.value
+  );
 
   let group = $state<Group>();
   let startRadius = 1;

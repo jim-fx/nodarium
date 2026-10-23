@@ -1,10 +1,14 @@
 <script lang="ts">
+  import { roundDisplay, UNIT_FACTORS, unitSettings } from '../units.svelte';
+
   interface Props {
     value?: number;
     step?: number;
     min?: number;
     max?: number;
     id?: string;
+    /** Marks the value as a length in meters, it is shown in the project unit */
+    unit?: 'm';
   }
 
   let {
@@ -12,7 +16,8 @@
     step,
     min = $bindable(0),
     max = $bindable(1),
-    id
+    id,
+    unit
   }: Props = $props();
 
   // normalize bounds
@@ -24,9 +29,13 @@
     return Math.min(max, Math.max(min, v));
   }
 
+  // the value is stored in meters, the input shows it in the project unit
+  const factor = $derived(unit ? UNIT_FACTORS[unitSettings.unit] : 1);
+  const unitLabel = $derived(unit && unitSettings.show ? unitSettings.unit : undefined);
+
   function snap(v: number, s = step) {
     if (s) v = Math.round(v / s) * s;
-    return +v.toFixed(3);
+    return +v.toFixed(3 + Math.round(Math.log10(factor)));
   }
 
   function getAutoStep(v: number): number {
@@ -95,9 +104,11 @@
     }
   }
 
+  const displayValue = $derived(roundDisplay(value * factor));
+
   const width = $derived(
     Number.isFinite(value)
-      ? `${Math.max(value.toString().length * 8, 50)}px`
+      ? `${Math.max((displayValue.toString().length + (unitLabel ? 3 : 0)) * 8, 50)}px`
       : '20px'
   );
 
@@ -122,7 +133,7 @@
       onmousedown={stepDown}
       class="cursor-pointer w-4 bg-layer-3/30 hover:bg-layer-3/50"
     >
-      <span class="i-[tabler--chevron-compact-left] block h-full w-full text-outline!"></span>
+      <span class="i-[tabler--chevron-left] block h-full w-full text-outline!"></span>
     </button>
     <div class="w-px bg-outline"></div>
   {/if}
@@ -137,17 +148,25 @@
 
     <input
       bind:this={inputEl}
-      bind:value
+      bind:value={() => displayValue, (v) => (value = v / factor)}
       {id}
-      {step}
-      {min}
-      {max}
+      step={step ? step * factor : step}
+      min={min * factor}
+      max={max * factor}
       type="number"
       onkeydown={onKeyDown}
       onmousedown={onMouseDown}
       class="w-full min-w-full cursor-pointer bg-transparent px-2 py-1 text-center font-tabular text-text outline-none appearance-none"
       style:width={width}
     />
+    {#if unitLabel}
+      <span
+        class="absolute inset-y-0 right-1.5 flex items-center text-xs text-text/50 pointer-events-none"
+        data-testid="unit-label"
+      >
+        {unitLabel}
+      </span>
+    {/if}
   </div>
 
   {#if step}
@@ -157,7 +176,7 @@
       onmousedown={stepUp}
       class="cursor-pointer w-4 bg-layer-3/30 hover:bg-layer-3/50"
     >
-      <span class="i-[tabler--chevron-compact-right] block h-full w-full text-outline!"></span>
+      <span class="i-[tabler--chevron-right] block h-full w-full text-outline!"></span>
     </button>
   {/if}
 </div>

@@ -115,12 +115,17 @@ export const GroupSchema = z.object({
 
 export type GroupDefinition = z.infer<typeof GroupSchema>;
 
+export const ProjectUnitSchema = z.enum(['mm', 'cm', 'm']);
+export type ProjectUnit = z.infer<typeof ProjectUnitSchema>;
+
 export const GraphSchema = z.object({
   id: z.number(),
   meta: z
     .object({
       title: z.string().optional(),
-      lastModified: z.string().optional()
+      lastModified: z.string().optional(),
+      // the unit lengths are displayed in, values are always stored in meters
+      unit: ProjectUnitSchema.optional()
     })
     .optional(),
   settings: z.record(z.string(), z.any()).optional(),

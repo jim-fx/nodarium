@@ -6,7 +6,8 @@
   "inputs": {
     "size": {
       "type": "float",
-      "value": 2
+      "value": 2,
+      "unit": "m"
     }
   }
 }

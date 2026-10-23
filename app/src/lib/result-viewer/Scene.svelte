@@ -1,13 +1,17 @@
 <script lang="ts">
   import { colors } from '#lib/graph-interface/graph/colors.svelte.ts';
+  import { unitSettings } from '@nodarium/ui';
   import { T, useTask, useThrelte } from '@threlte/core';
   import { Grid } from '@threlte/extras';
+  import { untrack } from 'svelte';
   import { Box3, type BufferGeometry, type Group, Mesh, Vector3 } from 'three';
   import { appSettings } from '../settings/app-settings.svelte';
+  import { frameBounds, type Framing, gridSectionSize } from './camera-framing';
   import Camera from './Camera.svelte';
   import Debug from './Debug.svelte';
   import type { Gizmo, GizmoChange, GizmoMode } from './gizmos';
   import Gizmos from './Gizmos.svelte';
+  import { updateViewScale } from './view-scale.svelte';
 
   const { renderStage, invalidate: _invalidate } = useThrelte();
 
@@ -36,7 +40,30 @@
   }: Props = $props();
 
   let geometries = $state.raw<BufferGeometry[]>([]);
-  let center = $state(new Vector3(0, 4, 0));
+  let framing = $state<Framing>();
+  let frameRequest = $state(0);
+
+  const gridSection = $derived(gridSectionSize(framing?.radius ?? 4));
+
+  function measure() {
+    if (!scene) return;
+    const aabb = new Box3().setFromObject(scene);
+    // a single geometry with NaN positions would move the camera to NaN
+    const next = frameBounds(aabb.min.toArray(), aabb.max.toArray());
+    if (next) {
+      framing = next;
+      updateViewScale(next.radius);
+    }
+  }
+
+  // lengths changed their scale, so the content has to be looked at again
+  $effect(() => {
+    void unitSettings.unit;
+    untrack(() => {
+      measure();
+      frameRequest++;
+    });
+  });
 
   useTask(
     (delta) => {
@@ -57,17 +84,7 @@
       geometries = geos;
     }
 
-    if (geometries && scene && centerCamera) {
-      const aabb = new Box3().setFromObject(scene);
-      // a single geometry with NaN positions would move the camera to NaN
-      const finite = [aabb.min, aabb.max].every((v) => v.toArray().every(Number.isFinite));
-      if (finite) {
-        center = aabb
-          .getCenter(new Vector3())
-          .max(new Vector3(-4, -4, -4))
-          .min(new Vector3(4, 4, 4));
-      }
-    }
+    if (geometries && scene) measure();
     _invalidate();
   };
 
@@ -82,7 +99,7 @@
   }
 </script>
 
-<Camera {center} {centerCamera} />
+<Camera {framing} {frameRequest} {centerCamera} />
 
 <Debug {debugData} />
 
@@ -98,11 +115,13 @@
   <Grid
     cellColor={colors['outline']}
     cellThickness={0.7}
+    cellSize={gridSection / 2}
+    sectionSize={gridSection}
     infiniteGrid
     sectionThickness={0.7}
-    sectionDistance={2}
+    sectionDistance={2 * gridSection}
     sectionColor={colors['outline']}
-    fadeDistance={50}
+    fadeDistance={(framing?.radius ?? 4) * 12}
     fadeStrength={10}
     fadeOrigin={new Vector3(0, 0, 0)}
   />

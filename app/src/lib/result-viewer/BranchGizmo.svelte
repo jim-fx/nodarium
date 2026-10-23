@@ -13,6 +13,7 @@
     type Vec3
   } from './gizmos';
   import GizmoSphere from './GizmoSphere.svelte';
+  import { viewScale } from './view-scale.svelte';
 
   type Props = GizmoHandlers & { gizmo: Extract<Gizmo, { kind: 'branch' }> };
 
@@ -56,7 +57,7 @@
 
 <GizmoLine from={gizmo.origin} to={tip} />
 
-<T.Group position={gizmo.origin} scale={GIZMO_STYLE.markerSize}>
+<T.Group position={gizmo.origin} scale={GIZMO_STYLE.markerSize * viewScale.value}>
   <GizmoSphere opacity={GIZMO_STYLE.markerOpacity} />
 </T.Group>
 
@@ -64,7 +65,7 @@
   bind:group
   mode="translate"
   position={tip}
-  scale={GIZMO_STYLE.markerSize}
+  scale={GIZMO_STYLE.markerSize * viewScale.value}
   onmouseDown={() => onstart?.()}
   onmouseUp={() => onend?.()}
   onobjectChange={handleChange}

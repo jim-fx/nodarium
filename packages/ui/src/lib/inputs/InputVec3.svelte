@@ -4,15 +4,16 @@
   interface Props {
     value?: number[];
     id?: string;
+    unit?: 'm';
   }
 
-  let { value = $bindable([0, 0, 0]), id = '' }: Props = $props();
+  let { value = $bindable([0, 0, 0]), id = '', unit }: Props = $props();
 </script>
 
 <div>
-  <InputNumber id={`${id}-x`} bind:value={value[0]} step={0.01} />
-  <InputNumber id={`${id}-y`} bind:value={value[1]} step={0.01} />
-  <InputNumber id={`${id}-z`} bind:value={value[2]} step={0.01} />
+  <InputNumber id={`${id}-x`} bind:value={value[0]} step={0.01} {unit} />
+  <InputNumber id={`${id}-y`} bind:value={value[1]} step={0.01} {unit} />
+  <InputNumber id={`${id}-z`} bind:value={value[2]} step={0.01} {unit} />
 </div>
 
 <style>

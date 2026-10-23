@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
+import { unitSettings } from '../units.svelte';
 import InputNumber from './InputNumber.svelte';
 
 describe('InputNumber', () => {
@@ -62,5 +63,27 @@ describe('InputNumber', () => {
 
     const input = page.getByRole('spinbutton');
     await expect.element(input).toHaveValue(-50);
+  });
+
+  it('should show a length in the project unit', async () => {
+    unitSettings.unit = 'cm';
+    try {
+      render(InputNumber, { value: 0.25, unit: 'm' });
+      await expect.element(page.getByRole('spinbutton')).toHaveValue(25);
+      await expect.element(page.getByTestId('unit-label')).toHaveTextContent('cm');
+    } finally {
+      unitSettings.unit = 'm';
+    }
+  });
+
+  it('should not convert or label inputs without a unit', async () => {
+    unitSettings.unit = 'cm';
+    try {
+      render(InputNumber, { value: 0.25 });
+      await expect.element(page.getByRole('spinbutton')).toHaveValue(0.25);
+      await expect.element(page.getByTestId('unit-label')).not.toBeInTheDocument();
+    } finally {
+      unitSettings.unit = 'm';
+    }
   });
 });

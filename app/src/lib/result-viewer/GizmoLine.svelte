@@ -4,6 +4,7 @@
   import { GIZMO_STYLE } from './gizmo-style';
   import { gizmoTheme } from './gizmo-theme.svelte.ts';
   import type { Vec3 } from './gizmos';
+  import { viewScale } from './view-scale.svelte';
 
   type Props = { from: Vec3; to: Vec3 };
 
@@ -35,7 +36,9 @@
     scale={[1, length, 1]}
     renderOrder={GIZMO_STYLE.renderOrder}
   >
-    <T.CylinderGeometry args={[GIZMO_STYLE.lineThickness, GIZMO_STYLE.lineThickness, 1, 6]} />
+    <T.CylinderGeometry
+      args={[GIZMO_STYLE.lineThickness * viewScale.value, GIZMO_STYLE.lineThickness * viewScale.value, 1, 6]}
+    />
     <T.MeshBasicMaterial color={gizmoTheme.accent} depthWrite={false} depthTest={false} />
   </T.Mesh>
 {/if}

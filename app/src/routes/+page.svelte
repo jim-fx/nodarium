@@ -47,7 +47,7 @@
   import { tutorialConfig } from '#lib/tutorial/tutorial-config.ts';
   import { Planty, type StepActionHook } from '@nodarium/planty';
   import type { Edge, Graph } from '@nodarium/types';
-  import { Spinner, Toast, toast } from '@nodarium/ui';
+  import { Spinner, Toast, toast, unitSettings } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
   import { untrack } from 'svelte';
   import type { Group } from 'three';
@@ -155,6 +155,15 @@
   pm.onrenameactive = (title) => {
     if (manager) manager.meta = { ...manager.meta, title };
   };
+  pm.onunitactive = (unit) => {
+    if (manager) manager.meta = { ...manager.meta, unit };
+  };
+
+  // number inputs and the viewer show lengths in the unit of the project
+  $effect(() => {
+    unitSettings.unit = manager?.meta?.unit ?? 'm';
+    unitSettings.show = appSettings.value.showUnits;
+  });
 
   /** Tutorial step hook that advances once the graph passes `check` */
   function waitForGraph(check: (edges: Edge[]) => boolean): StepActionHook {
