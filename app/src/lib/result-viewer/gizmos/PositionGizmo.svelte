@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Group } from 'three';
+  import { viewScale } from '../scale/view-scale.svelte';
   import { GIZMO_STYLE } from './gizmo-style';
   import GizmoControls from './GizmoControls.svelte';
   import {
@@ -11,7 +12,6 @@
     type Vec3
   } from './gizmos';
   import GizmoSphere from './GizmoSphere.svelte';
-  import { viewScale } from './view-scale.svelte';
 
   type Props = GizmoHandlers & {
     gizmo: Extract<Gizmo, { kind: 'force' | 'position' }>;

@@ -3,7 +3,7 @@
   import { T } from '@threlte/core';
   import { Text } from '@threlte/extras';
   import { type Box3, type EulerTuple, Vector3 } from 'three';
-  import { appSettings } from '../settings/app-settings.svelte';
+  import { appSettings } from '../../settings/app-settings.svelte';
   import { viewScale } from './view-scale.svelte';
 
   const { bounds }: { bounds?: Box3 } = $props();

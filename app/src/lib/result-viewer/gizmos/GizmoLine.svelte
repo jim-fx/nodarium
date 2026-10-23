@@ -1,10 +1,10 @@
 <script lang="ts">
   import { T } from '@threlte/core';
   import { Quaternion, Vector3 } from 'three';
+  import { viewScale } from '../scale/view-scale.svelte';
   import { GIZMO_STYLE } from './gizmo-style';
   import { gizmoTheme } from './gizmo-theme.svelte.ts';
   import type { Vec3 } from './gizmos';
-  import { viewScale } from './view-scale.svelte';
 
   type Props = { from: Vec3; to: Vec3 };
 

@@ -6,9 +6,9 @@
   import { Canvas } from '@threlte/core';
   import { untrack } from 'svelte';
   import { Box3, type Group, type Material } from 'three';
-  import { createGeometryPool, createInstancedGeometryPool } from './geometryPool';
-  import type { Gizmo, GizmoChange, GizmoMode } from './gizmos';
-  import { getMaterial, matcapLoaded, setHeightRange } from './materials';
+  import { createGeometryPool, createInstancedGeometryPool } from './geometry/geometryPool';
+  import type { Gizmo, GizmoChange, GizmoMode } from './gizmos/gizmos';
+  import { getMaterial, matcapLoaded, setHeightRange } from './materials/materials';
   import Scene from './Scene.svelte';
 
   // created on first use, switching back and forth keeps the compiled shaders
@@ -49,14 +49,18 @@
     geometryPool = geometryPool || createGeometryPool(group, material);
     instancePool = instancePool || createInstancedGeometryPool(group, material);
 
-    let meshes = geometryPool.update(inputs.filter((i) => i[0] === 1));
-    let faces = instancePool.update(inputs.filter((i) => i[0] === 2));
+    const geometries: Int32Array[] = [];
+    const instances: Int32Array[] = [];
+    for (const input of inputs) {
+      if (input[0] === 1) geometries.push(input);
+      else if (input[0] === 2) instances.push(input);
+    }
 
-    // the pools keep hidden meshes with stale geometry around
-    bounds.makeEmpty();
-    group.traverseVisible((child) => {
-      if ('isMesh' in child) bounds.expandByObject(child);
-    });
+    // the pools know the bounds of what they show already
+    const meshes = geometryPool.update(geometries);
+    bounds.copy(meshes.bounds);
+    const faces = instancePool.update(instances);
+    bounds.union(faces.bounds);
     setHeightRange(material, bounds);
 
     return {
@@ -122,6 +126,7 @@
       bind:this={sceneComponent}
       {centerCamera}
       {projectId}
+      contentBounds={bounds}
       {debugData}
       {gizmos}
       {gizmoMode}

@@ -1,4 +1,6 @@
 export type Framing = {
+  /** there is no content yet, the framing is only a placeholder */
+  empty: boolean;
   center: [number, number, number];
   /** radius of the sphere around the content */
   radius: number;
@@ -45,6 +47,7 @@ export function frameBounds(
   const distance = (radius * MARGIN) / Math.sin(Math.min(halfFov, halfHorizontal));
 
   return {
+    empty,
     center,
     radius,
     distance,

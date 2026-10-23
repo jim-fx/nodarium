@@ -60,16 +60,29 @@ describe('createInstancedGeometryPool', () => {
     expect(meshes().every((m) => m.visible)).toBe(true);
   });
 
-  it('drops the bounds of the previous update', () => {
+  it('bounds the instances moved by their matrices', () => {
     const { pool, meshes } = setup();
-    pool.update([instances(2)]);
-    // the renderer computes them once for the frustum culling and keeps them
-    meshes()[0].computeBoundingSphere();
-    meshes()[0].geometry.computeBoundingSphere();
-
     pool.update([instances(2, 3, 10)]);
 
-    expect(meshes()[0].boundingSphere).toBeNull();
-    expect(meshes()[0].geometry.boundingSphere).toBeNull();
+    // the triangle spans x from 0 to 2, the second instance sits at x = 10
+    expect(meshes()[0].boundingBox?.max.x).toBe(12);
+    expect(meshes()[0].boundingSphere?.center.x).toBe(6);
+  });
+
+  it('reports the bounds of what is shown and nothing hidden', () => {
+    const { pool } = setup();
+    pool.update([instances(2, 3, 10), instances(2, 4)]);
+    expect(pool.update([instances(2, 4)]).bounds.max.x).toBe(4);
+  });
+
+  it('keeps the other inputs on their meshes when one is removed', () => {
+    const { pool, meshes } = setup();
+    pool.update([instances(2, 3), instances(2, 4), instances(2, 5)]);
+    const [a, , c] = meshes();
+    pool.update([instances(2, 3), instances(2, 5)]);
+
+    expect(meshes()[0]).toBe(a);
+    expect(meshes()[2]).toBe(c);
+    expect(meshes().map((m) => m.visible)).toEqual([true, false, true]);
   });
 });

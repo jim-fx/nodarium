@@ -15,8 +15,8 @@ import {
   PointsMaterial,
   Vector3
 } from 'three';
-import { createGeometryPool } from './geometryPool';
-import { PATH_HEADER_SIZE } from './gizmo-paths';
+import { createGeometryPool } from '../geometry/geometryPool';
+import { PATH_HEADER_SIZE } from '../gizmos/gizmo-paths';
 
 // one color per stem depth, branches of branches get the next color
 const depthColors = ['#ff5c5c', '#ffb347', '#4dd2ff', '#c084fc', '#5eea8c'].map((c) =>

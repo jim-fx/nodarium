@@ -4,16 +4,16 @@
   import { T, useTask, useThrelte } from '@threlte/core';
   import { Environment, Grid } from '@threlte/extras';
   import { untrack } from 'svelte';
-  import { Box3, type BufferGeometry, type Group, Mesh, Vector3 } from 'three';
+  import { Box3, type Group, Vector3 } from 'three';
   import { appSettings } from '../settings/app-settings.svelte';
-  import { frameBounds, type Framing, gridSectionSize } from './camera-framing';
-  import Camera from './Camera.svelte';
-  import Debug from './Debug.svelte';
-  import type { Gizmo, GizmoChange, GizmoMode } from './gizmos';
-  import Gizmos from './Gizmos.svelte';
-  import ScaleModel from './ScaleModel.svelte';
-  import ScaleViewer from './ScaleViewer.svelte';
-  import { updateViewScale } from './view-scale.svelte';
+  import { frameBounds, type Framing, gridSectionSize } from './camera/camera-framing';
+  import Camera from './camera/Camera.svelte';
+  import Debug from './debug/Debug.svelte';
+  import type { Gizmo, GizmoChange, GizmoMode } from './gizmos/gizmos';
+  import Gizmos from './gizmos/Gizmos.svelte';
+  import ScaleModel from './scale/ScaleModel.svelte';
+  import ScaleViewer from './scale/ScaleViewer.svelte';
+  import { updateViewScale } from './scale/view-scale.svelte';
 
   const { renderStage, invalidate: _invalidate, size } = useThrelte();
 
@@ -23,6 +23,8 @@
     scene: Group;
     centerCamera: boolean;
     projectId?: number;
+    /** the bounds of everything the pools show, they change with every update */
+    contentBounds: Box3;
     gizmos?: Gizmo[];
     gizmoMode?: GizmoMode;
     ongizmochange?: (nodeId: number, change: GizmoChange) => void;
@@ -33,6 +35,7 @@
   let {
     centerCamera,
     projectId,
+    contentBounds,
     fps = $bindable(),
     scene = $bindable(),
     debugData,
@@ -43,7 +46,6 @@
     ongizmoend
   }: Props = $props();
 
-  let geometries = $state.raw<BufferGeometry[]>([]);
   let framing = $state<Framing>();
   let frameRequest = $state(0);
   let bounds = $state.raw<Box3>();
@@ -59,8 +61,7 @@
   });
 
   function measure() {
-    if (!scene) return;
-    const aabb = new Box3().setFromObject(scene);
+    const aabb = contentBounds.clone();
     // a single geometry with NaN positions would move the camera to NaN
     const next = frameBounds(aabb.min.toArray(), aabb.max.toArray(), 50, aspect);
     if (next) {
@@ -88,29 +89,9 @@
   );
 
   export const invalidate = function() {
-    if (scene) {
-      const geos: BufferGeometry[] = [];
-      scene.traverse(function(child) {
-        if (isMesh(child)) {
-          geos.push(child.geometry);
-        }
-      });
-      geometries = geos;
-    }
-
-    if (geometries && scene) measure();
+    measure();
     _invalidate();
   };
-
-  function isMesh(child: unknown): child is Mesh {
-    return (
-      child !== null
-      && typeof child === 'object'
-      && 'isObject3D' in child
-      && child.isObject3D === true
-      && 'material' in child
-    );
-  }
 </script>
 
 <Environment url="/environments/meadow_1k.exr" />

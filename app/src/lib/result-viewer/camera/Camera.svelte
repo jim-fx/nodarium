@@ -97,6 +97,20 @@
     task.stop();
   }
 
+  /** Jumps next to the content, keeping the viewing direction */
+  function placeAt(f: Framing) {
+    if (!camera || !controls) return;
+    stopAnimation();
+    const direction = camera.position.clone().sub(controls.target);
+    if (direction.lengthSq() < 1e-12) direction.set(1, 0.6, 1);
+    direction.normalize();
+    controls.target.set(...f.center);
+    camera.position.copy(controls.target).addScaledVector(direction, f.distance);
+    lastRadius = f.radius;
+    controls.update();
+    saveCameraState();
+  }
+
   function animateTo(f: Framing, fit: boolean) {
     goalTarget.set(...f.center);
     goalDistance = fit ? f.distance : undefined;
@@ -122,7 +136,8 @@
 
   // Each project remembers where its camera was, a new one gets framed once its content arrives
   let currentProject = untrack(() => projectId);
-  let fitPending = false;
+  // no saved view: put the camera next to the plant as soon as there is one
+  let fitPending = !initial;
   $effect(() => {
     const id = projectId;
     if (id === currentProject || !camera || !controls) return;
@@ -141,9 +156,9 @@
   });
 
   $effect(() => {
-    if (!fitPending || !framing || !controls) return;
+    if (!fitPending || !framing || framing.empty || !controls) return;
     fitPending = false;
-    untrack(() => animateTo(framing, true));
+    untrack(() => placeAt(framing));
   });
 
   onMount(() => {

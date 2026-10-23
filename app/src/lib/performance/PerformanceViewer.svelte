@@ -1,6 +1,6 @@
 <script lang="ts">
   import { humanizeNumber } from '#lib/helpers/index.ts';
-  import { InputCheckbox } from '@nodarium/ui';
+  import { Button, InputCheckbox, toast } from '@nodarium/ui';
   import type { PerformanceData } from '@nodarium/utils';
   import BarSplit from './BarSplit.svelte';
   import Monitor from './Monitor.svelte';
@@ -163,6 +163,39 @@
     });
   }
 
+  function stats(values: number[]) {
+    const n = values.length;
+    const mean = values.reduce((acc, v) => acc + v, 0) / n;
+    const variance = n > 1 ? values.reduce((acc, v) => acc + (v - mean) ** 2, 0) / (n - 1) : 0;
+    const r = (v: number) => Math.round(v * 1000) / 1000;
+    return {
+      mean: r(mean),
+      std: r(Math.sqrt(variance)),
+      min: r(Math.min(...values)),
+      max: r(Math.max(...values)),
+      last: r(values[n - 1])
+    };
+  }
+
+  async function copyData() {
+    const keys = new Set(data.flatMap((run) => Object.keys(run)));
+    const entries = [...keys].map((key) => {
+      const values = data.map((run) => run[key]?.[0]).filter((v) => v !== undefined);
+      return [key, stats(values)];
+    });
+    const text = JSON.stringify(
+      { samples: data.length, stats: Object.fromEntries(entries) },
+      null,
+      2
+    );
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('Copied performance data', 'success');
+    } catch {
+      toast('Could not copy to the clipboard', 'error');
+    }
+  }
+
   const computedTotalDisplay = $derived.by(() =>
     round(showAverage ? totalPerformance.average : totalPerformance.onlyLast)
   );
@@ -216,6 +249,7 @@
     <div class="flex items-center gap-2">
       <InputCheckbox id="show-total" bind:value={showAverage} />
       <label for="show-total">Show Average</label>
+      <Button size="sm" class="ml-auto" onclick={copyData}>Copy</Button>
     </div>
 
     <BarSplit
