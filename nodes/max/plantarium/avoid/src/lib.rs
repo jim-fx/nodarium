@@ -61,16 +61,55 @@ fn bounds(points: &[f32]) -> (Vec3, Vec3) {
     (min - Vec3::splat(thickness), max + Vec3::splat(thickness))
 }
 
+/// A segment of a path with everything the tests need worked out once per iteration.
+struct Segment {
+    start: Vec3,
+    end: Vec3,
+    direction: Vec3,
+    /// squared length
+    length_squared: f32,
+    start_thickness: f32,
+    end_thickness: f32,
+    /// box around the segment, grown by its thicker end, so a segment is only compared to the
+    /// segments whose box comes near enough
+    min: Vec3,
+    max: Vec3,
+}
+
+fn segments(points: &[f32]) -> Vec<Segment> {
+    (0..(points.len() / 4).saturating_sub(1))
+        .map(|i| {
+            let (start, end) = (point_at(points, i), point_at(points, i + 1));
+            let direction = end - start;
+            let (start_thickness, end_thickness) = (points[i * 4 + 3], points[i * 4 + 7]);
+            let thickness = Vec3::splat(start_thickness.max(end_thickness).max(0.0));
+            Segment {
+                start,
+                end,
+                direction,
+                length_squared: direction.dot(direction),
+                start_thickness,
+                end_thickness,
+                min: start.min(end) - thickness,
+                max: start.max(end) + thickness,
+            }
+        })
+        .collect()
+}
+
 /// Parameters `(s, t)` in 0..=1 of the closest points between the segments
 /// `p1..q1` and `p2..q2`.
+#[cfg(test)]
 fn closest_segment_params(p1: Vec3, q1: Vec3, p2: Vec3, q2: Vec3) -> (f32, f32) {
+    let (d1, d2) = (q1 - p1, q2 - p2);
+    closest_params(p1, d1, d1.dot(d1), p2, d2, d2.dot(d2))
+}
+
+/// The same for segments given as start, direction and squared length.
+fn closest_params(p1: Vec3, d1: Vec3, a: f32, p2: Vec3, d2: Vec3, e: f32) -> (f32, f32) {
     const EPSILON: f32 = 1e-8;
 
-    let d1 = q1 - p1;
-    let d2 = q2 - p2;
     let r = p1 - p2;
-    let a = d1.dot(d1);
-    let e = d2.dot(d2);
     let f = d2.dot(r);
 
     if a <= EPSILON && e <= EPSILON {
@@ -123,7 +162,9 @@ fn fallback_direction(da: Vec3, db: Vec3, order: usize, path_count: usize) -> Ve
 /// One side of a pair of paths: its points, the push collected for every
 /// point and how many contacts contributed to that push.
 struct Side<'a> {
-    points: &'a [f32],
+    segments: &'a [Segment],
+    /// box around the whole path
+    bounds: (Vec3, Vec3),
     deltas: &'a mut [Vec3],
     weights: &'a mut [f32],
     order: usize,
@@ -143,32 +184,53 @@ impl Side<'_> {
     }
 
     fn thickness(&self, i: usize, s: f32) -> f32 {
-        let start = self.points[i * 4 + 3];
-        let end = self.points[i * 4 + 7];
+        let Segment { start_thickness: start, end_thickness: end, .. } = self.segments[i];
         (start + (end - start) * s).max(0.0)
     }
 }
 
 /// Finds where two paths come closer than `radius` plus their thickness and
 /// pushes them apart. Every segment of one path is tested against every
-/// segment of the other in 3D, so crossings are found wherever they happen.
-fn repel_pair(a: &mut Side, b: &mut Side, path_count: usize, radius: f32, strength: f32) {
-    let length_a = a.points.len() / 4;
-    let length_b = b.points.len() / 4;
+/// segment of the other in 3D, so crossings are found wherever they happen. Returns how many
+/// contacts were found.
+fn repel_pair(
+    a: &mut Side,
+    b: &mut Side,
+    path_count: usize,
+    radius: f32,
+    strength: f32,
+) -> usize {
+    let length_a = a.segments.len() + 1;
+    let length_b = b.segments.len() + 1;
     if length_a < 2 || length_b < 2 {
-        return;
+        return 0;
     }
 
+    let margin = Vec3::splat(radius);
+    let mut contacts = 0;
+
     for i in 0..length_a - 1 {
-        let pa = point_at(a.points, i);
-        let qa = point_at(a.points, i + 1);
+        let sa = &a.segments[i];
+        if (sa.min - margin).cmpgt(b.bounds.1).any() || (b.bounds.0 - margin).cmpgt(sa.max).any() {
+            continue;
+        }
 
         for j in 0..length_b - 1 {
-            let pb = point_at(b.points, j);
-            let qb = point_at(b.points, j + 1);
+            let sb = &b.segments[j];
+            // segments that are farther apart than they can reach don't touch
+            if (sa.min - margin).cmpgt(sb.max).any() || (sb.min - margin).cmpgt(sa.max).any() {
+                continue;
+            }
 
-            let (s, t) = closest_segment_params(pa, qa, pb, qb);
-            let offset = pa.lerp(qa, s) - pb.lerp(qb, t);
+            let (s, t) = closest_params(
+                sa.start,
+                sa.direction,
+                sa.length_squared,
+                sb.start,
+                sb.direction,
+                sb.length_squared,
+            );
+            let offset = sa.start.lerp(sa.end, s) - sb.start.lerp(sb.end, t);
             let distance = offset.length();
 
             // radius is the free space between the surfaces of the two stems
@@ -180,14 +242,17 @@ fn repel_pair(a: &mut Side, b: &mut Side, path_count: usize, radius: f32, streng
             let direction = if distance > 0.0001 {
                 offset / distance
             } else {
-                fallback_direction(qa - pa, qb - pb, a.order, path_count)
+                fallback_direction(sa.direction, sb.direction, a.order, path_count)
             };
 
             let push = direction * ((required - distance) * 0.5 * strength);
             a.push(i, s, push, (i as f32 + s) / (length_a - 1) as f32);
             b.push(j, t, -push, (j as f32 + t) / (length_b - 1) as f32);
+            contacts += 1;
         }
     }
+
+    contacts
 }
 
 /// Spreads the displacement of a point over its two neighbours, so a stem
@@ -272,12 +337,14 @@ fn repel(
             .map(|index| wrap_path(&output[*index]).points.to_vec())
             .collect();
         let boxes: Vec<(Vec3, Vec3)> = points.iter().map(|p| bounds(p)).collect();
+        let segments: Vec<Vec<Segment>> = points.iter().map(|p| segments(p)).collect();
         let mut deltas: Vec<Vec<Vec3>> = points
             .iter()
             .map(|p| vec![Vec3::ZERO; p.len() / 4])
             .collect();
         let mut weights: Vec<Vec<f32>> = points.iter().map(|p| vec![0.0; p.len() / 4]).collect();
 
+        let mut contacts = 0;
         for a in 0..count {
             for b in (a + 1)..count {
                 let margin = Vec3::splat(radius);
@@ -290,19 +357,26 @@ fn repel(
                 let (deltas_a, deltas_b) = deltas.split_at_mut(b);
                 let (weights_a, weights_b) = weights.split_at_mut(b);
                 let mut side_a = Side {
-                    points: &points[a],
+                    segments: &segments[a],
+                    bounds: boxes[a],
                     deltas: &mut deltas_a[a],
                     weights: &mut weights_a[a],
                     order: a,
                 };
                 let mut side_b = Side {
-                    points: &points[b],
+                    segments: &segments[b],
+                    bounds: boxes[b],
                     deltas: &mut deltas_b[0],
                     weights: &mut weights_b[0],
                     order: b,
                 };
-                repel_pair(&mut side_a, &mut side_b, count, radius, strength);
+                contacts += repel_pair(&mut side_a, &mut side_b, count, radius, strength);
             }
+        }
+
+        // nothing touches anymore, the next iterations would not change anything either
+        if contacts == 0 {
+            break;
         }
 
         for (order, index) in paths.iter().enumerate() {
@@ -366,6 +440,34 @@ mod tests {
             &[8],
             &[1],
         ])
+    }
+
+    /// Replays the input of a real run, `BENCH_INPUT` has one argument per line
+    #[test]
+    #[ignore]
+    fn bench_real() {
+        let Ok(path) = std::env::var("BENCH_INPUT") else {
+            return;
+        };
+        let args: Vec<Vec<i32>> = std::fs::read_to_string(path)
+            .unwrap()
+            .lines()
+            .map(|line| line.split_whitespace().map(|v| v.parse().unwrap()).collect())
+            .collect();
+        let args: Vec<&[i32]> = args.iter().map(|a| a.as_slice()).collect();
+
+        let mut best = std::time::Duration::MAX;
+        let mut result = Vec::new();
+        for _ in 0..20 {
+            let start = std::time::Instant::now();
+            result = super::__nodarium_execute_inner(&args);
+            best = best.min(start.elapsed());
+        }
+        println!("avoid took {:?}", best);
+        if let Ok(path) = std::env::var("BENCH_OUT") {
+            let text: Vec<String> = result.iter().map(|v| v.to_string()).collect();
+            std::fs::write(path, text.join("\n")).unwrap();
+        }
     }
 
     fn horizontal_distance(a: &[f32], b: &[f32], index: usize) -> f32 {
