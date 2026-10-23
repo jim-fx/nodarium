@@ -2,9 +2,9 @@
   import { Button, toast } from '@nodarium/ui';
   import FileSaver from 'file-saver';
   import type { Group } from 'three';
-  import { createExportScene } from './exportScene';
   import type { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
   import type { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+  import { createExportScene } from './exportScene';
 
   // Download
   const download = (
