@@ -12,13 +12,13 @@
   import PerformanceViewer from '#lib/performance/PerformanceViewer.svelte';
   import { ProjectManager } from '#lib/project-manager/project-manager.svelte.ts';
   import ProjectBrowser from '#lib/project-manager/ProjectBrowser.svelte';
-  import { type ProbePath, readPaths } from '#lib/result-viewer/gizmo-paths.ts';
+  import { type ProbePath, readPaths } from '#lib/result-viewer/gizmos/gizmo-paths.ts';
   import {
     addProbe,
     collectGizmos,
     type GizmoChange,
     probeSource
-  } from '#lib/result-viewer/gizmos.ts';
+  } from '#lib/result-viewer/gizmos/gizmos.ts';
   import Viewer from '#lib/result-viewer/Viewer.svelte';
   import { errorLog } from '#lib/runtime/error-log.svelte.ts';
   import {
