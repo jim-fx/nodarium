@@ -127,6 +127,7 @@ mod tests {
                 id,
                 parent_id,
                 parent_alpha,
+                ..PathLink::root(0, 0)
             },
         );
         let path = wrap_path_mut(&mut data);

@@ -4,7 +4,8 @@ use glam::Vec3;
 pub fn calculate_normals(geometry: &mut [i32]) -> &mut [i32] {
     let vertex_count = geometry[1] as usize;
     let face_count = geometry[2] as usize;
-    let index_start = 3;
+    // type, vertex amount, face amount and the id of the path
+    let index_start = 4;
     let indices_end = index_start + face_count * 3;
     let positions_start = indices_end;
     let positions_end = positions_start + vertex_count * 3;

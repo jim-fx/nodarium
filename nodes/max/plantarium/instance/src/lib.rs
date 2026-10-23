@@ -17,6 +17,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let geo = wrap_geometry_data(&mut geo_data);
 
     let mut transforms: Vec<Mat4> = Vec::new();
+    // the path each of the instances sits on
+    let mut path_ids: Vec<i32> = Vec::new();
 
     // Find max depth
     let mut max_depth = 0;
@@ -42,7 +44,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         }
 
         // alpha is where this parent path sits among all paths, from 0 at the first to 1 at the last
-        ctx.alpha = path_index as f32 / (path_count - 1).max(1) as f32;
+        ctx.set_path(path_data, path_index, path_count);
         path_index += 1;
         let amount = ctx.int(args[2]);
         let lowest_instance = ctx.float(args[3]);
@@ -94,6 +96,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             );
 
             transforms.push(transform);
+            path_ids.push(path.link.id);
         }
     }
 
@@ -107,9 +110,59 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     for (i, transform) in transforms.iter().enumerate() {
         instances.set_transformation_matrix(i, &transform.to_cols_array());
+        instances.set_path_id(i, path_ids[i]);
     }
 
     inputs.push(&instance_data);
 
     concat_args(inputs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::__nodarium_execute_inner;
+    use nodarium_utils::{
+        concat_args, encode_float,
+        geometry::{
+            create_multiple_paths, path_link, wrap_instance_data, wrap_multiple_paths, NO_PATH,
+        },
+        split_args,
+    };
+
+    #[test]
+    fn every_instance_knows_the_path_it_sits_on() {
+        let mut stems = create_multiple_paths(2, 4, 1, 6);
+        for stem in wrap_multiple_paths(&mut stems).iter_mut() {
+            for i in 0..4 {
+                stem.points[i * 4..i * 4 + 4].copy_from_slice(&[0.0, i as f32, 0.0, 0.1]);
+            }
+        }
+        let stem_ids: Vec<i32> = split_args(&stems).iter().map(|p| path_link(p).id).collect();
+
+        // a triangle, not made from a path
+        let geometry = concat_args(vec![&[
+            1, 3, 1, NO_PATH, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]]);
+
+        let result = __nodarium_execute_inner(&[
+            &stems,
+            &geometry,
+            &[3],
+            &[encode_float(0.0)],
+            &[encode_float(1.0)],
+            &[encode_float(0.0)],
+            &[1],
+            &[encode_float(1.0)],
+            &[encode_float(0.0)],
+        ]);
+
+        let items = split_args(&result);
+        let mut instance_data = items.last().unwrap().to_vec();
+        let instances = wrap_instance_data(&mut instance_data);
+
+        assert_eq!(instances.instance_amount, 6);
+        assert_eq!(instances.path_ids.len(), 6);
+        assert_eq!(&instances.path_ids[..3], &[stem_ids[0]; 3]);
+        assert_eq!(&instances.path_ids[3..], &[stem_ids[1]; 3]);
+    }
 }

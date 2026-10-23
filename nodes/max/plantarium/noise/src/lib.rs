@@ -47,6 +47,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         max_depth = max_depth.max(path_data[3]);
     }
 
+    let path_count = plants
+        .iter()
+        .filter(|p| p[2] == 0 && p[3] >= (max_depth - depth + 1))
+        .count();
+    let mut path_index = 0;
+
     let output: Vec<Vec<i32>> = plants
         .iter()
         .enumerate()
@@ -61,6 +67,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             if path_data[3] < (max_depth - depth + 1) {
                 return path_data;
             }
+
+            ctx.set_path(&path_data, path_index, path_count);
+            path_index += 1;
 
             let path = wrap_path_mut(&mut path_data);
 

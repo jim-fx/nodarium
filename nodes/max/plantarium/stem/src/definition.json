@@ -53,6 +53,9 @@
       "max": 1,
       "step": 0.05,
       "value": 1
+    },
+    "creator": {
+      "type": "creator"
     }
   }
 }

@@ -1,8 +1,7 @@
-import { splitNestedArray } from '@nodarium/utils';
+import { PATH_HEADER_SIZE, splitNestedArray } from '@nodarium/utils';
 import type { Vec3 } from './gizmos';
 
-/** type, depth, id, parent id and where on the parent the path is attached */
-export const PATH_HEADER_SIZE = 5;
+export { PATH_HEADER_SIZE };
 
 export type ProbePath = { depth: number; points: Vec3[] };
 

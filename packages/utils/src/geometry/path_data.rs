@@ -2,28 +2,62 @@ use glam::{vec3, vec4, Vec3, Vec4, Vec4Swizzles};
 
 // 0: node-type, stem: 0
 // 1: depth
-// 2: id, unique in a list of paths
+// 2: id, a hash of the creator, the parent and the index, so it is unique in a list of paths
+//    and stays the same when other paths come or go
 // 3: id of the parent path, `NO_PARENT` for a path that grows on its own
 // 4: where on the parent this path is attached (f32 bits, 0..1 along its length)
-static PATH_HEADER_SIZE: usize = 5;
+// 5: creator, the id of the graph node that made the path
+// 6: index among the paths the creator made on the same parent, the first is 0
+static PATH_HEADER_SIZE: usize = 7;
 
 /// The parent id of a path that is not attached to another path.
 pub const NO_PARENT: i32 = -1;
 
-/// Where a path sits in the structure of paths: its own id and the spot on its parent it grows from.
+/// The id of the path number `index` that `creator` grows on `parent_id` (`NO_PARENT` for a path
+/// that grows on its own). It only depends on these three, so it is the same in every run and
+/// when the paths around it change. It is never negative, so it can't be mistaken for `NO_PARENT`.
+pub fn path_id(creator: i32, parent_id: i32, index: i32) -> i32 {
+    let mut hash = 0x811c_9dc5_u32;
+    for word in [creator, parent_id, index] {
+        hash = (hash ^ word as u32).wrapping_mul(0x9e37_79b1);
+        hash ^= hash >> 15;
+        hash = hash.wrapping_mul(0x85eb_ca6b);
+        hash ^= hash >> 13;
+    }
+    (hash & 0x7fff_ffff) as i32
+}
+
+/// Where a path sits in the structure of paths: its own id, who made it and the spot on its
+/// parent it grows from.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PathLink {
     pub id: i32,
     pub parent_id: i32,
     pub parent_alpha: f32,
+    pub creator: i32,
+    pub index: i32,
 }
 
 impl PathLink {
-    pub fn root(id: i32) -> Self {
+    /// The `index`-th path `creator` grows on its own.
+    pub fn root(creator: i32, index: i32) -> Self {
         Self {
-            id,
+            id: path_id(creator, NO_PARENT, index),
             parent_id: NO_PARENT,
             parent_alpha: 0.0,
+            creator,
+            index,
+        }
+    }
+
+    /// The `index`-th path `creator` grows on the path `parent_id`, `parent_alpha` along its length.
+    pub fn child(creator: i32, parent_id: i32, parent_alpha: f32, index: i32) -> Self {
+        Self {
+            id: path_id(creator, parent_id, index),
+            parent_id,
+            parent_alpha,
+            creator,
+            index,
         }
     }
 
@@ -38,6 +72,8 @@ pub fn path_link(path: &[i32]) -> PathLink {
         id: path[4],
         parent_id: path[5],
         parent_alpha: f32::from_bits(path[6] as u32),
+        creator: path[7],
+        index: path[8],
     }
 }
 
@@ -46,6 +82,18 @@ pub fn set_path_link(path: &mut [i32], link: PathLink) {
     path[4] = link.id;
     path[5] = link.parent_id;
     path[6] = link.parent_alpha.to_bits() as i32;
+    path[7] = link.creator;
+    path[8] = link.index;
+}
+
+fn read_link(header: &[i32]) -> PathLink {
+    PathLink {
+        id: header[2],
+        parent_id: header[3],
+        parent_alpha: f32::from_bits(header[4] as u32),
+        creator: header[5],
+        index: header[6],
+    }
 }
 
 #[derive(Debug)]
@@ -113,7 +161,13 @@ impl PathData<'_> {
     }
 }
 
-pub fn create_multiple_paths(amount: usize, point_amount: usize, depth: i32) -> Vec<i32> {
+/// `amount` paths that grow on their own, made by the graph node `creator`.
+pub fn create_multiple_paths(
+    amount: usize,
+    point_amount: usize,
+    depth: i32,
+    creator: i32,
+) -> Vec<i32> {
     let output_size = amount * (point_amount * 4 + PATH_HEADER_SIZE + 4) + 4;
 
     let mut path: Vec<i32> = vec![0; output_size];
@@ -131,7 +185,10 @@ pub fn create_multiple_paths(amount: usize, point_amount: usize, depth: i32) -> 
         path[start_index + 1] = (point_amount * 4 + PATH_HEADER_SIZE + 1) as i32; // encode opening bracket
         path[start_index + 2] = 0; // encode node-type, stem: 0
         path[start_index + 3] = depth; // encode depth
-        set_path_link(&mut path[start_index..end_index], PathLink::root(i as i32));
+        set_path_link(
+            &mut path[start_index..end_index],
+            PathLink::root(creator, i as i32),
+        );
 
         path[end_index - 2] = 1; // encode closing bracket
         path[end_index - 1] = 1; // encode closing bracket
@@ -171,7 +228,7 @@ pub fn create_path(point_amount: usize, depth: i32) -> Vec<i32> {
     path[1] = ((point_amount * 4) + PATH_HEADER_SIZE + 1) as i32; // encode opening bracket
     path[2] = 0; //encode node-type, stem: 0
     path[3] = depth; //encode depth
-    set_path_link(&mut path, PathLink::root(0));
+    set_path_link(&mut path, PathLink::root(0, 0));
     path[output_size - 2] = 1; // encode closing bracket
     path[output_size - 1] = 1; // encode closing bracket
 
@@ -205,11 +262,7 @@ pub fn wrap_path(input: &[i32]) -> PathData<'_> {
 
     PathData {
         depth: header[1],
-        link: PathLink {
-            id: header[2],
-            parent_id: header[3],
-            parent_alpha: f32::from_bits(header[4] as u32),
-        },
+        link: read_link(header),
         length,
         points,
     }
@@ -244,11 +297,7 @@ pub fn wrap_path_mut<'a>(geometry: &'a mut [i32]) -> PathDataMut<'a> {
 
     PathDataMut {
         depth: header[1],
-        link: PathLink {
-            id: header[2],
-            parent_id: header[3],
-            parent_alpha: f32::from_bits(header[4] as u32),
-        },
+        link: read_link(header),
         length,
         points,
     }
@@ -460,15 +509,21 @@ mod tests {
 
     #[test]
     fn multiple_paths_get_their_own_id_and_no_parent() {
-        let mut data = create_multiple_paths(3, 4, 1);
+        let mut data = create_multiple_paths(3, 4, 1, 42);
         let paths = wrap_multiple_paths(&mut data);
 
         assert_eq!(paths.len(), 3);
         for (index, path) in paths.iter().enumerate() {
-            assert_eq!(path.link, PathLink::root(index as i32));
+            assert_eq!(path.link, PathLink::root(42, index as i32));
+            assert_eq!(path.link.creator, 42);
+            assert_eq!(path.link.index, index as i32);
             assert_eq!(path.length, 4);
             assert!(!path.link.has_parent());
         }
+        let mut ids: Vec<i32> = paths.iter().map(|p| p.link.id).collect();
+        ids.sort();
+        ids.dedup();
+        assert_eq!(ids.len(), 3);
     }
 
     #[test]
@@ -478,6 +533,8 @@ mod tests {
             id: 7,
             parent_id: 3,
             parent_alpha: 0.25,
+            creator: 11,
+            index: 5,
         };
         set_path_link(&mut data, link);
 
@@ -485,5 +542,44 @@ mod tests {
         assert_eq!(wrap_path(&data).link, link);
         assert_eq!(wrap_path_mut(&mut data).link, link);
         assert_eq!(wrap_path(&data).depth, 2);
+        assert_eq!(wrap_path(&data).length, 3);
+    }
+
+    #[test]
+    fn an_id_only_depends_on_creator_parent_and_index() {
+        assert_eq!(path_id(4, 9, 2), path_id(4, 9, 2));
+        assert_ne!(path_id(4, 9, 2), path_id(5, 9, 2));
+        assert_ne!(path_id(4, 9, 2), path_id(4, 8, 2));
+        assert_ne!(path_id(4, 9, 2), path_id(4, 9, 3));
+        // the same index under a different parent is another path
+        assert_ne!(path_id(4, NO_PARENT, 0), path_id(4, path_id(4, NO_PARENT, 0), 0));
+    }
+
+    #[test]
+    fn an_id_is_never_negative_and_rarely_collides() {
+        let mut ids = std::collections::HashSet::new();
+        for creator in 0..20 {
+            for parent in -1..30 {
+                for index in 0..50 {
+                    let id = path_id(creator, parent, index);
+                    assert!(id >= 0);
+                    ids.insert(id);
+                }
+            }
+        }
+        assert_eq!(ids.len(), 20 * 31 * 50);
+    }
+
+    #[test]
+    fn a_child_is_linked_to_its_parent() {
+        let parent = PathLink::root(3, 1);
+        let child = PathLink::child(8, parent.id, 0.5, 2);
+
+        assert_eq!(child.parent_id, parent.id);
+        assert_eq!(child.parent_alpha, 0.5);
+        assert_eq!(child.creator, 8);
+        assert_eq!(child.index, 2);
+        assert!(child.has_parent());
+        assert_eq!(child.id, path_id(8, parent.id, 2));
     }
 }

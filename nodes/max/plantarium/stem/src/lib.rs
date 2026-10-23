@@ -3,7 +3,8 @@ use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
     int,
     geometry::{create_multiple_paths, wrap_multiple_paths},
-    log, Ctx, };
+    log, Ctx, PathInfo,
+};
 
 nodarium_definition_file!("src/definition.json");
 
@@ -17,7 +18,10 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     log!("stem args: {:?}", args);
 
-    let mut stem_data = create_multiple_paths(amount, path_resolution, 1);
+    // the graph node that makes the stems, it is the last input
+    let creator = int(args[6]);
+
+    let mut stem_data = create_multiple_paths(amount, path_resolution, 1, creator);
 
     let mut stems = wrap_multiple_paths(&mut stem_data);
 
@@ -25,7 +29,15 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     for (index, stem) in stems.iter_mut().enumerate() {
         // alpha is where this stem sits among all stems, from 0 at the first to 1 at the last
-        ctx.alpha = index as f32 / (stem_count - 1).max(1) as f32;
+        ctx.set_path_info(PathInfo {
+            index,
+            rank: index,
+            count: stem_count,
+            depth: 1,
+            ..Default::default()
+        });
+        // the random values of a stem start from its id, so they stay when the amount changes
+        ctx.seed_path(stem.link.id);
         let origin = ctx.vec3(args[0]);
         let length = ctx.float(args[2]);
         let amount_points = stem.points.len() / 4;

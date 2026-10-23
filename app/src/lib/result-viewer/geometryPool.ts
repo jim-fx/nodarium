@@ -1,4 +1,4 @@
-import { fastHashArrayBuffer } from '@nodarium/utils';
+import { fastHashArrayBuffer, readGeometryPathId, readInstancePathIds } from '@nodarium/utils';
 import {
   BufferAttribute,
   BufferGeometry,
@@ -51,7 +51,11 @@ export function createGeometryPool(parentScene: Group, material: Material) {
     totalVertices += vertexCount;
     const faceCount = data[index++];
     totalFaces += faceCount;
+    // the id of the path the geometry was made from
+    const pathId = readGeometryPathId(data);
+    index++;
 
+    if (existingMesh) existingMesh.userData.pathId = pathId;
     if (geometry.userData?.hash === hash) {
       return;
     }
@@ -110,6 +114,7 @@ export function createGeometryPool(parentScene: Group, material: Material) {
 
     if (!existingMesh) {
       const mesh = new Mesh(geometry, material);
+      mesh.userData.pathId = pathId;
       scene.add(mesh);
       meshes.push(mesh);
     }
@@ -255,6 +260,9 @@ export function createInstancedGeometryPool(
       ),
       hash
     };
+
+    // which path each of the instances sits on
+    existingInstance.userData.pathIds = Int32Array.from(readInstancePathIds(data));
 
     existingInstance.instanceMatrix.needsUpdate = true;
     // the frustum culling uses the bounds of the previous geometry and matrices otherwise

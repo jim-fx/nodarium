@@ -41,7 +41,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             }
 
             // alpha is where this path sits among all paths, from 0 at the first to 1 at the last
-            ctx.alpha = path_index as f32 / (path_count - 1).max(1) as f32;
+            ctx.set_path(&path_data, path_index, path_count);
             path_index += 1;
             let elasticity = ctx.float(args[3]).clamp(0.0, 1.0);
             // 0 → sqrt (rope), 1 → ~4.5 (only the tip droops)

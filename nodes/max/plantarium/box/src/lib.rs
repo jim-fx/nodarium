@@ -24,6 +24,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         1,          // 1: geometry
         8,          // 8 vertices
         12,         // 12 faces
+        -1,         // not made from a path
         
         /*
         Indeces:

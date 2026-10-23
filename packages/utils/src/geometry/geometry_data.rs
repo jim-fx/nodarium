@@ -1,9 +1,15 @@
 use crate::log;
 
-static GEOMETRY_HEADER_SIZE: usize = 3;
-// 0: geometry type = 0
+use super::NO_PARENT;
+
+static GEOMETRY_HEADER_SIZE: usize = 4;
+// 0: geometry type = 1
 // 1: vertex amount
 // 2: face amount
+// 3: id of the path the geometry was made from, `NO_PATH` if it doesn't come from a path
+
+/// The path id of geometry that wasn't made from a path.
+pub const NO_PATH: i32 = NO_PARENT;
 
 pub struct GeometryData<'a> {
     pub positions: &'a mut [f32], // View into `data`
@@ -36,7 +42,7 @@ impl GeometryData<'_> {
 }
 
 pub fn create_geometry_data(vertex_amount: usize, face_amount: usize) -> Vec<i32> {
-    let amount = GEOMETRY_HEADER_SIZE // definition (type, vertex_amount, face_amount)
+    let amount = GEOMETRY_HEADER_SIZE // definition (type, vertex_amount, face_amount, path id)
       + 4 // opening and closing brackets
       + vertex_amount * 3  // positions
       + vertex_amount * 3  // normals
@@ -55,10 +61,21 @@ pub fn create_geometry_data(vertex_amount: usize, face_amount: usize) -> Vec<i32
     geo[2] = 1; // type: geometry
     geo[3] = vertex_amount as i32;
     geo[4] = face_amount as i32;
+    geo[5] = NO_PATH;
     geo[amount - 2] = 1; // closing bracket
     geo[amount - 1] = 1; // closing bracket
 
     geo
+}
+
+/// The id of the path an encoded geometry was made from, brackets included.
+pub fn geometry_path_id(geometry: &[i32]) -> i32 {
+    geometry[5]
+}
+
+/// Sets the id of the path an encoded geometry was made from, brackets included.
+pub fn set_geometry_path_id(geometry: &mut [i32], path_id: i32) {
+    geometry[5] = path_id;
 }
 
 pub fn wrap_geometry_data(geometry: &mut [i32]) -> GeometryData<'_> {
