@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { humanizeNumber } from '#lib/helpers/index.ts';
   import * as templates from '#lib/graph-templates/index.ts';
   import { debugNode } from '#lib/node-registry/debugNode.ts';
   import { groupNode } from '#lib/node-registry/groupNode.ts';
@@ -24,6 +25,9 @@
   const perf = createPerformanceStore();
 
   let selected = $state(entries.find((e) => e.name === 'fern')?.name ?? entries[0].name);
+  const vertices = $derived($perf?.at(-1)?.['total-vertices']?.[0] || 0);
+  const faces = $derived($perf?.at(-1)?.['total-faces']?.[0] || 0);
+
   let scene = $state<Group>(null!);
   let viewer = $state<ReturnType<typeof Viewer>>();
   let isExecuting = $state(false);
@@ -82,6 +86,10 @@
   </nav>
   <main>
     <Viewer bind:scene bind:this={viewer} {perf} centerCamera />
+    <div class="stats">
+      <span>{humanizeNumber(vertices)} vertices</span>
+      <span>{humanizeNumber(faces)} faces</span>
+    </div>
     {#if isExecuting}
       <div class="spinner"><Spinner size={28} /></div>
     {/if}
@@ -152,6 +160,17 @@
   main {
     position: relative;
     min-width: 0;
+  }
+  .stats {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    font-size: 12px;
+    opacity: 0.7;
+    pointer-events: none;
   }
   .spinner {
     position: absolute;
