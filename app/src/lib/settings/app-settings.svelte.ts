@@ -23,6 +23,16 @@ export const AppSettingTypes = {
     label: 'Show Grid',
     value: true
   },
+  showScaleModel: {
+    type: 'boolean',
+    label: 'Show Scale Model',
+    value: true
+  },
+  showScaleViewer: {
+    type: 'boolean',
+    label: 'Show Dimensions',
+    value: true
+  },
   centerCamera: {
     type: 'boolean',
     label: 'Center Camera',

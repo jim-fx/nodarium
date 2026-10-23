@@ -5,6 +5,7 @@ import {
   type Material,
   MeshBasicMaterial,
   MeshMatcapMaterial,
+  MeshStandardMaterial,
   ShaderMaterial,
   type Texture,
   TextureLoader,
@@ -159,18 +160,79 @@ function createLitMaterial(options: LitOptions) {
   });
 }
 
+function createMatcapStandardMaterial() {
+  const material = new MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.8,
+    metalness: 0,
+    side: DoubleSide
+  });
+
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uMatcap = {
+      value: matcapTexture
+    };
+
+    shader.uniforms.uMatcapStrength = {
+      value: 1.0
+    };
+
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      `
+        #include <common>
+        varying vec3 vMatcapViewNormal;
+      `
+    );
+
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <defaultnormal_vertex>',
+      `
+        #include <defaultnormal_vertex>
+        vMatcapViewNormal = normalize(transformedNormal);
+      `
+    );
+
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      `
+        #include <common>
+        uniform sampler2D uMatcap;
+        uniform float uMatcapStrength;
+        varying vec3 vMatcapViewNormal;
+      `
+    );
+
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <color_fragment>',
+      `
+        #include <color_fragment>
+
+        vec3 viewNormal = normalize(vMatcapViewNormal);
+
+        vec2 matcapUv = viewNormal.xy * 0.5 + 0.5;
+
+        vec3 matcapColor = texture2D(uMatcap, matcapUv).rgb;
+
+        diffuseColor.rgb *= mix(
+          vec3(1.0),
+          matcapColor,
+          uMatcapStrength
+        );
+      `
+    );
+  };
+
+  material.customProgramCacheKey = () => 'matcap-standard-v1';
+
+  return material;
+}
+
 export const materials = [
   {
     id: 'plant',
     name: 'Plant',
-    create: () =>
-      createLitMaterial({
-        base: '#123d08',
-        tip: '#5fa61e',
-        translucent: '#9ccf1f',
-        translucency: 0.5,
-        variation: 0.35
-      })
+    create: () => createMatcapStandardMaterial()
   },
   {
     id: 'clay',

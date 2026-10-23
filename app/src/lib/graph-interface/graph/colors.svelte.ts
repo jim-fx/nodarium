@@ -7,6 +7,7 @@ const variables = [
   'layer-2',
   'layer-3',
   'outline',
+  'text',
   'active',
   'selected',
   'connection',

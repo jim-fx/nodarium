@@ -2,7 +2,7 @@
   import { colors } from '#lib/graph-interface/graph/colors.svelte.ts';
   import { unitSettings } from '@nodarium/ui';
   import { T, useTask, useThrelte } from '@threlte/core';
-  import { Grid } from '@threlte/extras';
+  import { Environment, Grid } from '@threlte/extras';
   import { untrack } from 'svelte';
   import { Box3, type BufferGeometry, type Group, Mesh, Vector3 } from 'three';
   import { appSettings } from '../settings/app-settings.svelte';
@@ -11,6 +11,8 @@
   import Debug from './Debug.svelte';
   import type { Gizmo, GizmoChange, GizmoMode } from './gizmos';
   import Gizmos from './Gizmos.svelte';
+  import ScaleModel from './ScaleModel.svelte';
+  import ScaleViewer from './ScaleViewer.svelte';
   import { updateViewScale } from './view-scale.svelte';
 
   const { renderStage, invalidate: _invalidate } = useThrelte();
@@ -42,6 +44,7 @@
   let geometries = $state.raw<BufferGeometry[]>([]);
   let framing = $state<Framing>();
   let frameRequest = $state(0);
+  let bounds = $state.raw<Box3>();
 
   const gridSection = $derived(gridSectionSize(framing?.radius ?? 4));
 
@@ -51,6 +54,7 @@
     // a single geometry with NaN positions would move the camera to NaN
     const next = frameBounds(aabb.min.toArray(), aabb.max.toArray());
     if (next) {
+      bounds = aabb;
       framing = next;
       updateViewScale(next.radius);
     }
@@ -98,6 +102,19 @@
     );
   }
 </script>
+
+<Environment url="/environments/meadow_1k.exr" />
+
+<T.DirectionalLight intensity={0.5} position={[0, 0, 1]} />
+<T.AmbientLight intensity={1} />
+
+{#if appSettings.value.showScaleModel}
+  <ScaleModel {bounds} />
+{/if}
+
+{#if appSettings.value.showScaleViewer}
+  <ScaleViewer {bounds} />
+{/if}
 
 <Camera {framing} {frameRequest} {centerCamera} />
 

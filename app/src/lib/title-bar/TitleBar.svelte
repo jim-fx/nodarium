@@ -90,6 +90,8 @@
   // the inferred settings type uses the literal default values, so we need a looser view
   type ViewSettings = {
     showGrid: boolean;
+    showScaleModel: boolean;
+    showScaleViewer: boolean;
     centerCamera: boolean;
     showUnits: boolean;
     theme: string;
@@ -127,6 +129,16 @@
           label: 'Show grid',
           checked: settings.showGrid,
           onselect: () => (settings.showGrid = !settings.showGrid)
+        },
+        {
+          label: 'Show scale model',
+          checked: settings.showScaleModel,
+          onselect: () => (settings.showScaleModel = !settings.showScaleModel)
+        },
+        {
+          label: 'Show dimensions',
+          checked: settings.showScaleViewer,
+          onselect: () => (settings.showScaleViewer = !settings.showScaleViewer)
         },
         {
           label: 'Center camera',
