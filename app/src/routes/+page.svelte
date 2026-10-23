@@ -40,6 +40,7 @@
   import GraphSource from '#lib/sidebar/panels/GraphSource.svelte';
   import GroupSettings from '#lib/sidebar/panels/GroupSettings.svelte';
   import Keymap from '#lib/sidebar/panels/Keymap.svelte';
+  import TemplatePanel from '#lib/sidebar/panels/TemplatePanel.svelte';
   import { panelState } from '#lib/sidebar/PanelState.svelte.ts';
   import Sidebar from '#lib/sidebar/Sidebar.svelte';
   import TitleBar from '#lib/title-bar/TitleBar.svelte';
@@ -483,6 +484,18 @@
             <GraphSource graph={manager.serialize()} />
           {/if}
         </Panel>
+        {#if import.meta.env.DEV}
+          <Panel
+            id="push-template"
+            title="Push to Template"
+            hidden={!appSettings.value.debug.advancedMode}
+            icon="i-[tabler--file-export] bg-red-400"
+          >
+            {#if manager?.status === 'idle'}
+              <TemplatePanel graph={manager.serialize()} />
+            {/if}
+          </Panel>
+        {/if}
         <Panel
           id="errors"
           title="Errors"
