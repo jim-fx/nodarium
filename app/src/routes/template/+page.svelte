@@ -40,6 +40,7 @@
     const entry = entries.find((e) => e.name === selected);
     if (!entry || !viewer) return;
     isExecuting = true;
+    perf.startRun();
     try {
       const graph = structuredClone($state.snapshot(entry.graph)) as Graph;
       await nodeRegistry.load(graph.nodes.map((n) => n.type));
@@ -49,6 +50,7 @@
       viewer.update(new Int32Array());
       toast(error instanceof Error ? error.message : String(error), 'error', 6000);
     } finally {
+      perf.stopRun();
       isExecuting = false;
     }
   }
@@ -163,11 +165,12 @@
   }
   .stats {
     position: absolute;
-    top: 16px;
-    left: 16px;
+    right: 16px;
+    bottom: 16px;
     z-index: 2;
     display: flex;
     flex-direction: column;
+    align-items: flex-end;
     font-size: 12px;
     opacity: 0.7;
     pointer-events: none;
