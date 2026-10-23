@@ -1,7 +1,6 @@
 import {
   agave,
   bamboo,
-  banana,
   daisy,
   defaultPlant,
   fern,
@@ -43,6 +42,5 @@ export const projectTemplates: ProjectTemplate[] = [
   { name: 'Maidenhair Fern', graph: toGraph(maidenhair, 'cm') },
   { name: 'Daisy', graph: toGraph(daisy, 'cm') },
   { name: 'Field Horsetail', graph: toGraph(horsetail, 'cm') },
-  { name: 'Foxglove', graph: toGraph(foxglove) },
-  { name: 'Banana', graph: toGraph(banana) }
+  { name: 'Foxglove', graph: toGraph(foxglove) }
 ];

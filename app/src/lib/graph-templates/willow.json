@@ -6,7 +6,7 @@
       "id": 11,
       "position": [30, 80],
       "type": "max/plantarium/stem",
-      "props": { "amount": 1, "length": 8.67375, "thickness": 0.42, "taper": 0 }
+      "props": { "amount": 1, "length": 5.4, "thickness": 0.32, "taper": 0 }
     },
     {
       "id": 12,
@@ -32,7 +32,7 @@
       "id": 14,
       "position": [60, 115],
       "type": "max/plantarium/random",
-      "props": { "min": 7.3245, "max": 10.023 }
+      "props": { "min": 4.6, "max": 6.3 }
     },
     {
       "id": 15,
@@ -70,7 +70,7 @@
       "id": 19,
       "position": [120, 127.5],
       "type": "max/plantarium/random",
-      "props": { "min": 4.2405, "max": 6.168 }
+      "props": { "min": 2.7, "max": 3.9 }
     },
     {
       "id": 20,

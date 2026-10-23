@@ -6,7 +6,7 @@
       "id": 10,
       "position": [-360, 55],
       "type": "max/plantarium/random",
-      "props": { "min": 0.321, "max": 0.749 }
+      "props": { "min": 0.21, "max": 0.487 }
     },
     {
       "id": 11,
