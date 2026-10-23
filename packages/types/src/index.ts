@@ -10,10 +10,17 @@ export type {
   NodeInstance,
   NodeValue,
   ProjectFile,
+  ProjectUnit,
   SerializedEdge,
   SerializedNode,
   Socket,
   WasmSlice
 } from './types';
-export { GraphSchema, GroupSchema, NodeSchema, ProjectFileSchema } from './types';
+export {
+  GraphSchema,
+  GroupSchema,
+  NodeSchema,
+  ProjectFileSchema,
+  ProjectUnitSchema
+} from './types';
 export { NodeDefinitionSchema } from './types';

@@ -6,13 +6,13 @@
       "id": 11,
       "position": [30, 80],
       "type": "max/plantarium/stem",
-      "props": { "amount": 1, "length": 4.5, "thickness": 0.42, "taper": 0 }
+      "props": { "amount": 1, "length": 8.67375, "thickness": 0.42, "taper": 0 }
     },
     {
       "id": 12,
       "position": [60, 80],
       "type": "max/plantarium/noise",
-      "props": { "scale": 1.5, "strength": 0.3, "octaves": 2 }
+      "props": { "scale": 0.77821, "strength": 0.57825, "octaves": 2 }
     },
     {
       "id": 13,
@@ -32,7 +32,7 @@
       "id": 14,
       "position": [60, 115],
       "type": "max/plantarium/random",
-      "props": { "min": 3.8, "max": 5.2 }
+      "props": { "min": 7.3245, "max": 10.023 }
     },
     {
       "id": 15,
@@ -50,7 +50,7 @@
       "id": 17,
       "position": [150, 80],
       "type": "max/plantarium/noise",
-      "props": { "scale": 3, "strength": 0.25 }
+      "props": { "scale": 1.55642, "strength": 0.481875 }
     },
     {
       "id": 18,
@@ -70,7 +70,7 @@
       "id": 19,
       "position": [120, 127.5],
       "type": "max/plantarium/random",
-      "props": { "min": 2.2, "max": 3.2 }
+      "props": { "min": 4.2405, "max": 6.168 }
     },
     {
       "id": 20,
@@ -82,7 +82,7 @@
       "id": 21,
       "position": [240, 80],
       "type": "max/plantarium/noise",
-      "props": { "scale": 2, "strength": 0.08 }
+      "props": { "scale": 1.037613, "strength": 0.1542 }
     },
     {
       "id": 22,
@@ -138,8 +138,8 @@
       "type": "max/plantarium/curve",
       "props": {
         "curve": [0, 1, 0.1, 0.78, 0.5, 0.68, 0.85, 0.58, 1, 0.15],
-        "min": 0,
-        "max": 0.42
+        "min": 0.0,
+        "max": 0.80955
       }
     },
     { "id": 27, "position": [150, 115], "type": "max/plantarium/math", "props": { "op_type": 2 } },
@@ -155,7 +155,7 @@
       "id": 31,
       "position": [240, 140],
       "type": "max/plantarium/curve",
-      "props": { "curve": [0, 1, 0.7, 1, 1, 0.55], "min": 0, "max": 1 }
+      "props": { "curve": [0, 1, 0.7, 1, 1, 0.55], "min": 0.0, "max": 1.770641 }
     }
   ],
   "edges": [

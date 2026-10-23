@@ -6,13 +6,13 @@
       "id": 12,
       "position": [150, 125],
       "type": "max/plantarium/random",
-      "props": { "min": 4.0, "max": 5.5 }
+      "props": { "min": 0.764, "max": 1.0505 }
     },
     {
       "id": 13,
       "position": [210, 80],
       "type": "max/plantarium/noise",
-      "props": { "scale": 2, "strength": 0.04 }
+      "props": { "scale": 10.471204, "strength": 0.00764 }
     },
     {
       "id": 14,
@@ -77,7 +77,7 @@
       "id": 26,
       "position": [150, 80],
       "type": "max/plantarium/stem",
-      "props": { "amount": 1, "length": 0.3, "thickness": 0.06, "taper": 0 }
+      "props": { "amount": 1, "length": 0.0573, "thickness": 0.01146, "taper": 0 }
     },
     {
       "id": 27,
@@ -136,7 +136,7 @@
       "id": 44,
       "position": [180, 205],
       "type": "max/plantarium/random",
-      "props": { "min": 0.75, "max": 1.25 }
+      "props": { "min": 0.338681, "max": 0.564468 }
     },
     { "id": 45, "position": [210, 230], "type": "max/plantarium/alpha", "props": {} },
     {

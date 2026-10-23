@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+/** The unit an input is measured in, values are always stored in this unit */
+export const InputUnitSchema = z.literal('m');
+
 const DefaultOptionsSchema = z.object({
   internal: z.boolean().optional(),
   external: z.boolean().optional(),
@@ -30,7 +33,8 @@ export const NodeInputFloatSchema = z.object({
   value: z.number().optional(),
   min: z.number().optional(),
   max: z.number().optional(),
-  step: z.number().optional()
+  step: z.number().optional(),
+  unit: InputUnitSchema.optional()
 });
 
 export const NodeInputColorSchema = z.object({
@@ -83,7 +87,8 @@ export const NodeInputSeedSchema = z.object({
 export const NodeInputVec3Schema = z.object({
   ...DefaultOptionsSchema.shape,
   type: z.literal('vec3'),
-  value: z.array(z.number()).optional()
+  value: z.array(z.number()).optional(),
+  unit: InputUnitSchema.optional()
 });
 
 export const NodeInputGeometrySchema = z.object({

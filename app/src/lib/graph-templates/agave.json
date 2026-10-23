@@ -8,7 +8,7 @@
       "id": 11,
       "position": [240, 35],
       "type": "max/plantarium/stem",
-      "props": { "amount": 1, "length": 1.2, "thickness": 0.3 }
+      "props": { "amount": 1, "length": 0.18108, "thickness": 0.04527 }
     },
     {
       "id": 12,
@@ -127,7 +127,7 @@
       "id": 24,
       "position": [200, 195],
       "type": "max/plantarium/random",
-      "props": { "min": 0.82, "max": 1.2 }
+      "props": { "min": 0.619334, "max": 0.906342 }
     },
     {
       "id": 25,

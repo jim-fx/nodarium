@@ -23,7 +23,8 @@
         0
       ],
       "external": true,
-      "description": "Where the force sits."
+      "description": "Where the force sits.",
+      "unit": "m"
     },
     "strength": {
       "type": "float",
@@ -36,7 +37,8 @@
       "min": 0,
       "step": 0.1,
       "value": 3,
-      "description": "How far the force reaches. Paths further away are not affected."
+      "description": "How far the force reaches. Paths further away are not affected.",
+      "unit": "m"
     },
     "falloff": {
       "type": "float",

@@ -1,10 +1,13 @@
 export { default as agave } from './agave.json';
 export { default as bamboo } from './bamboo.json';
+export { default as banana } from './banana.json';
 export { default as daisy } from './daisy.json';
 export { default as defaultPlant } from './default.json';
 export { default as fern } from './fern.json';
+export { default as foxglove } from './foxglove.json';
 export { default as grass } from './grass.json';
 export { grid } from './grid';
+export { default as horsetail } from './horsetail.json';
 export { default as ladyFern } from './lady-fern.json';
 export { default as lavender } from './lavender.json';
 export { default as lottaFaces } from './lotta-faces.json';

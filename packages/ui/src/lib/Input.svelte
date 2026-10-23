@@ -26,6 +26,7 @@
     min={input?.min}
     max={input?.max}
     step={input?.step}
+    unit={input?.unit}
   />
 {:else if input.type === 'shape'}
   <InputShape bind:value={value as number[]} />
@@ -45,5 +46,5 @@
 {:else if input.type === 'select'}
   <InputSelect bind:value={value as number} options={input.options} {id} />
 {:else if input.type === 'vec3'}
-  <InputVec3 bind:value={value as [number, number, number]} {id} />
+  <InputVec3 bind:value={value as [number, number, number]} {id} unit={input.unit} />
 {/if}

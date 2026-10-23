@@ -15,7 +15,8 @@
         0,
         0
       ],
-      "external": true
+      "external": true,
+      "unit": "m"
     },
     "amount": {
       "type": "integer",
@@ -27,12 +28,14 @@
     "length": {
       "type": "float",
       "description": "How long the stem should be",
-      "value": 5
+      "value": 5,
+      "unit": "m"
     },
     "thickness": {
       "type": "float",
       "description": "How thick the stem should be",
-      "value": 0.2
+      "value": 0.2,
+      "unit": "m"
     },
     "resolution_curve": {
       "type": "integer",

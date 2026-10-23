@@ -5,6 +5,7 @@
   import GizmoLine from './GizmoLine.svelte';
   import { type Gizmo, type GizmoHandlers, MIN_LENGTH, roundGizmoValue, type Vec3 } from './gizmos';
   import GizmoSphere from './GizmoSphere.svelte';
+  import { viewScale } from './view-scale.svelte';
 
   type Props = GizmoHandlers & { gizmo: Extract<Gizmo, { kind: 'stem' }> };
 
@@ -37,7 +38,7 @@
   bind:group={baseGroup}
   mode="translate"
   position={gizmo.origin}
-  scale={GIZMO_STYLE.markerSize}
+  scale={GIZMO_STYLE.markerSize * viewScale.value}
   onmouseDown={() => onstart?.()}
   onmouseUp={() => onend?.()}
   onobjectChange={moveBase}
@@ -55,7 +56,7 @@
     showX={false}
     showZ={false}
     position={tip}
-    scale={GIZMO_STYLE.markerSize}
+    scale={GIZMO_STYLE.markerSize * viewScale.value}
     onmouseDown={() => onstart?.()}
     onmouseUp={() => onend?.()}
     onobjectChange={moveTip}

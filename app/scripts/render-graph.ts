@@ -90,8 +90,8 @@ function collectTriangles(result: Int32Array) {
   let instances = 0;
 
   for (const part of splitNestedArray(result)) {
-    // plain geometry: [1, vertices, faces, ...faces, ...positions, ...normals]
-    // instances: [2, vertices, faces, instances, depth, ...faces, ...positions, ...normals, ...matrices]
+    // plain geometry: [1, vertices, faces, path id, ...faces, ...positions, ...normals]
+    // instances: [2, vertices, faces, instances, depth, ...faces, ...positions, ...normals, ...matrices, ...path ids]
     const instanced = part[0] === 2;
     if (part[0] !== 1 && !instanced) continue;
 
@@ -99,7 +99,8 @@ function collectTriangles(result: Int32Array) {
     const vertexCount = part[index++];
     const faceCount = part[index++];
     const instanceCount = instanced ? part[index++] : 1;
-    if (instanced) index++;
+    // the depth of instances, the path id of geometry
+    index++;
     const faces = part.subarray(index, index + faceCount * 3);
     index += faceCount * 3;
     const positions = floats(part, index, vertexCount * 3);
@@ -306,12 +307,22 @@ for (const file of await resolveTargets(targets)) {
   await writeFile(out, encodePng(rasterize(triangles, Number(options.size))));
 
   const { min, max } = bounds(triangles);
-  const round = (v: number[]) => v.map((n) => Math.round(n * 100) / 100);
+  // plants a few cm tall need more than two decimals
+  const round = (v: number[]) => v.map((n) => Math.round(n * 10000) / 10000);
+  const leafArea = triangles.filter((t) => t.instanced).reduce((sum, { a, b, c }) => {
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    return sum + Math.hypot(
+          u[1] * v[2] - u[2] * v[1],
+          u[2] * v[0] - u[0] * v[2],
+          u[0] * v[1] - u[1] * v[0]
+        ) / 2;
+  }, 0);
   console.log(JSON.stringify({
     name,
     screenshot: out,
     triangles: triangles.length,
     instances,
+    leafArea: Number(leafArea.toPrecision(4)),
     min: round(min),
     max: round(max),
     height: round([max[1] - Math.min(min[1], 0)])[0],

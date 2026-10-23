@@ -6,13 +6,13 @@
       "id": 10,
       "position": [-360, 55],
       "type": "max/plantarium/random",
-      "props": { "min": 3, "max": 7 }
+      "props": { "min": 0.321, "max": 0.749 }
     },
     {
       "id": 11,
       "position": [-330, 0],
       "type": "max/plantarium/stem",
-      "props": { "amount": 1, "length": 4, "thickness": 0.015, "taper": 0.5 }
+      "props": { "amount": 1, "length": 4, "thickness": 0.001605, "taper": 0.5 }
     },
     {
       "id": 12,
@@ -30,21 +30,21 @@
       "id": 14,
       "position": [-270, 0],
       "type": "max/plantarium/rotate",
-      "props": { "axis": 1, "angle": 6.28, "spread": true, "plant": 0 }
+      "props": { "axis": 1, "angle": 6.28, "spread": 1, "plant": 0 }
     },
     {
       "id": 15,
       "position": [-240, 0],
       "type": "max/plantarium/noise",
       "props": {
-        "scale": 1.5,
-        "strength": 0.52,
+        "scale": 14.018692,
+        "strength": 0.05564,
         "plant": 0,
         "fixBottom": 1,
         "directionalStrength": [1, 1, 1],
         "depth": 1,
         "octaves": 1,
-        "preserveLength": true
+        "preserveLength": 1
       }
     },
     {
@@ -88,7 +88,7 @@
       "id": 22,
       "position": [-120, 35],
       "type": "max/plantarium/curve",
-      "props": { "curve": [0, 1, 0.5, 0.65, 1, 0.2], "min": 0, "max": 0.42 }
+      "props": { "curve": [0, 1, 0.5, 0.65, 1, 0.2], "min": 0.0, "max": 0.04494 }
     },
     {
       "id": 23,
@@ -190,7 +190,7 @@
       "id": 0,
       "position": [-360, 0],
       "type": "max/plantarium/vec3",
-      "props": { "0": 0, "1": 0, "2": 0 }
+      "props": { "0": 0, "1": 0.0, "2": 0 }
     },
     {
       "id": 1,
@@ -214,13 +214,13 @@
       "id": 4,
       "position": [-210, 92.5],
       "type": "max/plantarium/random",
-      "props": { "min": 1, "max": 2 }
+      "props": { "min": 0.107, "max": 0.214 }
     },
     {
       "id": 5,
       "position": [-90, 137.5],
       "type": "max/plantarium/random",
-      "props": { "min": 0.116, "max": 0.133 }
+      "props": { "min": 0.014648, "max": 0.016795 }
     },
     {
       "id": 6,
@@ -232,7 +232,7 @@
       "id": 8,
       "position": [-450, 30],
       "type": "max/plantarium/random",
-      "props": { "min": 0.1, "max": 1 }
+      "props": { "min": 0.0107, "max": 0.107 }
     },
     {
       "id": 9,
@@ -259,7 +259,7 @@
       "type": "max/plantarium/avoid",
       "props": {
         "plant": 0,
-        "radius": 0.83,
+        "radius": 0.08881,
         "strength": 0.55,
         "smoothing": 1,
         "iterations": 18,

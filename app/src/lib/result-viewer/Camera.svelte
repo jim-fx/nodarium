@@ -6,16 +6,19 @@
   import { Vector3 } from 'three';
   import type { PerspectiveCamera, Vector3Tuple } from 'three';
   import type { OrbitControls as OrbitControlsType } from 'three/examples/jsm/controls/OrbitControls.js';
+  import { damp, type Framing } from './camera-framing';
 
   let camera = $state<PerspectiveCamera>();
   let controls = $state<OrbitControlsType>();
 
   type Props = {
-    center: Vector3;
+    framing?: Framing;
+    /** Bumped to frame the content again, even if it did not change */
+    frameRequest?: number;
     centerCamera: boolean;
   };
 
-  const { center, centerCamera }: Props = $props();
+  const { framing, frameRequest = 0, centerCamera }: Props = $props();
 
   const cameraTransform = localStore<{
     camera: Vector3Tuple;
@@ -37,34 +40,70 @@
     };
   }
 
-  let isRunning = false;
-  const task = useTask(() => {
-    if (!controls) return;
-    let length = center.clone().sub(controls.target).length();
-    if (length < 0.01 || !centerCamera) {
-      isRunning = false;
-      task.stop();
-      return;
+  /** How much the content has to grow or shrink before the camera zooms with it */
+  const REFIT_RATIO = 1.5;
+  const SPEED = 6;
+
+  const goalTarget = new Vector3();
+  let goalDistance: number | undefined;
+  let lastRadius: number | undefined;
+  let lastRequest: number | undefined;
+  let animating = false;
+
+  const task = useTask((delta) => {
+    if (!controls || !camera || !framing) return;
+
+    const toGoal = goalTarget.clone().sub(controls.target);
+    const targetDone = toGoal.length() < framing.radius * 0.002;
+    if (!targetDone) {
+      controls.target.set(
+        damp(controls.target.x, goalTarget.x, SPEED, delta),
+        damp(controls.target.y, goalTarget.y, SPEED, delta),
+        damp(controls.target.z, goalTarget.z, SPEED, delta)
+      );
     }
 
-    controls.target.lerp(center, 0.02);
+    let distanceDone = true;
+    if (goalDistance !== undefined) {
+      const offset = camera.position.clone().sub(controls.target);
+      const distance = offset.length();
+      distanceDone = Math.abs(distance - goalDistance) < framing.radius * 0.002;
+      if (!distanceDone && distance > 0) {
+        offset.setLength(damp(distance, goalDistance, SPEED, delta));
+        camera.position.copy(controls.target).add(offset);
+      }
+    }
+
     controls.update();
+
+    if (targetDone && distanceDone) {
+      animating = false;
+      task.stop();
+    }
   });
   task.stop();
 
-  $effect(() => {
-    if (
-      center
-      && controls
-      && centerCamera
-      && (center.x !== controls.target.x
-        || center.y !== controls.target.y
-        || center.z !== controls.target.z)
-      && !isRunning
-    ) {
-      isRunning = true;
+  function animateTo(f: Framing, fit: boolean) {
+    goalTarget.set(...f.center);
+    goalDistance = fit ? f.distance : undefined;
+    lastRadius = f.radius;
+    if (!animating) {
+      animating = true;
       task.start();
     }
+  }
+
+  $effect(() => {
+    if (!framing || !controls) return;
+
+    const requested = lastRequest !== undefined && frameRequest !== lastRequest;
+    lastRequest = frameRequest;
+    if (!requested && !centerCamera) return;
+
+    const resized = lastRadius === undefined
+      || framing.radius / lastRadius > REFIT_RATIO
+      || lastRadius / framing.radius > REFIT_RATIO;
+    animateTo(framing, requested || resized);
   });
 
   onMount(() => {
@@ -78,6 +117,13 @@
   position={$cameraTransform.camera}
   makeDefault
   fov={50}
+  near={framing?.near ?? 0.1}
+  far={framing?.far ?? 2000}
 >
-  <OrbitControls bind:ref={controls} on:change={saveCameraState} />
+  <OrbitControls
+    bind:ref={controls}
+    minDistance={framing ? framing.radius * 0.02 : 0}
+    maxDistance={framing ? framing.radius * 50 : Infinity}
+    on:change={saveCameraState}
+  />
 </T.PerspectiveCamera>
