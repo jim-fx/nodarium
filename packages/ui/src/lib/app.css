@@ -3,6 +3,7 @@
   prefix: "i";
 }
 
+@source ".";
 @source inline("{hover:,}{bg-,outline-,text-,fill-,stroke-,}layer-0{/30,/50,}");
 @source inline("{hover:,}{bg-,outline-,text-,fill-,stroke-,}layer-1{/30,/50,}");
 @source inline("{hover:,}{bg-,outline-,text-,fill-,stroke-,}layer-2{/30,/50,}");

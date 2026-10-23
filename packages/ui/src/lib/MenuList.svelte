@@ -157,7 +157,7 @@
             <span class="whitespace-nowrap text-xs opacity-50">{item.detail ?? item.shortcut}</span>
           {/if}
           {#if item.items}
-            <span class="block h-3.5 w-3.5 shrink-0 opacity-70 i-[tabler--chevron-right]"></span>
+            <span class="block h-3.5 w-3.5 shrink-0 opacity-50 i-[tabler--chevron-right]"></span>
           {/if}
         </button>
         {#if item.items && openIndex === i}
