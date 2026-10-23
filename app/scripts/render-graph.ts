@@ -312,10 +312,10 @@ for (const file of await resolveTargets(targets)) {
   const leafArea = triangles.filter((t) => t.instanced).reduce((sum, { a, b, c }) => {
     const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
     return sum + Math.hypot(
-      u[1] * v[2] - u[2] * v[1],
-      u[2] * v[0] - u[0] * v[2],
-      u[0] * v[1] - u[1] * v[0]
-    ) / 2;
+          u[1] * v[2] - u[2] * v[1],
+          u[2] * v[0] - u[0] * v[2],
+          u[0] * v[1] - u[1] * v[0]
+        ) / 2;
   }, 0);
   console.log(JSON.stringify({
     name,
