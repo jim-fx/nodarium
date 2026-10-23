@@ -1,6 +1,6 @@
 import { animate, debounce, lerp } from '#lib/helpers/index.ts';
 import type { NodeInstance, SerializedEdge, SerializedNode, Socket } from '@nodarium/types';
-import { createContext } from 'svelte';
+import { createContext, untrack } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { OrthographicCamera, Vector3 } from 'three';
 import type { GraphManager } from './graph-manager.svelte';
@@ -65,14 +65,35 @@ export class GraphState {
   colors = new ColorGenerator(predefinedColors);
 
   constructor(private graph: GraphManager) {
+    const storageKey = (id: number) => `node.cameraPosition.${id}`;
+
     const saveCameraPosition = debounce(() => {
-      localStorage.setItem(
-        'cameraPosition',
-        `[${this.cameraPosition[0]},${this.cameraPosition[1]},${this.cameraPosition[2]}]`
-      );
+      if (this.loadedCameraId === undefined) return;
+      localStorage.setItem(storageKey(this.loadedCameraId), JSON.stringify(this.cameraPosition));
     }, 500);
 
     $effect.root(() => {
+      // Restore the camera when the active project changes
+      $effect(() => {
+        const id = this.graph.id;
+        untrack(() => {
+          this.loadedCameraId = undefined;
+          const stored = localStorage.getItem(storageKey(id));
+          this.cameraPosition = [140, 100, 3.5];
+          if (stored) {
+            try {
+              const d = JSON.parse(stored);
+              this.cameraPosition[0] = d[0];
+              this.cameraPosition[1] = d[1];
+              this.cameraPosition[2] = d[2];
+            } catch (e) {
+              console.log('Failed to parsed stored camera position', e);
+            }
+          }
+          this.loadedCameraId = id;
+        });
+      });
+
       $effect(() => {
         // Read values to subscribe to reactivity, then flush lazily.
         void this.cameraPosition[0];
@@ -81,18 +102,9 @@ export class GraphState {
         saveCameraPosition();
       });
     });
-    const storedPosition = localStorage.getItem('cameraPosition');
-    if (storedPosition) {
-      try {
-        const d = JSON.parse(storedPosition);
-        this.cameraPosition[0] = d[0];
-        this.cameraPosition[1] = d[1];
-        this.cameraPosition[2] = d[2];
-      } catch (e) {
-        console.log('Failed to parsed stored camera position', e);
-      }
-    }
   }
+
+  private loadedCameraId: number | undefined;
 
   width = $state(100);
   height = $state(100);
