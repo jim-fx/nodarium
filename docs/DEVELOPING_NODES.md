@@ -56,6 +56,15 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 }
 ```
 
+A node with several outputs returns one `Vec<i32>` per output, in the order of `outputs` in the definition, as a tuple, an array or a `Vec<Vec<i32>>`:
+
+```rust
+#[nodarium_execute]
+pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
+    (geometry, vec![encode_float(height)])
+}
+```
+
 `nodarium_definition_file!` checks the definition and embeds it into the `.wasm`. `#[nodarium_execute]` generates the exports the host needs. For a complete example have a look at the `box` node.
 
 ## Build

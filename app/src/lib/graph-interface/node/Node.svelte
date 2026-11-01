@@ -5,7 +5,12 @@
   import { type Mesh } from 'three';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
   import { colors } from '../graph/colors.svelte';
-  import { getNodeHeight, getParameterHeight } from '../helpers/nodeHelpers';
+  import {
+    getNodeHeight,
+    getOutputRowCount,
+    getParameterHeight,
+    OUTPUT_ROW_HEIGHT
+  } from '../helpers/nodeHelpers';
   import NodeFrag from './Node.frag';
   import NodeVert from './Node.vert';
   import NodeHtml from './NodeHTML.svelte';
@@ -35,12 +40,16 @@
         : colors.outline)
   );
 
+  const outputRows = $derived(getOutputRowCount(nodeType));
   const sectionHeights = $derived(
     nodeType
-      ? Object
-        .keys(nodeType?.inputs || {})
-        .map(key => getParameterHeight(nodeType, key) / 10)
-        .filter(b => !!b)
+      ? [
+        ...Array<number>(outputRows).fill(OUTPUT_ROW_HEIGHT),
+        ...Object
+          .keys(nodeType?.inputs || {})
+          .map(key => getParameterHeight(nodeType, key) / 10)
+          .filter(b => !!b)
+      ]
       : [5]
   );
 
@@ -82,6 +91,7 @@
       uSectionHeights: { value: [5, 10] },
       uIsMuted: { value: false },
       uNumSections: { value: 2 },
+      uNumOutputRows: { value: 0 },
       uWidth: { value: 20 },
       uHeight: { value: 200 },
       uZoom: { value: 1.0 }
@@ -91,6 +101,7 @@
     uniforms.uHeight.value={height}
     uniforms.uSectionHeights.value={sectionHeights}
     uniforms.uNumSections.value={sectionHeights.length}
+    uniforms.uNumOutputRows.value={outputRows}
     uniforms.uStrokeColor.value={strokeColor}
   />
 </T.Mesh>

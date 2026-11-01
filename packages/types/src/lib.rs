@@ -176,6 +176,20 @@ pub struct NodeDefinitionMeta {
     pub title: Option<String>,
 }
 
+/// An output of a node, either only its type (`"float"`) or its type and a
+/// label (`{ "type": "float", "label": "x" }`).
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum NodeOutput {
+    Type(String),
+    Labeled {
+        #[serde(rename = "type")]
+        kind: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
+    },
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct NodeDefinition {
     pub id: String,
@@ -187,5 +201,5 @@ pub struct NodeDefinition {
     pub inputs: Option<HashMap<String, NodeInput>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub outputs: Option<Vec<String>>,
+    pub outputs: Option<Vec<NodeOutput>>,
 }

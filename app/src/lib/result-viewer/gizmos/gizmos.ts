@@ -91,6 +91,7 @@ export function addProbe(graph: Graph, activeNodeId: number) {
   const hasDebugNode = graph.edges.some(
     (edge) =>
       edge[0] === source.nodeId
+      && edge[1] === source.output
       && graph.nodes.find((n) => n.id === edge[2])?.type.endsWith('/debug')
   );
   if (hasDebugNode) return { graph, sourceId: source.nodeId, hidden: false };

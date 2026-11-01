@@ -1,6 +1,6 @@
 <script lang="ts">
   import { appSettings } from '#lib/settings/app-settings.svelte.ts';
-  import type { NodeInstance, Socket } from '@nodarium/types';
+  import { getOutputLabel, type NodeInstance, type Socket } from '@nodarium/types';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers/index.js';
   import { getNodeHeight } from '../helpers/nodeHelpers';
@@ -26,6 +26,9 @@
   const nodeType = $derived(graph.getNodeType(node));
   const rightBump = $derived(
     !!nodeType?.outputs?.length && node.type !== '__internal/group/input'
+  );
+  const outputLabel = $derived(
+    (nodeType?.outputs?.length ?? 0) > 1 ? getOutputLabel(nodeType?.outputs?.[0]) : undefined
   );
   // a node without visible parameters is only the header, so it needs the bottom corners too
   const headerOnly = $derived(!!nodeType && getNodeHeight(nodeType) <= 5);
@@ -94,8 +97,12 @@
       <span class="bg-white text-black! mr-2 px-1 rounded-sm opacity-30">{node.id}</span>
     {/if}
     {nodeType?.meta?.title || node.type?.split('/').pop()}
+    <span class="ml-auto"></span>
     {#if appSettings.value.debug.advancedMode && timing !== undefined}
-      <span class="ml-auto mr-6 text-xs opacity-50">{formatTiming(timing)}</span>
+      <span class="mr-6 text-xs opacity-50">{formatTiming(timing)}</span>
+    {/if}
+    {#if outputLabel}
+      <span class="mr-5">{outputLabel}</span>
     {/if}
   </div>
   {#if rightBump}

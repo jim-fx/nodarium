@@ -21,9 +21,15 @@ All data is a list of `i32` words. Pointers are byte offsets into the module's o
 | `memory`                              | The module's memory.                                                                                                                  |
 | `nodarium_alloc(bytes) -> ptr`        | Allocates memory. It stays valid until the next `nodarium_reset`.                                                                     |
 | `nodarium_reset()`                    | Frees everything since the last reset.                                                                                                |
-| `nodarium_execute(args, argc) -> ptr` | Runs the node. `args` points to `argc` pairs of `[ptr, len]`, one per input. Returns a pointer to a `[ptr, len]` pair for the result. |
+| `nodarium_execute(args, argc) -> ptr` | Runs the node. `args` points to `argc` pairs of `[ptr, len]`, one per input. Returns a pointer to `[ptr, len]` pairs, one per output. |
 
 `len` always counts `i32` words. Only `nodarium_alloc` takes bytes.
+
+## Outputs
+
+A node returns one `[ptr, len]` pair for each entry of `outputs` in its definition, in the same order. A node without outputs (like the output node) still returns one pair. The host reads as many pairs as the definition lists, so a node must never return fewer.
+
+Every input that is connected to output `n` of another node receives the value of pair `n`.
 
 ## Imports (`env`)
 
@@ -57,4 +63,4 @@ When it is connected, the node receives exactly what the other node returned.
 
 Results stay in wasm memory until the next reset. The host copies them out only when it has to keep them: the final output, the cache and debug views.
 
-Older modules that export `execute`, `__alloc` and `__free` instead still work, but are slower.
+Older modules that export `execute`, `__alloc` and `__free` instead still work, but are slower and only support a single output.

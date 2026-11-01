@@ -444,7 +444,10 @@ describe('groups', () => {
     expect(manager.groups.length).toBe(1);
     const restoredGroupNode = manager.getNode(groupNode.id);
     assert.isDefined(restoredGroupNode);
-    expect(manager.getNodeType(restoredGroupNode)?.outputs).toEqual(['float']);
+    expect(manager.getNodeType(restoredGroupNode)?.outputs).toEqual([{
+      label: 'Float',
+      type: 'float'
+    }]);
   });
 
   it('should undo inside a group without loading the root nodes into it', () => {

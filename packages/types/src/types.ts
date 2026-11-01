@@ -38,10 +38,33 @@ export type NodeInstance = {
   state: NodeRuntimeState;
 } & SerializedNode;
 
+/**
+ * An output of a node, either only its type or its type and a label.
+ * The label tells outputs of the same type apart on the node.
+ */
+export const NodeOutputSchema = z.union([
+  z.string(),
+  z.object({
+    type: z.string(),
+    label: z.string().optional()
+  })
+]);
+
+export type NodeOutput = z.infer<typeof NodeOutputSchema>;
+
+export function getOutputType(output: NodeOutput | undefined): string | undefined {
+  return typeof output === 'string' ? output : output?.type;
+}
+
+export function getOutputLabel(output: NodeOutput | undefined): string | undefined {
+  if (output === undefined) return undefined;
+  return typeof output === 'string' ? output : output.label ?? output.type;
+}
+
 export const NodeDefinitionSchema = z.object({
   id: NodeIdSchema,
   inputs: z.record(z.string(), NodeInputSchema).optional(),
-  outputs: z.array(z.string()).optional(),
+  outputs: z.array(NodeOutputSchema).optional(),
   meta: z
     .object({
       description: z.string().optional(),
@@ -83,8 +106,11 @@ export type WasmSlice = {
 export type NodeValue = Int32Array | WasmSlice;
 
 export type NodeDefinition = z.infer<typeof NodeDefinitionSchema> & {
-  /** Receives one value per input, in definition order */
-  execute(inputs: NodeValue[]): NodeValue;
+  /**
+   * Receives one value per input, in definition order. Returns one value per
+   * output, a node with a single output may return that value directly.
+   */
+  execute(inputs: NodeValue[]): NodeValue | NodeValue[];
   /** Frees all results of previous executions, invalidating their WasmSlices */
   reset?(): void;
 };

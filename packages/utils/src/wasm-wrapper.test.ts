@@ -1,3 +1,4 @@
+import type { NodeValue } from '@nodarium/types';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { concatEncodedArrays } from './flatTree';
@@ -8,6 +9,20 @@ function load(name: string) {
   const buffer = readFileSync(new URL(`./fixtures/${name}.wasm`, import.meta.url));
   return createWasmWrapper(buffer as unknown as ArrayBuffer);
 }
+
+describe('createWasmWrapper with several outputs', () => {
+  it('returns one value per output', () => {
+    const node = load('multi');
+    node.reset();
+
+    const result = node.execute([Int32Array.of(4, 5, 6), Int32Array.of(1)]);
+
+    expect(Array.isArray(result)).toBe(true);
+    const [count, length] = result as NodeValue[];
+    expect(readNodeValue(count)).toEqual(Int32Array.of(2));
+    expect(readNodeValue(length)).toEqual(Int32Array.of(3));
+  });
+});
 
 describe('createWasmWrapper with the ABI v1', () => {
   afterEach(() => {
