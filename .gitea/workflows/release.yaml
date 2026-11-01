@@ -12,8 +12,10 @@ env:
   CARGO_HOME: .cargo
   CARGO_TARGET_DIR: target
 
+# One job on purpose: the runner executes jobs one after another, so
+# separate jobs only repeat checkout, cache restore, install and build.
 jobs:
-  quality:
+  ci:
     runs-on: ubuntu-latest
     container: git.max-richter.dev/max/nodarium-ci:1f353fd6da6c79de24f8a456f7333475cac1e1ea
 
@@ -27,67 +29,23 @@ jobs:
       - name: 🔧 Setup
         uses: ./.gitea/actions/setup
 
-      - name: 🧹 Quality Control
-        run: |
-          pnpm lint
-          pnpm format:check
-          pnpm check
-          pnpm build
+      - name: 🧹 Lint
+        run: pnpm lint
 
-  test-unit:
-    runs-on: ubuntu-latest
-    container: git.max-richter.dev/max/nodarium-ci:1f353fd6da6c79de24f8a456f7333475cac1e1ea
+      - name: 🎨 Format Check
+        run: pnpm format:check
 
-    steps:
-      - name: 📑 Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITEA_TOKEN }}
+      - name: 🔍 Type Check
+        run: pnpm check
 
-      - name: 🔧 Setup
-        uses: ./.gitea/actions/setup
+      - name: 🛠️ Build
+        run: ./.gitea/scripts/build.sh
 
-      - name: 🧪 Run Tests
+      - name: 🧪 Unit Tests
         run: xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" pnpm test:unit
 
-  test-e2e:
-    runs-on: ubuntu-latest
-    container: git.max-richter.dev/max/nodarium-ci:1f353fd6da6c79de24f8a456f7333475cac1e1ea
-
-    steps:
-      - name: 📑 Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITEA_TOKEN }}
-
-      - name: 🔧 Setup
-        uses: ./.gitea/actions/setup
-
-      - name: 🏗️ Build Web Assets
-        run: pnpm build
-
-      - name: 🧪 Run Tests
+      - name: 🧪 E2E Tests
         run: xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" pnpm test:e2e
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: [quality, test-e2e, test-unit]
-    container: git.max-richter.dev/max/nodarium-ci:1f353fd6da6c79de24f8a456f7333475cac1e1ea
-
-    steps:
-      - name: 📑 Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITEA_TOKEN }}
-
-      - name: 🔧 Setup
-        uses: ./.gitea/actions/setup
-
-      - name: 🏗️ Build Web Assets
-        run: pnpm build
 
       - name: 🚀 Create Release Commit
         if: gitea.ref_type == 'tag'
@@ -95,7 +53,9 @@ jobs:
         env:
           BOT_PGP_PRIVATE_KEY: ${{ secrets.BOT_PGP_PRIVATE_KEY }}
 
-      - name: 🛠️ Build
+      # the release commit bumps versions and the changelog, rebuild with them
+      - name: 🛠️ Rebuild For Release
+        if: gitea.ref_type == 'tag'
         run: ./.gitea/scripts/build.sh
 
       - name: 🏷️ Create Gitea Release
