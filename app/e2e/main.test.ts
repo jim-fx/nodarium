@@ -56,7 +56,7 @@ test('test', async ({ page }) => {
       for (const propId in node.props) {
         const expectedValue = props[propId];
         const inputElement = page.locator(
-          `div.wrapper[data-node-type="${node.type}"][data-node-input="${propId}"] input[type="number"]`
+          `div.wrapper[data-node-type="${node.type}"][data-node-input="${propId}"] input`
         );
         const value = parseFloat(await inputElement.inputValue());
         expect(value).toBe(expectedValue);
