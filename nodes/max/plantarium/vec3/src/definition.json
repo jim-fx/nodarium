@@ -4,17 +4,17 @@
     "vec3"
   ],
   "inputs": {
-    "0": {
+    "x": {
       "type": "float",
       "value": 0,
       "label": ""
     },
-    "1": {
+    "y": {
       "type": "float",
       "value": 0,
       "label": ""
     },
-    "2": {
+    "z": {
       "type": "float",
       "value": 0,
       "label": ""

@@ -14,14 +14,14 @@
     "amount": {
       "type": "integer"
     },
-    "lowestInstance": {
+    "lowest_instance": {
       "type": "float",
       "min": 0,
       "max": 1,
       "value": 0.5,
       "hidden": true
     },
-    "highestInstance": {
+    "highest_instance": {
       "type": "float",
       "min": 0,
       "max": 1,

@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn test_snap_range_limits_truncation() {
         let paths = make_paths(5, 20, 0);
-        // highestSnap=0.25 means every snap happens in the lower quarter,
+        // highest_snap=0.25 means every snap happens in the lower quarter,
         // so the remaining path should never exceed ~6 points.
         let result = __nodarium_execute_inner(&[
             &paths,
@@ -213,7 +213,7 @@ mod tests {
         for (i, p) in output_paths.iter().enumerate() {
             assert!(
                 path_point_count(p) <= 6,
-                "path {} should have at most 6 points with highestSnap=0.25, got {}",
+                "path {} should have at most 6 points with highest_snap=0.25, got {}",
                 i,
                 path_point_count(p)
             );
@@ -301,7 +301,7 @@ mod tests {
     fn test_snaps_in_the_last_segment() {
         // A snap position in the last segment used to keep the whole path
         let paths = make_paths(10, 20, 0);
-        // lowestSnap == highestSnap pins the snap position exactly,
+        // lowest_snap == highest_snap pins the snap position exactly,
         // independent of the seed
         let result = __nodarium_execute_inner(&[
             &paths,

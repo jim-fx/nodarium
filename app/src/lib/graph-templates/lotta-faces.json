@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "groups": [],
   "settings": { "resolution.circle": 64, "resolution.curve": 64, "randomSeed": false },
   "nodes": [
@@ -26,7 +26,7 @@
       "id": 21,
       "position": [140, 0],
       "type": "max/plantarium/vec3",
-      "props": { "0": 0.39, "1": 0, "2": 0.41 }
+      "props": { "x": 0.39, "y": 0, "z": 0.41 }
     },
     {
       "id": 22,
@@ -40,7 +40,7 @@
     [19, 0, 20, "plant"],
     [20, 0, 9, "input"],
     [21, 0, 18, "origin"],
-    [22, 0, 21, "0"],
-    [22, 0, 21, "2"]
+    [22, 0, 21, "x"],
+    [22, 0, 21, "z"]
   ]
 }

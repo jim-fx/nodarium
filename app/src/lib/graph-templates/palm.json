@@ -1,6 +1,6 @@
 {
   "id": 6,
-  "version": 1,
+  "version": 2,
   "settings": { "resolution.circle": 24, "resolution.curve": 40, "randomSeed": false },
   "groups": [],
   "nodes": [
@@ -24,7 +24,7 @@
       "props": {
         "scale": 0.282101,
         "strength": 0.63807,
-        "directionalStrength": [1, 0, 1],
+        "directional_strength": [1, 0, 1],
         "plant": 0
       }
     },
@@ -36,8 +36,8 @@
         "amount": 26,
         "length": 4,
         "thickness": 0.4,
-        "lowestBranch": 0.93,
-        "highestBranch": 1,
+        "lowest_branch": 0.93,
+        "highest_branch": 1,
         "rotation": 137.5,
         "angle": 40
       }
@@ -91,7 +91,7 @@
       "id": 19,
       "position": [240, 115],
       "type": "max/plantarium/leaf",
-      "props": { "size": 0.45, "yCurve": 1, "xCurve": -0.5 }
+      "props": { "size": 0.45, "y_curve": 1, "x_curve": -0.5 }
     },
     {
       "id": 20,
@@ -99,8 +99,8 @@
       "type": "max/plantarium/instance",
       "props": {
         "amount": 120,
-        "lowestInstance": 0.14,
-        "highestInstance": 1,
+        "lowest_instance": 0.14,
+        "highest_instance": 1,
         "rotation": 3.14,
         "angle": 30,
         "plant": 0,

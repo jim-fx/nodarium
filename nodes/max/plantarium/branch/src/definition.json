@@ -29,7 +29,7 @@
       "step": 0.01,
       "value": 0.8
     },
-    "offsetSingle": {
+    "offset_single": {
       "type": "float",
       "hidden": true,
       "description": "Moves every second branch up toward the next one, 1 makes pairs",
@@ -37,7 +37,7 @@
       "max": 1,
       "value": 0
     },
-    "lowestBranch": {
+    "lowest_branch": {
       "type": "float",
       "hidden": true,
       "description": "How low should the branches start. 0 is the bottom, 1 is the top.",
@@ -46,7 +46,7 @@
       "step": 0.01,
       "value": 0.2
     },
-    "highestBranch": {
+    "highest_branch": {
       "type": "float",
       "description": "How high should the branches start. 0 is the bottom, 1 is the top.",
       "hidden": true,

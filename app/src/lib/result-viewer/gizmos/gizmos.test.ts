@@ -75,7 +75,7 @@ describe('vec3 nodes', () => {
 
   it('read the position from the three inputs', () => {
     const [gizmo] = collectGizmos(
-      [node(1, { '0': 1, '1': 2, '2': 3 }, VEC3_NODE_TYPE)],
+      [node(1, { x: 1, y: 2, z: 3 }, VEC3_NODE_TYPE)],
       [],
       1,
       vec3Defaults
@@ -85,7 +85,7 @@ describe('vec3 nodes', () => {
 
   it('have no gizmo when one of the inputs is connected', () => {
     const target = node(1, {}, VEC3_NODE_TYPE);
-    expect(collectGizmos([target], [edgeTo(target, '1')], 1, vec3Defaults)).toEqual([]);
+    expect(collectGizmos([target], [edgeTo(target, 'y')], 1, vec3Defaults)).toEqual([]);
   });
 });
 
@@ -147,7 +147,7 @@ describe('branch nodes', () => {
   it('start where the first branch grows on the path', () => {
     // a vertical stem, lowest branch at 30% of its length
     const [gizmo] = collectGizmos(
-      [branch({ lowestBranch: 0.3, angle: 20, length: 2 })],
+      [branch({ lowest_branch: 0.3, angle: 20, length: 2 })],
       [],
       1,
       defaults,
@@ -165,7 +165,7 @@ describe('branch nodes', () => {
 
   it('use the offset of the even branches', () => {
     const [gizmo] = collectGizmos(
-      [branch({ lowestBranch: 0, highestBranch: 1, amount: 5, offsetSingle: 1 })],
+      [branch({ lowest_branch: 0, highest_branch: 1, amount: 5, offset_single: 1 })],
       [],
       1,
       defaults,
@@ -177,7 +177,10 @@ describe('branch nodes', () => {
 
   it('work on the layer the node works on, not the first path', () => {
     const twig: ProbePath = { depth: 2, points: [[5, 0, 0], [5, 1, 0]] };
-    const [gizmo] = collectGizmos([branch({ lowestBranch: 0 })], [], 1, defaults, [stemPath, twig]);
+    const [gizmo] = collectGizmos([branch({ lowest_branch: 0 })], [], 1, defaults, [
+      stemPath,
+      twig
+    ]);
     if (gizmo.kind !== 'branch') throw new Error('not a branch gizmo');
     expect(gizmo.origin[0]).toBe(5);
     expect(gizmo.origin[1]).toBeCloseTo(0);

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "settings": { "resolution.circle": 64, "resolution.curve": 64, "randomSeed": false },
   "meta": { "title": "Agave", "lastModified": "2026-10-21T13:00:00.703Z" },
   "groups": [],
@@ -25,11 +25,11 @@
       "type": "max/plantarium/leaf",
       "props": {
         "size": 0.32,
-        "yCurve": -1.1,
-        "xCurve": 0.7,
+        "y_curve": -1.1,
+        "x_curve": 0.7,
         "thickness": 8.7,
-        "xResolution": 32,
-        "yTwist": 0
+        "x_resolution": 32,
+        "y_twist": 0
       }
     },
     {
@@ -38,8 +38,8 @@
       "type": "max/plantarium/instance",
       "props": {
         "amount": 18,
-        "lowestInstance": 0.02,
-        "highestInstance": 0.3,
+        "lowest_instance": 0.02,
+        "highest_instance": 0.3,
         "plant": 0,
         "geometry": [0, 0, 0],
         "rotation": 0.5,
@@ -54,11 +54,11 @@
       "type": "max/plantarium/leaf",
       "props": {
         "size": 0.32,
-        "yCurve": -1.8,
-        "xCurve": 0.9,
+        "y_curve": -1.8,
+        "x_curve": 0.9,
         "thickness": 7.9,
-        "xResolution": 32,
-        "yTwist": 0
+        "x_resolution": 32,
+        "y_twist": 0
       }
     },
     {
@@ -67,8 +67,8 @@
       "type": "max/plantarium/instance",
       "props": {
         "amount": 26,
-        "lowestInstance": 0.32,
-        "highestInstance": 0.9,
+        "lowest_instance": 0.32,
+        "highest_instance": 0.9,
         "plant": 0,
         "geometry": [0, 0, 0],
         "rotation": 0.5,

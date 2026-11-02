@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "groups": [],
   "settings": { "resolution.circle": 8, "resolution.curve": 16, "randomSeed": false },
   "nodes": [
@@ -40,7 +40,7 @@
       "id": 11,
       "position": [-180, 35],
       "type": "max/plantarium/leaf",
-      "props": { "size": 0.2, "yCurve": 0.6, "xCurve": 0.25, "thickness": 2 }
+      "props": { "size": 0.2, "y_curve": 0.6, "x_curve": 0.25, "thickness": 2 }
     },
     {
       "id": 12,
@@ -48,8 +48,8 @@
       "type": "max/plantarium/instance",
       "props": {
         "amount": 11,
-        "lowestInstance": 0,
-        "highestInstance": 0.01,
+        "lowest_instance": 0,
+        "highest_instance": 0.01,
         "rotation": 2.4,
         "angle": 50,
         "size": 1
@@ -71,7 +71,7 @@
       "id": 14,
       "position": [-150, 40],
       "type": "max/plantarium/leaf",
-      "props": { "size": 0.13, "yCurve": 0.5, "xCurve": 0.2 }
+      "props": { "size": 0.13, "y_curve": 0.5, "x_curve": 0.2 }
     },
     {
       "id": 15,
@@ -79,8 +79,8 @@
       "type": "max/plantarium/instance",
       "props": {
         "amount": 16,
-        "lowestInstance": 0.05,
-        "highestInstance": 0.55,
+        "lowest_instance": 0.05,
+        "highest_instance": 0.55,
         "rotation": 2.4,
         "angle": 55,
         "size": 1
@@ -106,8 +106,8 @@
       "type": "max/plantarium/branch",
       "props": {
         "amount": 30,
-        "lowestBranch": 0.44,
-        "highestBranch": 0.985,
+        "lowest_branch": 0.44,
+        "highest_branch": 0.985,
         "length": 0.25,
         "thickness": 0.3,
         "rotation": 4,
@@ -182,7 +182,7 @@
       "id": 31,
       "position": [-60, 35],
       "type": "max/plantarium/leaf",
-      "props": { "size": 0.17, "yCurve": 0.55, "xCurve": 2.2 }
+      "props": { "size": 0.17, "y_curve": 0.55, "x_curve": 2.2 }
     },
     {
       "id": 32,
@@ -190,8 +190,8 @@
       "type": "max/plantarium/instance",
       "props": {
         "amount": 3,
-        "lowestInstance": 1,
-        "highestInstance": 1,
+        "lowest_instance": 1,
+        "highest_instance": 1,
         "rotation": 2.0944,
         "angle": 15,
         "size": 1

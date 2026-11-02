@@ -29,7 +29,7 @@
       "hidden": true,
       "description": "On which layer of paths the snap happens"
     },
-    "lowestSnap": {
+    "lowest_snap": {
       "type": "float",
       "hidden": true,
       "description": "Lowest point along the path where a snap can occur. 0 = base, 1 = tip.",
@@ -38,7 +38,7 @@
       "step": 0.01,
       "value": 0.1
     },
-    "highestSnap": {
+    "highest_snap": {
       "type": "float",
       "hidden": true,
       "description": "Highest point along the path where a snap can occur. 0 = base, 1 = tip.",

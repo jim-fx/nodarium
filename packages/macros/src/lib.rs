@@ -16,6 +16,20 @@ fn add_line_numbers(input: String) -> String {
         .join("\n");
 }
 
+fn is_snake_case(name: &str) -> bool {
+    let mut chars = name.chars();
+    chars.next().is_some_and(|c| c.is_ascii_lowercase())
+        && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+}
+
+fn names_not_in_snake_case(definition: &NodeDefinition) -> Vec<String> {
+    let segments = definition.id.split('/').map(str::to_string);
+    let inputs = definition.inputs.iter().flat_map(|inputs| inputs.keys().cloned());
+    let mut names: Vec<String> = segments.chain(inputs).filter(|name| !is_snake_case(name)).collect();
+    names.sort();
+    names
+}
+
 #[proc_macro_attribute]
 pub fn nodarium_execute(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut inner_fn = parse_macro_input!(item as syn::ItemFn);
@@ -60,9 +74,18 @@ pub fn nodarium_definition_file(input: TokenStream) -> TokenStream {
         panic!("Failed to read JSON file at '{}/{}': {}", project_dir, file_path, err)
     });
 
-    let _: NodeDefinition = serde_json::from_str(&json_content).unwrap_or_else(|err| {
+    let definition: NodeDefinition = serde_json::from_str(&json_content).unwrap_or_else(|err| {
         panic!("JSON file contains invalid JSON: \n{} \n{}", err, add_line_numbers(json_content.clone()))
     });
+
+    let invalid = names_not_in_snake_case(&definition);
+    if !invalid.is_empty() {
+        panic!(
+            "Node ids and input names in '{}' must be snake_case (lowercase letters, digits and _, starting with a letter): {}",
+            file_path,
+            invalid.join(", ")
+        );
+    }
 
     // We use the span from the input path literal
     let bytes = syn::LitByteStr::new(json_content.as_bytes(), path_lit.span());
@@ -88,4 +111,27 @@ pub fn nodarium_definition_file(input: TokenStream) -> TokenStream {
     };
 
     TokenStream::from(expanded)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn definition(json: &str) -> NodeDefinition {
+        serde_json::from_str(json).unwrap()
+    }
+
+    #[test]
+    fn accepts_snake_case() {
+        let def = definition(r#"{"id":"max/plantarium/trunk_kink","inputs":{"lowest_kink":{"type":"float"},"x2":{"type":"float"}}}"#);
+        assert!(names_not_in_snake_case(&def).is_empty());
+    }
+
+    #[test]
+    fn rejects_other_names() {
+        let def = definition(
+            r#"{"id":"max/plantarium/trunkKink","inputs":{"lowestKink":{"type":"float"},"0":{"type":"float"},"_a":{"type":"float"},"ok":{"type":"float"}}}"#,
+        );
+        assert_eq!(names_not_in_snake_case(&def), ["0", "_a", "lowestKink", "trunkKink"]);
+    }
 }

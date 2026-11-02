@@ -139,7 +139,7 @@ type Context = {
   paths: ProbePath[];
 };
 
-const VEC3_INPUTS = ['0', '1', '2'];
+const VEC3_INPUTS = ['x', 'y', 'z'];
 
 function vec3Gizmo(node: NodeInstance, { connected, number }: Context): Gizmo | undefined {
   if (connected(...VEC3_INPUTS)) return;
@@ -189,11 +189,11 @@ function branchGizmo(node: NodeInstance, { connected, number, paths }: Context):
   if (!path) return;
 
   // the first branch sits at the lowest spot, moved up by the offset of the even branches
-  const lowest = number('lowestBranch') ?? 0.2;
-  const highest = number('highestBranch') ?? 1;
+  const lowest = number('lowest_branch') ?? 0.2;
+  const highest = number('highest_branch') ?? 1;
   const amount = Math.max(number('amount') ?? 1, 1);
   const step = (highest - lowest) / Math.max(amount - 1, 1);
-  const alpha = Math.min(Math.max(lowest + (number('offsetSingle') ?? 0) * step, 0), 1);
+  const alpha = Math.min(Math.max(lowest + (number('offset_single') ?? 0) * step, 0), 1);
 
   const sample = sampleAlong(path.points, alpha);
   if (!sample) return;
