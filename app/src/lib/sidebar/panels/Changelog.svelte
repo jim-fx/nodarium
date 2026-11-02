@@ -1,16 +1,23 @@
 <script lang="ts">
   import { Details } from '@nodarium/ui';
   import { micromark } from 'micromark';
+  import type { RoadmapItem } from './roadmap';
+  import Roadmap from './Roadmap.svelte';
 
   type Props = {
     git?: Record<string, string>;
     changelog?: string;
+    roadmap?: RoadmapItem[];
   };
 
   const {
     git,
-    changelog
+    changelog,
+    roadmap = []
   }: Props = $props();
+
+  const tabs = ['Changelog', 'Roadmap'] as const;
+  let activeTab = $state<(typeof tabs)[number]>('Changelog');
 
   const typeMap = new Map([
     ['fix', 'border-l-red-800'],
@@ -87,53 +94,71 @@
 </script>
 
 <div id="changelog" class="p-4 font-mono text-text overflow-y-auto max-h-full space-y-5">
-  {#if git}
-    <div class="mb-4 p-3 bg-layer-2 text-xs rounded">
-      <p><strong>Branch:</strong> {git.branch}</p>
-      <p>
-        <strong>Commit:</strong>
-        <a
-          href="https://git.max-richter.dev/max/nodarium/commit/{git.sha}"
-          class="link"
-          target="_blank"
-        >
-          {git.sha.slice(0, 7)}
-        </a>
-        – {git.commit_message}
-      </p>
-      <p>
-        <strong>Commits since last release:</strong>
-        {git.commits_since_last_release}
-      </p>
-      <p>
-        <strong>Timestamp:</strong>
-        {new Date(git.commit_timestamp).toLocaleString()}
-      </p>
-    </div>
-  {/if}
-
-  {#if changelog}
-    {#each parseChangelog(changelog) as release (release)}
-      <Details title={release.title}>
-        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-        <div id="description" class="pb-5">{@html release.description}</div>
-
-        {#if release?.commits?.length}
-          <Details
-            title="All Commits"
-            class="commits"
-          >
-            {#each release.commits as commit (commit)}
-              <p class="py-1 leading-7 text-xs border-b-1 border-l-1 border-b-outline last:border-b-0 -ml-2 pl-2 {typeMap.get(commit.type)}">
-                <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-                <a href={commit.link} class="link" target="_blank">{commit.sha}</a>
-                {commit.description}
-              </p>
-            {/each}
-          </Details>
-        {/if}
-      </Details>
+  <div role="tablist" class="flex border-b-1 border-b-outline text-xs">
+    {#each tabs as tab (tab)}
+      <button
+        type="button"
+        role="tab"
+        aria-selected={activeTab === tab}
+        class="-mb-px cursor-pointer border-0 border-b-2 bg-transparent px-3 py-2 font-mono text-text {activeTab === tab ? 'border-b-text' : 'border-b-transparent opacity-50 hover:opacity-100'}"
+        onclick={() => (activeTab = tab)}
+      >
+        {tab}
+      </button>
     {/each}
+  </div>
+
+  {#if activeTab === 'Roadmap'}
+    <Roadmap items={roadmap} />
+  {:else}
+    {#if git}
+      <div class="mb-4 p-3 bg-layer-2 text-xs rounded">
+        <p><strong>Branch:</strong> {git.branch}</p>
+        <p>
+          <strong>Commit:</strong>
+          <a
+            href="https://git.max-richter.dev/max/nodarium/commit/{git.sha}"
+            class="link"
+            target="_blank"
+          >
+            {git.sha.slice(0, 7)}
+          </a>
+          – {git.commit_message}
+        </p>
+        <p>
+          <strong>Commits since last release:</strong>
+          {git.commits_since_last_release}
+        </p>
+        <p>
+          <strong>Timestamp:</strong>
+          {new Date(git.commit_timestamp).toLocaleString()}
+        </p>
+      </div>
+    {/if}
+
+    {#if changelog}
+      {#each parseChangelog(changelog) as release (release)}
+        <Details title={release.title}>
+          <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+          <div id="description" class="pb-5">{@html release.description}</div>
+
+          {#if release?.commits?.length}
+            <Details
+              title="All Commits"
+              class="commits"
+            >
+              {#each release.commits as commit (commit)}
+                <p class="py-1 leading-7 text-xs border-b-1 border-l-1 border-b-outline last:border-b-0 -ml-2 pl-2 {typeMap.get(commit.type)}">
+                  <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+                  <a href={commit.link} class="link" target="_blank">{commit.sha}</a>
+                  {commit.description}
+                </p>
+              {/each}
+            </Details>
+          {/if}
+        </Details>
+      {/each}
+    {/if}
   {/if}
 </div>
 
