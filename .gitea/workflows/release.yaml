@@ -76,3 +76,11 @@ jobs:
           SSH_HOST: ${{ vars.SSH_HOST }}
           SSH_PORT: ${{ vars.SSH_PORT }}
           SSH_USER: ${{ vars.SSH_USER }}
+
+      - name: 🔗 Comment Preview Link
+        if: gitea.event_name == 'pull_request'
+        continue-on-error: true
+        run: ./.gitea/scripts/comment-preview.sh
+        env:
+          PR_NUMBER: ${{ gitea.event.pull_request.number }}
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
