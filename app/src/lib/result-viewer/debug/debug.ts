@@ -23,6 +23,11 @@ const depthColors = ['#ff5c5c', '#ffb347', '#4dd2ff', '#c084fc', '#5eea8c'].map(
   new Color(c)
 );
 const INSTANCE_COLOR = new Color('#5eea8c');
+const POINT_COLOR = new Color('#f472b6');
+// the arrow of a point is this many times the thickness of the path at the point
+const POINT_ARROW_SCALE = 5;
+// so a point on a very thin path still gets an arrow that can be seen
+const POINT_ARROW_MIN = 0.05;
 // instances are tiny next to the plant, their arrows are drawn this much longer
 const INSTANCE_ARROW_SCALE = 100;
 const RING_SEGMENTS = 12;
@@ -194,6 +199,80 @@ function createInstanceDebug(instances: Int32Array[]) {
   return group;
 }
 
+/**
+ * Points as a dot with an arrow along their direction, the way a branch on them would grow,
+ * and a short line along the tangent of the path they sit on.
+ */
+function createPointsDebug(points: Int32Array[]) {
+  const group = new Group();
+  const dots: number[] = [];
+  const tangents: number[] = [];
+  const position = new Vector3();
+  const direction = new Vector3();
+  const tangent = new Vector3();
+
+  for (const data of points) {
+    // 0: type, 1: parent id, 2: depth, 3: index, followed by the position, the direction,
+    // the tangent, the thickness of the path and where on it the point sits
+    const f32 = new Float32Array(data.buffer, data.byteOffset, data.length);
+    position.fromArray(f32, 4);
+    direction.fromArray(f32, 7);
+    tangent.fromArray(f32, 10);
+    const length = Math.max(f32[13], POINT_ARROW_MIN) * POINT_ARROW_SCALE;
+    if (!position.toArray().every(Number.isFinite)) continue;
+
+    dots.push(position.x, position.y, position.z);
+    if (tangent.lengthSq() > 0) {
+      tangent.normalize().multiplyScalar(length / 2);
+      tangents.push(
+        position.x - tangent.x,
+        position.y - tangent.y,
+        position.z - tangent.z,
+        position.x + tangent.x,
+        position.y + tangent.y,
+        position.z + tangent.z
+      );
+    }
+    if (!(direction.lengthSq() > 0)) continue;
+
+    const arrow = new ArrowHelper(direction.normalize(), position.clone(), length, POINT_COLOR);
+    (arrow.line.material as LineBasicMaterial).depthTest = false;
+    (arrow.cone.material as MeshBasicMaterial).depthTest = false;
+    arrow.line.renderOrder = RENDER_ORDER;
+    arrow.cone.renderOrder = RENDER_ORDER;
+    group.add(arrow);
+  }
+
+  if (tangents.length) {
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', new Float32BufferAttribute(tangents, 3));
+    const lines = new LineSegments(
+      geometry,
+      new LineBasicMaterial({
+        color: POINT_COLOR,
+        transparent: true,
+        opacity: 0.5,
+        depthTest: false
+      })
+    );
+    lines.renderOrder = RENDER_ORDER;
+    group.add(lines);
+  }
+
+  if (dots.length) {
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', new Float32BufferAttribute(dots, 3));
+    const dotPoints = new Points(
+      geometry,
+      new PointsMaterial({ size: 8, sizeAttenuation: false, color: POINT_COLOR, depthTest: false })
+    );
+    dotPoints.renderOrder = RENDER_ORDER;
+    group.add(dotPoints);
+  }
+
+  return group;
+}
+
 function clearGroup(group: Group) {
   group.traverse((child) => {
     if (child === group) return;
@@ -212,16 +291,21 @@ export function updateDebugScene(
   clearGroup(group);
   for (const { type, data: value } of Object.values(data || {})) {
     // single values like floats and vectors have nothing to draw
-    if ((type !== 'path' && type !== 'geometry') || !(value instanceof Int32Array)) continue;
+    if (
+      (type !== 'path' && type !== 'geometry' && type !== 'points')
+      || !(value instanceof Int32Array)
+    ) continue;
 
     // a path output can carry geometry and instances along, e.g. from the instance node
     const items = splitItems(value);
     const paths = items.filter((item) => item[0] === 0);
     const geometries = items.filter((item) => item[0] === 1);
     const instances = items.filter((item) => item[0] === 2);
+    const points = items.filter((item) => item[0] === 4);
 
     if (paths.length) group.add(createPathDebug(paths));
     if (geometries.length) group.add(createGeometryDebug(geometries));
     if (instances.length) group.add(createInstanceDebug(instances));
+    if (points.length) group.add(createPointsDebug(points));
   }
 }
