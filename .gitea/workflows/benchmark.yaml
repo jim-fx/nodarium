@@ -12,7 +12,10 @@ env:
 
 jobs:
   benchmark:
-    runs-on: ubuntu-latest
+    # Always l.asturias: results are compared across runs, and l.jezerca
+    # (the second runner) is a much faster machine. The label exists only on
+    # the asturias runner (home-server: gitea/runner-config.yaml).
+    runs-on: asturias
     container:
       image: git.max-richter.dev/max/nodarium-ci:1f353fd6da6c79de24f8a456f7333475cac1e1ea
       options: --memory=2g --memory-swap=2g
