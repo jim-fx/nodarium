@@ -1,3 +1,4 @@
+import { CURRENT_GRAPH_VERSION } from '#lib/graph-migrations/index.ts';
 import type { Graph } from '@nodarium/types';
 import { describe, expect, it } from 'vitest';
 import { createProjectFile, parseProjectFile } from './project-file';
@@ -33,6 +34,19 @@ describe('parseProjectFile', () => {
     const file = parseProjectFile({ format: 'nodarium-project', version: 1, graph: partial });
     expect(file.graph.id).toBe(0);
     expect(file.graph.groups).toEqual([]);
+  });
+
+  it('migrates the graph', () => {
+    const old: Partial<Graph> = structuredClone(graph);
+    delete old.groups;
+    const file = parseProjectFile(old);
+    expect(file.graph.version).toBe(CURRENT_GRAPH_VERSION);
+  });
+
+  it('rejects graphs from a newer version of the app', () => {
+    expect(() => parseProjectFile({ ...graph, version: CURRENT_GRAPH_VERSION + 1 })).toThrow(
+      /newer version/
+    );
   });
 
   it('rejects previews that are not images', () => {

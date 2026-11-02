@@ -1,3 +1,4 @@
+import { migrateGraph } from '#lib/graph-migrations/index.ts';
 import { type Graph, GraphSchema, type ProjectFile, ProjectFileSchema } from '@nodarium/types';
 
 const PREVIEW_SIZE = 128;
@@ -57,12 +58,13 @@ function parseOrThrow<T>(
 /** Accepts a project file or a bare graph (the format before project files existed) */
 export function parseProjectFile(input: unknown): ProjectFile {
   if (isObject(input) && 'format' in input) {
-    return parseOrThrow(
+    const file = parseOrThrow(
       ProjectFileSchema.safeParse({ ...input, graph: withGraphDefaults(input.graph) })
     );
+    return { ...file, graph: migrateGraph(file.graph) };
   }
   const graph = parseOrThrow(GraphSchema.safeParse(withGraphDefaults(input)));
-  return { format: 'nodarium-project', version: 1, graph };
+  return { format: 'nodarium-project', version: 1, graph: migrateGraph(graph) };
 }
 
 export async function previewToBlob(preview: string) {

@@ -1,5 +1,7 @@
 {
   "id": 0,
+  "version": 1,
+  "groups": [],
   "settings": {
     "resolution.circle": 54,
     "resolution.curve": 20,

@@ -146,6 +146,7 @@ export type ProjectUnit = z.infer<typeof ProjectUnitSchema>;
 
 export const GraphSchema = z.object({
   id: z.number(),
+  version: z.number().int().nonnegative().optional(),
   meta: z
     .object({
       title: z.string().optional(),

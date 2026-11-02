@@ -1,4 +1,6 @@
 {
+  "version": 1,
+  "groups": [],
   "settings": { "resolution.circle": 26, "resolution.curve": 39 },
   "nodes": [
     { "id": 9, "position": [180, 80], "type": "max/plantarium/output", "props": {} },
