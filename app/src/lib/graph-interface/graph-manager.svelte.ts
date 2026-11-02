@@ -1,3 +1,4 @@
+import { CURRENT_GRAPH_VERSION, migrateGraph } from '#lib/graph-migrations/index.ts';
 import { clone, debounce } from '#lib/helpers/index.ts';
 import throttle from '#lib/helpers/throttle.ts';
 import { RemoteNodeRegistry } from '#lib/node-registry/index.ts';
@@ -17,6 +18,7 @@ import type {
   Socket
 } from '@nodarium/types';
 import { getOutputType } from '@nodarium/types';
+import { toast } from '@nodarium/ui';
 import { fastHashString } from '@nodarium/utils';
 import { createLogger } from '@nodarium/utils';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -123,6 +125,7 @@ export class GraphManager extends EventEmitter<{
 
     const serialized = $state.snapshot({
       id: this.id,
+      version: CURRENT_GRAPH_VERSION,
       settings: this.settings,
       meta: this.meta,
       groups,
@@ -352,6 +355,15 @@ export class GraphManager extends EventEmitter<{
 
   async load(graph: Graph) {
     const a = performance.now();
+
+    try {
+      graph = migrateGraph(graph);
+    } catch (error) {
+      log.error('failed to migrate graph', error);
+      toast(error instanceof Error ? error.message : String(error), 'error');
+      this.status = 'error';
+      return;
+    }
 
     this.loaded = false;
     graph.groups ??= [];

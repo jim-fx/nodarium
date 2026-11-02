@@ -1,4 +1,6 @@
 {
+  "version": 1,
+  "groups": [],
   "settings": { "resolution.circle": 10, "resolution.curve": 32, "randomSeed": false },
   "nodes": [
     {

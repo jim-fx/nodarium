@@ -16,6 +16,7 @@ import {
   readNodeValue
 } from '@nodarium/utils';
 import { areSocketsCompatible } from '../graph-interface/helpers/nodeHelpers';
+import { migrateGraph } from '../graph-migrations';
 import { getErrorInfo, NodeExecutionError, type RuntimeErrorInfo } from './errors';
 import type { RuntimeNode } from './types';
 
@@ -429,6 +430,8 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
     let a = performance.now();
     this.debugData = {};
+
+    graph = migrateGraph(graph);
 
     // Expand group nodes into a flat graph before execution
     const origins = new Map<number, number>();

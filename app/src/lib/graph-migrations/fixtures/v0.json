@@ -1,0 +1,45 @@
+{
+  "id": 4,
+  "meta": { "title": "Migration fixture" },
+  "settings": { "resolution.circle": 8, "resolution.curve": 24 },
+  "nodes": [
+    { "id": 0, "position": [245, 85], "type": "max/plantarium/output", "props": {} },
+    {
+      "id": 1,
+      "position": [65, 85],
+      "type": "max/plantarium/stem",
+      "props": { "amount": 3, "length": 6, "thickness": 0.1, "taper": 0.8 }
+    },
+    {
+      "id": 2,
+      "position": [125, 85],
+      "type": "max/plantarium/branch",
+      "props": {
+        "amount": 12,
+        "lowestBranch": 0.3,
+        "highestBranch": 1,
+        "length": 2,
+        "angle": 40,
+        "rotation": 137.5
+      },
+      "exposed": ["lowestBranch"]
+    },
+    {
+      "id": 3,
+      "position": [95, 120],
+      "type": "max/plantarium/random",
+      "props": { "min": 0.5, "max": 1.5 }
+    },
+    {
+      "id": 5,
+      "position": [185, 85],
+      "type": "max/plantarium/leaf",
+      "props": { "size": 1, "yCurve": 0.4, "xCurve": 0.2 }
+    }
+  ],
+  "edges": [
+    [1, 0, 2, "plant"],
+    [3, 0, 2, "length"],
+    [2, 0, 0, "input"]
+  ]
+}
