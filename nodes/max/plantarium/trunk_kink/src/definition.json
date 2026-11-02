@@ -1,0 +1,65 @@
+{
+  "id": "max/plantarium/trunk_kink",
+  "meta": {
+    "description": "Bends paths at a few spots, like a stem that changes its direction a little where a branch grows out. Gives the bent paths and the kinks as points, with their direction pointing to the outer side of the bend."
+  },
+  "outputs": [
+    "path",
+    "points"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The paths to bend.",
+      "external": true
+    },
+    "amount": {
+      "type": "integer",
+      "description": "How many kinks every path gets.",
+      "min": 0,
+      "max": 32,
+      "value": 4
+    },
+    "lowestKink": {
+      "type": "float",
+      "hidden": true,
+      "description": "Where the first kink sits. 0 is the bottom, 1 is the top.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.2
+    },
+    "highestKink": {
+      "type": "float",
+      "hidden": true,
+      "description": "Where the last kink sits. 0 is the bottom, 1 is the top.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.9
+    },
+    "angle": {
+      "type": "float",
+      "description": "How far the path bends at every kink, in degrees. Everything above the kink turns by it.",
+      "min": -90,
+      "max": 90,
+      "step": 1,
+      "value": 15
+    },
+    "rotation": {
+      "type": "float",
+      "description": "How far every kink is turned around the path from the one before it, in degrees. 180 bends left and right in turn, 137.5 makes a spiral.",
+      "min": 0,
+      "max": 360,
+      "step": 0.5,
+      "value": 180
+    },
+    "depth": {
+      "type": "integer",
+      "hidden": true,
+      "min": 1,
+      "value": 1,
+      "description": "On how many of the deepest layers of paths to put kinks."
+    }
+  }
+}

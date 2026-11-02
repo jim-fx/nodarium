@@ -134,7 +134,7 @@ type GroupDefinition = {
 
 ### NodeInput socket types
 
-`float` | `integer` | `boolean` | `select` | `seed` | `creator` (filled in by the host with the graph node id, see `PLANTARIUM.md`) | `vec3` | `geometry` | `path` | `force` | `shape` | `curve` | `color` | `*` (wildcard)
+`float` | `integer` | `boolean` | `select` | `seed` | `creator` (filled in by the host with the graph node id, see `PLANTARIUM.md`) | `vec3` | `geometry` | `path` | `force` | `points` | `shape` | `curve` | `color` | `*` (wildcard)
 
 Each input can have: `value` (default), `label`, `hidden`, `external`, `setting` (link to graph setting), `accepts` (extra compatible types).
 
@@ -168,6 +168,7 @@ Data encoding (Plantarium):
 
 - `[0, stemDepth, id, parentId, parentAlpha, creator, index, ...x,y,z,thickness]` — path (`parentId` is -1 without a parent, `creator` the graph node that made it, `id` a stable hash of creator, parent and index, see `PLANTARIUM.md`)
 - `[3, kind, x, y, z, strength, radius, falloff]` — force (a point force pulls towards its position)
+- `[4, parentId, depth, index, x, y, z, dx, dy, dz, tx, ty, tz, scale, alpha]` — point on a path (see `PLANTARIUM.md`)
 - `[1, vertexCount, faceCount, pathId, ...faces, ...vertices, ...normals]` — geometry (`pathId` is -1 if it doesn't come from a path)
 - `[2, vertexCount, faceCount, instanceCount, stemDepth, ...]` — instances (the id of the path of every instance follows the matrices)
 
