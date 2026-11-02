@@ -150,6 +150,12 @@ pub struct NodeInputForce {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct NodeInputPoints {
+    #[serde(flatten)]
+    pub default_options: DefaultOptions,
+}
+
+#[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[allow(non_camel_case_types)]
 pub enum NodeInput {
@@ -165,6 +171,7 @@ pub enum NodeInput {
     geometry(NodeInputGeometry),
     path(NodeInputPath),
     force(NodeInputForce),
+    points(NodeInputPoints),
 }
 
 #[derive(Serialize, Deserialize)]

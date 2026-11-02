@@ -52,6 +52,16 @@ The header says where the path sits in the plant, so a node, the viewer or a mat
 
 A `force` output is a list of these, so a later node can combine forces. `kind` 0 is a point force: it pulls towards `x, y, z`, a negative `strength` pushes away. It reaches `radius` far, `falloff` 0 keeps the full strength up to the radius and 1 fades it smoothly to nothing at the radius. `Force::sample` in `nodarium_utils` gives the push at a position, `decode_forces` and `sample_forces` read a list of them. `apply_force` bends paths with them: the base of a path stays, the segments keep their length. Paths follow the spot on their parent they grow on, so a bent stem carries its branches. `PathStructure` and `follow_parents` in `nodarium_utils::geometry` do that for any node that moves paths.
 
+## Points
+
+```
+[4, parent_id, depth, index, x, y, z, dx, dy, dz, tx, ty, tz, scale, alpha]    all but the first four words are f32
+```
+
+A `points` output is a list of these: spots on paths where a later node can grow or place something. `parent_id` is the `id` of the path the point sits on, `alpha` where on it (0 to 1, along its length, like `parent_alpha`), `depth` the depth of that path and `scale` its thickness there. `tangent` (`tx, ty, tz`) is the direction of the path at the point, `direction` (`dx, dy, dz`) is orthogonal to it and points away from the path: a branch grows that way, an instance sticks out that way, before their own angle tilts them. `index` is the number of the point among the points its node made on the same path, what grows on a point uses it as its own index, so its id stays the same when other points come or go. `Point`, `encode_points`, `decode_points` and `group_points_by_parent` in `nodarium_utils` read and write them.
+
+`trunk_kink` bends paths at a few spots: everything above a kink turns by `angle`, away from the direction of the kink, and the kinks are turned around the path by `rotation` from one to the next (180 bends left and right in turn). The side the kinks turn from is carried along with every bend, so kinks 180 degrees apart stay in one plane. A kink between two points of a path adds a point there, the path keeps its length and its header. It gives the bent paths and a point on every kink, its direction points to the outer side of the bend and its tangent lies halfway between the path below and above it. Paths that grow on a bent path move with the spot they are attached to (`follow_parents`), they are moved but not turned.
+
 ## Geometry
 
 ```
