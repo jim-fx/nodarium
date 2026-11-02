@@ -31,6 +31,14 @@ function instances(count: number) {
   return data;
 }
 
+// [4, parent id, depth, index, x y z, dx dy dz, tx ty tz, scale, alpha]
+function point(position: number[], direction: number[], scale = 0.1) {
+  const data = new Int32Array(15);
+  data.set([4, 7, 1, 0]);
+  new Float32Array(data.buffer).set([...position, ...direction, 0, 1, 0, scale, 0.5], 4);
+  return data;
+}
+
 function collect(group: Group) {
   const lines: Line[] = [];
   const points: Points[] = [];
@@ -120,6 +128,34 @@ describe('updateDebugScene', () => {
       expect(direction.distanceTo(new Vector3(0, 0, -1))).toBeLessThan(1e-6);
     }
     expect(arrows.map((a) => a.cone.position.y)).toEqual([200, 100]);
+  });
+
+  it('draws a dot and an arrow along its direction for every point', () => {
+    const group = new Group();
+    const data = concatEncodedArrays([
+      wrap(point([0, 1, 0], [1, 0, 0])),
+      wrap(point([0, 2, 0], [-1, 0, 0], 0.2))
+    ]);
+
+    updateDebugScene(group, { 1: { type: 'points', data } });
+
+    const { points, arrows, segments } = collect(group);
+    expect(points[0].geometry.getAttribute('position').count).toBe(2);
+    expect(arrows.map((a) => a.position.toArray())).toEqual([[0, 1, 0], [0, 2, 0]]);
+    const directions = arrows.map((a) => new Vector3(0, 1, 0).applyQuaternion(a.quaternion));
+    expect(directions[0].distanceTo(new Vector3(1, 0, 0))).toBeLessThan(1e-6);
+    expect(directions[1].distanceTo(new Vector3(-1, 0, 0))).toBeLessThan(1e-6);
+    // a thicker path gets a longer arrow
+    expect(arrows[0].cone.position.y).toBeCloseTo(0.5);
+    expect(arrows[1].cone.position.y).toBeCloseTo(1);
+    // a line along the tangent of every point
+    expect(segments[0].geometry.getAttribute('position').count).toBe(4);
+  });
+
+  it('draws a single point that is not wrapped in a list', () => {
+    const group = new Group();
+    updateDebugScene(group, { 1: { type: 'points', data: wrap(point([0, 0, 0], [0, 0, 1])) } });
+    expect(collect(group).arrows).toHaveLength(1);
   });
 
   it('skips single values and clears the previous result', () => {
