@@ -1,6 +1,6 @@
 import type { Graph } from '@nodarium/types';
 import { createLogger } from '@nodarium/utils';
-import { renameInputs } from './helpers';
+import { removeInputs, renameInputs } from './helpers';
 
 export * from './helpers';
 
@@ -24,7 +24,7 @@ export const MIGRATIONS: Migration[] = [
   },
   {
     version: 2,
-    description: 'node inputs are named in snake_case',
+    description: 'node inputs are named in snake_case, noise always preserves the length',
     migrate(graph) {
       const renames: Record<string, Record<string, string>> = {
         branch: {
@@ -39,11 +39,7 @@ export const MIGRATIONS: Migration[] = [
           yCurve: 'y_curve',
           yTwist: 'y_twist'
         },
-        noise: {
-          fixBottom: 'fix_bottom',
-          directionalStrength: 'directional_strength',
-          preserveLength: 'preserve_length'
-        },
+        noise: { fixBottom: 'fix_bottom', directionalStrength: 'directional_strength' },
         snap: { lowestSnap: 'lowest_snap', highestSnap: 'highest_snap' },
         trunk_kink: { lowestKink: 'lowest_kink', highestKink: 'highest_kink' },
         vec3: { 0: 'x', 1: 'y', 2: 'z' }
@@ -51,6 +47,7 @@ export const MIGRATIONS: Migration[] = [
       for (const [node, inputs] of Object.entries(renames)) {
         renameInputs(graph, `max/plantarium/${node}`, inputs);
       }
+      removeInputs(graph, 'max/plantarium/noise', ['preserveLength']);
       return graph;
     }
   }

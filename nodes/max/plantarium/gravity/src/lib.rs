@@ -87,13 +87,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
                 for i in 1..path.length {
                     let seg_idx = i - 1;
-                    let alpha = if path.length > 2 {
-                        seg_idx as f32 / (path.length - 2) as f32
-                    } else {
-                        1.0
-                    };
+                    // the middle of the segment, so coarse paths bend like fine ones
+                    let alpha = (seg_idx as f32 + 0.5) / (path.length - 1) as f32;
+                    let strength = (strengths[seg_idx] + strengths[i]) * 0.5;
                     // Tip bend angle in radians. PI/2 = horizontal tip at strength=1.
-                    let max_angle = strengths[seg_idx] * std::f32::consts::FRAC_PI_2;
+                    let max_angle = strength * std::f32::consts::FRAC_PI_2;
                     let bend_angle = max_angle * alpha.powf(bend_exponent);
 
                     let rest_dir = rest_dirs[seg_idx];
@@ -127,7 +125,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 let mut offset_vec = Vec3::ZERO;
 
                 for i in 0..path.length - 1 {
-                    let alpha = i as f32 / (path.length - 1) as f32;
+                    // the middle of the segment, so coarse paths bend like fine ones
+                    let alpha = (i as f32 + 0.5) / (path.length - 1) as f32;
                     let start_index = i * 4;
 
                     let start_point = Vec3::from_slice(&path.points[start_index..start_index + 3]);
@@ -139,7 +138,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                     let length = direction.length();
 
                     let curviness = elasticity.max(0.0001);
-                    let strength_arg = strengths[i] * 10.0;
+                    let strength_arg = (strengths[i] + strengths[i + 1]) * 0.5 * 10.0;
                     let strength = strength_arg / curviness * strength_arg;
 
                     log!(
@@ -163,13 +162,13 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                     mid_point *= length / mid_point.length();
 
                     let final_end_point = start_point + mid_point;
+                    // the end of this segment moves by its own bend and by all bends below it
+                    offset_vec += final_end_point - end_point;
                     let offset_end_point = end_point + offset_vec;
 
                     output.points[start_index + 4] = offset_end_point[0];
                     output.points[start_index + 5] = offset_end_point[1];
                     output.points[start_index + 6] = offset_end_point[2];
-
-                    offset_vec += final_end_point - end_point;
                 }
             }
             output_data
@@ -177,4 +176,60 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         .collect();
 
     concat_args(output.iter().map(|x| x.as_slice()).collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::__nodarium_execute_inner;
+    use glam::Vec3;
+    use nodarium_utils::{
+        encode_float,
+        geometry::{create_multiple_paths, wrap_multiple_paths, wrap_path},
+        split_args,
+    };
+
+    /// A slightly leaning stem from (0, 0, 0) to (0.5, 5, 0) with `resolution` points.
+    fn stem(resolution: usize) -> Vec<i32> {
+        let mut stems = create_multiple_paths(1, resolution, 1, 3);
+        for stem in wrap_multiple_paths(&mut stems).iter_mut() {
+            for i in 0..resolution {
+                let a = i as f32 / (resolution - 1) as f32;
+                stem.points[i * 4..i * 4 + 4].copy_from_slice(&[0.5 * a, 5.0 * a, 0.0, 0.1]);
+            }
+        }
+        stems
+    }
+
+    fn tip(resolution: usize, mode: i32) -> Vec3 {
+        let out = __nodarium_execute_inner(&[
+            &stem(resolution),
+            &[encode_float(0.6)],
+            &[1],
+            &[encode_float(0.3)],
+            &[mode],
+        ]);
+        let path = split_args(&out)[0].to_vec();
+        let p = wrap_path(&path).points;
+        let s = (resolution - 1) * 4;
+        Vec3::new(p[s], p[s + 1], p[s + 2])
+    }
+
+    #[test]
+    fn the_shape_does_not_depend_on_the_resolution() {
+        // the closed-form mode only gets close to the shape as the resolution grows
+        for (mode, tolerance) in [(1, 0.05), (0, 0.25)] {
+            let reference = tip(32, mode);
+            for resolution in [8, 16, 64] {
+                let t = tip(resolution, mode);
+                assert!(
+                    t.distance(reference) < tolerance,
+                    "mode {}: tip at resolution {} is {:?}, at 32 it is {:?}",
+                    mode,
+                    resolution,
+                    t,
+                    reference
+                );
+            }
+        }
+    }
 }

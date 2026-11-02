@@ -44,8 +44,7 @@
         "fix_bottom": 1,
         "directional_strength": [1, 1, 1],
         "depth": 1,
-        "octaves": 1,
-        "preserve_length": 1
+        "octaves": 1
       }
     },
     {
