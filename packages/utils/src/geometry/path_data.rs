@@ -371,11 +371,17 @@ pub fn get_direction_at_path(path: &[f32], alpha: f32) -> [f32; 3] {
 /// orthogonal in the horizontal plane, it gets one along the z axis instead.
 fn segment_frame(start: Vec3, end: Vec3) -> (Vec3, Vec3) {
     let tangent = (end - start).try_normalize().unwrap_or(Vec3::Y);
-    let orthogonal = tangent
+    (orthogonal_to(tangent), tangent)
+}
+
+/// A unit vector orthogonal to `tangent`, in the horizontal plane where there is one. A vertical
+/// tangent has none there, it gets one along the z axis instead. This is the side a branch or an
+/// instance points to before it is turned around the path.
+pub fn orthogonal_to(tangent: Vec3) -> Vec3 {
+    tangent
         .cross(Vec3::Y)
         .try_normalize()
-        .unwrap_or_else(|| tangent.cross(Vec3::X).normalize());
-    (orthogonal, tangent)
+        .unwrap_or_else(|| tangent.cross(Vec3::X).normalize())
 }
 
 /// A function that interpolates a position along a path given by `points_data` at a position

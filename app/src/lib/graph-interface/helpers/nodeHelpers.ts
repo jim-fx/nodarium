@@ -27,6 +27,7 @@ export function getParameterHeight(node: NodeDefinition, inputKey: string) {
   if (
     input?.label !== '' && !input.external && input.type !== 'path'
     && input.type !== 'geometry' && input.type !== 'force'
+    && input.type !== 'points'
   ) {
     return 100;
   }
