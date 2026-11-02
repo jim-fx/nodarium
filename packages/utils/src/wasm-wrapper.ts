@@ -84,7 +84,7 @@ export function createWasmWrapper(buffer: ArrayBuffer) {
     return instance.exports;
   }
 
-  function executeV1(exports: NodariumExports, inputs: NodeValue[]): WasmSlice {
+  function executeV1(exports: NodariumExports, inputs: NodeValue[]): WasmSlice | WasmSlice[] {
     const mem = exports.memory;
     const table = new Uint32Array(inputs.length * 2);
 
@@ -110,9 +110,15 @@ export function createWasmWrapper(buffer: ArrayBuffer) {
     new Uint32Array(mem.buffer, tablePtr, table.length).set(table);
 
     const resultPtr = exports.nodarium_execute(tablePtr, inputs.length);
-    const [ptr, len] = new Uint32Array(mem.buffer, resultPtr, 2);
+    const pairs = new Uint32Array(mem.buffer, resultPtr, outputCount * 2);
 
-    return { memory: mem, ptr, len };
+    if (outputCount === 1) return { memory: mem, ptr: pairs[0], len: pairs[1] };
+
+    const outputs: WasmSlice[] = [];
+    for (let i = 0; i < outputCount; i++) {
+      outputs.push({ memory: mem, ptr: pairs[i * 2], len: pairs[i * 2 + 1] });
+    }
+    return outputs;
   }
 
   function executeLegacy(exports: LegacyExports, inputs: NodeValue[]): Int32Array {
@@ -139,11 +145,15 @@ export function createWasmWrapper(buffer: ArrayBuffer) {
     return out;
   }
 
+  // a node without outputs (like the output node) still returns one value.
+  // Legacy modules only support a single output.
+  const outputCount = Math.max(1, get_definition()?.outputs?.length ?? 1);
+
   const isV1 = WebAssembly.Module.exports(module).some(
     (e) => e.name === 'nodarium_execute' && e.kind === 'function'
   );
 
-  function execute(inputs: NodeValue[]): NodeValue {
+  function execute(inputs: NodeValue[]): NodeValue | NodeValue[] {
     lastPanic = undefined;
     try {
       if (isV1) return executeV1(getExports() as NodariumExports, inputs);

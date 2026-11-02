@@ -12,6 +12,8 @@ uniform bool uIsMuted;
 const float uHeaderHeight = 5.0; 
 uniform float uSectionHeights[16]; 
 uniform int uNumSections;
+// the first sections are output rows, their dent is on the right
+uniform int uNumOutputRows;
 
 float msign(in float x) { return (x < 0.0) ? -1.0 : 1.0; }
 float sdCircle(vec2 p, float r) { return length(p) - r; }
@@ -57,7 +59,7 @@ void main(){
     currentYBoundary += sectionHeight;
     
     float centerY = previousYBoundary + (sectionHeight * 0.5);
-    vec2 circlePos = vec2(0.0, centerY);
+    vec2 circlePos = vec2(i < uNumOutputRows ? uWidth : 0.0, centerY);
     float circleDist = sdCircle(vec2(x, y) - circlePos, dentRadius);
     
     sceneSDF = max(sceneSDF, -circleDist*2.0);

@@ -53,17 +53,24 @@ export function serializeEdge(edge: SerializedEdge | Edge): SerializedEdge {
   return [e[0].id, e[1], e[2].id, e[3]];
 }
 
+// The first output sits on the header, every other output gets a row below it
+export const OUTPUT_ROW_HEIGHT = 5;
+export function getOutputRowCount(node: NodeDefinition | undefined) {
+  return Math.max(0, (node?.outputs?.length ?? 0) - 1);
+}
+
 // Keyed by definition, nodes with exposed inputs have their own definition
 const nodeHeightCache = new WeakMap<NodeDefinition, number>();
 export function getNodeHeight(node: NodeDefinition) {
-  if (!node || !('inputs' in node)) {
-    return 5;
+  if (!node) return 5;
+  if (!('inputs' in node)) {
+    return 5 + getOutputRowCount(node) * OUTPUT_ROW_HEIGHT;
   }
   const cached = nodeHeightCache.get(node);
   if (cached !== undefined) {
     return cached;
   }
-  let height = 5;
+  let height = 5 + getOutputRowCount(node) * OUTPUT_ROW_HEIGHT;
 
   for (const key in node.inputs) {
     const h = getParameterHeight(node, key) / 10;
@@ -76,7 +83,7 @@ export function getNodeHeight(node: NodeDefinition) {
 
 // distance from the top of a node to the socket of one of its inputs
 export function getInputSocketOffset(node: NodeDefinition | undefined, inputKey: string) {
-  let height = 5;
+  let height = 5 + getOutputRowCount(node) * OUTPUT_ROW_HEIGHT;
   for (const key in node?.inputs ?? {}) {
     const h = getParameterHeight(node!, key) / 10;
     if (key === inputKey) {
@@ -92,7 +99,7 @@ export function getOutputSocketOffset(nodeType: string, index: number) {
   if (nodeType === '__internal/group/input') {
     return 2.5 + 5 * index + 5;
   }
-  return 2.5 + 10 * index;
+  return 2.5 + OUTPUT_ROW_HEIGHT * index;
 }
 
 export function areSocketsCompatible(

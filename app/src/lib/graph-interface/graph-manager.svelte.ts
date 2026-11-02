@@ -16,6 +16,7 @@ import type {
   SerializedNode,
   Socket
 } from '@nodarium/types';
+import { getOutputType } from '@nodarium/types';
 import { fastHashString } from '@nodarium/utils';
 import { createLogger } from '@nodarium/utils';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -259,7 +260,8 @@ export class GraphManager extends EventEmitter<{
     const node = this.nodes.get(nodeId);
     if (!node) return;
     if (node.type.endsWith('/debug')) return;
-    if (!this.getNodeSockets(node).outputs.length) return;
+    const outputCount = this.getNodeSockets(node).outputs.length;
+    if (!outputCount) return;
     let debugNode = this.nodes.values().find(n => n.type.endsWith('/debug'));
 
     if (!debugNode) {
@@ -276,13 +278,13 @@ export class GraphManager extends EventEmitter<{
     const height = debugType ? getNodeHeight(debugType) : 5;
     debugNode.position = [node.position[0] + 25, node.position[1] - height - 5];
 
-    const alreadyConnected = this.getEdgesToNode(debugNode).some(e =>
-      e[0].id === node.id && e[1] === 0
-    );
-    if (alreadyConnected) {
+    // debugging a node again steps through its outputs
+    const connected = this.getEdgesToNode(debugNode).find(e => e[0].id === node.id);
+    const output = connected ? (connected[1] + 1) % outputCount : 0;
+    if (connected && connected[1] === output) {
       this.save();
     } else {
-      this.createEdge(node, 0, debugNode, 'input');
+      this.createEdge(node, output, debugNode, 'input');
     }
 
     return debugNode;
@@ -571,7 +573,7 @@ export class GraphManager extends EventEmitter<{
           ...baseType?.meta || {}
         },
         inputs,
-        outputs: groupDefinition?.outputs?.map(o => o.type)
+        outputs: groupDefinition?.outputs
       } as NodeDefinition;
 
       return groupType;
@@ -641,7 +643,10 @@ export class GraphManager extends EventEmitter<{
     if (node.type === '__internal/group/input') {
       return { inputs: {}, outputs: Object.values(nodeType?.inputs ?? {}).map(i => i.type) };
     }
-    return { inputs: nodeType?.inputs ?? {}, outputs: nodeType?.outputs ?? [] };
+    return {
+      inputs: nodeType?.inputs ?? {},
+      outputs: (nodeType?.outputs ?? []).map(o => getOutputType(o)!)
+    };
   }
 
   getSocketType(node: NodeInstance, index: string | number): string | undefined {
@@ -1496,7 +1501,7 @@ export class GraphManager extends EventEmitter<{
       if (!input) return [];
       const accepted = [input.type, ...(input.accepts ?? [])];
       return allDefinitions.filter(d =>
-        d.outputs?.some(output => areSocketsCompatible(output, accepted))
+        d.outputs?.some(output => areSocketsCompatible(getOutputType(output), accepted))
       );
     }
 

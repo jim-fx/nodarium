@@ -7,6 +7,7 @@ import type {
   RuntimeExecutor,
   SyncCache
 } from '@nodarium/types';
+import { getOutputType } from '@nodarium/types';
 import {
   createLogger,
   encodeFloat,
@@ -246,7 +247,8 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   private usedDefinitions = new Map<string, NodeDefinition>();
 
   private seed = Math.floor(Math.random() * 100000000);
-  private debugData: Record<number, { type: string; data: Int32Array }> = {};
+  // keyed by the id of the node a debug node is connected to
+  private debugData: Record<number, { type: string; output: number; data: Int32Array }> = {};
   // execution time in ms of every node of the last run, cached nodes keep
   // the time of the run that computed their result
   private nodeTimings: Record<number, number> = {};
@@ -256,7 +258,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
   constructor(
     private registry: NodeRegistry,
-    public cache?: SyncCache<Int32Array>
+    public cache?: SyncCache<Int32Array[]>
   ) {}
 
   private async getNodeDefinitions(graph: Graph) {
@@ -294,7 +296,8 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         depth: 0,
         children: [],
         parents: [],
-        inputNodes: {}
+        inputNodes: {},
+        inputOutputs: {}
       };
       return n;
     });
@@ -310,13 +313,14 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
     // loop through all edges and assign the parent and child nodes to each node
     for (const edge of graph.edges) {
-      const [parentId, /*_parentOutput*/, childId, childInput] = edge;
+      const [parentId, parentOutput, childId, childInput] = edge;
       const parent = nodeMap.get(parentId);
       const child = nodeMap.get(childId);
       if (parent && child) {
         parent.state.children.push(child);
         child.state.parents.push(parent);
         child.state.inputNodes[childInput] = parent;
+        child.state.inputOutputs[childInput] = parentOutput;
       }
     }
 
@@ -326,7 +330,10 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       node.muted === true && !node.type.endsWith('/debug') && !node.type.endsWith('/output');
 
     type LiveNode = NonNullable<RuntimeNode>;
-    const resolveSource = (node: LiveNode): LiveNode | undefined => {
+    const resolveSource = (
+      node: LiveNode,
+      output: number
+    ): { node: LiveNode; output: number } | undefined => {
       const seen = new Set<number>();
       let current: LiveNode | undefined = node;
       while (current && isBypassed(current)) {
@@ -334,11 +341,12 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         seen.add(current.id);
         const inputs: Record<string, unknown> = this.definitionMap.get(current.type)?.inputs || {};
         const firstInput: string | undefined = Object.keys(inputs)[0];
+        output = firstInput ? current.state.inputOutputs[firstInput] ?? 0 : 0;
         current = firstInput
           ? current.state.inputNodes[firstInput] as LiveNode | undefined
           : undefined;
       }
-      return current;
+      return current && { node: current, output };
     };
 
     graphNodes = graphNodes.filter(n => n && !isBypassed(n));
@@ -349,18 +357,24 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     for (const node of graphNodes) {
       if (!node) continue;
       for (const [key, inputNode] of Object.entries(node.state.inputNodes)) {
-        const source = resolveSource(inputNode as NonNullable<RuntimeNode>);
+        const source = resolveSource(
+          inputNode as NonNullable<RuntimeNode>,
+          node.state.inputOutputs[key] ?? 0
+        );
         // a bypassed value is dropped if the child cannot accept its type
-        const sourceType = source && this.definitionMap.get(source.type)?.outputs?.[0];
+        const sourceType = source
+          && getOutputType(this.definitionMap.get(source.node.type)?.outputs?.[source.output]);
         const input = this.definitionMap.get(node.type)?.inputs?.[key];
-        const compatible = source === inputNode
+        const compatible = source?.node === inputNode
           || (!!input
             && areSocketsCompatible(sourceType as string, [input.type, ...(input.accepts || [])]));
         if (source && compatible) {
-          node.state.inputNodes[key] = source;
-          source.state.children.push(node);
+          node.state.inputNodes[key] = source.node;
+          node.state.inputOutputs[key] = source.output;
+          source.node.state.children.push(node);
         } else {
           delete node.state.inputNodes[key];
+          delete node.state.inputOutputs[key];
         }
       }
       node.state.parents = Object.values(node.state.inputNodes);
@@ -389,7 +403,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         const parent = node.state.parents[0];
         if (parent) {
           node.state.depth = parent.state.depth - 1;
-          parent.state.debugNode = true;
+          parent.state.debugOutput = node.state.inputOutputs['input'] ?? 0;
         }
         nodes.set(node.id, node);
       }
@@ -444,7 +458,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
     // here we store the intermediate results of the nodes, results of wasm
     // nodes stay inside their module's memory until the next run
-    const results: Record<string, NodeValue> = {};
+    const results: Record<string, NodeValue[]> = {};
     // structural cache keys: a node's key is derived from its own input
     // values and the keys of its input nodes, so we never hash result data
     const cacheKeys: Record<string, number> = {};
@@ -489,13 +503,17 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
             ? node.state.inputNodes[key]
             : undefined;
           if (inputNode) {
-            if (results[inputNode.id] === undefined) {
+            const output = node.state.inputOutputs[key] ?? 0;
+            const value = results[inputNode.id]?.[output];
+            if (value === undefined) {
               throw nodeError(
-                `input "${key}" did not receive a result from ${inputNode.type}#${inputNode.id}`
+                `input "${key}" did not receive output ${output} from ${inputNode.type}#${inputNode.id}`
               );
             }
-            keyParts.push(cacheKeys[inputNode.id]);
-            return results[inputNode.id];
+            keyParts.push(
+              output === 0 ? cacheKeys[inputNode.id] : `${cacheKeys[inputNode.id]}:${output}`
+            );
+            return value;
           }
 
           let value: number | number[] | Int32Array;
@@ -539,16 +557,11 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
           if (cachedValue !== undefined) {
             log.log(`Using cached value for ${node_type.id || node.id}`);
             this.perf?.addPoint('cache-hit', 1);
-            results[node.id] = cachedValue as Int32Array;
+            results[node.id] = cachedValue;
             if (node.id in this.nodeTimings) {
               nodeTimings[node.id] = this.nodeTimings[node.id];
             }
-            if (node.state.debugNode && node_type.outputs) {
-              this.debugData[node.id] = {
-                type: node_type.outputs[0],
-                data: cachedValue
-              };
-            }
+            this.storeDebugData(node, node_type, cachedValue);
             continue;
           }
           this.perf?.addPoint('cache-hit', 0);
@@ -557,18 +570,14 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         log.group(`executing ${node_type.id}-${node.id}`);
         log.log(`Inputs:`, inputs);
         a = performance.now();
-        results[node.id] = node_type.execute(inputs);
-        if (node.state.debugNode && node_type.outputs) {
-          this.debugData[node.id] = {
-            type: node_type.outputs[0],
-            data: readNodeValue(results[node.id])
-          };
-        }
+        const result = node_type.execute(inputs);
+        results[node.id] = Array.isArray(result) ? result : [result];
+        this.storeDebugData(node, node_type, results[node.id]);
         log.log('Executed', node.type, node.id);
         b = performance.now();
 
         if (this.cache && inputHash && node.id !== outputNode.id) {
-          this.cache.set(inputHash, readNodeValue(results[node.id]));
+          this.cache.set(inputHash, results[node.id].map(readNodeValue));
         }
 
         nodeTimings[node.id] = b - a;
@@ -582,7 +591,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     }
 
     // return the result of the parent of the output node
-    const outputResult = results[outputNode.id];
+    const outputResult = results[outputNode.id]?.[0];
     const res = outputResult && readNodeValue(outputResult);
 
     if (this.cache) {
@@ -594,6 +603,22 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     this.perf?.endPoint('runtime');
 
     return res as unknown as Int32Array;
+  }
+
+  private storeDebugData(
+    node: NonNullable<RuntimeNode>,
+    type: NodeDefinition,
+    values: NodeValue[]
+  ) {
+    const output = node.state.debugOutput;
+    if (output === undefined || !type.outputs) return;
+    const value = values[output];
+    if (value === undefined) return;
+    this.debugData[node.id] = {
+      type: getOutputType(type.outputs[output]) ?? 'unknown',
+      output,
+      data: readNodeValue(value)
+    };
   }
 
   getDebugData() {

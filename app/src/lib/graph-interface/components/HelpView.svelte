@@ -1,5 +1,10 @@
 <script lang="ts">
-  import type { NodeDefinition, NodeRegistry } from '@nodarium/types';
+  import {
+    getOutputType,
+    type NodeDefinition,
+    type NodeOutput,
+    type NodeRegistry
+  } from '@nodarium/types';
   import type { Attachment } from 'svelte/attachments';
 
   let mx = $state(0);
@@ -12,6 +17,11 @@
   const { registry }: Props = $props();
 
   let width = $state(0);
+
+  function formatOutput(output: NodeOutput) {
+    const type = getOutputType(output);
+    return typeof output !== 'string' && output.label ? `${output.label} (${type})` : type;
+  }
 
   function handleMouseOver(ev: MouseEvent) {
     let target = ev.target as HTMLElement | null;
@@ -77,7 +87,7 @@
     {#if !input}
       <div>
         <span class="i-tabler-arrow-right opacity-30">-></span>
-        {node?.outputs?.map((o) => o).join(', ') ?? 'nothing'}
+        {node?.outputs?.map(formatOutput).join(', ') ?? 'nothing'}
       </div>
     {/if}
   {/if}

@@ -444,7 +444,10 @@ describe('groups', () => {
     expect(manager.groups.length).toBe(1);
     const restoredGroupNode = manager.getNode(groupNode.id);
     assert.isDefined(restoredGroupNode);
-    expect(manager.getNodeType(restoredGroupNode)?.outputs).toEqual(['float']);
+    expect(manager.getNodeType(restoredGroupNode)?.outputs).toEqual([{
+      label: 'Float',
+      type: 'float'
+    }]);
   });
 
   it('should undo inside a group without loading the root nodes into it', () => {
@@ -892,5 +895,30 @@ describe('tryConnectToDebugNode', () => {
     manager.tryConnectToDebugNode(b.id);
     expect(debug.position).not.toEqual(before);
     expect([...manager.nodes.values()].filter(n => n.type.endsWith('/debug'))).toHaveLength(1);
+  });
+
+  it('steps through the outputs of a node with several outputs', () => {
+    const split = {
+      id: 'test/node/split',
+      inputs: {},
+      outputs: ['float', { type: 'float', label: 'second' }],
+      execute: () => new Int32Array()
+    } as unknown as NodeDefinition;
+    const registry = createMockNodeRegistry([split, debugNode]);
+    const manager = new GraphManager(registry);
+    const node = manager.createNode({ type: 'test/node/split', position: [0, 0], props: {} });
+    assert.isDefined(node);
+
+    const outputs = () => {
+      const debug = [...manager.nodes.values()].find(n => n.type.endsWith('/debug'))!;
+      return manager.getEdgesToNode(debug).map(e => [e[0].id, e[1]]);
+    };
+
+    manager.tryConnectToDebugNode(node.id);
+    expect(outputs()).toEqual([[node.id, 0]]);
+    manager.tryConnectToDebugNode(node.id);
+    expect(outputs()).toEqual([[node.id, 1]]);
+    manager.tryConnectToDebugNode(node.id);
+    expect(outputs()).toEqual([[node.id, 0]]);
   });
 });

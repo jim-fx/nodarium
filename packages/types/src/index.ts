@@ -8,6 +8,7 @@ export type {
   NodeDefinition,
   NodeId,
   NodeInstance,
+  NodeOutput,
   NodeValue,
   ProjectFile,
   ProjectUnit,
@@ -23,4 +24,4 @@ export {
   ProjectFileSchema,
   ProjectUnitSchema
 } from './types';
-export { NodeDefinitionSchema } from './types';
+export { getOutputLabel, getOutputType, NodeDefinitionSchema, NodeOutputSchema } from './types';

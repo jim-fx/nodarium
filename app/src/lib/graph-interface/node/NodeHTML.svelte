@@ -1,8 +1,9 @@
 <script lang="ts">
-  import type { NodeInstance } from '@nodarium/types';
+  import { getOutputType, type NodeInstance } from '@nodarium/types';
   import MutedEdge from '../edges/MutedEdge.svelte';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
   import NodeHeader from './NodeHeader.svelte';
+  import NodeOutput from './NodeOutput.svelte';
   import NodeParameter from './NodeParameter.svelte';
 
   let ref: HTMLDivElement;
@@ -44,12 +45,14 @@
     ) || {}
   );
 
+  const outputCount = $derived(nodeType?.outputs?.length ?? 0);
+
   const showMutedEdge = $derived.by(() => {
     const firstInput = graph?.getMutePassthroughInput(node);
     if (!firstInput) return false;
     if (graph?.getEdgesToNode(node).some((e) => e[3] === firstInput) !== true) return false;
     const inputType = nodeType?.inputs?.[firstInput]?.type;
-    const outputType = nodeType?.outputs?.[0];
+    const outputType = getOutputType(nodeType?.outputs?.[0]);
     return inputType === outputType;
   });
 
@@ -79,6 +82,10 @@
   bind:this={ref}
 >
   <NodeHeader {node} />
+
+  {#each { length: Math.max(0, outputCount - 1) }, i (i)}
+    <NodeOutput {node} index={i + 1} isLast={!parameters.length && i === outputCount - 2} />
+  {/each}
 
   {#each parameters as [key, value], i (key)}
     <NodeParameter

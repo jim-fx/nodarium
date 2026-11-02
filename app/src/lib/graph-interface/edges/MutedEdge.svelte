@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { NodeInstance } from '@nodarium/types';
+  import { getOutputType, type NodeInstance } from '@nodarium/types';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
   import Edge from './Edge.svelte';
 
@@ -11,7 +11,7 @@
 
   const nodeType = $derived(graph.getNodeType(node));
 
-  const inputSocket = $derived(nodeType?.outputs?.[0]);
+  const inputSocket = $derived(getOutputType(nodeType?.outputs?.[0]));
   const pos1 = $derived(
     graphState.getSocketPosition(node, graph.getMutePassthroughInput(node) ?? '')
   );

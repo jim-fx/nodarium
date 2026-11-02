@@ -23,7 +23,7 @@ pub fn nodarium_execute(_attr: TokenStream, item: TokenStream) -> TokenStream {
     inner_fn.sig.ident = inner_ident.clone();
 
     // Exports the Nodarium ABI v1 (see docs/ABI.md) around the user function,
-    // which receives one slice per input: fn execute(args: &[&[i32]]) -> Vec<i32>
+    // which receives one slice per input: fn execute(args: &[&[i32]]) -> impl NodeOutputs
     let expanded = quote! {
         #inner_fn
 

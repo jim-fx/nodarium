@@ -108,9 +108,9 @@ type NodeRuntimeState = {
 type NodeDefinition = {
   id: NodeId;
   inputs?: Record<string, NodeInput>;
-  outputs?: string[]; // output type names
+  outputs?: (string | { type: string; label?: string })[]; // one entry per output
   meta?: { title?: string; description?: string };
-  execute(input: Int32Array): Int32Array; // WASM function
+  execute(inputs: NodeValue[]): NodeValue | NodeValue[]; // one value per output
 };
 
 // Edge: [fromNode, outputIndex, toNode, inputSocketName]
