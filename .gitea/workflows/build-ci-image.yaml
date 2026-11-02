@@ -10,6 +10,13 @@ on:
 
   workflow_dispatch:
 
+# A newer push cancels an older build, so an older image can't be pushed (and pinned by
+# image-pinner) after a newer one. Two runners (l.asturias, l.jezerca) can otherwise
+# finish builds out of order.
+concurrency:
+  group: build
+  cancel-in-progress: true
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest

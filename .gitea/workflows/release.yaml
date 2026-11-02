@@ -12,6 +12,14 @@ env:
   CARGO_HOME: .cargo
   CARGO_TARGET_DIR: target
 
+# Tag runs deploy: they share one group, so a newer tag cancels an older release and an
+# older build can't be deployed last (two runners, l.asturias and l.jezerca, can finish
+# out of order). Branch and PR runs only lint and test, one group per ref, so a newer
+# push supersedes the older run of the same branch.
+concurrency:
+  group: ${{ gitea.ref_type == 'tag' && 'deploy' || gitea.ref }}
+  cancel-in-progress: true
+
 # One job on purpose: the runner executes jobs one after another, so
 # separate jobs only repeat checkout, cache restore, install and build.
 jobs:
