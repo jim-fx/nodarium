@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "groups": [],
   "settings": { "resolution.circle": 26, "resolution.curve": 39 },
   "nodes": [
@@ -17,8 +17,8 @@
       "props": {
         "strength": 35,
         "scale": 4.6,
-        "fixBottom": 1,
-        "directionalStrength": [1, 0.74, 0.083],
+        "fix_bottom": 1,
+        "directional_strength": [1, 0.74, 0.083],
         "depth": 1
       }
     },
@@ -31,9 +31,9 @@
         "thickness": 0.6,
         "amount": 10,
         "rotation": 180,
-        "offsetSingle": 0.34,
-        "lowestBranch": 0.53,
-        "highestBranch": 1,
+        "offset_single": 0.34,
+        "lowest_branch": 0.53,
+        "highest_branch": 1,
         "depth": 1
       }
     },
@@ -44,8 +44,8 @@
       "props": {
         "strength": 8,
         "scale": 7.7,
-        "fixBottom": 1,
-        "directionalStrength": [1, 0, 1],
+        "fix_bottom": 1,
+        "directional_strength": [1, 0, 1],
         "depth": 1
       }
     },
@@ -55,11 +55,7 @@
       "type": "max/plantarium/gravity",
       "props": {
         "strength": 0.11,
-        "scale": 39,
-        "fixBottom": 0,
-        "directionalStrength": [1, 1, 1],
-        "depth": 1,
-        "curviness": 1
+        "depth": 1
       }
     }
   ],

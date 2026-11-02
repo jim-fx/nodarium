@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "groups": [],
   "settings": { "resolution.circle": 24, "resolution.curve": 40, "randomSeed": false },
   "nodes": [
@@ -59,13 +59,13 @@
       "id": 16,
       "position": [240, 115],
       "type": "max/plantarium/leaf",
-      "props": { "size": 0.12, "yCurve": 0.3, "xCurve": 0.25 }
+      "props": { "size": 0.12, "y_curve": 0.3, "x_curve": 0.25 }
     },
     {
       "id": 17,
       "position": [270, 80],
       "type": "max/plantarium/instance",
-      "props": { "amount": 70, "lowestInstance": 0.04, "highestInstance": 0.99 },
+      "props": { "amount": 70, "lowest_instance": 0.04, "highest_instance": 0.99 },
       "exposed": ["angle", "rotation"]
     },
     { "id": 24, "position": [210, 160], "type": "max/plantarium/alpha", "props": {} },
@@ -87,8 +87,8 @@
       "type": "max/plantarium/branch",
       "props": {
         "amount": 34,
-        "lowestBranch": 0.05,
-        "highestBranch": 1,
+        "lowest_branch": 0.05,
+        "highest_branch": 1,
         "length": 5,
         "thickness": 0.6,
         "rotation": 137.5,

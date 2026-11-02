@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "groups": [],
   "settings": { "resolution.circle": 24, "resolution.curve": 32, "randomSeed": false },
   "nodes": [
@@ -32,7 +32,7 @@
       "id": 16,
       "position": [150, 80],
       "type": "max/plantarium/vec3",
-      "props": { "0": 0, "1": 0.0, "2": 0 }
+      "props": { "x": 0, "y": 0.0, "z": 0 }
     },
     {
       "id": 17,
@@ -74,7 +74,7 @@
       "id": 23,
       "position": [270, 115],
       "type": "max/plantarium/leaf",
-      "props": { "size": 0.15, "yCurve": -0.6 }
+      "props": { "size": 0.15, "y_curve": -0.6 }
     },
     {
       "id": 24,
@@ -82,8 +82,8 @@
       "type": "max/plantarium/instance",
       "props": {
         "amount": 140,
-        "lowestInstance": 0.82,
-        "highestInstance": 1,
+        "lowest_instance": 0.82,
+        "highest_instance": 1,
         "rotation": 2.4,
         "angle": 30
       }
@@ -154,7 +154,7 @@
       "id": 33,
       "position": [300, 120],
       "type": "max/plantarium/leaf",
-      "props": { "size": 1.0, "yCurve": 0.9, "xCurve": 0 }
+      "props": { "size": 1.0, "y_curve": 0.9, "x_curve": 0 }
     },
     {
       "id": 34,
@@ -162,8 +162,8 @@
       "type": "max/plantarium/instance",
       "props": {
         "amount": 4,
-        "lowestInstance": 0,
-        "highestInstance": 0.04,
+        "lowest_instance": 0,
+        "highest_instance": 0.04,
         "rotation": 2.4,
         "angle": 72
       }
@@ -178,7 +178,7 @@
       "id": 36,
       "position": [330, 120],
       "type": "max/plantarium/leaf",
-      "props": { "size": 1.0, "yCurve": 1.4, "xCurve": 0 }
+      "props": { "size": 1.0, "y_curve": 1.4, "x_curve": 0 }
     },
     {
       "id": 37,
@@ -186,8 +186,8 @@
       "type": "max/plantarium/instance",
       "props": {
         "amount": 4,
-        "lowestInstance": 0,
-        "highestInstance": 0.04,
+        "lowest_instance": 0,
+        "highest_instance": 0.04,
         "rotation": 2.4,
         "angle": 62
       }
@@ -200,8 +200,8 @@
     }
   ],
   "edges": [
-    [17, 0, 16, "0"],
-    [17, 0, 16, "2"],
+    [17, 0, 16, "x"],
+    [17, 0, 16, "z"],
     [16, 0, 11, "origin"],
     [12, 0, 11, "length"],
     [11, 0, 18, "plant"],

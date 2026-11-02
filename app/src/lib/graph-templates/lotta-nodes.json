@@ -1,6 +1,6 @@
 {
   "id": 96544,
-  "version": 1,
+  "version": 2,
   "groups": [],
   "settings": { "resolution.circle": 32, "resolution.curve": 32, "randomSeed": false },
   "nodes": [
@@ -1368,8 +1368,8 @@
       "props": {
         "scale": 1.7,
         "strength": 2.3,
-        "fixBottom": 1,
-        "directionalStrength": [1, 1, 1],
+        "fix_bottom": 1,
+        "directional_strength": [1, 1, 1],
         "depth": 1,
         "octaves": 5
       }

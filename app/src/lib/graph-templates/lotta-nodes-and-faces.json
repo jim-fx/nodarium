@@ -1,6 +1,6 @@
 {
   "id": 96544,
-  "version": 1,
+  "version": 2,
   "groups": [],
   "settings": { "resolution.circle": 64, "resolution.curve": 64, "randomSeed": false },
   "nodes": [

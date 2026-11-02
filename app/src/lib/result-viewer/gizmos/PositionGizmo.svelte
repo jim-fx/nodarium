@@ -52,7 +52,7 @@
       gizmo.nodeId,
       gizmo.kind === 'force'
         ? { position }
-        : { '0': position[0], '1': position[1], '2': position[2] }
+        : { x: position[0], y: position[1], z: position[2] }
     );
   }
 </script>

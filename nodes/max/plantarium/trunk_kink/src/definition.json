@@ -20,7 +20,7 @@
       "max": 32,
       "value": 4
     },
-    "lowestKink": {
+    "lowest_kink": {
       "type": "float",
       "hidden": true,
       "description": "Where the first kink sits. 0 is the bottom, 1 is the top.",
@@ -29,7 +29,7 @@
       "step": 0.01,
       "value": 0.2
     },
-    "highestKink": {
+    "highest_kink": {
       "type": "float",
       "hidden": true,
       "description": "Where the last kink sits. 0 is the bottom, 1 is the top.",

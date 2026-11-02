@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "groups": [],
   "settings": { "resolution.circle": 10, "resolution.curve": 32, "randomSeed": false },
   "nodes": [
@@ -61,8 +61,8 @@
       "type": "max/plantarium/branch",
       "props": {
         "amount": 42,
-        "lowestBranch": 0.22,
-        "highestBranch": 1,
+        "lowest_branch": 0.22,
+        "highest_branch": 1,
         "length": 1,
         "thickness": 0.55,
         "rotation": 180,
@@ -131,7 +131,7 @@
       "id": 24,
       "position": [-60, 35],
       "type": "max/plantarium/leaf",
-      "props": { "size": 0.13, "yCurve": 0.35, "xCurve": 0.3 }
+      "props": { "size": 0.13, "y_curve": 0.35, "x_curve": 0.3 }
     },
     { "id": 25, "position": [-90, 85], "type": "max/plantarium/alpha", "props": {} },
     {
@@ -144,7 +144,7 @@
       "id": 27,
       "position": [-30, 0],
       "type": "max/plantarium/instance",
-      "props": { "amount": 20, "lowestInstance": 0.04, "highestInstance": 0.97 },
+      "props": { "amount": 20, "lowest_instance": 0.04, "highest_instance": 0.97 },
       "exposed": ["angle", "rotation"]
     },
     { "id": 28, "position": [0, 0], "type": "max/plantarium/output", "props": {} },
@@ -176,7 +176,7 @@
       "id": 33,
       "position": [-270, 0],
       "type": "max/plantarium/vec3",
-      "props": { "0": 0, "1": 0.0, "2": 0 }
+      "props": { "x": 0, "y": 0.0, "z": 0 }
     },
     {
       "id": 34,
@@ -233,8 +233,8 @@
     [30, 0, 31, "angle"],
     [31, 0, 32, "plant"],
     [32, 0, 17, "plant"],
-    [34, 0, 33, "0"],
-    [35, 0, 33, "2"],
+    [34, 0, 33, "x"],
+    [35, 0, 33, "z"],
     [33, 0, 10, "origin"],
     [26, 0, 40, "a"],
     [41, 0, 40, "b"],
