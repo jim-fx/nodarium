@@ -1,3 +1,190 @@
+# v0.0.9 (2026-11-03)
+
+## Features
+
+- Nodes can have multiple outputs, and the debug node steps through each of them.
+- Graphs carry a version and old graphs are migrated when they load (#78).
+- Length inputs read typed units like 10cm or 5mm, and plant templates are scaled to their real size.
+- New projects start with a minimal stem graph, created directly from New project (#96).
+- Show gizmos, human and arrow helpers and 3D text that flips to stay readable in the 3D view (#97).
+- Fit the 3D camera to the viewport and store the 3D and node graph camera per project.
+- Add a mute node (#64) and a /template route to inspect templates with vertex and face counts.
+- Add a roadmap tab to the changelog panel (#80).
+
+## Plantarium Nodes
+
+- Points data type with points_on_path (#81), branch_from_points (#82) and instance_from_points (#83)
+- to_geometry bakes paths into geometry (#74), with a variants mode and a resolution limit for baked paths (#104)
+- The instance node accepts a list of geometries and picks them by weight or by index (#75)
+- Umbel node for flat-topped flower clusters (#73)
+- trunk_kink (#70), random_break (#61), avoid (#59), snap, apply_force and path join nodes
+- Leaves get a thickness input and extruded paths have closed ends
+- Paths encode their creator and a stable hashed id
+- All node inputs are named in snake_case (#84)
+
+## Plant Templates
+
+- Add devil's backbone, japanese knotweed and wild carrot templates
+- The palm grows coconuts (#105) and the grass picks its blades from a list of geometries (#109)
+- Retune the willow and maidenhair, rebuild the daisy and drop the banana
+- The default plant is scaled down (#95)
+
+## Performance
+
+- Skip far apart segments in the avoid node
+- Key pooled meshes by path, cache bounds and hash geometry faster
+
+## Fixes
+
+- Fix the obj and glb exporter (#65)
+- Run a node before the deepest node it feeds
+- Keep the plant shape when resolution.curve changes
+- Long node names no longer overflow the node header
+- Drop instances scaled to nothing and accept a single geometry in the output node
+- Handle an unconnected to_geometry input
+
+## Chores
+
+- Upgrade dependencies and rust crates, migrate to SvelteKit v3
+- Rename all input.json files to definition.json
+- Run checks, tests and deploy in a single CI job and keep builds and deploys in order across two runners
+- Comment the branch preview link on pull requests
+
+---
+
+- [8a15424](https://git.max-richter.dev/max/nodarium/commit/8a15424b4c8e34068b8ba7efb5164485cfc1353d) Merge pull request 'feat: add the wild carrot template' (#112) from feat/wild-carrot-template into main
+- [5bd2c25](https://git.max-richter.dev/max/nodarium/commit/5bd2c25a7c07dcce904f54ffadf0a9727fa41d6c) feat: add the wild carrot template
+- [a1bcb94](https://git.max-richter.dev/max/nodarium/commit/a1bcb94794f914712360a39e8306444a2e5101ed) fix: hide the umbel's fine-tuning inputs
+- [9218e29](https://git.max-richter.dev/max/nodarium/commit/9218e2917f21f03558a6ed00eca7b62ddbfc00c5) Merge pull request 'feat: use the geometry pick in the grass template' (#111) from feat/grass-geometry-pick into main
+- [8623af4](https://git.max-richter.dev/max/nodarium/commit/8623af46ebc482b73c786de7d299c69c2bae5752) Merge pull request 'feat: add the umbel node' (#110) from feat/umbel-node into main
+- [4b272d9](https://git.max-richter.dev/max/nodarium/commit/4b272d9d85ff5611f24facfa1e435cb147945655) feat: use the geometry pick in the grass template
+- [096c34d](https://git.max-richter.dev/max/nodarium/commit/096c34d31fc2e13e6837d550d5d52410291afafe) feat: add the umbel node
+- [c33fa42](https://git.max-richter.dev/max/nodarium/commit/c33fa427440ac96e422ee4cf1aa8a92b294de29c) Merge pull request 'feat: weighted and index-based geometry pick on instance' (#108) from feat/instance-weighted-pick into main
+- [882615f](https://git.max-richter.dev/max/nodarium/commit/882615f68594746d25bec491fb842e74920ba05c) feat: weighted and index-based geometry pick on instance
+- [61de531](https://git.max-richter.dev/max/nodarium/commit/61de531680f685e0b2cd52c60421339fa5d8ca16) Merge pull request 'feat: to_geometry variants mode and coconut palm' (#107) from feat/to-geometry-variants into main
+- [a784ed2](https://git.max-richter.dev/max/nodarium/commit/a784ed2fed5dd151673393b590afe0f43deb0a5c) feat: coconuts on the palm template
+- [651e649](https://git.max-richter.dev/max/nodarium/commit/651e649b10265197659143e8dae447fbfcc0e100) feat: to_geometry variants mode
+- [73c05ec](https://git.max-richter.dev/max/nodarium/commit/73c05ec0802734c05902dc7de98527f4ed744a70) Merge pull request 'fix: geometry handling gaps around to_geometry' (#106) from fix/geometry-gaps into main
+- [d229dcb](https://git.max-richter.dev/max/nodarium/commit/d229dcbb366ea49925f2698ae0df110e40d7ddbf) feat(to_geometry): limit the resolution of baked paths
+- [d6a87c0](https://git.max-richter.dev/max/nodarium/commit/d6a87c081ea9b3e750986bb94761c6554a7d5155) fix(instance): drop instances scaled to nothing
+- [b5c15b2](https://git.max-richter.dev/max/nodarium/commit/b5c15b21cb3929bc767ac5a3fdb89c376ce96e50) fix(output): accept a single geometry
+- [85fa9d1](https://git.max-richter.dev/max/nodarium/commit/85fa9d1529870aefcbf92616e368452a0ea6b058) fix(utils): write the bracket count of created geometry like wrap_arg
+- [0ecbe64](https://git.max-richter.dev/max/nodarium/commit/0ecbe6469640934b6f667bd19910b0a6ea4dbd6d) Merge pull request 'feat: instance node accepts a list of geometries' (#103) from feat/instance-geometry-list into main
+- [1a926cc](https://git.max-richter.dev/max/nodarium/commit/1a926cc0e8ffeb7477861bfff8f1f8ceb1a084f8) feat: instance node accepts a list of geometries
+- [a882d05](https://git.max-richter.dev/max/nodarium/commit/a882d05ad85b7ce252a283e43ede75873ce43666) Merge pull request 'feat: add the to_geometry node' (#102) from feat/to-geometry-node into main
+- [6c0a00e](https://git.max-richter.dev/max/nodarium/commit/6c0a00e57c23f8f5b0f5efe302fef9d2124f8db4) fix: handle an unconnected to_geometry input
+- [b390eec](https://git.max-richter.dev/max/nodarium/commit/b390eecdd018fc9d1671cb15a9fa3bf67d23c0d9) feat: add the to_geometry node
+- [40e8a99](https://git.max-richter.dev/max/nodarium/commit/40e8a99e969c16e5d15609fc2d9719c49cb5a704) Merge pull request 'fix: scale down the default plant' (#101) from fix/smaller-default-plant into main
+- [17ecf8a](https://git.max-richter.dev/max/nodarium/commit/17ecf8aad3756339f1f1abf0087b242c7c59c38d) Merge branch 'main' into fix/smaller-default-plant
+- [a873dfe](https://git.max-richter.dev/max/nodarium/commit/a873dfeab31e70d8a85497b22de5c29b4b7e9ca9) fix: scale down the default plant
+- [c73950a](https://git.max-richter.dev/max/nodarium/commit/c73950abaf481f79875905e7c5c030a534543a3a) Merge pull request 'feat: start new projects with a minimal stem graph' (#100) from feat/minimal-new-project into main
+- [337c2ff](https://git.max-richter.dev/max/nodarium/commit/337c2ffe9686c09d9e8f85154c2ba871b7d0e0e5) Merge branch 'main' into feat/minimal-new-project
+- [8a04658](https://git.max-richter.dev/max/nodarium/commit/8a0465809c656e23759c4494e5ad0966dd1f2d15) test: open the project browser via Open in the e2e test
+- [b1ec80c](https://git.max-richter.dev/max/nodarium/commit/b1ec80cb23902f89045e37acbef751846778ec34) chore: rename general.clippy to general.planty setting
+- [4636735](https://git.max-richter.dev/max/nodarium/commit/4636735cdba3d64ed6f8df731ba48a5cdd991765) chore: update default app settings
+- [15f243c](https://git.max-richter.dev/max/nodarium/commit/15f243c803f594f535f161f7dc8461edace14bbe) feat: create a stem project directly from New project
+- [842f3da](https://git.max-richter.dev/max/nodarium/commit/842f3dab07402837b29a49d92b4b0c20b93988df) Merge pull request 'Feat/zigzag templates' (#99) from feat/zigzag-templates into main
+- [242fa13](https://git.max-richter.dev/max/nodarium/commit/242fa13a97ed0f052dc3748223060a0b3a0c323a) fix: keep default plant for the first project
+- [2d3da3d](https://git.max-richter.dev/max/nodarium/commit/2d3da3d61022989a65dc9f28af2141f446144590) feat: start new projects with a minimal stem graph
+- [19b2b61](https://git.max-richter.dev/max/nodarium/commit/19b2b616bccb79334b43d9be1b7e6de902091d17) Merge pull request 'feat: add 3D text that flips to stay readable' (#98) from feat/readable-text into main
+- [a1cc726](https://git.max-richter.dev/max/nodarium/commit/a1cc7265eb7d410bbefa5ee13ed465416b29d8c8) feat: add 3D text that flips to stay readable
+- [a11b197](https://git.max-richter.dev/max/nodarium/commit/a11b1970e4ad0e098d7db8bb818118ed6a6de84e) chore: update the daisy template
+- [731df60](https://git.max-richter.dev/max/nodarium/commit/731df6092870c511f13811135b60308a21fe03aa) feat: preselect the matching template when pushing a graph
+- [82301e9](https://git.max-richter.dev/max/nodarium/commit/82301e95f2098d7f5ab64e34e5afd34e5816b3f8) feat: add devil's backbone and japanese knotweed templates
+- [7df02f4](https://git.max-richter.dev/max/nodarium/commit/7df02f4f208a405c0699353569e22d17124fe870) fix: run a node before the deepest node it feeds
+- [e532366](https://git.max-richter.dev/max/nodarium/commit/e532366e3e469f9e4640ea85dbbb3271af5b003d) Merge pull request 'feat: add the instance_from_points node' (#92) from feat/instance-from-points-node into main
+- [2fbd621](https://git.max-richter.dev/max/nodarium/commit/2fbd6216408bf8ec2ad67eefc1c724b150531264) Merge remote-tracking branch 'origin/main' into feat/instance-from-points-node
+- [cd47a48](https://git.max-richter.dev/max/nodarium/commit/cd47a48b61ad91dbaab251153b35fc8510b733b9) Merge pull request 'fix: long node names overflow the node header' (#94) from fix/node-title-overflow into main
+- [5b00257](https://git.max-richter.dev/max/nodarium/commit/5b0025752046d15d942bb68d5beec3019752d02f) Merge branch 'main' into fix/node-title-overflow
+- [a97bc43](https://git.max-richter.dev/max/nodarium/commit/a97bc43b989b0057e8e48079a6eb32768b53d748) Merge pull request 'chore: remove AI filler comments and useless test code' (#93) from chore/ai-cleanup into main
+- [07d2db7](https://git.max-richter.dev/max/nodarium/commit/07d2db7efd420db832537dbb9fd5aa67cb629e2b) chore: remove AI filler comments and useless test code
+- [769974e](https://git.max-richter.dev/max/nodarium/commit/769974e06cd653710709646ce1d9f403bde56906) fix: long node names overflow the node header
+- [9e62d1d](https://git.max-richter.dev/max/nodarium/commit/9e62d1d1afb535994ea63b382ee3426c9c5cf4f5) Merge pull request 'feat: add the branch_from_points node' (#91) from feat/branch-from-points-node into main
+- [131e6ff](https://git.max-richter.dev/max/nodarium/commit/131e6ffd5ee49932acd7c8d3eec5b68648713d86) feat: add the instance_from_points node
+- [7c4e11c](https://git.max-richter.dev/max/nodarium/commit/7c4e11c14da4e14818d37223ff011655dcb22a6c) feat: add the branch_from_points node
+- [a3e137f](https://git.max-richter.dev/max/nodarium/commit/a3e137f593bc873565dbaf1b3bf83625ad8d2263) Merge pull request 'feat: add the random_break node' (#90) from feat/random-break-node into main
+- [08f4598](https://git.max-richter.dev/max/nodarium/commit/08f4598ebef3dfaa422842aa80774bf28bd03b46) Merge remote-tracking branch 'origin/main' into feat/random-break-node
+- [64c08f1](https://git.max-richter.dev/max/nodarium/commit/64c08f100917b4d926cf8bdbd9f64596b962eea4) Merge pull request 'feat: add the points_on_path node' (#89) from feat/points-on-path-node into main
+- [3f6fbf5](https://git.max-richter.dev/max/nodarium/commit/3f6fbf59cef1951a93f8d637f064152bde0e9bf0) Merge pull request 'feat: roadmap tab in the changelog panel' (#88) from feat/roadmap-tab into main
+- [46982e2](https://git.max-richter.dev/max/nodarium/commit/46982e29d6bec7ff33b57db58768397985f4614f) feat(ui): Tabs component, used by the changelog panel
+- [c8e7039](https://git.max-richter.dev/max/nodarium/commit/c8e7039e508e30718d5797262828859c56ce3c6c) feat: add the random_break node
+- [91fee27](https://git.max-richter.dev/max/nodarium/commit/91fee27afb67b183f895268e0ebcac81acb94799) feat: add the points_on_path node
+- [38aa659](https://git.max-richter.dev/max/nodarium/commit/38aa659fb9d2b5fbac241ff899012eb3a28188de) feat: roadmap tab in the changelog panel
+- [9cb339a](https://git.max-richter.dev/max/nodarium/commit/9cb339aa4045d9a75f15133fd68be9f366eaa577) Merge pull request 'chore: name all node inputs in snake_case' (#87) from chore/snake-case-inputs into main
+- [b80daa0](https://git.max-richter.dev/max/nodarium/commit/b80daa047fe571ff50a5a6f682b93bf371544f99) fix: keep the plant shape when resolution.curve changes
+- [2b85247](https://git.max-richter.dev/max/nodarium/commit/2b852470128092c7739a0736c2e40aa795117cea) chore: name all node inputs in snake_case
+- [5ad72b7](https://git.max-richter.dev/max/nodarium/commit/5ad72b7dbeb33a49d4fc8e48a434dd2b4ea389d9) Merge pull request 'feat: graph versioning and migrations' (#86) from feat/graph-versioning into main
+- [76e8e9b](https://git.max-richter.dev/max/nodarium/commit/76e8e9b8ee540925216527a5d262e4b62e57fd7e) Merge branch 'main' into feat/graph-versioning
+- [dcb2a68](https://git.max-richter.dev/max/nodarium/commit/dcb2a68d94d777f74ccdd339da0611cfc3634ded) feat: version graphs and migrate old ones when they load
+- [f21a93d](https://git.max-richter.dev/max/nodarium/commit/f21a93db7a61a656cdd14d675623cef576f7c1e1) Merge pull request 'feat: trunk kink node' (#85) from feat/trunk-kink-node into main
+- [b0ad88d](https://git.max-richter.dev/max/nodarium/commit/b0ad88d41229cce0456112e742c062280a509439) feat: show points in the debug node
+- [5921023](https://git.max-richter.dev/max/nodarium/commit/5921023c2519d3e90bfa2aab6c9b78b9504a7711) feat: add the trunk_kink node
+- [4aaa74c](https://git.max-richter.dev/max/nodarium/commit/4aaa74ccdf06046a75192ec1170ce3143831d3e6) feat: add a points data type
+- [d44fc9a](https://git.max-richter.dev/max/nodarium/commit/d44fc9a3f863d79b8f7e831394926f7bcc622b87) ci: keep builds and deploys in order across two runners
+- [9a02f48](https://git.max-richter.dev/max/nodarium/commit/9a02f48872fa274ef58a2484ea982d5fadb90893) ci: run the benchmark on l.asturias only
+- [6ac76bc](https://git.max-richter.dev/max/nodarium/commit/6ac76bc4bfa4b51ce490f9d81cb793ae49f7eaa6) ci: comment the branch preview link on pull requests
+- [a4b8c1a](https://git.max-richter.dev/max/nodarium/commit/a4b8c1a4d61b3e7f3efd5c912e37250cab10255b) Merge pull request 'feat: let nodes have multiple outputs' (#77) from feat/multiple-node-outputs into main
+- [49a3cda](https://git.max-richter.dev/max/nodarium/commit/49a3cdab5524d32f432f845ce6d4a9537deccf60) test: cover stepping the debug node through the outputs of a node
+- [a38ae4e](https://git.max-richter.dev/max/nodarium/commit/a38ae4e602bc873c1ee19d78c77a53e027d3185a) ci: run checks, tests and deploy in a single job
+- [dd2c54f](https://git.max-richter.dev/max/nodarium/commit/dd2c54f1cf128d2b48a8f9b17adbd2cc43e9ad66) Merge branch 'main' into feat/multiple-node-outputs
+- [535c676](https://git.max-richter.dev/max/nodarium/commit/535c676af54ccee2c0ab058b96474dafceafe9ea) test: update e2e test selectors
+- [57fd676](https://git.max-richter.dev/max/nodarium/commit/57fd676685746badcb267227e22f3ce65b39aea8) feat: let nodes have multiple outputs
+- [98a8cba](https://git.max-richter.dev/max/nodarium/commit/98a8cba1a689edb10dd1ef482c6e088fd47a2494) feat: read typed units like 10cm or 5mm in length inputs
+- [9e0162c](https://git.max-richter.dev/max/nodarium/commit/9e0162c6ce15512a255f99735d01780f0146a690) feat: retune the willow and maidenhair templates, rebuild daisy, drop banana
+- [5e002fc](https://git.max-richter.dev/max/nodarium/commit/5e002fcbf0fa0ec02babfeacdda03363a3af52fc) fix: update imports for the restructured result-viewer folders
+- [c14ed91](https://git.max-richter.dev/max/nodarium/commit/c14ed914b87474980f5e804504ae0a5d027a217d) perf: skip far apart segments in the avoid node
+- [f698f3d](https://git.max-richter.dev/max/nodarium/commit/f698f3daf491685f932230e45133fee7cfb1dcde) perf: key pooled meshes by path, cache bounds, faster geometry hash
+- [3bd5056](https://git.max-richter.dev/max/nodarium/commit/3bd50561134c7a86718dbea33786b23be1d3cb63) feat: fit 3d camera to viewport, store it per project, stop animation on input
+- [2a4641c](https://git.max-richter.dev/max/nodarium/commit/2a4641c857551fb1feeeb23d41dcd75f4fde3732) feat: store node-graph camera position per project
+- [78bb0ab](https://git.max-richter.dev/max/nodarium/commit/78bb0abd6934fb8bea4af2780dbfc6a2d0f9a8af) feat: add dev-only panel to push the graph into a template
+- [272bb8a](https://git.max-richter.dev/max/nodarium/commit/272bb8a687186c777ed899f229fd0d38190ed785) feat: add human and arrow helpers
+- [507df11](https://git.max-richter.dev/max/nodarium/commit/507df11ad62566a03312a9b03d2622126ddc52a0) Merge pull request 'Feat/path creator ids' (#68) from feat/path-creator-ids into main
+- [be90673](https://git.max-richter.dev/max/nodarium/commit/be90673b26406b0c37ecd8cbc592d6ba10c9299a) fix: use a coarser near plane in camera framing
+- [5c7fa17](https://git.max-richter.dev/max/nodarium/commit/5c7fa173de9554e5ef7d11c364afe4012fe54b3d) chore: implement pr feedback
+- [43cfd88](https://git.max-richter.dev/max/nodarium/commit/43cfd88e687716e479a3326a10cfec729f6713b3) feat: encode creator and stable hashed ids in paths
+- [fc3a2aa](https://git.max-richter.dev/max/nodarium/commit/fc3a2aaa1158138abab29d27d9efb55e97704583) Merge pull request 'feat: unit measurement sizes' (#66) from feat/unit-measurements into main
+- [a4588d4](https://git.max-richter.dev/max/nodarium/commit/a4588d4f19cffeb5f2a2d4ad581fe3b2090829c9) chore: pnpm dprint fmt
+- [a58bc64](https://git.max-richter.dev/max/nodarium/commit/a58bc6467c0cfd81cd18f0b0bb54d60c91b0bac3) feat: scale plant templates to their real size
+- [1bd352c](https://git.max-richter.dev/max/nodarium/commit/1bd352c70d97abf2f61a904a672ce941407869f0) feat: unit measurement sizes
+- [d47062d](https://git.max-richter.dev/max/nodarium/commit/d47062def8ab7863268397e138cf9ade4cf9aebf) chore: dprint fmt
+- [b5118c9](https://git.max-richter.dev/max/nodarium/commit/b5118c9fa2fd33d8b9defe958905069ea3736275) fix: correctly scan tailwind tokens
+- [d509c35](https://git.max-richter.dev/max/nodarium/commit/d509c3527d842db916499d62649bfa66dc7eda12) feat: keep template in url for reloads
+- [779fee8](https://git.max-richter.dev/max/nodarium/commit/779fee80a8aa19093e7c584004361b35fe62d504) fix: record perf run on template page and move stats to bottom right
+- [9412bfa](https://git.max-richter.dev/max/nodarium/commit/9412bfa8c612b17e29e38b30489a5014bc6f30ad) feat: show vertex and face counts on template page
+- [a65e121](https://git.max-richter.dev/max/nodarium/commit/a65e1217a012342d933d93206e1c63ed57b1cffd) fix: obj and glb exporter
+- [d513e9d](https://git.max-richter.dev/max/nodarium/commit/d513e9da2df4fa264968b0669068da4c81f83826) feat: update gizmo to match app style
+- [3bda667](https://git.max-richter.dev/max/nodarium/commit/3bda667260d1b436d5d1ed5ccbdc32f246405249) feat: add possibility to show gizmos in 3d view
+- [5f8bee4](https://git.max-richter.dev/max/nodarium/commit/5f8bee4e667a96d74b10ff4dc5be7d7ecb3a7fd3) feat: add apply_force node
+- [8ed9a6b](https://git.max-richter.dev/max/nodarium/commit/8ed9a6b3ceebf02d0ffb6d24f1f67034cadf107b) feat: encode path id and path parent in path
+- [a51a1e5](https://git.max-richter.dev/max/nodarium/commit/a51a1e5b7012e842f167a8aa1ead0e11b087f78a) chore: pnpm format
+- [f36ab0e](https://git.max-richter.dev/max/nodarium/commit/f36ab0e12463cb8d394a975f855dd9f088c45643) chore: upgrade rust deps
+- [78d158d](https://git.max-richter.dev/max/nodarium/commit/78d158de04a227ccf6f9a388652906bb52893098) chore: remove old templates
+- [c2716b0](https://git.max-richter.dev/max/nodarium/commit/c2716b04ac6300f166ab9870a8669ecae4021f97) chore: allow unused label
+- [8a7758b](https://git.max-richter.dev/max/nodarium/commit/8a7758bad8897a8c0e89984cf77b89dcf4e57caf) chore: update cargo toml to allow wasm imports
+- [ed31592](https://git.max-richter.dev/max/nodarium/commit/ed31592ad54db166d4d3bf6a45f6c695191d034d) feat: close ends of extruded paths
+- [f9acf6b](https://git.max-richter.dev/max/nodarium/commit/f9acf6bf48ca528b4b696142a327cd3ccd803296) chore: update pinned gitea action tag
+- [b78f61d](https://git.max-richter.dev/max/nodarium/commit/b78f61d330632f7cb2f4f883f9970e35061410f4) chore: rename all input.json to definition.json
+- [434a2d1](https://git.max-richter.dev/max/nodarium/commit/434a2d18c4033aee44ba597af363f04196c8ca97) feat: add snap node
+- [2268944](https://git.max-richter.dev/max/nodarium/commit/2268944193acb2bb5fcbf57444d41d617509410f) chore: update maidenhair template
+- [cf2537f](https://git.max-richter.dev/max/nodarium/commit/cf2537fe5dffd87700fb8da7bab9f95dac1d449d) feat: avoid node
+- [f27da43](https://git.max-richter.dev/max/nodarium/commit/f27da437c363050ebe7a6f7ff103f14f96e8c965) feat: mute node
+- [59a2d9a](https://git.max-richter.dev/max/nodarium/commit/59a2d9a5d02608c2b72f384dc33e556a5d2c3174) chore: update some templates
+- [dd9771d](https://git.max-richter.dev/max/nodarium/commit/dd9771ddf1a076672b03fb9cf3eaf26c55720a2a) feat: add path join node
+- [1f353fd](https://git.max-richter.dev/max/nodarium/commit/1f353fd6da6c79de24f8a456f7333475cac1e1ea) chore: update ci image deps
+- [7ec7b5d](https://git.max-richter.dev/max/nodarium/commit/7ec7b5d7a0d2f67372090c60f83feab8fc5d740a) feat: /template route to inspect templates
+- [787df40](https://git.max-richter.dev/max/nodarium/commit/787df403623e962850294cbbc9bc59cd0438e197) feat: add thickness input to leaves
+- [40de98a](https://git.max-richter.dev/max/nodarium/commit/40de98a72c6c7671665f01f3a5d6f189a6c5193e) chore: allow to build ci manually
+- [bedcd94](https://git.max-richter.dev/max/nodarium/commit/bedcd94af27cd49bb217ce4c230c849e2d7e63cf) feat: better generate resolution
+- [6f21ec9](https://git.max-richter.dev/max/nodarium/commit/6f21ec9ef552945d61f10e5b7965f569660d38c4) feat: better display instances in debug view
+- [4b90e3e](https://git.max-richter.dev/max/nodarium/commit/4b90e3e052e36d74c0910cefa1a38deb234b117e) fix: make header only nodes look better
+- [6edeceb](https://git.max-richter.dev/max/nodarium/commit/6edeceb0ae7b8fd59cce602a113d74dd9c7ab8f9) feat: use alpha as default for curve note
+- [fd5de83](https://git.max-richter.dev/max/nodarium/commit/fd5de8377e654f58354260141b95aa7bf2c218fd) fix: make more parameters work with alpha
+- [48e97b7](https://git.max-richter.dev/max/nodarium/commit/48e97b78f4edb32169b97ae438ffd5da9871534a) chore: refactor a few things to modern svelte
+- [7d9bec0](https://git.max-richter.dev/max/nodarium/commit/7d9bec0af7aee8fcc295ae00cb3f605f6d842cc4) chore: remove dev error icon warning
+- [ccd1ec3](https://git.max-richter.dev/max/nodarium/commit/ccd1ec3d62e21235ae0b3780663a714ac9f047af) fix: correctly animate center node
+- [54f5874](https://git.max-richter.dev/max/nodarium/commit/54f5874ae44a0cbcfc409e1efc20fdf733b727ca) chore: upgrade dependencies and migrate to svelte v3
+- [8ca5742](https://git.max-richter.dev/max/nodarium/commit/8ca57422672c0c041ef223d32103ed6f6e231541) chore: add umami script
+
 # v0.0.8 (2026-10-20)
 
 ## Features
