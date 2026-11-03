@@ -27,16 +27,16 @@ test('test', async ({ page }) => {
       type: 'max/plantarium/stem',
       props: {
         amount: 6,
-        length: 11,
-        thickness: 0.1
+        length: 0.55,
+        thickness: 0.005
       }
     },
     {
       id: '15',
       type: 'max/plantarium/noise',
       props: {
-        scale: 2.2,
-        strength: 4.9
+        scale: 44,
+        strength: 0.245
       }
     },
     {
