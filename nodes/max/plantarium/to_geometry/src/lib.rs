@@ -1,10 +1,10 @@
-use glam::{Mat3, Mat4, Vec3};
+use glam::{Mat3, Mat4, Vec3, Vec4, Vec4Swizzles};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     encode_float,
     geometry::{
-        extrude_path, geometry_path_id, split_items, wrap_geometry_data, wrap_instance_data,
-        wrap_path, NO_PATH,
+        extrude_path, geometry_path_id, is_collapsed, split_items, wrap_geometry_data,
+        wrap_instance_data, wrap_path, PathData, NO_PATH,
     },
     int, wrap_arg,
 };
@@ -53,8 +53,7 @@ impl Mesh {
             .zip(instances.path_ids.iter())
         {
             let transform = Mat4::from_cols_slice(matrix);
-            // a copy scaled to nothing has no area and no normals
-            if transform.determinant().abs() < 1e-12 {
+            if is_collapsed(&transform) {
                 continue;
             }
             self.add(
@@ -87,15 +86,63 @@ impl Mesh {
     }
 }
 
+/// The points of a path spread evenly along its length, `count` of them.
+fn resample(points: &[f32], count: usize) -> Vec<f32> {
+    let points: Vec<Vec4> = points.chunks_exact(4).map(Vec4::from_slice).collect();
+    let mut distances = vec![0.0];
+    for pair in points.windows(2) {
+        distances.push(distances[distances.len() - 1] + pair[0].xyz().distance(pair[1].xyz()));
+    }
+    let total = distances[distances.len() - 1];
+
+    let mut resampled = Vec::with_capacity(count * 4);
+    let mut segment = 0;
+    for i in 0..count {
+        let target = total * i as f32 / (count - 1) as f32;
+        while segment + 2 < points.len() && distances[segment + 1] < target {
+            segment += 1;
+        }
+        let length = distances[segment + 1] - distances[segment];
+        let t = if length > 0.0 {
+            ((target - distances[segment]) / length).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        resampled.extend(points[segment].lerp(points[segment + 1], t).to_array());
+    }
+    resampled
+}
+
+fn extrude(item: &[i32], circle_segments: usize, max_points: usize) -> Vec<i32> {
+    let path = wrap_path(item);
+    if max_points < 2 || path.length <= max_points {
+        return extrude_path(path, circle_segments);
+    }
+    let points = resample(path.points, max_points);
+    extrude_path(
+        PathData {
+            length: max_points,
+            points: &points,
+            ..path
+        },
+        circle_segments,
+    )
+}
+
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let input = args[0];
-    let resolution = int(args[1]) as usize;
+    let mut circle_segments = int(args[1]) as usize;
+    let max_circle_segments = int(args[2]) as usize;
+    if max_circle_segments > 0 {
+        circle_segments = circle_segments.min(max_circle_segments);
+    }
+    let max_points = int(args[3]) as usize;
     let mut mesh = Mesh::default();
 
     for item in split_items(input) {
         match item.get(2) {
-            Some(0) => mesh.add_geometry(&extrude_path(wrap_path(item), resolution)),
+            Some(0) => mesh.add_geometry(&extrude(item, circle_segments, max_points)),
             Some(1) => mesh.add_geometry(item),
             Some(2) => mesh.add_instances(item),
             _ => {}
@@ -112,8 +159,9 @@ mod tests {
     use nodarium_utils::{
         concat_args,
         geometry::{
-            create_instance_data, create_multiple_paths, geometry_path_id, path_link,
-            wrap_geometry_data, wrap_instance_data, wrap_multiple_paths, NO_PATH,
+            create_instance_data, create_multiple_paths, extrude_path, geometry_path_id,
+            path_link, wrap_geometry_data, wrap_instance_data, wrap_multiple_paths, wrap_path,
+            NO_PATH,
         },
         split_args, wrap_arg,
     };
@@ -155,7 +203,7 @@ mod tests {
         let instances = instances_of(&triangle(NO_PATH), &[(moved, 7), (turned, 8)]);
         let input = concat_args(vec![&triangle(NO_PATH), &instances]);
 
-        let mut result = __nodarium_execute_inner(&[&input, &[8]]);
+        let mut result = __nodarium_execute_inner(&[&input, &[8], &[0], &[0]]);
         assert_eq!(geometry_path_id(&result), NO_PATH);
         let geometry = wrap_geometry_data(&mut result);
 
@@ -179,7 +227,7 @@ mod tests {
         }
         let stem_id = path_link(split_args(&stems)[0]).id;
 
-        let mut result = __nodarium_execute_inner(&[&stems, &[8]]);
+        let mut result = __nodarium_execute_inner(&[&stems, &[8], &[0], &[0]]);
         assert_eq!(geometry_path_id(&result), stem_id);
         let geometry = wrap_geometry_data(&mut result);
         assert!(geometry.faces.len() > 0);
@@ -190,16 +238,71 @@ mod tests {
         assert!((highest - 2.0).abs() < 1e-5);
     }
 
+    /// A stem along +y with a point every meter.
+    fn straight_stem(points: usize) -> Vec<i32> {
+        let mut stems = create_multiple_paths(1, points, 1, 6);
+        for stem in wrap_multiple_paths(&mut stems).iter_mut() {
+            for i in 0..points {
+                stem.points[i * 4..i * 4 + 4].copy_from_slice(&[0.0, i as f32, 0.0, 0.1]);
+            }
+        }
+        stems
+    }
+
+    fn vertex_and_face_amount(geometry: &[i32]) -> (i32, i32) {
+        (geometry[3], geometry[4])
+    }
+
+    #[test]
+    fn without_limits_paths_get_the_full_resolution() {
+        let stems = straight_stem(10);
+        let expected = extrude_path(wrap_path(split_args(&stems)[0]), 8);
+
+        let result = __nodarium_execute_inner(&[&stems, &[8], &[0], &[0]]);
+
+        assert_eq!(
+            vertex_and_face_amount(&result),
+            vertex_and_face_amount(&expected)
+        );
+    }
+
+    #[test]
+    fn the_limits_lower_the_resolution_of_paths() {
+        let stems = straight_stem(10);
+
+        let mut result = __nodarium_execute_inner(&[&stems, &[8], &[4], &[3]]);
+
+        // 3 rings of 4, a cap ring and its center
+        assert_eq!(vertex_and_face_amount(&result), (3 * 4 + 4 + 1, 2 * 4 * 2 + 4));
+        let geometry = wrap_geometry_data(&mut result);
+        let heights: Vec<f32> = vec3s(geometry.positions).iter().map(|p| p.y).collect();
+        assert!(heights.iter().any(|y| (y - 4.5).abs() < 1e-5));
+        assert!(heights.iter().any(|y| (y - 9.0).abs() < 1e-5));
+    }
+
+    #[test]
+    fn a_lower_resolution_setting_wins_over_the_limit() {
+        let stems = straight_stem(10);
+        let expected = extrude_path(wrap_path(split_args(&stems)[0]), 4);
+
+        let result = __nodarium_execute_inner(&[&stems, &[4], &[16], &[0]]);
+
+        assert_eq!(
+            vertex_and_face_amount(&result),
+            vertex_and_face_amount(&expected)
+        );
+    }
+
     #[test]
     fn a_single_geometry_passes_through() {
         let input = triangle(3);
-        let result = __nodarium_execute_inner(&[&input, &[8]]);
+        let result = __nodarium_execute_inner(&[&input, &[8], &[0], &[0]]);
         assert_eq!(result, input);
     }
 
     #[test]
     fn the_result_can_be_split_from_a_list_like_any_geometry() {
-        let result = __nodarium_execute_inner(&[&triangle(NO_PATH), &[8]]);
+        let result = __nodarium_execute_inner(&[&triangle(NO_PATH), &[8], &[0], &[0]]);
         let list = concat_args(vec![&result, &result]);
         let items = split_args(&list);
         assert_eq!(items.len(), 2);
@@ -208,7 +311,7 @@ mod tests {
 
     #[test]
     fn an_unconnected_input_gives_an_empty_geometry() {
-        let mut result = __nodarium_execute_inner(&[&[0, 1, 1, 1], &[8]]);
+        let mut result = __nodarium_execute_inner(&[&[0, 1, 1, 1], &[8], &[0], &[0]]);
         let geometry = wrap_geometry_data(&mut result);
         assert!(geometry.positions.is_empty());
         assert!(geometry.faces.is_empty());

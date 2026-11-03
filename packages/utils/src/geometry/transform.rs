@@ -1,5 +1,11 @@
 use glam::{Mat4, Vec3};
 
+/// Whether a transform scales everything to nothing, like an instance of size 0. What it
+/// places has no area and no normals.
+pub fn is_collapsed(transform: &Mat4) -> bool {
+    transform.determinant().abs() < 1e-12
+}
+
 pub fn transform_geometry(mut geometry: Vec<i32>, matrix: Mat4) -> Vec<i32> {
     let (_header, rest) = geometry.split_at_mut(5);
 

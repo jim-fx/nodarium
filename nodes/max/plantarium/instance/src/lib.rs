@@ -3,8 +3,8 @@ use nodarium_macros::{nodarium_execute, nodarium_definition_file};
 use nodarium_utils::{
     concat_args,
     geometry::{
-        create_instance_data, is_geometry, path_id, split_items, wrap_geometry_data,
-        wrap_instance_data, wrap_path,
+        create_instance_data, is_collapsed, is_geometry, path_id, split_items,
+        wrap_geometry_data, wrap_instance_data, wrap_path,
     },
     split_args, Ctx,
 };
@@ -101,6 +101,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 (back * size).extend(0.0),
                 Vec3::from_slice(&point).extend(1.0),
             );
+            if is_collapsed(&transform) {
+                continue;
+            }
 
             let choice = path_id(seed, path.link.id, i) as usize % geometries.len();
             groups[choice].0.push(transform);
@@ -165,6 +168,10 @@ mod tests {
     }
 
     fn run(stems: &[i32], geometry: &[i32], amount: i32, seed: i32) -> Vec<i32> {
+        run_sized(stems, geometry, amount, seed, 1.0)
+    }
+
+    fn run_sized(stems: &[i32], geometry: &[i32], amount: i32, seed: i32, size: f32) -> Vec<i32> {
         __nodarium_execute_inner(&[
             stems,
             geometry,
@@ -173,7 +180,7 @@ mod tests {
             &[encode_float(1.0)],
             &[encode_float(0.0)],
             &[1],
-            &[encode_float(1.0)],
+            &[encode_float(size)],
             &[encode_float(0.0)],
             &[seed],
         ])
@@ -245,6 +252,17 @@ mod tests {
         let result = run(&stems, &list, 5, 0);
 
         assert_eq!(&split_args(&result)[..2], &split_args(&stems)[..]);
+    }
+
+    #[test]
+    fn instances_scaled_to_nothing_are_dropped() {
+        let stems = stems();
+        let list = concat_args(vec![&geometry(3), &geometry(4)]);
+
+        let result = run_sized(&stems, &list, 5, 0, 0.0);
+
+        assert!(groups(&result).is_empty());
+        assert_eq!(split_args(&result), split_args(&stems));
     }
 
     #[test]

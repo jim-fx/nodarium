@@ -21,6 +21,20 @@
       "min": 3,
       "max": 64,
       "setting": "resolution.circle"
+    },
+    "max_circle_segments": {
+      "type": "integer",
+      "description": "The most segments around a baked path, lower it for small parts. 0 uses the circle resolution setting.",
+      "value": 0,
+      "min": 0,
+      "max": 64
+    },
+    "max_points": {
+      "type": "integer",
+      "description": "The most points along a baked path, longer paths are resampled to this many. 0 keeps all points.",
+      "value": 0,
+      "min": 0,
+      "max": 64
     }
   }
 }
