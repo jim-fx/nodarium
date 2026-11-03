@@ -1,7 +1,7 @@
 {
   "id": "max/plantarium/to_geometry",
   "meta": {
-    "description": "Turns paths, geometry and instances into one geometry, for example to place a whole umbel with its flowers with an instance node."
+    "description": "Turns paths, geometry and instances into one geometry, for example to place a whole umbel with its flowers with an instance node. With variants on, every stem becomes its own geometry."
   },
   "outputs": [
     "geometry"
@@ -35,6 +35,13 @@
       "value": 0,
       "min": 0,
       "max": 64
+    },
+    "variants": {
+      "type": "boolean",
+      "internal": true,
+      "hidden": true,
+      "value": false,
+      "description": "Bake every stem of the input into its own geometry, with the paths and instances that grow on it, and give them as a list. Every stem draws its own random values, so an instance node can pick a different variant for every instance."
     }
   }
 }
