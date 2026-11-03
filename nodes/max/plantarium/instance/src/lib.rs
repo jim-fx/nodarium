@@ -6,7 +6,7 @@ use nodarium_utils::{
         create_instance_data, is_collapsed, is_geometry, path_id, split_items,
         wrap_geometry_data, wrap_instance_data, wrap_path,
     },
-    split_args, Ctx,
+    int, split_args, Ctx,
 };
 
 nodarium_definition_file!("src/definition.json");
@@ -24,6 +24,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         return concat_args(inputs);
     }
     let seed = args[9][0];
+    let by_index = int(args[10]) == 1;
 
     // the transforms of the instances of each geometry and the paths they sit on
     let mut groups: Vec<(Vec<Mat4>, Vec<i32>)> = vec![Default::default(); geometries.len()];
@@ -85,6 +86,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             turn += ctx.float(args[5]);
             // the angle tilts it along the path, positive toward the tip
             let angle = ctx.float(args[8]).to_radians();
+            let pick = if by_index {
+                ctx.float(args[11])
+            } else {
+                ctx.float(args[12])
+            };
             let out = around * angle.cos() + tangent * angle.sin();
             let up = Vec3::Y - out * Vec3::Y.dot(out);
             let face = if up.length_squared() > 1e-6 {
@@ -105,7 +111,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 continue;
             }
 
-            let choice = path_id(seed, path.link.id, i) as usize % geometries.len();
+            let hash = path_id(seed, path.link.id, i);
+            let choice = if by_index {
+                pick_index(pick, geometries.len())
+            } else {
+                pick_random(hash, pick, geometries.len())
+            };
             groups[choice].0.push(transform);
             groups[choice].1.push(path.link.id);
         }
@@ -138,13 +149,29 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     concat_args(inputs)
 }
 
+/// `index` 0 is the first geometry and 1 the last, they share the range evenly.
+fn pick_index(index: f32, count: usize) -> usize {
+    ((index.clamp(0.0, 1.0) * count as f32) as usize).min(count - 1)
+}
+
+/// A positive bias picks the later geometries more often, a negative one the earlier ones.
+fn pick_random(hash: i32, bias: f32, count: usize) -> usize {
+    if bias == 0.0 {
+        return hash as usize % count;
+    }
+    let x = hash as f32 / 2_147_483_648.0;
+    let skewed = x.powf(4.0_f32.powf(-bias.clamp(-1.0, 1.0)));
+    pick_index(skewed, count)
+}
+
 #[cfg(test)]
 mod tests {
     use super::__nodarium_execute_inner;
     use nodarium_utils::{
         concat_args, encode_float,
         geometry::{
-            create_multiple_paths, path_link, wrap_instance_data, wrap_multiple_paths, NO_PATH,
+            create_multiple_paths, path_id, path_link, wrap_instance_data, wrap_multiple_paths,
+            NO_PATH,
         },
         split_args, wrap_arg,
     };
@@ -172,18 +199,39 @@ mod tests {
     }
 
     fn run_sized(stems: &[i32], geometry: &[i32], amount: i32, seed: i32, size: f32) -> Vec<i32> {
-        __nodarium_execute_inner(&[
-            stems,
-            geometry,
-            &[amount],
-            &[encode_float(0.0)],
-            &[encode_float(1.0)],
-            &[encode_float(0.0)],
-            &[1],
-            &[encode_float(size)],
-            &[encode_float(0.0)],
-            &[seed],
-        ])
+        run_with(stems, geometry, amount, seed, size, &[])
+    }
+
+    /// Runs with the picking inputs appended, so `&[]` is a graph saved before they existed.
+    fn run_with(
+        stems: &[i32],
+        geometry: &[i32],
+        amount: i32,
+        seed: i32,
+        size: f32,
+        pick: &[&[i32]],
+    ) -> Vec<i32> {
+        let (amount, size, seed) = ([amount], [encode_float(size)], [seed]);
+        let (zero, one) = ([encode_float(0.0)], [encode_float(1.0)]);
+        let mut args: Vec<&[i32]> = vec![
+            stems, geometry, &amount, &zero, &one, &zero, &[1], &size, &zero, &seed,
+        ];
+        let defaults: [&[i32]; 3] = [&[0], &[0], &[0]];
+        args.extend((0..3).map(|i| pick.get(i).copied().unwrap_or(defaults[i])));
+        __nodarium_execute_inner(&args)
+    }
+
+    fn three() -> Vec<i32> {
+        concat_args(vec![&geometry(3), &geometry(4), &geometry(5)])
+    }
+
+    /// How many instances got the geometry with 3, 4 and 5 vertices.
+    fn counts(result: &[i32]) -> [usize; 3] {
+        let mut counts = [0; 3];
+        for (vertices, ids) in groups(result) {
+            counts[vertices - 3] = ids.len();
+        }
+        counts
     }
 
     /// The vertex amount and path ids of every instance group in the result.
@@ -275,5 +323,91 @@ mod tests {
             assert_eq!(split_args(&result).len(), 2);
         }
     }
-}
 
+    #[test]
+    fn the_default_picks_like_before() {
+        let stems = stems();
+        let mut expected = vec![(3, vec![]), (4, vec![]), (5, vec![])];
+        for stem in split_args(&stems) {
+            let id = path_link(stem).id;
+            for i in 0..50 {
+                expected[path_id(7, id, i) as usize % 3].1.push(id);
+            }
+        }
+
+        let result = run_with(&stems, &three(), 50, 7, 1.0, &[&[0], &[0], &[0]]);
+
+        assert_eq!(groups(&result), expected);
+    }
+
+    #[test]
+    fn unconnected_picking_inputs_pick_like_before() {
+        let stems = stems();
+        let list = three();
+        let empty: &[i32] = &[0, 1, 1, 1];
+        assert_eq!(
+            run_with(&stems, &list, 20, 3, 1.0, &[empty, empty, empty]),
+            run(&stems, &list, 20, 3)
+        );
+    }
+
+    #[test]
+    fn the_bias_skews_the_random_pick() {
+        let stems = stems();
+        let list = three();
+        let pick = |bias: f32| {
+            let bias = [encode_float(bias)];
+            counts(&run_with(&stems, &list, 1000, 0, 1.0, &[&[0], &[0], &bias]))
+        };
+
+        let even = pick(0.0);
+        assert!(even.iter().all(|&c| (550..=780).contains(&c)), "{even:?}");
+
+        let late = pick(1.0);
+        assert!(late[0] < late[1] && late[1] < late[2], "{late:?}");
+        assert!(late[2] > 1400, "{late:?}");
+
+        let early = pick(-1.0);
+        assert!(early[0] > early[1] && early[1] > early[2], "{early:?}");
+        assert!(early[0] > 1400, "{early:?}");
+
+        let slight = pick(0.3);
+        assert!(slight[2] > even[2] && slight[2] < late[2], "{slight:?}");
+        assert_eq!(pick(5.0), late);
+    }
+
+    #[test]
+    fn the_index_picks_the_geometry() {
+        let stems = stems();
+        let list = three();
+        let pick = |index: f32| {
+            let index = [encode_float(index)];
+            counts(&run_with(&stems, &list, 10, 0, 1.0, &[&[1], &index]))
+        };
+
+        assert_eq!(pick(0.0), [20, 0, 0]);
+        assert_eq!(pick(0.3), [20, 0, 0]);
+        assert_eq!(pick(0.34), [0, 20, 0]);
+        assert_eq!(pick(0.7), [0, 0, 20]);
+        assert_eq!(pick(1.0), [0, 0, 20]);
+        assert_eq!(pick(-2.0), [20, 0, 0]);
+        assert_eq!(pick(7.0), [0, 0, 20]);
+        assert_eq!(pick(f32::NAN), [20, 0, 0]);
+    }
+
+    #[test]
+    fn an_alpha_index_goes_through_the_list_along_the_path() {
+        let stems = stems();
+        let list = three();
+        let alpha = concat_args(vec![&[2], &[0]]);
+
+        let result = run_with(&stems, &list, 9, 0, 1.0, &[&[1], &alpha]);
+
+        assert_eq!(counts(&result), [6, 6, 6]);
+        let unconnected: &[i32] = &[0, 1, 1, 1];
+        assert_eq!(
+            counts(&run_with(&stems, &list, 9, 0, 1.0, &[&[1], unconnected])),
+            [18, 0, 0]
+        );
+    }
+}
