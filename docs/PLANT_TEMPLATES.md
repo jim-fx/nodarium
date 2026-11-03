@@ -232,6 +232,52 @@ Family Salicaceae.
 
 **Template:** a short trunk (5.4) with a flared base that keeps its thickness up to the limbs (`taper 0` and an `alpha -> curve`), so the 7 limbs in its upper half are stout. They rise 45–70° and are arched over by gravity (strength 0.8, elasticity 0.65). Each limb carries 40 whips. An `alpha -> curve` makes them longer toward the outer end of the limb, so the curtain hangs lowest around the edge of the crown. A closed-form gravity node (`mode: 0`) turns the whips straight down, whichever way they started. Each whip has 36 narrow lanceolate leaves that point down along it (`angle 55`, `y_curve 0.4`) and get smaller toward its tip. The curtain stops above the ground.
 
+## Wild Carrot: _Daucus carota_ (Queen Anne's lace)
+
+Family Apiaceae.
+
+**Parts:** taproot, a basal rosette, a branched, finely hairy flowering stem with alternate stem leaves, and compound umbels: rays that carry umbellets, whose pedicels carry the small white florets. Bracts sit under the umbel.
+
+**Structure:** A biennial. In the first year it forms a rosette, in the second it grows a flowering stem 0.6–1.2 m tall that branches in its upper part. The leaves are 2–3-pinnate and feathery, with narrow, pointed last segments. The basal leaves are the largest, and the stem leaves get smaller toward the top. The main stem ends in the largest umbel, and every side branch ends in a smaller one. An umbel is 6–15 cm across with 20–50 rays. The outer rays are the longest and curve upward, so the top is flat to slightly domed. Each umbellet has 15–60 florets. Often a single dark purple floret sits in the centre. After flowering, the umbel curls inward into a "bird's nest".
+
+**Template:** a main `stem` 0.8–1 m long with a little `noise`. 3 side branches grow from its upper half (`rotation 137.5`). An `alpha -> curve` makes the lower ones longer, and a negative `gravity` bends them up. A second `stem` node grows 3 slender stalks, 45–75 cm, from the base:
+
+- A `rotate x` leans them 17–34° at random, and a `rotate y` with `spread` fans them around the plant.
+- A negative `gravity` curves them back up, so they stand like a vase.
+
+A `join` combines the main stem and the stalks.
+
+Every tip of the stem, the side branches and the stalks gets an umbel from an `instance` (`angle 90`, `depth 2`). Its `geometry` is a `join` of two baked umbels, an open one and a closed bud, and it uses `pick` index:
+
+- The `index` is `path_info` length through a step curve, times a `random`.
+- The main stem is the longest stalk, so its terminal umbel is always open. The shorter stalks get an open umbel or a bud at random.
+- The `size` comes from `path_info` depth, so umbels on the main stem and the basal stalks are larger than on the side branches.
+
+The open umbel is built at the origin along -z and baked:
+
+- An `umbel` node (24 rays, `depth 2`, `opening 85`, `umbellet_scale 0.17`) sits on a 2 cm stub.
+- A point `force` 10 cm out on the axis, used by `apply_force` with `depth 2`, pulls the outer rays up into an arc while the inner ones barely change. The top stays flat.
+- An `instance` puts a ring of five petals at the end of every bent pedicel. The umbel's `points` output is computed before the bend, so it isn't used here.
+- The involucre is a `branch` of 10 bracts, 4.5 cm long, off the top of the stub, each with 6 thread-like lobes from a second `branch`. A point `force` behind the umbel bends them so they spread and droop.
+- A `join` adds the involucre to the umbel before `to_geometry`.
+
+The bud is a second `umbel`: 16 rays, 1.8 cm, `opening 22` and `shape 1`, so the rays stand close together. Its bracts point up toward the tip (`angle 50`).
+
+The leaves are grown live, in a chain of their own that a `join` adds to the stalks before the output. The `gravity` and `noise` of the leaves only work on the deepest paths, so they would bend the stalks too if the leaves grew on the same list. The joined lists contain the stem twice, and the second copy gets new ids.
+
+- The petioles:
+  - The rosette is 9–12 petioles off a 1 cm crown at the base, each 16–26 cm long and rising 15–50°.
+  - The stem leaves are 5 petioles on the main stem from 14% to 78%. An `alpha -> curve` times a `random` makes them shorter toward the top.
+- A `join` combines both kinds of petioles. A `gravity` of random strength (0.15–0.45) per petiole and a gentle `noise` then arch each leaf by its own amount.
+- 12–16 pinnae grow on the outer two thirds of the petiole, in opposite pairs (`rotation 180`, `offset_single 1`). Their length is `path_info` length of the petiole times an `alpha -> curve`, so they get shorter toward the tip, and every leaf keeps its proportions at any size.
+- Every pinna is covered by one flat, deeply lobed blade:
+  - an `instance` at the base of the pinna with `angle 90`, so the blade lies along the pinna
+  - its `size` is `path_info` length of the pinna times 94, so the blade is as long as the pinna
+
+The petals are tiny, so their `leaf.size` is small and their `instance.size` is large: an instance whose transform scales below about 1e-4 is dropped as collapsed.
+
+Missing: the hairs, the purple central floret and the white colour of the flowers, the bird's nest of the fruiting umbel, and the sheathing leaf bases. The stem leaves don't sit in the axils of the branches, and the lobes of a pinna are not divided again as in the finest leaves.
+
 ## Sources
 
 - [Agave americana, NParks Flora & Fauna Web](https://www.nparks.gov.sg/florafaunaweb/flora/3/5/3506), [NZ Flora](https://www.nzflora.info/factsheet/taxon/Agave-americana.html), [iNaturalist key to A. americana varieties](https://inaturalist.laji.fi/journal/mjpapay/archives/2024/03)
@@ -250,3 +296,4 @@ Family Salicaceae.
 - [Salvia officinalis, Trees and Shrubs Online](https://www.treesandshrubsonline.org/articles/salvia/salvia-officinalis/), [Go Botany](https://gobotany.nativeplanttrust.org/species/salvia/officinalis/), [Horticultural Flora of South-eastern Australia](https://hortflora.rbg.vic.gov.au/taxon/ada1d1da-5340-11e7-b82b-005056b0018f), [Giardino della Flora Appenninica](https://giardinocapracotta.unimol.it/en/?p=3277), [Flora of Tropical East Africa via POWO](https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:456833-1/general-information)
 - [Betula pendula, Virginia Tech Dendrology](https://dendro.cnre.vt.edu/dendrology/carddetail.cfm?ID=15), [Trees and Shrubs Online](https://www.treesandshrubsonline.org/articles/betula/betula-pendula/)
 - [Salix babylonica, Flora of North America](https://floranorthamerica.org/Salix%20babylonica), [Oregon State Landscape Plants](https://landscapeplants.oregonstate.edu/plants/salix-babylonica)
+- [Daucus carota, Go Botany](https://gobotany.nativeplanttrust.org/species/daucus/carota/)

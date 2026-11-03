@@ -31,6 +31,7 @@
     },
     "length_variation": {
       "type": "float",
+      "hidden": true,
       "description": "How much shorter a ray can randomly be. 0 = all as the shape says, 1 = down to nothing.",
       "min": 0,
       "max": 1,
@@ -39,6 +40,7 @@
     },
     "opening": {
       "type": "float",
+      "hidden": true,
       "description": "The angle between the axis and the outer rays, in degrees.",
       "min": 0,
       "max": 180,
@@ -47,6 +49,7 @@
     },
     "shape": {
       "type": "float",
+      "hidden": true,
       "description": "Where the tips lie. 0 = on a flat top, the inner rays are shorter, 1 = on a dome, all rays are as long, negative = in a cup.",
       "min": -1,
       "max": 1,
@@ -64,6 +67,7 @@
     },
     "depth": {
       "type": "integer",
+      "hidden": true,
       "description": "1 = a simple umbel, 2 = a compound umbel with an umbellet on every ray.",
       "min": 1,
       "max": 3,
@@ -71,6 +75,7 @@
     },
     "umbellet_scale": {
       "type": "float",
+      "hidden": true,
       "description": "The size of an umbellet relative to the umbel it grows on, for the length and the thickness of its rays.",
       "min": 0,
       "max": 1,

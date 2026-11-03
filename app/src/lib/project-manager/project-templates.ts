@@ -15,6 +15,7 @@ import {
   palm,
   sage,
   sapling,
+  wildCarrot,
   willow
 } from '#lib/graph-templates/index.ts';
 import type { Graph, ProjectUnit } from '@nodarium/types';
@@ -46,5 +47,6 @@ export const projectTemplates: ProjectTemplate[] = [
   { name: 'Field Horsetail', graph: toGraph(horsetail, 'cm') },
   { name: 'Foxglove', graph: toGraph(foxglove) },
   { name: "Devil's Backbone", graph: toGraph(devilsBackbone, 'cm') },
-  { name: 'Japanese Knotweed', graph: toGraph(knotweed) }
+  { name: 'Japanese Knotweed', graph: toGraph(knotweed) },
+  { name: 'Wild Carrot', graph: toGraph(wildCarrot, 'cm') }
 ];
