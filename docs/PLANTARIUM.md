@@ -66,6 +66,8 @@ A `points` output is a list of these: spots on paths where a later node can grow
 
 `random_break` breaks off some paths at a random spot between `lowest_break` and `highest_break`, `chance` is how likely a path breaks. Whether a path breaks and where only depend on the seed and the path id, so the same paths stay broken when other paths come or go. A broken path is resampled up to the break and keeps its number of points. Paths that grew above the break are removed, with everything growing on them, the ones below get their `parent_alpha` rescaled to the shorter parent, so they stay where they were.
 
+`instance_from_points` puts a copy of `geometry` on every point of a `points` input, for example a leaf on the points of `points_on_path` or on the kinks of `trunk_kink`. Like in `instance`, the geometry grows along its -z axis and its face looks along +y. It sticks out along the direction of the point, `angle` tilts it toward the tangent (positive toward the tip), and it faces up to the light as far as it can. The size is `(point.scale + 0.01) * size`, and the path id of every instance is `point.parent_id`. The points are grouped by their path, `ctx.set_path` runs once per path and `ctx.alpha` is the alpha of the point.
+
 ## Geometry
 
 ```
