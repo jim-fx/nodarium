@@ -18,7 +18,7 @@ export function concatEncodedArrays(
   result[0] = 0;
   result[1] = 1;
 
-  let index = 2; // Start after the opening bracket
+  let index = 2;
   let last_closing_bracket = 1;
 
   for (let i = 0; i < input.length; i++) {
@@ -42,28 +42,22 @@ export function concatEncodedArrays(
 
 // Encodes a nested array into a flat array with bracket and distance notation
 export function encodeNestedArray(array: SparseArray): number[] {
-  const encoded = [0, 0]; // Initialize encoded array with root bracket notation
+  const encoded = [0, 0];
   let missingBracketIndex = 1; // Track where to insert the distance to the next bracket
 
   for (let index = 0; index < array.length; index++) {
     const item = array[index];
     if (Array.isArray(item)) {
-      // Update the distance to the next bracket for the last opened bracket
       encoded[missingBracketIndex] = encoded.length - missingBracketIndex;
       if (item.length === 0) {
-        // Handle empty arrays by directly adding bracket notation
         encoded.push(0, 1, 1, 1);
       } else {
-        // Recursively encode non-empty arrays
         const child = encodeNestedArray(item);
         encoded.push(...child);
       }
-      // Update missingBracketIndex to the position of the newly added bracket
       missingBracketIndex = encoded.length - 1;
     } else {
-      // Handle non-array items
       encoded.push(item);
-      // Update the distance for the last opened bracket
       if (missingBracketIndex) encoded[missingBracketIndex] = index + 2;
     }
   }
@@ -77,13 +71,12 @@ function decode_recursive(dense: number[] | Int32Array, index = 0) {
   }
 
   const decoded: (number | number[])[] = [];
-  let nextBracketIndex = dense[index + 1] + index + 1; // Calculate the index of the next bracket
+  let nextBracketIndex = dense[index + 1] + index + 1;
 
-  index += 2; // Skip the initial bracket notation
+  index += 2;
   while (index < dense.length) {
     if (index === nextBracketIndex) {
       if (dense[index] === 0) {
-        // Opening bracket detected
         const [p, nextIndex, _nextBracketIndex] = decode_recursive(
           dense,
           index
@@ -92,12 +85,11 @@ function decode_recursive(dense: number[] | Int32Array, index = 0) {
         index = nextIndex + 1;
         nextBracketIndex = _nextBracketIndex;
       } else {
-        // Closing bracket detected
         nextBracketIndex = dense[index + 1] + index + 1;
         return [decoded, index, nextBracketIndex] as const;
       }
     } else if (index < nextBracketIndex) {
-      decoded.push(dense[index]); // Add regular number to decoded array
+      decoded.push(dense[index]);
     }
     index++;
   }
@@ -129,12 +121,10 @@ export function splitNestedArray(input: Int32Array) {
       }
 
       if (depth === 1 && value === 0) {
-        // if opening bracket
         argStartIndex = index + 2;
       }
 
       if (depth === 0 && value === 1) {
-        // if closing bracket
         res.push(input.slice(argStartIndex, index));
         argStartIndex = index + 2;
       }

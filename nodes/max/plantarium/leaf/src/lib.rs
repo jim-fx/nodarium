@@ -19,7 +19,6 @@ fn calculate_y(x: f32) -> f32 {
     term1 + term2
 }
 
-// Helper vector math functions
 fn vec_sub(a: &[f32; 3], b: &[f32; 3]) -> [f32; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
@@ -114,7 +113,6 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     out[3] = NO_PATH;
     let mut offset = 4;
 
-    // Writing Indices
     let mut idx = 0;
     for layer in 0..layers {
         let layer_base = (layer * position_amount) as i32;
@@ -145,7 +143,6 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     offset += face_amount * 3;
 
-    // Writing Positions
     let width = 50.0;
     let leaf_length: f32 = 100.0;
     let mut positions = vec![[0.0f32; 3]; position_amount];
@@ -238,7 +235,6 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         }
     }
 
-    // Writing Positions & Normals
     let write_vec = |out: &mut Vec<i32>, at: usize, v: [f32; 3]| {
         out[at + 0] = encode_float(v[0]);
         out[at + 1] = encode_float(v[1]);

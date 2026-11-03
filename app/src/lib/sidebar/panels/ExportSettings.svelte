@@ -6,7 +6,6 @@
   import type { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
   import { createExportScene } from './exportScene';
 
-  // Download
   const download = (
     data: ArrayBuffer | string,
     name: string,

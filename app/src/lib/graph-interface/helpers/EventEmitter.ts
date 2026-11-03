@@ -14,11 +14,6 @@ export default class EventEmitter<
   private cbs: { [key: string]: ((data?: unknown) => unknown)[] } = {};
   private cbsOnce: { [key: string]: ((data?: unknown) => unknown)[] } = {};
 
-  /**
-   * Emit an event with optional data to all the listeners
-   * @param {string} event Name of the event to emit
-   * @param data Data to send along
-   */
   public emit(event: string, data?: unknown) {
     if (event in this.cbs) {
       this.cbs[event].forEach((c) => c(data));
@@ -40,7 +35,6 @@ export default class EventEmitter<
     });
     this.cbs = cbs;
 
-    // console.log('New EventEmitter ', this.constructor.name);
     return () => {
       this.cbs[event]?.splice(cbs[event].indexOf(cb), 1);
     };
@@ -49,7 +43,7 @@ export default class EventEmitter<
   /**
    * Register a special listener which only gets called once
    * @param {string} event Name of the event to listen to
-   * @param {function} cb Listener, gets called everytime the event is emitted
+   * @param {function} cb Listener, gets called the next time the event is emitted
    * @returns {function} Returns a function which removes the listener when called
    */
   public once<K extends EventKey<T>>(

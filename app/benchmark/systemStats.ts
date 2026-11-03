@@ -79,7 +79,7 @@ export async function readCgroupCpuStat() {
           })
       );
     } catch {
-      // continue
+      // not there on this cgroup version, try the next path
     }
   }
 

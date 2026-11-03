@@ -1,6 +1,6 @@
 import { debugNode } from '#lib/node-registry/debugNode.ts';
 import { expandGroups } from '#lib/runtime/runtime-executor.ts';
-import type { NodeDefinition } from '@nodarium/types';
+import type { NodeDefinition, NodeId } from '@nodarium/types';
 import { assert, describe, expect, it } from 'vitest';
 import { GraphManager } from './graph-manager.svelte';
 import { getNodeHeight } from './helpers/nodeHelpers';
@@ -117,7 +117,6 @@ describe('groupNodes', () => {
 
     const graph = manager.serialize();
 
-    // Top-level: A, C, groupNode — B is gone
     expect(graph.nodes.length, 'top-level node count').toBe(3);
     const topLevelIds = graph.nodes.map(n => n.id);
     expect(topLevelIds).toContain(nodeA.id);
@@ -132,11 +131,9 @@ describe('groupNodes', () => {
     expect(edgeTargets).toContain(groupNode.id); // A → groupNode
     expect(edgeSources).toContain(groupNode.id); // groupNode → C
 
-    // One group definition was created
     expect(graph.groups.length).toBe(1);
     const group = graph.groups[0];
 
-    // Group contains B plus the two boundary nodes
     const groupNodeIds = group.nodes.map(n => n.id);
     expect(groupNodeIds).toContain(nodeB.id);
     const inputBoundary = group.nodes.find(n => n.type === '__internal/group/input');
@@ -144,7 +141,6 @@ describe('groupNodes', () => {
     expect(inputBoundary, 'group input boundary node').toBeDefined();
     expect(outputBoundary, 'group output boundary node').toBeDefined();
 
-    // Group declares one input slot and one output slot
     expect(Object.keys(group.inputs ?? {}).length, 'group input count').toBe(1);
     expect(group.outputs?.length, 'group output count').toBe(1);
 
@@ -158,254 +154,97 @@ describe('groupNodes', () => {
 });
 
 describe('getPossibleSockets', () => {
+  function createManager() {
+    const registry = createMockNodeRegistry([
+      mockFloatOutputNode,
+      mockFloatInputNode,
+      mockGeometryOutputNode,
+      mockPathInputNode,
+      mockVec3OutputNode
+    ]);
+    const manager = new GraphManager(registry);
+    const create = (type: NodeId) => {
+      const node = manager.createNode({ type, position: [0, 0], props: {} });
+      assert.isDefined(node);
+      return node;
+    };
+    return { manager, create };
+  }
+
   describe('when dragging an output socket', () => {
-    it('should return compatible input sockets based on type', () => {
-      const registry = createMockNodeRegistry([
-        mockFloatOutputNode,
-        mockFloatInputNode,
-        mockGeometryOutputNode,
-        mockPathInputNode
-      ]);
-
-      const manager = new GraphManager(registry);
-
-      const floatInputNode = manager.createNode({
-        type: 'test/node/input',
-        position: [100, 100],
-        props: {}
-      });
-
-      const floatOutputNode = manager.createNode({
-        type: 'test/node/output',
-        position: [0, 0],
-        props: {}
-      });
-
-      expect(floatInputNode).toBeDefined();
-      expect(floatOutputNode).toBeDefined();
+    it('should return the compatible input sockets with their key', () => {
+      const { manager, create } = createManager();
+      const floatOutputNode = create('test/node/output');
+      const floatInputNode = create('test/node/input');
+      create('test/node/path');
 
       const possibleSockets = manager.getPossibleSockets({
-        node: floatOutputNode!,
+        node: floatOutputNode,
         index: 0,
         position: [0, 0]
       });
 
-      expect(possibleSockets.length).toBe(1);
-      const socketNodeIds = possibleSockets.map(([node]) => node.id);
-      expect(socketNodeIds).toContain(floatInputNode!.id);
+      expect(possibleSockets.map(([node, key]) => [node.id, key])).toEqual([
+        [floatInputNode.id, 'value']
+      ]);
     });
 
-    it('should exclude self node from possible sockets', () => {
-      const registry = createMockNodeRegistry([
-        mockFloatOutputNode,
-        mockFloatInputNode
-      ]);
-
-      const manager = new GraphManager(registry);
-
-      const floatInputNode = manager.createNode({
-        type: 'test/node/input',
-        position: [100, 100],
-        props: {}
-      });
-
-      expect(floatInputNode).toBeDefined();
+    it('should exclude inputs that are already connected to the socket', () => {
+      const { manager, create } = createManager();
+      const parentNode = create('test/node/output');
+      const childNode = create('test/node/input');
+      manager.createEdge(parentNode, 0, childNode, 'value');
 
       const possibleSockets = manager.getPossibleSockets({
-        node: floatInputNode!,
+        node: parentNode,
+        index: 0,
+        position: [0, 0]
+      });
+
+      expect(possibleSockets.map(([node]) => node.id)).not.toContain(childNode.id);
+    });
+
+    it('should return sockets compatible with accepts property', () => {
+      const { manager, create } = createManager();
+      const geometryOutputNode = create('test/node/geometry');
+      const pathInputNode = create('test/node/path');
+
+      const possibleSockets = manager.getPossibleSockets({
+        node: geometryOutputNode,
+        index: 0,
+        position: [0, 0]
+      });
+
+      expect(possibleSockets.map(([node]) => node.id)).toContain(pathInputNode.id);
+    });
+
+    it('should return empty array when no compatible sockets exist', () => {
+      const { manager, create } = createManager();
+      const vec3OutputNode = create('test/node/vec3');
+      create('test/node/input');
+
+      const possibleSockets = manager.getPossibleSockets({
+        node: vec3OutputNode,
+        index: 0,
+        position: [0, 0]
+      });
+
+      expect(possibleSockets).toEqual([]);
+    });
+  });
+
+  describe('when dragging an input socket', () => {
+    it('should exclude the node itself', () => {
+      const { manager, create } = createManager();
+      const floatInputNode = create('test/node/input');
+
+      const possibleSockets = manager.getPossibleSockets({
+        node: floatInputNode,
         index: 'value',
         position: [0, 0]
       });
 
-      const socketNodeIds = possibleSockets.map(([node]) => node.id);
-      expect(socketNodeIds).not.toContain(floatInputNode!.id);
-    });
-
-    it('should exclude parent nodes from possible sockets when dragging output', () => {
-      const registry = createMockNodeRegistry([
-        mockFloatOutputNode,
-        mockFloatInputNode
-      ]);
-
-      const manager = new GraphManager(registry);
-
-      const parentNode = manager.createNode({
-        type: 'test/node/output',
-        position: [0, 0],
-        props: {}
-      });
-
-      const childNode = manager.createNode({
-        type: 'test/node/input',
-        position: [100, 100],
-        props: {}
-      });
-
-      expect(parentNode).toBeDefined();
-      expect(childNode).toBeDefined();
-
-      if (parentNode && childNode) {
-        manager.createEdge(parentNode, 0, childNode, 'value');
-      }
-
-      const possibleSockets = manager.getPossibleSockets({
-        node: parentNode!,
-        index: 0,
-        position: [0, 0]
-      });
-
-      const socketNodeIds = possibleSockets.map(([node]) => node.id);
-      expect(socketNodeIds).not.toContain(childNode!.id);
-    });
-
-    it('should return sockets compatible with accepts property', () => {
-      const registry = createMockNodeRegistry([
-        mockGeometryOutputNode,
-        mockPathInputNode
-      ]);
-
-      const manager = new GraphManager(registry);
-
-      const geometryOutputNode = manager.createNode({
-        type: 'test/node/geometry',
-        position: [0, 0],
-        props: {}
-      });
-
-      const pathInputNode = manager.createNode({
-        type: 'test/node/path',
-        position: [100, 100],
-        props: {}
-      });
-
-      expect(geometryOutputNode).toBeDefined();
-      expect(pathInputNode).toBeDefined();
-
-      const possibleSockets = manager.getPossibleSockets({
-        node: geometryOutputNode!,
-        index: 0,
-        position: [0, 0]
-      });
-
-      const socketNodeIds = possibleSockets.map(([node]) => node.id);
-      expect(socketNodeIds).toContain(pathInputNode!.id);
-    });
-
-    it('should return empty array when no compatible sockets exist', () => {
-      const registry = createMockNodeRegistry([
-        mockVec3OutputNode,
-        mockFloatInputNode
-      ]);
-
-      const manager = new GraphManager(registry);
-
-      const vec3OutputNode = manager.createNode({
-        type: 'test/node/vec3',
-        position: [0, 0],
-        props: {}
-      });
-
-      const floatInputNode = manager.createNode({
-        type: 'test/node/input',
-        position: [100, 100],
-        props: {}
-      });
-
-      expect(vec3OutputNode).toBeDefined();
-      expect(floatInputNode).toBeDefined();
-
-      const possibleSockets = manager.getPossibleSockets({
-        node: vec3OutputNode!,
-        index: 0,
-        position: [0, 0]
-      });
-
-      const socketNodeIds = possibleSockets.map(([node]) => node.id);
-      expect(socketNodeIds).not.toContain(floatInputNode!.id);
-      expect(possibleSockets.length).toBe(0);
-    });
-
-    it('should return socket info with correct socket key for inputs', () => {
-      const registry = createMockNodeRegistry([
-        mockFloatOutputNode,
-        mockFloatInputNode
-      ]);
-
-      const manager = new GraphManager(registry);
-
-      const floatOutputNode = manager.createNode({
-        type: 'test/node/output',
-        position: [0, 0],
-        props: {}
-      });
-
-      const floatInputNode = manager.createNode({
-        type: 'test/node/input',
-        position: [100, 100],
-        props: {}
-      });
-
-      expect(floatOutputNode).toBeDefined();
-      expect(floatInputNode).toBeDefined();
-
-      const possibleSockets = manager.getPossibleSockets({
-        node: floatOutputNode!,
-        index: 0,
-        position: [0, 0]
-      });
-
-      const matchingSocket = possibleSockets.find(([node]) => node.id === floatInputNode!.id);
-      expect(matchingSocket).toBeDefined();
-      expect(matchingSocket![1]).toBe('value');
-    });
-
-    it('should return multiple compatible sockets', () => {
-      const registry = createMockNodeRegistry([
-        mockFloatOutputNode,
-        mockFloatInputNode,
-        mockGeometryOutputNode,
-        mockPathInputNode
-      ]);
-
-      const manager = new GraphManager(registry);
-
-      const floatOutputNode = manager.createNode({
-        type: 'test/node/output',
-        position: [0, 0],
-        props: {}
-      });
-
-      const geometryOutputNode = manager.createNode({
-        type: 'test/node/geometry',
-        position: [200, 0],
-        props: {}
-      });
-
-      const floatInputNode = manager.createNode({
-        type: 'test/node/input',
-        position: [100, 100],
-        props: {}
-      });
-
-      const pathInputNode = manager.createNode({
-        type: 'test/node/path',
-        position: [300, 100],
-        props: {}
-      });
-
-      expect(floatOutputNode).toBeDefined();
-      expect(geometryOutputNode).toBeDefined();
-      expect(floatInputNode).toBeDefined();
-      expect(pathInputNode).toBeDefined();
-
-      const possibleSocketsForFloat = manager.getPossibleSockets({
-        node: floatOutputNode!,
-        index: 0,
-        position: [0, 0]
-      });
-
-      expect(possibleSocketsForFloat.length).toBe(1);
-      expect(possibleSocketsForFloat.map(([n]) => n.id)).toContain(floatInputNode!.id);
+      expect(possibleSockets.map(([node]) => node.id)).not.toContain(floatInputNode.id);
     });
   });
 });

@@ -32,7 +32,6 @@ export class RemoteNodeRegistry implements NodeRegistry {
     if (!skipCache && this.cache) {
       const cachedValue = await this.cache?.get<string>(finalUrl);
       if (cachedValue) {
-        // fetch again in the background, maybe implement that only refetch after a certain time
         this.fetchJson(url, true);
         return JSON.parse(cachedValue);
       }
@@ -58,7 +57,6 @@ export class RemoteNodeRegistry implements NodeRegistry {
     if (!skipCache && this.cache) {
       const cachedNode = await this.cache?.get<ArrayBuffer>(finalUrl);
       if (cachedNode) {
-        // fetch again in the background, maybe implement that only refetch after a certain time
         this.fetchArrayBuffer(url, true);
         return cachedNode;
       }

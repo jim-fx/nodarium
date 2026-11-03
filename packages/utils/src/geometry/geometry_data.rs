@@ -12,9 +12,9 @@ static GEOMETRY_HEADER_SIZE: usize = 4;
 pub const NO_PATH: i32 = NO_PARENT;
 
 pub struct GeometryData<'a> {
-    pub positions: &'a mut [f32], // View into `data`
-    pub normals: &'a mut [f32],   // View into `data`
-    pub faces: &'a mut [i32],     // View into `data`
+    pub positions: &'a mut [f32],
+    pub normals: &'a mut [f32],
+    pub faces: &'a mut [i32],
 }
 
 impl GeometryData<'_> {
@@ -57,7 +57,7 @@ pub fn create_geometry_data(vertex_amount: usize, face_amount: usize) -> Vec<i32
     );
 
     geo[0] = 0; // opening bracket
-    geo[1] = amount as i32 - 2; // opening bracket
+    geo[1] = amount as i32 - 2;
     geo[2] = 1; // type: geometry
     geo[3] = vertex_amount as i32;
     geo[4] = face_amount as i32;
@@ -79,13 +79,11 @@ pub fn set_geometry_path_id(geometry: &mut [i32], path_id: i32) {
 }
 
 pub fn wrap_geometry_data(geometry: &mut [i32]) -> GeometryData<'_> {
-    // Basic validity checks
     assert!(
         geometry.len() > GEOMETRY_HEADER_SIZE,
         "Geometry vector does not contain enough data for a header."
     );
 
-    // Split at after header
     let (header, rest) = geometry.split_at_mut(2 + GEOMETRY_HEADER_SIZE);
 
     let vertices_amount = header[3] as usize;

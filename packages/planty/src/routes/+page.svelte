@@ -9,7 +9,6 @@
   let planty: ReturnType<typeof Planty> | undefined = $state();
   let started = $state(false);
 
-  // Avatar preview state
   const moods: Mood[] = ['idle', 'talking', 'happy', 'thinking', 'moving'];
   let previewMood = $state<Mood>('idle');
 
@@ -32,7 +31,6 @@
   class="grid min-h-screen grid-rows-[auto_1fr]"
   style="background-color: var(--color-layer-0); color: var(--color-text);"
 >
-  <!-- Header -->
   <header
     class="flex h-12 items-center gap-4 px-8 py-5"
     style="border-color: var(--color-outline);"
@@ -55,9 +53,7 @@
     </button>
   </header>
 
-  <!-- App layout -->
   <main class="grid grid-cols-[1fr_280px]">
-    <!-- Graph canvas -->
     <div
       id="graph-canvas"
       class="relative flex min-h-125 items-center justify-center"
@@ -94,7 +90,6 @@
       </div>
     </div>
 
-    <!-- Sidebar -->
     <aside
       id="sidebar"
       class="flex flex-col gap-3 p-5"

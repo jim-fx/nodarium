@@ -21,7 +21,6 @@ test('fastHashArray doesnt product collisions', () => {
   expect(hash_a).not.toEqual(hash_b);
 });
 
-// test if the fastHashArray function is deterministic
 test('fastHashArray is deterministic', () => {
   const a = new Int32Array(1000);
   a[42] = 69;

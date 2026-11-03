@@ -73,7 +73,6 @@ export class GraphState {
     }, 500);
 
     $effect.root(() => {
-      // Restore the camera when the active project changes
       $effect(() => {
         const id = this.graph.id;
         untrack(() => {
@@ -373,7 +372,6 @@ export class GraphState {
 
     let { node, index, position } = socket;
 
-    // remove existing edge
     if (typeof index === 'string') {
       const edges = this.graph.getEdgesToNode(node);
       for (const edge of edges) {
@@ -421,7 +419,6 @@ export class GraphState {
     const my = event.clientY - this.rect.y;
 
     if (event.button === 0 || event.button === 2) {
-      // check if the clicked element is a node
       if (event.target instanceof HTMLElement) {
         const nodeElement = event.target.closest('.node');
         const nodeId = nodeElement?.getAttribute?.('data-node-id');
@@ -430,8 +427,6 @@ export class GraphState {
         }
       }
 
-      // if we do not have an active node,
-      // we are going to check if we clicked on a node by coordinates
       if (clickedNodeId === -1) {
         const [downX, downY] = this.projectScreenToWorld(mx, my);
         for (const node of this.graph.nodes.values()) {

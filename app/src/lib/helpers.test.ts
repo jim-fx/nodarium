@@ -6,7 +6,7 @@ import {
   lerp,
   snapToGrid
 } from '#lib/helpers/index.ts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 describe('helpers', () => {
   describe('snapToGrid', () => {
@@ -15,10 +15,6 @@ describe('helpers', () => {
       expect(snapToGrid(15, 10)).toBe(20);
       expect(snapToGrid(0, 10)).toBe(0);
       expect(snapToGrid(-10, 10)).toBe(-10);
-    });
-
-    it('should snap exact midpoint values', () => {
-      expect(snapToGrid(5, 10)).toBe(10);
     });
 
     it('should use default grid size of 10', () => {
@@ -105,21 +101,21 @@ describe('helpers', () => {
   });
 
   describe('debounce', () => {
-    it('should return a function', () => {
-      const fn = debounce(() => {}, 100);
-      expect(typeof fn).toBe('function');
-    });
-
-    it('should only call once when invoked multiple times within delay', () => {
+    it('should call once after the last of several calls within the delay', () => {
+      vi.useFakeTimers();
       let callCount = 0;
       const fn = debounce(() => {
         callCount++;
       }, 100);
       fn();
-      const firstCall = callCount;
+      vi.advanceTimersByTime(50);
       fn();
       fn();
-      expect(callCount).toBe(firstCall);
+      vi.advanceTimersByTime(99);
+      expect(callCount).toBe(0);
+      vi.advanceTimersByTime(1);
+      expect(callCount).toBe(1);
+      vi.useRealTimers();
     });
   });
 

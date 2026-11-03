@@ -29,83 +29,55 @@ test('it correctly concats nested arrays with nested arrays', () => {
   expect(decoded[2]).toEqual([1, 2, 3]);
 });
 
-// Original test case
 test('it correctly decodes/encodes complex nested arrays', () => {
   const input = [5, [6, 1], 1, 5, [5], [7, 2, [5, 1]]];
   const decoded = decodeNestedArray(encodeNestedArray(input));
   expect(decoded).toEqual(input);
 });
 
-// Test with empty array
 test('it correctly handles an empty array', () => {
   const input: number[] = [];
   const decoded = decodeNestedArray(encodeNestedArray(input));
   expect(decoded).toEqual(input);
 });
 
-// Test with nested empty arrays
 test('it correctly handles nested empty arrays', () => {
   const input = [5, [], [6, []], []];
   const decoded = decodeNestedArray(encodeNestedArray(input));
   expect(decoded).toEqual(input);
 });
 
-// Test with single-element array
 test('it correctly handles a single-element array', () => {
   const input = [42];
   const decoded = decodeNestedArray(encodeNestedArray(input));
   expect(decoded).toEqual(input);
 });
 
-// Test with deeply nested array
 test('it correctly handles deeply nested arrays', () => {
   const input = [[[[[1]]]]];
   const decoded = decodeNestedArray(encodeNestedArray(input));
   expect(decoded).toEqual(input);
 });
 
-// Test with large numbers
 test('it correctly handles large numbers', () => {
   const input = [2147483647, [-2147483648, 1234567890]];
   const decoded = decodeNestedArray(encodeNestedArray(input));
   expect(decoded).toEqual(input);
 });
 
-// Test with sequential nesting
 test('it correctly handles sequential nesting', () => {
   const input = [1, [2, [3, [4, [5]]]]];
   const decoded = decodeNestedArray(encodeNestedArray(input));
   expect(decoded).toEqual(input);
 });
 
-// Test with mixed data types (if supported)
-// Note: This test assumes your implementation supports mixed types.
-// If not, you can ignore or remove this test.
-test('it correctly handles arrays with mixed data types', () => {
-  const input = [1, 'text', [true, [null, ['another text']]]];
-  // @ts-ignore
-  const decoded = decodeNestedArray(encodeNestedArray(input));
-  expect(decoded).toEqual(input);
-});
-
-// Test splitNestedArray function
 test('it splits nested array into segments based on structure', () => {
-  const input = [[1, 2], [3, 4]];
-  const encoded = new Int32Array(encodeNestedArray(input));
-  const split = splitNestedArray(encoded);
-
-  // Based on the actual behavior, splitNestedArray returns segments
-  // but the specific behavior needs to match the implementation
-  expect(Array.isArray(split)).toBe(true);
-  expect(split.length).toBe(2);
-  expect(split[0][0]).toBe(1);
-  expect(split[0][1]).toBe(2);
-  expect(split[1][0]).toBe(3);
-  expect(split[1][1]).toBe(4);
+  const encoded = new Int32Array(encodeNestedArray([[1, 2], [3, 4]]));
+  const split = splitNestedArray(encoded).map(part => [...part]);
+  expect(split).toEqual([[1, 2], [3, 4]]);
 });
 
-// Test splitNestedArray function
-test('it splits nested array into segments based on structure 2', () => {
+test('it splits a list of two paths', () => {
   // dprint-ignore
   const encoded = new Int32Array([
     0, 1,
@@ -126,21 +98,11 @@ test('it splits nested array into segments based on structure 2', () => {
     1, 1
   ]);
 
-  // Should be split into two seperate arrays
   const split = splitNestedArray(encoded);
-
-  // Based on the actual behavior, splitNestedArray returns segments
-  // but the specific behavior needs to match the implementation
-  expect(Array.isArray(split)).toBe(true);
-  expect(split.length).toBe(2);
-  expect(split[0][0]).toBe(0);
-  expect(split[0][1]).toBe(1);
-  expect(split[1][0]).toBe(0);
-  expect(split[1][1]).toBe(1);
+  expect(split).toEqual([encoded.slice(4, 22), encoded.slice(26, 44)]);
 });
 
-// Test splitNestedArray function
-test('it splits nested array into segments based on structure 2', () => {
+test('it splits a list of a single path', () => {
   // dprint-ignore
   const encoded = new Int32Array( [
     0, 1,
@@ -156,11 +118,6 @@ test('it splits nested array into segments based on structure 2', () => {
     1, 1
   ]);
 
-  // Should be split into two seperate arrays
   const split = splitNestedArray(encoded);
-
-  // Based on the actual behavior, splitNestedArray returns segments
-  // but the specific behavior needs to match the implementation
-  expect(Array.isArray(split)).toBe(true);
-  expect(split.length).toBe(1);
+  expect(split).toEqual([encoded.slice(4, -4)]);
 });
