@@ -27,6 +27,7 @@
   const rightBump = $derived(
     !!nodeType?.outputs?.length && node.type !== '__internal/group/input'
   );
+  const title = $derived(nodeType?.meta?.title || node.type?.split('/').pop());
   const outputLabel = $derived(
     (nodeType?.outputs?.length ?? 0) > 1 ? getOutputLabel(nodeType?.outputs?.[0]) : undefined
   );
@@ -92,17 +93,17 @@
   style:--socket-color={hoverColor}
   class:possible-socket={graphState?.possibleSocketIds.has(socketId)}
 >
-  <div class="content">
+  <div class="content" class:pr-4={rightBump}>
     {#if appSettings.value.debug.advancedMode}
-      <span class="bg-white text-black! mr-2 px-1 rounded-sm opacity-30">{node.id}</span>
+      <span class="shrink-0 bg-white text-black! mr-2 px-1 rounded-sm opacity-30">{node.id}</span>
     {/if}
-    {nodeType?.meta?.title || node.type?.split('/').pop()}
+    <span class="min-w-0 truncate" {title}>{title}</span>
     <span class="ml-auto"></span>
     {#if appSettings.value.debug.advancedMode && timing !== undefined}
-      <span class="mr-6 text-xs opacity-50">{formatTiming(timing)}</span>
+      <span class="shrink-0 ml-2 mr-2 text-xs opacity-50">{formatTiming(timing)}</span>
     {/if}
     {#if outputLabel}
-      <span class="mr-5">{outputLabel}</span>
+      <span class="shrink-0 ml-2 mr-1">{outputLabel}</span>
     {/if}
   </div>
   {#if rightBump}
