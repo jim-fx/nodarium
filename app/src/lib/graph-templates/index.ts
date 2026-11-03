@@ -21,4 +21,5 @@ export { default as sapling } from './sapling.json';
 export { default as stem } from './stem.json';
 export { tree } from './tree';
 export { default as tutorial } from './tutorial.json';
+export { default as wildCarrot } from './wild-carrot.json';
 export { default as willow } from './willow.json';
