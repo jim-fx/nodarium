@@ -46,16 +46,13 @@ export class HistoryManager {
       const delta = diff.diff(this.state, newState);
       if (delta) {
         log.log('saving state');
-        // Add the delta to history
         if (this.index < this.history.length - 1) {
-          // Clear the history after the current index if new changes are made
           this.history.splice(this.index + 1);
         }
 
         this.history.push(delta);
         this.index++;
 
-        // Limit the size of the history
         if (this.history.length > this.opts.maxHistory) {
           this.history.shift();
         }

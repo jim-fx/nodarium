@@ -28,7 +28,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         log!("arg_type: {}, \n {:?}", arg_type, arg,);
 
         if arg_type == 0 {
-            // if this is path we need to extrude it
+            // a path is passed on and also extruded into geometry
             output.push(arg.to_vec());
             let path_data = wrap_path(arg);
             let geometry = extrude_path(path_data, resolution);

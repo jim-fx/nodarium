@@ -37,7 +37,6 @@
   const FLY_MS = 900;
   const AUTO_STOP_MS = 3000;
 
-  // ── State ────────────────────────────────────────────────────────────
   let isActive = $state(false);
   let currentNodeId = $state<string | null>(null);
   let bubbleVisible = $state(false);
@@ -56,7 +55,6 @@
   /** Bumped whenever the active node is left, async work of older nodes checks it and bails */
   let generation = 0;
 
-  // ── Derived ──────────────────────────────────────────────────────────
   const runner = $derived(new DialogRunner(config));
   const nextNode = $derived(runner.getNextNode(currentNodeId ?? ''));
   const currentNode = $derived<DialogNode | null>(
@@ -162,8 +160,6 @@
   export function registerHook(name: string, fn: PlantyHook) {
     hooks = { ...hooks, [name]: fn } as PlantyHooks;
   }
-
-  // ── Internal ─────────────────────────────────────────────────────────
 
   function _reset() {
     generation++;

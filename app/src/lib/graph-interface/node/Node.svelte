@@ -68,7 +68,6 @@
   const zoomValue = $derived(
     (Math.log(graphState.cameraPosition[2]) - Math.log(1)) / (Math.log(40) - Math.log(1))
   );
-  // const zoomValue = (graphState.cameraPosition[2] - 1) / 39;
 </script>
 
 <T.Mesh

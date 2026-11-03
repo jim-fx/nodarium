@@ -38,7 +38,6 @@
     'split-result'
   ];
 
-  // --- Small helpers that query `data` directly ---
   function getAverage(key: string) {
     const vals = data
       .map((run) => run[key]?.[0])

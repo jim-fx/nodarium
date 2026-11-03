@@ -35,7 +35,6 @@ export class EdgeInteractionManager {
       let minY = points[0].z + data.y1;
       let maxY = points[0].z + data.y1;
 
-      // Iterate through all points to find the true bounds
       for (let i = 0; i < points.length; i++) {
         const x = data.x1 + points[i].x;
         const y = data.y1 + points[i].z;
@@ -62,7 +61,6 @@ export class EdgeInteractionManager {
 
     const edges = this.state.getEdges();
 
-    // Check if mouse is inside any bounding box
     for (const [edgeId, box] of this._boundingBoxes) {
       const isInside = mouseX >= box.minX
         && mouseX <= box.maxX

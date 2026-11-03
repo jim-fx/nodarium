@@ -110,13 +110,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         // node type, depth and the link to the parent stay as they are
         new_path.extend_from_slice(&path_data[2..header_end]);
 
-        // Copy original points 0..=snap_idx
         for i in 0..=snap_idx {
             let base = header_end + i * 4;
             new_path.extend_from_slice(&path_data[base..base + 4]);
         }
 
-        // Append the interpolated point at the snap position
         new_path.extend(snap_point.iter().map(|&c| encode_float(c)));
 
         new_path.push(1); // closing bracket

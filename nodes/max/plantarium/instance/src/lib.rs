@@ -20,7 +20,6 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     // the path each of the instances sits on
     let mut path_ids: Vec<i32> = Vec::new();
 
-    // Find max depth
     let mut max_depth = 0;
     for path_data in inputs.iter() {
         if path_data[2] != 0 {
