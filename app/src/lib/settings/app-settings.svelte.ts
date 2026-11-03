@@ -43,7 +43,7 @@ export const AppSettingTypes = {
     label: 'Show Units',
     value: true
   },
-  clippy: {
+  planty: {
     type: 'button',
     label: '🌱 Open Planty'
   },
