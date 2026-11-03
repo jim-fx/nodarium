@@ -19,6 +19,17 @@ async function listTemplates() {
   );
 }
 
+// the name and the `id:type` of every node, so the editor can tell which template a graph came from
+async function summarizeTemplates() {
+  return Promise.all(
+    (await listTemplates()).map(async (name) => {
+      const graph = JSON.parse(await readFile(join(TEMPLATE_DIR, `${name}.json`), 'utf-8'));
+      const nodes: { id: number; type: string }[] = graph.nodes ?? [];
+      return { name, nodes: nodes.map((n) => `${n.id}:${n.type}`) };
+    })
+  );
+}
+
 // adds `export { default as <camelName> } from './<name>.json';` in alphabetical order
 async function exportTemplate(name: string) {
   const indexFile = join(TEMPLATE_DIR, 'index.ts');
@@ -44,7 +55,7 @@ export function devTemplatePlugin(): Plugin {
           res.end(JSON.stringify(body));
         };
         try {
-          if (req.method === 'GET') return send(200, await listTemplates());
+          if (req.method === 'GET') return send(200, await summarizeTemplates());
           if (req.method !== 'POST') return send(405, { error: 'Method not allowed' });
 
           let raw = '';

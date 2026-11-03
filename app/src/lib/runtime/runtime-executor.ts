@@ -388,6 +388,8 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       for (const parent of node.state.parents) {
         if (!parent) continue;
         parent.state = parent.state || {};
+        // a node that feeds several nodes has to run before the deepest of them
+        if (parent.state.depth > node.state.depth) continue;
         parent.state.depth = node.state.depth + 1;
         stack.push(parent);
       }

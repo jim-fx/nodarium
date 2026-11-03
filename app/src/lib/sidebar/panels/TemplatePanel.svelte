@@ -1,21 +1,38 @@
 <script lang="ts">
   import type { Graph } from '@nodarium/types';
   import { Button, InputSelect, toast } from '@nodarium/ui';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
+  import { matchTemplate, nodeSignatures, type TemplateSummary } from './template-match';
 
   const ENDPOINT = '/__dev/templates';
 
   const { graph }: { graph?: Graph } = $props();
 
-  let names = $state<string[]>([]);
-  let selected = $state(0);
+  let templates = $state<TemplateSummary[]>([]);
+  let loaded = $state(false);
+  const names = $derived(templates.map((t) => t.name));
   let newName = $state('');
-  const isNew = $derived(selected === names.length);
   let pending = $state(false);
+
+  const graphId = $derived(graph?.id);
+
+  // the template the open project came from, picked again when another project is opened;
+  // choosing another one in the select overrides it until then. Without a match it offers a new
+  // template, so an unrelated graph doesn't overwrite the first one by accident.
+  let selected = $derived.by(() => {
+    void graphId;
+    if (!loaded) return 0;
+    return untrack(() => {
+      const match = graph && matchTemplate(graph, templates);
+      return match ? names.indexOf(match) : names.length;
+    });
+  });
+  const isNew = $derived(loaded && selected === names.length);
 
   onMount(async () => {
     const res = await fetch(ENDPOINT);
-    if (res.ok) names = await res.json();
+    if (res.ok) templates = await res.json();
+    loaded = true;
   });
 
   async function push() {
@@ -29,7 +46,10 @@
       });
       if (!res.ok) throw new Error((await res.json()).error);
       const { created } = await res.json();
-      if (created) names = [...names, name].sort();
+      const summary = { name, nodes: nodeSignatures(graph) };
+      templates = [...templates.filter((t) => t.name !== name), summary].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
       selected = names.indexOf(name);
       newName = '';
       toast(`${created ? 'Created' : 'Wrote'} ${name}.json`, 'success');
