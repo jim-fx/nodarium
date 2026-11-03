@@ -64,6 +64,8 @@ A `points` output is a list of these: spots on paths where a later node can grow
 
 `points_on_path` spreads `amount` points along every path of the `depth` deepest layers, from `lowest_point` to `highest_point` like the branches of `branch`. Each point is turned around its path by `rotation` from the one before it, and `offset_single` moves every second point up toward the next one, 1 makes pairs. Every point reads these inputs itself after `ctx.set_path` and `ctx.alpha`, so a random node gives each point its own turn. The points carry the id of their path, so `branch_from_points` and `instance_from_points` can grow on the same spots.
 
+`random_break` breaks off some paths at a random spot between `lowest_break` and `highest_break`, `chance` is how likely a path breaks. Whether a path breaks and where only depend on the seed and the path id, so the same paths stay broken when other paths come or go. A broken path is resampled up to the break and keeps its number of points. Paths that grew above the break are removed, with everything growing on them, the ones below get their `parent_alpha` rescaled to the shorter parent, so they stay where they were.
+
 ## Geometry
 
 ```
