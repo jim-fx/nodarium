@@ -78,6 +78,21 @@ pub fn set_geometry_path_id(geometry: &mut [i32], path_id: i32) {
     geometry[5] = path_id;
 }
 
+/// Whether a list item is an encoded geometry, brackets included.
+pub fn is_geometry(item: &[i32]) -> bool {
+    item.len() >= 2 + GEOMETRY_HEADER_SIZE + 2 && item[2] == 1
+}
+
+/// Splits an input that takes a list into its items. A single geometry comes without a list
+/// around it and is one item, an unconnected input is the empty list `[0, 1, 1, 1]`.
+pub fn split_items(input: &[i32]) -> Vec<&[i32]> {
+    if is_geometry(input) {
+        vec![input]
+    } else {
+        crate::split_args(input)
+    }
+}
+
 pub fn wrap_geometry_data(geometry: &mut [i32]) -> GeometryData<'_> {
     assert!(
         geometry.len() > GEOMETRY_HEADER_SIZE,
@@ -113,5 +128,36 @@ pub fn wrap_geometry_data(geometry: &mut [i32]) -> GeometryData<'_> {
         positions,
         normals,
         faces,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{concat_args, wrap_arg};
+
+    fn geometry(vertices: i32) -> Vec<i32> {
+        let mut data = vec![1, vertices, 1, NO_PATH, 0, 1, 2];
+        data.extend(vec![0; vertices as usize * 6]);
+        wrap_arg(&data)
+    }
+
+    #[test]
+    fn a_single_geometry_is_one_item() {
+        let geometry = geometry(3);
+        assert_eq!(split_items(&geometry), vec![geometry.as_slice()]);
+    }
+
+    #[test]
+    fn a_list_is_split_into_its_items() {
+        let a = geometry(3);
+        let b = geometry(4);
+        let list = concat_args(vec![&a, &b]);
+        assert_eq!(split_items(&list), vec![a.as_slice(), b.as_slice()]);
+    }
+
+    #[test]
+    fn an_unconnected_input_has_no_items() {
+        assert!(split_items(&[0, 1, 1, 1]).is_empty());
     }
 }

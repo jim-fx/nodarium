@@ -3,9 +3,10 @@ use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     encode_float,
     geometry::{
-        extrude_path, geometry_path_id, wrap_geometry_data, wrap_instance_data, wrap_path, NO_PATH,
+        extrude_path, geometry_path_id, split_items, wrap_geometry_data, wrap_instance_data,
+        wrap_path, NO_PATH,
     },
-    int, split_args, wrap_arg,
+    int, wrap_arg,
 };
 
 nodarium_definition_file!("src/definition.json");
@@ -92,14 +93,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let resolution = int(args[1]) as usize;
     let mut mesh = Mesh::default();
 
-    // a single geometry comes without a list around it, an unconnected input is the empty
-    // list `[0, 1, 1, 1]`
-    let items = match input.get(2) {
-        Some(1) if input.len() >= 8 => vec![input],
-        _ => split_args(input),
-    };
-
-    for item in items {
+    for item in split_items(input) {
         match item.get(2) {
             Some(0) => mesh.add_geometry(&extrude_path(wrap_path(item), resolution)),
             Some(1) => mesh.add_geometry(item),
