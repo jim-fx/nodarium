@@ -16,7 +16,7 @@ test('test', async ({ page }) => {
   await page.goto('http://localhost:4173', { waitUntil: 'load' });
 
   await page.getByRole('button', { name: 'File', exact: true }).click();
-  await page.getByRole('menuitem', { name: /^New project/ }).click();
+  await page.getByRole('menuitem', { name: /^Open…/ }).click();
   const projectBrowser = page.getByRole('dialog', { name: 'Projects' });
   await projectBrowser.getByRole('button', { name: 'Default Plant', exact: true }).click();
   await expect(projectBrowser).toBeHidden();
@@ -62,4 +62,12 @@ test('test', async ({ page }) => {
       }
     }
   }
+
+  await page.getByRole('button', { name: 'File', exact: true }).click();
+  await page.getByRole('menuitem', { name: /^New project/ }).click();
+  await expect(projectBrowser).toBeHidden();
+  const nodes = page.locator('div.wrapper[data-node-id]');
+  await expect(nodes).toHaveCount(2);
+  await expect(nodes.and(page.locator('[data-node-type="max/plantarium/stem"]'))).toBeVisible();
+  await expect(nodes.and(page.locator('[data-node-type="max/plantarium/output"]'))).toBeVisible();
 });

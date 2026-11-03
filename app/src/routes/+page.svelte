@@ -209,7 +209,7 @@
       alt: true,
       preventDefault: true,
       description: 'New project',
-      callback: () => (projectBrowserOpen = true)
+      callback: () => pm.handleCreateProject()
     },
     {
       key: 'F2',
