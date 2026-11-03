@@ -1,0 +1,102 @@
+{
+  "id": "max/plantarium/umbel",
+  "meta": {
+    "description": "Grows an umbel at the tip of every path: rays that spread from one point, like the flower heads of wild carrot, fennel or elder. Gives the rays and their tips as points, where instance_from_points places the flowers."
+  },
+  "outputs": [
+    "path",
+    "points"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The paths to put the umbels on, at their tips.",
+      "external": true
+    },
+    "amount": {
+      "type": "integer",
+      "description": "How many rays every umbel and umbellet has.",
+      "min": 0,
+      "max": 64,
+      "value": 12
+    },
+    "length": {
+      "type": "float",
+      "description": "The length of the outer rays.",
+      "min": 0,
+      "max": 1,
+      "step": 0.005,
+      "value": 0.06,
+      "unit": "m"
+    },
+    "length_variation": {
+      "type": "float",
+      "description": "How much shorter a ray can randomly be. 0 = all as the shape says, 1 = down to nothing.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.1
+    },
+    "opening": {
+      "type": "float",
+      "description": "The angle between the axis and the outer rays, in degrees.",
+      "min": 0,
+      "max": 180,
+      "step": 1,
+      "value": 50
+    },
+    "shape": {
+      "type": "float",
+      "description": "Where the tips lie. 0 = on a flat top, the inner rays are shorter, 1 = on a dome, all rays are as long, negative = in a cup.",
+      "min": -1,
+      "max": 1,
+      "step": 0.05,
+      "value": 0
+    },
+    "thickness": {
+      "type": "float",
+      "description": "The thickness of the rays.",
+      "min": 0,
+      "max": 0.05,
+      "step": 0.0005,
+      "value": 0.002,
+      "unit": "m"
+    },
+    "depth": {
+      "type": "integer",
+      "description": "1 = a simple umbel, 2 = a compound umbel with an umbellet on every ray.",
+      "min": 1,
+      "max": 3,
+      "value": 1
+    },
+    "umbellet_scale": {
+      "type": "float",
+      "description": "The size of an umbellet relative to the umbel it grows on, for the length and the thickness of its rays.",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "value": 0.3
+    },
+    "seed": {
+      "type": "seed"
+    },
+    "layers": {
+      "type": "integer",
+      "hidden": true,
+      "min": 1,
+      "value": 1,
+      "description": "On how many of the deepest layers of paths to put umbels."
+    },
+    "resolution_curve": {
+      "type": "integer",
+      "description": "The resolution of a ray as long as the longest path, shorter rays get fewer points.",
+      "value": 32,
+      "min": 3,
+      "max": 64,
+      "setting": "resolution.curve"
+    },
+    "creator": {
+      "type": "creator"
+    }
+  }
+}
