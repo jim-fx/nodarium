@@ -24,12 +24,10 @@
       "options": [
         "off",
         "main branches",
-        "all branches",
-        "main branches (hull)",
-        "all branches (hull)"
+        "all branches"
       ],
       "value": 0,
-      "description": "Joins branches into the path they grow on as one connected mesh. The plain modes cut a hole with a fillet, the hull modes close each junction with the convex hull of its rings. main branches only joins the branches on the stems. Branches too thin for the circle resolution stay separate tubes."
+      "description": "Joins branches into the path they grow on as one connected mesh, with a fillet where they meet. main branches only joins the branches on the stems. Branches too thin for the circle resolution stay separate tubes."
     }
   }
 }
