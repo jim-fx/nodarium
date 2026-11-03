@@ -5,6 +5,7 @@ mod geometry_data;
 mod instance_data;
 mod math;
 mod path_data;
+mod remesh;
 mod transform;
 
 pub use calculate_normals::*;
@@ -14,4 +15,5 @@ pub use geometry_data::*;
 pub use instance_data::*;
 pub use math::*;
 pub use path_data::*;
+pub use remesh::*;
 pub use transform::*;
