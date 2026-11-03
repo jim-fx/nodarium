@@ -70,12 +70,12 @@ export class ProjectManager {
     }
 
     if (!this.graph) {
-      this.handleCreateProject();
+      this.handleCreateProject(templates.defaultPlant as unknown as Graph);
     }
   }
 
   public handleCreateProject(
-    template: Graph = templates.defaultPlant as unknown as Graph,
+    template: Graph = templates.stem as unknown as Graph,
     title: string = 'New Project'
   ) {
     // templates are shared module objects, never hand them out directly
