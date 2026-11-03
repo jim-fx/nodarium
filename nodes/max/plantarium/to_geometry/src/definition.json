@@ -1,0 +1,26 @@
+{
+  "id": "max/plantarium/to_geometry",
+  "meta": {
+    "description": "Turns paths, geometry and instances into one geometry, for example to place a whole umbel with its flowers with an instance node."
+  },
+  "outputs": [
+    "geometry"
+  ],
+  "inputs": {
+    "input": {
+      "type": "path",
+      "accepts": [
+        "geometry"
+      ],
+      "description": "The paths, geometry and instances to bake into one geometry.",
+      "external": true
+    },
+    "resolution_circle": {
+      "type": "integer",
+      "value": 32,
+      "min": 3,
+      "max": 64,
+      "setting": "resolution.circle"
+    }
+  }
+}
