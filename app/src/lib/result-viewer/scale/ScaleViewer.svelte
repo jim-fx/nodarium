@@ -1,9 +1,9 @@
 <script lang="ts">
   import { colors } from '#lib/graph-interface/graph/colors.svelte.ts';
   import { T } from '@threlte/core';
-  import { Text } from '@threlte/extras';
   import { type Box3, type EulerTuple, Vector3 } from 'three';
   import { appSettings } from '../../settings/app-settings.svelte';
+  import ReadableText from '../text/ReadableText.svelte';
   import { viewScale } from './view-scale.svelte';
 
   const { bounds }: { bounds?: Box3 } = $props();
@@ -37,8 +37,7 @@
         // flat on the floor in front of the arrow, running along x
         textPosition: along(new Vector3(1, 0, 0), size.x).add(lift),
         rotation: [-Math.PI / 2, Math.PI, 0, 'YXZ'] as EulerTuple,
-        anchorX: 'center' as const,
-        anchorY: 'bottom' as const
+        anchorX: 'center' as const
       },
       {
         label: 'Height',
@@ -47,8 +46,7 @@
         // upright, next to the arrow
         textPosition: along(new Vector3(0, 1, 0), size.y),
         rotation: [0, Math.PI / 2, Math.PI / 2, 'XYZ'] as EulerTuple,
-        anchorX: 'center' as const,
-        anchorY: 'bottom' as const
+        anchorX: 'center' as const
       },
       {
         label: 'Depth',
@@ -57,8 +55,7 @@
         // flat on the floor beside the arrow, running along z
         textPosition: along(new Vector3(0, 0, -1), size.z).add(lift),
         rotation: [-Math.PI / 2, Math.PI / 2, 0, 'YXZ'] as EulerTuple,
-        anchorX: 'center' as const,
-        anchorY: 'bottom' as const
+        anchorX: 'center' as const
       }
     ].filter((a) => a.length > 0);
   });
@@ -85,17 +82,18 @@
     />
     <T.Group position={axis.textPosition.toArray()}>
       <T.Group rotation={axis.rotation}>
-        <Text
-          text={format(axis.length)}
-          fontSize={0.25 * viewScale.value}
-          font="/fonts/FiraCode-Light.ttf"
-          color={color}
-          anchorX={axis.anchorX}
-          anchorY={axis.anchorY}
-          position.y={0.05 * viewScale.value}
-          outlineWidth={0.02 * viewScale.value}
-          {outlineColor}
-        />
+        <!-- half the font size above the old bottom anchored offset, so the centered label sits where it did -->
+        <T.Group position.y={(0.05 + 0.125) * viewScale.value}>
+          <ReadableText
+            text={format(axis.length)}
+            fontSize={0.25 * viewScale.value}
+            font="/fonts/FiraCode-Light.ttf"
+            color={color}
+            anchorX={axis.anchorX}
+            outlineWidth={0.02 * viewScale.value}
+            {outlineColor}
+          />
+        </T.Group>
       </T.Group>
     </T.Group>
   {/each}
