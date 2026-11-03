@@ -26,12 +26,12 @@ export const AppSettingTypes = {
   showScaleModel: {
     type: 'boolean',
     label: 'Show Scale Model',
-    value: true
+    value: false
   },
   showScaleViewer: {
     type: 'boolean',
     label: 'Show Dimensions',
-    value: true
+    value: false
   },
   centerCamera: {
     type: 'boolean',
