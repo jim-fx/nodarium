@@ -1,0 +1,41 @@
+{
+  "id": "max/plantarium/instance_from_points",
+  "meta": {
+    "description": "Places a copy of a geometry on every point, for example a leaf on the points of points_on_path or the kinks of trunk_kink."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The paths the points sit on, the instances are added to them.",
+      "external": true
+    },
+    "points": {
+      "type": "points",
+      "description": "Where the instances sit.",
+      "external": true
+    },
+    "geometry": {
+      "type": "geometry",
+      "description": "The geometry to place on every point."
+    },
+    "size": {
+      "type": "float",
+      "description": "The size of the instances, relative to the path at the point.",
+      "min": 0,
+      "step": 0.05,
+      "value": 1
+    },
+    "angle": {
+      "type": "float",
+      "description": "Tilts the instances along the path, positive toward the tip.",
+      "min": -90,
+      "max": 90,
+      "step": 1,
+      "value": 0,
+      "hidden": true
+    }
+  }
+}

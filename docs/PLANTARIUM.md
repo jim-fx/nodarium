@@ -68,6 +68,8 @@ A `points` output is a list of these: spots on paths where a later node can grow
 
 `branch_from_points` grows a branch from every point of a `points` input, for example the points of `points_on_path` or the kinks of `trunk_kink`. A branch grows along the direction of its point, `angle` tilts it toward the tangent (positive is up), its thickness starts at `thickness` times the thickness at the point and `taper` thins it to the tip. The id is `PathLink::child(creator, point.parent_id, point.alpha, point.index)`, so a branch keeps its id when other points come or go, and its depth is one below the point. The points are grouped by their path and `ctx.set_path` runs once per path, so random values don't start over at every branch. A point whose path is not in `plant` still grows its branch. Like in `branch`, a branch as long as the longest path gets `resolution_curve` points, shorter ones get fewer, and the branches of a path come right before it.
 
+`instance_from_points` puts a copy of `geometry` on every point of a `points` input, for example a leaf on the points of `points_on_path` or on the kinks of `trunk_kink`. Like in `instance`, the geometry grows along its -z axis and its face looks along +y. It sticks out along the direction of the point, `angle` tilts it toward the tangent (positive toward the tip), and it faces up to the light as far as it can. The size is `(point.scale + 0.01) * size`, and the path id of every instance is `point.parent_id`. The points are grouped by their path, `ctx.set_path` runs once per path and `ctx.alpha` is the alpha of the point.
+
 ## Geometry
 
 ```
