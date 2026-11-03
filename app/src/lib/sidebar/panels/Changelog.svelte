@@ -1,15 +1,19 @@
 <script lang="ts">
-  import { Details } from '@nodarium/ui';
+  import { Details, Tabs } from '@nodarium/ui';
   import { micromark } from 'micromark';
+  import type { RoadmapItem } from './roadmap';
+  import Roadmap from './Roadmap.svelte';
 
   type Props = {
     git?: Record<string, string>;
     changelog?: string;
+    roadmap?: RoadmapItem[];
   };
 
   const {
     git,
-    changelog
+    changelog,
+    roadmap = []
   }: Props = $props();
 
   const typeMap = new Map([
@@ -86,55 +90,65 @@
   }
 </script>
 
-<div id="changelog" class="p-4 font-mono text-text overflow-y-auto max-h-full space-y-5">
-  {#if git}
-    <div class="mb-4 p-3 bg-layer-2 text-xs rounded">
-      <p><strong>Branch:</strong> {git.branch}</p>
-      <p>
-        <strong>Commit:</strong>
-        <a
-          href="https://git.max-richter.dev/max/nodarium/commit/{git.sha}"
-          class="link"
-          target="_blank"
-        >
-          {git.sha.slice(0, 7)}
-        </a>
-        – {git.commit_message}
-      </p>
-      <p>
-        <strong>Commits since last release:</strong>
-        {git.commits_since_last_release}
-      </p>
-      <p>
-        <strong>Timestamp:</strong>
-        {new Date(git.commit_timestamp).toLocaleString()}
-      </p>
-    </div>
-  {/if}
-
-  {#if changelog}
-    {#each parseChangelog(changelog) as release (release)}
-      <Details title={release.title}>
-        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-        <div id="description" class="pb-5">{@html release.description}</div>
-
-        {#if release?.commits?.length}
-          <Details
-            title="All Commits"
-            class="commits"
-          >
-            {#each release.commits as commit (commit)}
-              <p class="py-1 leading-7 text-xs border-b-1 border-l-1 border-b-outline last:border-b-0 -ml-2 pl-2 {typeMap.get(commit.type)}">
-                <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-                <a href={commit.link} class="link" target="_blank">{commit.sha}</a>
-                {commit.description}
+<div id="changelog" class="p-4 font-mono text-text overflow-y-auto max-h-full">
+  <Tabs tabs={['Changelog', 'Roadmap']} label="Changelog and roadmap">
+    {#snippet children(tab)}
+      <div class="space-y-5">
+        {#if tab === 'Roadmap'}
+          <Roadmap items={roadmap} />
+        {:else}
+          {#if git}
+            <div class="mb-4 p-3 bg-layer-2 text-xs rounded">
+              <p><strong>Branch:</strong> {git.branch}</p>
+              <p>
+                <strong>Commit:</strong>
+                <a
+                  href="https://git.max-richter.dev/max/nodarium/commit/{git.sha}"
+                  class="link"
+                  target="_blank"
+                >
+                  {git.sha.slice(0, 7)}
+                </a>
+                – {git.commit_message}
               </p>
+              <p>
+                <strong>Commits since last release:</strong>
+                {git.commits_since_last_release}
+              </p>
+              <p>
+                <strong>Timestamp:</strong>
+                {new Date(git.commit_timestamp).toLocaleString()}
+              </p>
+            </div>
+          {/if}
+
+          {#if changelog}
+            {#each parseChangelog(changelog) as release (release)}
+              <Details title={release.title}>
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                <div id="description" class="pb-5">{@html release.description}</div>
+
+                {#if release?.commits?.length}
+                  <Details
+                    title="All Commits"
+                    class="commits"
+                  >
+                    {#each release.commits as commit (commit)}
+                      <p class="py-1 leading-7 text-xs border-b-1 border-l-1 border-b-outline last:border-b-0 -ml-2 pl-2 {typeMap.get(commit.type)}">
+                        <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+                        <a href={commit.link} class="link" target="_blank">{commit.sha}</a>
+                        {commit.description}
+                      </p>
+                    {/each}
+                  </Details>
+                {/if}
+              </Details>
             {/each}
-          </Details>
+          {/if}
         {/if}
-      </Details>
-    {/each}
-  {/if}
+      </div>
+    {/snippet}
+  </Tabs>
 </div>
 
 <style lang="postcss">

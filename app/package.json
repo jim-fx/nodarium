@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite dev",
-    "predev": "rm static/CHANGELOG.md && ln -s ../../CHANGELOG.md static/CHANGELOG.md",
+    "predev": "rm -f static/CHANGELOG.md && ln -s ../../CHANGELOG.md static/CHANGELOG.md && tsx scripts/fetch-roadmap.ts static/roadmap.json",
     "build": "svelte-kit sync && vite build",
     "test:unit": "vitest --browser=false",
     "test": "npm run test:unit -- --run && npm run test:e2e",

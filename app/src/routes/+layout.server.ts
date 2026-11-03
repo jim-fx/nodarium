@@ -1,3 +1,5 @@
+import type { RoadmapItem } from '#lib/sidebar/panels/roadmap.ts';
+
 export const prerender = true;
 
 export async function load({ fetch }) {
@@ -21,8 +23,19 @@ export async function load({ fetch }) {
     }
   }
 
+  async function fetchRoadmap(): Promise<RoadmapItem[] | undefined> {
+    try {
+      const res = await fetch('/roadmap.json');
+      return await res.json();
+    } catch (error) {
+      console.log('Failed to fetch roadmap.json', error);
+      return;
+    }
+  }
+
   return {
     git: await fetchGitInfo(),
-    changelog: await fetchChangelog()
+    changelog: await fetchChangelog(),
+    roadmap: await fetchRoadmap()
   };
 }
