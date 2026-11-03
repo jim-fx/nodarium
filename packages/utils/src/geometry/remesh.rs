@@ -372,7 +372,6 @@ fn mesh_path(
                     }
                 }
             }
-            mesh.junction.extend(&hole);
             joins.push((
                 a.child,
                 Join {
@@ -577,9 +576,11 @@ fn wrap(a: f32) -> f32 {
     (a + std::f32::consts::PI).rem_euclid(TAU) - std::f32::consts::PI
 }
 
-/// Bridges the edge of the hole to the first ring of the branch: two rings of a curve that
-/// leaves the parent surface towards the branch and ends along it, then a band that zips the
-/// vertex counts of the hole and the ring together by their angle around the branch.
+/// Bridges the edge of the hole to the first ring of the branch. The fillet rings follow the
+/// columns of the branch, so they run straight into its tube: each column curves from the spot
+/// on the edge of the hole at its angle, along the parent surface towards the branch and then
+/// along it. The vertex counts of the hole and the branch are zipped together on the first ring,
+/// close to the parent surface where the band is short.
 fn fillet(mesh: &mut Mesh, join: &Join, start: &Ring, paths: &[Path], index: usize, ring: Vec<u32>) {
     let path = &paths[index];
     let base = path.point(0);
@@ -590,28 +591,50 @@ fn fillet(mesh: &mut Mesh, join: &Join, start: &Ring, paths: &[Path], index: usi
         angles[i] = angles[i - 1] + wrap(angles[i] - angles[i - 1]).max(0.0);
     }
 
-    let mut lower = join.hole.clone();
-    for t in [1.0 / 3.0, 2.0 / 3.0] {
-        let upper: Vec<u32> = hole
+    let res = ring.len();
+    let m = hole.len();
+    let on_hole = |angle: f32| {
+        let a = angles[0] + (angle - angles[0]).rem_euclid(TAU);
+        for k in 0..m {
+            let (from, to) = (angles[k], if k + 1 < m { angles[k + 1] } else { angles[0] + TAU });
+            if a <= to || k + 1 == m {
+                let t = if to > from { ((a - from) / (to - from)).clamp(0.0, 1.0) } else { 0.0 };
+                return hole[k].lerp(hole[(k + 1) % m], t);
+            }
+        }
+        hole[0]
+    };
+    let start_axial = (start.center - base).dot(direction);
+    let columns: Vec<(Vec3, Vec3, Vec3)> = (0..res)
+        .map(|j| {
+            let end = mesh.positions[ring[j] as usize];
+            let from = on_hole(TAU * j as f32 / res as f32);
+            let control = end + direction * ((from - base).dot(direction) - start_axial);
+            (from, control, end)
+        })
+        .collect();
+
+    let mut rings = Vec::new();
+    for t in [0.2, 0.45, 0.72] {
+        let fillet_ring: Vec<u32> = columns
             .iter()
-            .zip(&angles)
-            .map(|(&h, &angle)| {
-                let on_branch = start.point(angle);
-                let axial = (h - base).dot(direction);
-                let control = on_branch + direction * (axial - (start.center - base).dot(direction));
-                let p = h * (1.0 - t) * (1.0 - t) + control * 2.0 * (1.0 - t) * t + on_branch * t * t;
-                mesh.vertex(p)
+            .map(|&(from, control, end)| {
+                let u = 1.0 - t;
+                mesh.vertex(from * u * u + control * 2.0 * u * t + end * t * t)
             })
             .collect();
-        mesh.junction.extend(&upper);
-        let n = lower.len();
-        for k in 0..n {
-            mesh.quad(lower[k], lower[(k + 1) % n], upper[k], upper[(k + 1) % n]);
-        }
-        lower = upper;
+        mesh.junction.extend(&fillet_ring);
+        rings.push(fillet_ring);
     }
+    rings.push(ring);
 
-    zip(mesh, &lower, &angles, &ring, ring.len());
+    zip(mesh, &join.hole, &angles, &rings[0], res);
+    for pair in rings.windows(2) {
+        for j in 0..res {
+            let k = (j + 1) % res;
+            mesh.quad(pair[0][j], pair[0][k], pair[1][j], pair[1][k]);
+        }
+    }
 }
 
 /// Triangulates the band between two loops around the same axis, both ordered by increasing
@@ -653,7 +676,8 @@ fn zip(mesh: &mut Mesh, lower: &[u32], lower_angles: &[f32], upper: &[u32], res:
 }
 
 /// A few rounds of Laplacian smoothing on the vertices of the junctions, like the smoothing
-/// pass of modular_tree, but only where the fillets are so the tubes keep their shape.
+/// pass of modular_tree, but only on the fillet rings: the edge of the hole stays on the parent
+/// surface, so the parent doesn't bulge where branches join it.
 fn smooth_junctions(mesh: &mut Mesh) {
     if mesh.junction.is_empty() {
         return;
