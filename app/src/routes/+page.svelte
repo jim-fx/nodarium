@@ -536,7 +536,7 @@
           title="Changelog"
           icon="i-[tabler--file-text-spark] bg-green-400"
         >
-          <Changelog git={data.git} changelog={data.changelog} />
+          <Changelog git={data.git} changelog={data.changelog} roadmap={data.roadmap} />
         </Panel>
       </Sidebar>
     </Grid.Cell>

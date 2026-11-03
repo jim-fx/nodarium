@@ -19,6 +19,7 @@ export { default as MenuBar } from './MenuBar.svelte';
 export { default as MenuList } from './MenuList.svelte';
 export { default as ShortCut } from './ShortCut.svelte';
 export { default as Spinner } from './Spinner.svelte';
+export { default as Tabs } from './Tabs.svelte';
 export { default as Toast } from './Toast.svelte';
 export { toast } from './toast.svelte';
 export { fromDisplay, toDisplay, UNIT_FACTORS, unitSettings } from './units.svelte';

@@ -1,0 +1,65 @@
+{
+  "id": "max/plantarium/points_on_path",
+  "meta": {
+    "description": "Spreads points along paths, where branch_from_points and instance_from_points place branches or instances."
+  },
+  "outputs": [
+    "points"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The paths to place the points on.",
+      "external": true
+    },
+    "amount": {
+      "type": "integer",
+      "description": "How many points to place on every path.",
+      "min": 0,
+      "max": 64,
+      "value": 10
+    },
+    "lowest_point": {
+      "type": "float",
+      "hidden": true,
+      "description": "Where the first point sits. 0 is the bottom, 1 is the top.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.2
+    },
+    "highest_point": {
+      "type": "float",
+      "hidden": true,
+      "description": "Where the last point sits. 0 is the bottom, 1 is the top.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 1
+    },
+    "rotation": {
+      "type": "float",
+      "description": "How far every point is turned around the path from the one before it, in degrees. 180 alternates sides, 137.5 makes a spiral.",
+      "hidden": true,
+      "min": 0,
+      "max": 360,
+      "step": 0.01,
+      "value": 137.5
+    },
+    "offset_single": {
+      "type": "float",
+      "hidden": true,
+      "description": "Moves every second point up toward the next one, 1 makes pairs.",
+      "min": 0,
+      "max": 1,
+      "value": 0
+    },
+    "depth": {
+      "type": "integer",
+      "hidden": true,
+      "min": 1,
+      "value": 1,
+      "description": "On how many of the deepest layers of paths to place points."
+    }
+  }
+}

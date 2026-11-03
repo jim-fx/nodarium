@@ -16,6 +16,7 @@
     JsonViewer,
     ShortCut,
     Spinner,
+    Tabs,
     Toast,
     toast
   } from '#lib';
@@ -36,6 +37,8 @@
   let mirrorShape = $state(true);
   let curvePoints = $state([0, 0, 1, 1]);
   let detailsOpen = $state(false);
+  const tabNames = ['Changelog', 'Roadmap', 'Settings'] as const;
+  let activeTab = $state<(typeof tabNames)[number]>('Changelog');
   let jsonValue = $state({
     id: 1,
     nodes: [{ id: 0, type: 'max/test/node', position: [0, 0] }, {
@@ -177,6 +180,14 @@
     <Details title="More Information" bind:open={detailsOpen}>
       <p>Here is some more information that was previously hidden.</p>
     </Details>
+  </Section>
+
+  <Section title="Tabs" value={activeTab}>
+    <Tabs tabs={tabNames} bind:value={activeTab}>
+      {#snippet children(tab)}
+        <p class="text-sm opacity-75">Content of the {tab} tab</p>
+      {/snippet}
+    </Tabs>
   </Section>
 
   <Section title="JsonViewer">

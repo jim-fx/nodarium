@@ -40,6 +40,8 @@ cat >app/static/git.json <<EOF
 }
 EOF
 
+pnpm -C app exec tsx scripts/fetch-roadmap.ts static/roadmap.json
+
 pnpm build
 
 cp -R packages/ui/build app/build/ui
