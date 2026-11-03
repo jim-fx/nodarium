@@ -52,7 +52,6 @@
 
     await new Promise((r) => setTimeout(r, 50));
 
-    // warm up
     for (let i = 0; i < warmUpAmount; i++) {
       await run();
       $warmUp = i + 1;
@@ -61,7 +60,6 @@
     let a = performance.now();
     let results = [];
 
-    // perform run
     for (let i = 0; i < amount.value; i++) {
       const a = performance.now();
       await run();

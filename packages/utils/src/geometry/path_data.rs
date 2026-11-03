@@ -172,26 +172,26 @@ pub fn create_multiple_paths(
 
     let mut path: Vec<i32> = vec![0; output_size];
 
-    path[0] = 0; // encode opening bracket
-    path[1] = 1; // encode opening bracket
-    path[output_size - 2] = 1; // encode closing bracket
-    path[output_size - 1] = 1; // encode closing bracket
+    path[0] = 0;
+    path[1] = 1;
+    path[output_size - 2] = 1;
+    path[output_size - 1] = 1;
 
     for i in 0..amount {
         let start_index = 2 + i * (point_amount * 4 + PATH_HEADER_SIZE + 4);
         let end_index = 2 + (i + 1) * (point_amount * 4 + PATH_HEADER_SIZE + 4);
 
-        path[start_index] = 0; // encode opening bracket
-        path[start_index + 1] = (point_amount * 4 + PATH_HEADER_SIZE + 1) as i32; // encode opening bracket
-        path[start_index + 2] = 0; // encode node-type, stem: 0
-        path[start_index + 3] = depth; // encode depth
+        path[start_index] = 0;
+        path[start_index + 1] = (point_amount * 4 + PATH_HEADER_SIZE + 1) as i32;
+        path[start_index + 2] = 0;
+        path[start_index + 3] = depth;
         set_path_link(
             &mut path[start_index..end_index],
             PathLink::root(creator, i as i32),
         );
 
-        path[end_index - 2] = 1; // encode closing bracket
-        path[end_index - 1] = 1; // encode closing bracket
+        path[end_index - 2] = 1;
+        path[end_index - 1] = 1;
     }
 
     path
@@ -224,19 +224,18 @@ pub fn create_path(point_amount: usize, depth: i32) -> Vec<i32> {
 
     let mut path: Vec<i32> = vec![0; output_size];
 
-    path[0] = 0; // encode opening bracket
-    path[1] = ((point_amount * 4) + PATH_HEADER_SIZE + 1) as i32; // encode opening bracket
-    path[2] = 0; //encode node-type, stem: 0
-    path[3] = depth; //encode depth
+    path[0] = 0;
+    path[1] = ((point_amount * 4) + PATH_HEADER_SIZE + 1) as i32;
+    path[2] = 0;
+    path[3] = depth;
     set_path_link(&mut path, PathLink::root(0, 0));
-    path[output_size - 2] = 1; // encode closing bracket
-    path[output_size - 1] = 1; // encode closing bracket
+    path[output_size - 2] = 1;
+    path[output_size - 1] = 1;
 
     path
 }
 
 pub fn wrap_path(input: &[i32]) -> PathData<'_> {
-    // Basic validity checks
     assert!(
         input.len() > PATH_HEADER_SIZE,
         "Geometry vector does not contain enough data for a header."
@@ -269,7 +268,6 @@ pub fn wrap_path(input: &[i32]) -> PathData<'_> {
 }
 
 pub fn wrap_path_mut<'a>(geometry: &'a mut [i32]) -> PathDataMut<'a> {
-    // Basic validity checks
     assert!(
         geometry.len() > PATH_HEADER_SIZE,
         "Geometry vector does not contain enough data for a header."
@@ -277,7 +275,6 @@ pub fn wrap_path_mut<'a>(geometry: &'a mut [i32]) -> PathDataMut<'a> {
 
     let (_opening_brackets, rest) = geometry.split_at_mut(2);
 
-    // Split at after header
     let (header, rest) = rest.split_at_mut(PATH_HEADER_SIZE);
 
     // split after points, excluding last two that encode closing bracket
@@ -309,7 +306,7 @@ pub fn get_point_at_path(path: &[f32], alpha: f32) -> [f32; 4] {
     let num_points = path.len() / 4;
     let segment_length = 1.0 / (num_points - 1) as f32;
     let mut target_index = (a / segment_length).floor() as usize;
-    target_index = target_index.min(num_points - 2); // Ensure it doesn't exceed bounds
+    target_index = target_index.min(num_points - 2);
 
     let start_index = target_index * 4;
     let end_index = (target_index + 1) * 4;
@@ -326,7 +323,6 @@ pub fn get_point_at_path(path: &[f32], alpha: f32) -> [f32; 4] {
     let z2 = path[end_index + 2];
     let w2 = path[end_index + 3];
 
-    // Linear interpolation
     let x = x1 + t * (x2 - x1);
     let y = y1 + t * (y2 - y1);
     let z = z1 + t * (z2 - z1);
@@ -353,7 +349,6 @@ pub fn get_direction_at_path(path: &[f32], alpha: f32) -> [f32; 3] {
     let y2 = path[end_index + 1];
     let z2 = path[end_index + 2];
 
-    // Direction vector (not normalized)
     let dx = x2 - x1;
     let dy = y2 - y1;
     let dz = z2 - z1;
@@ -384,17 +379,8 @@ pub fn orthogonal_to(tangent: Vec3) -> Vec3 {
         .unwrap_or_else(|| tangent.cross(Vec3::X).normalize())
 }
 
-/// A function that interpolates a position along a path given by `points_data` at a position
-/// specified by `alpha` (ranging from 0.0 to 1.0), calculates an orthogonal vector to the path,
-/// and returns the direction of the path at that point.
-///
-/// Arguments:
-///     * `points_data` - A slice of `f32` containing x, y, z coordinates and thickness for each point defining the path.
-///     * `alpha` - A float from 0.0 to 1.0 indicating the relative position along the path.
-///
-/// Returns:
-///     * A tuple containing the interpolated position along the path as Vec4 (including thickness),
-///       a vector orthogonal to the path, and the direction of the path at that position.
+/// The position (with thickness) at `alpha` along the length of the path, a vector orthogonal
+/// to the path there and the direction of the path.
 pub fn interpolate_along_path(points_data: &[f32], _alpha: f32) -> (Vec4, Vec3, Vec3) {
     let alpha = _alpha.min(0.999999).max(0.000001);
     assert!(
@@ -408,7 +394,6 @@ pub fn interpolate_along_path(points_data: &[f32], _alpha: f32) -> (Vec4, Vec3, 
         "There must be at least two points to define a path."
     );
 
-    // Calculate the total length of the path and the lengths of each segment.
     let mut segment_lengths = Vec::with_capacity(num_points - 1);
     let mut total_length = 0.0;
     for i in 0..num_points - 1 {
@@ -429,14 +414,11 @@ pub fn interpolate_along_path(points_data: &[f32], _alpha: f32) -> (Vec4, Vec3, 
         total_length += length;
     }
 
-    // Find the target length along the path corresponding to `alpha`.
     let target_length = alpha * total_length;
     let mut accumulated_length = 0.0;
 
-    // Find the segment that contains the point at `target_length`.
     for (i, &length) in segment_lengths.iter().enumerate() {
         if accumulated_length + length >= target_length {
-            // Calculate the position within this segment.
             let segment_alpha = if length > 0.0 {
                 (target_length - accumulated_length) / length
             } else {

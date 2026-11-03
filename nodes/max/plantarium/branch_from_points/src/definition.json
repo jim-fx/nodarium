@@ -1,0 +1,66 @@
+{
+  "id": "max/plantarium/branch_from_points",
+  "meta": {
+    "description": "Grows a branch from every point, for example the points of points_on_path or the kinks of trunk_kink."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The paths the points sit on, the branches are added to them.",
+      "external": true
+    },
+    "points": {
+      "type": "points",
+      "description": "Where the branches grow from.",
+      "external": true
+    },
+    "length": {
+      "type": "float",
+      "description": "The length of the branches.",
+      "min": 0,
+      "max": 3,
+      "step": 0.05,
+      "value": 0.8,
+      "unit": "m"
+    },
+    "thickness": {
+      "type": "float",
+      "description": "The thickness of the branches, relative to the path at the point.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.8
+    },
+    "angle": {
+      "type": "float",
+      "description": "Upward tilt of branches. 0 = straight out from the point, positive = upward, negative = drooping.",
+      "min": -90,
+      "max": 90,
+      "step": 1,
+      "value": 0
+    },
+    "taper": {
+      "type": "float",
+      "description": "How much the thickness tapers to the tip. 1 = a cone, 0 = the thickness input alone sets the profile.",
+      "hidden": true,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "value": 1
+    },
+    "resolution_curve": {
+      "type": "integer",
+      "description": "The resolution of a branch as long as the longest path, shorter branches get fewer points.",
+      "value": 32,
+      "min": 3,
+      "max": 64,
+      "setting": "resolution.curve"
+    },
+    "creator": {
+      "type": "creator"
+    }
+  }
+}

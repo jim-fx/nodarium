@@ -18,7 +18,6 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let p = encode_float(size);
     let n = encode_float(-size);
 
-    // [[1,3, x, y, z, x, y,z,x,y,z]];
     let mut cube_geometry = [
 
         1,          // 1: geometry
@@ -27,14 +26,14 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         -1,         // not made from a path
         
         /*
-        Indeces:
+        Indices:
         5----6
         | 4--+-7
         0-|--1 |
           3----2
 
         */
-        // this are the indeces for the face
+        // the indices of the faces
         0, 1, 2, 
         0, 2, 3, 
         0, 3, 4, 

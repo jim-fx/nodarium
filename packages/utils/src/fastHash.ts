@@ -5,10 +5,8 @@ export function fastHashArrayBuffer(input: string | Int32Array): string {
   let h = 0xcbf29ce484222325n; // offset basis
   const FNV_PRIME = 0x100000001b3n;
 
-  // get bytes for string or Int32Array
   let bytes: Uint8Array;
   if (typeof input === 'string') {
-    // utf-8 encoding
     bytes = new TextEncoder().encode(input);
   } else {
     // Int32Array -> bytes (little-endian)
@@ -36,7 +34,6 @@ export function fastHashArrayBuffer(input: string | Int32Array): string {
   h = (h * 0xc4ceb9fe1a85ec53n) & mask;
   h ^= h >> 33n;
 
-  // to 16-char hex
   return h.toString(16).padStart(16, '0').slice(-16);
 }
 

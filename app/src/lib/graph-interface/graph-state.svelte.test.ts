@@ -37,7 +37,6 @@ describe('clearSelection', () => {
 describe('projectScreenToWorld', () => {
   it('maps the viewport centre to the camera position', () => {
     const { state } = createFixture();
-    // cameraPosition default: [140, 100, 3.5], width=100, height=100
     state.width = 100;
     state.height = 100;
     state.cameraPosition = [140, 100, 3.5];
@@ -67,15 +66,15 @@ describe('groupSelectedNodes', () => {
     assert.isDefined(nodeA);
     assert.isDefined(nodeB);
 
-    state.selectedNodes.add(nodeA!.id);
-    state.activeNodeId = nodeB!.id;
+    state.selectedNodes.add(nodeA.id);
+    state.activeNodeId = nodeB.id;
 
     const groupNode = state.groupSelectedNodes();
     assert.isDefined(groupNode);
 
     const graph = manager.serialize();
     expect(graph.groups.length).toBe(1);
-    expect(graph.nodes.map(n => n.id)).toContain(groupNode!.id);
+    expect(graph.nodes.map(n => n.id)).toContain(groupNode.id);
   });
 
   it('works when only activeNodeId is set with no extra selection', () => {
@@ -84,7 +83,7 @@ describe('groupSelectedNodes', () => {
     const nodeA = manager.createNode({ type: 'test/node/output', position: [0, 0], props: {} });
     assert.isDefined(nodeA);
 
-    state.activeNodeId = nodeA!.id;
+    state.activeNodeId = nodeA.id;
     const groupNode = state.groupSelectedNodes();
     assert.isDefined(groupNode);
 
@@ -104,21 +103,21 @@ describe('enterGroupNode', () => {
     const { manager, state } = createFixture();
     const node = manager.createNode({ type: 'test/node/output', position: [0, 0], props: {} });
     assert.isDefined(node);
-    state.activeNodeId = node!.id;
+    state.activeNodeId = node.id;
     state.enterGroupNode();
     expect(manager.parentStack.length).toBe(0);
   });
 
-  it('enters the group, pushes graphStack, and clears UI state', () => {
+  it('enters the group and clears UI state', () => {
     const { manager, state } = createFixture();
 
     const nodeA = manager.createNode({ type: 'test/node/output', position: [0, 0], props: {} });
     assert.isDefined(nodeA);
-    const groupNode = manager.groupNodes([nodeA!.id]);
+    const groupNode = manager.groupNodes([nodeA.id]);
     assert.isDefined(groupNode);
 
-    state.selectedNodes.add(nodeA!.id);
-    state.activeNodeId = groupNode!.id;
+    state.selectedNodes.add(nodeA.id);
+    state.activeNodeId = groupNode.id;
     state.cameraPosition = [10, 20, 5];
 
     state.enterGroupNode();
@@ -144,10 +143,10 @@ describe('exitGroupNode', () => {
 
     const nodeA = manager.createNode({ type: 'test/node/output', position: [0, 0], props: {} });
     assert.isDefined(nodeA);
-    const groupNode = manager.groupNodes([nodeA!.id]);
+    const groupNode = manager.groupNodes([nodeA.id]);
     assert.isDefined(groupNode);
 
-    state.activeNodeId = groupNode!.id;
+    state.activeNodeId = groupNode.id;
     state.enterGroupNode();
     state.activeNodeId = 99;
     state.selectedNodes.add(99);
@@ -155,7 +154,7 @@ describe('exitGroupNode', () => {
     state.exitGroupNode();
 
     // Group instance node is re-selected on exit; internal selection is cleared
-    expect(state.activeNodeId).toBe(groupNode!.id);
+    expect(state.activeNodeId).toBe(groupNode.id);
     expect(state.selectedNodes.size).toBe(0);
   });
 
@@ -168,22 +167,22 @@ describe('exitGroupNode', () => {
     assert.isDefined(nodeB);
 
     manager.createEdge(nodeA!, 0, nodeB!, 'value');
-    const groupNode = manager.groupNodes([nodeA!.id]);
+    const groupNode = manager.groupNodes([nodeA.id]);
     assert.isDefined(groupNode);
 
-    state.activeNodeId = groupNode!.id;
+    state.activeNodeId = groupNode.id;
     state.enterGroupNode();
 
     // Inside the group: nodeA is an internal node so it IS active; the outer
     // nodes (nodeB, groupNode) are saved and no longer in the active Map.
-    expect(manager.nodes.has(nodeA!.id)).toBe(true);
-    expect(manager.nodes.has(nodeB!.id)).toBe(false);
+    expect(manager.nodes.has(nodeA.id)).toBe(true);
+    expect(manager.nodes.has(nodeB.id)).toBe(false);
 
     state.exitGroupNode();
 
     // After exit: outer nodes are restored
-    expect(manager.nodes.has(nodeB!.id)).toBe(true);
-    expect(manager.nodes.has(groupNode!.id)).toBe(true);
+    expect(manager.nodes.has(nodeB.id)).toBe(true);
+    expect(manager.nodes.has(groupNode.id)).toBe(true);
     expect(manager.isInsideGroup).toBe(false);
   });
 
@@ -192,10 +191,10 @@ describe('exitGroupNode', () => {
 
     const nodeA = manager.createNode({ type: 'test/node/output', position: [0, 0], props: {} });
     assert.isDefined(nodeA);
-    const groupNode = manager.groupNodes([nodeA!.id]);
+    const groupNode = manager.groupNodes([nodeA.id]);
     assert.isDefined(groupNode);
 
-    state.activeNodeId = groupNode!.id;
+    state.activeNodeId = groupNode.id;
     state.enterGroupNode();
     expect(manager.isInsideGroup).toBe(true);
 
@@ -210,12 +209,12 @@ describe('copyNodes / pasteNodes', () => {
     const node = manager.createNode({ type: 'test/node/output', position: [10, 20], props: {} });
     assert.isDefined(node);
 
-    state.activeNodeId = node!.id;
+    state.activeNodeId = node.id;
     state.mousePosition = [0, 0];
     state.copyNodes();
 
     assert.isNotNull(state.clipboard);
-    expect(state.clipboard!.nodes.map(n => n.id)).toContain(node!.id);
+    expect(state.clipboard!.nodes.map(n => n.id)).toContain(node.id);
   });
 
   it('includes edges between copied nodes', () => {
@@ -227,8 +226,8 @@ describe('copyNodes / pasteNodes', () => {
 
     manager.createEdge(nodeA!, 0, nodeB!, 'value');
 
-    state.activeNodeId = nodeA!.id;
-    state.selectedNodes.add(nodeB!.id);
+    state.activeNodeId = nodeA.id;
+    state.selectedNodes.add(nodeB.id);
     state.mousePosition = [0, 0];
     state.copyNodes();
 
@@ -241,7 +240,7 @@ describe('copyNodes / pasteNodes', () => {
     const node = manager.createNode({ type: 'test/node/output', position: [10, 20], props: {} });
     assert.isDefined(node);
 
-    state.activeNodeId = node!.id;
+    state.activeNodeId = node.id;
     state.mousePosition = [0, 0];
     state.copyNodes();
 

@@ -1,13 +1,13 @@
 use super::{GeometryData, NO_PATH};
 
 pub struct InstanceData<'a> {
-    pub instances: &'a mut [f32], // View into `data`
+    pub instances: &'a mut [f32],
     /// For every instance the id of the path it sits on, `NO_PATH` for none.
-    pub path_ids: &'a mut [i32], // View into `data`
+    pub path_ids: &'a mut [i32],
     pub instance_amount: usize,
-    pub positions: &'a mut [f32], // View into `data`
-    pub normals: &'a mut [f32],   // View into `data`
-    pub faces: &'a mut [i32],     // View into `data`
+    pub positions: &'a mut [f32],
+    pub normals: &'a mut [f32],
+    pub faces: &'a mut [i32],
 }
 
 impl InstanceData<'_> {
@@ -54,8 +54,8 @@ static INSTANCE_HEADER_SIZE: usize = 5;
 // 0: type instance = 2;
 // 1: vertex amount
 // 2: face amount
-// 3: stem_depth
-// 4: instance amount
+// 3: instance amount
+// 4: stem_depth
 // followed by faces, positions, normals, a 4x4 matrix per instance and the id of the path each
 // instance sits on
 
@@ -64,7 +64,7 @@ pub fn create_instance_data(
     face_amount: usize,
     instance_amount: usize,
 ) -> Vec<i32> {
-    let amount = INSTANCE_HEADER_SIZE // definition (type, vertex_amount, face_amount, instance_amount)
+    let amount = INSTANCE_HEADER_SIZE // type, vertex_amount, face_amount, instance_amount, stem_depth
       + 4 // opening and closing brackets
       + instance_amount * 16  // instances stored as 4x4 matrices
       + instance_amount // the id of the path each instance sits on
@@ -75,7 +75,7 @@ pub fn create_instance_data(
     let mut geo = vec![0; amount];
 
     geo[0] = 0; // opening bracket
-    geo[1] = amount as i32 - 3; // opening bracket
+    geo[1] = amount as i32 - 3;
     geo[2] = 2; // type: instance
     geo[3] = vertex_amount as i32;
     geo[4] = face_amount as i32;

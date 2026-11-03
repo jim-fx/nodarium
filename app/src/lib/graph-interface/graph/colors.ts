@@ -2,7 +2,6 @@ type Color = { hue: number; saturation: number; lightness: number };
 
 export class ColorGenerator {
   private colors: Map<string, Color> = new Map();
-  // private lightnessLevels = [10, 60];
 
   constructor(predefined: Record<string, Color>) {
     for (const [id, colorStr] of Object.entries(predefined)) {

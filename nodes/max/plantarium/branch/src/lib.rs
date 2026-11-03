@@ -105,7 +105,6 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             let rotation_angle = turn;
             turn += ctx.float(args[9]) * PI / 180.0;
 
-            // check if diration contains NaN
             if orthogonal[0].is_nan() || orthogonal[1].is_nan() || orthogonal[2].is_nan() {
                 log!(
                     "BRANCH direction contains NaN: {:?}, branch_origin: {:?}, branch: {}",
