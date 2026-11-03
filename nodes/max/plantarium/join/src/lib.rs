@@ -2,8 +2,7 @@ use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
     concat_arg_vecs,
-    geometry::{path_id, path_link, set_path_link, PathLink},
-    split_args,
+    geometry::{path_id, path_link, set_path_link, split_items, PathLink},
 };
 use std::collections::HashSet;
 
@@ -45,7 +44,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             continue;
         }
 
-        let items: Vec<Vec<i32>> = split_args(arg).iter().map(|item| item.to_vec()).collect();
+        let items: Vec<Vec<i32>> = split_items(arg).iter().map(|item| item.to_vec()).collect();
         let clashes = items
             .iter()
             .any(|item| is_path(item) && seen.contains(&path_link(item).id));
@@ -68,8 +67,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 mod tests {
     use super::__nodarium_execute_inner;
     use nodarium_utils::{
-        geometry::{create_multiple_paths, path_link, set_path_link, PathLink},
-        split_args,
+        geometry::{create_multiple_paths, path_link, set_path_link, PathLink, NO_PATH},
+        split_args, wrap_arg,
     };
 
     /// Two paths of the node `creator`, the second grows on the first.
@@ -130,5 +129,19 @@ mod tests {
 
         assert!(!links[0].has_parent());
         assert!(!links[2].has_parent());
+    }
+
+    #[test]
+    fn single_geometries_are_joined_into_a_list() {
+        let leaf = |vertices: i32| {
+            let mut data = vec![1, vertices, 1, NO_PATH, 0, 1, 2];
+            data.extend(vec![0; vertices as usize * 6]);
+            wrap_arg(&data)
+        };
+        let (a, b) = (leaf(3), leaf(4));
+
+        let result = __nodarium_execute_inner(&[&a, &[0, 1, 1, 1], &b, &[0, 1, 1, 1]]);
+
+        assert_eq!(split_args(&result), vec![a.as_slice(), b.as_slice()]);
     }
 }

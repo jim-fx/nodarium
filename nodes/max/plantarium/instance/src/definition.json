@@ -9,6 +9,8 @@
     },
     "geometry": {
       "type": "geometry",
+      "accepts": ["path"],
+      "description": "One geometry, or a list of them from a join node. Every instance picks one of them at random.",
       "value": [0, 0, 0]
     },
     "amount": {
@@ -55,6 +57,9 @@
       "step": 1,
       "value": 0,
       "hidden": true
+    },
+    "seed": {
+      "type": "seed"
     }
   }
 }
