@@ -70,7 +70,7 @@ export class ProjectManager {
     }
 
     if (!this.graph) {
-      this.handleCreateProject();
+      this.handleCreateProject(templates.defaultPlant as unknown as Graph);
     }
   }
 

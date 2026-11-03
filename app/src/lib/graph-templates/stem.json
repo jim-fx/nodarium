@@ -5,7 +5,7 @@
   "groups": [],
   "nodes": [
     { "id": 9, "position": [245, 85], "type": "max/plantarium/output", "props": {} },
-    { "id": 10, "position": [65, 85], "type": "max/plantarium/stem", "props": {} }
+    { "id": 10, "position": [215, 85], "type": "max/plantarium/stem", "props": { "length": 0.5 } }
   ],
   "edges": [[10, 0, 9, "input"]]
 }
