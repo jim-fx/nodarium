@@ -92,11 +92,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let resolution = int(args[1]) as usize;
     let mut mesh = Mesh::default();
 
-    // an unconnected input is empty, a single geometry comes without a list around it
+    // a single geometry comes without a list around it, an unconnected input is the empty
+    // list `[0, 1, 1, 1]`
     let items = match input.get(2) {
-        None => vec![],
-        Some(1) => vec![input],
-        Some(_) => split_args(input),
+        Some(1) if input.len() >= 8 => vec![input],
+        _ => split_args(input),
     };
 
     for item in items {
@@ -214,7 +214,7 @@ mod tests {
 
     #[test]
     fn an_unconnected_input_gives_an_empty_geometry() {
-        let mut result = __nodarium_execute_inner(&[&[], &[8]]);
+        let mut result = __nodarium_execute_inner(&[&[0, 1, 1, 1], &[8]]);
         let geometry = wrap_geometry_data(&mut result);
         assert!(geometry.positions.is_empty());
         assert!(geometry.faces.is_empty());
