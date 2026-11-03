@@ -1,0 +1,11 @@
+{
+  "id": 0,
+  "version": 2,
+  "settings": { "resolution.circle": 8, "resolution.curve": 24, "randomSeed": false },
+  "groups": [],
+  "nodes": [
+    { "id": 9, "position": [245, 85], "type": "max/plantarium/output", "props": {} },
+    { "id": 10, "position": [65, 85], "type": "max/plantarium/stem", "props": {} }
+  ],
+  "edges": [[10, 0, 9, "input"]]
+}

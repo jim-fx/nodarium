@@ -16,6 +16,7 @@ export { default as maidenhair } from './maidenhair.json';
 export { default as palm } from './palm.json';
 export { default as sage } from './sage.json';
 export { default as sapling } from './sapling.json';
+export { default as stem } from './stem.json';
 export { tree } from './tree';
 export { default as tutorial } from './tutorial.json';
 export { default as willow } from './willow.json';
