@@ -1,5 +1,5 @@
 {
-  "id": 8,
+  "id": 11,
   "version": 2,
   "settings": {
     "resolution.circle": 10,
@@ -9,7 +9,7 @@
   "meta": {
     "unit": "cm",
     "title": "Daisy",
-    "lastModified": "2026-10-23T16:39:50.940Z"
+    "lastModified": "2026-11-03T09:50:48.615Z"
   },
   "groups": [],
   "nodes": [
@@ -21,8 +21,8 @@
       ],
       "type": "max/plantarium/random",
       "props": {
-        "min": 0.075,
-        "max": 0.135
+        "min": 0.14,
+        "max": 0.259
       }
     },
     {
@@ -35,7 +35,7 @@
       "props": {
         "amount": 5,
         "length": 1.5,
-        "thickness": 0.00234,
+        "thickness": 0.002,
         "taper": 0.1
       }
     },

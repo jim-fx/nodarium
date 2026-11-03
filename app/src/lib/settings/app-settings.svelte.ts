@@ -26,12 +26,12 @@ export const AppSettingTypes = {
   showScaleModel: {
     type: 'boolean',
     label: 'Show Scale Model',
-    value: true
+    value: false
   },
   showScaleViewer: {
     type: 'boolean',
     label: 'Show Dimensions',
-    value: true
+    value: false
   },
   centerCamera: {
     type: 'boolean',
@@ -43,7 +43,7 @@ export const AppSettingTypes = {
     label: 'Show Units',
     value: true
   },
-  clippy: {
+  planty: {
     type: 'button',
     label: '🌱 Open Planty'
   },

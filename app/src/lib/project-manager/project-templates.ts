@@ -3,10 +3,12 @@ import {
   bamboo,
   daisy,
   defaultPlant,
+  devilsBackbone,
   fern,
   foxglove,
   grass,
   horsetail,
+  knotweed,
   ladyFern,
   lavender,
   maidenhair,
@@ -42,5 +44,7 @@ export const projectTemplates: ProjectTemplate[] = [
   { name: 'Maidenhair Fern', graph: toGraph(maidenhair, 'cm') },
   { name: 'Daisy', graph: toGraph(daisy, 'cm') },
   { name: 'Field Horsetail', graph: toGraph(horsetail, 'cm') },
-  { name: 'Foxglove', graph: toGraph(foxglove) }
+  { name: 'Foxglove', graph: toGraph(foxglove) },
+  { name: "Devil's Backbone", graph: toGraph(devilsBackbone, 'cm') },
+  { name: 'Japanese Knotweed', graph: toGraph(knotweed) }
 ];

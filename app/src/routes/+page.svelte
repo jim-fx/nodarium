@@ -298,7 +298,7 @@
 
   function handleSettingsButton(id: string) {
     switch (id) {
-      case 'general.clippy':
+      case 'general.planty':
         planty?.start();
         break;
       case 'general.debug.stressTest.loadGrid':
