@@ -30,6 +30,9 @@ const MAX_EXTRA_RINGS: usize = 12;
 const SMOOTH_ITERATIONS: usize = 3;
 /// How often the triangles of a hull junction are split to round it off.
 const HULL_REFINE: usize = 1;
+/// Below this many segments around a junction its rounding bulges past the flat sides of the
+/// tubes, so junctions get at least this many and step down to the tubes next to them.
+const MIN_JUNCTION_RES: usize = 12;
 
 /// How a branch is joined into its parent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -483,7 +486,7 @@ fn mesh_path_hull(
     let mut candidates: Vec<(f32, f32, usize, f32, Ring)> = children
         .iter()
         .filter_map(|&c| {
-            let a = attachment(path, c, &paths[c], res)?;
+            let a = attachment(path, c, &paths[c], res.max(MIN_JUNCTION_RES))?;
             let (branch_start, first, from, to) = hull_branch(path, &a, &paths[c], res)?;
             (from > start + eps && to < path.length() - eps).then_some((from, to, c, branch_start, first))
         })
@@ -555,28 +558,52 @@ fn mesh_path_hull(
         if lo >= hi {
             continue;
         }
-        let mut loops = vec![ring_vertices[lo].clone(), ring_vertices[hi].clone()];
-        let mut centers = vec![rings[lo].center, rings[hi].center];
-        for (_, _, first) in &junction.branches {
+        let jres = res.max(MIN_JUNCTION_RES);
+        let radius = rings[lo].radius.min(rings[hi].radius);
+        // with more segments than the tube the junction starts a little inside the cut, the
+        // band in between steps from the tube to the junction
+        let inset = if jres > res { radius * 0.25 } else { 0.0 };
+        let lower_ring = path.ring_at(junction.from + inset);
+        let upper_ring = path.ring_at(junction.to - inset);
+        let mut loops = if jres > res {
+            vec![loop_at(mesh, &lower_ring, jres), loop_at(mesh, &upper_ring, jres)]
+        } else {
+            vec![ring_vertices[lo].clone(), ring_vertices[hi].clone()]
+        };
+        let mut centers = vec![lower_ring.center, upper_ring.center];
+        let mut tubes = Vec::new();
+        for (child, branch_start, first) in &junction.branches {
             centers.push(first.center);
-            loops.push(
-                (0..res)
-                    .map(|j| mesh.vertex(first.point(TAU * j as f32 / res as f32)))
-                    .collect(),
-            );
+            loops.push(loop_at(mesh, first, jres));
+            let tube_start = branch_start + if jres > res { paths[*child].thickness(0) * 0.5 } else { 0.0 };
+            let tube_ring = paths[*child].ring_at(tube_start);
+            tubes.push((tube_start, tube_ring));
         }
         let center = path.sample((junction.from + junction.to) * 0.5).0;
         if let Some(faces) = hull_junction(mesh, center, &loops) {
             let faces = round_junction(mesh, faces, &loops, &centers);
             mesh.faces.extend(faces);
             cut_rows.extend(lo..hi);
-            for ((child, branch_start, _), first) in junction.branches.iter().zip(loops.drain(2..)) {
+            if jres > res {
+                step(mesh, &ring_vertices[lo], &rings[lo], &loops[0], &lower_ring);
+                step(mesh, &loops[1], &upper_ring, &ring_vertices[hi], &rings[hi]);
+            }
+            for (((child, _, first), junction_loop), (tube_start, tube_ring)) in
+                junction.branches.iter().zip(&loops[2..]).zip(tubes)
+            {
+                let ring = if jres > res {
+                    let ring = loop_at(mesh, &tube_ring, res);
+                    step(mesh, junction_loop, first, &ring, &tube_ring);
+                    ring
+                } else {
+                    junction_loop.clone()
+                };
                 joins.push((
                     *child,
                     Join {
                         hole: Vec::new(),
-                        start: *branch_start,
-                        ring: Some(first),
+                        start: tube_start,
+                        ring: Some(ring),
                     },
                 ));
             }
@@ -606,6 +633,25 @@ fn mesh_path_hull(
     }
 
     joins
+}
+
+fn loop_at(mesh: &mut Mesh, ring: &Ring, n: usize) -> Vec<u32> {
+    (0..n)
+        .map(|j| mesh.vertex(ring.point(TAU * j as f32 / n as f32)))
+        .collect()
+}
+
+/// The band between two rings of a tube with different numbers of segments, `lower` towards
+/// the root.
+fn step(mesh: &mut Mesh, lower: &[u32], _lower_ring: &Ring, upper: &[u32], upper_ring: &Ring) {
+    let mut angles: Vec<f32> = lower
+        .iter()
+        .map(|&v| angle_in(upper_ring, mesh.positions[v as usize]))
+        .collect();
+    for i in 1..angles.len() {
+        angles[i] = angles[i - 1] + wrap(angles[i] - angles[i - 1]).max(0.0);
+    }
+    zip(mesh, lower, &angles, upper, upper.len());
 }
 
 /// Closes the space between the loops of a junction. As in the branch node polyhedra of SQM,
@@ -1222,9 +1268,10 @@ mod tests {
         let branch = branch(link, 0.5, Vec3::new(1.0, 0.8, 0.0), 0.07);
         let paths = [wrap_path(&stem), wrap_path(&branch)];
 
-        for res in [6, 8, 12, 24] {
+        for res in [3, 4, 6, 8, 12, 24] {
             let (mut geometries, stats) = remesh_paths(&paths, res, usize::MAX, JoinStyle::Hull);
             assert_eq!(stats, RemeshStats { joined: 1, separate: 0 }, "res {res}");
+            assert!(signed_volume(&mut geometries[0]) > 0.0, "res {res}");
             assert_eq!(manifold_errors(&mut geometries[0]), (0, 0), "res {res}");
             assert!(signed_volume(&mut geometries[0]) > 0.0, "res {res}");
         }
@@ -1238,7 +1285,7 @@ mod tests {
         set_path_link(&mut b, PathLink::child(2, link.id, 0.5, 1));
         let paths = [wrap_path(&stem), wrap_path(&a), wrap_path(&b)];
 
-        for res in [6, 8, 16] {
+        for res in [4, 6, 8, 16] {
             let (mut geometries, stats) = remesh_paths(&paths, res, usize::MAX, JoinStyle::Hull);
             assert_eq!(stats.joined, 2, "res {res}");
             assert_eq!(manifold_errors(&mut geometries[0]), (0, 0), "res {res}");
