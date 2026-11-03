@@ -59,6 +59,34 @@ function graph(nodes: TestNode[], edges: TestEdge[]) {
   return { id: 0, groups: [], nodes, edges } as Graph;
 }
 
+describe('nodes that feed several nodes', () => {
+  it('run before the deepest node they feed', async () => {
+    // 0 feeds 3 directly and 4 through 1 and 2, the short way is walked last
+    const result = await setup().execute(
+      graph(
+        [
+          node(0, split.id),
+          node(1, combine.id),
+          node(2, combine.id),
+          node(3, combine.id),
+          node(4, combine.id),
+          node(5, output.id)
+        ],
+        [
+          [0, 0, 1, 'a'],
+          [1, 0, 2, 'a'],
+          [0, 0, 3, 'a'],
+          [3, 0, 4, 'a'],
+          [2, 0, 4, 'b'],
+          [4, 0, 5, 'input']
+        ]
+      ),
+      {}
+    );
+    expect([...result]).toEqual([303]);
+  });
+});
+
 describe('nodes with several outputs', () => {
   it('passes every output to the inputs connected to it', async () => {
     const result = await setup().execute(
