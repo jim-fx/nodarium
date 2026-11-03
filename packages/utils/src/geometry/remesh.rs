@@ -28,6 +28,8 @@ const MIN_SIN_ANGLE: f32 = 0.2;
 const MAX_FILLET_LENGTH: f32 = 0.5;
 const MAX_EXTRA_RINGS: usize = 12;
 const SMOOTH_ITERATIONS: usize = 3;
+/// How often the triangles of a hull junction are split to round it off.
+const HULL_REFINE: usize = 1;
 
 /// How a branch is joined into its parent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -554,7 +556,9 @@ fn mesh_path_hull(
             continue;
         }
         let mut loops = vec![ring_vertices[lo].clone(), ring_vertices[hi].clone()];
+        let mut centers = vec![rings[lo].center, rings[hi].center];
         for (_, _, first) in &junction.branches {
+            centers.push(first.center);
             loops.push(
                 (0..res)
                     .map(|j| mesh.vertex(first.point(TAU * j as f32 / res as f32)))
@@ -563,6 +567,7 @@ fn mesh_path_hull(
         }
         let center = path.sample((junction.from + junction.to) * 0.5).0;
         if let Some(faces) = hull_junction(mesh, center, &loops) {
+            let faces = round_junction(mesh, faces, &loops, &centers);
             mesh.faces.extend(faces);
             cut_rows.extend(lo..hi);
             for ((child, branch_start, _), first) in junction.branches.iter().zip(loops.drain(2..)) {
@@ -667,6 +672,67 @@ fn hull_junction(mesh: &Mesh, center: Vec3, loops: &[Vec<u32>]) -> Option<Vec<[u
     }
     let complete = fans.iter().zip(loops).all(|(&n, l)| n == l.len());
     (complete && used.iter().all(|&u| u)).then_some(faces)
+}
+
+/// Splits the triangles of a hull junction and moves the new points onto a smooth surface, so
+/// the flat hull becomes a rounded fork. Every edge is split except the edges of the rings,
+/// which the tubes share, so the junction stays closed against them. A new point is placed by
+/// Phong tessellation: the midpoint of an edge projected onto the tangent planes at both ends,
+/// with the normals of the tubes at the rings.
+fn round_junction(mesh: &mut Mesh, mut faces: Vec<[u32; 3]>, loops: &[Vec<u32>], centers: &[Vec3]) -> Vec<[u32; 3]> {
+    let mut normals: HashMap<u32, Vec3> = HashMap::new();
+    let mut ring_edges: HashSet<(u32, u32)> = HashSet::new();
+    for (l, &center) in loops.iter().zip(centers) {
+        for (i, &v) in l.iter().enumerate() {
+            normals.insert(v, (mesh.positions[v as usize] - center).normalize_or_zero());
+            let w = l[(i + 1) % l.len()];
+            ring_edges.insert((v.min(w), v.max(w)));
+        }
+    }
+
+    for _ in 0..HULL_REFINE {
+        let mut midpoints: HashMap<(u32, u32), u32> = HashMap::new();
+        let mut split = |mesh: &mut Mesh, a: u32, b: u32| -> Option<u32> {
+            let key = (a.min(b), a.max(b));
+            if ring_edges.contains(&key) {
+                return None;
+            }
+            if let Some(&m) = midpoints.get(&key) {
+                return Some(m);
+            }
+            let (pa, pb) = (mesh.positions[a as usize], mesh.positions[b as usize]);
+            let (na, nb) = (normals[&a], normals[&b]);
+            let mid = (pa + pb) * 0.5;
+            let on_a = mid - na * (mid - pa).dot(na);
+            let on_b = mid - nb * (mid - pb).dot(nb);
+            let m = mesh.vertex((on_a + on_b) * 0.5);
+            normals.insert(m, (na + nb).normalize_or_zero());
+            mesh.junction.push(m);
+            midpoints.insert(key, m);
+            Some(m)
+        };
+
+        let mut next = Vec::with_capacity(faces.len() * 4);
+        for [a, b, c] in faces {
+            let ab = split(mesh, a, b);
+            let bc = split(mesh, b, c);
+            let ca = split(mesh, c, a);
+            match (ab, bc, ca) {
+                (Some(ab), Some(bc), Some(ca)) => {
+                    next.extend([[a, ab, ca], [ab, b, bc], [ca, bc, c], [ab, bc, ca]]);
+                }
+                (Some(ab), Some(bc), None) => next.extend([[ab, b, bc], [a, ab, bc], [a, bc, c]]),
+                (None, Some(bc), Some(ca)) => next.extend([[bc, c, ca], [b, bc, ca], [b, ca, a]]),
+                (Some(ab), None, Some(ca)) => next.extend([[ca, a, ab], [c, ca, ab], [c, ab, b]]),
+                (Some(ab), None, None) => next.extend([[a, ab, c], [ab, b, c]]),
+                (None, Some(bc), None) => next.extend([[b, bc, a], [bc, c, a]]),
+                (None, None, Some(ca)) => next.extend([[c, ca, b], [ca, a, b]]),
+                (None, None, None) => next.push([a, b, c]),
+            }
+        }
+        faces = next;
+    }
+    faces
 }
 
 /// The convex hull of points in general position, as triangles wound like the tubes (their
