@@ -62,6 +62,8 @@ A `points` output is a list of these: spots on paths where a later node can grow
 
 `trunk_kink` bends paths at a few spots: everything above a kink turns by `angle`, away from the direction of the kink, and the kinks are turned around the path by `rotation` from one to the next (180 bends left and right in turn). The side the kinks turn from is carried along with every bend, so kinks 180 degrees apart stay in one plane. A kink between two points of a path adds a point there, the path keeps its length and its header. It gives the bent paths and a point on every kink, its direction points to the outer side of the bend and its tangent lies halfway between the path below and above it. Paths that grow on a bent path move with the spot they are attached to (`follow_parents`), they are moved but not turned.
 
+`random_break` breaks off some paths at a random spot between `lowest_break` and `highest_break`, `chance` is how likely a path breaks. Whether a path breaks and where only depend on the seed and the path id, so the same paths stay broken when other paths come or go. A broken path is resampled up to the break and keeps its number of points. Paths that grew above the break are removed, with everything growing on them, the ones below get their `parent_alpha` rescaled to the shorter parent, so they stay where they were.
+
 ## Geometry
 
 ```
