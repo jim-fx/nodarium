@@ -202,7 +202,7 @@ function getValue(input: NodeInput, value?: unknown) {
   if (input.type === 'select' && typeof value !== 'number') {
     const index = input.options?.indexOf(value as string);
     if (index === undefined || index < 0) {
-      // Defaultl to the first option
+      // Default to the first option
       return 0;
     }
     return index;
@@ -287,7 +287,6 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   }
 
   private async addMetaData(graph: Graph) {
-    // First, lets check if all nodes have a definition
     this.definitionMap = await this.getNodeDefinitions(graph);
 
     let graphNodes = graph.nodes.map(node => {
@@ -312,7 +311,6 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       graphNodes.filter(n => n !== null).map((node) => [node.id, node])
     );
 
-    // loop through all edges and assign the parent and child nodes to each node
     for (const edge of graph.edges) {
       const [parentId, parentOutput, childId, childInput] = edge;
       const parent = nodeMap.get(parentId);
@@ -383,7 +381,6 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
     const nodes = new Map<number, RuntimeNode>();
 
-    // loop through all the nodes and assign each nodes its depth
     const stack = [outputNode, ...graphNodes.filter(n => n?.type.endsWith('/debug'))];
     while (stack.length) {
       const node = stack.pop();
@@ -433,11 +430,9 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
     graph = migrateGraph(graph);
 
-    // Expand group nodes into a flat graph before execution
     const origins = new Map<number, number>();
     graph = expandGroups(graph, origins);
 
-    // Then we add some metadata to the graph
     const [outputNode, nodes] = await this.addMetaData(graph);
     let b = performance.now();
 
@@ -454,7 +449,6 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
      * +----+----+--------+
      */
 
-    // we execute the nodes from the bottom up
     const sortedNodes = nodes.sort(
       (a, b) => (b?.state?.depth || 0) - (a?.state?.depth || 0)
     );
@@ -498,10 +492,8 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
           missingInputs
         );
 
-      // Collect the inputs for the node
       const inputs = Object.entries(node_type.inputs || {}).map(
         ([key, input]): NodeValue => {
-          // check if the input is connected to another node
           const inputNode = !input.setting && input.type !== 'seed' && input.type !== 'creator'
             ? node.state.inputNodes[key]
             : undefined;
@@ -525,10 +517,8 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
           } else if (input.type === 'creator') {
             value = toCreatorId(node.id);
           } else if (input.setting) {
-            // If the input is linked to a setting, we use that value
             value = getValue(input, settings[input.setting]);
           } else if (node.props?.[key] !== undefined) {
-            // If the value is stored in the node itself, we use that value
             value = getValue(input, node.props[key]);
           } else {
             if (!('value' in input) || input.value === undefined) missingInputs.push(key);

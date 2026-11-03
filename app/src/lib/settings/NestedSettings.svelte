@@ -38,7 +38,6 @@
     depth?: number;
   };
 
-  // Local persistent state for <details> sections
   const openSections = localState<Record<string, boolean>>('open-details', {});
 
   let {
@@ -77,7 +76,6 @@
       return inputValue;
     }
 
-    // If the component is supplied with a default value use that
     if (inputValue !== undefined && typeof inputValue !== 'object') {
       return inputValue;
     }

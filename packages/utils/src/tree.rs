@@ -19,10 +19,8 @@ pub fn split_args(args: &[i32]) -> Vec<&[i32]> {
     let len = args.len();
 
     while i < len {
-        // check if we are at a bracket
         if i == next_bracket_index {
             next_bracket_index = i + args[i + 1] as usize + 1;
-            // check if the bracket is opening
             if args[i] == 0 {
                 if depth == 1 {
                     start_index = i;
@@ -61,13 +59,11 @@ pub fn concat_arg_vecs(data: Vec<Vec<i32>>) -> Vec<i32> {
 
     let mut result = Vec::with_capacity(total_length);
 
-    // Add [0, 1] initially
     result.push(0);
     result.push(1);
 
     let mut last_closing_bracket = 1;
 
-    // Process each vector
     for vec in data {
         if vec.len() == 1 {
             result.push(vec[0]);
@@ -80,7 +76,6 @@ pub fn concat_arg_vecs(data: Vec<Vec<i32>>) -> Vec<i32> {
         }
     }
 
-    // Add [1, 1] at the end
     result.push(1);
     result.push(1);
 
@@ -101,13 +96,11 @@ pub fn concat_args(mut data: Vec<&[i32]>) -> Vec<i32> {
 
     let mut result = Vec::with_capacity(total_length);
 
-    // Add [0, 1] initially
     result.push(0);
     result.push(1);
 
     let mut last_closing_bracket = 1;
 
-    // Process each vector
     for vec in data.iter_mut() {
         if vec.len() == 1 {
             result.push(vec[0]);
@@ -120,7 +113,6 @@ pub fn concat_args(mut data: Vec<&[i32]>) -> Vec<i32> {
         }
     }
 
-    // Add [1, 1] at the end
     result.push(1);
     result.push(1);
 

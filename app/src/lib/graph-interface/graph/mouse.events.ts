@@ -133,7 +133,6 @@ export class MouseEventManager {
       return;
     }
 
-    // check if camera moved
     if (
       clickedNodeId === -1
       && !this.state.boxSelection
@@ -172,7 +171,6 @@ export class MouseEventManager {
   }
 
   handleMouseDown(event: MouseEvent) {
-    // Right click
     if (event.button === 2) {
       if (event.shiftKey) this.connectToDebugNode(this.state.getNodeIdFromEvent(event));
       return;
@@ -200,7 +198,6 @@ export class MouseEventManager {
     const clickedNodeId = this.state.getNodeIdFromEvent(event);
     this.state.mouseDownNodeId = clickedNodeId;
 
-    // if we clicked on a node
     if (clickedNodeId !== -1) {
       if (event.ctrlKey && event.shiftKey) {
         this.connectToDebugNode(clickedNodeId);
@@ -208,15 +205,12 @@ export class MouseEventManager {
       }
       if (this.state.activeNodeId === -1) {
         this.state.activeNodeId = clickedNodeId;
-        // if the selected node is the same as the clicked node
       } else if (this.state.activeNodeId === clickedNodeId) {
-        // $activeNodeId = -1;
-        // if the clicked node is different from the selected node and secondary
+        // clicking the active node again keeps the selection as it is
       } else if (event.ctrlKey) {
         this.state.selectedNodes.add(this.state.activeNodeId);
         this.state.selectedNodes.delete(clickedNodeId);
         this.state.activeNodeId = clickedNodeId;
-        // select the node
       } else if (event.shiftKey) {
         const activeNode = this.graph.getNode(this.state.activeNodeId);
         const newNode = this.graph.getNode(clickedNodeId);
@@ -267,7 +261,6 @@ export class MouseEventManager {
 
     if (!this.state.mouseDown) return;
 
-    // we are creating a new edge here
     if (this.state.activeSocket || this.state.possibleSockets?.length) {
       let smallestDist = 1000;
       let _socket;
@@ -291,7 +284,6 @@ export class MouseEventManager {
       return;
     }
 
-    // handle box selection
     if (this.state.boxSelection) {
       event.preventDefault();
       event.stopPropagation();
@@ -324,7 +316,6 @@ export class MouseEventManager {
       return;
     }
 
-    // here we are handling dragging of nodes
     if (this.state.activeNodeId !== -1 && this.state.mouseDownNodeId !== -1) {
       this.edgeInteractionManager.handleMouseMove();
       const node = this.graph.getNode(this.state.activeNodeId);
@@ -374,7 +365,6 @@ export class MouseEventManager {
       return;
     }
 
-    // here we are handling panning of camera
     this.state.isPanning = true;
     const newX = this.state.cameraDown[0]
       - (mx - this.state.mouseDown[0]) / this.state.cameraPosition[2];
@@ -391,12 +381,10 @@ export class MouseEventManager {
       || document?.activeElement?.id === 'graph';
     if (!bodyIsFocused) return;
 
-    // Define zoom speed and clamp it between -1 and 1
     const isNegative = event.deltaY < 0;
     const normalizedDelta = Math.abs(event.deltaY * 0.01);
     const delta = Math.pow(0.95, zoomSpeed * normalizedDelta);
 
-    // Calculate new zoom level and clamp it between minZoom and maxZoom
     const newZoom = Math.max(
       minZoom,
       Math.min(
@@ -407,10 +395,8 @@ export class MouseEventManager {
       )
     );
 
-    // Calculate the ratio of the new zoom to the original zoom
     const zoomRatio = newZoom / this.state.cameraPosition[2];
 
-    // Update camera position and zoom level
     this.state.cameraPosition[0] = this.state.mousePosition[0]
       - (this.state.mousePosition[0] - this.state.cameraPosition[0])
         / zoomRatio;

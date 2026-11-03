@@ -4,7 +4,6 @@ import { expect, test } from '@playwright/test';
 test.use({ viewport: { width: 1920, height: 1080 } });
 
 test('test', async ({ page }) => {
-  // Listen for console messages
   page.on('console', msg => {
     console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`);
   });

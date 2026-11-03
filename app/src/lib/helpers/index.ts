@@ -153,21 +153,17 @@ export function debounceAsyncFunction<T extends (...args: never[]) => Promise<un
     latestArgs = args;
 
     if (isRunning) {
-      // Wait for the current execution to finish
       await new Promise<void>((resolve) => {
         resolveNext = resolve;
       });
     }
 
-    // Indicate the function is running
     isRunning = true;
 
     try {
-      // Execute with the latest arguments
       const result = await asyncFn(...latestArgs!);
       return result as ReturnType<T>;
     } finally {
-      // Allow the next execution
       isRunning = false;
 
       if (resolveNext) {
@@ -185,17 +181,15 @@ export function withArgsChangeOnly<T extends unknown[], R>(
   let lastResult: R;
 
   return (...args: T): R => {
-    // Check if arguments are the same as last call
     if (
       lastArgs && args.length === lastArgs.length
       && args.every((val, index) => val === lastArgs?.[index])
     ) {
-      return lastResult; // Return cached result if arguments haven't changed
+      return lastResult;
     }
 
-    // Call the function with new arguments
     lastResult = func(...args);
-    lastArgs = args; // Update stored arguments
-    return lastResult; // Return new result
+    lastArgs = args;
+    return lastResult;
   };
 }

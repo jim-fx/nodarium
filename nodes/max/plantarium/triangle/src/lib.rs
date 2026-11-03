@@ -16,13 +16,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     log!("WASM(triangle): input: {:?} -> {}", args[0],decoded);
 
-    // [[1,3, x, y, z, x, y,z,x,y,z]];
     wrap_arg(&[
         1,          // 1: geometry
         3,          // 3 vertices
         1,          // 1 face
         -1,         // not made from a path
-        // this are the indeces for the face
+        // the indices of the face
         0, 2, 1,
         //
         negative_size,  // x -> point 1

@@ -66,6 +66,8 @@ A `points` output is a list of these: spots on paths where a later node can grow
 
 `random_break` breaks off some paths at a random spot between `lowest_break` and `highest_break`, `chance` is how likely a path breaks. Whether a path breaks and where only depend on the seed and the path id, so the same paths stay broken when other paths come or go. A broken path is resampled up to the break and keeps its number of points. Paths that grew above the break are removed, with everything growing on them, the ones below get their `parent_alpha` rescaled to the shorter parent, so they stay where they were.
 
+`branch_from_points` grows a branch from every point of a `points` input, for example the points of `points_on_path` or the kinks of `trunk_kink`. A branch grows along the direction of its point, `angle` tilts it toward the tangent (positive is up), its thickness starts at `thickness` times the thickness at the point and `taper` thins it to the tip. The id is `PathLink::child(creator, point.parent_id, point.alpha, point.index)`, so a branch keeps its id when other points come or go, and its depth is one below the point. The points are grouped by their path and `ctx.set_path` runs once per path, so random values don't start over at every branch. A point whose path is not in `plant` still grows its branch. Like in `branch`, a branch as long as the longest path gets `resolution_curve` points, shorter ones get fewer, and the branches of a path come right before it.
+
 ## Geometry
 
 ```

@@ -1,11 +1,9 @@
 pub fn encode_float(f: f32) -> i32 {
-    // Convert f32 to u32 using to_bits, then safely cast to i32
     let bits = f.to_bits();
     bits as i32
 }
 
 pub fn decode_float(bits: i32) -> f32 {
-    // Convert i32 to u32 safely, then use from_bits to get f32
     let bits = bits as u32;
     f32::from_bits(bits)
 }
