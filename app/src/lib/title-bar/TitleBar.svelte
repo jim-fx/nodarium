@@ -103,7 +103,7 @@
     {
       label: 'File',
       items: [
-        { label: 'New project…', shortcut: 'Alt+N', onselect: onopenprojects },
+        { label: 'New project', shortcut: 'Alt+N', onselect: () => pm.handleCreateProject() },
         { label: 'Open…', shortcut: 'Ctrl+O', onselect: onopenprojects },
         { label: 'Open recent', items: recentItems },
         'separator',

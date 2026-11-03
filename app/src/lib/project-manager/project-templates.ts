@@ -13,7 +13,6 @@ import {
   palm,
   sage,
   sapling,
-  stem,
   willow
 } from '#lib/graph-templates/index.ts';
 import type { Graph, ProjectUnit } from '@nodarium/types';
@@ -29,7 +28,6 @@ function toGraph(template: unknown, unit?: ProjectUnit): Graph {
 }
 
 export const projectTemplates: ProjectTemplate[] = [
-  { name: 'Stem', graph: toGraph(stem) },
   { name: 'Default Plant', graph: toGraph(defaultPlant) },
   { name: 'Fern', graph: toGraph(fern, 'cm') },
   { name: 'Weeping Willow', graph: toGraph(willow) },
