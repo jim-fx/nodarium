@@ -1,3 +1,14 @@
+//! Joins trees of paths into one connected mesh.
+//!
+//! No code is copied from other projects, but the approach builds on published ideas:
+//! - the hole, the bridge to the branch and the smoothing of the junction follow the
+//!   `ManifoldMesher` of modular_tree by Maxime Herpin (`m_tree/`, MIT licensed,
+//!   https://github.com/MaximeHerpin/modular_tree);
+//! - the hull junctions follow the branch node polyhedra of SQM, J. A. Bærentzen,
+//!   M. K. Misztal and K. Wełnicka, "Converting skeletal structures to quad dominant meshes",
+//!   Computers & Graphics 36(5), 2012, and its implementation `graph_to_FEQ` in GEL by
+//!   Andreas Bærentzen (MIT licensed, https://github.com/janba/GEL).
+
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::f32::consts::TAU;
 
@@ -17,6 +28,16 @@ const MIN_SIN_ANGLE: f32 = 0.2;
 const MAX_FILLET_LENGTH: f32 = 0.5;
 const MAX_EXTRA_RINGS: usize = 12;
 const SMOOTH_ITERATIONS: usize = 3;
+
+/// How a branch is joined into its parent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JoinStyle {
+    /// cut a hole into the parent and grow a fillet from its edge to the branch
+    Hole,
+    /// cut the parent around the branches and close the gap between the rings with the convex
+    /// hull of their directions, like the branch node polyhedra of SQM
+    Hull,
+}
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct RemeshStats {
@@ -157,6 +178,8 @@ struct Join {
     hole: Vec<u32>,
     /// where along the branch the fillet ends and the tube of the branch starts
     start: f32,
+    /// the first ring of the branch when the parent already made it
+    ring: Option<Vec<u32>>,
 }
 
 struct Attachment {
@@ -193,6 +216,7 @@ pub fn remesh_paths(
     paths: &[PathData],
     res: usize,
     levels: usize,
+    style: JoinStyle,
 ) -> (Vec<Vec<i32>>, RemeshStats) {
     let mut stats = RemeshStats::default();
     let res = res.max(3);
@@ -241,7 +265,10 @@ pub fn remesh_paths(
             }
             let join = joins.remove(&index);
             let joinable: &[usize] = if level < levels { &children[index] } else { &[] };
-            let new_joins = mesh_path(&paths, index, joinable, join, res, &mut mesh);
+            let new_joins = match style {
+                JoinStyle::Hole => mesh_path(&paths, index, joinable, join, res, &mut mesh),
+                JoinStyle::Hull => mesh_path_hull(&paths, index, joinable, join, res, &mut mesh),
+            };
             for child in &children[index] {
                 if new_joins.iter().any(|(c, _)| c == child) {
                     stats.joined += 1;
@@ -377,6 +404,7 @@ fn mesh_path(
                 Join {
                     hole,
                     start: branch_start,
+                    ring: None,
                 },
             ));
         }
@@ -407,6 +435,289 @@ fn mesh_path(
     }
 
     joins
+}
+
+/// The branches that join a parent in one spot, and the part of the parent they replace.
+struct Junction {
+    from: f32,
+    to: f32,
+    /// the branch, where its tube starts and its first ring
+    branches: Vec<(usize, f32, Ring)>,
+}
+
+/// Where the tube of a branch starts, just outside its parent, its first ring there and the
+/// part of the parent the junction has to replace around it.
+fn hull_branch(parent: &Path, a: &Attachment, child: &Path, res: usize) -> Option<(f32, Ring, f32, f32)> {
+    let (center, parent_radius, tangent) = parent.sample(a.s);
+    let sin = a.direction.cross(tangent).length();
+    let cos = a.direction.dot(tangent).abs();
+    let start = (parent_radius + a.radius * cos) / sin + a.radius * 0.5;
+    if start > child.length() * MAX_FILLET_LENGTH {
+        return None;
+    }
+    let first = child.ring_at(start);
+    let (mut lo, mut hi) = (0.0_f32, 0.0_f32);
+    for j in 0..res {
+        let along = (first.point(TAU * j as f32 / res as f32) - center).dot(tangent);
+        lo = lo.min(along);
+        hi = hi.max(along);
+    }
+    let margin = parent_radius * 0.75;
+    Some((start, first, a.s + lo - margin, a.s + hi + margin))
+}
+
+fn mesh_path_hull(
+    paths: &[Path],
+    index: usize,
+    children: &[usize],
+    join: Option<Join>,
+    res: usize,
+    mesh: &mut Mesh,
+) -> Vec<(usize, Join)> {
+    let path = &paths[index];
+    let start = join.as_ref().map_or(0.0, |j| j.start);
+    let eps = path.length() * 1e-5;
+
+    let mut candidates: Vec<(f32, f32, usize, f32, Ring)> = children
+        .iter()
+        .filter_map(|&c| {
+            let a = attachment(path, c, &paths[c], res)?;
+            let (branch_start, first, from, to) = hull_branch(path, &a, &paths[c], res)?;
+            (from > start + eps && to < path.length() - eps).then_some((from, to, c, branch_start, first))
+        })
+        .collect();
+    candidates.sort_by(|a, b| a.0.total_cmp(&b.0));
+
+    // branches whose junctions overlap share one, like a branch node of higher valence in SQM
+    let mut junctions: Vec<Junction> = Vec::new();
+    for (from, to, child, branch_start, first) in candidates {
+        if let Some(last) = junctions.last_mut() {
+            if from <= last.to {
+                last.to = last.to.max(to);
+                last.branches.push((child, branch_start, first));
+                continue;
+            }
+        }
+        junctions.push(Junction {
+            from,
+            to,
+            branches: vec![(child, branch_start, first)],
+        });
+    }
+
+    let mut positions: Vec<(f32, Option<usize>)> = Vec::new();
+    if start > 0.0 {
+        positions.push((start, None));
+    }
+    for (i, &s) in path.cum.iter().enumerate() {
+        let free = junctions.iter().all(|j| s < j.from - eps || s > j.to + eps);
+        if (start == 0.0 || s > start + eps) && free {
+            positions.push((s, Some(i)));
+        }
+    }
+    for j in &junctions {
+        positions.push((j.from, None));
+        positions.push((j.to, None));
+    }
+    positions.sort_by(|a, b| a.0.total_cmp(&b.0));
+
+    let directions = path.point_directions();
+    let rings: Vec<Ring> = positions
+        .into_iter()
+        .map(|(s, point)| match point {
+            Some(i) => ring(s, path.point(i), path.thickness(i), directions[i]),
+            None => path.ring_at(s),
+        })
+        .collect();
+
+    let given = join.as_ref().and_then(|j| j.ring.clone());
+    let mut ring_vertices: Vec<Vec<u32>> = Vec::with_capacity(rings.len());
+    for (r, ring) in rings.iter().enumerate() {
+        match (&given, r) {
+            (Some(first), 0) => ring_vertices.push(first.clone()),
+            _ => ring_vertices.push(
+                (0..res)
+                    .map(|j| mesh.vertex(ring.point(TAU * j as f32 / res as f32)))
+                    .collect(),
+            ),
+        }
+    }
+
+    let mut cut_rows: HashSet<usize> = HashSet::new();
+    let mut joins = Vec::new();
+    for junction in &junctions {
+        let find = |s: f32| (0..rings.len()).min_by(|&a, &b| (rings[a].s - s).abs().total_cmp(&(rings[b].s - s).abs()));
+        let (Some(lo), Some(hi)) = (find(junction.from), find(junction.to)) else {
+            continue;
+        };
+        if lo >= hi {
+            continue;
+        }
+        let mut loops = vec![ring_vertices[lo].clone(), ring_vertices[hi].clone()];
+        for (_, _, first) in &junction.branches {
+            loops.push(
+                (0..res)
+                    .map(|j| mesh.vertex(first.point(TAU * j as f32 / res as f32)))
+                    .collect(),
+            );
+        }
+        let center = path.sample((junction.from + junction.to) * 0.5).0;
+        if let Some(faces) = hull_junction(mesh, center, &loops) {
+            mesh.faces.extend(faces);
+            cut_rows.extend(lo..hi);
+            for ((child, branch_start, _), first) in junction.branches.iter().zip(loops.drain(2..)) {
+                joins.push((
+                    *child,
+                    Join {
+                        hole: Vec::new(),
+                        start: *branch_start,
+                        ring: Some(first),
+                    },
+                ));
+            }
+        }
+    }
+
+    for r in 0..rings.len() - 1 {
+        if cut_rows.contains(&r) {
+            continue;
+        }
+        for c in 0..res {
+            let k = (c + 1) % res;
+            mesh.quad(ring_vertices[r][c], ring_vertices[r][k], ring_vertices[r + 1][c], ring_vertices[r + 1][k]);
+        }
+    }
+
+    let last = &ring_vertices[rings.len() - 1];
+    let apex = mesh.vertex(path.point(path.count() - 1));
+    for c in 0..res {
+        mesh.faces.push([apex, last[(c + 1) % res], last[c]]);
+    }
+    if given.is_none() {
+        let base = mesh.vertex(rings[0].center);
+        for c in 0..res {
+            mesh.faces.push([base, ring_vertices[0][c], ring_vertices[0][(c + 1) % res]]);
+        }
+    }
+
+    joins
+}
+
+/// Closes the space between the loops of a junction. As in the branch node polyhedra of SQM,
+/// every loop is projected onto a sphere around the junction together with a port, the point
+/// where its tube crosses the sphere, and the convex hull of all of them is taken. Each port is
+/// then surrounded by exactly its loop, so removing the ports leaves the faces that join the
+/// loops, without refining anything.
+fn hull_junction(mesh: &Mesh, center: Vec3, loops: &[Vec<u32>]) -> Option<Vec<[u32; 3]>> {
+    let mut points = Vec::new();
+    let mut owner: Vec<(usize, Option<usize>)> = Vec::new();
+    for (k, l) in loops.iter().enumerate() {
+        let sum: Vec3 = l
+            .iter()
+            .map(|&v| (mesh.positions[v as usize] - center).normalize_or_zero())
+            .sum();
+        points.push(sum.try_normalize()?);
+        owner.push((k, None));
+    }
+    for (k, l) in loops.iter().enumerate() {
+        for (i, &v) in l.iter().enumerate() {
+            points.push((mesh.positions[v as usize] - center).try_normalize()?);
+            owner.push((k, Some(i)));
+        }
+    }
+
+    let hull = convex_hull(&points)?;
+
+    let mut used = vec![false; points.len()];
+    let mut fans = vec![0; loops.len()];
+    let mut faces = Vec::new();
+    for face in hull {
+        for &p in &face {
+            used[p] = true;
+        }
+        if let Some(port) = face.iter().position(|&p| owner[p].1.is_none()) {
+            let k = owner[face[port]].0;
+            let (a, b) = (face[(port + 1) % 3], face[(port + 2) % 3]);
+            let n = loops[k].len();
+            match (owner[a], owner[b]) {
+                ((ka, Some(i)), (kb, Some(j))) if ka == k && kb == k && (i + 1) % n == j || ka == k && kb == k && (j + 1) % n == i => {
+                    fans[k] += 1;
+                }
+                _ => return None,
+            }
+            continue;
+        }
+        // the tubes walk the parent's lower loop forwards and every other loop backwards, so
+        // the junction has to walk them the other way, or the loop is seen from the wrong side
+        for e in 0..3 {
+            let ((ka, ia), (kb, ib)) = (owner[face[e]], owner[face[(e + 1) % 3]]);
+            if let (Some(i), Some(j)) = (ia, ib) {
+                let n = loops[ka].len();
+                let backwards = ka == kb && (j + 1) % n == i;
+                let forwards = ka == kb && (i + 1) % n == j;
+                if (ka == 0 && forwards) || (ka != 0 && backwards) {
+                    return None;
+                }
+            }
+        }
+        faces.push(face.map(|p| {
+            let (k, i) = owner[p];
+            loops[k][i.unwrap()]
+        }));
+    }
+    let complete = fans.iter().zip(loops).all(|(&n, l)| n == l.len());
+    (complete && used.iter().all(|&u| u)).then_some(faces)
+}
+
+/// The convex hull of points in general position, as triangles wound like the tubes (their
+/// normal `(b - a) x (c - a)` points outwards), built by adding one point after another.
+fn convex_hull(points: &[Vec3]) -> Option<Vec<[usize; 3]>> {
+    let n = points.len();
+    if n < 4 {
+        return None;
+    }
+    let far = |from: &dyn Fn(Vec3) -> f32| (0..n).max_by(|&a, &b| from(points[a]).total_cmp(&from(points[b]))).unwrap();
+    let i0 = 0;
+    let i1 = far(&|p| p.distance(points[i0]));
+    let axis = (points[i1] - points[i0]).try_normalize()?;
+    let i2 = far(&|p| (p - points[i0]).reject_from_normalized(axis).length());
+    let normal = (points[i1] - points[i0]).cross(points[i2] - points[i0]).try_normalize()?;
+    let i3 = far(&|p| (p - points[i0]).dot(normal).abs());
+    if (points[i3] - points[i0]).dot(normal).abs() < 1e-6 {
+        return None;
+    }
+
+    let mut faces: Vec<[usize; 3]> = Vec::new();
+    let inside = (points[i0] + points[i1] + points[i2] + points[i3]) * 0.25;
+    for [a, b, c] in [[i0, i1, i2], [i0, i1, i3], [i0, i2, i3], [i1, i2, i3]] {
+        let normal = (points[b] - points[a]).cross(points[c] - points[a]);
+        faces.push(if normal.dot(inside - points[a]) > 0.0 { [a, c, b] } else { [a, b, c] });
+    }
+
+    let above = |f: &[usize; 3], p: Vec3| {
+        let normal = (points[f[1]] - points[f[0]]).cross(points[f[2]] - points[f[0]]).normalize_or_zero();
+        normal.dot(p - points[f[0]]) > 1e-6
+    };
+    for i in 0..n {
+        if [i0, i1, i2, i3].contains(&i) {
+            continue;
+        }
+        let visible: Vec<bool> = faces.iter().map(|f| above(f, points[i])).collect();
+        if !visible.contains(&true) {
+            continue;
+        }
+        let edges: HashSet<(usize, usize)> = faces
+            .iter()
+            .zip(&visible)
+            .filter(|(_, &v)| v)
+            .flat_map(|(f, _)| [(f[0], f[1]), (f[1], f[2]), (f[2], f[0])])
+            .collect();
+        let horizon: Vec<(usize, usize)> = edges.iter().filter(|&&(a, b)| !edges.contains(&(b, a))).copied().collect();
+        let mut keep = visible.iter();
+        faces.retain(|_| !keep.next().unwrap());
+        faces.extend(horizon.into_iter().map(|(a, b)| [a, b, i]));
+    }
+    Some(faces)
 }
 
 /// Picks the quads of the parent around the branch, as one interval of columns per row so the
@@ -807,7 +1118,7 @@ mod tests {
         let paths = [wrap_path(&stem), wrap_path(&branch)];
 
         for res in [8, 12, 24] {
-            let (mut geometries, stats) = remesh_paths(&paths, res, usize::MAX);
+            let (mut geometries, stats) = remesh_paths(&paths, res, usize::MAX, JoinStyle::Hole);
             assert_eq!(stats, RemeshStats { joined: 1, separate: 0 }, "res {res}");
             assert_eq!(geometries.len(), 1);
             assert_eq!(manifold_errors(&mut geometries[0]), (0, 0), "res {res}");
@@ -823,7 +1134,7 @@ mod tests {
         set_path_link(&mut b, PathLink::child(2, link.id, 0.5, 1));
         let paths = [wrap_path(&stem), wrap_path(&a), wrap_path(&b)];
 
-        let (mut geometries, stats) = remesh_paths(&paths, 16, usize::MAX);
+        let (mut geometries, stats) = remesh_paths(&paths, 16, usize::MAX, JoinStyle::Hole);
         assert_eq!(stats.joined, 2);
         assert_eq!(manifold_errors(&mut geometries[0]), (0, 0));
     }
@@ -834,8 +1145,56 @@ mod tests {
         let twig = branch(link, 0.5, Vec3::new(1.0, 0.5, 0.0), 0.005);
         let paths = [wrap_path(&stem), wrap_path(&twig)];
 
-        let (mut geometries, stats) = remesh_paths(&paths, 8, usize::MAX);
+        let (mut geometries, stats) = remesh_paths(&paths, 8, usize::MAX, JoinStyle::Hole);
         assert_eq!(stats, RemeshStats { joined: 0, separate: 1 });
         assert_eq!(manifold_errors(&mut geometries[0]), (0, 0));
+    }
+
+    #[test]
+    fn a_hull_junction_is_one_closed_manifold() {
+        let (stem, link) = stem();
+        let branch = branch(link, 0.5, Vec3::new(1.0, 0.8, 0.0), 0.07);
+        let paths = [wrap_path(&stem), wrap_path(&branch)];
+
+        for res in [6, 8, 12, 24] {
+            let (mut geometries, stats) = remesh_paths(&paths, res, usize::MAX, JoinStyle::Hull);
+            assert_eq!(stats, RemeshStats { joined: 1, separate: 0 }, "res {res}");
+            assert_eq!(manifold_errors(&mut geometries[0]), (0, 0), "res {res}");
+            assert!(signed_volume(&mut geometries[0]) > 0.0, "res {res}");
+        }
+    }
+
+    #[test]
+    fn opposite_branches_share_one_hull_junction() {
+        let (stem, link) = stem();
+        let a = branch(link, 0.5, Vec3::new(1.0, 0.5, 0.0), 0.07);
+        let mut b = branch(link, 0.5, Vec3::new(-1.0, 0.5, 0.0), 0.07);
+        set_path_link(&mut b, PathLink::child(2, link.id, 0.5, 1));
+        let paths = [wrap_path(&stem), wrap_path(&a), wrap_path(&b)];
+
+        for res in [6, 8, 16] {
+            let (mut geometries, stats) = remesh_paths(&paths, res, usize::MAX, JoinStyle::Hull);
+            assert_eq!(stats.joined, 2, "res {res}");
+            assert_eq!(manifold_errors(&mut geometries[0]), (0, 0), "res {res}");
+            assert!(signed_volume(&mut geometries[0]) > 0.0, "res {res}");
+        }
+    }
+
+    #[test]
+    fn the_hull_of_points_on_a_sphere_is_closed() {
+        let points: Vec<Vec3> = (0..40)
+            .map(|i| {
+                let t = i as f32 * 2.399;
+                let y = 1.0 - 2.0 * (i as f32 + 0.5) / 40.0;
+                let r = (1.0 - y * y).sqrt();
+                Vec3::new(t.cos() * r, y, t.sin() * r)
+            })
+            .collect();
+        let faces = convex_hull(&points).unwrap();
+        assert_eq!(faces.len(), 2 * 40 - 4);
+        for f in &faces {
+            let normal = (points[f[1]] - points[f[0]]).cross(points[f[2]] - points[f[0]]);
+            assert!(normal.dot(points[f[0]]) > 0.0);
+        }
     }
 }

@@ -2,7 +2,7 @@ use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
     concat_args,
-    geometry::{extrude_path, remesh_paths, split_items, wrap_path},
+    geometry::{extrude_path, remesh_paths, split_items, wrap_path, JoinStyle},
     int, log,
 };
 
@@ -19,13 +19,14 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let remesh = args.get(2).map_or(0, |a| int(a));
 
     if remesh > 0 {
-        let levels = if remesh == 1 { 1 } else { usize::MAX };
+        let levels = if remesh % 2 == 1 { 1 } else { usize::MAX };
+        let style = if remesh > 2 { JoinStyle::Hull } else { JoinStyle::Hole };
         let paths: Vec<_> = inputs
             .iter()
             .filter(|arg| arg.get(2) == Some(&0))
             .map(|arg| wrap_path(arg))
             .collect();
-        let (geometries, stats) = remesh_paths(&paths, resolution, levels);
+        let (geometries, stats) = remesh_paths(&paths, resolution, levels, style);
         log!("remesh: {:?}", stats);
         let mut output: Vec<&[i32]> = inputs.clone();
         output.extend(geometries.iter().map(|g| g.as_slice()));
