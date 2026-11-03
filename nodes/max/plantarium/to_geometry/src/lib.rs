@@ -1,13 +1,14 @@
 use glam::{Mat3, Mat4, Vec3, Vec4, Vec4Swizzles};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
-    encode_float,
+    concat_args, encode_float,
     geometry::{
-        extrude_path, geometry_path_id, is_collapsed, split_items, wrap_geometry_data,
-        wrap_instance_data, wrap_path, PathData, NO_PATH,
+        extrude_path, geometry_path_id, is_collapsed, path_link, split_items, wrap_geometry_data,
+        wrap_instance_data, wrap_path, PathData, PathStructure, NO_PATH,
     },
     int, wrap_arg,
 };
+use std::collections::HashMap;
 
 nodarium_definition_file!("src/definition.json");
 
@@ -20,7 +21,14 @@ struct Mesh {
 }
 
 impl Mesh {
-    fn add(&mut self, positions: &[f32], normals: &[f32], faces: &[i32], transform: Mat4) {
+    fn add(
+        &mut self,
+        positions: &[f32],
+        normals: &[f32],
+        faces: &[i32],
+        transform: Mat4,
+        path_id: i32,
+    ) {
         let offset = (self.positions.len() / 3) as i32;
         let normal_matrix = Mat3::from_mat4(transform).inverse().transpose();
         for (position, normal) in positions.chunks_exact(3).zip(normals.chunks_exact(3)) {
@@ -30,40 +38,7 @@ impl Mesh {
             self.normals.extend_from_slice(&normal.to_array());
         }
         self.faces.extend(faces.iter().map(|i| i + offset));
-    }
-
-    fn add_geometry(&mut self, item: &[i32]) {
-        let mut data = item.to_vec();
-        let geometry = wrap_geometry_data(&mut data);
-        self.add(
-            geometry.positions,
-            geometry.normals,
-            geometry.faces,
-            Mat4::IDENTITY,
-        );
-        self.path_ids.push(geometry_path_id(item));
-    }
-
-    fn add_instances(&mut self, item: &[i32]) {
-        let mut data = item.to_vec();
-        let instances = wrap_instance_data(&mut data);
-        for (matrix, path_id) in instances
-            .instances
-            .chunks_exact(16)
-            .zip(instances.path_ids.iter())
-        {
-            let transform = Mat4::from_cols_slice(matrix);
-            if is_collapsed(&transform) {
-                continue;
-            }
-            self.add(
-                instances.positions,
-                instances.normals,
-                instances.faces,
-                transform,
-            );
-            self.path_ids.push(*path_id);
-        }
+        self.path_ids.push(path_id);
     }
 
     /// `[1, vertex_amount, face_amount, path_id, ...faces, ...positions, ...normals]` in brackets.
@@ -83,6 +58,113 @@ impl Mesh {
         out.extend(self.positions.iter().map(|&f| encode_float(f)));
         out.extend(self.normals.iter().map(|&f| encode_float(f)));
         wrap_arg(&out)
+    }
+}
+
+/// The meshes the parts are baked into. A part goes into the mesh of the path it was made
+/// from, a part of no known path goes into every mesh.
+struct Variants {
+    meshes: Vec<Mesh>,
+    mesh_of_path: HashMap<i32, usize>,
+}
+
+impl Variants {
+    /// One mesh for everything.
+    fn single() -> Self {
+        Self {
+            meshes: vec![Mesh::default()],
+            mesh_of_path: HashMap::new(),
+        }
+    }
+
+    /// One mesh per path without a parent in `items`, in the order of the list. The paths
+    /// growing on it, and theirs, go into the same mesh.
+    fn per_stem(items: &[&[i32]]) -> Self {
+        let paths: Vec<Vec<i32>> = items
+            .iter()
+            .filter(|item| item.get(2) == Some(&0))
+            .map(|item| item.to_vec())
+            .collect();
+        let structure = PathStructure::new(&paths);
+        let root = |mut index: usize| {
+            for _ in 0..paths.len() {
+                match structure.parent(index) {
+                    Some(parent) => index = parent,
+                    None => break,
+                }
+            }
+            index
+        };
+
+        let mesh_of_stem: HashMap<usize, usize> = (0..paths.len())
+            .filter(|&index| structure.parent(index).is_none())
+            .enumerate()
+            .map(|(mesh, stem)| (stem, mesh))
+            .collect();
+
+        Self {
+            meshes: (0..mesh_of_stem.len()).map(|_| Mesh::default()).collect(),
+            mesh_of_path: paths
+                .iter()
+                .enumerate()
+                .filter_map(|(index, path)| {
+                    let mesh = *mesh_of_stem.get(&root(index))?;
+                    Some((path_link(path).id, mesh))
+                })
+                .collect(),
+        }
+    }
+
+    fn add(
+        &mut self,
+        positions: &[f32],
+        normals: &[f32],
+        faces: &[i32],
+        transform: Mat4,
+        path_id: i32,
+    ) {
+        match self.mesh_of_path.get(&path_id) {
+            Some(&mesh) => self.meshes[mesh].add(positions, normals, faces, transform, path_id),
+            None => {
+                for mesh in &mut self.meshes {
+                    mesh.add(positions, normals, faces, transform, path_id);
+                }
+            }
+        }
+    }
+
+    fn add_geometry(&mut self, item: &[i32]) {
+        let mut data = item.to_vec();
+        let geometry = wrap_geometry_data(&mut data);
+        self.add(
+            geometry.positions,
+            geometry.normals,
+            geometry.faces,
+            Mat4::IDENTITY,
+            geometry_path_id(item),
+        );
+    }
+
+    fn add_instances(&mut self, item: &[i32]) {
+        let mut data = item.to_vec();
+        let instances = wrap_instance_data(&mut data);
+        for (matrix, path_id) in instances
+            .instances
+            .chunks_exact(16)
+            .zip(instances.path_ids.iter())
+        {
+            let transform = Mat4::from_cols_slice(matrix);
+            if is_collapsed(&transform) {
+                continue;
+            }
+            self.add(
+                instances.positions,
+                instances.normals,
+                instances.faces,
+                transform,
+                *path_id,
+            );
+        }
     }
 }
 
@@ -138,18 +220,32 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         circle_segments = circle_segments.min(max_circle_segments);
     }
     let max_points = int(args[3]) as usize;
-    let mut mesh = Mesh::default();
+    let per_stem = int(args[4]) != 0;
 
-    for item in split_items(input) {
+    let items = split_items(input);
+    let mut variants = if per_stem {
+        Variants::per_stem(&items)
+    } else {
+        Variants::single()
+    };
+    if variants.meshes.is_empty() {
+        variants = Variants::single();
+    }
+
+    for item in items {
         match item.get(2) {
-            Some(0) => mesh.add_geometry(&extrude(item, circle_segments, max_points)),
-            Some(1) => mesh.add_geometry(item),
-            Some(2) => mesh.add_instances(item),
+            Some(0) => variants.add_geometry(&extrude(item, circle_segments, max_points)),
+            Some(1) => variants.add_geometry(item),
+            Some(2) => variants.add_instances(item),
             _ => {}
         }
     }
 
-    mesh.encode()
+    let mut meshes: Vec<Vec<i32>> = variants.meshes.into_iter().map(Mesh::encode).collect();
+    if meshes.len() == 1 {
+        return meshes.remove(0);
+    }
+    concat_args(meshes.iter().map(Vec::as_slice).collect())
 }
 
 #[cfg(test)]
@@ -159,9 +255,10 @@ mod tests {
     use nodarium_utils::{
         concat_args,
         geometry::{
-            create_instance_data, create_multiple_paths, extrude_path, geometry_path_id,
-            path_link, wrap_geometry_data, wrap_instance_data, wrap_multiple_paths, wrap_path,
-            NO_PATH,
+            create_instance_data, create_multiple_paths, create_path, extrude_path,
+            geometry_path_id, is_geometry, path_link, set_path_link, split_items,
+            wrap_geometry_data, wrap_instance_data, wrap_multiple_paths, wrap_path, wrap_path_mut,
+            PathLink, NO_PATH,
         },
         split_args, wrap_arg,
     };
@@ -203,7 +300,7 @@ mod tests {
         let instances = instances_of(&triangle(NO_PATH), &[(moved, 7), (turned, 8)]);
         let input = concat_args(vec![&triangle(NO_PATH), &instances]);
 
-        let mut result = __nodarium_execute_inner(&[&input, &[8], &[0], &[0]]);
+        let mut result = __nodarium_execute_inner(&[&input, &[8], &[0], &[0], &[0]]);
         assert_eq!(geometry_path_id(&result), NO_PATH);
         let geometry = wrap_geometry_data(&mut result);
 
@@ -227,7 +324,7 @@ mod tests {
         }
         let stem_id = path_link(split_args(&stems)[0]).id;
 
-        let mut result = __nodarium_execute_inner(&[&stems, &[8], &[0], &[0]]);
+        let mut result = __nodarium_execute_inner(&[&stems, &[8], &[0], &[0], &[0]]);
         assert_eq!(geometry_path_id(&result), stem_id);
         let geometry = wrap_geometry_data(&mut result);
         assert!(geometry.faces.len() > 0);
@@ -258,7 +355,7 @@ mod tests {
         let stems = straight_stem(10);
         let expected = extrude_path(wrap_path(split_args(&stems)[0]), 8);
 
-        let result = __nodarium_execute_inner(&[&stems, &[8], &[0], &[0]]);
+        let result = __nodarium_execute_inner(&[&stems, &[8], &[0], &[0], &[0]]);
 
         assert_eq!(
             vertex_and_face_amount(&result),
@@ -270,10 +367,13 @@ mod tests {
     fn the_limits_lower_the_resolution_of_paths() {
         let stems = straight_stem(10);
 
-        let mut result = __nodarium_execute_inner(&[&stems, &[8], &[4], &[3]]);
+        let mut result = __nodarium_execute_inner(&[&stems, &[8], &[4], &[3], &[0]]);
 
         // 3 rings of 4, a cap ring and its center
-        assert_eq!(vertex_and_face_amount(&result), (3 * 4 + 4 + 1, 2 * 4 * 2 + 4));
+        assert_eq!(
+            vertex_and_face_amount(&result),
+            (3 * 4 + 4 + 1, 2 * 4 * 2 + 4)
+        );
         let geometry = wrap_geometry_data(&mut result);
         let heights: Vec<f32> = vec3s(geometry.positions).iter().map(|p| p.y).collect();
         assert!(heights.iter().any(|y| (y - 4.5).abs() < 1e-5));
@@ -285,7 +385,7 @@ mod tests {
         let stems = straight_stem(10);
         let expected = extrude_path(wrap_path(split_args(&stems)[0]), 4);
 
-        let result = __nodarium_execute_inner(&[&stems, &[4], &[16], &[0]]);
+        let result = __nodarium_execute_inner(&[&stems, &[4], &[16], &[0], &[0]]);
 
         assert_eq!(
             vertex_and_face_amount(&result),
@@ -296,13 +396,13 @@ mod tests {
     #[test]
     fn a_single_geometry_passes_through() {
         let input = triangle(3);
-        let result = __nodarium_execute_inner(&[&input, &[8], &[0], &[0]]);
+        let result = __nodarium_execute_inner(&[&input, &[8], &[0], &[0], &[0]]);
         assert_eq!(result, input);
     }
 
     #[test]
     fn the_result_can_be_split_from_a_list_like_any_geometry() {
-        let result = __nodarium_execute_inner(&[&triangle(NO_PATH), &[8], &[0], &[0]]);
+        let result = __nodarium_execute_inner(&[&triangle(NO_PATH), &[8], &[0], &[0], &[0]]);
         let list = concat_args(vec![&result, &result]);
         let items = split_args(&list);
         assert_eq!(items.len(), 2);
@@ -311,7 +411,126 @@ mod tests {
 
     #[test]
     fn an_unconnected_input_gives_an_empty_geometry() {
-        let mut result = __nodarium_execute_inner(&[&[0, 1, 1, 1], &[8], &[0], &[0]]);
+        let mut result = __nodarium_execute_inner(&[&[0, 1, 1, 1], &[8], &[0], &[0], &[0]]);
+        let geometry = wrap_geometry_data(&mut result);
+        assert!(geometry.positions.is_empty());
+        assert!(geometry.faces.is_empty());
+    }
+
+    /// `amount` stems along +y, stem i is i + 1 meters long.
+    fn stems_of_growing_length(amount: usize) -> Vec<i32> {
+        let mut stems = create_multiple_paths(amount, 3, 1, 6);
+        for (i, stem) in wrap_multiple_paths(&mut stems).iter_mut().enumerate() {
+            for j in 0..3 {
+                let y = (i + 1) as f32 * j as f32 / 2.0;
+                stem.points[j * 4..j * 4 + 4].copy_from_slice(&[0.0, y, 0.0, 0.1]);
+            }
+        }
+        stems
+    }
+
+    fn highest_point(geometry: &[i32]) -> f32 {
+        let mut geometry = geometry.to_vec();
+        vec3s(wrap_geometry_data(&mut geometry).positions)
+            .iter()
+            .map(|p| p.y)
+            .fold(f32::MIN, f32::max)
+    }
+
+    fn a_branch_on(parent_id: i32) -> Vec<i32> {
+        let mut branch = create_path(2, 2);
+        set_path_link(&mut branch, PathLink::child(9, parent_id, 0.5, 0));
+        wrap_path_mut(&mut branch)
+            .points
+            .copy_from_slice(&[0.0, 10.0, 0.0, 0.1, 1.0, 10.0, 0.0, 0.1]);
+        branch
+    }
+
+    #[test]
+    fn variants_give_a_geometry_per_stem() {
+        let stems = stems_of_growing_length(3);
+        let ids: Vec<i32> = split_args(&stems).iter().map(|s| path_link(s).id).collect();
+
+        let result = __nodarium_execute_inner(&[&stems, &[8], &[0], &[0], &[1]]);
+        let variants = split_items(&result);
+
+        assert_eq!(variants.len(), 3);
+        for (i, variant) in variants.iter().enumerate() {
+            assert!(is_geometry(variant));
+            assert_eq!(geometry_path_id(variant), ids[i]);
+            assert!((highest_point(variant) - (i + 1) as f32).abs() < 1e-5);
+        }
+    }
+
+    #[test]
+    fn without_variants_all_stems_are_one_geometry() {
+        let stems = stems_of_growing_length(3);
+        let result = __nodarium_execute_inner(&[&stems, &[8], &[0], &[0], &[0]]);
+        assert!(is_geometry(&result));
+        assert_eq!(geometry_path_id(&result), NO_PATH);
+        assert!((highest_point(&result) - 3.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn what_grows_on_a_stem_belongs_to_its_variant() {
+        let stems = stems_of_growing_length(2);
+        let first = path_link(split_args(&stems)[0]).id;
+        let branch = a_branch_on(first);
+        let leaves = instances_of(
+            &triangle(NO_PATH),
+            &[(
+                Mat4::from_translation(Vec3::new(0.0, 20.0, 0.0)),
+                path_link(&branch).id,
+            )],
+        );
+        let mut input = split_args(&stems);
+        input.push(&branch);
+        input.push(&leaves);
+        let input = concat_args(input);
+
+        let result = __nodarium_execute_inner(&[&input, &[8], &[0], &[0], &[1]]);
+        let variants = split_items(&result);
+
+        assert_eq!(variants.len(), 2);
+        assert!((highest_point(variants[0]) - 21.0).abs() < 1e-5);
+        assert!((highest_point(variants[1]) - 2.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn a_part_of_no_stem_goes_into_every_variant() {
+        let stems = stems_of_growing_length(2);
+        let mut input = split_args(&stems);
+        let loose = triangle(NO_PATH);
+        input.push(&loose);
+        let input = concat_args(input);
+
+        let alone = __nodarium_execute_inner(&[&stems, &[8], &[0], &[0], &[1]]);
+        let result = __nodarium_execute_inner(&[&input, &[8], &[0], &[0], &[1]]);
+
+        for (with, without) in split_items(&result).iter().zip(split_items(&alone)) {
+            assert_eq!(with[3], without[3] + 3);
+            assert_eq!(geometry_path_id(with), NO_PATH);
+        }
+    }
+
+    #[test]
+    fn variants_of_a_single_stem_are_one_geometry() {
+        let stems = straight_stem(10);
+        let with = __nodarium_execute_inner(&[&stems, &[8], &[0], &[0], &[1]]);
+        let without = __nodarium_execute_inner(&[&stems, &[8], &[0], &[0], &[0]]);
+        assert_eq!(with, without);
+    }
+
+    #[test]
+    fn variants_without_stems_bake_everything_into_one_geometry() {
+        let input = triangle(3);
+        let result = __nodarium_execute_inner(&[&input, &[8], &[0], &[0], &[1]]);
+        assert_eq!(result, input);
+    }
+
+    #[test]
+    fn variants_of_an_unconnected_input_give_an_empty_geometry() {
+        let mut result = __nodarium_execute_inner(&[&[0, 1, 1, 1], &[8], &[0], &[0], &[1]]);
         let geometry = wrap_geometry_data(&mut result);
         assert!(geometry.positions.is_empty());
         assert!(geometry.faces.is_empty());

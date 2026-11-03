@@ -72,6 +72,8 @@ A `points` output is a list of these: spots on paths where a later node can grow
 
 `to_geometry` bakes everything it gets into one geometry, so a whole structure, for example an umbel with its flowers, can be placed by `instance` like a leaf. Paths are extruded like in `output` (with the `resolution.circle` setting), every instance becomes a transformed copy of its geometry, and geometry is added as it is. A baked part is usually small next to the plant, so `max_circle_segments` and `max_points` limit the segments around and the points along each path (0 is no limit), a path with more points is resampled evenly along its length. Instances scaled to nothing are left out, here and in `instance`. The geometry keeps the path id when all of its parts come from the same path, otherwise it is `NO_PATH`.
 
+With `variants` on, `to_geometry` bakes every stem into its own geometry and gives them as a list, like `join` does, so `instance` picks one of them for every instance. A stem is a path of the input whose parent is not in the input. The paths that grow on it (found through `parent_id`), the instances whose path id is one of these paths and the geometry made from them go into its geometry, a part that belongs to no stem goes into every geometry. Every stem draws its own random values, so a `stem` with `amount` 5 and random inputs gives five different parts. With a single stem, or none, the result is one geometry as without `variants`.
+
 ## Geometry
 
 ```
