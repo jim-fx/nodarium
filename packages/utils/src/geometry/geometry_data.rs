@@ -57,7 +57,7 @@ pub fn create_geometry_data(vertex_amount: usize, face_amount: usize) -> Vec<i32
     );
 
     geo[0] = 0; // opening bracket
-    geo[1] = amount as i32 - 2;
+    geo[1] = amount as i32 - 3;
     geo[2] = 1; // type: geometry
     geo[3] = vertex_amount as i32;
     geo[4] = face_amount as i32;
@@ -154,6 +154,19 @@ mod tests {
         let b = geometry(4);
         let list = concat_args(vec![&a, &b]);
         assert_eq!(split_items(&list), vec![a.as_slice(), b.as_slice()]);
+    }
+
+    #[test]
+    fn created_geometry_can_be_split_back_out_of_a_list() {
+        let a = create_geometry_data(3, 1);
+        let b = create_geometry_data(4, 2);
+        assert_eq!(a[1], wrap_arg(&a[2..a.len() - 2])[1]);
+
+        let list = concat_args(vec![&a, &b, &a]);
+        assert_eq!(
+            crate::split_args(&list),
+            vec![a.as_slice(), b.as_slice(), a.as_slice()]
+        );
     }
 
     #[test]
