@@ -19,26 +19,10 @@ fn calculate_y(x: f32) -> f32 {
     term1 + term2
 }
 
-fn vec_sub(a: &[f32; 3], b: &[f32; 3]) -> [f32; 3] {
-    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-}
-
-fn vec_cross(a: &[f32; 3], b: &[f32; 3]) -> [f32; 3] {
-    [
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0],
-    ]
-}
-
-fn vec_normalize(v: &[f32; 3]) -> [f32; 3] {
-    let len = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
-    if len == 0.0 { [0.0, 0.0, 0.0] } else { [v[0]/len, v[1]/len, v[2]/len] }
-}
-
 /// Area weighted vertex normals for a `slice_count x width_resolution` grid
 fn grid_normals(positions: &[[f32; 3]], slice_count: usize, width_resolution: usize) -> Vec<[f32; 3]> {
-    let mut normals = vec![[0.0f32; 3]; positions.len()];
+    let points: Vec<Vec3> = positions.iter().copied().map(Vec3::from).collect();
+    let mut normals = vec![Vec3::ZERO; points.len()];
 
     for i in 0..(slice_count - 1) {
         for j in 0..(width_resolution - 1) {
@@ -47,20 +31,18 @@ fn grid_normals(positions: &[[f32; 3]], slice_count: usize, width_resolution: us
             let c = (i + 1) * width_resolution + j;
             let d = c + 1;
 
-            let n1 = vec_cross(&vec_sub(&positions[b], &positions[a]), &vec_sub(&positions[c], &positions[a]));
-            let n2 = vec_cross(&vec_sub(&positions[d], &positions[b]), &vec_sub(&positions[c], &positions[b]));
+            let n1 = (points[b] - points[a]).cross(points[c] - points[a]);
+            let n2 = (points[d] - points[b]).cross(points[c] - points[b]);
 
             for (idxs, n) in [([a, b, c], n1), ([b, d, c], n2)] {
                 for idx in idxs {
-                    normals[idx][0] += n[0];
-                    normals[idx][1] += n[1];
-                    normals[idx][2] += n[2];
+                    normals[idx] += n;
                 }
             }
         }
     }
 
-    normals.iter().map(vec_normalize).collect()
+    normals.into_iter().map(|n| n.normalize_or_zero().to_array()).collect()
 }
 
 #[nodarium_execute]

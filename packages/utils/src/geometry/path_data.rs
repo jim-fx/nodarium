@@ -69,6 +69,11 @@ pub fn path_id(creator: i32, parent_id: i32, index: i32) -> i32 {
     (hash & 0x7fff_ffff) as i32
 }
 
+/// A number from 0 to 1 that only depends on the seed, the path and `salt`.
+pub fn path_random(seed: i32, id: i32, salt: i32) -> f32 {
+    path_id(seed, id, salt) as f32 / i32::MAX as f32
+}
+
 /// Where a path sits in the structure of paths: its own id, who made it and the spot on its
 /// parent it grows from.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -511,6 +516,20 @@ pub fn interpolate_along_path(points_data: &[f32], _alpha: f32) -> (Vec4, Vec3, 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn path_random_is_in_unit_range_and_repeatable() {
+        for seed in [0, 1, -7, i32::MAX] {
+            for id in [0, 3, 12_345, i32::MIN] {
+                for salt in 0..4 {
+                    let value = path_random(seed, id, salt);
+                    assert!((0.0..=1.0).contains(&value), "{value} for {seed} {id} {salt}");
+                    assert_eq!(value, path_random(seed, id, salt));
+                }
+            }
+        }
+        assert_ne!(path_random(1, 2, 0), path_random(1, 2, 1));
+    }
 
     fn assert_frame(path: &[f32], alpha: f32) {
         let (position, orthogonal, tangent) = interpolate_along_path(path, alpha);
