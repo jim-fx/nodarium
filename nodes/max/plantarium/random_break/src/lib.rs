@@ -2,7 +2,7 @@ use glam::{Vec4, Vec4Swizzles};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs,
-    geometry::{is_path, path_id, path_link, set_path_link, wrap_path, wrap_path_mut, DeepestPaths},
+    geometry::{is_path, path_link, path_random, set_path_link, wrap_path, wrap_path_mut, DeepestPaths},
     split_args, Ctx,
 };
 use std::collections::{HashMap, HashSet};
@@ -11,11 +11,6 @@ nodarium_definition_file!("src/definition.json");
 
 /// A break this close to the base would leave a path without length.
 const MIN_BREAK: f32 = 0.01;
-
-/// A number from 0 to 1 that only depends on the seed, the path and `salt`.
-fn random(seed: i32, id: i32, salt: i32) -> f32 {
-    path_id(seed, id, salt) as f32 / i32::MAX as f32
-}
 
 /// Resamples `points` to cover the path from its base up to `alpha` along its length, with the
 /// same number of points, so the broken path keeps its resolution.
@@ -99,12 +94,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         path_index += 1;
 
         let chance = ctx.float(args[1]);
-        if random(seed, link.id, 0) >= chance {
+        if path_random(seed, link.id, 0) >= chance {
             continue;
         }
         let lowest = ctx.float(args[2]);
         let highest = ctx.float(args[3]);
-        let alpha = (lowest + random(seed, link.id, 1) * (highest - lowest)).clamp(MIN_BREAK, 1.0);
+        let alpha = (lowest + path_random(seed, link.id, 1) * (highest - lowest)).clamp(MIN_BREAK, 1.0);
         if alpha >= 1.0 {
             continue;
         }
