@@ -1,4 +1,5 @@
 import type { Edge, Graph, NodeInstance } from '@nodarium/types';
+import { DEBUG_NODE } from '../../node-registry/internal-nodes';
 import { pickBranchPath, type ProbePath, sampleAlong } from './gizmo-paths';
 
 export type Vec3 = [number, number, number];
@@ -76,8 +77,6 @@ export function probeSource(type: string, nodeId: number, edges: EdgeLike[]) {
   return { nodeId: idOf(edge[0]), output: edge[1] };
 }
 
-const DEBUG_NODE_TYPE = '__internal/node/debug';
-
 /**
  * The graph to run so the gizmo of the active node can see the paths that come into it: the same
  * graph with a debug node on the source of those paths. The graph that is saved is left alone.
@@ -100,7 +99,7 @@ export function addProbe(graph: Graph, activeNodeId: number) {
   return {
     graph: {
       ...graph,
-      nodes: [...graph.nodes, { id, type: DEBUG_NODE_TYPE, position: [0, 0], props: {} }],
+      nodes: [...graph.nodes, { id, type: DEBUG_NODE, position: [0, 0], props: {} }],
       edges: [...graph.edges, [source.nodeId, source.output, id, 'input']]
     } as Graph,
     sourceId: source.nodeId,

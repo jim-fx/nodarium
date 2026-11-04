@@ -2,6 +2,14 @@ import { CURRENT_GRAPH_VERSION, migrateGraph } from '#lib/graph-migrations/index
 import { clone, debounce } from '#lib/helpers/index.ts';
 import throttle from '#lib/helpers/throttle.ts';
 import { RemoteNodeRegistry } from '#lib/node-registry/index.ts';
+import {
+  DEBUG_NODE,
+  GROUP_INPUT,
+  GROUP_INSTANCE,
+  GROUP_OUTPUT,
+  groupIdOf,
+  INTERNAL_PREFIX
+} from '#lib/node-registry/internal-nodes.ts';
 import type {
   Box,
   Edge,
@@ -263,7 +271,7 @@ export class GraphManager extends EventEmitter<{
 
     if (!debugNode) {
       debugNode = this.createNode({
-        type: '__internal/node/debug',
+        type: DEBUG_NODE,
         position: [0, 0],
         props: {}
       });
@@ -460,7 +468,7 @@ export class GraphManager extends EventEmitter<{
       return;
     }
 
-    if (node.type === '__internal/group/input') {
+    if (node.type === GROUP_INPUT) {
       const group = this.currentGroupId !== null ? this.getGroup(this.currentGroupId) : undefined;
       if (!group) return node.state.type;
 
@@ -473,7 +481,7 @@ export class GraphManager extends EventEmitter<{
         }) || []
       );
       return {
-        id: '__internal/group/input' as NodeId,
+        id: GROUP_INPUT as NodeId,
         meta: {
           title: 'Group Input'
         },
@@ -482,11 +490,11 @@ export class GraphManager extends EventEmitter<{
       } as NodeDefinition;
     }
 
-    if (node.type === '__internal/group/output') {
+    if (node.type === GROUP_OUTPUT) {
       const group = this.currentGroupId !== null ? this.getGroup(this.currentGroupId) : undefined;
       if (!group) return node.state.type;
       return {
-        id: '__internal/group/output' as NodeId,
+        id: GROUP_OUTPUT as NodeId,
         inputs: Object.fromEntries(
           (group.outputs ?? []).map((
             o,
@@ -503,7 +511,7 @@ export class GraphManager extends EventEmitter<{
 
     // Construct the group inputs on the fly. This has to start from the registry
     // type, a group's inputs and outputs change while its instances are loaded.
-    if (node.type === '__internal/group/instance') {
+    if (node.type === GROUP_INSTANCE) {
       const groupId = node.props?.groupId as number;
       const baseType = this.registry.getNode(node.type);
 
@@ -534,7 +542,7 @@ export class GraphManager extends EventEmitter<{
       if (!groupId) {
         return {
           ...baseType,
-          id: '__internal/group/instance' as NodeId,
+          id: GROUP_INSTANCE as NodeId,
           meta: {
             title: 'Group',
             ...baseType?.meta || {}
@@ -571,7 +579,7 @@ export class GraphManager extends EventEmitter<{
 
       const groupType = {
         ...baseType,
-        id: '__internal/group/instance' as NodeId,
+        id: GROUP_INSTANCE as NodeId,
         meta: {
           title: 'Group',
           ...baseType?.meta || {}
@@ -644,7 +652,7 @@ export class GraphManager extends EventEmitter<{
     outputs: string[];
   } {
     const nodeType = this.getNodeType(node);
-    if (node.type === '__internal/group/input') {
+    if (node.type === GROUP_INPUT) {
       return { inputs: {}, outputs: Object.values(nodeType?.inputs ?? {}).map(i => i.type) };
     }
     return {
@@ -801,12 +809,12 @@ export class GraphManager extends EventEmitter<{
     this.startUndoGroup();
 
     if (this.currentGroupId === groupId) {
-      for (const edge of this.edges.filter(e => e[0].type === '__internal/group/input')) {
+      for (const edge of this.edges.filter(e => e[0].type === GROUP_INPUT)) {
         if (edge[1] === index) this.removeEdge(edge, { applyDeletion: false });
         else if (edge[1] > index) edge[1]--;
       }
     } else {
-      const inputNodeId = group.nodes.find(n => n.type === '__internal/group/input')?.id;
+      const inputNodeId = group.nodes.find(n => n.type === GROUP_INPUT)?.id;
       group.edges = group.edges
         .filter(e => !(e[0] === inputNodeId && e[1] === index))
         .map(e =>
@@ -815,14 +823,12 @@ export class GraphManager extends EventEmitter<{
     }
 
     // Drop the edges into the removed socket on every instance of the group
-    const isInstance = (n?: SerializedNode) =>
-      n?.type === '__internal/group/instance' && n.props?.groupId === groupId;
-    for (const edge of this.edges.filter(e => isInstance(e[2]) && e[3] === key)) {
+    for (const edge of this.edges.filter(e => groupIdOf(e[2]) === groupId && e[3] === key)) {
       this.removeEdge(edge, { applyDeletion: false });
     }
     for (const level of [...this.parentStack, ...this.groups]) {
       level.edges = level.edges.filter(e =>
-        !(e[3] === key && isInstance(level.nodes.find(n => n.id === e[2])))
+        !(e[3] === key && groupIdOf(level.nodes.find(n => n.id === e[2])) === groupId)
       );
     }
 
@@ -834,7 +840,7 @@ export class GraphManager extends EventEmitter<{
 
   enterGroup(nodeId: number): boolean {
     const groupNode = this.getNode(nodeId);
-    if (!groupNode || groupNode.type !== '__internal/group/instance') return false;
+    if (!groupNode || groupNode.type !== GROUP_INSTANCE) return false;
 
     log.log('entering group', { nodeId });
 
@@ -902,16 +908,14 @@ export class GraphManager extends EventEmitter<{
   createGraph(nodes: SerializedNode[], edges: [number, number, number, string][]) {
     // A level has a single Group Input and Output node, pasting must not add another
     // one (only the first one is used). Their edges are dropped with them.
-    nodes = nodes.filter(n =>
-      n.type !== '__internal/group/input' && n.type !== '__internal/group/output'
-    );
+    nodes = nodes.filter(n => n.type !== GROUP_INPUT && n.type !== GROUP_OUTPUT);
 
     const idMap = new SvelteMap<number, number>();
     const nextId = this.createIdAllocator();
 
     const instances: NodeInstance[] = nodes.map((node) => {
       const type = this.registry.getNode(node.type);
-      if (!type && !node.type.startsWith('__internal/')) {
+      if (!type && !node.type.startsWith(INTERNAL_PREFIX)) {
         throw new Error(`Node type not found: ${node.type}`);
       }
       const instance: NodeInstance = $state({ ...node, id: nextId(), state: { type } });
@@ -937,25 +941,18 @@ export class GraphManager extends EventEmitter<{
   getUnusedGroups() {
     const usedGroupIds = new SvelteSet<number>();
     const queue: number[] = [];
-
-    // Seed from root-level nodes so outer groups aren't treated as unused when inside a group.
-    const rootNodes = this.parentStack.length > 0
-      ? this.parentStack[0].nodes
-      : [...this.nodes.values()];
-
-    for (const node of rootNodes) {
-      if (node.type === '__internal/group/instance' && node.props?.groupId !== undefined) {
-        queue.push(node.props.groupId as number);
+    const pushReferencedGroups = (nodes: Iterable<SerializedNode | NodeInstance>) => {
+      for (const node of nodes) {
+        const groupId = groupIdOf(node);
+        if (groupId !== undefined) queue.push(groupId);
       }
-    }
+    };
 
-    // Also seed from live nodes (may contain new group instances created inside a group).
-    if (this.currentGroupId !== null) {
-      for (const node of this.nodes.values()) {
-        if (node.type === '__internal/group/instance' && node.props?.groupId !== undefined) {
-          queue.push(node.props.groupId as number);
-        }
-      }
+    // Seed from root-level nodes so outer groups aren't treated as unused when inside a group,
+    // and from the live nodes, which may contain new group instances created inside a group.
+    if (this.parentStack.length > 0) pushReferencedGroups(this.parentStack[0].nodes);
+    if (this.parentStack.length === 0 || this.currentGroupId !== null) {
+      pushReferencedGroups(this.nodes.values());
     }
 
     // Every group on the navigation path is used by definition.
@@ -968,14 +965,7 @@ export class GraphManager extends EventEmitter<{
       const groupId = queue.pop()!;
       if (usedGroupIds.has(groupId)) continue;
       usedGroupIds.add(groupId);
-      const group = this.getGroup(groupId);
-      if (!group) continue;
-      for (const node of group.nodes) {
-        if (node.type === '__internal/group/instance' && node.props?.groupId !== undefined) {
-          const childId = node.props.groupId as number;
-          if (!usedGroupIds.has(childId)) queue.push(childId);
-        }
-      }
+      pushReferencedGroups(this.getGroup(groupId)?.nodes ?? []);
     }
 
     return this.groups.filter(g => !usedGroupIds.has(g.id));
@@ -992,9 +982,7 @@ export class GraphManager extends EventEmitter<{
   groupNodes(nodeIds: number[]) {
     const nodes = [
       ...new SvelteSet(nodeIds).values().map(id => this.getNode(id)).filter(Boolean)
-    ].filter(n =>
-      n!.type !== '__internal/group/input' && n!.type !== '__internal/group/output'
-    ) as NodeInstance[];
+    ].filter(n => n!.type !== GROUP_INPUT && n!.type !== GROUP_OUTPUT) as NodeInstance[];
 
     if (!nodes.length) return;
 
@@ -1082,14 +1070,14 @@ export class GraphManager extends EventEmitter<{
 
     const groupInputNode: NodeInstance = {
       id: nextId(),
-      type: '__internal/group/input',
+      type: GROUP_INPUT,
       position: [bounds.minX - 50, (bounds.minY + bounds.maxY) / 2],
       state: {}
     };
 
     const groupOutputNode: NodeInstance = {
       id: nextId(),
-      type: '__internal/group/output',
+      type: GROUP_OUTPUT,
       position: [bounds.maxX + 25, (bounds.minY + bounds.maxY) / 2],
       state: {}
     };
@@ -1122,7 +1110,7 @@ export class GraphManager extends EventEmitter<{
     this.groups.push(groupDefinition);
 
     const groupNode = this.createNode({
-      type: '__internal/group/instance',
+      type: GROUP_INSTANCE,
       position: [groupPosition[0], groupPosition[1]],
       props: {
         groupId: groupId
@@ -1160,7 +1148,7 @@ export class GraphManager extends EventEmitter<{
 
   ungroupNode(nodeId: number) {
     const groupNode = this.getNode(nodeId);
-    if (!groupNode || groupNode.type !== '__internal/group/instance') return false;
+    if (!groupNode || groupNode.type !== GROUP_INSTANCE) return false;
 
     const groupId = groupNode.props?.groupId as number;
     const group = this.getGroup(groupId);
@@ -1173,10 +1161,10 @@ export class GraphManager extends EventEmitter<{
     const edgesToGroup = this.edges.filter(e => e[2].id === nodeId);
     const edgesFromGroup = this.edges.filter(e => e[0].id === nodeId);
 
-    const groupInputNode = group.nodes.find(n => n.type === '__internal/group/input');
-    const groupOutputNode = group.nodes.find(n => n.type === '__internal/group/output');
+    const groupInputNode = group.nodes.find(n => n.type === GROUP_INPUT);
+    const groupOutputNode = group.nodes.find(n => n.type === GROUP_OUTPUT);
     const internalNodes = group.nodes.filter(
-      n => n.type !== '__internal/group/input' && n.type !== '__internal/group/output'
+      n => n.type !== GROUP_INPUT && n.type !== GROUP_OUTPUT
     );
 
     // Offset internal nodes so their average position matches the group node's position
@@ -1291,7 +1279,7 @@ export class GraphManager extends EventEmitter<{
     props: NodeInstance['props'];
   }) {
     const nodeType = this.registry.getNode(type);
-    if (!nodeType && !type.startsWith('__internal/')) {
+    if (!nodeType && !type.startsWith(INTERNAL_PREFIX)) {
       log.error(`Node type not found: ${type}`);
       return;
     }
@@ -1372,7 +1360,7 @@ export class GraphManager extends EventEmitter<{
   getMutePassthroughInput(node: NodeInstance): string | undefined {
     const inputs = this.getNodeType(node)?.inputs;
     if (!inputs) return;
-    const isGroup = node.type === '__internal/group/instance';
+    const isGroup = node.type === GROUP_INSTANCE;
     const [key, input] = Object.entries(inputs).find(([k]) => !(isGroup && k === 'groupId')) ?? [];
     if (!key || !input) return;
     // setting, seed and creator inputs can't be wired, so nothing could pass through
@@ -1390,8 +1378,8 @@ export class GraphManager extends EventEmitter<{
     const node = this.getNode(activeNodeId);
     if (!node) return;
     if (!this.getMutePassthroughInput(node)) return;
-    if (node.type === '__internal/group/output') return;
-    if (node.type === '__internal/group/input') return;
+    if (node.type === GROUP_OUTPUT) return;
+    if (node.type === GROUP_INPUT) return;
     if (node.type.endsWith('/debug')) return;
     if (node.type.endsWith('/output')) return;
     node.state.muted = !node.state.muted;

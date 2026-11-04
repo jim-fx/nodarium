@@ -565,6 +565,85 @@ describe('groups', () => {
   });
 });
 
+describe('getUnusedGroups', () => {
+  function createNestedGroups() {
+    const registry = createMockNodeRegistry([mockFloatOutputNode, mockFloatInputNode]);
+    const manager = new GraphManager(registry);
+
+    const nodeA = manager.createNode({ type: 'test/node/output', position: [0, 0], props: {} });
+    const nodeB = manager.createNode({ type: 'test/node/output', position: [100, 0], props: {} });
+    const nodeC = manager.createNode({ type: 'test/node/input', position: [200, 0], props: {} });
+    assert.isDefined(nodeA);
+    assert.isDefined(nodeB);
+    assert.isDefined(nodeC);
+    manager.createEdge(nodeA, 0, nodeB, 'input');
+    manager.createEdge(nodeB, 0, nodeC, 'value');
+
+    const outer = manager.groupNodes([nodeB.id]);
+    assert.isDefined(outer);
+    manager.enterGroup(outer.id);
+    const inner = manager.groupNodes([nodeB.id]);
+    assert.isDefined(inner);
+    manager.exitGroup();
+
+    return {
+      manager,
+      outer,
+      outerGroupId: outer.props?.groupId as number,
+      innerGroupId: inner.props?.groupId as number
+    };
+  }
+
+  const unusedIds = (manager: GraphManager) => manager.getUnusedGroups().map(g => g.id).sort();
+
+  it('should treat groups referenced from the root and nested groups as used', () => {
+    const { manager } = createNestedGroups();
+    expect(manager.groups).toHaveLength(2);
+    expect(unusedIds(manager)).toEqual([]);
+  });
+
+  it('should report a group and its nested groups once nothing references them', () => {
+    const { manager, outer, outerGroupId, innerGroupId } = createNestedGroups();
+    manager.removeNode(outer);
+    expect(unusedIds(manager)).toEqual([outerGroupId, innerGroupId].sort());
+
+    expect(manager.removeUnusedGroups()).toBe(2);
+    expect(manager.groups).toHaveLength(0);
+  });
+
+  it('should keep the groups on the navigation path while inside a nested group', () => {
+    const { manager, outer, innerGroupId } = createNestedGroups();
+    manager.enterGroup(outer.id);
+    const inner = [...manager.nodes.values()].find(n => n.props?.groupId === innerGroupId);
+    assert.isDefined(inner);
+    manager.enterGroup(inner.id);
+
+    expect(unusedIds(manager)).toEqual([]);
+  });
+
+  it('should count group instances created inside a group before leaving it', () => {
+    const { manager, outer } = createNestedGroups();
+    manager.enterGroup(outer.id);
+    const extra = manager.createNode({ type: 'test/node/output', position: [0, 50], props: {} });
+    assert.isDefined(extra);
+    assert.isDefined(manager.groupNodes([extra.id]));
+
+    expect(manager.groups).toHaveLength(3);
+    expect(unusedIds(manager)).toEqual([]);
+  });
+
+  it('should report a group whose instance was removed inside another group', () => {
+    const { manager, outer, innerGroupId } = createNestedGroups();
+    manager.enterGroup(outer.id);
+    const inner = [...manager.nodes.values()].find(n => n.props?.groupId === innerGroupId);
+    assert.isDefined(inner);
+    manager.removeNode(inner);
+    manager.exitGroup();
+
+    expect(unusedIds(manager)).toEqual([innerGroupId]);
+  });
+});
+
 describe('removeGroupInput', () => {
   // A1 → B, A2 → E, then B and E get grouped into a group with input_0 and input_1
   function createGroupWithTwoInputs() {

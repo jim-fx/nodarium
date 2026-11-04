@@ -1,4 +1,5 @@
 import { animate, debounce, lerp } from '#lib/helpers/index.ts';
+import { GROUP_INSTANCE } from '#lib/node-registry/internal-nodes.ts';
 import type { NodeInstance, SerializedEdge, SerializedNode, Socket } from '@nodarium/types';
 import { createContext, untrack } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -461,7 +462,7 @@ export class GraphState {
   enterGroupNode() {
     if (this.activeNodeId === -1) return;
     const node = this.graph.getNode(this.activeNodeId);
-    if (!node || node.type !== '__internal/group/instance') return;
+    if (!node || node.type !== GROUP_INSTANCE) return;
     const ok = this.graph.enterGroup(this.activeNodeId);
     if (ok) {
       this.activeNodeId = -1;

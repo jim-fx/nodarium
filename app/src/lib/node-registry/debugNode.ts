@@ -1,7 +1,8 @@
 import type { NodeValue } from '@nodarium/types';
+import { DEBUG_NODE } from './internal-nodes';
 
 export const debugNode = {
-  id: '__internal/node/debug',
+  id: DEBUG_NODE,
   meta: {
     title: 'Debug'
   },

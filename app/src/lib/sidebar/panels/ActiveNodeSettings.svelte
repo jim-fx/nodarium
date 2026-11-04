@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { GraphManager } from '#lib/graph-interface/graph-manager.svelte.ts';
+  import { GROUP_INSTANCE } from '#lib/node-registry/internal-nodes.ts';
   import NestedSettings from '#lib/settings/NestedSettings.svelte';
   import type { NodeId, NodeInput, NodeInstance } from '@nodarium/types';
 
@@ -92,7 +93,7 @@
     }
   }
 
-  const isGroupInstance = $derived(node?.type === '__internal/group/instance');
+  const isGroupInstance = $derived(node?.type === GROUP_INSTANCE);
 
   $effect(() => {
     if (store) {

@@ -17,6 +17,12 @@ import {
 } from '@nodarium/utils';
 import { areSocketsCompatible } from '../graph-interface/helpers/nodeHelpers';
 import { migrateGraph } from '../graph-migrations';
+import {
+  GROUP_INPUT,
+  GROUP_INSTANCE,
+  GROUP_OUTPUT,
+  INTERNAL_PREFIX
+} from '../node-registry/internal-nodes';
 import { getErrorInfo, NodeExecutionError, type RuntimeErrorInfo } from './errors';
 import type { RuntimeNode } from './types';
 
@@ -44,7 +50,7 @@ export function expandGroups(graph: Graph, origins?: Map<number, number>): Graph
     const group = graph.groups!.find(g => g.id === groupId);
     if (!group) return false;
     for (const n of group.nodes) {
-      if (n.type === '__internal/group/instance') {
+      if (n.type === GROUP_INSTANCE) {
         const nestedId = n.props?.groupId as number | undefined;
         if (nestedId !== undefined && groupContainsSelf(nestedId, visited)) return true;
       }
@@ -78,7 +84,7 @@ export function expandGroups(graph: Graph, origins?: Map<number, number>): Graph
 
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i];
-      if (node.type !== '__internal/group/instance') continue;
+      if (node.type !== GROUP_INSTANCE) continue;
 
       const groupId = node.props?.groupId as number | undefined;
       if (groupId === undefined) continue;
@@ -103,11 +109,11 @@ export function expandGroups(graph: Graph, origins?: Map<number, number>): Graph
 
       const idMap = new Map<number, number>();
 
-      const inputBoundary = group.nodes.find(n => n.type === '__internal/group/input');
-      const outputBoundary = group.nodes.find(n => n.type === '__internal/group/output');
+      const inputBoundary = group.nodes.find(n => n.type === GROUP_INPUT);
+      const outputBoundary = group.nodes.find(n => n.type === GROUP_OUTPUT);
 
       const realNodes = group.nodes.filter(
-        n => n.type !== '__internal/group/input' && n.type !== '__internal/group/output'
+        n => n.type !== GROUP_INPUT && n.type !== GROUP_OUTPUT
       );
 
       for (const n of realNodes) {
@@ -270,7 +276,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     // Only load non-virtual types (virtual nodes are resolved locally)
     const nonVirtualTypes = graph.nodes
       .map(node => node.type)
-      .filter(t => !t.startsWith('__internal/'));
+      .filter(t => !t.startsWith(INTERNAL_PREFIX));
     await this.registry.load(nonVirtualTypes);
 
     const typeMap = new Map<string, NodeDefinition>();
