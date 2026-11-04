@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { GraphManager } from '#lib/graph-interface/graph-manager.svelte.ts';
   import { GraphState } from '#lib/graph-interface/graph-state.svelte.ts';
+  import { GROUP_INSTANCE } from '#lib/node-registry/internal-nodes.ts';
   import type { NodeInstance } from '@nodarium/types';
   import { SocketTable } from '@nodarium/ui';
   import UnusedGroupsPanel from './UnusedGroupsPanel.svelte';
@@ -14,7 +15,7 @@
   const { manager, graphState, node }: Props = $props();
 
   const activeGroup = $derived.by(() => {
-    if (node?.type === '__internal/group/instance') {
+    if (node?.type === GROUP_INSTANCE) {
       let group = manager.getGroup(node.props?.groupId as number);
       if (group) return group;
     }

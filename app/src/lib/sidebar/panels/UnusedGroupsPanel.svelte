@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { GraphManager } from '#lib/graph-interface/graph-manager.svelte.ts';
+  import { groupIdOf } from '#lib/node-registry/internal-nodes.ts';
   import type { GroupDefinition } from '@nodarium/types';
   import { Button } from '@nodarium/ui';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -22,12 +23,10 @@
     for (const group of unused) {
       const refs: number[] = [];
       for (const node of group.nodes) {
-        if (node.type === '__internal/group/instance' && node.props?.groupId !== undefined) {
-          const childId = node.props.groupId as number;
-          if (unusedIds.has(childId)) {
-            refs.push(childId);
-            referencedBy.add(childId);
-          }
+        const childId = groupIdOf(node);
+        if (childId !== undefined && unusedIds.has(childId)) {
+          refs.push(childId);
+          referencedBy.add(childId);
         }
       }
       childrenOf.set(group.id, refs);

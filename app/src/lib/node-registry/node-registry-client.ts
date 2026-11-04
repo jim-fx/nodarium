@@ -5,6 +5,7 @@ import {
   type NodeRegistry
 } from '@nodarium/types';
 import { createLogger, createWasmWrapper } from '@nodarium/utils';
+import { INTERNAL_PREFIX } from './internal-nodes';
 
 const log = createLogger('node-registry');
 log.mute();
@@ -87,7 +88,7 @@ export class RemoteNodeRegistry implements NodeRegistry {
   }
 
   async fetchNodeDefinition(nodeId: `${string}/${string}/${string}`) {
-    if (nodeId.startsWith('__internal/')) return;
+    if (nodeId.startsWith(INTERNAL_PREFIX)) return;
     return this.fetchJson(`nodes/${nodeId}.json`);
   }
 
@@ -112,7 +113,7 @@ export class RemoteNodeRegistry implements NodeRegistry {
           return this.nodes.get(id)!;
         }
 
-        if (id.startsWith('__internal/')) return;
+        if (id.startsWith(INTERNAL_PREFIX)) return;
 
         // every node is only instantiated once, even when it is requested again while loading
         let pending = this.pending.get(id);

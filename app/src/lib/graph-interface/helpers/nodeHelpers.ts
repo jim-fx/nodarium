@@ -5,9 +5,10 @@ import type {
   SerializedEdge,
   SerializedNode
 } from '@nodarium/types';
+import { GROUP_INPUT } from '../../node-registry/internal-nodes';
 
 export function getParameterHeight(node: NodeDefinition, inputKey: string) {
-  if (node.id === '__internal/group/input') {
+  if (node.id === GROUP_INPUT) {
     return 50;
   }
 
@@ -97,7 +98,7 @@ export function getInputSocketOffset(node: NodeDefinition | undefined, inputKey:
 
 // distance from the top of a node to the socket of one of its outputs
 export function getOutputSocketOffset(nodeType: string, index: number) {
-  if (nodeType === '__internal/group/input') {
+  if (nodeType === GROUP_INPUT) {
     return 2.5 + 5 * index + 5;
   }
   return 2.5 + OUTPUT_ROW_HEIGHT * index;

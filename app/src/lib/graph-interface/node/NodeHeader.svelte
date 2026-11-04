@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { GROUP_INPUT, GROUP_OUTPUT } from '#lib/node-registry/internal-nodes.ts';
   import { appSettings } from '#lib/settings/app-settings.svelte.ts';
   import { getOutputLabel, type NodeInstance, type Socket } from '@nodarium/types';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
@@ -25,7 +26,7 @@
   const cornerTop = 10;
   const nodeType = $derived(graph.getNodeType(node));
   const rightBump = $derived(
-    !!nodeType?.outputs?.length && node.type !== '__internal/group/input'
+    !!nodeType?.outputs?.length && node.type !== GROUP_INPUT
   );
   const title = $derived(nodeType?.meta?.title || node.type?.split('/').pop());
   const outputLabel = $derived(
@@ -36,9 +37,9 @@
   const cornerBottom = $derived(
     headerOnly
       ? 10
-      : node.type === '__internal/group/input'
+      : node.type === GROUP_INPUT
       ? (Object.keys(nodeType?.inputs ?? {}).length ? 0 : 10)
-      : node.type === '__internal/group/output'
+      : node.type === GROUP_OUTPUT
       ? (nodeType?.outputs?.length ? 0 : 10)
       : 0
   );

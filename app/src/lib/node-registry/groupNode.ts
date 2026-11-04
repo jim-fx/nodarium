@@ -1,7 +1,8 @@
 import type { NodeValue } from '@nodarium/types';
+import { GROUP_INSTANCE } from './internal-nodes';
 
 export const groupNode = {
-  id: '__internal/group/instance',
+  id: GROUP_INSTANCE,
   meta: { title: 'Group' },
   inputs: {
     groupId: {

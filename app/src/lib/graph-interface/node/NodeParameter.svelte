@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { GROUP_INPUT } from '#lib/node-registry/internal-nodes.ts';
   import type { NodeInput, NodeInstance, Socket } from '@nodarium/types';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers';
@@ -33,7 +34,7 @@
     ev.preventDefault();
     ev.stopPropagation();
 
-    if (node.type === '__internal/group/input') {
+    if (node.type === GROUP_INPUT) {
       const outputIndex = Object.entries(nodeType?.inputs ?? {}).findIndex(([key]) => key === id);
       graphState.setDownSocket({
         node,
@@ -50,9 +51,9 @@
   }
 
   const leftBump = $derived(
-    nodeType.inputs?.[id].internal !== true && node.type !== '__internal/group/input'
+    nodeType.inputs?.[id].internal !== true && node.type !== GROUP_INPUT
   );
-  const rightBump = $derived(node.type === '__internal/group/input');
+  const rightBump = $derived(node.type === GROUP_INPUT);
   const cornerBottom = $derived(isLast ? 5 : 0);
   const aspectRatio = 0.5;
 
@@ -92,7 +93,7 @@
 <div
   class="wrapper"
   data-node-type={node.type}
-  class:is-group-input={node.type === '__internal/group/input'}
+  class:is-group-input={node.type === GROUP_INPUT}
   data-node-input={id}
   style:height="{height}px"
   style:--socket-color={hoverColor}
