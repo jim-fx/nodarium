@@ -1,6 +1,4 @@
 import { CURRENT_GRAPH_VERSION, migrateGraph } from '#lib/graph-migrations/index.ts';
-import { clone, debounce } from '#lib/helpers/index.ts';
-import throttle from '#lib/helpers/throttle.ts';
 import { RemoteNodeRegistry } from '#lib/node-registry/index.ts';
 import {
   DEBUG_NODE,
@@ -31,6 +29,7 @@ import { fastHashString } from '@nodarium/utils';
 import { createLogger } from '@nodarium/utils';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import EventEmitter from './helpers/EventEmitter';
+import { clone, debounce } from './helpers/index.ts';
 import { layoutGraph } from './helpers/layoutGraph';
 import {
   areEdgesEqual,
@@ -39,6 +38,7 @@ import {
   serializeEdge,
   serializeNode
 } from './helpers/nodeHelpers';
+import throttle from './helpers/throttle.ts';
 import { HistoryManager } from './history-manager';
 
 const log = createLogger('graph-manager');

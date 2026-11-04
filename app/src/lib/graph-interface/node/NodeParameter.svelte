@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { createNodePath } from '#lib/helpers/index.ts';
   import { GROUP_INPUT } from '#lib/node-registry/internal-nodes.ts';
   import type { NodeInput, NodeInstance, Socket } from '@nodarium/types';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
+  import { createNodePath } from '../helpers/index.ts';
   import { getParameterHeight } from '../helpers/nodeHelpers';
   import NodeInputEl from './NodeInput.svelte';
 

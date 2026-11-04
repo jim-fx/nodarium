@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { createNodePath } from '#lib/helpers/index.ts';
   import { GROUP_INPUT, GROUP_OUTPUT } from '#lib/node-registry/internal-nodes.ts';
   import { appSettings } from '#lib/settings/app-settings.svelte.ts';
   import { getOutputLabel, type NodeInstance, type Socket } from '@nodarium/types';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
+  import { createNodePath } from '../helpers/index.ts';
   import { getNodeHeight } from '../helpers/nodeHelpers';
 
   const graphState = tryGetGraphState();
