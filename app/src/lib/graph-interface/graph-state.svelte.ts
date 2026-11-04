@@ -1,4 +1,3 @@
-import { animate, debounce, lerp } from '#lib/helpers/index.ts';
 import { GROUP_INSTANCE } from '@nodarium/types';
 import type { NodeInstance, SerializedEdge, SerializedNode, Socket } from '@nodarium/types';
 import { createContext, untrack } from 'svelte';
@@ -7,6 +6,7 @@ import type { OrthographicCamera, Vector3 } from 'three';
 import type { GraphManager } from './graph-manager.svelte';
 import { ColorGenerator } from './graph/colors';
 import { maxZoom, minZoom } from './graph/constants';
+import { animate, debounce, lerp } from './helpers/index.ts';
 import {
   getInputSocketOffset,
   getNodeHeight,

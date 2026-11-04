@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getOutputLabel, type NodeInstance, type Socket } from '@nodarium/types';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
-  import { createNodePath } from '../helpers';
+  import { createNodePath } from '../helpers/index.ts';
 
   type Props = {
     node: NodeInstance;

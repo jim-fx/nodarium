@@ -1,4 +1,4 @@
-import throttle from '#lib/helpers/throttle.ts';
+import throttle from './throttle.ts';
 
 type EventMap = Record<string, unknown>;
 type EventKey<T extends EventMap> = string & keyof T;

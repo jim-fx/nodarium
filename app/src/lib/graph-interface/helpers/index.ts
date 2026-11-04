@@ -6,10 +6,7 @@ export function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
 
-export function animate(
-  duration: number,
-  callback: (progress: number) => void | false
-) {
+export function animate(duration: number, callback: (progress: number) => void | false) {
   const start = performance.now();
   const loop = (time: number) => {
     const progress = (time - start) / duration;
@@ -35,9 +32,6 @@ export function createNodePath({
   rightBump = false,
   aspectRatio = 1
 } = {}) {
-  const leftBumpTopY = y + height / 2;
-  const leftBumpBottomY = y - height / 2;
-
   return `M0,${cornerTop}
       ${
     cornerTop
@@ -67,26 +61,24 @@ export function createNodePath({
   }
       ${
     leftBump
-      ? ` V${leftBumpTopY} C${depth},${leftBumpTopY} ${depth},${leftBumpBottomY} 0,${leftBumpBottomY}`
+      ? ` V${y + height / 2} C${depth},${y + height / 2} ${depth},${y - height / 2} 0,${
+        y - height / 2
+      }`
       : ` H0`
   }
       Z`.replace(/\s+/g, ' ');
 }
 
-export const clone: <T>(v: T) => T = 'structedClone' in globalThis
-  ? globalThis.structuredClone
-  : (obj) => JSON.parse(JSON.stringify(obj));
+export const debounce = (fn: () => void, ms = 300) => {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  return function(this: unknown, ...args: unknown[]) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn.apply(this, args as []), ms);
+  };
+};
 
-export function withSubComponents<A, B extends Record<string, unknown>>(
-  component: A,
-  subcomponents: B
-): A & B {
-  Object.keys(subcomponents).forEach((key) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (component as any)[key] = (subcomponents as any)[key];
-  });
-  return component as A & B;
-}
+// Not structuredClone: it throws a DataCloneError on Svelte $state proxies.
+export const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 
 export function distanceFromPointToSegment(
   x1: number,

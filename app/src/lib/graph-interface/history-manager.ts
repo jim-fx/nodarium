@@ -1,7 +1,7 @@
 import type { Graph } from '@nodarium/types';
 import { createLogger } from '@nodarium/utils';
 import { create, type Delta } from 'jsondiffpatch';
-import { clone } from './helpers/index.js';
+import { clone } from './helpers/index.ts';
 
 const diff = create({
   objectHash: function(obj, index) {

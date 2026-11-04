@@ -3,7 +3,7 @@ use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs, encode_points,
     geometry::{
-        create_path, is_path, orthogonal_to, path_id, set_path_link, wrap_path, wrap_path_mut,
+        create_path, is_path, orthogonal_to, path_random, set_path_link, wrap_path, wrap_path_mut,
         DeepestPaths, PathLink,
     },
     int, split_args, Ctx, Point,
@@ -39,11 +39,6 @@ struct Base {
     thickness: f32,
 }
 
-/// A number from 0 to 1 that only depends on the seed, the ray and `salt`.
-fn random(seed: i32, id: i32, salt: i32) -> f32 {
-    path_id(seed, id, salt) as f32 / i32::MAX as f32
-}
-
 /// The tip of ray `i` of `amount` for a ray length of 1: how far it is out from the axis (x) and
 /// along it (y). The rays fill the disc evenly from the inside out, the last one is the outer
 /// ray at `opening`. On a flat top (`shape` 0) all tips are as high as the outer one, on a dome
@@ -68,11 +63,11 @@ fn grow(
 
     for i in 0..umbel.amount {
         let link = PathLink::child(umbel.creator, base.parent_id, 1.0, i);
-        let jitter = (random(umbel.seed, link.id, 0) - 0.5) * PI / umbel.amount as f32;
+        let jitter = (path_random(umbel.seed, link.id, 0) - 0.5) * PI / umbel.amount as f32;
         let turn = i as f32 * GOLDEN_ANGLE + jitter;
         let out = side * turn.cos() + around * turn.sin();
 
-        let length = base.length * (1.0 - umbel.variation * random(umbel.seed, link.id, 1));
+        let length = base.length * (1.0 - umbel.variation * path_random(umbel.seed, link.id, 1));
         let offset = tip_offset(i, umbel.amount, umbel.opening, umbel.shape);
         let ray = (out * offset.x + base.axis * offset.y) * length;
         let tip = base.position + ray;
