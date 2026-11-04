@@ -1277,8 +1277,8 @@ export class GraphManager extends EventEmitter<{
 
     if (applyUpdate) {
       this.save();
+      this.execute();
     }
-    this.execute();
 
     return edge;
   }

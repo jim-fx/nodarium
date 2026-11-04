@@ -1,7 +1,7 @@
 import { debugNode } from '#lib/node-registry/debugNode.ts';
 import { expandGroups } from '#lib/runtime/runtime-executor.ts';
 import type { NodeDefinition, NodeId } from '@nodarium/types';
-import { assert, describe, expect, it } from 'vitest';
+import { assert, describe, expect, it, vi } from 'vitest';
 import { GraphManager } from './graph-manager.svelte';
 import { getNodeHeight } from './helpers/nodeHelpers';
 import {
@@ -855,5 +855,48 @@ describe('tryConnectToDebugNode', () => {
     expect(outputs()).toEqual([[node.id, 1]]);
     manager.tryConnectToDebugNode(node.id);
     expect(outputs()).toEqual([[node.id, 0]]);
+  });
+});
+
+describe('dropNodeOnEdge', () => {
+  it('emits a final result containing both new edges', () => {
+    vi.useFakeTimers();
+    try {
+      const manager = new GraphManager(
+        createMockNodeRegistry([mockFloatInputNode, mockFloatOutputNode])
+      );
+      const source = manager.createNode({ type: 'test/node/input', position: [0, 0], props: {} });
+      const target = manager.createNode({
+        type: 'test/node/output',
+        position: [200, 0],
+        props: {}
+      });
+      const dropped = manager.createNode({
+        type: 'test/node/output',
+        position: [100, 0],
+        props: {}
+      });
+      assert.isDefined(source);
+      assert.isDefined(target);
+      assert.isDefined(dropped);
+      const edge = manager.createEdge(source, 0, target, 'input');
+      assert.isDefined(edge);
+      manager.loaded = true;
+      vi.runAllTimers();
+
+      const results: ReturnType<GraphManager['serialize']>[] = [];
+      manager.on('result', (graph) => results.push(graph as ReturnType<GraphManager['serialize']>));
+
+      manager.dropNodeOnEdge(dropped.id, edge);
+      vi.runAllTimers();
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.at(-1)!.edges).toEqual([
+        [source.id, 0, dropped.id, 'input'],
+        [dropped.id, 0, target.id, 'input']
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
