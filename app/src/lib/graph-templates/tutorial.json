@@ -4,8 +4,7 @@
   "groups": [],
   "settings": {
     "resolution.circle": 54,
-    "resolution.curve": 20,
-    "randomSeed": false
+    "resolution.curve": 20
   },
   "meta": {
     "title": "New Project",

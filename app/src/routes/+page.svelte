@@ -184,7 +184,8 @@
   async function randomGenerate() {
     if (!manager) return;
     const g = manager.serialize();
-    const s = { ...graphSettings, randomSeed: true };
+    const s = { ...graphSettings, seed: Math.floor(Math.random() * 100000000) };
+    graphSettings = s;
     await handleUpdate(g, s);
   }
 
@@ -221,7 +222,7 @@
 
   let graphSettings = $state<SettingsValue>({});
   let graphSettingTypes = $state({
-    randomSeed: { type: 'boolean', value: false }
+    seed: { type: 'integer', label: 'Seed', value: 0 }
   });
   $effect(() => {
     if (graphSettings && graphSettingTypes && manager?.loaded) {

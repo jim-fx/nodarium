@@ -133,14 +133,33 @@ describe('runtime cache keys', () => {
 
   it('re-runs seeded nodes when the seed changes', async () => {
     const executor = createExecutor();
-    await executor.execute(singleNodeGraph(seeded.id), { randomSeed: false });
+    await executor.execute(singleNodeGraph(seeded.id), { seed: 1 });
     calls = {};
 
-    await executor.execute(singleNodeGraph(seeded.id), { randomSeed: false });
+    await executor.execute(singleNodeGraph(seeded.id), { seed: 1 });
     expect(calls[seeded.id]).toBeUndefined();
 
-    await executor.execute(singleNodeGraph(seeded.id), { randomSeed: true });
+    const result = await executor.execute(singleNodeGraph(seeded.id), { seed: 2 });
+    expect(result).toEqual(Int32Array.of(2));
     expect(calls[seeded.id]).toBe(1);
+  });
+});
+
+describe('seed setting', () => {
+  it('passes the seed from the settings to seeded nodes', async () => {
+    const result = await createExecutor().execute(singleNodeGraph(seeded.id), { seed: 7 });
+    expect(result).toEqual(Int32Array.of(7));
+  });
+
+  it('defaults to 0 for graphs without a seed', async () => {
+    const result = await createExecutor().execute(singleNodeGraph(seeded.id), {});
+    expect(result).toEqual(Int32Array.of(0));
+  });
+
+  it('gives the same result in every executor with the same seed', async () => {
+    const first = await createExecutor().execute(singleNodeGraph(seeded.id), { seed: 42 });
+    const second = await createExecutor().execute(singleNodeGraph(seeded.id), { seed: 42 });
+    expect(second).toEqual(first);
   });
 });
 
@@ -159,8 +178,8 @@ describe('creator inputs', () => {
 
   it('are the same in every run, so ids made from them stay', async () => {
     const executor = createExecutor();
-    const first = await executor.execute(singleNodeGraph(creator.id), { randomSeed: true });
-    const second = await executor.execute(singleNodeGraph(creator.id), { randomSeed: true });
+    const first = await executor.execute(singleNodeGraph(creator.id), { seed: 1 });
+    const second = await executor.execute(singleNodeGraph(creator.id), { seed: 1 });
 
     expect(second).toEqual(first);
   });

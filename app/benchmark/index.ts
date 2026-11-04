@@ -136,7 +136,7 @@ async function run(g: GraphType, amount: number, cached: boolean) {
   await registry.load(g.nodes.map(n => n.type) as NodeId[]);
 
   const r = new MemoryRuntimeExecutor(registry, cached ? new MemoryRuntimeCache() : undefined);
-  const settings = { randomSeed: !cached };
+  const settings = () => ({ seed: cached ? 0 : Math.floor(Math.random() * 100000000) });
 
   log.log('loaded ' + g.nodes.length + ' nodes');
 
@@ -145,7 +145,7 @@ async function run(g: GraphType, amount: number, cached: boolean) {
   log.log('warming up');
 
   for (let index = 0; index < 10; index++) {
-    updateViewer(await r.execute(g, settings));
+    updateViewer(await r.execute(g, settings()));
   }
 
   const systemSamples: SystemSample[] = [];
@@ -195,7 +195,7 @@ async function run(g: GraphType, amount: number, cached: boolean) {
   for (let i = 0; i < amount; i++) {
     r.perf?.startRun();
 
-    res = await r.execute(g, settings);
+    res = await r.execute(g, settings());
 
     r.perf?.stopRun();
 

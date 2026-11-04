@@ -1,7 +1,7 @@
 {
   "version": 2,
   "groups": [],
-  "settings": { "resolution.circle": 10, "resolution.curve": 32, "randomSeed": false },
+  "settings": { "resolution.circle": 10, "resolution.curve": 32 },
   "nodes": [
     {
       "id": 10,

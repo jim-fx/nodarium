@@ -75,9 +75,8 @@ async function execute(graph: Graph, seed: number) {
   const registry = new BenchmarkRegistry();
   await registry.load(graph.nodes.map((n) => n.type) as NodeId[]);
   const runtime = new MemoryRuntimeExecutor(registry);
-  // the runtime picks a random seed when it is created, a fixed one makes screenshots comparable
-  (runtime as unknown as { seed: number }).seed = seed;
-  return runtime.execute(graph, { ...graph.settings, randomSeed: false });
+  // a fixed seed makes screenshots comparable
+  return runtime.execute(graph, { ...graph.settings, seed });
 }
 
 function floats(data: Int32Array, offset: number, length: number) {

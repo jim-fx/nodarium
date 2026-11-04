@@ -43,7 +43,7 @@
     return name.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
   }
 
-  async function generate(randomSeed: boolean, template = selected) {
+  async function generate(reroll: boolean, template = selected) {
     const entry = entries.find((e) => e.name === template);
     if (!entry || !viewer) return;
     isExecuting = true;
@@ -51,7 +51,9 @@
     try {
       const graph = structuredClone($state.snapshot(entry.graph)) as Graph;
       await nodeRegistry.load(graph.nodes.map((n) => n.type));
-      const settings = { ...(graph.settings ?? {}), randomSeed };
+      const settings = reroll
+        ? { ...graph.settings, seed: Math.floor(Math.random() * 100000000) }
+        : (graph.settings ?? {});
       viewer.update(await runtime.execute(graph, settings));
     } catch (error) {
       viewer.update(new Int32Array());

@@ -3,8 +3,7 @@
   "version": 2,
   "settings": {
     "resolution.circle": 6,
-    "resolution.curve": 24,
-    "randomSeed": false
+    "resolution.curve": 24
   },
   "meta": {
     "unit": "cm",

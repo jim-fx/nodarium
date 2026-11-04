@@ -1,7 +1,7 @@
 {
   "version": 2,
   "groups": [],
-  "settings": { "resolution.circle": 64, "resolution.curve": 64, "randomSeed": false },
+  "settings": { "resolution.circle": 64, "resolution.curve": 64 },
   "nodes": [
     { "id": 9, "position": [260, 0], "type": "max/plantarium/output", "props": {} },
     {
