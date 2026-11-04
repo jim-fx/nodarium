@@ -5,7 +5,7 @@ import type {
   SerializedEdge,
   SerializedNode
 } from '@nodarium/types';
-import { GROUP_INPUT } from '../../node-registry/internal-nodes';
+import { GROUP_INPUT } from '@nodarium/types';
 
 export function getParameterHeight(node: NodeDefinition, inputKey: string) {
   if (node.id === GROUP_INPUT) {

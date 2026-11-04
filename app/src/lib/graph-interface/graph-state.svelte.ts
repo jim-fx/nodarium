@@ -1,4 +1,4 @@
-import { GROUP_INSTANCE } from '#lib/node-registry/internal-nodes.ts';
+import { GROUP_INSTANCE } from '@nodarium/types';
 import type { NodeInstance, SerializedEdge, SerializedNode, Socket } from '@nodarium/types';
 import { createContext, untrack } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';

@@ -1,5 +1,13 @@
 export type { AsyncCache, NodeRegistry, RuntimeExecutor, SyncCache } from './components';
 export type { NodeInput } from './inputs';
+export {
+  DEBUG_NODE,
+  GROUP_INPUT,
+  GROUP_INSTANCE,
+  GROUP_OUTPUT,
+  groupIdOf,
+  INTERNAL_PREFIX
+} from './internal-nodes';
 export type {
   Box,
   Edge,

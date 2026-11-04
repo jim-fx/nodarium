@@ -1,11 +1,11 @@
 import {
   type AsyncCache,
+  INTERNAL_PREFIX,
   type NodeDefinition,
   NodeDefinitionSchema,
   type NodeRegistry
 } from '@nodarium/types';
 import { createLogger, createWasmWrapper } from '@nodarium/utils';
-import { INTERNAL_PREFIX } from './internal-nodes';
 
 const log = createLogger('node-registry');
 log.mute();
