@@ -1,6 +1,7 @@
 import {
   clone,
   debounce,
+  distanceFromPointToSegment,
   humanizeDuration,
   humanizeNumber,
   lerp,
@@ -143,6 +144,27 @@ describe('helpers', () => {
       expect(clone('hello')).toBe('hello');
       expect(clone(true)).toBe(true);
       expect(clone(null)).toBe(null);
+    });
+  });
+
+  describe('distanceFromPointToSegment', () => {
+    it('should measure perpendicular distance to the inside of the segment', () => {
+      expect(distanceFromPointToSegment(0, 0, 10, 0, 5, 3)).toBe(3);
+      expect(distanceFromPointToSegment(0, 0, 0, 10, -4, 5)).toBe(4);
+    });
+
+    it('should clamp to the nearest endpoint outside the segment', () => {
+      expect(distanceFromPointToSegment(0, 0, 10, 0, -3, 4)).toBe(5);
+      expect(distanceFromPointToSegment(0, 0, 10, 0, 13, 4)).toBe(5);
+    });
+
+    it('should be zero for a point on the segment', () => {
+      expect(distanceFromPointToSegment(0, 0, 10, 10, 5, 5)).toBe(0);
+    });
+
+    it('should measure to the point when the segment has no length', () => {
+      expect(distanceFromPointToSegment(2, 2, 2, 2, 5, 6)).toBe(5);
+      expect(distanceFromPointToSegment(2, 2, 2, 2, 2, 2)).toBe(0);
     });
   });
 });
