@@ -104,6 +104,34 @@ describe('layoutGraph', () => {
     expect(positions.get(4)![0]).toBeLessThan(positions.get(3)![0]);
   });
 
+  it('keeps a wide fan-in roughly centred on the output node', () => {
+    const nodes = [
+      node(1, 'output', [0, 0]),
+      node(2, 'branch'),
+      node(3, 'branch'),
+      node(4, 'branch'),
+      node(5, 'branch'),
+      node(6, 'branch'),
+      node(7, 'stem'),
+      node(8, 'stem'),
+      node(9, 'stem'),
+      node(10, 'stem'),
+      node(11, 'stem')
+    ];
+    const edges: SerializedEdge[] = [];
+    for (const id of [2, 3, 4, 5, 6]) {
+      edges.push([id, 0, 1, 'input']);
+      edges.push([id + 5, 0, id, 'plant']);
+    }
+    const positions = layout(nodes, edges);
+
+    const top = (id: number) => positions.get(id)![1];
+    const minY = Math.min(...nodes.map((n) => top(n.id)));
+    const maxY = Math.max(...nodes.map((n) => top(n.id) + getNodeHeight(definitions[n.type])));
+    expect(minY).toBeLessThan(0);
+    expect(Math.abs((minY + maxY) / 2)).toBeLessThan(30);
+  });
+
   it('survives a cycle', () => {
     const nodes = [node(1, 'branch'), node(2, 'branch')];
     const edges: SerializedEdge[] = [

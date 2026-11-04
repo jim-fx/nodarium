@@ -11,8 +11,9 @@ const SOCKET_DROP = 5;
 
 // Arranges the nodes in columns, so that every edge runs from left to right. A node sits one
 // column left of the leftmost node it feeds. Inside a column a node is placed next to the
-// sockets it feeds in the next column, and pushed down where it would overlap the node above.
-// The output node keeps its position. Returns the new position of every node.
+// sockets it feeds in the next column, and pushed down where it would overlap the node above;
+// a stack of pushed nodes is centred on its shared target, so the graph does not grow
+// downwards. The output node keeps its position. Returns the new position of every node.
 export function layoutGraph<T extends SerializedNode>(
   nodes: T[],
   edges: SerializedEdge[],
@@ -84,9 +85,29 @@ export function layoutGraph<T extends SerializedNode>(
       );
 
     let bottom = -Infinity;
-    for (const p of placed) {
+    // how far each node was pushed down below its target to avoid the node above it
+    const pushed = placed.map((p) => {
+      const target = p.y;
       p.y = Math.max(p.y, bottom + ROW_GAP);
       bottom = p.y + getHeight(p.node);
+      return p.y - target;
+    });
+
+    // a stack of overlapping nodes would otherwise grow towards the bottom and pull the
+    // columns left of it down with it. Shift each stack back up by the average of its
+    // pushes, so it stays centred on the target its nodes shared
+    for (let start = 0; start < placed.length; start++) {
+      let end = start;
+      while (end + 1 < placed.length && pushed[end + 1] > 0) end++;
+      if (end > start) {
+        const shift = pushed
+          .slice(start, end + 1)
+          .reduce((sum, push) => sum + push, 0) / (end - start + 1);
+        for (let i = start; i <= end; i++) {
+          placed[i].y -= shift;
+        }
+      }
+      start = end;
     }
 
     // the column of the output node moves as a whole, so the output node keeps its position
