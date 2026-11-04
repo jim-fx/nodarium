@@ -179,7 +179,7 @@ export const tutorialConfig: PlantyConfig = {
     params_tip: {
       position: 'right',
       text:
-        'Pro tips:\n• Parameters can be connected from other nodes — drag an edge to the input socket\n• Turn on **randomSeed** in Graph Settings to get a new variation on every change — leave it off for reproducible results\n• **f** key smart-connects two selected nodes · **Ctrl+Delete** removes a node and restores its edges',
+        'Pro tips:\n• Parameters can be connected from other nodes — drag an edge to the input socket\n• Press **r** to roll a new seed for a different variation — the seed is saved with the graph, so it stays reproducible\n• **f** key smart-connects two selected nodes · **Ctrl+Delete** removes a node and restores its edges',
       choices: [
         { label: '🔗 How connections work', next: 'connections_intro' },
         { label: '💡 Plant improvement ideas', next: 'improvements_hint' },

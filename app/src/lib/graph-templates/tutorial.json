@@ -1,12 +1,10 @@
 {
   "id": 0,
-  "version": 3,
+  "version": 2,
   "groups": [],
   "settings": {
     "resolution.circle": 54,
-    "resolution.curve": 20,
-    "randomSeed": false,
-    "seed": 1
+    "resolution.curve": 20
   },
   "meta": {
     "title": "New Project",

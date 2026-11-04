@@ -184,8 +184,7 @@
   async function randomGenerate() {
     if (!manager) return;
     const g = manager.serialize();
-    // roll a new seed and store it, so a variation can be kept by just leaving it
-    const s = { ...graphSettings, randomSeed: false, seed: Math.floor(Math.random() * 100000000) };
+    const s = { ...graphSettings, seed: Math.floor(Math.random() * 100000000) };
     graphSettings = s;
     await handleUpdate(g, s);
   }
@@ -223,8 +222,7 @@
 
   let graphSettings = $state<SettingsValue>({});
   let graphSettingTypes = $state({
-    randomSeed: { type: 'boolean', value: false },
-    seed: { type: 'integer', label: 'Seed', value: 1, disabledWhen: { randomSeed: true } }
+    seed: { type: 'integer', label: 'Seed', value: 0 }
   });
   $effect(() => {
     if (graphSettings && graphSettingTypes && manager?.loaded) {

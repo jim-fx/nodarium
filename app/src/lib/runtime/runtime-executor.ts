@@ -253,7 +253,6 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   // memory until they are reset, even after they left the graph
   private usedDefinitions = new Map<string, NodeDefinition>();
 
-  private seed = Math.floor(Math.random() * 100000000);
   // keyed by the id of the node a debug node is connected to
   private debugData: Record<number, { type: string; output: number; data: Int32Array }> = {};
   // execution time in ms of every node of the last run, cached nodes keep
@@ -469,11 +468,9 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     const cacheKeys: Record<string, number> = {};
     const nodeTimings: Record<number, number> = {};
 
-    if (settings['randomSeed']) {
-      this.seed = Math.floor(Math.random() * 100000000);
-    } else if (typeof settings['seed'] === 'number' && Number.isFinite(settings['seed'])) {
-      this.seed = Math.floor(settings['seed']);
-    }
+    const seed = typeof settings['seed'] === 'number' && Number.isFinite(settings['seed'])
+      ? Math.floor(settings['seed'])
+      : 0;
 
     // free all results of the previous run, nothing below this may await
     for (const definition of this.usedDefinitions.values()) {
@@ -523,7 +520,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
           let value: number | number[] | Int32Array;
           if (input.type === 'seed') {
-            value = this.seed;
+            value = seed;
           } else if (input.type === 'creator') {
             value = toCreatorId(node.id);
           } else if (input.setting) {

@@ -6,7 +6,7 @@ function createGraph(): Graph {
   return {
     id: 0,
     meta: { title: 'Fern', lastModified: '2026-10-16T10:00:00Z' },
-    settings: { randomSeed: false },
+    settings: { seed: 0 },
     nodes: [
       { id: 0, type: 'max/plantarium/output', position: [0, 0] },
       { id: 1, type: 'max/plantarium/stem', props: { length: 4 }, position: [-20, 0] }
@@ -33,7 +33,7 @@ describe('hashGraph', () => {
 
   it('changes when the settings change', () => {
     const changed = createGraph();
-    changed.settings = { randomSeed: true };
+    changed.settings = { seed: 1 };
     expect(hashGraph(changed)).not.toBe(hashGraph(createGraph()));
   });
 

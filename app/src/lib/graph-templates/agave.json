@@ -1,6 +1,6 @@
 {
-  "version": 3,
-  "settings": { "resolution.circle": 64, "resolution.curve": 64, "randomSeed": false, "seed": 1 },
+  "version": 2,
+  "settings": { "resolution.circle": 64, "resolution.curve": 64 },
   "meta": { "title": "Agave", "lastModified": "2026-10-21T13:00:00.703Z" },
   "groups": [],
   "nodes": [
