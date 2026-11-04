@@ -3,7 +3,7 @@
   import { appSettings } from '#lib/settings/app-settings.svelte.ts';
   import { getOutputLabel, type NodeInstance, type Socket } from '@nodarium/types';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
-  import { createNodePath } from '../helpers/index.js';
+  import { createNodePath } from '../helpers/index.ts';
   import { getNodeHeight } from '../helpers/nodeHelpers';
 
   const graphState = tryGetGraphState();
