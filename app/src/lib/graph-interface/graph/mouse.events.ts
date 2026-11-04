@@ -1,8 +1,7 @@
-import { animate, lerp } from '#lib/helpers/index.ts';
+import { animate, lerp, snapToGrid as snapPointToGrid } from '#lib/helpers/index.ts';
 import { type NodeInstance } from '@nodarium/types';
 import type { GraphManager } from '../graph-manager.svelte';
 import { type GraphState } from '../graph-state.svelte';
-import { snapToGrid as snapPointToGrid } from '../helpers';
 import { getNodeHeight } from '../helpers/nodeHelpers';
 import { maxZoom, minZoom, zoomSpeed } from './constants';
 import { EdgeInteractionManager } from './edge.events';

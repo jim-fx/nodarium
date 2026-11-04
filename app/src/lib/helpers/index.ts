@@ -77,9 +77,8 @@ export const debounce = (fn: () => void, ms = 300) => {
   };
 };
 
-export const clone: <T>(v: T) => T = 'structedClone' in globalThis
-  ? globalThis.structuredClone
-  : (obj) => JSON.parse(JSON.stringify(obj));
+// Not structuredClone: it throws a DataCloneError on Svelte $state proxies.
+export const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 
 export function withSubComponents<A, B extends Record<string, unknown>>(
   component: A,
@@ -174,22 +173,26 @@ export function debounceAsyncFunction<T extends (...args: never[]) => Promise<un
   }) as T;
 }
 
-export function withArgsChangeOnly<T extends unknown[], R>(
-  func: (...args: T) => R
-): (...args: T) => R {
-  let lastArgs: T | undefined = undefined;
-  let lastResult: R;
+export function distanceFromPointToSegment(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x0: number,
+  y0: number
+): number {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
 
-  return (...args: T): R => {
-    if (
-      lastArgs && args.length === lastArgs.length
-      && args.every((val, index) => val === lastArgs?.[index])
-    ) {
-      return lastResult;
-    }
+  if (dx === 0 && dy === 0) {
+    return Math.hypot(x0 - x1, y0 - y1);
+  }
 
-    lastResult = func(...args);
-    lastArgs = args;
-    return lastResult;
-  };
+  const t = ((x0 - x1) * dx + (y0 - y1) * dy) / (dx * dx + dy * dy);
+  const clampedT = Math.max(0, Math.min(1, t));
+
+  const px = x1 + clampedT * dx;
+  const py = y1 + clampedT * dy;
+
+  return Math.hypot(x0 - px, y0 - py);
 }

@@ -1,7 +1,7 @@
+import { distanceFromPointToSegment } from '#lib/helpers/index.ts';
 import type { Box } from '@nodarium/types';
 import type { GraphManager } from '../graph-manager.svelte';
 import type { GraphState } from '../graph-state.svelte';
-import { distanceFromPointToSegment } from '../helpers';
 
 export class EdgeInteractionManager {
   constructor(
