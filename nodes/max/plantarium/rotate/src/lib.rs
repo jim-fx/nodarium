@@ -2,7 +2,9 @@ use glam::{Mat4, Vec3};
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    concat_args, geometry::wrap_path_mut, int, log, split_args, Ctx,
+    concat_args,
+    geometry::{is_path, wrap_path_mut},
+    int, log, split_args, Ctx,
 };
 
 nodarium_definition_file!("src/definition.json");
@@ -18,7 +20,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let axis = int(args[1]); // 0 =x, 1 = y, 2 = z
     let spread = int(args[3]);
 
-    let path_count = plants.iter().filter(|p| p[2] == 0).count();
+    let path_count = plants.iter().filter(|p| is_path(p)).count();
     let mut path_index = 0;
 
     let output: Vec<Vec<i32>> = plants
@@ -27,8 +29,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         .map(|(j, _path_data)| {
             let mut path_data = _path_data.to_vec();
 
-            // if this is not a path don't modify it
-            if path_data[2] != 0 {
+            if !is_path(&path_data) {
                 return path_data;
             }
 

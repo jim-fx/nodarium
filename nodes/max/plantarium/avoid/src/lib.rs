@@ -2,7 +2,7 @@ use glam::Vec3;
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_args,
-    geometry::{wrap_path, wrap_path_mut},
+    geometry::{wrap_path, wrap_path_mut, DeepestPaths},
     int, split_args, Ctx,
 };
 
@@ -20,18 +20,12 @@ fn smoothstep(value: f32) -> f32 {
 /// The layer of paths the node works on, the same way `gravity` and `branch`
 /// pick their paths. The outermost paths are depth 0, a branch is one deeper.
 fn paths_at_depth(plants: &[&[i32]], depth: i32) -> Vec<usize> {
-    let max_depth = plants
-        .iter()
-        .filter(|p| p.len() >= 4 && p[2] == 0)
-        .map(|p| p[3])
-        .max()
-        .unwrap_or(0);
-    let min_depth = max_depth - depth + 1;
+    let selected = DeepestPaths::new(plants, depth);
 
     plants
         .iter()
         .enumerate()
-        .filter(|(_, p)| p.len() >= 4 && p[2] == 0 && p[3] >= min_depth)
+        .filter(|(_, p)| selected.contains(p))
         .map(|(index, _)| index)
         .collect()
 }

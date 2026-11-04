@@ -1,4 +1,4 @@
-use super::{interpolate_along_path, path_link, wrap_path, wrap_path_mut};
+use super::{interpolate_along_path, is_path, path_link, wrap_path, wrap_path_mut};
 use glam::Vec3;
 use std::collections::HashMap;
 
@@ -12,10 +12,6 @@ pub struct PathStructure {
     order: Vec<usize>,
     /// For every path the index of its parent and where it is attached on it.
     parents: Vec<Option<(usize, f32)>>,
-}
-
-fn is_path(item: &[i32]) -> bool {
-    item.len() > 7 && item[2] == 0
 }
 
 fn xyz(points: &[f32], alpha: f32) -> Option<Vec3> {

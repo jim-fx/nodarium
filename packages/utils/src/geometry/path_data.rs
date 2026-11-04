@@ -13,6 +13,48 @@ static PATH_HEADER_SIZE: usize = 7;
 /// The parent id of a path that is not attached to another path.
 pub const NO_PARENT: i32 = -1;
 
+/// Whether a list item is an encoded path with at least one point, brackets included.
+pub fn is_path(item: &[i32]) -> bool {
+    item.len() >= 2 + PATH_HEADER_SIZE + 4 + 2 && item[2] == 0
+}
+
+/// The depth of the deepest path in a list, 0 when there is no path.
+pub fn max_path_depth<T: AsRef<[i32]>>(items: &[T]) -> i32 {
+    items
+        .iter()
+        .map(AsRef::as_ref)
+        .filter(|item| is_path(item))
+        .map(|item| item[3])
+        .max()
+        .unwrap_or(0)
+}
+
+/// The paths on the last `depth` levels of a list, counted from the deepest path. These are the
+/// paths a node with a depth input works on, a depth of 1 is only the deepest level.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DeepestPaths {
+    pub min_depth: i32,
+}
+
+impl DeepestPaths {
+    pub fn new<T: AsRef<[i32]>>(items: &[T], depth: i32) -> Self {
+        Self {
+            min_depth: max_path_depth(items) - depth + 1,
+        }
+    }
+
+    pub fn contains(&self, item: &[i32]) -> bool {
+        is_path(item) && item[3] >= self.min_depth
+    }
+
+    pub fn count<T: AsRef<[i32]>>(&self, items: &[T]) -> usize {
+        items
+            .iter()
+            .filter(|item| self.contains(item.as_ref()))
+            .count()
+    }
+}
+
 /// The id of the path number `index` that `creator` grows on `parent_id` (`NO_PARENT` for a path
 /// that grows on its own). It only depends on these three, so it is the same in every run and
 /// when the paths around it change. It is never negative, so it can't be mistaken for `NO_PARENT`.
@@ -556,6 +598,45 @@ mod tests {
             }
         }
         assert_eq!(ids.len(), 20 * 31 * 50);
+    }
+
+    #[test]
+    fn is_path_accepts_a_path_with_one_point_and_nothing_shorter() {
+        let one_point = create_path(1, 0);
+        assert!(is_path(&one_point));
+        assert_eq!(wrap_path(&one_point).length, 1);
+
+        assert!(!is_path(&create_path(0, 0)));
+        assert!(!is_path(&one_point[..one_point.len() - 1]));
+        assert!(!is_path(&[0, 1, 1, 1]));
+        assert!(!is_path(&[5]));
+
+        let mut geometry = create_path(3, 0);
+        geometry[2] = 1;
+        assert!(!is_path(&geometry));
+    }
+
+    #[test]
+    fn deepest_paths_keep_the_last_levels() {
+        let items = vec![
+            create_path(3, 0),
+            create_path(3, 1),
+            create_path(3, 2),
+            vec![7],
+            create_path(0, 5),
+        ];
+        assert_eq!(max_path_depth(&items), 2);
+        assert_eq!(max_path_depth::<Vec<i32>>(&[]), 0);
+
+        let deepest = DeepestPaths::new(&items, 1);
+        assert_eq!(deepest.min_depth, 2);
+        assert!(deepest.contains(&items[2]));
+        assert!(!deepest.contains(&items[1]));
+        assert_eq!(deepest.count(&items), 1);
+
+        let slices: Vec<&[i32]> = items.iter().map(|item| item.as_slice()).collect();
+        assert_eq!(DeepestPaths::new(&slices, 2).count(&slices), 2);
+        assert_eq!(DeepestPaths::new(&slices, 9).count(&slices), 3);
     }
 
     #[test]

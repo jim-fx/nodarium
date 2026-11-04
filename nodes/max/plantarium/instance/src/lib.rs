@@ -4,7 +4,7 @@ use nodarium_utils::{
     concat_args,
     geometry::{
         create_instance_data, is_collapsed, is_geometry, path_id, split_items,
-        wrap_geometry_data, wrap_instance_data, wrap_path,
+        wrap_geometry_data, wrap_instance_data, wrap_path, DeepestPaths,
     },
     int, split_args, Ctx,
 };
@@ -29,25 +29,14 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     // the transforms of the instances of each geometry and the paths they sit on
     let mut groups: Vec<(Vec<Mat4>, Vec<i32>)> = vec![Default::default(); geometries.len()];
 
-    let mut max_depth = 0;
-    for path_data in inputs.iter() {
-        if path_data[2] != 0 {
-            continue;
-        }
-        max_depth = max_depth.max(path_data[3]);
-    }
-
     let depth = ctx.int(args[6]);
-
-    let path_count = inputs
-        .iter()
-        .filter(|p| p[2] == 0 && p[3] >= (max_depth - depth + 1))
-        .count();
+    let selected = DeepestPaths::new(&inputs, depth);
+    let path_count = selected.count(&inputs);
     let mut path_index = 0;
 
     for path_data in inputs.iter() {
         // skip everything that is not a path, e.g. instances from a previous instance node
-        if path_data[2] != 0 || path_data[3] < (max_depth - depth + 1) {
+        if !selected.contains(path_data) {
             continue;
         }
 

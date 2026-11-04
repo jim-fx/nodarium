@@ -3,7 +3,7 @@ use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
     concat_arg_vecs, decode_forces,
-    geometry::{translate_path, wrap_path, wrap_path_mut, PathStructure},
+    geometry::{translate_path, wrap_path, wrap_path_mut, DeepestPaths, PathStructure},
     int, sample_forces, split_args, Ctx, Force,
 };
 
@@ -62,17 +62,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let forces = decode_forces(args[1]);
     let depth = int(args[4]).max(1);
 
-    let is_path = |p: &Vec<i32>| p.len() > 7 && p[2] == 0;
-    let max_depth = original
-        .iter()
-        .filter(|p| is_path(p))
-        .map(|p| p[3])
-        .max()
-        .unwrap_or(0);
-    let affected: Vec<bool> = original
-        .iter()
-        .map(|p| is_path(p) && p[3] >= max_depth - depth + 1)
-        .collect();
+    let selected = DeepestPaths::new(&original, depth);
+    let affected: Vec<bool> = original.iter().map(|p| selected.contains(p)).collect();
     let affected_count = affected.iter().filter(|a| **a).count();
 
     // The inputs are read in the order of the list, so random values don't depend on which

@@ -2,7 +2,7 @@ use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
     concat_arg_vecs,
-    geometry::{path_id, path_link, set_path_link, split_items, PathLink},
+    geometry::{is_path, path_id, path_link, set_path_link, split_items, PathLink},
 };
 use std::collections::HashSet;
 
@@ -24,11 +24,6 @@ fn resalt_ids(path: &mut [i32], salt: i32) {
             ..link
         },
     );
-}
-
-/// A path is a list item of type 0 with a full header and at least a point.
-fn is_path(item: &[i32]) -> bool {
-    item.len() > 9 && item[2] == 0
 }
 
 #[nodarium_execute]

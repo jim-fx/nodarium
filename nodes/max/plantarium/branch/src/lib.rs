@@ -3,8 +3,8 @@ use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
     concat_arg_vecs,
     geometry::{
-        create_path, interpolate_along_path, rotate_vector_by_angle, set_path_link, wrap_path,
-        wrap_path_mut, PathLink,
+        create_path, interpolate_along_path, is_path, rotate_vector_by_angle, set_path_link,
+        wrap_path, wrap_path_mut, DeepestPaths, PathLink,
     },
     int, log, split_args, Ctx,
 };
@@ -24,32 +24,22 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let max_resolution = int(args[8]).max(4) as usize;
     let depth = ctx.int(args[6]);
 
-    let mut max_depth = 0;
-    for path_data in paths.iter() {
-        if path_data[2] != 0 {
-            continue;
-        }
-        max_depth = max_depth.max(path_data[3]);
-    }
+    let selected = DeepestPaths::new(&paths, depth);
 
     // the longest path sets the point density, so branches on every level share it
     let reference_length = paths
         .iter()
-        .filter(|p| p[2] == 0)
+        .filter(|p| is_path(p))
         .map(|p| wrap_path(p).get_length())
         .fold(0.0_f32, f32::max);
 
-    let path_count = paths
-        .iter()
-        .filter(|p| p[2] == 0 && p[3] >= (max_depth - depth + 1))
-        .count();
+    let path_count = selected.count(&paths);
     let mut path_index = 0;
     // the graph node that makes the branches, it is the last input
     let creator = int(args[12]);
 
     for path_data in paths.iter() {
-        // if this is not a path ignore it
-        if path_data[2] != 0 || path_data[3] < (max_depth - depth + 1) {
+        if !selected.contains(path_data) {
             output.push(path_data.to_vec());
             continue;
         }

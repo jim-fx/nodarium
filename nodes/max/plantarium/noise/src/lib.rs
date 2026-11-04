@@ -2,7 +2,9 @@ use glam::Vec3;
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    concat_args, geometry::wrap_path_mut, split_args, Ctx,
+    concat_args,
+    geometry::{wrap_path_mut, DeepestPaths},
+    split_args, Ctx,
 };
 use noise::{HybridMulti, MultiFractal, NoiseFn, OpenSimplex};
 
@@ -42,18 +44,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let noise_z: HybridMulti<OpenSimplex> =
         HybridMulti::new(seed as u32 + 3).set_octaves(octaves as usize);
 
-    let mut max_depth = 0;
-    for path_data in plants.iter() {
-        if path_data[2] != 0 {
-            continue;
-        }
-        max_depth = max_depth.max(path_data[3]);
-    }
-
-    let path_count = plants
-        .iter()
-        .filter(|p| p[2] == 0 && p[3] >= (max_depth - depth + 1))
-        .count();
+    let selected = DeepestPaths::new(&plants, depth);
+    let path_count = selected.count(&plants);
     let mut path_index = 0;
 
     let output: Vec<Vec<i32>> = plants
@@ -62,12 +54,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         .map(|(j, _path_data)| {
             let mut path_data = _path_data.to_vec();
 
-            // if this is not a path don't modify it
-            if path_data[2] != 0 {
-                return path_data;
-            }
-
-            if path_data[3] < (max_depth - depth + 1) {
+            if !selected.contains(&path_data) {
                 return path_data;
             }
 

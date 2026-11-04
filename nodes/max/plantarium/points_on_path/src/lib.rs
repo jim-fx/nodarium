@@ -2,7 +2,7 @@ use glam::Vec3;
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     encode_points,
-    geometry::{interpolate_along_path, rotate_vector_by_angle, wrap_path},
+    geometry::{interpolate_along_path, rotate_vector_by_angle, wrap_path, DeepestPaths},
     split_args, Ctx, Point,
 };
 use std::f32::consts::PI;
@@ -15,16 +15,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let paths = split_args(args[0]);
     let depth = ctx.int(args[6]);
 
-    let max_depth = paths
-        .iter()
-        .filter(|p| p[2] == 0)
-        .map(|p| p[3])
-        .max()
-        .unwrap_or(0);
+    let deepest = DeepestPaths::new(&paths, depth);
     let selected: Vec<&[i32]> = paths
         .iter()
         .copied()
-        .filter(|p| p[2] == 0 && p[3] >= max_depth - depth + 1)
+        .filter(|p| deepest.contains(p))
         .collect();
 
     let mut points = Vec::new();

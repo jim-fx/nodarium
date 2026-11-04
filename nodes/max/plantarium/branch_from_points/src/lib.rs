@@ -1,15 +1,13 @@
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs, decode_points,
-    geometry::{create_path, path_link, set_path_link, wrap_path, wrap_path_mut, PathLink},
+    geometry::{
+        create_path, is_path, path_link, set_path_link, wrap_path, wrap_path_mut, PathLink,
+    },
     group_points_by_parent, int, split_args, Ctx, Point,
 };
 
 nodarium_definition_file!("src/definition.json");
-
-fn is_path(item: &[i32]) -> bool {
-    item.len() > 2 && item[2] == 0
-}
 
 /// A branch growing from `point`, with up to `max_resolution` points.
 fn grow(ctx: &mut Ctx, args: &[&[i32]], point: &Point, max_resolution: usize, reference_length: f32, creator: i32) -> Vec<i32> {
