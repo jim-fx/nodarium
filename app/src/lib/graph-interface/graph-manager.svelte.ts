@@ -101,32 +101,35 @@ export class GraphManager extends EventEmitter<{
     super();
   }
 
+  // While navigating, a level's newest state is in this.nodes/edges (current level), in its
+  // parentStack snapshot (levels above it), or in its GroupDefinition (every other group).
+  private levelState(groupId: number | null): {
+    nodes: (SerializedNode | NodeInstance)[];
+    edges: (SerializedEdge | Edge)[];
+  } {
+    if (this.currentGroupId === groupId) {
+      return { nodes: [...this.nodes.values()], edges: [...this.edges.values()] };
+    }
+    const stackState = this.parentStack.find((s) => s.id === groupId);
+    if (stackState) return stackState;
+    const group = groupId === null ? undefined : this.getGroup(groupId);
+    return { nodes: group?.nodes ?? [], edges: group?.edges ?? [] };
+  }
+
   serialize(): Graph {
-    const nodes =
-      (this.parentStack.length === 0 ? Array.from(this.nodes.values()) : this.parentStack[0].nodes)
-        .map(n => serializeNode(n));
-    const edges =
-      (this.parentStack.length === 0 ? Array.from(this.edges.values()) : this.parentStack[0].edges)
-        .map(e => serializeEdge(e));
+    const root = this.levelState(null);
+    const nodes = root.nodes.map(n => serializeNode(n));
+    const edges = root.edges.map(e => serializeEdge(e));
 
     const groups = this.groups?.map((group) => {
-      const isCurrentActive = this.currentGroupId === group.id;
-      const stackState = this.parentStack.find((s) => s.id === group.id);
-      const groupNodes =
-        (isCurrentActive ? [...this.nodes.values()] : stackState?.nodes ?? group.nodes).map(
-          n => serializeNode(n)
-        );
-      const groupEdges =
-        (isCurrentActive ? [...this.edges.values()] : stackState?.edges ?? group.edges).map(
-          e => serializeEdge(e)
-        );
+      const level = this.levelState(group.id);
       return {
         id: group.id,
         name: group.name,
         inputs: group.inputs,
         outputs: group.outputs,
-        nodes: groupNodes,
-        edges: groupEdges
+        nodes: level.nodes.map(n => serializeNode(n)),
+        edges: level.edges.map(e => serializeEdge(e))
       };
     });
 
@@ -940,34 +943,13 @@ export class GraphManager extends EventEmitter<{
 
   getUnusedGroups() {
     const usedGroupIds = new SvelteSet<number>();
-    const queue: number[] = [];
-    const pushReferencedGroups = (nodes: Iterable<SerializedNode | NodeInstance>) => {
-      for (const node of nodes) {
-        const groupId = groupIdOf(node);
-        if (groupId !== undefined) queue.push(groupId);
-      }
-    };
-
-    // Seed from root-level nodes so outer groups aren't treated as unused when inside a group,
-    // and from the live nodes, which may contain new group instances created inside a group.
-    if (this.parentStack.length > 0) pushReferencedGroups(this.parentStack[0].nodes);
-    if (this.parentStack.length === 0 || this.currentGroupId !== null) {
-      pushReferencedGroups(this.nodes.values());
-    }
-
-    // Every group on the navigation path is used by definition.
-    for (const entry of this.parentStack) {
-      if (entry.id !== null) usedGroupIds.add(entry.id);
-    }
-    if (this.currentGroupId !== null) usedGroupIds.add(this.currentGroupId);
-
+    const queue = [...this.levelState(null).nodes];
     while (queue.length) {
-      const groupId = queue.pop()!;
-      if (usedGroupIds.has(groupId)) continue;
+      const groupId = groupIdOf(queue.pop());
+      if (groupId === undefined || usedGroupIds.has(groupId)) continue;
       usedGroupIds.add(groupId);
-      pushReferencedGroups(this.getGroup(groupId)?.nodes ?? []);
+      queue.push(...this.levelState(groupId).nodes);
     }
-
     return this.groups.filter(g => !usedGroupIds.has(g.id));
   }
 

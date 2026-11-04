@@ -632,6 +632,23 @@ describe('getUnusedGroups', () => {
     expect(unusedIds(manager)).toEqual([]);
   });
 
+  it('should count group instances that only exist in a parent level snapshot', () => {
+    const { manager, outer, innerGroupId } = createNestedGroups();
+    manager.enterGroup(outer.id);
+    const extra = manager.createNode({ type: 'test/node/output', position: [0, 50], props: {} });
+    assert.isDefined(extra);
+    const sibling = manager.groupNodes([extra.id]);
+    assert.isDefined(sibling);
+    const inner = [...manager.nodes.values()].find(n => n.props?.groupId === innerGroupId);
+    assert.isDefined(inner);
+    manager.enterGroup(inner.id);
+
+    expect(manager.groups).toHaveLength(3);
+    expect(unusedIds(manager)).toEqual([]);
+    expect(manager.removeUnusedGroups()).toBe(0);
+    expect(manager.getGroup(sibling.props?.groupId as number)).toBeDefined();
+  });
+
   it('should report a group whose instance was removed inside another group', () => {
     const { manager, outer, innerGroupId } = createNestedGroups();
     manager.enterGroup(outer.id);
