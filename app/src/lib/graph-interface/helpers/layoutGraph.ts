@@ -8,12 +8,15 @@ const ROW_GAP = 5;
 // the first input socket sits this much below the output socket, under the header of the node.
 // Edges drop by it, so that a chain of nodes lines up at the top instead of stepping down
 const SOCKET_DROP = 5;
+// extra space between neighbours per step their branches need to meet, up to MAX_GROUP_DEPTH
+const GROUP_GAP = 8;
+const MAX_GROUP_DEPTH = 3;
 
 // Arranges the nodes in columns, so that every edge runs from left to right. A node sits one
 // column left of the leftmost node it feeds. Inside a column a node is placed next to the
-// sockets it feeds in the next column, and pushed down where it would overlap the node above;
-// a stack of pushed nodes is centred on its shared target, so the graph does not grow
-// downwards. The output node keeps its position. Returns the new position of every node.
+// sockets it feeds in the next column. Overlapping nodes are merged into a stack that is
+// centred on their targets, so the graph does not grow downwards, and unrelated branches get
+// more space between them than siblings. The output node keeps its position. Returns the new position of every node.
 export function layoutGraph<T extends SerializedNode>(
   nodes: T[],
   edges: SerializedEdge[],
@@ -73,6 +76,30 @@ export function layoutGraph<T extends SerializedNode>(
     return sum / next.length;
   }
 
+  // nodes reachable from id in at most `steps` edges, including id itself
+  function getDownstream(id: number, steps: number) {
+    let frontier = [id];
+    const seen = new Set(frontier);
+    for (let step = 0; step < steps; step++) {
+      frontier = frontier.flatMap((n) => outgoing.get(n)!.map((e) => e[2]))
+        .filter((n) => !seen.has(n));
+      for (const n of frontier) seen.add(n);
+    }
+    return seen;
+  }
+
+  // siblings that feed the same node sit ROW_GAP apart; the later their branches meet
+  // downstream, the more GROUP_GAP is added, so separate sub groups stay visibly apart
+  function getGap(a: number, b: number) {
+    for (let depth = 1; depth < MAX_GROUP_DEPTH; depth++) {
+      const reachA = getDownstream(a, depth);
+      for (const n of getDownstream(b, depth)) {
+        if (n !== a && n !== b && reachA.has(n)) return ROW_GAP + (depth - 1) * GROUP_GAP;
+      }
+    }
+    return ROW_GAP + (MAX_GROUP_DEPTH - 1) * GROUP_GAP;
+  }
+
   // column 0 is only empty when the graph has a cycle
   const anchor = nodes.find((n) => n.type.endsWith('/output')) ?? byColumn.find(Boolean)![0];
 
@@ -84,31 +111,12 @@ export function layoutGraph<T extends SerializedNode>(
         a.y - b.y || a.node.position[1] - b.node.position[1] || a.node.id - b.node.id
       );
 
-    let bottom = -Infinity;
-    // how far each node was pushed down below its target to avoid the node above it
-    const pushed = placed.map((p) => {
-      const target = p.y;
-      p.y = Math.max(p.y, bottom + ROW_GAP);
-      bottom = p.y + getHeight(p.node);
-      return p.y - target;
-    });
-
-    // a stack of overlapping nodes would otherwise grow towards the bottom and pull the
-    // columns left of it down with it. Shift each stack back up by the average of its
-    // pushes, so it stays centred on the target its nodes shared
-    for (let start = 0; start < placed.length; start++) {
-      let end = start;
-      while (end + 1 < placed.length && pushed[end + 1] > 0) end++;
-      if (end > start) {
-        const shift = pushed
-          .slice(start, end + 1)
-          .reduce((sum, push) => sum + push, 0) / (end - start + 1);
-        for (let i = start; i <= end; i++) {
-          placed[i].y -= shift;
-        }
-      }
-      start = end;
-    }
+    const y = spreadColumn(
+      placed.map((p) => p.y),
+      placed.map((p) => getHeight(p.node)),
+      placed.slice(1).map((p, i) => getGap(placed[i].node.id, p.node.id))
+    );
+    placed.forEach((p, i) => p.y = y[i]);
 
     // the column of the output node moves as a whole, so the output node keeps its position
     const placedAnchor = placed.find((p) => p.node === anchor);
@@ -119,4 +127,37 @@ export function layoutGraph<T extends SerializedNode>(
   }
 
   return positions;
+}
+
+// Moves the sorted boxes as little as possible from their wanted tops, so that box i+1 starts
+// at least gaps[i] below the bottom of box i. Neighbours that would overlap are merged into one
+// block, placed at the average of where its members want to be; merging repeats until no
+// block overlaps the one above it.
+function spreadColumn(wanted: number[], heights: number[], gaps: number[]): number[] {
+  const blocks: { first: number; offsets: number[]; sum: number; height: number }[] = [];
+  const top = (b: (typeof blocks)[number]) => b.sum / b.offsets.length;
+
+  for (let i = 0; i < wanted.length; i++) {
+    let block = { first: i, offsets: [0], sum: wanted[i], height: heights[i] };
+    while (blocks.length > 0) {
+      const above = blocks[blocks.length - 1];
+      const gap = gaps[block.first - 1];
+      if (top(above) + above.height + gap <= top(block)) break;
+      blocks.pop();
+      const shift = above.height + gap;
+      block = {
+        first: above.first,
+        offsets: [...above.offsets, ...block.offsets.map((o) => o + shift)],
+        sum: above.sum + block.sum - shift * block.offsets.length,
+        height: shift + block.height
+      };
+    }
+    blocks.push(block);
+  }
+
+  const result: number[] = [];
+  for (const block of blocks) {
+    for (const offset of block.offsets) result.push(top(block) + offset);
+  }
+  return result;
 }

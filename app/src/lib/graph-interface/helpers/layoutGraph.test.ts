@@ -132,6 +132,78 @@ describe('layoutGraph', () => {
     expect(Math.abs((minY + maxY) / 2)).toBeLessThan(30);
   });
 
+  it('never overlaps two nodes of a column, whatever the graph', () => {
+    let seed = 1;
+    const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const types = ['branch', 'stem', 'random'];
+    const inputs: Record<string, string[]> = {
+      branch: ['plant', 'length'],
+      stem: ['length'],
+      random: ['min', 'max']
+    };
+
+    for (let run = 0; run < 200; run++) {
+      const nodes = [node(1, 'output', [0, 0])];
+      const edges: SerializedEdge[] = [];
+      const count = 2 + Math.floor(random() * 25);
+      for (let id = 2; id <= count; id++) {
+        nodes.push(node(id, types[Math.floor(random() * 3)], [0, random() * 100]));
+        // feed a free input of an earlier node, so the graph stays acyclic
+        const target = nodes[Math.floor(random() * (nodes.length - 1))];
+        const keys = inputs[target.type.slice('layout/'.length)] ?? ['input'];
+        const key = keys[Math.floor(random() * keys.length)];
+        edges.push([id, 0, target.id, key]);
+      }
+      const positions = layout(nodes, edges);
+
+      const byX = new Map<number, { y: number; h: number }[]>();
+      for (const n of nodes) {
+        const [x, y] = positions.get(n.id)!;
+        if (!byX.has(x)) byX.set(x, []);
+        byX.get(x)!.push({ y, h: getNodeHeight(definitions[n.type]) });
+      }
+      for (const column of byX.values()) {
+        column.sort((a, b) => a.y - b.y);
+        for (let i = 1; i < column.length; i++) {
+          expect(column[i].y).toBeGreaterThanOrEqual(column[i - 1].y + column[i - 1].h + 5 - 1e-9);
+        }
+      }
+    }
+  });
+
+  it('puts more space between two sub groups than between siblings', () => {
+    const nodes = [
+      node(1, 'output', [0, 0]),
+      node(2, 'branch'),
+      node(3, 'branch'),
+      node(4, 'stem'),
+      node(5, 'stem'),
+      node(6, 'random'),
+      node(7, 'random'),
+      node(8, 'random'),
+      node(9, 'random')
+    ];
+    // output <- 2 <- (4 <- 6, 7) and output <- 3 <- (5 <- 8, 9)
+    const edges: SerializedEdge[] = [
+      [2, 0, 1, 'input'],
+      [3, 0, 1, 'input'],
+      [4, 0, 2, 'plant'],
+      [5, 0, 3, 'plant'],
+      [6, 0, 4, 'length'],
+      [7, 0, 4, 'length'],
+      [8, 0, 5, 'length'],
+      [9, 0, 5, 'length']
+    ];
+    const positions = layout(nodes, edges);
+    const height = getNodeHeight(definitions['layout/random']);
+    const space = (a: number, b: number) => positions.get(b)![1] - positions.get(a)![1] - height;
+
+    const ids = [6, 7, 8, 9].sort((a, b) => positions.get(a)![1] - positions.get(b)![1]);
+    expect(space(ids[0], ids[1])).toBeCloseTo(5);
+    expect(space(ids[2], ids[3])).toBeCloseTo(5);
+    expect(space(ids[1], ids[2])).toBeGreaterThan(space(ids[0], ids[1]));
+  });
+
   it('survives a cycle', () => {
     const nodes = [node(1, 'branch'), node(2, 'branch')];
     const edges: SerializedEdge[] = [
