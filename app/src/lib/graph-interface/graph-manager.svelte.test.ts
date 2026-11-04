@@ -900,3 +900,103 @@ describe('dropNodeOnEdge', () => {
     }
   });
 });
+
+describe('dropNodeOnEdge making room', () => {
+  // NODE_WIDTH + COLUMN_GAP from layoutGraph
+  const MIN_DISTANCE = 30;
+
+  const mockMergeNode: NodeDefinition = {
+    id: 'test/node/merge',
+    inputs: { a: { type: 'float' }, b: { type: 'float' } },
+    outputs: [],
+    meta: { title: 'Merge' },
+    execute: () => new Int32Array()
+  };
+
+  function setup(dropX: number) {
+    const manager = new GraphManager(
+      createMockNodeRegistry([mockFloatInputNode, mockFloatOutputNode, mockMergeNode])
+    );
+    const create = (type: NodeId, x: number, y = 0) => {
+      const node = manager.createNode({ type, position: [x, y], props: {} });
+      assert.isDefined(node);
+      return node;
+    };
+    // upstream → source → target → downstream, plus a node that is not connected
+    const upstream = create('test/node/output', -40);
+    const source = create('test/node/output', 0);
+    const target = create('test/node/output', 40);
+    const downstream = create('test/node/input', 80);
+    const unrelated = create('test/node/output', 40, 100);
+    const dropped = create('test/node/output', dropX, 5);
+    manager.createEdge(upstream, 0, source, 'input');
+    const edge = manager.createEdge(source, 0, target, 'input');
+    manager.createEdge(target, 0, downstream, 'value');
+    assert.isDefined(edge);
+    return { manager, edge, upstream, source, target, downstream, unrelated, dropped };
+  }
+
+  it('leaves the layout alone when there is room', () => {
+    const { manager, edge, dropped, source, target } = setup(15);
+    source.position[0] = -15;
+    target.position[0] = 45;
+    const moved = manager.dropNodeOnEdge(dropped.id, edge);
+    expect(moved.size).toBe(0);
+    expect(source.position[0]).toBe(-15);
+    expect(target.position[0]).toBe(45);
+  });
+
+  it('pushes the target and everything downstream of it right', () => {
+    const { manager, edge, dropped, upstream, source, target, downstream, unrelated } = setup(30);
+    const moved = manager.dropNodeOnEdge(dropped.id, edge);
+
+    // source at 0 is exactly MIN_DISTANCE away, target at 40 is 20 short
+    expect(target.position[0]).toBe(30 + MIN_DISTANCE);
+    expect(downstream.position[0]).toBe(80 + 20);
+    expect(source.position[0]).toBe(0);
+    expect(upstream.position[0]).toBe(-40);
+    expect(unrelated.position[0]).toBe(40);
+    expect(dropped.position).toEqual([30, 5]);
+    expect([...moved]).toEqual([[target, 40], [downstream, 80]]);
+  });
+
+  it('pushes the source and everything upstream of it left', () => {
+    const { manager, edge, dropped, upstream, source, target } = setup(10);
+    manager.dropNodeOnEdge(dropped.id, edge);
+
+    expect(source.position[0]).toBe(10 - MIN_DISTANCE);
+    expect(upstream.position[0]).toBe(-40 - 20);
+    // target at 40 is exactly MIN_DISTANCE away from the dropped node
+    expect(target.position[0]).toBe(40);
+  });
+
+  it('moves a node reached through several paths only once', () => {
+    const { manager, edge, dropped, target, downstream } = setup(30);
+    const side = manager.createNode({ type: 'test/node/output', position: [60, 50], props: {} });
+    assert.isDefined(side);
+    manager.createEdge(target, 0, side, 'input');
+    const sink = manager.createNode({ type: 'test/node/merge', position: [120, 0], props: {} });
+    assert.isDefined(sink);
+    manager.createEdge(downstream, 0, sink, 'a');
+    manager.createEdge(side, 0, sink, 'b');
+
+    manager.dropNodeOnEdge(dropped.id, edge);
+    expect(sink.position[0]).toBe(120 + 20);
+  });
+
+  it('reverts the rewire and the moves with one undo', () => {
+    const { manager, edge, dropped, source, target, downstream } = setup(20);
+    manager.dropNodeOnEdge(dropped.id, edge);
+    expect(source.position[0]).not.toBe(0);
+    expect(target.position[0]).not.toBe(40);
+
+    manager.undo();
+    const graph = manager.serialize();
+    const position = (id: number) => graph.nodes.find((n) => n.id === id)!.position;
+    expect(position(source.id)).toEqual([0, 0]);
+    expect(position(target.id)).toEqual([40, 0]);
+    expect(position(downstream.id)).toEqual([80, 0]);
+    expect(graph.edges).toContainEqual([source.id, 0, target.id, 'input']);
+    expect(graph.edges).not.toContainEqual([source.id, 0, dropped.id, 'input']);
+  });
+});

@@ -1,4 +1,4 @@
-import type { Box } from '@nodarium/types';
+import type { Box, Edge } from '@nodarium/types';
 import type { GraphManager } from '../graph-manager.svelte';
 import type { GraphState } from '../graph-state.svelte';
 import { distanceFromPointToSegment } from '../helpers/index.ts';
@@ -103,13 +103,12 @@ export class EdgeInteractionManager {
     this.state.hoveredEdgeId = hoveredEdgeId;
   }
 
-  handleMouseUp() {
-    if (this.state.hoveredEdgeId) {
-      const edge = this.graph.getEdgeById(this.state.hoveredEdgeId);
-      if (edge) {
-        this.graph.dropNodeOnEdge(this.state.activeNodeId, edge);
-      }
-      this.state.hoveredEdgeId = null;
-    }
+  // Returns the edge the node was released on. The caller drops it there once the node's final
+  // position is known, so that the nodes around it can make room.
+  handleMouseUp(): Edge | undefined {
+    const edgeId = this.state.hoveredEdgeId;
+    if (!edgeId) return;
+    this.state.hoveredEdgeId = null;
+    return this.graph.getEdgeById(edgeId);
   }
 }

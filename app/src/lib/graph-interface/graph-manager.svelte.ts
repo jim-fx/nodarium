@@ -31,7 +31,7 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { collectSettings } from './helpers/collectSettings';
 import EventEmitter from './helpers/EventEmitter';
 import { clone, debounce } from './helpers/index.ts';
-import { layoutGraph } from './helpers/layoutGraph';
+import { COLUMN_GAP, layoutGraph, NODE_WIDTH } from './helpers/layoutGraph';
 import {
   areEdgesEqual,
   areSocketsCompatible,
@@ -184,9 +184,11 @@ export class GraphManager extends EventEmitter<{
     return this.edges.find((e) => this.getEdgeId(e) === id);
   }
 
-  dropNodeOnEdge(nodeId: number, edge: Edge) {
+  // Wires the node in between the two nodes of the edge and moves them apart where the node
+  // has no room. Returns the previous x of every node that was moved aside.
+  dropNodeOnEdge(nodeId: number, edge: Edge): Map<NodeInstance, number> {
     const draggedNode = this.getNode(nodeId);
-    if (!draggedNode) return;
+    if (!draggedNode) return new SvelteMap();
 
     const [fromNode, fromSocketIdx, toNode, toSocketKey] = edge;
 
@@ -209,7 +211,7 @@ export class GraphManager extends EventEmitter<{
 
     if (!bestInputEntry || bestOutputIdx === -1) {
       log.error('Could not find compatible sockets for drop');
-      return;
+      return new SvelteMap();
     }
 
     this.startUndoGroup();
@@ -224,8 +226,34 @@ export class GraphManager extends EventEmitter<{
       applyUpdate: false
     });
 
+    const moved = this.makeRoomForNode(draggedNode, fromNode, toNode);
+
     this.saveUndoGroup();
     this.execute();
+    return moved;
+  }
+
+  // Pushes `to` and everything downstream of it right, and `from` and everything upstream of it
+  // left, until `node` is a column gap away from both. Only the x positions change, the rest of
+  // the layout is left alone. Returns the previous x of every moved node.
+  private makeRoomForNode(node: NodeInstance, from: NodeInstance, to: NodeInstance) {
+    const minDistance = NODE_WIDTH + COLUMN_GAP;
+    const moved = new SvelteMap<NodeInstance, number>();
+
+    const shift = (nodes: Set<NodeInstance>, dx: number) => {
+      for (const n of nodes) {
+        if (!moved.has(n)) moved.set(n, n.position[0]);
+        n.position[0] += dx;
+      }
+    };
+
+    const missingRight = node.position[0] + minDistance - to.position[0];
+    if (missingRight > 0) shift(new SvelteSet([to, ...this.getChildren(to)]), missingRight);
+
+    const missingLeft = from.position[0] + minDistance - node.position[0];
+    if (missingLeft > 0) shift(new SvelteSet([from, ...this.getParentsOfNode(from)]), -missingLeft);
+
+    return moved;
   }
 
   getPossibleDropOnEdges(nodeId: number): Edge[] {
