@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { GraphManager } from '#lib/graph-interface/graph-manager.svelte.ts';
-  import { groupIdOf } from '#lib/node-registry/internal-nodes.ts';
+  import { groupIdOf } from '@nodarium/types';
   import type { GroupDefinition } from '@nodarium/types';
   import { Button } from '@nodarium/ui';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';

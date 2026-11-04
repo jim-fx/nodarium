@@ -4,12 +4,13 @@ import throttle from '#lib/helpers/throttle.ts';
 import { RemoteNodeRegistry } from '#lib/node-registry/index.ts';
 import {
   DEBUG_NODE,
+  getOutputType,
   GROUP_INPUT,
   GROUP_INSTANCE,
   GROUP_OUTPUT,
   groupIdOf,
   INTERNAL_PREFIX
-} from '#lib/node-registry/internal-nodes.ts';
+} from '@nodarium/types';
 import type {
   Box,
   Edge,
@@ -25,7 +26,6 @@ import type {
   SerializedNode,
   Socket
 } from '@nodarium/types';
-import { getOutputType } from '@nodarium/types';
 import { toast } from '@nodarium/ui';
 import { fastHashString } from '@nodarium/utils';
 import { createLogger } from '@nodarium/utils';

@@ -7,7 +7,13 @@ import type {
   RuntimeExecutor,
   SyncCache
 } from '@nodarium/types';
-import { getOutputType } from '@nodarium/types';
+import {
+  getOutputType,
+  GROUP_INPUT,
+  GROUP_INSTANCE,
+  GROUP_OUTPUT,
+  INTERNAL_PREFIX
+} from '@nodarium/types';
 import {
   createLogger,
   encodeFloat,
@@ -17,12 +23,6 @@ import {
 } from '@nodarium/utils';
 import { areSocketsCompatible } from '../graph-interface/helpers/nodeHelpers';
 import { migrateGraph } from '../graph-migrations';
-import {
-  GROUP_INPUT,
-  GROUP_INSTANCE,
-  GROUP_OUTPUT,
-  INTERNAL_PREFIX
-} from '../node-registry/internal-nodes';
 import { getErrorInfo, NodeExecutionError, type RuntimeErrorInfo } from './errors';
 import type { RuntimeNode } from './types';
 

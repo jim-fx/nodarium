@@ -1,5 +1,5 @@
 import type { NodeValue } from '@nodarium/types';
-import { DEBUG_NODE } from './internal-nodes';
+import { DEBUG_NODE } from '@nodarium/types';
 
 export const debugNode = {
   id: DEBUG_NODE,

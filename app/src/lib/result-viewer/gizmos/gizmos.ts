@@ -1,5 +1,5 @@
 import type { Edge, Graph, NodeInstance } from '@nodarium/types';
-import { DEBUG_NODE } from '../../node-registry/internal-nodes';
+import { DEBUG_NODE } from '@nodarium/types';
 import { pickBranchPath, type ProbePath, sampleAlong } from './gizmo-paths';
 
 export type Vec3 = [number, number, number];

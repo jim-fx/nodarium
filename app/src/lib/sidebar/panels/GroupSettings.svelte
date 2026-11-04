@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { GraphManager } from '#lib/graph-interface/graph-manager.svelte.ts';
   import { GraphState } from '#lib/graph-interface/graph-state.svelte.ts';
-  import { GROUP_INSTANCE } from '#lib/node-registry/internal-nodes.ts';
+  import { GROUP_INSTANCE } from '@nodarium/types';
   import type { NodeInstance } from '@nodarium/types';
   import { SocketTable } from '@nodarium/ui';
   import UnusedGroupsPanel from './UnusedGroupsPanel.svelte';
