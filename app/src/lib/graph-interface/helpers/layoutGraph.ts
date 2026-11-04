@@ -1,9 +1,9 @@
 import type { NodeDefinition, SerializedEdge, SerializedNode } from '@nodarium/types';
 import { getInputSocketOffset, getNodeHeight, getOutputSocketOffset } from './nodeHelpers';
 
-const NODE_WIDTH = 20;
+export const NODE_WIDTH = 20;
 // space between two columns, and between two nodes in a column
-const COLUMN_GAP = 10;
+export const COLUMN_GAP = 10;
 const ROW_GAP = 5;
 // the first input socket sits this much below the output socket, under the header of the node.
 // Edges drop by it, so that a chain of nodes lines up at the top instead of stepping down

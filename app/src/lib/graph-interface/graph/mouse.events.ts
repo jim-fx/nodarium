@@ -18,7 +18,7 @@ export class MouseEventManager {
   }
 
   handleWindowMouseUp(event: MouseEvent) {
-    this.edgeInteractionManager.handleMouseUp();
+    const droppedOnEdge = this.edgeInteractionManager.handleMouseUp();
     this.state.isPanning = false;
     if (!this.state.mouseDown) return;
 
@@ -71,6 +71,16 @@ export class MouseEventManager {
         }
       }
       nodes.push(activeNode);
+
+      if (droppedOnEdge) {
+        const moved = this.graph.dropNodeOnEdge(activeNode.id, droppedOnEdge);
+        for (const [node, x] of moved) {
+          node.state.x ??= x;
+          node.state.y ??= node.position[1];
+          if (!nodes.includes(node)) nodes.push(node);
+        }
+      }
+
       animate(500, (a: number) => {
         for (const node of nodes) {
           if (
