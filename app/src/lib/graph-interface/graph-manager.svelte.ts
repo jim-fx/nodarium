@@ -30,6 +30,7 @@ import { toast } from '@nodarium/ui';
 import { fastHashString } from '@nodarium/utils';
 import { createLogger } from '@nodarium/utils';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { collectSettings } from './helpers/collectSettings';
 import EventEmitter from './helpers/EventEmitter';
 import { layoutGraph } from './helpers/layoutGraph';
 import {
@@ -77,7 +78,6 @@ export class GraphManager extends EventEmitter<{
 
   nodeArray = $derived(Array.from(this.nodes.values()));
 
-  settingTypes: Record<string, NodeInput> = {};
   settings = $state<Record<string, unknown>>();
 
   currentUndoGroup: number | null = null;
@@ -410,33 +410,10 @@ export class GraphManager extends EventEmitter<{
 
     log.info('loaded node types', this.registry.getAllNodes());
 
-    const settingTypes: Record<
-      string,
-      // Optional metadata to map settings to specific nodes
-      NodeInput & { __node_type: string; __node_input: string }
-    > = {};
-    const settingValues = graph.settings || {};
-    const types = this.getNodeDefinitions();
-    for (const type of types) {
-      if (type.inputs) {
-        for (const key in type.inputs) {
-          const settingId = type.inputs[key].setting;
-          if (settingId) {
-            settingTypes[settingId] = {
-              __node_type: type.id,
-              __node_input: key,
-              ...type.inputs[key]
-            };
-            if (
-              settingValues[settingId] === undefined
-              && 'value' in type.inputs[key]
-            ) {
-              settingValues[settingId] = type.inputs[key].value;
-            }
-          }
-        }
-      }
-    }
+    const { types: settingTypes, values: settingValues } = collectSettings(
+      this.getNodeDefinitions(),
+      graph.settings
+    );
 
     this.parentStack = [];
     this.currentGroupId = null;
@@ -664,35 +641,6 @@ export class GraphManager extends EventEmitter<{
   getSocketType(node: NodeInstance, index: string | number): string | undefined {
     const { inputs, outputs } = this.getNodeSockets(node);
     return typeof index === 'string' ? inputs[index]?.type : outputs[index];
-  }
-
-  async loadNodeType(id: NodeId) {
-    await this.registry.load([id]);
-    const nodeType = this.registry.getNode(id);
-
-    if (!nodeType) return;
-
-    const settingTypes = this.settingTypes;
-    const settingValues = this.settings;
-    if (nodeType.inputs) {
-      for (const key in nodeType.inputs) {
-        const settingId = nodeType.inputs[key].setting;
-        if (settingId) {
-          settingTypes[settingId] = nodeType.inputs[key];
-          if (
-            settingValues
-            && settingValues?.[settingId] === undefined
-            && 'value' in nodeType.inputs[key]
-          ) {
-            settingValues[settingId] = nodeType.inputs[key].value;
-          }
-        }
-      }
-    }
-
-    this.settings = settingValues;
-    this.settingTypes = settingTypes;
-    this.emit('settings', { types: settingTypes, values: settingValues });
   }
 
   getChildren(node: NodeInstance) {
