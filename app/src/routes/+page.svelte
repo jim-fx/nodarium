@@ -246,9 +246,8 @@
       const graphResult = await runtime.execute(probed.graph, s);
       let b = performance.now();
 
-      if (appSettings.value.debug.useWorker) {
-        let perfData = await runtime.getPerformanceData();
-        let lastRun = perfData?.at(-1);
+      if (runtime === workerRuntime) {
+        const lastRun = workerRuntime.getPerformanceData();
         if (lastRun?.total) {
           lastRun.runtime = lastRun.total;
           delete lastRun.total;

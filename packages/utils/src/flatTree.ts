@@ -100,6 +100,7 @@ export function decodeNestedArray(dense: number[] | Int32Array) {
   return decode_recursive(dense, 0)[0];
 }
 
+/** The items are views into `input`, copy them before `input` is reused or transferred */
 export function splitNestedArray(input: Int32Array) {
   let index = 0;
   const length = input.length;
@@ -125,7 +126,7 @@ export function splitNestedArray(input: Int32Array) {
       }
 
       if (depth === 0 && value === 1) {
-        res.push(input.slice(argStartIndex, index));
+        res.push(input.subarray(argStartIndex, index));
         argStartIndex = index + 2;
       }
 

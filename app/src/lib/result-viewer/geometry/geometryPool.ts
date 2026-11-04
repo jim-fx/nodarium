@@ -12,16 +12,47 @@ import {
   Sphere
 } from 'three';
 
-/** A hash over every value of `arr`, two 32 bit lanes joined into one number */
-function fastArrayHash(arr: Int32Array) {
-  let a = 0x811c9dc5;
-  let b = 0x9e3779b9;
-  for (let i = 0; i < arr.length; i++) {
-    const v = arr[i];
-    a = Math.imul(a ^ v, 0x01000193);
-    b = Math.imul(b + v, 0x85ebca6b) ^ (b >>> 15);
+// only ever called with Int32Arrays, so the loop stays monomorphic and fast
+function sameBits(a: Int32Array, b: Int32Array) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
   }
-  return (a >>> 0) + (b & 0x1fffff) * 0x100000000;
+  return true;
+}
+
+function sameIndices(a: Uint16Array, b: Int32Array) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function bits(array: Float32Array | Uint32Array | Int32Array) {
+  return new Int32Array(array.buffer, array.byteOffset, array.length);
+}
+
+function sameFloats(attribute: BufferAttribute | undefined, values: Float32Array) {
+  return !!attribute && sameBits(bits(attribute.array as Float32Array), bits(values));
+}
+
+/**
+ * Whether the geometry shows this data already, so the upload can be skipped. Changed data
+ * mostly differs early on, unlike a hash this stops at the first difference.
+ */
+function showsData(
+  geometry: BufferGeometry,
+  faces: Int32Array,
+  positions: Float32Array,
+  normals: Float32Array
+) {
+  const index = geometry.getIndex()?.array;
+  return sameFloats(geometry.getAttribute('position') as BufferAttribute, positions)
+    && (index instanceof Uint16Array
+      ? sameIndices(index, faces)
+      : index instanceof Uint32Array && sameBits(bits(index), faces))
+    && sameFloats(geometry.getAttribute('normal') as BufferAttribute, normals);
 }
 
 type PoolStats = {
@@ -162,20 +193,22 @@ export function createGeometryPool(parentScene: Group, material: Material) {
       stats.totalFaces += faceCount;
       mesh.userData.pathId = readGeometryPathId(data);
 
-      const hash = fastArrayHash(data);
-      if (geometry.userData.hash !== hash) {
-        const facesStart = 4;
-        const positionsStart = facesStart + faceCount * 3;
-        const normalsStart = positionsStart + vertexCount * 3;
-        const floats = (start: number) =>
-          new Float32Array(data.buffer, data.byteOffset + start * 4, vertexCount * 3);
+      const facesStart = 4;
+      const positionsStart = facesStart + faceCount * 3;
+      const normalsStart = positionsStart + vertexCount * 3;
+      const floats = (start: number) =>
+        new Float32Array(data.buffer, data.byteOffset + start * 4, vertexCount * 3);
+      const faces = data.subarray(facesStart, positionsStart);
+      const positions = floats(positionsStart);
+      const normals = floats(normalsStart);
 
-        writeIndex(geometry, data.subarray(facesStart, positionsStart), vertexCount);
-        writeAttribute(geometry, 'position', floats(positionsStart));
-        writeAttribute(geometry, 'normal', floats(normalsStart));
+      if (!showsData(geometry, faces, positions, normals)) {
+        writeIndex(geometry, faces, vertexCount);
+        writeAttribute(geometry, 'position', positions);
+        writeAttribute(geometry, 'normal', normals);
         // the renderer would compute the bounds from the vertices again, they are known here
-        setBounds(geometry, floats(positionsStart));
-        geometry.userData = { vertexCount, faceCount, hash };
+        setBounds(geometry, positions);
+        geometry.userData = { vertexCount, faceCount };
       }
 
       stats.bounds.union(geometry.boundingBox!);

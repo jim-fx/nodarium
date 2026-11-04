@@ -11,4 +11,4 @@ exclude = ["nodes/max/plantarium/.template"]
 [profile.release]
 lto = true
 # Tell `rustc` to optimize for small code size.
-opt-level = "s"
+opt-level = 3
