@@ -1,7 +1,7 @@
 use super::{
     append_geometry_data, geometry_data_len, set_geometry_path_id, wrap_geometry_data, PathData,
 };
-use glam::{Mat4, Vec3};
+use glam::{Quat, Vec3};
 
 fn create_circle(res: usize) -> Vec<f32> {
     let angle = (2.0 * std::f32::consts::PI) / res as f32;
@@ -98,14 +98,8 @@ pub fn extrude_path_into(input_path: PathData, res_x: usize, out: &mut Vec<i32>)
         .unwrap_or(last_dir);
         last_dir = segment_dir;
 
-        // In our case the up vector is always the Y axis
-        let up_vector = Vec3::NEG_Y;
-
-        let binormal = up_vector.cross(segment_dir);
-
-        let rotation_angle = up_vector.dot(segment_dir).clamp(-1.0, 1.0).acos();
-
-        let rotation_matrix = Mat4::from_axis_angle(binormal, rotation_angle);
+        // the ring lies around the Y axis and is turned to face along the segment
+        let rotation = Quat::from_rotation_arc(Vec3::NEG_Y, segment_dir);
 
         for j in 0..res_x {
             if i < point_amount - 1 {
@@ -134,13 +128,9 @@ pub fn extrude_path_into(input_path: PathData, res_x: usize, out: &mut Vec<i32>)
             // construct the points
             let idx = i * res_x * 3 + j * 3;
 
-            let circle_x = circle[j * 2] * thickness;
-            let circle_z = circle[j * 2 + 1] * thickness;
-
-            let point = rotation_matrix.transform_point3(Vec3::new(circle_x, 0.0, circle_z)) + pos;
-            let normal = rotation_matrix
-                .transform_vector3(Vec3::new(circle_x, 0.0, circle_z))
-                .normalize();
+            // the circle has a radius of one, so the turned point is the normal already
+            let normal = rotation * Vec3::new(circle[j * 2], 0.0, circle[j * 2 + 1]);
+            let point = pos + normal * thickness;
 
             normals[idx] = normal[0];
             normals[idx + 1] = normal[1];
