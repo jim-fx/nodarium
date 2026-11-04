@@ -471,6 +471,8 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
     if (settings['randomSeed']) {
       this.seed = Math.floor(Math.random() * 100000000);
+    } else if (typeof settings['seed'] === 'number' && Number.isFinite(settings['seed'])) {
+      this.seed = Math.floor(settings['seed']);
     }
 
     // free all results of the previous run, nothing below this may await

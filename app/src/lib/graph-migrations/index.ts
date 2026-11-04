@@ -50,6 +50,16 @@ export const MIGRATIONS: Migration[] = [
       removeInputs(graph, 'max/plantarium/noise', ['preserveLength']);
       return graph;
     }
+  },
+  {
+    version: 3,
+    description:
+      'graphs without a seed get a fixed one, so the plant stays stable between sessions',
+    migrate(graph) {
+      graph.settings ??= {};
+      graph.settings['seed'] ??= 1;
+      return graph;
+    }
   }
 ];
 

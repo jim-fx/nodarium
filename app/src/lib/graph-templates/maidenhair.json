@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "settings": { "resolution.circle": 8, "resolution.curve": 64, "randomSeed": false },
+  "version": 3,
+  "settings": { "resolution.circle": 8, "resolution.curve": 64, "randomSeed": false, "seed": 1 },
   "groups": [],
   "nodes": [
     {

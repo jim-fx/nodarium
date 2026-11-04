@@ -55,6 +55,16 @@
     return !!v && typeof v === 'object' && 'type' in v;
   }
 
+  // A setting can declare the values of sibling settings that disable it,
+  // e.g. the seed only makes sense while randomSeed is off
+  const isDisabled = $derived.by(() => {
+    const node = key ? type[key] : undefined;
+    if (!isNodeInput(node)) return false;
+    const condition = (node as NodeInput).disabledWhen;
+    if (!condition) return false;
+    return Object.entries(condition).every(([setting, expected]) => value[setting] === expected);
+  });
+
   function getDefaultValue(): NodeInput['value'] | string | undefined {
     if (key === '' || key === 'title') return;
 
@@ -130,7 +140,11 @@
 
 {#if key && isNodeInput(type?.[key])}
   {@const inputType = type[key]}
-  <div class="input input-{inputType.type}" class:first-level={depth === 1}>
+  <div
+    class="input input-{inputType.type}"
+    class:first-level={depth === 1}
+    class:disabled={isDisabled}
+  >
     {#if inputType.type === 'button'}
       <UiButton onclick={() => onButtonClick?.(id)}>
         {inputType.label || key}
@@ -216,6 +230,12 @@
     flex-direction: column;
     gap: 10px;
     padding-left: 20px;
+  }
+
+  /* grey out instead of hiding, so the layout of the panel stays stable */
+  .input.disabled {
+    opacity: 0.4;
+    pointer-events: none;
   }
 
   .input-boolean {

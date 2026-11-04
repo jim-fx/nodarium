@@ -1,10 +1,11 @@
 {
   "id": 0,
-  "version": 2,
+  "version": 3,
   "settings": {
     "resolution.circle": 6,
     "resolution.curve": 24,
-    "randomSeed": false
+    "randomSeed": false,
+    "seed": 1
   },
   "meta": {
     "unit": "cm",

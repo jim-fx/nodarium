@@ -9,6 +9,9 @@ const DefaultOptionsSchema = z.object({
   setting: z.string().optional(),
   label: z.string().optional(),
   description: z.string().optional(),
+  // the values of sibling settings that disable this one, e.g. a seed that is
+  // meaningless while randomSeed is on: { randomSeed: true }
+  disabledWhen: z.record(z.string(), z.boolean().or(z.number()).or(z.string())).optional(),
   accepts: z
     .array(
       z.union([
