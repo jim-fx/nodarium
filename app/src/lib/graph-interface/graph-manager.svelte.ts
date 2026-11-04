@@ -188,7 +188,7 @@ export class GraphManager extends EventEmitter<{
   // has no room. Returns the previous x of every node that was moved aside.
   dropNodeOnEdge(nodeId: number, edge: Edge): Map<NodeInstance, number> {
     const draggedNode = this.getNode(nodeId);
-    if (!draggedNode) return new Map();
+    if (!draggedNode) return new SvelteMap();
 
     const [fromNode, fromSocketIdx, toNode, toSocketKey] = edge;
 
@@ -211,7 +211,7 @@ export class GraphManager extends EventEmitter<{
 
     if (!bestInputEntry || bestOutputIdx === -1) {
       log.error('Could not find compatible sockets for drop');
-      return new Map();
+      return new SvelteMap();
     }
 
     this.startUndoGroup();
@@ -238,7 +238,7 @@ export class GraphManager extends EventEmitter<{
   // the layout is left alone. Returns the previous x of every moved node.
   private makeRoomForNode(node: NodeInstance, from: NodeInstance, to: NodeInstance) {
     const minDistance = NODE_WIDTH + COLUMN_GAP;
-    const moved = new Map<NodeInstance, number>();
+    const moved = new SvelteMap<NodeInstance, number>();
 
     const shift = (nodes: Set<NodeInstance>, dx: number) => {
       for (const n of nodes) {
@@ -248,10 +248,10 @@ export class GraphManager extends EventEmitter<{
     };
 
     const missingRight = node.position[0] + minDistance - to.position[0];
-    if (missingRight > 0) shift(new Set([to, ...this.getChildren(to)]), missingRight);
+    if (missingRight > 0) shift(new SvelteSet([to, ...this.getChildren(to)]), missingRight);
 
     const missingLeft = from.position[0] + minDistance - node.position[0];
-    if (missingLeft > 0) shift(new Set([from, ...this.getParentsOfNode(from)]), -missingLeft);
+    if (missingLeft > 0) shift(new SvelteSet([from, ...this.getParentsOfNode(from)]), -missingLeft);
 
     return moved;
   }
