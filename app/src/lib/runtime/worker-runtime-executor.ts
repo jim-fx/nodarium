@@ -1,22 +1,30 @@
 /// <reference types="vite-plugin-comlink/client" />
 import type { Graph, RuntimeExecutor } from '@nodarium/types';
+import type { WorkerExecution } from './types';
 
 export class WorkerRuntimeExecutor implements RuntimeExecutor {
   private worker = new ComlinkWorker<typeof import('./worker-runtime-executor-backend.ts')>(
     new URL(`./worker-runtime-executor-backend.ts`, import.meta.url)
   );
 
-  execute(graph: Graph, settings: Record<string, unknown>) {
-    return this.worker.executeGraph(graph, settings);
+  // the details of the last run arrive together with its result
+  private last?: Omit<WorkerExecution, 'result'>;
+
+  async execute(graph: Graph, settings: Record<string, unknown>) {
+    this.last = undefined;
+    const { result, ...details } = await this.worker.executeGraph(graph, settings);
+    this.last = details;
+    return result;
   }
+  /** The timings of the last run */
   getPerformanceData() {
-    return this.worker.getPerformanceData();
+    return this.last?.performance;
   }
-  async getDebugData() {
-    return await this.worker.getDebugData();
+  getDebugData() {
+    return this.last?.debugData ?? {};
   }
-  async getNodeTimings() {
-    return await this.worker.getNodeTimings();
+  getNodeTimings() {
+    return this.last?.nodeTimings ?? {};
   }
   async getLastError() {
     return await this.worker.getLastError();

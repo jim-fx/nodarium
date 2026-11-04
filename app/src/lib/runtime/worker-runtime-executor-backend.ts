@@ -5,6 +5,7 @@ import { createPerformanceStore } from '@nodarium/utils';
 import * as Comlink from 'comlink';
 import { MemoryRuntimeExecutor } from './runtime-executor';
 import { MemoryRuntimeCache } from './runtime-executor-cache';
+import type { WorkerExecution } from './types';
 
 const indexDbCache = new IndexDBCache('node-registry');
 const nodeRegistry = new RemoteNodeRegistry('', indexDbCache, [debugNode]);
@@ -31,30 +32,29 @@ export async function setUseRuntimeCache(useCache: boolean) {
   }
 }
 
+/**
+ * Everything the app reads after a run comes back with the result, every extra call would be
+ * another round trip to the worker
+ */
 export async function executeGraph(
   graph: Graph,
   settings: Record<string, unknown>
-): Promise<Int32Array> {
+): Promise<WorkerExecution> {
   await nodeRegistry.load(graph.nodes.map((n) => n.type));
   performanceStore.startRun();
-  const res = await executor.execute(graph, settings);
+  const result = await executor.execute(graph, settings);
   performanceStore.stopRun();
-  if (res?.buffer) {
-    return Comlink.transfer(res, [res.buffer]);
+  const execution: WorkerExecution = {
+    result,
+    performance: performanceStore.get().at(-1),
+    // debug values can be entries of the runtime cache, so they are copied, not transferred
+    debugData: executor.getDebugData(),
+    nodeTimings: executor.getNodeTimings()
+  };
+  if (result?.buffer) {
+    return Comlink.transfer(execution, [result.buffer]);
   }
-  return res;
-}
-
-export function getPerformanceData() {
-  return performanceStore.get();
-}
-
-export function getDebugData() {
-  return executor.getDebugData();
-}
-
-export function getNodeTimings() {
-  return executor.getNodeTimings();
+  return execution;
 }
 
 export function getLastError() {
