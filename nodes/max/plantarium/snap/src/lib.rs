@@ -1,7 +1,9 @@
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    concat_arg_vecs, concat_args, encode_float, geometry::wrap_path, int, split_args, Ctx,
+    concat_arg_vecs, concat_args, encode_float,
+    geometry::{is_path, max_path_depth, wrap_path},
+    int, split_args, Ctx,
 };
 
 nodarium_definition_file!("src/definition.json");
@@ -25,13 +27,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         (highest_snap, lowest_snap)
     };
 
-    let mut max_depth = 0;
-    for path_data in &paths {
-        if path_data[2] != 0 {
-            continue;
-        }
-        max_depth = max_depth.max(path_data[3]);
-    }
+    let max_depth = max_path_depth(&paths);
 
     // Paths at this depth or deeper get snapped. Once the plant has branches
     // the trunk (depth 0) never snaps, even when depth is set beyond the
@@ -53,8 +49,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut output: Vec<Vec<i32>> = Vec::new();
 
     for &path_data in &paths {
-        // Only paths (node type 0) can be snapped; pass everything else through
-        if path_data[2] != 0 {
+        // Only paths can be snapped; pass everything else through
+        if !is_path(path_data) {
             output.push(path_data.to_vec());
             continue;
         }

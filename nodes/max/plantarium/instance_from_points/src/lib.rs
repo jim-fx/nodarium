@@ -2,7 +2,9 @@ use glam::{Mat4, Vec3};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_args, decode_points,
-    geometry::{create_instance_data, path_link, wrap_geometry_data, wrap_instance_data},
+    geometry::{
+        create_instance_data, is_path, path_link, wrap_geometry_data, wrap_instance_data,
+    },
     group_points_by_parent, split_args, Ctx, Point,
 };
 
@@ -49,7 +51,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         // the random values of the instances start from the path they sit on
         match plant
             .iter()
-            .find(|p| p.len() > 2 && p[2] == 0 && path_link(p).id == *parent_id)
+            .find(|p| is_path(p) && path_link(p).id == *parent_id)
         {
             Some(parent) => ctx.set_path(parent, rank, groups.len()),
             None => ctx.seed_path(*parent_id),

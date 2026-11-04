@@ -3,7 +3,7 @@ use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
     concat_args, int,
-    geometry::{wrap_path, wrap_path_mut},
+    geometry::{is_path, wrap_path, wrap_path_mut, DeepestPaths},
     log, split_args, Ctx,
 };
 
@@ -21,22 +21,16 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let plants = split_args(args[0]);
     let depth = ctx.int(args[2]);
     let mode = int(args[4]); // 0 = closed-form, 1 = verlet
-    let mut max_depth = 0;
-    for path_data in plants.iter() {
-        if path_data[2] != 0 {
-            continue;
-        }
-        max_depth = max_depth.max(path_data[3]);
-    }
+    let selected = DeepestPaths::new(&plants, depth);
 
-    let path_count = plants.iter().filter(|p| p[2] == 0).count();
+    let path_count = plants.iter().filter(|p| is_path(p)).count();
     let mut path_index = 0;
 
     let output: Vec<Vec<i32>> = plants
         .iter()
         .map(|_path_data| {
             let path_data = _path_data.to_vec();
-            if path_data[2] != 0 || path_data[3] < (max_depth - depth + 1) {
+            if !selected.contains(&path_data) {
                 return path_data;
             }
 

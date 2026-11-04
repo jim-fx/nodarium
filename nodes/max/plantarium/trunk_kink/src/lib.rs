@@ -4,7 +4,7 @@ use nodarium_utils::{
     concat_arg_vecs, encode_points,
     geometry::{
         create_path, follow_parents, orthogonal_to, rotate_vector_by_angle, set_path_link,
-        wrap_path, wrap_path_mut,
+        wrap_path, wrap_path_mut, DeepestPaths,
     },
     split_args, Ctx, Point,
 };
@@ -129,22 +129,15 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let original: Vec<Vec<i32>> = split_args(args[0]).iter().map(|p| p.to_vec()).collect();
     let depth = ctx.int(args[6]);
 
-    let is_path = |p: &[i32]| p.len() > 2 && p[2] == 0;
-    let max_depth = original
-        .iter()
-        .filter(|p| is_path(p))
-        .map(|p| p[3])
-        .max()
-        .unwrap_or(0);
-    let selected = |p: &[i32]| is_path(p) && p[3] > max_depth - depth;
-    let path_count = original.iter().filter(|p| selected(p)).count();
+    let selected = DeepestPaths::new(&original, depth);
+    let path_count = selected.count(&original);
 
     let mut current = original.clone();
     let mut kink_points = Vec::new();
     let mut path_index = 0;
 
     for item in current.iter_mut() {
-        if !selected(item) {
+        if !selected.contains(item) {
             continue;
         }
         let path = wrap_path(item);

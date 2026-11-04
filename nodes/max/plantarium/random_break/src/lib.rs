@@ -2,7 +2,7 @@ use glam::{Vec4, Vec4Swizzles};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs,
-    geometry::{path_id, path_link, set_path_link, wrap_path, wrap_path_mut},
+    geometry::{is_path, path_id, path_link, set_path_link, wrap_path, wrap_path_mut, DeepestPaths},
     split_args, Ctx,
 };
 use std::collections::{HashMap, HashSet};
@@ -56,15 +56,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let seed = args[4][0];
     let depth = ctx.int(args[5]);
 
-    let is_path = |p: &[i32]| p.len() > 8 && p[2] == 0;
-    let max_depth = items
-        .iter()
-        .filter(|p| is_path(p))
-        .map(|p| p[3])
-        .max()
-        .unwrap_or(0);
-    let selected = |p: &[i32]| is_path(p) && p[3] > max_depth - depth;
-    let path_count = items.iter().filter(|p| selected(p)).count();
+    let selected = DeepestPaths::new(&items, depth);
+    let path_count = selected.count(&items);
 
     // parents come before their children, so a path knows what happened to its parent
     let mut order: Vec<usize> = (0..items.len()).filter(|i| is_path(&items[*i])).collect();
@@ -94,7 +87,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             set_path_link(&mut items[index], link);
         }
 
-        if !selected(&items[index]) {
+        if !selected.contains(&items[index]) {
             continue;
         }
         let path = wrap_path(&items[index]);

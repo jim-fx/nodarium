@@ -2,7 +2,10 @@ use glam::{Vec2, Vec3};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs, encode_points,
-    geometry::{create_path, orthogonal_to, path_id, set_path_link, wrap_path, wrap_path_mut, PathLink},
+    geometry::{
+        create_path, is_path, orthogonal_to, path_id, set_path_link, wrap_path, wrap_path_mut,
+        DeepestPaths, PathLink,
+    },
     int, split_args, Ctx, Point,
 };
 use std::f32::consts::PI;
@@ -137,14 +140,8 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let plant = split_args(args[0]);
     let layers = ctx.int(args[10]);
 
-    let is_path = |p: &[i32]| p.len() > 2 && p[2] == 0;
-    let max_depth = plant
-        .iter()
-        .filter(|p| is_path(p))
-        .map(|p| p[3])
-        .max()
-        .unwrap_or(0);
-    let selected = |p: &[i32]| is_path(p) && p[3] > max_depth - layers && wrap_path(p).length > 1;
+    let deepest = DeepestPaths::new(&plant, layers);
+    let selected = |p: &[i32]| deepest.contains(p) && wrap_path(p).length > 1;
     let count = plant.iter().filter(|p| selected(p)).count();
     let reference_length = plant
         .iter()
