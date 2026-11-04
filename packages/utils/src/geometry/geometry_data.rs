@@ -41,14 +41,31 @@ impl GeometryData<'_> {
     }
 }
 
-pub fn create_geometry_data(vertex_amount: usize, face_amount: usize) -> Vec<i32> {
-    let amount = GEOMETRY_HEADER_SIZE // definition (type, vertex_amount, face_amount, path id)
+/// Length of an encoded geometry, brackets included.
+pub fn geometry_data_len(vertex_amount: usize, face_amount: usize) -> usize {
+    GEOMETRY_HEADER_SIZE // definition (type, vertex_amount, face_amount, path id)
       + 4 // opening and closing brackets
       + vertex_amount * 3  // positions
       + vertex_amount * 3  // normals
-      + face_amount * 3; // faces
+      + face_amount * 3 // faces
+}
 
-    let mut geo = vec![0; amount];
+pub fn create_geometry_data(vertex_amount: usize, face_amount: usize) -> Vec<i32> {
+    let mut geo = Vec::new();
+    append_geometry_data(&mut geo, vertex_amount, face_amount);
+    geo
+}
+
+/// Appends an empty geometry to `out` and returns where it lies, so it can be filled in place
+/// without building it in its own buffer first.
+pub fn append_geometry_data(
+    out: &mut Vec<i32>,
+    vertex_amount: usize,
+    face_amount: usize,
+) -> std::ops::Range<usize> {
+    let amount = geometry_data_len(vertex_amount, face_amount);
+    let start = out.len();
+    out.resize(start + amount, 0);
 
     log!(
         "create_geometry_data: vertices: {} faces: {}",
@@ -56,6 +73,7 @@ pub fn create_geometry_data(vertex_amount: usize, face_amount: usize) -> Vec<i32
         face_amount
     );
 
+    let geo = &mut out[start..];
     geo[0] = 0; // opening bracket
     geo[1] = amount as i32 - 3;
     geo[2] = 1; // type: geometry
@@ -65,7 +83,7 @@ pub fn create_geometry_data(vertex_amount: usize, face_amount: usize) -> Vec<i32
     geo[amount - 2] = 1; // closing bracket
     geo[amount - 1] = 1; // closing bracket
 
-    geo
+    start..start + amount
 }
 
 /// The id of the path an encoded geometry was made from, brackets included.

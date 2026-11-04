@@ -1,4 +1,6 @@
-use super::{create_geometry_data, set_geometry_path_id, wrap_geometry_data, PathData};
+use super::{
+    append_geometry_data, geometry_data_len, set_geometry_path_id, wrap_geometry_data, PathData,
+};
 use glam::{Mat4, Vec3};
 
 fn create_circle(res: usize) -> Vec<f32> {
@@ -11,31 +13,50 @@ fn create_circle(res: usize) -> Vec<f32> {
     circle
 }
 
-pub fn extrude_path(input_path: PathData, res_x: usize) -> Vec<i32> {
-    let point_amount = input_path.points.len() / 4;
-
+/// Vertex and face amount of the tube `extrude_path` makes from a path of `point_amount` points.
+fn extruded_size(point_amount: usize, res_x: usize) -> (usize, usize) {
     // a single point has no direction and nothing to extrude
     if point_amount < 2 || res_x == 0 {
-        let mut empty = create_geometry_data(0, 0);
-        set_geometry_path_id(&mut empty, input_path.link.id);
-        return empty;
+        return (0, 0);
+    }
+    // the tube itself, a duplicated ring and an apex vertex that close the end
+    let vertices = point_amount * res_x + res_x + 1;
+    let faces = (point_amount - 1) * res_x * 2 + res_x;
+    (vertices, faces)
+}
+
+/// Length of the encoded geometry `extrude_path` makes from `input_path`.
+pub fn extrude_path_len(input_path: &PathData, res_x: usize) -> usize {
+    let (vertices, faces) = extruded_size(input_path.points.len() / 4, res_x);
+    geometry_data_len(vertices, faces)
+}
+
+pub fn extrude_path(input_path: PathData, res_x: usize) -> Vec<i32> {
+    let mut out = Vec::with_capacity(extrude_path_len(&input_path, res_x));
+    extrude_path_into(input_path, res_x, &mut out);
+    out
+}
+
+/// Like `extrude_path`, but appends the geometry to `out`.
+pub fn extrude_path_into(input_path: PathData, res_x: usize, out: &mut Vec<i32>) {
+    let point_amount = input_path.points.len() / 4;
+    let (vertices_amount, face_amount) = extruded_size(point_amount, res_x);
+    let range = append_geometry_data(out, vertices_amount, face_amount);
+    let geometry_data = &mut out[range];
+    set_geometry_path_id(geometry_data, input_path.link.id);
+
+    if vertices_amount == 0 {
+        return;
     }
 
-    // the tube itself, a duplicated ring and an apex vertex that close the end
     let tube_vertices = point_amount * res_x;
     let cap_ring = tube_vertices;
     let cap_center = tube_vertices + res_x;
-    let vertices_amount = tube_vertices + res_x + 1;
-
     let tube_faces = (point_amount - 1) * res_x * 2;
-    let face_amount = tube_faces + res_x;
 
     let circle = create_circle(res_x);
 
-    let mut geometry_data = create_geometry_data(vertices_amount, face_amount);
-    set_geometry_path_id(&mut geometry_data, input_path.link.id);
-
-    let geometry = wrap_geometry_data(&mut geometry_data);
+    let geometry = wrap_geometry_data(geometry_data);
 
     let normals = geometry.normals;
     let positions = geometry.positions;
@@ -174,8 +195,6 @@ pub fn extrude_path(input_path: PathData, res_x: usize) -> Vec<i32> {
         indices[i_index_offset + 1] = next as i32;
         indices[i_index_offset + 2] = (cap_ring + j) as i32;
     }
-
-    geometry_data
 }
 
 #[cfg(test)]

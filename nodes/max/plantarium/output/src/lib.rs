@@ -1,8 +1,7 @@
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    concat_args,
-    geometry::{extrude_path, split_items, wrap_path},
+    geometry::{extrude_path_into, extrude_path_len, split_items, wrap_path},
     int, log,
 };
 
@@ -19,21 +18,34 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     log!("inputs: {}, resolution: {}", inputs.len(), resolution);
 
-    let mut output: Vec<Vec<i32>> = Vec::new();
+    // a path is passed on and also extruded into geometry
+    let is_path = |arg: &[i32]| arg.get(2) == Some(&0);
+
+    // the geometry is the bulk of the result, it is extruded straight into it instead of being
+    // copied over from a buffer of its own
+    let len = 4 + inputs
+        .iter()
+        .map(|arg| {
+            arg.len()
+                + if is_path(arg) {
+                    extrude_path_len(&wrap_path(arg), resolution)
+                } else {
+                    0
+                }
+        })
+        .sum::<usize>();
+
+    // every item comes with its own brackets, so the list is just the items between [0, 1] and [1, 1]
+    let mut output = Vec::with_capacity(len);
+    output.extend_from_slice(&[0, 1]);
     for arg in inputs {
-        if arg.get(2) == Some(&0) {
-            // a path is passed on and also extruded into geometry
-            output.push(arg.to_vec());
-            let path_data = wrap_path(arg);
-            let geometry = extrude_path(path_data, resolution);
-            output.push(geometry);
-            continue;
+        output.extend_from_slice(arg);
+        if is_path(arg) {
+            extrude_path_into(wrap_path(arg), resolution, &mut output);
         }
-
-        output.push(arg.to_vec());
     }
-
-    concat_args(output.iter().map(|v| v.as_slice()).collect())
+    output.extend_from_slice(&[1, 1]);
+    output
 }
 
 #[cfg(test)]
