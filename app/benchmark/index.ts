@@ -6,6 +6,11 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { cpus, freemem, loadavg, totalmem } from 'node:os';
 import { resolve } from 'node:path';
 
+import { Group, MeshBasicMaterial } from 'three';
+import {
+  createGeometryPool,
+  createInstancedGeometryPool
+} from '../src/lib/result-viewer/geometry/geometryPool.ts';
 import { MemoryRuntimeCache } from '../src/lib/runtime/runtime-executor-cache.ts';
 import { MemoryRuntimeExecutor } from '../src/lib/runtime/runtime-executor.ts';
 import { BenchmarkRegistry } from './benchmarkRegistry.ts';
@@ -100,6 +105,27 @@ function countGeometry(result: Int32Array): {
 }
 
 /**
+ * The main thread work of the viewer after a run, without the upload to the GPU. Uncached runs
+ * use a random seed, so they measure changed geometry, cached runs measure unchanged geometry.
+ */
+function createViewerBenchmark() {
+  const scene = new Group();
+  const material = new MeshBasicMaterial();
+  const geometryPool = createGeometryPool(scene, material);
+  const instancePool = createInstancedGeometryPool(scene, material);
+
+  return (result: Int32Array) => {
+    const a = performance.now();
+    const parts = splitNestedArray(result);
+    const b = performance.now();
+    geometryPool.update(parts.filter(p => p[0] === 1));
+    instancePool.update(parts.filter(p => p[0] === 2));
+    const c = performance.now();
+    return { split: b - a, update: c - b };
+  };
+}
+
+/**
  * @param cached - run with the runtime cache and a fixed seed, so every node
  * except the output node is served from the cache after the first run
  */
@@ -114,10 +140,12 @@ async function run(g: GraphType, amount: number, cached: boolean) {
 
   log.log('loaded ' + g.nodes.length + ' nodes');
 
+  const updateViewer = createViewerBenchmark();
+
   log.log('warming up');
 
   for (let index = 0; index < 10; index++) {
-    await r.execute(g, settings);
+    updateViewer(await r.execute(g, settings));
   }
 
   const systemSamples: SystemSample[] = [];
@@ -175,6 +203,11 @@ async function run(g: GraphType, amount: number, cached: boolean) {
 
     r.perf?.addToLastRun('total-vertices', totalVertices);
     r.perf?.addToLastRun('total-faces', totalFaces);
+
+    // not part of the total, which stays the time of the runtime alone
+    const viewer = updateViewer(res!);
+    r.perf?.addToLastRun('viewer/split-result', viewer.split);
+    r.perf?.addToLastRun('viewer/update-geometries', viewer.update);
   }
 
   const cgroupAfter = await readCgroupCpuStat();
