@@ -256,7 +256,7 @@ impl Ctx {
 
 /// Reads the curve through `points` (`x0, y0, x1, y1, ...`, sorted by x) at `x`. Between two
 /// points it is a monotone cubic (Steffen), so it never overshoots the points.
-fn curve(points: &[f32], x: f32) -> f32 {
+pub fn curve(points: &[f32], x: f32) -> f32 {
     let n = points.len() / 2;
     if n < 2 {
         return x;
