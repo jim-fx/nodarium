@@ -85,6 +85,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "myzel_primordium"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+ "serde_json",
+]
+
+[[package]]
 name = "myzel_revolve"
 version = "0.1.0"
 dependencies = [

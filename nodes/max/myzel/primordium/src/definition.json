@@ -1,0 +1,161 @@
+{
+  "id": "max/myzel/primordium",
+  "meta": {
+    "description": "Grows the young fruit body from a knot of hyphae. Every tip follows the same rules, the schedules change them over the simulation and make the shape."
+  },
+  "outputs": [
+    "hyphae"
+  ],
+  "inputs": {
+    "seed": {
+      "type": "seed"
+    },
+    "iterations": {
+      "type": "integer",
+      "value": 70,
+      "min": 1,
+      "max": 400,
+      "description": "How many times every tip grows one segment"
+    },
+    "initial_tips": {
+      "type": "integer",
+      "value": 60,
+      "min": 1,
+      "max": 500,
+      "description": "Tips in the knot the fruit body starts from"
+    },
+    "knot_radius": {
+      "type": "float",
+      "value": 0.0015,
+      "min": 0,
+      "max": 0.02,
+      "step": 0.0005,
+      "unit": "m",
+      "hidden": true
+    },
+    "segment_length": {
+      "type": "float",
+      "value": 0.0004,
+      "min": 0.0001,
+      "max": 0.005,
+      "step": 0.0001,
+      "unit": "m",
+      "description": "How far a tip grows per iteration. The fields are measured in segment lengths, so this scales the whole primordium."
+    },
+    "hypha_radius": {
+      "type": "float",
+      "value": 0.00025,
+      "min": 5e-05,
+      "max": 0.005,
+      "step": 5e-05,
+      "unit": "m",
+      "hidden": true
+    },
+    "persistence": {
+      "type": "float",
+      "value": 1,
+      "min": 0,
+      "max": 5,
+      "step": 0.05,
+      "hidden": true,
+      "description": "How much a tip keeps its old direction against the fields"
+    },
+    "branch_probability": {
+      "type": "float",
+      "value": 0.4,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "description": "Chance per iteration that a tip branches, where the density allows it"
+    },
+    "density_threshold": {
+      "type": "float",
+      "value": 0.6,
+      "min": 0,
+      "max": 10,
+      "step": 0.05,
+      "description": "Tips only branch where the hyphae around them are less dense than this"
+    },
+    "secondary_factor": {
+      "type": "float",
+      "value": 4,
+      "min": 1,
+      "max": 20,
+      "step": 0.5,
+      "hidden": true,
+      "description": "Old branch points branch again where the density is below the threshold times this"
+    },
+    "leading_share": {
+      "type": "float",
+      "value": 0.1,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "hidden": true,
+      "description": "Share of new branches that are leading hyphae, which ignore their neighbours' direction and start new strands"
+    },
+    "gravitropic_angle": {
+      "type": "curve",
+      "value": [
+        0,
+        0.5,
+        0.05,
+        0.5,
+        0.15,
+        0,
+        0.5,
+        0,
+        0.7,
+        0.75,
+        1,
+        0.85
+      ],
+      "description": "Preferred angle of the tips to the vertical over the simulation, bottom is up, the middle sideways, top is down"
+    },
+    "autotropism": {
+      "type": "curve",
+      "value": [
+        0,
+        0,
+        0.05,
+        0,
+        0.15,
+        1,
+        0.45,
+        0.2,
+        1,
+        0.1
+      ],
+      "description": "How strongly tips are pulled towards the mass of the colony over the simulation"
+    },
+    "galvanotropism": {
+      "type": "curve",
+      "value": [
+        0,
+        0.1,
+        0.25,
+        0.7,
+        1,
+        0.7
+      ],
+      "description": "How strongly tips turn parallel to their neighbours over the simulation, which joins them into strands"
+    },
+    "waist_height": {
+      "type": "float",
+      "value": 0.008,
+      "min": 0,
+      "max": 0.1,
+      "step": 0.001,
+      "unit": "m",
+      "description": "Hyphae growing up below this height become stipe, above it cap"
+    },
+    "max_segments": {
+      "type": "integer",
+      "value": 5000,
+      "min": 100,
+      "max": 50000,
+      "hidden": true,
+      "description": "Growth stops at this many segments"
+    }
+  }
+}
