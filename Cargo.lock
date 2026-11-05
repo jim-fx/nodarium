@@ -335,6 +335,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "plantarium_leaf_growth"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+ "serde_json",
+]
+
+[[package]]
 name = "plantarium_math"
 version = "0.1.0"
 dependencies = [
