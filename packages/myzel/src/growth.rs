@@ -104,21 +104,21 @@ impl Default for GrowthParams {
     }
 }
 
-struct Rng(u32);
+pub(crate) struct Rng(u32);
 
 impl Rng {
-    fn new(seed: u32) -> Rng {
+    pub(crate) fn new(seed: u32) -> Rng {
         Rng(seed.wrapping_mul(0x9e37_79b9) ^ 0x6a09_e667 | 1)
     }
 
-    fn next(&mut self) -> f32 {
+    pub(crate) fn next(&mut self) -> f32 {
         self.0 ^= self.0 << 13;
         self.0 ^= self.0 >> 17;
         self.0 ^= self.0 << 5;
         (self.0 >> 8) as f32 / (1u32 << 24) as f32
     }
 
-    fn unit(&mut self) -> Vec3 {
+    pub(crate) fn unit(&mut self) -> Vec3 {
         loop {
             let v = Vec3::new(self.next(), self.next(), self.next()) * 2.0 - Vec3::ONE;
             let l = v.length_squared();

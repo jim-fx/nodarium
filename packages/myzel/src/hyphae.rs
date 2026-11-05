@@ -46,6 +46,8 @@ pub mod flags {
     pub const ACTIVE_TIP: u32 = 1 << 2;
     /// Torn off its parent, for example the veil after it ripped
     pub const BROKEN: u32 = 1 << 3;
+    /// A veil segment grown from the stipe, veil segments without it hang on the cap margin
+    pub const STIPE_SIDE: u32 = 1 << 4;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -112,6 +114,20 @@ impl Hyphae {
                 Segment { start, end: s.end, radius: s.radius }
             })
             .collect()
+    }
+
+    /// The segments `keep(start, segment)` accepts, a kept segment whose parent
+    /// was dropped becomes a root
+    pub fn retain(&self, mut keep: impl FnMut(Vec3, &HyphaSegment) -> bool) -> Hyphae {
+        let mut moved_to = vec![None; self.len()];
+        let mut kept = Hyphae::default();
+        for (i, s) in self.segments.iter().enumerate() {
+            if keep(self.start(i), s) {
+                let parent = s.parent.and_then(|p| moved_to[p as usize]);
+                moved_to[i] = Some(kept.push(HyphaSegment { parent, ..*s }));
+            }
+        }
+        kept
     }
 
     pub fn encode(&self) -> Vec<i32> {
@@ -219,6 +235,15 @@ mod tests {
         let s = h.to_segments();
         assert_eq!(s[1].start, Vec3::ZERO);
         assert_eq!(s[2].start, s[2].end);
+    }
+
+    #[test]
+    fn retain_turns_orphans_into_roots() {
+        let h = sample().retain(|_, s| s.tissue != Tissue::Stipe);
+        assert_eq!(h.len(), 2);
+        assert_eq!(h.segments[0].parent, None);
+        assert_eq!(h.segments[1].parent, None);
+        assert_eq!(h.segments[1].tissue, Tissue::CapCuticle);
     }
 
     #[test]

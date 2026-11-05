@@ -30,6 +30,7 @@
 mod density;
 mod eval;
 mod field;
+mod gills;
 mod growth;
 mod hyphae;
 mod inputs;
@@ -41,6 +42,7 @@ mod spatial;
 pub use density::{mesh_segments, Segment};
 pub use eval::{eval, Program};
 pub use field::{opcode, Bbox, Field, FIELD_TAG};
+pub use gills::{grow_gills, GillParams, MAX_GILLS, MAX_LAMELLULAE};
 pub use growth::{grow, GrowthParams, Schedule, MAX_ITERATIONS, MAX_SEGMENTS};
 pub use hyphae::{flags, HyphaSegment, Hyphae, Tissue, HYPHAE_TAG};
 pub use inputs::{read_field, read_float, read_floats, read_hyphae, read_int, read_mesh, read_vec3};
