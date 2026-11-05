@@ -1,0 +1,22 @@
+{
+  "id": "max/myzel/bend",
+  "meta": {
+    "description": "Bends a field sideways, more the higher it gets. Positive amounts bend towards +x"
+  },
+  "outputs": [
+    "field"
+  ],
+  "inputs": {
+    "field": {
+      "type": "field",
+      "external": true
+    },
+    "amount": {
+      "type": "float",
+      "value": 0.2,
+      "min": -2,
+      "max": 2,
+      "step": 0.01
+    }
+  }
+}

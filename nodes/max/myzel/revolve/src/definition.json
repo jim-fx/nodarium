@@ -1,0 +1,39 @@
+{
+  "id": "max/myzel/revolve",
+  "meta": {
+    "description": "Turns the outline of a shape around the vertical axis. The middle of the shape becomes the axis, its bottom sits at the origin"
+  },
+  "outputs": [
+    "field"
+  ],
+  "inputs": {
+    "profile": {
+      "type": "shape",
+      "value": [
+        25,
+        100,
+        32,
+        50,
+        34,
+        0
+      ],
+      "label": ""
+    },
+    "height": {
+      "type": "float",
+      "value": 1,
+      "min": 0,
+      "max": 4,
+      "step": 0.01,
+      "unit": "m"
+    },
+    "radius": {
+      "type": "float",
+      "value": 0.5,
+      "min": 0,
+      "max": 2,
+      "step": 0.01,
+      "unit": "m"
+    }
+  }
+}

@@ -20,6 +20,8 @@ cp -r nodes/max/plantarium/.template nodes/max/plantarium/cube
 
 Then set `name = "plantarium_cube"` in its `Cargo.toml`. Package names must be unique across the Cargo workspace, so every crate is prefixed with its collection (`plantarium_`, `myzel_`). The prefix is stripped again when the `.wasm` is copied into the app, the node id comes from `definition.json`.
 
+Myzel nodes start from `nodes/max/myzel/.template` instead and are named `myzel_<name>`. They build on `myzel_core` (`packages/myzel`), which holds the field and mesh formats, and take plain values only: read inputs with its `read_float`, `read_vec3`, `read_field` and friends.
+
 ## Define the inputs
 
 `src/definition.json` says which inputs the node has and what it returns. See [NODE_DEFINITION.md](./NODE_DEFINITION.md).

@@ -1,0 +1,27 @@
+{
+  "id": "max/myzel/smooth_subtract",
+  "meta": {
+    "description": "Cuts field b out of field a with a smooth edge"
+  },
+  "outputs": [
+    "field"
+  ],
+  "inputs": {
+    "a": {
+      "type": "field",
+      "external": true
+    },
+    "b": {
+      "type": "field",
+      "external": true
+    },
+    "smoothness": {
+      "type": "float",
+      "value": 0.1,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "unit": "m"
+    }
+  }
+}

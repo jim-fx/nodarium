@@ -1,0 +1,7 @@
+{
+  "id": "max/myzel/template",
+  "outputs": ["field"],
+  "inputs": {
+    "field": { "type": "field", "external": true }
+  }
+}

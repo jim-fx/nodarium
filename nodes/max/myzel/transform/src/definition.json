@@ -1,0 +1,24 @@
+{
+  "id": "max/myzel/transform",
+  "meta": {
+    "description": "Moves a field"
+  },
+  "outputs": [
+    "field"
+  ],
+  "inputs": {
+    "field": {
+      "type": "field",
+      "external": true
+    },
+    "offset": {
+      "type": "vec3",
+      "value": [
+        0,
+        0,
+        0
+      ],
+      "unit": "m"
+    }
+  }
+}
