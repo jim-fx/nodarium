@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "nodes/max/plantarium/*",
   "packages/macros",
+  "packages/myzel",
   "packages/types",
   "packages/utils",
 ]
