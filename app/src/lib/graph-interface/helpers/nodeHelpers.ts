@@ -7,6 +7,9 @@ import type {
 } from '@nodarium/types';
 import { GROUP_INPUT } from '@nodarium/types';
 
+// values that only come in through a connection, so their parameter shows no input field
+const SOCKET_ONLY_TYPES = new Set(['path', 'geometry', 'force', 'points', 'field', 'mesh']);
+
 export function getParameterHeight(node: NodeDefinition, inputKey: string) {
   if (node.id === GROUP_INPUT) {
     return 50;
@@ -25,11 +28,7 @@ export function getParameterHeight(node: NodeDefinition, inputKey: string) {
   if ((input.type === 'shape' || input.type === 'curve') && input.external !== true) {
     return 200;
   }
-  if (
-    input?.label !== '' && !input.external && input.type !== 'path'
-    && input.type !== 'geometry' && input.type !== 'force'
-    && input.type !== 'points'
-  ) {
+  if (input?.label !== '' && !input.external && !SOCKET_ONLY_TYPES.has(input.type)) {
     return 100;
   }
   return 50;
