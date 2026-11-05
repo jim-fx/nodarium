@@ -2,6 +2,7 @@ use glam::Vec3;
 use nodarium_utils::decode_float;
 
 use crate::field::Field;
+use crate::hyphae::Hyphae;
 use crate::mesh::Mesh;
 
 /// A float input, which the host sends as one f32 word
@@ -44,6 +45,10 @@ pub fn read_field(arg: &[i32]) -> Field {
 
 pub fn read_mesh(arg: &[i32]) -> Mesh {
     Mesh::decode(arg)
+}
+
+pub fn read_hyphae(arg: &[i32]) -> Hyphae {
+    Hyphae::decode(arg)
 }
 
 #[cfg(test)]

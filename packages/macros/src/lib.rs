@@ -144,4 +144,12 @@ mod tests {
         assert!(matches!(inputs["field"], nodarium_types::NodeInput::field(_)));
         assert!(matches!(inputs["base"], nodarium_types::NodeInput::mesh(_)));
     }
+
+    #[test]
+    fn parses_hyphae_sockets() {
+        let def = definition(
+            r#"{"id":"max/myzel/expand","inputs":{"hyphae":{"type":"hyphae","accepts":["hyphae"]}},"outputs":["hyphae"]}"#,
+        );
+        assert!(matches!(def.inputs.unwrap()["hyphae"], nodarium_types::NodeInput::hyphae(_)));
+    }
 }

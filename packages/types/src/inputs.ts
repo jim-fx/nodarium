@@ -23,7 +23,8 @@ const DefaultOptionsSchema = z.object({
         z.literal('force'),
         z.literal('points'),
         z.literal('field'),
-        z.literal('mesh')
+        z.literal('mesh'),
+        z.literal('hyphae')
       ])
     )
     .optional(),
@@ -137,6 +138,12 @@ export const NodeInputMeshSchema = z.object({
   value: z.array(z.number()).optional()
 });
 
+export const NodeInputHyphaeSchema = z.object({
+  ...DefaultOptionsSchema.shape,
+  type: z.literal('hyphae'),
+  value: z.array(z.number()).optional()
+});
+
 export const NodeInputAnySchema = z.object({
   ...DefaultOptionsSchema.shape,
   type: z.literal('*'),
@@ -160,6 +167,7 @@ export const NodeInputSchema = z.union([
   NodeInputPointsSchema,
   NodeInputFieldSchema,
   NodeInputMeshSchema,
+  NodeInputHyphaeSchema,
   NodeInputAnySchema
 ]);
 

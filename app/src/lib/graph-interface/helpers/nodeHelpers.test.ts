@@ -7,12 +7,13 @@ const definition = {
   inputs: {
     field: { type: 'field' },
     base: { type: 'mesh', accepts: ['field'] },
+    hyphae: { type: 'hyphae' },
     size: { type: 'float', value: 1 }
   },
-  outputs: ['mesh', 'field']
+  outputs: ['mesh', 'field', 'hyphae']
 };
 
-describe('field and mesh sockets', () => {
+describe('field, mesh and hyphae sockets', () => {
   it('validate as node definition', () => {
     expect(NodeDefinitionSchema.safeParse(definition).success).toBe(true);
   });
@@ -21,6 +22,7 @@ describe('field and mesh sockets', () => {
     const node = { ...definition, execute: () => new Int32Array() } as NodeDefinition;
     expect(getParameterHeight(node, 'field')).toBe(50);
     expect(getParameterHeight(node, 'base')).toBe(50);
+    expect(getParameterHeight(node, 'hyphae')).toBe(50);
     expect(getParameterHeight(node, 'size')).toBe(100);
   });
 });
