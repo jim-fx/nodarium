@@ -32,7 +32,7 @@ mod tests {
         let field = Field::sphere(1.0).encode();
         let run = |seed: i32| __nodarium_execute_inner(&[&field, &[encode_float(0.2)], &[encode_float(3.0)], &[seed]]);
         let p = Vec3::new(0.9, 0.3, 0.1);
-        assert_eq!(eval(&run(1), p), eval(&run(1), p));
+        assert_eq!(run(1), run(1));
         assert_ne!(eval(&run(1), p), eval(&run(2), p));
     }
 }
