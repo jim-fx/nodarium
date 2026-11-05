@@ -1,0 +1,38 @@
+{
+  "id": 0,
+  "version": 2,
+  "settings": {
+    "resolution.field": 64
+  },
+  "groups": [],
+  "nodes": [
+    {
+      "id": 0,
+      "position": [
+        250,
+        85
+      ],
+      "type": "max/myzel/output",
+      "props": {
+        "show": 1
+      }
+    },
+    {
+      "id": 1,
+      "position": [
+        210,
+        85
+      ],
+      "type": "max/myzel/primordium",
+      "props": {}
+    }
+  ],
+  "edges": [
+    [
+      1,
+      0,
+      0,
+      "field"
+    ]
+  ]
+}

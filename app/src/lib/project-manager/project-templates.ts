@@ -14,6 +14,7 @@ import {
   lavender,
   maidenhair,
   palm,
+  primordium,
   sage,
   sapling,
   wildCarrot,
@@ -50,5 +51,6 @@ export const projectTemplates: ProjectTemplate[] = [
   { name: "Devil's Backbone", graph: toGraph(devilsBackbone, 'cm') },
   { name: 'Japanese Knotweed', graph: toGraph(knotweed) },
   { name: 'Wild Carrot', graph: toGraph(wildCarrot, 'cm') },
-  { name: 'Champignon', graph: toGraph(champignon, 'cm') }
+  { name: 'Champignon', graph: toGraph(champignon, 'cm') },
+  { name: 'Primordium (hyphae)', graph: toGraph(primordium, 'cm') }
 ];
