@@ -147,6 +147,9 @@ export class GraphManager extends EventEmitter<{
   }
 
   private lastSettingsHash = 0;
+
+  /** the collections the loaded graph uses, like `max/plantarium` */
+  private collections: ReadonlySet<string> = new SvelteSet<string>();
   setSettings(settings: Record<string, unknown>) {
     const hash = fastHashString(JSON.stringify(settings));
     if (hash === this.lastSettingsHash) return;
@@ -157,8 +160,17 @@ export class GraphManager extends EventEmitter<{
     this.execute();
   }
 
+  /**
+   * The definitions of the collections the graph uses. The registry keeps every node it ever
+   * loaded, so after opening a graph of another collection its nodes would show up here too.
+   */
   getNodeDefinitions() {
-    return this.registry.getAllNodes();
+    const all = this.registry.getAllNodes();
+    if (this.collections.size === 0) return all;
+    return all.filter((d) => {
+      const [user, collection] = d.id.split('/');
+      return user === '__internal' || this.collections.has(`${user}/${collection}`);
+    });
   }
 
   getLinkedNodes(node: NodeInstance) {
@@ -430,6 +442,7 @@ export class GraphManager extends EventEmitter<{
       if (user === '__internal') continue;
       allCollections.add(`${user}/${collection}`);
     }
+    this.collections = allCollections;
     for (const collection of allCollections) {
       remoteRegistry
         .fetchCollection(collection)

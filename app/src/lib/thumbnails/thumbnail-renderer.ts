@@ -1,7 +1,4 @@
-import {
-  createGeometryPool,
-  createInstancedGeometryPool
-} from '#lib/result-viewer/geometry/geometryPool.ts';
+import { createResultPools } from '#lib/result-viewer/geometry/geometryPool.ts';
 import { splitNestedArray } from '@nodarium/utils';
 import {
   Box3,
@@ -139,8 +136,7 @@ export class ThumbnailRenderer {
     scene.add(group);
 
     const inputs = splitNestedArray(result);
-    createGeometryPool(group, this.material).update(inputs.filter((i) => i[0] === 1));
-    createInstancedGeometryPool(group, this.material).update(inputs.filter((i) => i[0] === 2));
+    createResultPools(group, this.material).update(inputs);
 
     try {
       const box = new Box3().setFromObject(group);

@@ -16,6 +16,11 @@
     undefined
   );
 
+  let activeCollection = localState<`${string}/${string}`>(
+    'node.dev.activeCollection',
+    'max/plantarium'
+  );
+
   let nodeWasm = $state<ArrayBuffer>();
   let nodeInstance = $state<NodeInstance>();
   let nodeWasmWrapper = $state<ReturnType<typeof createWasmWrapper>>();
@@ -92,7 +97,23 @@
     icon="i-[tabler--database]"
   >
     <div class="p-4 flex flex-col gap-2">
-      {#await nodeRegistry.fetchCollection('max/plantarium')}
+      {#await nodeRegistry.fetchUser('max') then user}
+        <div class="flex gap-2">
+          {#each user.collections as collection (collection.id)}
+            <button
+              class="
+                cursor-pointer p-2 bg-layer-1 {activeCollection.value === collection.id
+                ? 'outline outline-offset-1'
+                : ''}
+              "
+              onclick={() => (activeCollection.value = collection.id)}
+            >
+              {collection.id.split('/')[1]}
+            </button>
+          {/each}
+        </div>
+      {/await}
+      {#await nodeRegistry.fetchCollection(activeCollection.value)}
         <p>Loading Nodes...</p>
       {:then result}
         {#each result.nodes as n (n.id)}

@@ -1,0 +1,289 @@
+{
+  "id": 0,
+  "version": 2,
+  "settings": {
+    "time.t": 0.6,
+    "resolution.field": 64
+  },
+  "groups": [],
+  "nodes": [
+    {
+      "id": 0,
+      "position": [
+        275,
+        85
+      ],
+      "type": "max/myzel/output",
+      "props": {}
+    },
+    {
+      "id": 1,
+      "position": [
+        245,
+        85
+      ],
+      "type": "max/myzel/domain_warp",
+      "props": {
+        "amplitude": 0.0012,
+        "frequency": 60
+      }
+    },
+    {
+      "id": 2,
+      "position": [
+        215,
+        85
+      ],
+      "type": "max/myzel/bend",
+      "props": {
+        "amount": 1.2
+      }
+    },
+    {
+      "id": 3,
+      "position": [
+        185,
+        85
+      ],
+      "type": "max/myzel/smooth_union",
+      "props": {}
+    },
+    {
+      "id": 4,
+      "position": [
+        125,
+        35
+      ],
+      "type": "max/myzel/revolve",
+      "props": {
+        "profile": [
+          25,
+          100,
+          32,
+          50,
+          34,
+          0
+        ],
+        "radius": 0.014
+      }
+    },
+    {
+      "id": 5,
+      "position": [
+        155,
+        110
+      ],
+      "type": "max/myzel/transform",
+      "props": {}
+    },
+    {
+      "id": 6,
+      "position": [
+        125,
+        110
+      ],
+      "type": "max/myzel/revolve",
+      "props": {
+        "profile": [
+          40,
+          100,
+          5,
+          75,
+          10,
+          45,
+          25,
+          15,
+          45,
+          0
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "position": [
+        95,
+        185
+      ],
+      "type": "max/myzel/vec3",
+      "props": {}
+    },
+    {
+      "id": 8,
+      "position": [
+        5,
+        85
+      ],
+      "type": "max/myzel/time",
+      "props": {}
+    },
+    {
+      "id": 9,
+      "position": [
+        65,
+        10
+      ],
+      "type": "max/myzel/map_range",
+      "props": {
+        "to_min": 0.02,
+        "to_max": 0.1,
+        "smooth": true
+      }
+    },
+    {
+      "id": 10,
+      "position": [
+        65,
+        60
+      ],
+      "type": "max/myzel/map_range",
+      "props": {
+        "to_min": 0.025,
+        "to_max": 0.055,
+        "smooth": true
+      }
+    },
+    {
+      "id": 11,
+      "position": [
+        65,
+        110
+      ],
+      "type": "max/myzel/map_range",
+      "props": {
+        "to_min": 0.035,
+        "to_max": 0.028,
+        "smooth": true
+      }
+    },
+    {
+      "id": 12,
+      "position": [
+        65,
+        160
+      ],
+      "type": "max/myzel/map_range",
+      "props": {
+        "to_min": 0.008,
+        "to_max": 0.085,
+        "smooth": true
+      }
+    },
+    {
+      "id": 13,
+      "position": [
+        155,
+        35
+      ],
+      "type": "max/myzel/map_range",
+      "props": {
+        "to_min": 0.015,
+        "to_max": 0.004,
+        "smooth": true
+      }
+    }
+  ],
+  "edges": [
+    [
+      8,
+      0,
+      9,
+      "value"
+    ],
+    [
+      8,
+      0,
+      10,
+      "value"
+    ],
+    [
+      8,
+      0,
+      11,
+      "value"
+    ],
+    [
+      8,
+      0,
+      12,
+      "value"
+    ],
+    [
+      8,
+      0,
+      13,
+      "value"
+    ],
+    [
+      9,
+      0,
+      4,
+      "height"
+    ],
+    [
+      10,
+      0,
+      6,
+      "radius"
+    ],
+    [
+      11,
+      0,
+      6,
+      "height"
+    ],
+    [
+      12,
+      0,
+      7,
+      "y"
+    ],
+    [
+      7,
+      0,
+      5,
+      "offset"
+    ],
+    [
+      6,
+      0,
+      5,
+      "field"
+    ],
+    [
+      4,
+      0,
+      3,
+      "a"
+    ],
+    [
+      5,
+      0,
+      3,
+      "b"
+    ],
+    [
+      13,
+      0,
+      3,
+      "smoothness"
+    ],
+    [
+      3,
+      0,
+      2,
+      "field"
+    ],
+    [
+      2,
+      0,
+      1,
+      "field"
+    ],
+    [
+      1,
+      0,
+      0,
+      "field"
+    ]
+  ]
+}

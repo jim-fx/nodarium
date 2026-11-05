@@ -1,0 +1,10 @@
+{
+  "id": "max/myzel/vec3",
+  "meta": { "description": "Combines three values into a vector" },
+  "outputs": ["vec3"],
+  "inputs": {
+    "x": { "type": "float", "value": 0, "unit": "m" },
+    "y": { "type": "float", "value": 0, "unit": "m" },
+    "z": { "type": "float", "value": 0, "unit": "m" }
+  }
+}

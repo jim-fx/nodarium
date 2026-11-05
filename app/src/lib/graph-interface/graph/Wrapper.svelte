@@ -35,6 +35,7 @@
     backgroundType = $bindable('grid'),
     snapToGrid = $bindable(true),
     showHelp = $bindable(false),
+    // eslint-disable-next-line no-useless-assignment
     settingTypes = $bindable(),
     nodeTimings = {},
     errorNodeId,
@@ -71,8 +72,9 @@
     }
   });
 
+  // only the settings of the loaded graph, the ones of a graph loaded before are dropped
   manager.on('settings', (_settings) => {
-    settingTypes = { ...settingTypes, ..._settings.types };
+    settingTypes = _settings.types;
     settings = _settings.values;
   });
 

@@ -79,7 +79,7 @@ export class RemoteNodeRegistry implements NodeRegistry {
   }
 
   async fetchUser(userId: `${string}`) {
-    return this.fetchJson(`user/${userId}.json`);
+    return this.fetchJson(`nodes/${userId}.json`);
   }
 
   async fetchCollection(userCollectionId: `${string}/${string}`) {

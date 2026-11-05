@@ -6,7 +6,7 @@
   import { Canvas } from '@threlte/core';
   import { untrack } from 'svelte';
   import { Box3, type Group, type Material } from 'three';
-  import { createGeometryPool, createInstancedGeometryPool } from './geometry/geometryPool';
+  import { createResultPools } from './geometry/geometryPool';
   import type { Gizmo, GizmoChange, GizmoMode } from './gizmos/gizmos';
   import { getMaterial, matcapLoaded, setHeightRange } from './materials/materials';
   import Scene from './Scene.svelte';
@@ -27,8 +27,7 @@
     untrack(() => {
       material = loadMaterial(id);
       setHeightRange(material, bounds);
-      geometryPool?.setMaterial(material);
-      instancePool?.setMaterial(material);
+      pools?.setMaterial(material);
       sceneComponent?.invalidate();
     });
   });
@@ -38,35 +37,21 @@
   let sceneComponent = $state<ReturnType<typeof Scene>>();
   let fps = $state<number[]>([]);
 
-  let geometryPool: ReturnType<typeof createGeometryPool>;
-  let instancePool: ReturnType<typeof createInstancedGeometryPool>;
+  let pools: ReturnType<typeof createResultPools>;
 
   export function invalidate() {
     sceneComponent?.invalidate();
   }
 
   export function updateGeometries(inputs: Int32Array[], group: Group) {
-    geometryPool = geometryPool || createGeometryPool(group, material);
-    instancePool = instancePool || createInstancedGeometryPool(group, material);
-
-    const geometries: Int32Array[] = [];
-    const instances: Int32Array[] = [];
-    for (const input of inputs) {
-      if (input[0] === 1) geometries.push(input);
-      else if (input[0] === 2) instances.push(input);
-    }
+    pools = pools || createResultPools(group, material);
 
     // the pools know the bounds of what they show already
-    const meshes = geometryPool.update(geometries);
-    bounds.copy(meshes.bounds);
-    const faces = instancePool.update(instances);
-    bounds.union(faces.bounds);
+    const stats = pools.update(inputs);
+    bounds.copy(stats.bounds);
     setHeightRange(material, bounds);
 
-    return {
-      totalFaces: meshes.totalFaces + faces.totalFaces,
-      totalVertices: meshes.totalVertices + faces.totalVertices
-    };
+    return { totalFaces: stats.totalFaces, totalVertices: stats.totalVertices };
   }
 
   type Props = {

@@ -1,7 +1,4 @@
-import {
-  createGeometryPool,
-  createInstancedGeometryPool
-} from '#lib/result-viewer/geometry/geometryPool.ts';
+import { createResultPools } from '#lib/result-viewer/geometry/geometryPool.ts';
 import { splitNestedArray } from '@nodarium/utils';
 import { Box3, Group, type InstancedMesh, type Material, type Mesh } from 'three';
 import { PLANT_MAX_HEIGHT, PLANT_MAX_RADIUS } from './config';
@@ -14,8 +11,7 @@ import { PLANT_MAX_HEIGHT, PLANT_MAX_RADIUS } from './config';
 export function createPlantMesh(result: Int32Array, material: Material) {
   const content = new Group();
   const inputs = splitNestedArray(result);
-  createGeometryPool(content, material).update(inputs.filter((i) => i[0] === 1));
-  createInstancedGeometryPool(content, material).update(inputs.filter((i) => i[0] === 2));
+  createResultPools(content, material).update(inputs);
 
   const box = new Box3().setFromObject(content);
   if (box.isEmpty()) return;
