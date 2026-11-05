@@ -5,8 +5,9 @@
 //!
 //! `n` is the number of op words after the 8 header words, the bounding box is
 //! stored as f32 and contains the whole surface. Each op is an integer opcode
-//! followed by its f32 operands (see [`opcode`]). Primitives push a distance,
-//! combining ops pop two and push one. Transform ops push a transformed point
+//! followed by its f32 operands (see [`opcode`]), only the seed of `WARP` is a
+//! raw integer word. Primitives push a distance, combining ops pop two and push
+//! one. Transform ops push a transformed point
 //! that the following ops are evaluated at, until the matching `END` pops it
 //! again, so a transform only applies to the field it wraps:
 //!

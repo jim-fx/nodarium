@@ -23,7 +23,8 @@ pub mod opcode {
     pub const TRANSLATE: i32 = 20;
     /// `k`, rotates around z by `k * y`, positive `k` bends towards +x
     pub const BEND: i32 = 21;
-    /// `amplitude frequency seed`, displaces the point by value noise
+    /// `amplitude frequency seed`, displaces the point by value noise. The seed
+    /// is the one integer operand, a raw u32 word, since an f32 only holds 24 bits.
     pub const WARP: i32 = 22;
     /// closes the innermost transform
     pub const END: i32 = 29;
@@ -131,9 +132,9 @@ impl Field {
         self.combine(other, opcode::SMOOTH_SUBTRACT, &[k], bbox)
     }
 
-    fn wrap(self, opcode: i32, operands: &[f32], bbox: Bbox) -> Field {
-        let mut ops = Vec::with_capacity(self.ops.len() + 2 + operands.len());
-        push_op(&mut ops, opcode, operands);
+    fn wrap(self, head: Vec<i32>, bbox: Bbox) -> Field {
+        let mut ops = head;
+        ops.reserve(self.ops.len() + 1);
         ops.extend(self.ops);
         ops.push(opcode::END);
         Field { bbox, ops }
@@ -141,7 +142,9 @@ impl Field {
 
     pub fn translate(self, offset: Vec3) -> Field {
         let bbox = self.bbox.translate(offset);
-        self.wrap(opcode::TRANSLATE, &[offset.x, offset.y, offset.z], bbox)
+        let mut head = Vec::with_capacity(4);
+        push_op(&mut head, opcode::TRANSLATE, &[offset.x, offset.y, offset.z]);
+        self.wrap(head, bbox)
     }
 
     pub fn bend(self, k: f32) -> Field {
@@ -149,13 +152,18 @@ impl Field {
         // the distance of the farthest corner from that axis
         let r = self.bbox.max_xy_norm();
         let bbox = Bbox::new(Vec3::new(-r, -r, self.bbox.min.z), Vec3::new(r, r, self.bbox.max.z));
-        self.wrap(opcode::BEND, &[k], bbox)
+        let mut head = Vec::with_capacity(2);
+        push_op(&mut head, opcode::BEND, &[k]);
+        self.wrap(head, bbox)
     }
 
     pub fn warp(self, amplitude: f32, frequency: f32, seed: u32) -> Field {
         // every axis moves by at most the amplitude
         let bbox = self.bbox.pad(amplitude.abs() * 3f32.sqrt());
-        self.wrap(opcode::WARP, &[amplitude, frequency, seed as f32], bbox)
+        let mut head = Vec::with_capacity(4);
+        push_op(&mut head, opcode::WARP, &[amplitude, frequency]);
+        head.push(seed as i32);
+        self.wrap(head, bbox)
     }
 
     pub fn encode(&self) -> Vec<i32> {
@@ -199,8 +207,13 @@ mod tests {
 
     #[test]
     fn encodes_and_decodes() {
-        let field = Field::sphere(1.0).translate(Vec3::Y).smooth_union(Field::capsule(Vec3::ZERO, Vec3::Y, 0.2), 0.3);
+        let field = Field::sphere(1.0)
+            .translate(Vec3::Y)
+            .smooth_union(Field::capsule(Vec3::ZERO, Vec3::Y, 0.2), 0.3)
+            .warp(0.1, 2.0, 0xDEAD_BEEF);
         let words = field.encode();
+        // the seed is stored as is, an f32 would round it to 0xDEADBF00
+        assert_eq!(words[HEADER_LEN + 3], 0xDEAD_BEEFu32 as i32);
         assert_eq!(words[0], FIELD_TAG);
         assert_eq!(words[1] as usize, words.len() - HEADER_LEN);
         assert_eq!(Field::decode(&words), field);

@@ -95,8 +95,9 @@ impl Program {
                 }
                 opcode::WARP => {
                     let o = operands(i, 3);
+                    let seed = words[i + 2] as u32;
                     i += 3;
-                    Op::Warp { amplitude: o[0], frequency: o[1], seed: o[2] as u32 }
+                    Op::Warp { amplitude: o[0], frequency: o[1], seed }
                 }
                 opcode::END => Op::End,
                 _ => panic!("unknown field opcode {} at word {}", code, i - 1),
@@ -317,6 +318,15 @@ mod tests {
         let a = Field::sphere(1.0).warp(0.2, 3.0, 1).program();
         let b = Field::sphere(1.0).warp(0.2, 3.0, 2).program();
         assert_eq!(a.eval(p), a.eval(p));
+        assert_ne!(a.eval(p), b.eval(p));
+    }
+
+    #[test]
+    fn warp_keeps_large_seeds() {
+        // both would round to the same f32
+        let p = Vec3::new(0.9, 0.2, 0.1);
+        let a = Field::sphere(1.0).warp(0.2, 3.0, 0xDEAD_BEEF).program();
+        let b = Field::sphere(1.0).warp(0.2, 3.0, 0xDEAD_BEEE).program();
         assert_ne!(a.eval(p), b.eval(p));
     }
 
