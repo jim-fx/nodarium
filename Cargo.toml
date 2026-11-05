@@ -4,6 +4,7 @@ members = [
   "nodes/max/myzel/*",
   "nodes/max/plantarium/*",
   "packages/macros",
+  "packages/myzel",
   "packages/types",
   "packages/utils",
 ]

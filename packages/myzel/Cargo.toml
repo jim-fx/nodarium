@@ -1,0 +1,13 @@
+[package]
+name = "myzel_core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Field bytecode, evaluator and Surface Nets shared by the Myzel nodes"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+glam = "0.34.1"
+nodarium_utils = { version = "0.1.0", path = "../utils" }

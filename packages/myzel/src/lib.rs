@@ -1,0 +1,38 @@
+//! Shared core of the Myzel nodes: a field is a small stack program describing a
+//! shape as a signed distance function, it only becomes a mesh at the very end.
+//!
+//! # Field `[10, n, min_x, min_y, min_z, max_x, max_y, max_z, ...ops]`
+//!
+//! `n` is the number of op words after the 8 header words, the bounding box is
+//! stored as f32 and contains the whole surface. Each op is an integer opcode
+//! followed by its f32 operands (see [`opcode`]), only the seed of `WARP` is a
+//! raw integer word. Primitives push a distance, combining ops pop two and push
+//! one. Transform ops push a transformed point
+//! that the following ops are evaluated at, until the matching `END` pops it
+//! again, so a transform only applies to the field it wraps:
+//!
+//! ```text
+//! TRANSLATE 0 1 0  SPHERE 0.5  END  CAPSULE 0 0 0 0 1 0 0.1  SMOOTH_UNION 0.2
+//! ```
+//!
+//! # Mesh `[14, v, f, ...faces, ...positions, ...normals, ...colors]`
+//!
+//! `faces` are `3f` vertex indices (counter-clockwise seen from outside),
+//! `positions` and `normals` are `3v` f32 and `colors` holds one RGBA8 word per
+//! vertex, red in the lowest byte.
+//!
+//! Inputs of Myzel nodes are plain values, see [`read_float`] and friends.
+
+mod eval;
+mod field;
+mod inputs;
+mod mesh;
+mod noise;
+mod polygonize;
+
+pub use eval::{eval, Program};
+pub use field::{opcode, Bbox, Field, FIELD_TAG};
+pub use inputs::{read_field, read_float, read_floats, read_int, read_mesh, read_vec3};
+pub use mesh::{pack_rgba, Mesh, MESH_TAG};
+pub use noise::value_noise;
+pub use polygonize::polygonize;
