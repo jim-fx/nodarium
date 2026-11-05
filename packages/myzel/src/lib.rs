@@ -23,6 +23,7 @@
 //!
 //! Inputs of Myzel nodes are plain values, see [`read_float`] and friends.
 
+mod density;
 mod eval;
 mod field;
 mod inputs;
@@ -30,6 +31,7 @@ mod mesh;
 mod noise;
 mod polygonize;
 
+pub use density::{mesh_segments, Segment};
 pub use eval::{eval, Program};
 pub use field::{opcode, Bbox, Field, FIELD_TAG};
 pub use inputs::{read_field, read_float, read_floats, read_int, read_mesh, read_vec3};
