@@ -20,11 +20,15 @@
   type Props = {
     projectManager: ProjectManager;
     saving: boolean;
+    git?: Record<string, string>;
     onopenprojects: () => void;
     onstarttutorial: () => void;
   };
 
-  const { projectManager: pm, saving, onopenprojects, onstarttutorial }: Props = $props();
+  const { projectManager: pm, saving, git, onopenprojects, onstarttutorial }: Props = $props();
+
+  // release builds run on a tag and show no badge
+  const branch = $derived(git?.ref_type === 'tag' ? undefined : git?.branch || undefined);
 
   const title = $derived(pm.activeProject?.meta?.title || 'Untitled');
 
@@ -223,15 +227,33 @@
     <span class="text-xs opacity-50" aria-live="polite">{saving ? 'saving…' : 'saved'}</span>
   </div>
 
-  <button
-    type="button"
-    aria-label="Open Planty"
-    title="Open Planty"
-    class="ml-auto flex w-[30px] cursor-pointer items-center justify-center border-y-0 border-r-0 border-l border-outline bg-transparent p-0 hover:bg-layer-2"
-    onclick={onstarttutorial}
-  >
-    <span class="block h-[18px] w-[18px] i-[tabler--seedling]"></span>
-  </button>
+  <div class="ml-auto flex items-stretch">
+    {#if branch}
+      <a
+        href="https://git.max-richter.dev/max/nodarium/src/branch/{branch}"
+        target="_blank"
+        rel="noopener"
+        title={git?.sha ? `${branch} @ ${git.sha.slice(0, 7)}` : branch}
+        class={[
+          'mr-2 max-w-48 self-center truncate rounded-[3px] border px-1.5 text-[11px] leading-4 no-underline',
+          branch === 'main'
+            ? 'border-outline bg-layer-2 text-text opacity-75 hover:opacity-100'
+            : 'border-selected/60 bg-selected/15 text-selected hover:bg-selected/25'
+        ]}
+      >
+        {branch}
+      </a>
+    {/if}
+    <button
+      type="button"
+      aria-label="Open Planty"
+      title="Open Planty"
+      class="flex w-[30px] cursor-pointer items-center justify-center border-y-0 border-r-0 border-l border-outline bg-transparent p-0 hover:bg-layer-2"
+      onclick={onstarttutorial}
+    >
+      <span class="block h-[18px] w-[18px] i-[tabler--seedling]"></span>
+    </button>
+  </div>
 
   <input
     bind:this={importInput}

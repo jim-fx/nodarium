@@ -387,6 +387,7 @@
     bind:this={titleBar}
     projectManager={pm}
     saving={pendingSave}
+    git={data.git}
     onopenprojects={() => (projectBrowserOpen = true)}
     onstarttutorial={() => planty?.start()}
   />
