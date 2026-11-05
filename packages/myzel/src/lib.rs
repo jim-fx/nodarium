@@ -21,20 +21,28 @@
 //! `positions` and `normals` are `3v` f32 and `colors` holds one RGBA8 word per
 //! vertex, red in the lowest byte.
 //!
+//! # Hyphae `[11, n, ...segments]`
+//!
+//! Grown hyphae, 8 words per segment, parents before children, see [`Hyphae`].
+//!
 //! Inputs of Myzel nodes are plain values, see [`read_float`] and friends.
 
 mod density;
 mod eval;
 mod field;
+mod hyphae;
 mod inputs;
 mod mesh;
 mod noise;
 mod polygonize;
+mod spatial;
 
 pub use density::{mesh_segments, Segment};
 pub use eval::{eval, Program};
 pub use field::{opcode, Bbox, Field, FIELD_TAG};
-pub use inputs::{read_field, read_float, read_floats, read_int, read_mesh, read_vec3};
+pub use hyphae::{flags, HyphaSegment, Hyphae, Tissue, HYPHAE_TAG};
+pub use inputs::{read_field, read_float, read_floats, read_hyphae, read_int, read_mesh, read_vec3};
 pub use mesh::{pack_rgba, Mesh, MESH_TAG};
 pub use noise::value_noise;
 pub use polygonize::polygonize;
+pub use spatial::{distance_sq_to_segment, SpatialHash};

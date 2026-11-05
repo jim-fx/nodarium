@@ -8,7 +8,15 @@ import type {
 import { GROUP_INPUT } from '@nodarium/types';
 
 // values that only come in through a connection, so their parameter shows no input field
-const SOCKET_ONLY_TYPES = new Set(['path', 'geometry', 'force', 'points', 'field', 'mesh']);
+const SOCKET_ONLY_TYPES = new Set([
+  'path',
+  'geometry',
+  'force',
+  'points',
+  'field',
+  'mesh',
+  'hyphae'
+]);
 
 export function getParameterHeight(node: NodeDefinition, inputKey: string) {
   if (node.id === GROUP_INPUT) {
