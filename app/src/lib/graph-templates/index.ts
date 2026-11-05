@@ -17,6 +17,7 @@ export { default as lottaNodesAndFaces } from './lotta-nodes-and-faces.json';
 export { default as lottaNodes } from './lotta-nodes.json';
 export { default as maidenhair } from './maidenhair.json';
 export { default as palm } from './palm.json';
+export { default as primordium } from './primordium.json';
 export { default as sage } from './sage.json';
 export { default as sapling } from './sapling.json';
 export { default as stem } from './stem.json';

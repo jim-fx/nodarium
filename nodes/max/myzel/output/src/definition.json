@@ -1,12 +1,15 @@
 {
   "id": "max/myzel/output",
   "meta": {
-    "description": "Turns the field into the mesh that is shown"
+    "description": "Turns a field or grown hyphae into the mesh that is shown"
   },
   "outputs": [],
   "inputs": {
     "field": {
       "type": "field",
+      "accepts": [
+        "hyphae"
+      ],
       "external": true
     },
     "resolution_field": {
@@ -15,6 +18,25 @@
       "min": 16,
       "max": 256,
       "setting": "resolution.field"
+    },
+    "show": {
+      "type": "select",
+      "options": [
+        "surface",
+        "hyphae",
+        "both"
+      ],
+      "value": 0,
+      "description": "For hyphae: the surface around them, the hyphae themselves as lines colored by tissue, or both"
+    },
+    "blend": {
+      "type": "float",
+      "value": 3,
+      "min": 1.5,
+      "max": 8,
+      "step": 0.1,
+      "hidden": true,
+      "description": "For hyphae: how far, in hypha radii, neighbouring hyphae join into one surface"
     }
   }
 }

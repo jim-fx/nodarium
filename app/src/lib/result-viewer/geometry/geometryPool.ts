@@ -15,21 +15,24 @@ import {
   Sphere,
   SRGBColorSpace
 } from 'three';
+import { createHyphaePool } from './hyphae';
 
 /** The first word of every item in a result says what it holds */
-export const RESULT_TAGS = { geometry: 1, instances: 2, mesh: 14 } as const;
+export const RESULT_TAGS = { geometry: 1, instances: 2, hyphae: 11, mesh: 14 } as const;
 
 /** Sorts the items of a result by their tag, items of other tags are left out */
 export function sortResultItems(items: Int32Array[]) {
   const geometries: Int32Array[] = [];
   const instances: Int32Array[] = [];
   const meshes: Int32Array[] = [];
+  const hyphae: Int32Array[] = [];
   for (const item of items) {
     if (item[0] === RESULT_TAGS.geometry) geometries.push(item);
     else if (item[0] === RESULT_TAGS.instances) instances.push(item);
     else if (item[0] === RESULT_TAGS.mesh) meshes.push(item);
+    else if (item[0] === RESULT_TAGS.hyphae) hyphae.push(item);
   }
-  return { geometries, instances, meshes };
+  return { geometries, instances, meshes, hyphae };
 }
 
 export type MeshData = {
@@ -403,13 +406,14 @@ export function createInstancedGeometryPool(
 }
 
 /**
- * Shows a whole result: Plantarium geometry and instances and Myzel meshes, which bring their own
- * colors. Items of other kinds are skipped.
+ * Shows a whole result: Plantarium geometry and instances, Myzel meshes, which bring their own
+ * colors, and Myzel hyphae as lines. Items of other kinds are skipped.
  */
 export function createResultPools(parentScene: Group, material: Material) {
   const geometries = createGeometryPool(parentScene, material);
   const instances = createInstancedGeometryPool(parentScene, material);
   const meshes = createGeometryPool(parentScene, withVertexColors(material), 'mesh');
+  const hyphae = createHyphaePool(parentScene);
 
   return {
     setMaterial(newMaterial: Material) {
@@ -422,7 +426,8 @@ export function createResultPools(parentScene: Group, material: Material) {
       const stats = [
         geometries.update(sorted.geometries),
         instances.update(sorted.instances),
-        meshes.update(sorted.meshes)
+        meshes.update(sorted.meshes),
+        hyphae.update(sorted.hyphae)
       ];
       const bounds = new Box3();
       for (const s of stats) bounds.union(s.bounds);
