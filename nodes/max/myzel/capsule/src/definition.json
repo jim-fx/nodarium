@@ -1,0 +1,36 @@
+{
+  "id": "max/myzel/capsule",
+  "meta": {
+    "description": "A capsule standing upright on its position"
+  },
+  "outputs": [
+    "field"
+  ],
+  "inputs": {
+    "position": {
+      "type": "vec3",
+      "value": [
+        0,
+        0,
+        0
+      ],
+      "unit": "m"
+    },
+    "height": {
+      "type": "float",
+      "value": 1,
+      "min": 0,
+      "max": 4,
+      "step": 0.01,
+      "unit": "m"
+    },
+    "radius": {
+      "type": "float",
+      "value": 0.1,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "unit": "m"
+    }
+  }
+}

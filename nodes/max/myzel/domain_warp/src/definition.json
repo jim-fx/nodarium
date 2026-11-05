@@ -1,0 +1,33 @@
+{
+  "id": "max/myzel/domain_warp",
+  "meta": {
+    "description": "Displaces a field with noise"
+  },
+  "outputs": [
+    "field"
+  ],
+  "inputs": {
+    "field": {
+      "type": "field",
+      "external": true
+    },
+    "amplitude": {
+      "type": "float",
+      "value": 0.05,
+      "min": 0,
+      "max": 0.5,
+      "step": 0.005,
+      "unit": "m"
+    },
+    "frequency": {
+      "type": "float",
+      "value": 4,
+      "min": 0,
+      "max": 20,
+      "step": 0.1
+    },
+    "seed": {
+      "type": "seed"
+    }
+  }
+}

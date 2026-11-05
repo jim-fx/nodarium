@@ -1,0 +1,20 @@
+{
+  "id": "max/myzel/output",
+  "meta": {
+    "description": "Turns the field into the mesh that is shown"
+  },
+  "outputs": [],
+  "inputs": {
+    "field": {
+      "type": "field",
+      "external": true
+    },
+    "resolution_field": {
+      "type": "integer",
+      "value": 64,
+      "min": 16,
+      "max": 256,
+      "setting": "resolution.field"
+    }
+  }
+}
