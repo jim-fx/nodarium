@@ -18,7 +18,7 @@ Copy the template and give it a name:
 cp -r nodes/max/plantarium/.template nodes/max/plantarium/cube
 ```
 
-Then set `name = "cube"` in its `Cargo.toml`.
+Then set `name = "plantarium_cube"` in its `Cargo.toml`. Package names must be unique across the Cargo workspace, so every crate is prefixed with its collection (`plantarium_`, `myzel_`). The prefix is stripped again when the `.wasm` is copied into the app, the node id comes from `definition.json`.
 
 ## Define the inputs
 
@@ -73,4 +73,4 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
 pnpm build:nodes
 ```
 
-This builds all nodes into `app/static/nodes/max/plantarium/`. Run `pnpm dev` and the node shows up in the app.
+This builds all nodes and copies them into `app/static/nodes/max/<collection>/<name>.wasm`, so `plantarium_cube.wasm` ends up at `app/static/nodes/max/plantarium/cube.wasm`. Run `pnpm dev` and the node shows up in the app.

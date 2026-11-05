@@ -3,86 +3,10 @@
 version = 4
 
 [[package]]
-name = "alpha"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "apply_force"
-version = "0.1.0"
-dependencies = [
- "glam",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
-
-[[package]]
-name = "avoid"
-version = "0.1.0"
-dependencies = [
- "glam",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "box"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "branch"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "branch_from_points"
-version = "0.1.0"
-dependencies = [
- "glam",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "curve"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "float"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "force"
-version = "0.1.0"
-dependencies = [
- "glam",
- "nodarium_macros",
- "nodarium_utils",
-]
 
 [[package]]
 name = "glam"
@@ -91,62 +15,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc148d4ddd3930c52f9e5ae79b89805c6f07e9ff417e7b083e0348cea60a5aba"
 
 [[package]]
-name = "gravity"
-version = "0.1.0"
-dependencies = [
- "glam",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "instance"
-version = "0.1.0"
-dependencies = [
- "glam",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "instance_from_points"
-version = "0.1.0"
-dependencies = [
- "glam",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
-
-[[package]]
-name = "join"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "leaf"
-version = "0.1.0"
-dependencies = [
- "glam",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "math"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
 
 [[package]]
 name = "memchr"
@@ -178,19 +50,9 @@ name = "nodarium_utils"
 version = "0.1.0"
 dependencies = [
  "glam",
- "noise 0.9.0",
+ "noise",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "noise"
-version = "0.1.0"
-dependencies = [
- "glam",
- "nodarium_macros",
- "nodarium_utils",
- "noise 0.9.0",
 ]
 
 [[package]]
@@ -214,7 +76,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "output"
+name = "plantarium_alpha"
 version = "0.1.0"
 dependencies = [
  "nodarium_macros",
@@ -222,20 +84,261 @@ dependencies = [
 ]
 
 [[package]]
-name = "path_info"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "points_on_path"
+name = "plantarium_apply_force"
 version = "0.1.0"
 dependencies = [
  "glam",
  "nodarium_macros",
  "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_avoid"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_box"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_branch"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_branch_from_points"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_curve"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_float"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_force"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_gravity"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_instance"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_instance_from_points"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_join"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_leaf"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_math"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_noise"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+ "noise",
+]
+
+[[package]]
+name = "plantarium_output"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_path_info"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_points_on_path"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_random"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_random_break"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_random_int"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_rotate"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+ "serde",
+]
+
+[[package]]
+name = "plantarium_shape"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_snap"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_stem"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_to_geometry"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_triangle"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_trunk_kink"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_umbel"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_vec3"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+ "serde",
 ]
 
 [[package]]
@@ -278,41 +381,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d25bf25ec5ae4a3f1b92f929810509a2f53d7dca2f50b794ff57e3face536c8f"
 dependencies = [
  "rand_core",
-]
-
-[[package]]
-name = "random"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "random_break"
-version = "0.1.0"
-dependencies = [
- "glam",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "random_int"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "rotate"
-version = "0.1.0"
-dependencies = [
- "glam",
- "nodarium_macros",
- "nodarium_utils",
- "serde",
 ]
 
 [[package]]
@@ -359,30 +427,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "shape"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "snap"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "stem"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
 name = "syn"
 version = "3.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -394,54 +438,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "to_geometry"
-version = "0.1.0"
-dependencies = [
- "glam",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "triangle"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "trunk_kink"
-version = "0.1.0"
-dependencies = [
- "glam",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "umbel"
-version = "0.1.0"
-dependencies = [
- "glam",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
 name = "unicode-ident"
 version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
-
-[[package]]
-name = "vec3"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
- "serde",
-]
 
 [[package]]
 name = "zmij"
