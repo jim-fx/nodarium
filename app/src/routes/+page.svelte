@@ -221,8 +221,10 @@
   ]);
 
   let graphSettings = $state<SettingsValue>({});
-  let graphSettingTypes = $state({
-    seed: { type: 'integer', label: 'Seed', value: 0 }
+  let graphSettingTypes = $state({});
+  const settingPanelTypes = $derived({
+    seed: { type: 'integer', label: 'Seed', value: 0 },
+    ...graphSettingTypes
   });
   $effect(() => {
     if (graphSettings && graphSettingTypes && manager?.loaded) {
@@ -522,7 +524,7 @@
           <span class="block h-[1px]"></span>
           <NestedSettings
             id="graph-settings"
-            type={graphSettingTypes}
+            type={settingPanelTypes}
             bind:value={graphSettings}
           />
           {#key activeNode}

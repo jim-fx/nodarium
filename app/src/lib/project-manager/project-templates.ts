@@ -1,6 +1,7 @@
 import {
   agave,
   bamboo,
+  champignon,
   daisy,
   defaultPlant,
   devilsBackbone,
@@ -48,5 +49,6 @@ export const projectTemplates: ProjectTemplate[] = [
   { name: 'Foxglove', graph: toGraph(foxglove) },
   { name: "Devil's Backbone", graph: toGraph(devilsBackbone, 'cm') },
   { name: 'Japanese Knotweed', graph: toGraph(knotweed) },
-  { name: 'Wild Carrot', graph: toGraph(wildCarrot, 'cm') }
+  { name: 'Wild Carrot', graph: toGraph(wildCarrot, 'cm') },
+  { name: 'Champignon', graph: toGraph(champignon, 'cm') }
 ];

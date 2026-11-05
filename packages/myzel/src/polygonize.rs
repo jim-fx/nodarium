@@ -104,8 +104,10 @@ pub fn polygonize(field: &Field, resolution: usize) -> Mesh {
     }
 
     let eps = cell * 0.5;
-    let low = field.bbox.min.y;
-    let height = field.bbox.size().y.max(f32::EPSILON);
+    // the ramp spans the mesh itself, the bounding box can be much taller after a bend
+    let ys = mesh.positions.iter().skip(1).step_by(3);
+    let low = ys.clone().fold(f32::INFINITY, |a, &b| a.min(b));
+    let height = (ys.fold(f32::NEG_INFINITY, |a, &b| a.max(b)) - low).max(f32::EPSILON);
     for vertex in mesh.positions.chunks_exact(3) {
         let p = Vec3::from_slice(vertex);
         let gradient = Vec3::new(
@@ -180,6 +182,16 @@ mod tests {
             assert!(n.dot(p.normalize()) > 0.99);
         }
         assert_eq!(mesh.colors.len(), mesh.vertex_count());
+    }
+
+    #[test]
+    fn colors_span_the_whole_mesh() {
+        // the bend makes the bounding box far taller than the mesh
+        let mesh = polygonize(&Field::capsule(Vec3::ZERO, Vec3::Y, 0.2).bend(0.1), 24);
+        let lowest = mesh.colors.iter().map(|&c| c & 0xff).max().unwrap();
+        let highest = mesh.colors.iter().map(|&c| c & 0xff).min().unwrap();
+        assert_eq!(lowest, pack_rgba(BOTTOM_COLOR[0], 0.0, 0.0, 0.0));
+        assert_eq!(highest, pack_rgba(TOP_COLOR[0], 0.0, 0.0, 0.0));
     }
 
     #[test]

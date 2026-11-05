@@ -3,14 +3,100 @@ import {
   Box3,
   BufferAttribute,
   BufferGeometry,
+  Color,
   Float32BufferAttribute,
   Group,
   InstancedMesh,
   Material,
   Matrix4,
   Mesh,
-  Sphere
+  MeshMatcapMaterial,
+  ShaderMaterial,
+  Sphere,
+  SRGBColorSpace
 } from 'three';
+
+/** The first word of every item in a result says what it holds */
+export const RESULT_TAGS = { geometry: 1, instances: 2, mesh: 14 } as const;
+
+/** Sorts the items of a result by their tag, items of other tags are left out */
+export function sortResultItems(items: Int32Array[]) {
+  const geometries: Int32Array[] = [];
+  const instances: Int32Array[] = [];
+  const meshes: Int32Array[] = [];
+  for (const item of items) {
+    if (item[0] === RESULT_TAGS.geometry) geometries.push(item);
+    else if (item[0] === RESULT_TAGS.instances) instances.push(item);
+    else if (item[0] === RESULT_TAGS.mesh) meshes.push(item);
+  }
+  return { geometries, instances, meshes };
+}
+
+export type MeshData = {
+  vertexCount: number;
+  faceCount: number;
+  faces: Int32Array;
+  positions: Float32Array;
+  normals: Float32Array;
+  /** RGBA8 per vertex, red first */
+  colors?: Uint8Array;
+};
+
+function readLayout(data: Int32Array, headerLength: number, withColors: boolean): MeshData {
+  const vertexCount = data[1];
+  const faceCount = data[2];
+  const positionsStart = headerLength + faceCount * 3;
+  const normalsStart = positionsStart + vertexCount * 3;
+  const colorsStart = normalsStart + vertexCount * 3;
+  const floats = (start: number) =>
+    new Float32Array(data.buffer, data.byteOffset + start * 4, vertexCount * 3);
+  return {
+    vertexCount,
+    faceCount,
+    faces: data.subarray(headerLength, positionsStart),
+    positions: floats(positionsStart),
+    normals: floats(normalsStart),
+    colors: withColors
+      ? new Uint8Array(data.buffer, data.byteOffset + colorsStart * 4, vertexCount * 4)
+      : undefined
+  };
+}
+
+/** Plantarium geometry: `[1, v, f, path id, ...faces, ...positions, ...normals]` */
+export function readGeometry(data: Int32Array) {
+  return readLayout(data, 4, false);
+}
+
+/** Myzel mesh: `[14, v, f, ...faces, ...positions, ...normals, ...colors]` */
+export function readMesh(data: Int32Array) {
+  const mesh = readLayout(data, 3, true);
+  const expected = 3 + mesh.faceCount * 3 + mesh.vertexCount * 7;
+  if (data.length !== expected) {
+    throw new Error(
+      `A mesh with ${mesh.vertexCount} vertices and ${mesh.faceCount} faces needs ${expected} words, got ${data.length}`
+    );
+  }
+  return mesh;
+}
+
+const coloredMaterials = new WeakMap<Material, Material>();
+
+/**
+ * The material to show meshes that bring their own colors with. Tints that would hide the colors
+ * are left out: the matcap texture and the shader changes the plant material adds on top. Shader
+ * materials stay as they are, they are views like normals or faces that color by something else.
+ */
+export function withVertexColors(material: Material) {
+  if (material instanceof ShaderMaterial) return material;
+  let colored = coloredMaterials.get(material);
+  if (!colored) {
+    colored = material.clone();
+    colored.vertexColors = true;
+    if (colored instanceof MeshMatcapMaterial) colored.matcap = null;
+    coloredMaterials.set(material, colored);
+  }
+  return colored;
+}
 
 // only ever called with Int32Arrays, so the loop stays monomorphic and fast
 function sameBits(a: Int32Array, b: Int32Array) {
@@ -35,6 +121,20 @@ function bits(array: Float32Array | Uint32Array | Int32Array) {
 
 function sameFloats(attribute: BufferAttribute | undefined, values: Float32Array) {
   return !!attribute && sameBits(bits(attribute.array as Float32Array), bits(values));
+}
+
+const color = new Color();
+
+/** Vertex colors are stored in sRGB, the renderer works with linear colors */
+function linearColors(colors: Uint8Array) {
+  const out = new Float32Array((colors.length / 4) * 3);
+  for (let i = 0, j = 0; i < colors.length; i += 4, j += 3) {
+    color.setRGB(colors[i] / 255, colors[i + 1] / 255, colors[i + 2] / 255, SRGBColorSpace);
+    out[j] = color.r;
+    out[j + 1] = color.g;
+    out[j + 2] = color.b;
+  }
+  return out;
 }
 
 /**
@@ -178,37 +278,40 @@ function setBounds(geometry: BufferGeometry, positions: Float32Array) {
   return geometry.boundingBox;
 }
 
-export function createGeometryPool(parentScene: Group, material: Material) {
+export function createGeometryPool(
+  parentScene: Group,
+  material: Material,
+  layout: 'geometry' | 'mesh' = 'geometry'
+) {
+  const read = layout === 'mesh' ? readMesh : readGeometry;
   const pool = createSlotPool<Mesh>(parentScene, {
-    // the id of the path the geometry was made from
-    key: (data) => String(readGeometryPathId(data)),
+    // the id of the path the geometry was made from, meshes have none and keep their order
+    key: (data) => layout === 'mesh' ? 'mesh' : String(readGeometryPathId(data)),
     fill: (existing, data, stats) => {
       const mesh = existing ?? new Mesh(new BufferGeometry(), material);
       const geometry = mesh.geometry;
 
-      // type, vertex and face amount and the path id, then faces, positions and normals
-      const vertexCount = data[1];
-      const faceCount = data[2];
+      const { vertexCount, faceCount, faces, positions, normals, colors } = read(data);
       stats.totalVertices += vertexCount;
       stats.totalFaces += faceCount;
-      mesh.userData.pathId = readGeometryPathId(data);
+      if (layout === 'geometry') mesh.userData.pathId = readGeometryPathId(data);
 
-      const facesStart = 4;
-      const positionsStart = facesStart + faceCount * 3;
-      const normalsStart = positionsStart + vertexCount * 3;
-      const floats = (start: number) =>
-        new Float32Array(data.buffer, data.byteOffset + start * 4, vertexCount * 3);
-      const faces = data.subarray(facesStart, positionsStart);
-      const positions = floats(positionsStart);
-      const normals = floats(normalsStart);
+      // one word per vertex, compared like the other attributes
+      const colorWords = colors && new Int32Array(colors.buffer, colors.byteOffset, vertexCount);
+      const shownColors: Int32Array | undefined = geometry.userData.colors;
+      const colorsShown = colorWords
+        ? !!shownColors && sameBits(shownColors, colorWords)
+        : !geometry.getAttribute('color');
 
-      if (!showsData(geometry, faces, positions, normals)) {
+      if (!colorsShown || !showsData(geometry, faces, positions, normals)) {
         writeIndex(geometry, faces, vertexCount);
         writeAttribute(geometry, 'position', positions);
         writeAttribute(geometry, 'normal', normals);
+        if (colors) writeAttribute(geometry, 'color', linearColors(colors));
+        else geometry.deleteAttribute('color');
         // the renderer would compute the bounds from the vertices again, they are known here
         setBounds(geometry, positions);
-        geometry.userData = { vertexCount, faceCount };
+        geometry.userData = { vertexCount, faceCount, colors: colorWords?.slice() };
       }
 
       stats.bounds.union(geometry.boundingBox!);
@@ -296,5 +399,38 @@ export function createInstancedGeometryPool(
       pool.forEach((instance) => instance.material = material);
     },
     update: pool.update
+  };
+}
+
+/**
+ * Shows a whole result: Plantarium geometry and instances and Myzel meshes, which bring their own
+ * colors. Items of other kinds are skipped.
+ */
+export function createResultPools(parentScene: Group, material: Material) {
+  const geometries = createGeometryPool(parentScene, material);
+  const instances = createInstancedGeometryPool(parentScene, material);
+  const meshes = createGeometryPool(parentScene, withVertexColors(material), 'mesh');
+
+  return {
+    setMaterial(newMaterial: Material) {
+      geometries.setMaterial(newMaterial);
+      instances.setMaterial(newMaterial);
+      meshes.setMaterial(withVertexColors(newMaterial));
+    },
+    update(items: Int32Array[]) {
+      const sorted = sortResultItems(items);
+      const stats = [
+        geometries.update(sorted.geometries),
+        instances.update(sorted.instances),
+        meshes.update(sorted.meshes)
+      ];
+      const bounds = new Box3();
+      for (const s of stats) bounds.union(s.bounds);
+      return {
+        totalVertices: stats.reduce((sum, s) => sum + s.totalVertices, 0),
+        totalFaces: stats.reduce((sum, s) => sum + s.totalFaces, 0),
+        bounds
+      };
+    }
   };
 }

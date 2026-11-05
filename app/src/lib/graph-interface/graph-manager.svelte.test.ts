@@ -1000,3 +1000,30 @@ describe('dropNodeOnEdge making room', () => {
     expect(graph.edges).not.toContainEqual([source.id, 0, dropped.id, 'input']);
   });
 });
+
+describe('getNodeDefinitions', () => {
+  it('only offers the collections of the loaded graph', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ nodes: [] }))));
+    const otherCollection: NodeDefinition = { ...mockFloatInputNode, id: 'test/other/input' };
+    const registry = createMockNodeRegistry([
+      mockFloatOutputNode,
+      mockFloatInputNode,
+      otherCollection
+    ]);
+    const manager = new GraphManager(registry);
+
+    expect(manager.getNodeDefinitions().map((d) => d.id)).toContain('test/other/input');
+
+    await manager.load({
+      id: 1,
+      nodes: [{ id: 0, type: 'test/node/output', position: [0, 0] }],
+      edges: [],
+      groups: []
+    });
+
+    const ids = manager.getNodeDefinitions().map((d) => d.id);
+    expect(ids).toContain('test/node/input');
+    expect(ids).not.toContain('test/other/input');
+    vi.unstubAllGlobals();
+  });
+});
