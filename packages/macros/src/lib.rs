@@ -134,4 +134,14 @@ mod tests {
         );
         assert_eq!(names_not_in_snake_case(&def), ["0", "_a", "lowestKink", "trunkKink"]);
     }
+
+    #[test]
+    fn parses_field_and_mesh_sockets() {
+        let def = definition(
+            r#"{"id":"max/myzel/to_mesh","inputs":{"field":{"type":"field"},"base":{"type":"mesh","accepts":["field"]}},"outputs":["mesh","field"]}"#,
+        );
+        let inputs = def.inputs.unwrap();
+        assert!(matches!(inputs["field"], nodarium_types::NodeInput::field(_)));
+        assert!(matches!(inputs["base"], nodarium_types::NodeInput::mesh(_)));
+    }
 }
