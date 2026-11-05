@@ -144,4 +144,38 @@ describe('nodes with several outputs', () => {
       data: Int32Array.of(30)
     });
   });
+
+  it('previews a debugged field with the Myzel output node', async () => {
+    const field = {
+      id: 'max/myzel/sphere',
+      inputs: {},
+      outputs: ['field'],
+      execute: () => Int32Array.of(10, 0, 1, 2, 3, 4, 5, 6)
+    } as unknown as NodeDefinition;
+    // stands in for the mesher, it reports what it was called with
+    const myzelOutput = {
+      id: 'max/myzel/output',
+      inputs: { field: { type: 'field' }, resolution: { type: 'integer', value: 64 } },
+      outputs: [],
+      execute: vi.fn(([f, resolution]: Int32Array[]) => Int32Array.of(f[0], resolution[0]))
+    } as unknown as NodeDefinition;
+    const registry = createMockNodeRegistry([field, myzelOutput, debug]);
+    const runtime = new MemoryRuntimeExecutor(registry);
+
+    const result = await runtime.execute(
+      graph(
+        [node(0, field.id), node(1, debug.id), node(2, myzelOutput.id)],
+        [[0, 0, 1, 'input'], [0, 0, 2, 'field']]
+      ),
+      {}
+    );
+
+    // the result is the one of the graph, the preview runs after it was read
+    expect([...result]).toEqual([10, 64]);
+    expect(runtime.getDebugData()[0]).toEqual({
+      type: 'field',
+      output: 0,
+      data: Int32Array.of(10, 32)
+    });
+  });
 });

@@ -1,5 +1,5 @@
 import { concatEncodedArrays } from '@nodarium/utils';
-import { ArrowHelper, Group, Line, LineSegments, Points, Vector3 } from 'three';
+import { ArrowHelper, Group, Line, LineSegments, type Mesh, Points, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { updateDebugScene } from './debug';
 
@@ -166,6 +166,27 @@ describe('updateDebugScene', () => {
     expect(group.children).not.toHaveLength(0);
 
     updateDebugScene(group, { 1: { type: 'float', data: new Int32Array([5]) } });
+    expect(group.children).toHaveLength(0);
+  });
+
+  it('draws a Myzel mesh and the preview of a field, but not a raw field', () => {
+    // [14, vertices, faces, ...faces, ...positions, ...normals, ...colors] with one triangle
+    const mesh = new Int32Array(3 + 3 + 21);
+    mesh.set([14, 3, 1, 0, 1, 2]);
+    new Float32Array(mesh.buffer).set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1], 6);
+    const meshes = (group: Group) =>
+      group.children.flatMap((g) => g.children.flatMap((pool) => pool.children as Mesh[]));
+
+    const group = new Group();
+    updateDebugScene(group, { 1: { type: 'mesh', data: mesh } });
+    expect(meshes(group)).toHaveLength(1);
+    expect(meshes(group)[0].geometry.getAttribute('position').count).toBe(3);
+
+    // the runtime turns a field into the list of the output node
+    updateDebugScene(group, { 1: { type: 'field', data: wrap(mesh) } });
+    expect(meshes(group)).toHaveLength(1);
+
+    updateDebugScene(group, { 1: { type: 'field', data: Int32Array.of(10, 0, 0, 0, 0, 0, 0, 0) } });
     expect(group.children).toHaveLength(0);
   });
 });

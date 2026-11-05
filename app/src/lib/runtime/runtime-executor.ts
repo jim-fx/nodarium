@@ -26,6 +26,11 @@ import { migrateGraph } from '../graph-migrations';
 import { getErrorInfo, NodeExecutionError, type RuntimeErrorInfo } from './errors';
 import type { RuntimeNode } from './types';
 
+/** The node that turns a value of this socket type into something the debug view can draw */
+const DEBUG_PREVIEWS: Record<string, { node: string; args: Int32Array[] }> = {
+  // the mesh at a low resolution, args are the inputs after the field
+  field: { node: 'max/myzel/output', args: [Int32Array.of(32)] }
+};
 const log = createLogger('runtime-executor');
 log.mute();
 
@@ -594,6 +599,9 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     const outputResult = results[outputNode.id]?.[0];
     const res = outputResult && readNodeValue(outputResult);
 
+    // after the result is copied, a preview may run the output node once more
+    this.previewDebugData();
+
     if (this.cache) {
       this.cache.size = sortedNodes.length * 2;
     }
@@ -619,6 +627,24 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       output,
       data: readNodeValue(value)
     };
+  }
+
+  /**
+   * Values the viewer can't draw as they are get turned into something it can, by a node of the
+   * graph's own collection. A field is only bytecode, its preview is the mesh of the output node.
+   */
+  private previewDebugData() {
+    for (const entry of Object.values(this.debugData)) {
+      const preview = DEBUG_PREVIEWS[entry.type];
+      const node = preview && this.definitionMap.get(preview.node);
+      if (!node) continue;
+      try {
+        const result = node.execute([entry.data, ...preview.args]);
+        entry.data = readNodeValue(Array.isArray(result) ? result[0] : result);
+      } catch (e) {
+        log.warn(`could not preview the ${entry.type} for debugging`, e);
+      }
+    }
   }
 
   getDebugData() {

@@ -15,7 +15,7 @@ import {
   PointsMaterial,
   Vector3
 } from 'three';
-import { createGeometryPool } from '../geometry/geometryPool';
+import { createGeometryPool, RESULT_TAGS } from '../geometry/geometryPool';
 import { PATH_HEADER_SIZE } from '../gizmos/gizmo-paths';
 
 // one color per stem depth, branches of branches get the next color
@@ -33,6 +33,9 @@ const INSTANCE_ARROW_SCALE = 100;
 const RING_SEGMENTS = 12;
 // drawn on top of the result
 const RENDER_ORDER = 999;
+
+const DRAWN_TYPES = new Set(['path', 'geometry', 'points', 'mesh', 'field']);
+const FIELD_TAG = 10;
 
 function depthColor(depth: number) {
   return depthColors[Math.max(depth - 1, 0) % depthColors.length];
@@ -141,8 +144,8 @@ function createPathDebug(paths: Int32Array[]) {
   return group;
 }
 
-/** geometries as a wireframe */
-function createGeometryDebug(geometries: Int32Array[]) {
+/** geometries, or Myzel meshes, as a wireframe */
+function createGeometryDebug(geometries: Int32Array[], layout: 'geometry' | 'mesh' = 'geometry') {
   const group = new Group();
   const material = new MeshBasicMaterial({
     color: '#4dd2ff',
@@ -152,7 +155,7 @@ function createGeometryDebug(geometries: Int32Array[]) {
     depthTest: false
   });
 
-  createGeometryPool(group, material).update(geometries);
+  createGeometryPool(group, material, layout).update(geometries);
   group.traverse((child) => {
     (child as Mesh).renderOrder = RENDER_ORDER;
   });
@@ -291,10 +294,15 @@ export function updateDebugScene(
   clearGroup(group);
   for (const { type, data: value } of Object.values(data || {})) {
     // single values like floats and vectors have nothing to draw
-    if (
-      (type !== 'path' && type !== 'geometry' && type !== 'points')
-      || !(value instanceof Int32Array)
-    ) continue;
+    if (!DRAWN_TYPES.has(type) || !(value instanceof Int32Array)) continue;
+
+    // a mesh is a single item without brackets, a field only arrives as its preview mesh,
+    // which the output node wraps in a list. A field that could not be previewed is skipped.
+    if (value[0] === RESULT_TAGS.mesh) {
+      group.add(createGeometryDebug([value], 'mesh'));
+      continue;
+    }
+    if (value[0] === FIELD_TAG) continue;
 
     // a path output can carry geometry and instances along, e.g. from the instance node
     const items = splitItems(value);
@@ -302,10 +310,12 @@ export function updateDebugScene(
     const geometries = items.filter((item) => item[0] === 1);
     const instances = items.filter((item) => item[0] === 2);
     const points = items.filter((item) => item[0] === 4);
+    const meshes = items.filter((item) => item[0] === RESULT_TAGS.mesh);
 
     if (paths.length) group.add(createPathDebug(paths));
     if (geometries.length) group.add(createGeometryDebug(geometries));
     if (instances.length) group.add(createInstanceDebug(instances));
     if (points.length) group.add(createPointsDebug(points));
+    if (meshes.length) group.add(createGeometryDebug(meshes, 'mesh'));
   }
 }
