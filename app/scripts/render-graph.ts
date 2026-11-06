@@ -91,11 +91,11 @@ function collectTriangles(result: Int32Array) {
   for (const part of splitNestedArray(result)) {
     // plain geometry: [1, vertices, faces, path id, ...faces, ...positions, ...normals]
     // instances: [2, vertices, faces, instances, depth, ...faces, ...positions, ...normals, ...matrices, ...path ids]
-    // Myzel mesh: [14, vertices, faces, ...faces, ...positions, ...normals, ...colors]
+    // Myzel mesh: [14, vertices, faces, flags, ...faces, ...positions, ...normals, ...colors?, ...groups]
     if (part[0] === 14) {
       const [vertexCount, faceCount] = [part[1], part[2]];
-      const faces = part.subarray(3, 3 + faceCount * 3);
-      const positions = floats(part, 3 + faceCount * 3, vertexCount * 3);
+      const faces = part.subarray(4, 4 + faceCount * 3);
+      const positions = floats(part, 4 + faceCount * 3, vertexCount * 3);
       const vertex = (
         v: number
       ): Vec3 => [positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]];
