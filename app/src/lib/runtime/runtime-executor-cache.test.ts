@@ -131,6 +131,23 @@ describe('runtime cache keys', () => {
     expect(calls[setting.id]).toBe(1);
   });
 
+  it('keeps the nodes beside a changed setting cached', async () => {
+    // like time -> expand <- gills, a change of the time must not re-run gills
+    const timed = (resolution: number) => {
+      const g = graph();
+      g.nodes[3] = { id: 3, type: setting.id, position: [0, 0] } as Graph['nodes'][number];
+      return [g, { resolution }] as const;
+    };
+    const executor = createExecutor();
+    await executor.execute(...timed(4));
+    calls = {};
+
+    const result = await executor.execute(...timed(8));
+
+    expect(result).toEqual(Int32Array.of(9));
+    expect(calls).toEqual({ [setting.id]: 1, [add.id]: 1, [output.id]: 1 });
+  });
+
   it('re-runs seeded nodes when the seed changes', async () => {
     const executor = createExecutor();
     await executor.execute(singleNodeGraph(seeded.id), { seed: 1 });
