@@ -2,6 +2,7 @@
   "id": 0,
   "version": 2,
   "settings": {
+    "time.t": 1,
     "resolution.field": 64
   },
   "groups": [],
@@ -18,7 +19,7 @@
     {
       "id": 1,
       "position": [
-        170,
+        130,
         85
       ],
       "type": "max/myzel/primordium",
@@ -27,7 +28,7 @@
     {
       "id": 2,
       "position": [
-        210,
+        170,
         85
       ],
       "type": "max/myzel/gills",
@@ -35,6 +36,24 @@
     },
     {
       "id": 3,
+      "position": [
+        210,
+        85
+      ],
+      "type": "max/myzel/expand",
+      "props": {}
+    },
+    {
+      "id": 4,
+      "position": [
+        170,
+        125
+      ],
+      "type": "max/myzel/time",
+      "props": {}
+    },
+    {
+      "id": 5,
       "position": [
         250,
         85
@@ -57,7 +76,19 @@
       "hyphae"
     ],
     [
+      4,
+      0,
       3,
+      "t"
+    ],
+    [
+      3,
+      0,
+      5,
+      "hyphae"
+    ],
+    [
+      5,
       0,
       0,
       "field"

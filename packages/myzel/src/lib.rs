@@ -33,6 +33,7 @@
 
 mod density;
 mod eval;
+mod expand;
 mod field;
 mod gills;
 mod growth;
@@ -46,6 +47,7 @@ mod spatial;
 
 pub use density::{mesh_segments, surface, Segment, SegmentSurface};
 pub use eval::{eval, Program};
+pub use expand::{expand, ExpandParams};
 pub use field::{opcode, Bbox, Field, FIELD_TAG};
 pub use gills::{grow_gills, GillParams, MAX_GILLS, MAX_LAMELLULAE};
 pub use growth::{grow, GrowthParams, Schedule, MAX_ITERATIONS, MAX_SEGMENTS};

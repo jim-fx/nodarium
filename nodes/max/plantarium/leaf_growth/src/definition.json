@@ -1,0 +1,137 @@
+{
+  "id": "max/plantarium/leaf_growth",
+  "meta": {
+    "description": "Grows a leaf by simulating its development: veins grow and carry the margin, new veins appear where the margin got long enough, and the margin resists stretching (Runions, Tsiantis & Prusinkiewicz 2017)."
+  },
+  "outputs": [
+    "geometry"
+  ],
+  "inputs": {
+    "size": {
+      "type": "float",
+      "description": "Scale of the leaf, like the size of the leaf node. The other inputs change its shape but not its length.",
+      "min": 0,
+      "step": 0.05,
+      "value": 1
+    },
+    "age": {
+      "type": "integer",
+      "description": "How long the leaf grew. Older leaves have more veins, teeth and lobes.",
+      "min": 1,
+      "max": 100,
+      "value": 45
+    },
+    "width": {
+      "type": "float",
+      "description": "0 = a narrow leaf, 1 = a broad, round one.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.4
+    },
+    "teeth": {
+      "type": "float",
+      "description": "0 = a smooth edge, 1 = deep, sharp teeth.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.5
+    },
+    "lobes": {
+      "type": "float",
+      "description": "0 = no lobes, 1 = a leaf cut into many deep lobes.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0
+    },
+    "vein_density": {
+      "type": "float",
+      "description": "How close together the side veins grow. 0 = a few veins, 1 = many veins with many small teeth, which also makes the leaf broader.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.4
+    },
+    "petiole": {
+      "type": "float",
+      "description": "Length of the stalk below the blade. 0 = the blade starts right at the base.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.3,
+      "hidden": true
+    },
+    "tooth_shape": {
+      "type": "float",
+      "description": "0 = pointed teeth, 1 = round teeth.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.2,
+      "hidden": true
+    },
+    "tooth_direction": {
+      "type": "float",
+      "description": "Which way the teeth point. -1 = towards the base, 0 = straight out, 1 = towards the tip.",
+      "min": -1,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.5,
+      "hidden": true
+    },
+    "vein_angle": {
+      "type": "float",
+      "description": "Angle between the side veins and the vein they branch from, in degrees. Small angles give narrow leaves, large ones broad leaves with a pointed outline.",
+      "min": 10,
+      "max": 85,
+      "step": 1,
+      "value": 50,
+      "hidden": true
+    },
+    "vein_depth": {
+      "type": "float",
+      "description": "How deep the veins are pressed into the blade.",
+      "min": 0,
+      "max": 5,
+      "step": 0.05,
+      "value": 0.8,
+      "hidden": true
+    },
+    "vein_width": {
+      "type": "float",
+      "description": "Width of the midvein, thinner veins get narrower. 0 = as narrow as the resolution allows.",
+      "min": 0,
+      "max": 6,
+      "step": 0.05,
+      "value": 1.5,
+      "hidden": true
+    },
+    "x_curve": {
+      "type": "float",
+      "description": "Fold the leaf along its midrib, in degrees. 0 = flat, 90 = U-shape.",
+      "min": -180,
+      "max": 180,
+      "step": 1,
+      "value": 0,
+      "hidden": true
+    },
+    "y_curve": {
+      "type": "float",
+      "description": "Curl the leaf upward along its length, in degrees. 0 = flat, 90 = the tip points straight up.",
+      "min": -180,
+      "max": 180,
+      "step": 1,
+      "value": 0,
+      "hidden": true
+    },
+    "resolution": {
+      "type": "integer",
+      "description": "Mesh density, the number of triangles along the length of the leaf.",
+      "min": 4,
+      "max": 64,
+      "value": 20,
+      "hidden": true
+    }
+  }
+}
