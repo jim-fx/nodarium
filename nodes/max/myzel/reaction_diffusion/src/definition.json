@@ -1,0 +1,65 @@
+{
+  "id": "max/myzel/reaction_diffusion",
+  "meta": {
+    "description": "Grows a pattern of stripes on a ring with a reaction-diffusion model. The ring widens from the inside out and the stripes keep their spacing: where they drift apart, new ones split off or start between them, like gills under a cap."
+  },
+  "outputs": [
+    "pattern"
+  ],
+  "inputs": {
+    "radius": {
+      "type": "float",
+      "description": "Outer radius of the ring. For gills the radius of the cap, the pattern is stretched to the margin.",
+      "value": 0.025,
+      "min": 0.001,
+      "max": 0.2,
+      "step": 0.001,
+      "unit": "m"
+    },
+    "inner": {
+      "type": "float",
+      "description": "Inner radius of the ring, where the stripes start. For gills it lands where the cap leaves the stipe.",
+      "value": 0.006,
+      "min": 0,
+      "max": 0.1,
+      "step": 0.0005,
+      "unit": "m"
+    },
+    "spacing": {
+      "type": "float",
+      "description": "Distance between neighbouring stripes",
+      "value": 0.002,
+      "min": 0.0002,
+      "max": 0.02,
+      "step": 0.0001,
+      "unit": "m"
+    },
+    "alignment": {
+      "type": "float",
+      "description": "0 grows a labyrinth, 1 clean stripes that run from the inner radius outwards",
+      "value": 0.8,
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    },
+    "irregularity": {
+      "type": "float",
+      "description": "0 keeps the stripes even, 1 lets their direction and width wander and stripes start and stop more often",
+      "value": 0.4,
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    },
+    "seed": {
+      "type": "seed"
+    },
+    "steps": {
+      "type": "integer",
+      "description": "Simulation steps, more let the stripes settle further and take longer",
+      "value": 3000,
+      "min": 100,
+      "max": 20000,
+      "hidden": true
+    }
+  }
+}

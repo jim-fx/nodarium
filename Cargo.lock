@@ -41,6 +41,7 @@ name = "myzel_cap"
 version = "0.1.0"
 dependencies = [
  "glam",
+ "myzel_core",
  "nodarium_macros",
  "nodarium_utils",
 ]
@@ -106,6 +107,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "myzel_lamellae"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+ "serde_json",
+]
+
+[[package]]
 name = "myzel_map_range"
 version = "0.1.0"
 dependencies = [
@@ -130,6 +142,16 @@ name = "myzel_primordium"
 version = "0.1.0"
 dependencies = [
  "glam",
+ "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+ "serde_json",
+]
+
+[[package]]
+name = "myzel_reaction_diffusion"
+version = "0.1.0"
+dependencies = [
  "myzel_core",
  "nodarium_macros",
  "nodarium_utils",

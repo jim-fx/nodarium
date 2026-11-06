@@ -22,15 +22,20 @@ pub fn read_int(arg: &[i32]) -> i32 {
     arg[0]
 }
 
-/// An array input (vec3, curve, shape) without the brackets `[0, n + 1, ...values, 1, 1]` of the host
+fn is_frame(arg: &[i32]) -> bool {
+    let n = arg.len();
+    n >= 4 && arg[0] == 0 && arg[1] as usize == n - 3 && arg[n - 2] == 1 && arg[n - 1] == 1
+}
+
+/// An array input (vec3, curve, shape) without the brackets `[0, n + 1, ...values, 1, 1]` of the
+/// host. A value set on the node arrives as one such frame, one from a connected node wrapped in a
+/// list of its own, `concat_args([frame])` = `[0, 1, ...frame, 1, 1]`.
 pub fn read_floats(arg: &[i32]) -> Vec<f32> {
-    let framed = arg.len() >= 4
-        && arg[0] == 0
-        && arg[1] as usize == arg.len() - 3
-        && arg[arg.len() - 2] == 1
-        && arg[arg.len() - 1] == 1;
-    assert!(framed, "expected a list of floats [0, n + 1, ...values, 1, 1], got {} words: {:?}", arg.len(), arg);
-    arg[2..arg.len() - 2].iter().map(|&w| decode_float(w)).collect()
+    let n = arg.len();
+    let connected = n >= 8 && arg[..2] == [0, 1] && arg[n - 2..] == [1, 1] && is_frame(&arg[2..n - 2]);
+    let frame = if connected { &arg[2..n - 2] } else { arg };
+    assert!(is_frame(frame), "expected a list of floats [0, n + 1, ...values, 1, 1], got {} words: {:?}", n, arg);
+    frame[2..frame.len() - 2].iter().map(|&w| decode_float(w)).collect()
 }
 
 pub fn read_vec3(arg: &[i32]) -> Vec3 {
@@ -64,6 +69,16 @@ mod tests {
         assert_eq!(read_floats(&curve), vec![0.0, 0.5, 1.0]);
         let v = [0, 4, encode_float(1.0), encode_float(2.0), encode_float(3.0), 1, 1];
         assert_eq!(read_vec3(&v), Vec3::new(1.0, 2.0, 3.0));
+    }
+
+    #[test]
+    fn reads_a_list_from_a_connected_node() {
+        let curve = [0, 4, encode_float(0.0), encode_float(0.5), encode_float(1.0), 1, 1];
+        let connected = nodarium_utils::concat_args(vec![&curve]);
+        assert_eq!(read_floats(&connected), vec![0.0, 0.5, 1.0]);
+        // a point at 0 is not mistaken for a bracket
+        let zeros = [0, 3, 0, 0, 1, 1];
+        assert_eq!(read_floats(&nodarium_utils::concat_args(vec![&zeros])), vec![0.0, 0.0]);
     }
 
     #[test]
