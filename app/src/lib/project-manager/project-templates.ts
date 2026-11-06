@@ -2,6 +2,7 @@ import {
   agave,
   bamboo,
   champignon,
+  chanterelle,
   daisy,
   defaultPlant,
   devilsBackbone,
@@ -56,5 +57,6 @@ export const projectTemplates: ProjectTemplate[] = [
   { name: 'Champignon', graph: toGraph(champignon, 'cm') },
   { name: 'Primordium (hyphae)', graph: toGraph(primordium, 'cm') },
   { name: 'Groomed stipe (strands)', graph: toGraph(groomedStipe, 'cm') },
-  { name: 'Groomed cap (opening)', graph: toGraph(groomedCap, 'cm') }
+  { name: 'Groomed cap (opening)', graph: toGraph(groomedCap, 'cm') },
+  { name: 'Chanterelle', graph: toGraph(chanterelle, 'cm') }
 ];

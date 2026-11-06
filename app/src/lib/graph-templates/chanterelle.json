@@ -1,0 +1,446 @@
+{
+  "id": 0,
+  "version": 2,
+  "settings": {
+    "resolution.field": 160,
+    "resolution.curve": 24
+  },
+  "groups": [],
+  "nodes": [
+    {
+      "id": 0,
+      "position": [100, 100],
+      "type": "max/myzel/output",
+      "props": {}
+    },
+    {
+      "id": 1,
+      "position": [-170, 24],
+      "type": "max/plantarium/stem",
+      "props": {
+        "length": 0.04,
+        "taper": 0
+      }
+    },
+    {
+      "id": 2,
+      "position": [-200, 51.5],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0.3214,
+          0.08,
+          0.3857,
+          0.5,
+          0.4643,
+          0.75,
+          0.6071,
+          0.9,
+          0.8214,
+          1,
+          1.0
+        ],
+        "min": 0.0,
+        "max": 0.014
+      }
+    },
+    {
+      "id": 3,
+      "position": [-140, 19],
+      "type": "max/plantarium/trunk_kink",
+      "props": {
+        "amount": 3,
+        "angle": 7,
+        "lowest_kink": 0.15,
+        "highest_kink": 0.6,
+        "rotation": 25
+      }
+    },
+    {
+      "id": 4,
+      "position": [-20, 12.5],
+      "type": "max/myzel/strands",
+      "props": {
+        "amount": 250,
+        "thickness": 0.0006,
+        "thickness_variation": 0.5,
+        "twist": 0.05,
+        "wobble": 0.3,
+        "length_variation": 0.15
+      }
+    },
+    {
+      "id": 5,
+      "position": [-110, 9],
+      "type": "max/myzel/cap",
+      "props": {
+        "radius": 0.03,
+        "profile": [
+          50.0,
+          50.0,
+          36.67,
+          45.83,
+          23.33,
+          37.5,
+          10.0,
+          29.17,
+          0.0,
+          25.0
+        ],
+        "thickness": 0.012,
+        "thickness_curve": [
+          0,
+          0.67,
+          0.4,
+          0.85,
+          0.75,
+          0.28,
+          1,
+          0.16
+        ],
+        "margin_curl": 0.3,
+        "rays": 64,
+        "spacing": 0
+      }
+    },
+    {
+      "id": 6,
+      "position": [10, 86.5],
+      "type": "max/myzel/strands",
+      "props": {
+        "amount": 40,
+        "thickness": 0.0006,
+        "thickness_variation": 0.5,
+        "wobble": 0.25,
+        "length_variation": 0.1
+      }
+    },
+    {
+      "id": 7,
+      "position": [-50, 192.5],
+      "type": "max/myzel/cap",
+      "props": {
+        "radius": 0.03,
+        "profile": [
+          50.0,
+          50.0,
+          41.79,
+          81.67,
+          40.81,
+          76.39,
+          39.51,
+          71.11,
+          37.5,
+          65.83,
+          34.71,
+          60.56,
+          31.45,
+          55.28,
+          30.64,
+          48.12,
+          26.48,
+          46.25,
+          22.87,
+          44.41,
+          19.01,
+          41.8,
+          15.94,
+          37.95,
+          14.09,
+          33.92,
+          12.94,
+          30.15,
+          11.99,
+          26.87,
+          10.54,
+          24.33,
+          8.32,
+          22.85
+        ],
+        "thickness": 0.0014,
+        "thickness_curve": [
+          0,
+          0.6,
+          0.3,
+          0.6,
+          0.55,
+          1,
+          0.92,
+          1,
+          1,
+          0.7
+        ],
+        "margin_curl": 0,
+        "rays": 30,
+        "spacing": 2.4
+      }
+    },
+    {
+      "id": 8,
+      "position": [40, 87.5],
+      "type": "max/plantarium/join",
+      "props": {}
+    },
+    {
+      "id": 9,
+      "position": [70, 100],
+      "type": "max/myzel/hyphae_to_mesh",
+      "props": {
+        "fill": 1.5,
+        "fibres": 0.5,
+        "blend": 2.4
+      }
+    },
+    {
+      "id": 10,
+      "position": [-110, 124],
+      "type": "max/plantarium/force",
+      "props": {
+        "position": [0.033, 0.072, 0.006],
+        "strength": 2.2,
+        "radius": 0.026,
+        "falloff": 0.5
+      }
+    },
+    {
+      "id": 20,
+      "position": [-80, 64],
+      "type": "max/plantarium/apply_force",
+      "props": {
+        "strength": 1,
+        "stiffness": 0.3
+      }
+    },
+    {
+      "id": 30,
+      "position": [-20, 179.5],
+      "type": "max/plantarium/apply_force",
+      "props": {
+        "strength": 1.6,
+        "stiffness": 0.3
+      }
+    },
+    {
+      "id": 11,
+      "position": [-80, 104],
+      "type": "max/plantarium/force",
+      "props": {
+        "position": [-0.026, 0.072, 0.022],
+        "strength": 2.0,
+        "radius": 0.024,
+        "falloff": 0.5
+      }
+    },
+    {
+      "id": 21,
+      "position": [-50, 81.5],
+      "type": "max/plantarium/apply_force",
+      "props": {
+        "strength": 1,
+        "stiffness": 0.3
+      }
+    },
+    {
+      "id": 31,
+      "position": [10, 179.5],
+      "type": "max/plantarium/apply_force",
+      "props": {
+        "strength": 1.6,
+        "stiffness": 0.3
+      }
+    },
+    {
+      "id": 12,
+      "position": [-50, 121.5],
+      "type": "max/plantarium/force",
+      "props": {
+        "position": [-0.006, 0.072, -0.034],
+        "strength": 2.4,
+        "radius": 0.024,
+        "falloff": 0.5
+      }
+    },
+    {
+      "id": 22,
+      "position": [-20, 105.5],
+      "type": "max/plantarium/apply_force",
+      "props": {
+        "strength": 1,
+        "stiffness": 0.3
+      }
+    },
+    {
+      "id": 32,
+      "position": [40, 117.5],
+      "type": "max/plantarium/apply_force",
+      "props": {
+        "strength": 1.6,
+        "stiffness": 0.3
+      }
+    },
+    {
+      "id": 40,
+      "position": [10, 31.5],
+      "type": "max/plantarium/clump",
+      "props": {
+        "strength": 0.35,
+        "clumps": 14,
+        "profile": [
+          0,
+          1,
+          0.6,
+          0.6,
+          1,
+          0.2
+        ]
+      }
+    }
+  ],
+  "edges": [
+    [
+      2,
+      0,
+      1,
+      "thickness"
+    ],
+    [
+      1,
+      0,
+      3,
+      "plant"
+    ],
+    [
+      3,
+      0,
+      4,
+      "plant"
+    ],
+    [
+      3,
+      0,
+      5,
+      "plant"
+    ],
+    [
+      3,
+      0,
+      7,
+      "plant"
+    ],
+    [
+      6,
+      0,
+      8,
+      "b"
+    ],
+    [
+      8,
+      0,
+      9,
+      "hyphae"
+    ],
+    [
+      9,
+      0,
+      0,
+      "field"
+    ],
+    [
+      5,
+      0,
+      20,
+      "plant"
+    ],
+    [
+      10,
+      0,
+      20,
+      "force"
+    ],
+    [
+      7,
+      0,
+      30,
+      "plant"
+    ],
+    [
+      10,
+      0,
+      30,
+      "force"
+    ],
+    [
+      20,
+      0,
+      21,
+      "plant"
+    ],
+    [
+      11,
+      0,
+      21,
+      "force"
+    ],
+    [
+      30,
+      0,
+      31,
+      "plant"
+    ],
+    [
+      11,
+      0,
+      31,
+      "force"
+    ],
+    [
+      21,
+      0,
+      22,
+      "plant"
+    ],
+    [
+      12,
+      0,
+      22,
+      "force"
+    ],
+    [
+      31,
+      0,
+      32,
+      "plant"
+    ],
+    [
+      12,
+      0,
+      32,
+      "force"
+    ],
+    [
+      22,
+      0,
+      6,
+      "plant"
+    ],
+    [
+      32,
+      0,
+      9,
+      "loose"
+    ],
+    [
+      4,
+      0,
+      40,
+      "plant"
+    ],
+    [
+      40,
+      0,
+      8,
+      "a"
+    ]
+  ]
+}
