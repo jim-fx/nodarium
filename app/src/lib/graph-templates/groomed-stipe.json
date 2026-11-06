@@ -10,7 +10,7 @@
     {
       "id": 0,
       "position": [
-        275,
+        315,
         85
       ],
       "type": "max/myzel/output",
@@ -46,9 +46,21 @@
       }
     },
     {
-      "id": 4,
+      "id": 5,
       "position": [
         235,
+        85
+      ],
+      "type": "max/plantarium/clump",
+      "props": {
+        "strength": 0.5,
+        "clumps": 12
+      }
+    },
+    {
+      "id": 4,
+      "position": [
+        275,
         85
       ],
       "type": "max/myzel/hyphae_to_mesh",
@@ -67,6 +79,12 @@
     ],
     [
       2,
+      0,
+      5,
+      "plant"
+    ],
+    [
+      5,
       0,
       4,
       "hyphae"

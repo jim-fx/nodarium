@@ -1,0 +1,51 @@
+{
+  "id": "max/plantarium/clump",
+  "meta": {
+    "description": "Bundles paths that grow on the same parent into clumps, like fibres into cords or grass blades into tufts. Paths are grouped by where they sit across their bundle and pulled onto the centre of their clump. The base of every path stays where it is, and so does its thickness."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The paths to bundle. Paths with the same parent and the same creator are one bundle, e.g. the strands of one guide."
+    },
+    "strength": {
+      "type": "float",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.5,
+      "description": "0 leaves the paths where they are, 1 puts every path on the centre of its clump."
+    },
+    "clumps": {
+      "type": "integer",
+      "min": 1,
+      "max": 256,
+      "value": 12,
+      "description": "How many clumps every bundle splits into."
+    },
+    "profile": {
+      "type": "curve",
+      "value": [
+        0,
+        1,
+        1,
+        1
+      ],
+      "description": "How tightly the clumps hold along the bundle, from the base on the left to the tip on the right. It scales the strength."
+    },
+    "seed": {
+      "type": "seed"
+    },
+    "depth": {
+      "type": "integer",
+      "min": 1,
+      "max": 10,
+      "value": 1,
+      "hidden": true,
+      "description": "On which layers of paths to work, counted from the deepest. 1 bundles only the deepest paths, e.g. the strands."
+    }
+  }
+}

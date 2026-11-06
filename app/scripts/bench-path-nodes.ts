@@ -183,6 +183,7 @@ const MODIFIERS: [string, (force: Int32Array) => Inputs, Props][] = [
   ['plantarium/gravity', () => ({}), { strength: 0.2 }],
   ['plantarium/apply_force', (force) => ({ force }), { strength: 1, stiffness: 0.3 }],
   ['plantarium/avoid', () => ({}), { radius: Number(options.radius), strength: 1, smoothing: 0.5 }],
+  ['plantarium/clump', () => ({}), { strength: 0.5, clumps: 12 }],
   ['plantarium/branch', () => ({}), { amount: 2, length: 0.01, lowest_branch: 0.3 }]
 ];
 const pointForce = () =>

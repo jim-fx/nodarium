@@ -308,6 +308,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "plantarium_clump"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
 name = "plantarium_curve"
 version = "0.1.0"
 dependencies = [
