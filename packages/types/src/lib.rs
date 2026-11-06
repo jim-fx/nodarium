@@ -113,6 +113,16 @@ pub struct NodeInputVec3 {
     pub value: Option<Vec<f64>>,
 }
 
+/// sRGB with integer components in [0, 255]
+#[derive(Serialize, Deserialize)]
+pub struct NodeInputColor {
+    #[serde(flatten)]
+    pub default_options: DefaultOptions,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<Vec<f64>>,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct NodeInputShape {
     #[serde(flatten)]
@@ -184,6 +194,7 @@ pub enum NodeInput {
     seed(NodeInputSeed),
     creator(NodeInputCreator),
     vec3(NodeInputVec3),
+    color(NodeInputColor),
     shape(NodeInputShape),
     curve(NodeInputCurve),
     geometry(NodeInputGeometry),

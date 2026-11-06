@@ -29,6 +29,8 @@ const GRAVITROPISM_IMPACT: f32 = 0.9;
 const AUTOTROPISM_SCALE: f32 = 2.0;
 const TOLERANCE: f32 = 5.0 * std::f32::consts::PI / 180.0;
 const WANDER: f32 = 0.15;
+/// A cap hypha only covers another when it lies within about 45° of straight outwards from it
+const COVER_CONE: f32 = 0.7;
 const BRANCH_ANGLE: f32 = 0.7;
 /// Cells per axis of the coarse grid for long-range autotropism
 const COARSE: usize = 8;
@@ -390,7 +392,8 @@ impl Simulation<'_> {
             let mut covered = false;
             let segments = &self.hyphae.segments;
             self.hash.for_each_near(end, 3.0 * unit, |j, _| {
-                if segments[j as usize].tissue == Tissue::Cap && (segments[j as usize].end - end).dot(outwards) > unit {
+                let offset = segments[j as usize].end - end;
+                if segments[j as usize].tissue == Tissue::Cap && offset.dot(outwards) > unit.max(COVER_CONE * offset.length()) {
                     covered = true;
                 }
             });

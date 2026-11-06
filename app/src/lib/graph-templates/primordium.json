@@ -9,13 +9,11 @@
     {
       "id": 0,
       "position": [
-        250,
+        290,
         85
       ],
       "type": "max/myzel/output",
-      "props": {
-        "show": 1
-      }
+      "props": {}
     },
     {
       "id": 1,
@@ -34,6 +32,24 @@
       ],
       "type": "max/myzel/gills",
       "props": {}
+    },
+    {
+      "id": 3,
+      "position": [
+        250,
+        85
+      ],
+      "type": "max/myzel/hyphae_to_mesh",
+      "props": {}
+    },
+    {
+      "id": 4,
+      "position": [
+        210,
+        40
+      ],
+      "type": "max/myzel/time",
+      "props": {}
     }
   ],
   "edges": [
@@ -45,6 +61,18 @@
     ],
     [
       2,
+      0,
+      3,
+      "hyphae"
+    ],
+    [
+      4,
+      0,
+      3,
+      "t"
+    ],
+    [
+      3,
       0,
       0,
       "field"

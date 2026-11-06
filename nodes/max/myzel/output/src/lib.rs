@@ -1,4 +1,7 @@
-use myzel_core::{mesh_segments, polygonize, read_field, read_float, read_hyphae, read_int, FIELD_TAG, HYPHAE_TAG};
+use myzel_core::{
+    hyphae_mesh, polygonize, read_field, read_float, read_hyphae, read_int, HyphaeMeshParams, FIELD_TAG,
+    HYPHAE_TAG, MESH_TAG,
+};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 
 nodarium_definition_file!("src/definition.json");
@@ -33,7 +36,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             }
             let mut items = Vec::new();
             if show != SHOW_HYPHAE {
-                items.push(mesh_segments(&hyphae.to_segments(), resolution, read_float(args[3])).encode());
+                let params = HyphaeMeshParams { resolution, blend: read_float(args[3]), ..HyphaeMeshParams::default() };
+                items.push(hyphae_mesh(&hyphae, &params).encode());
             }
             if show != SHOW_SURFACE {
                 items.push(if cut { hyphae.encode() } else { args[0].to_vec() });
@@ -41,6 +45,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             list(&items)
         }
         Some(&FIELD_TAG) => list(&[polygonize(&read_field(args[0]), resolution).encode()]),
+        Some(&MESH_TAG) => list(&[args[0].to_vec()]),
         _ => list(&[]),
     }
 }
@@ -114,6 +119,12 @@ mod tests {
         let lines = run_cut(&h.encode(), 1, 1);
         assert_eq!(Hyphae::decode(&lines[0]).len(), 2);
         assert_eq!(run_cut(&h.encode(), 1, 0)[0], h.encode());
+    }
+
+    #[test]
+    fn passes_a_mesh_through() {
+        let mesh = myzel_core::polygonize(&Field::sphere(1.0), 16).encode();
+        assert_eq!(run(&mesh, 0), vec![mesh]);
     }
 
     #[test]

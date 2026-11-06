@@ -1,0 +1,82 @@
+{
+  "id": "max/myzel/hyphae_to_mesh",
+  "meta": {
+    "description": "Turns hyphae into the surface around them, colored by tissue and with a fibrous relief along the hyphae"
+  },
+  "outputs": [
+    "mesh"
+  ],
+  "inputs": {
+    "hyphae": {
+      "type": "hyphae",
+      "external": true
+    },
+    "resolution_field": {
+      "type": "integer",
+      "value": 64,
+      "min": 16,
+      "max": 256,
+      "setting": "resolution.field"
+    },
+    "t": {
+      "type": "float",
+      "value": 0,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "description": "Maturity, the gills turn from pink to brown"
+    },
+    "fibres": {
+      "type": "float",
+      "value": 1,
+      "min": 0,
+      "max": 3,
+      "step": 0.05,
+      "description": "Relief along the hyphae, fibrous on the stipe, slightly scaly on the cap"
+    },
+    "seed": {
+      "type": "seed"
+    },
+    "cuticle_young": {
+      "type": "color",
+      "value": [244, 239, 230],
+      "description": "The youngest cap surface"
+    },
+    "cuticle_old": {
+      "type": "color",
+      "value": [196, 160, 118],
+      "description": "The oldest cap surface, the cap darkens from young to old"
+    },
+    "gill_young": {
+      "type": "color",
+      "value": [226, 164, 160]
+    },
+    "gill_mature": {
+      "type": "color",
+      "value": [92, 62, 48]
+    },
+    "stipe": {
+      "type": "color",
+      "value": [242, 238, 230]
+    },
+    "veil": {
+      "type": "color",
+      "value": [248, 246, 240],
+      "description": "The veil and the ring it leaves on the stipe"
+    },
+    "flesh": {
+      "type": "color",
+      "value": [236, 230, 220],
+      "description": "Cap flesh and the mycelium at the base"
+    },
+    "blend": {
+      "type": "float",
+      "value": 3,
+      "min": 1.5,
+      "max": 8,
+      "step": 0.1,
+      "hidden": true,
+      "description": "How far, in hypha radii, neighbouring hyphae join into one surface"
+    }
+  }
+}

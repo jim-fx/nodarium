@@ -152,4 +152,10 @@ mod tests {
         );
         assert!(matches!(def.inputs.unwrap()["hyphae"], nodarium_types::NodeInput::hyphae(_)));
     }
+
+    #[test]
+    fn parses_color_inputs() {
+        let def = definition(r#"{"id":"max/myzel/paint","inputs":{"stipe":{"type":"color","value":[242,238,230]}}}"#);
+        assert!(matches!(def.inputs.unwrap()["stipe"], nodarium_types::NodeInput::color(_)));
+    }
 }
