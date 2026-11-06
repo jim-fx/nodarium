@@ -213,8 +213,10 @@ fn move_veil(hyphae: &Hyphae, out: &mut Hyphae, moved: &[Vec3], params: &ExpandP
         let tear_at = (params.tear_position + POSITION_JITTER * (hash(params.seed, 2 * k as u32 + 1) - 0.5)).clamp(0.02, 0.98);
         let mut on_ring: Vec<bool> = along.iter().map(|&w| w < tear_at).collect();
         // The segment that spans the tear is torn off its parent. The cap half
-        // runs backwards along the path, so there it is the last one on the
-        // ring. Between the two tips no segment spans it, the cap tip goes to the ring.
+        // runs backwards along the path (a cap segment's parent comes after it),
+        // so there it is the last one on the ring. A tear between the two tips
+        // spans no segment: the cap tip has no children, so it moves to the ring
+        // as a loose point.
         let halfway = strand.stipe_half.len();
         let first_off_ring = on_ring.iter().position(|&r| !r).unwrap_or(path.len());
         let broken = if first_off_ring < halfway {
@@ -401,6 +403,24 @@ mod tests {
             let edge = torn.segments[strand.cap_half[0]].end;
             assert!(edge.distance(margin) < 0.001, "the fringe hangs at the margin");
             assert!(edge.y < margin.y);
+        }
+    }
+
+    #[test]
+    fn no_torn_veil_segment_spans_the_tear() {
+        let before = button().to_segments();
+        for seed in 0..4 {
+            for step in 1..50 {
+                let params = ExpandParams { t: 1.0, seed, tear_position: step as f32 / 50.0, ..ExpandParams::default() };
+                let h = expand(button(), &params);
+                for (i, s) in h.to_segments().iter().enumerate() {
+                    if h.segments[i].tissue != Tissue::Veil || h.segments[i].flags & flags::BROKEN != 0 {
+                        continue;
+                    }
+                    let (length, original) = (s.start.distance(s.end), before[i].start.distance(before[i].end));
+                    assert!(length <= original * 1.01 + 1e-6, "veil segment {} stretched from {} to {}", i, original, length);
+                }
+            }
         }
     }
 
