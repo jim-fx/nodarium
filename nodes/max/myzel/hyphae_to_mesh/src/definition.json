@@ -1,18 +1,29 @@
 {
   "id": "max/myzel/hyphae_to_mesh",
   "meta": {
-    "description": "Turns hyphae or paths into the surface around them with a fibrous relief along them. Every tissue is its own material group, for paths every node that made them."
+    "description": "Turns paths into the surface around them with a fibrous relief along them. Every node that made paths is its own material group, grown hyphae are grouped by tissue."
   },
   "outputs": [
     "mesh"
   ],
   "inputs": {
     "hyphae": {
-      "type": "hyphae",
+      "type": "path",
+      "label": "Body",
       "accepts": [
-        "path"
+        "hyphae"
       ],
-      "external": true
+      "external": true,
+      "description": "Paths that grow into one body of tissue, like stipe and cap: the gaps between them fill"
+    },
+    "loose": {
+      "type": "path",
+      "label": "Loose",
+      "accepts": [
+        "hyphae"
+      ],
+      "external": true,
+      "description": "Paths that stay apart, like gills and the veil: they join where they touch, the gaps between them stay open"
     },
     "resolution_field": {
       "type": "integer",
@@ -27,7 +38,7 @@
       "min": 0,
       "max": 3,
       "step": 0.05,
-      "description": "Relief along the hyphae, fibrous on the stipe, slightly scaly on the cap"
+      "description": "Relief along the paths, fibrous on the body, faint on loose paths"
     },
     "seed": {
       "type": "seed"
@@ -39,7 +50,7 @@
       "max": 8,
       "step": 0.1,
       "hidden": true,
-      "description": "How far, in hypha radii, neighbouring hyphae join into one surface"
+      "description": "How far, in path radii, neighbouring paths join into one surface"
     },
     "fill": {
       "type": "float",
@@ -47,7 +58,7 @@
       "min": 0,
       "max": 20,
       "step": 0.5,
-      "description": "Stipe and cap are tissue: where a ball of this many hypha radii can't pass between their hyphae the gap fills, so single hyphae only show as fibres. 0 shows every hypha."
+      "description": "Where a ball of this many path radii can't pass between body paths the gap fills, so single paths only show as fibres. 0 shows every path."
     }
   }
 }

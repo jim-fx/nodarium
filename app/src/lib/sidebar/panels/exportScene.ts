@@ -11,7 +11,7 @@ import {
 } from 'three';
 
 function groupName(mesh: Mesh, group: number) {
-  return mesh.userData.myzel ? (TISSUES[group] ?? `group ${group}`) : `group ${group}`;
+  return mesh.userData.tissueGroups ? (TISSUES[group] ?? `group ${group}`) : `group ${group}`;
 }
 
 /**

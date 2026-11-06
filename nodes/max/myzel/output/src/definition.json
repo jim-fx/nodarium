@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/output",
   "meta": {
-    "description": "Shows a field, a mesh or grown hyphae"
+    "description": "Shows a field, a mesh, paths or grown hyphae"
   },
   "outputs": [],
   "inputs": {
@@ -9,7 +9,8 @@
       "type": "field",
       "accepts": [
         "mesh",
-        "hyphae"
+        "hyphae",
+        "path"
       ],
       "external": true
     },
@@ -28,7 +29,7 @@
         "both"
       ],
       "value": 0,
-      "description": "For hyphae: the surface around them, the hyphae themselves as lines colored by tissue, or both"
+      "description": "For paths and hyphae: the surface around them, the paths as lines colored by group or the hyphae colored by tissue, or both"
     },
     "blend": {
       "type": "float",
@@ -37,7 +38,7 @@
       "max": 8,
       "step": 0.1,
       "hidden": true,
-      "description": "For hyphae: how far, in hypha radii, neighbouring hyphae join into one surface"
+      "description": "For paths and hyphae: how far, in their radii, neighbours join into one surface"
     },
     "cut": {
       "type": "select",
@@ -47,7 +48,7 @@
       ],
       "value": 0,
       "hidden": true,
-      "description": "For hyphae: leaves out the front half (z > 0) to look inside"
+      "description": "For paths and hyphae: leaves out the front half (z > 0) to look inside"
     }
   }
 }

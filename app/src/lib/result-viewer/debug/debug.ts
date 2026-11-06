@@ -17,6 +17,7 @@ import {
 } from 'three';
 import { createGeometryPool, RESULT_TAGS } from '../geometry/geometryPool';
 import { createHyphaeLines } from '../geometry/hyphae';
+import { createPathLines } from '../geometry/lines';
 import { PATH_HEADER_SIZE } from '../gizmos/gizmo-paths';
 
 // one color per stem depth, branches of branches get the next color
@@ -277,6 +278,13 @@ function createPointsDebug(points: Int32Array[]) {
   return group;
 }
 
+/** Myzel paths as lines colored by group */
+function createLinesDebug(lines: Int32Array[]) {
+  const segments = createPathLines(lines, { onTop: true });
+  segments.renderOrder = RENDER_ORDER;
+  return segments;
+}
+
 /** hyphae as lines colored by tissue */
 function createHyphaeDebug(hyphae: Int32Array[]) {
   const lines = createHyphaeLines(hyphae, { onTop: true });
@@ -324,6 +332,7 @@ export function updateDebugScene(
     const points = items.filter((item) => item[0] === 4);
     const meshes = items.filter((item) => item[0] === RESULT_TAGS.mesh);
     const hyphae = items.filter((item) => item[0] === RESULT_TAGS.hyphae);
+    const lines = items.filter((item) => item[0] === RESULT_TAGS.lines);
 
     if (paths.length) group.add(createPathDebug(paths));
     if (geometries.length) group.add(createGeometryDebug(geometries));
@@ -331,5 +340,6 @@ export function updateDebugScene(
     if (points.length) group.add(createPointsDebug(points));
     if (meshes.length) group.add(createGeometryDebug(meshes, 'mesh'));
     if (hyphae.length) group.add(createHyphaeDebug(hyphae));
+    if (lines.length) group.add(createLinesDebug(lines));
   }
 }

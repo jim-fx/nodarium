@@ -21,14 +21,24 @@
 //! `positions` and `normals` are `3v` f32. `colors` is only there when `flags`
 //! has [`mesh_flags::COLORS`] set and then holds one RGBA8 word per vertex, red
 //! in the lowest byte. Meshes without colors are shown with the viewer's
-//! material. `groups` holds one integer per vertex that tells which material
-//! group it belongs to: the [`Tissue`] for meshes made from hyphae, the
-//! graph node that made the path for meshes made from paths, 0 for meshes
-//! made from a field.
+//! material. `groups` holds one small integer per vertex that tells which
+//! material group it belongs to: for meshes made from paths the graph node that
+//! made the path, numbered by [`group_numbers`], 0 for meshes made from a field.
+//! Meshes of grown hyphae have [`mesh_flags::TISSUE_GROUPS`] set, their groups
+//! are the [`Tissue`]s.
+//!
+//! # Paths
+//!
+//! Myzel meshes Plantarium paths, see `nodarium_utils::geometry`. Grown hyphae
+//! become paths before meshing, see [`Hyphae::to_paths`].
 //!
 //! # Hyphae `[11, n, ...segments]`
 //!
 //! Grown hyphae, 8 words per segment, parents before children, see [`Hyphae`].
+//!
+//! # Lines `[12, n, ...n × (x0, y0, z0, x1, y1, z1, group)]`
+//!
+//! Paths as line segments for the viewer, in the groups of their mesh, see [`path_lines`].
 //!
 //! Inputs of Myzel nodes are plain values, see [`read_float`] and friends.
 
@@ -43,6 +53,7 @@ mod hyphae_mesh;
 mod inputs;
 mod mesh;
 mod noise;
+mod paths;
 mod polygonize;
 mod spatial;
 
@@ -53,7 +64,11 @@ pub use field::{opcode, Bbox, Field, FIELD_TAG};
 pub use gills::{grow_gills, GillParams, MAX_GILLS, MAX_LAMELLULAE};
 pub use growth::{grow, GrowthParams, Schedule, MAX_ITERATIONS, MAX_SEGMENTS};
 pub use hyphae::{flags, HyphaSegment, Hyphae, Tissue, HYPHAE_TAG};
-pub use hyphae_mesh::{hyphae_mesh, path_segments, paths_mesh, HyphaeMeshParams, MeshPath};
+pub use hyphae_mesh::{hyphae_mesh, paths_mesh, HyphaeMeshParams};
+pub use paths::{
+    group_numbers, path_lines, path_segments, read_mesh_paths, read_paths, retain_points, MeshPath, PathGroup,
+    PathStyle, LINES_TAG, TISSUE_COUNT,
+};
 pub use inputs::{read_field, read_float, read_floats, read_hyphae, read_int, read_mesh, read_vec3};
 pub use mesh::{mesh_flags, pack_rgba, Mesh, MESH_TAG};
 pub use noise::value_noise;
