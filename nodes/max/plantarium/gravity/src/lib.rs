@@ -28,21 +28,20 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     let output: Vec<Vec<i32>> = plants
         .iter()
-        .map(|_path_data| {
-            let path_data = _path_data.to_vec();
-            if !selected.contains(&path_data) {
-                return path_data;
+        .map(|path_data| {
+            if !selected.contains(path_data) {
+                return path_data.to_vec();
             }
 
             // alpha is where this path sits among all paths, from 0 at the first to 1 at the last
-            ctx.set_path(&path_data, path_index, path_count);
+            ctx.set_path(path_data, path_index, path_count);
             path_index += 1;
             let elasticity = ctx.float(args[3]).clamp(0.0, 1.0);
             // 0 → sqrt (rope), 1 → ~4.5 (only the tip droops)
             let bend_exponent = 0.5 + elasticity * 4.0;
 
-            let path = wrap_path(&path_data);
-            let mut output_data = path_data.clone();
+            let path = wrap_path(path_data);
+            let mut output_data = path_data.to_vec();
 
             // alpha goes along the path, so the strength can change from base to tip
             let alphas = (0..path.length).map(|i| i as f32 / (path.length - 1).max(1) as f32);

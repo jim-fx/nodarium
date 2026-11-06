@@ -1,9 +1,11 @@
 pub mod abi;
+mod box_grid;
 mod encoding;
 mod expr;
 mod force;
 mod points;
 mod tree;
+pub use box_grid::BoxGrid;
 pub use encoding::*;
 pub use expr::*;
 pub use force::*;

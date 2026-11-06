@@ -17,7 +17,7 @@
       "type": "integer",
       "description": "How many rays every umbel and umbellet has.",
       "min": 0,
-      "max": 64,
+      "max": 256,
       "value": 12
     },
     "length": {
