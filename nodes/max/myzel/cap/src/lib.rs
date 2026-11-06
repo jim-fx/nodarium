@@ -35,14 +35,14 @@ fn unframe(arg: &[i32]) -> Option<&[i32]> {
     framed.then(|| &arg[2..n - 2])
 }
 
-/// A list of floats as the host sends a shape or curve. A connected shape node wraps the
-/// points in another bracket, the value on the node does not. Not read with `split_args`: a
-/// point at 0 would read as the start of a bracket.
+/// A list of floats as the host sends a shape or curve. The value on the node arrives as one
+/// frame, a connected node sends `concat_args([frame])` = `[0, 1, ...frame, 1, 1]`. Not read with
+/// `split_args`: a point at 0 would read as the start of a bracket.
 fn read_floats(arg: &[i32]) -> Vec<f32> {
-    let Some(words) = unframe(arg) else {
-        return Vec::new();
-    };
-    unframe(words).unwrap_or(words).iter().map(|&w| decode_float(w)).collect()
+    let n = arg.len();
+    let connected = n >= 8 && arg[..2] == [0, 1] && arg[n - 2..] == [1, 1] && unframe(&arg[2..n - 2]).is_some();
+    let frame = if connected { &arg[2..n - 2] } else { arg };
+    unframe(frame).map_or_else(Vec::new, |words| words.iter().map(|&w| decode_float(w)).collect())
 }
 
 /// The drawn outline as (distance from the axis, height), with the top over the axis at 0.
@@ -642,10 +642,9 @@ mod tests {
     fn reads_a_connected_shape_node() {
         let p = cone();
         let profile = floats(&p.profile);
-        let mut wrapped = vec![0, profile.len() as i32 + 1];
-        wrapped.extend(profile);
-        wrapped.extend([1, 1]);
+        let wrapped = nodarium_utils::concat_args(vec![&profile]);
+        assert_eq!(super::read_floats(&wrapped), p.profile);
         let (paths, _, _) = execute(&p, &wrapped);
-        assert_eq!(split_args(&paths), split_args(&execute(&p, &floats(&p.profile)).0));
+        assert_eq!(split_args(&paths), split_args(&execute(&p, &profile).0));
     }
 }
