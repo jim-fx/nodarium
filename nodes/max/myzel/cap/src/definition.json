@@ -1,0 +1,120 @@
+{
+  "id": "max/myzel/cap",
+  "meta": {
+    "description": "Grows a cap at the tip of every path, the stipe: guide rays that leave the stipe top and follow the drawn profile out to the margin. Fill them with strands. Gives the hinge (stipe top) and the margin as points."
+  },
+  "outputs": [
+    "path",
+    {
+      "type": "points",
+      "label": "hinge"
+    },
+    {
+      "type": "points",
+      "label": "margin"
+    }
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The stipes, the cap grows at the tip of every path",
+      "external": true
+    },
+    "radius": {
+      "type": "float",
+      "description": "Radius of the open cap, the profile spans from the axis to this radius",
+      "value": 0.025,
+      "min": 0,
+      "max": 0.2,
+      "step": 0.001,
+      "unit": "m"
+    },
+    "profile": {
+      "type": "shape",
+      "description": "The outline of the open cap seen from the side, from the top over the stipe to the margin. Width and height keep their proportions, the half width of the box is the radius.",
+      "value": [
+        0,
+        44,
+        4,
+        36,
+        11,
+        29,
+        21,
+        25,
+        33,
+        22.5,
+        50,
+        21.5
+      ],
+      "label": ""
+    },
+    "thickness": {
+      "type": "float",
+      "description": "Thickness of the flesh over the stipe",
+      "value": 0.008,
+      "min": 0,
+      "max": 0.05,
+      "step": 0.0005,
+      "unit": "m"
+    },
+    "thickness_curve": {
+      "type": "curve",
+      "label": "Thickness to the margin",
+      "description": "How the flesh thins from the centre (left) to the margin (right), as a share of the thickness",
+      "value": [
+        0,
+        1,
+        0.6,
+        0.6,
+        1,
+        0.15
+      ]
+    },
+    "margin_curl": {
+      "type": "float",
+      "description": "How far the margin rolls in under the cap. 0 = not at all, 1 = rolled under like a button",
+      "value": 0.2,
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    },
+    "opening": {
+      "type": "float",
+      "description": "0 = a closed button with the margin against the stipe, 1 = open as the profile is drawn",
+      "value": 1,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    "rays": {
+      "type": "integer",
+      "description": "Rays that leave the stipe top. More start between them where they drift apart towards the margin.",
+      "value": 12,
+      "min": 1,
+      "max": 128
+    },
+    "spacing": {
+      "type": "float",
+      "hidden": true,
+      "description": "Neighbouring rays are at most this many flesh thicknesses apart, a new ray starts between two where they drift further apart. 0 adds no rays.",
+      "value": 0.5,
+      "min": 0,
+      "max": 4,
+      "step": 0.05
+    },
+    "seed": {
+      "type": "seed"
+    },
+    "resolution_curve": {
+      "type": "integer",
+      "description": "Points along a ray that starts at the stipe, rays that start further out get fewer",
+      "value": 32,
+      "min": 4,
+      "max": 64,
+      "setting": "resolution.curve"
+    },
+    "creator": {
+      "type": "creator"
+    }
+  }
+}
