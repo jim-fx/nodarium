@@ -65,6 +65,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "myzel_gills"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+ "serde_json",
+]
+
+[[package]]
 name = "myzel_map_range"
 version = "0.1.0"
 dependencies = [

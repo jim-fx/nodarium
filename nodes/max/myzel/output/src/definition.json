@@ -37,6 +37,16 @@
       "step": 0.1,
       "hidden": true,
       "description": "For hyphae: how far, in hypha radii, neighbouring hyphae join into one surface"
+    },
+    "cut": {
+      "type": "select",
+      "options": [
+        "none",
+        "open"
+      ],
+      "value": 0,
+      "hidden": true,
+      "description": "For hyphae: leaves out the front half (z > 0) to look inside"
     }
   }
 }
