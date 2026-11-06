@@ -94,11 +94,11 @@
   style:--socket-color={hoverColor}
   class:possible-socket={graphState?.possibleSocketIds.has(socketId)}
 >
-  <div class="content" class:pr-4={rightBump}>
+  <div class="content" class:pr-4={rightBump} {title}>
     {#if appSettings.value.debug.advancedMode}
       <span class="shrink-0 bg-white text-black! mr-2 px-1 rounded-sm opacity-30">{node.id}</span>
     {/if}
-    <span class="min-w-0 truncate" {title}>{title}</span>
+    <span class="min-w-0 truncate">{title}</span>
     <span class="ml-auto"></span>
     {#if appSettings.value.debug.advancedMode && timing !== undefined}
       <span class="shrink-0 ml-2 mr-2 text-xs opacity-50">{formatTiming(timing)}</span>
@@ -189,6 +189,11 @@
 
     stroke-linejoin: round;
     shape-rendering: geometricPrecision;
+  }
+
+  /* the graph only starts a node drag when the mousedown target is .content itself */
+  .content > span {
+    pointer-events: none;
   }
 
   .content {
