@@ -171,10 +171,10 @@ describe('updateDebugScene', () => {
   });
 
   it('draws a Myzel mesh and the preview of a field, but not a raw field', () => {
-    // [14, vertices, faces, ...faces, ...positions, ...normals, ...colors] with one triangle
-    const mesh = new Int32Array(3 + 3 + 21);
-    mesh.set([14, 3, 1, 0, 1, 2]);
-    new Float32Array(mesh.buffer).set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1], 6);
+    // [14, vertices, faces, flags, ...faces, ...positions, ...normals, ...groups] with one triangle
+    const mesh = new Int32Array(4 + 3 + 21);
+    mesh.set([14, 3, 1, 0, 0, 1, 2]);
+    new Float32Array(mesh.buffer).set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1], 7);
     const meshes = (group: Group) =>
       group.children.flatMap((g) => g.children.flatMap((pool) => pool.children as Mesh[]));
 

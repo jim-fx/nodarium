@@ -1,0 +1,42 @@
+{
+  "id": "max/myzel/hyphae_to_mesh",
+  "meta": {
+    "description": "Turns hyphae into the surface around them with a fibrous relief along the hyphae, every tissue is its own material group"
+  },
+  "outputs": [
+    "mesh"
+  ],
+  "inputs": {
+    "hyphae": {
+      "type": "hyphae",
+      "external": true
+    },
+    "resolution_field": {
+      "type": "integer",
+      "value": 64,
+      "min": 16,
+      "max": 256,
+      "setting": "resolution.field"
+    },
+    "fibres": {
+      "type": "float",
+      "value": 1,
+      "min": 0,
+      "max": 3,
+      "step": 0.05,
+      "description": "Relief along the hyphae, fibrous on the stipe, slightly scaly on the cap"
+    },
+    "seed": {
+      "type": "seed"
+    },
+    "blend": {
+      "type": "float",
+      "value": 3,
+      "min": 1.5,
+      "max": 8,
+      "step": 0.1,
+      "hidden": true,
+      "description": "How far, in hypha radii, neighbouring hyphae join into one surface"
+    }
+  }
+}

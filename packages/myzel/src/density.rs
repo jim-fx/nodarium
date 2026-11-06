@@ -1,8 +1,6 @@
 use glam::Vec3;
 
-use crate::mesh::{pack_rgba, Mesh};
-
-const COLOR: [f32; 3] = [0.93, 0.89, 0.80];
+use crate::mesh::Mesh;
 
 const BLOCK: usize = 8;
 const BLOCK_SAMPLES: usize = BLOCK * BLOCK * BLOCK;
@@ -31,6 +29,9 @@ struct SparseGrid {
     blocks: [usize; 3],
     block_slots: Vec<u32>,
     density: Vec<f32>,
+    /// Per sample the segment with the largest kernel value there, and that value
+    owner: Vec<u32>,
+    owner_k: Vec<f32>,
 }
 
 impl SparseGrid {
@@ -51,6 +52,8 @@ impl SparseGrid {
                     if self.block_slots[i] == EMPTY {
                         self.block_slots[i] = (self.density.len() / BLOCK_SAMPLES) as u32;
                         self.density.resize(self.density.len() + BLOCK_SAMPLES, 0.0);
+                        self.owner.resize(self.density.len(), EMPTY);
+                        self.owner_k.resize(self.density.len(), 0.0);
                     }
                 }
             }
@@ -68,6 +71,19 @@ impl SparseGrid {
         }
     }
 
+    fn owner(&self, p: [usize; 3]) -> (f32, u32) {
+        if p[0] >= self.samples[0] || p[1] >= self.samples[1] || p[2] >= self.samples[2] {
+            return (0.0, EMPTY);
+        }
+        match self.slot(p) {
+            EMPTY => (0.0, EMPTY),
+            s => {
+                let i = s as usize * BLOCK_SAMPLES + Self::local(p);
+                (self.owner_k[i], self.owner[i])
+            }
+        }
+    }
+
     fn gradient(&self, p: [usize; 3]) -> Vec3 {
         let at = |axis: usize, step: isize| {
             let mut q = p;
@@ -82,7 +98,7 @@ impl SparseGrid {
     }
 
     /// Adds the kernel of one segment to every sample it reaches
-    fn splat(&mut self, segment: &Segment, reach: f32) {
+    fn splat(&mut self, index: u32, priority: f32, segment: &Segment, reach: f32) {
         let lo_world = segment.start.min(segment.end) - Vec3::splat(reach);
         let hi_world = segment.start.max(segment.end) + Vec3::splat(reach);
         let to_sample = |v: Vec3, round: fn(f32) -> f32| {
@@ -106,8 +122,13 @@ impl SparseGrid {
                         continue;
                     }
                     let k = 1.0 - d_sq / reach_sq;
-                    let slot = self.slot([x, y, z]) as usize;
-                    self.density[slot * BLOCK_SAMPLES + Self::local([x, y, z])] += k * k * k;
+                    let k = k * k * k;
+                    let i = self.slot([x, y, z]) as usize * BLOCK_SAMPLES + Self::local([x, y, z]);
+                    self.density[i] += k;
+                    if k * priority > self.owner_k[i] {
+                        self.owner_k[i] = k * priority;
+                        self.owner[i] = index;
+                    }
                 }
             }
         }
@@ -122,8 +143,29 @@ impl SparseGrid {
 /// than that join into one surface. The threshold is chosen so that a lone
 /// segment's surface still sits at its radius, whatever `blend` is.
 pub fn mesh_segments(segments: &[Segment], resolution: usize, blend: f32) -> Mesh {
+    surface(segments, resolution, blend, |_| 1.0).mesh
+}
+
+/// A mesh from [`surface`] with what each vertex was made of
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SegmentSurface {
+    pub mesh: Mesh,
+    /// Per vertex the index of the segment that contributes most to it
+    pub owners: Vec<u32>,
+    /// Edge length of the grid cells, the smallest detail the mesh can show
+    pub cell: f32,
+}
+
+/// [`mesh_segments`] that also tells which segment every vertex belongs to.
+/// A segment owns a vertex where its kernel times `priority(index)` is the largest.
+pub fn surface(
+    segments: &[Segment],
+    resolution: usize,
+    blend: f32,
+    priority: impl Fn(usize) -> f32,
+) -> SegmentSurface {
     if segments.is_empty() {
-        return Mesh::default();
+        return SegmentSurface::default();
     }
     let reach_factor = blend.max(1.1);
     let threshold = (1.0 - 1.0 / (reach_factor * reach_factor)).powi(3);
@@ -136,7 +178,7 @@ pub fn mesh_segments(segments: &[Segment], resolution: usize, blend: f32) -> Mes
     }
     let longest = ((max - min) + Vec3::splat(2.0 * reach_factor * widest)).max_element();
     if !longest.is_finite() || longest <= 0.0 {
-        return Mesh::default();
+        return SegmentSurface::default();
     }
     let cell = longest / resolution.max(2) as f32;
     let min_radius = MIN_RADIUS_IN_CELLS * cell;
@@ -154,12 +196,15 @@ pub fn mesh_segments(segments: &[Segment], resolution: usize, blend: f32) -> Mes
         blocks,
         block_slots: vec![EMPTY; blocks[0] * blocks[1] * blocks[2]],
         density: Vec::new(),
+        owner: Vec::new(),
+        owner_k: Vec::new(),
     };
-    for s in segments {
-        grid.splat(s, reach_factor * s.radius.max(min_radius));
+    for (i, s) in segments.iter().enumerate() {
+        grid.splat(i as u32, priority(i), s, reach_factor * s.radius.max(min_radius));
     }
 
     let mut mesh = Mesh::default();
+    let mut owners = Vec::new();
     let mut vertex_of_cell = vec![EMPTY; grid.density.len()];
     let block_origins: Vec<[usize; 3]> = {
         let mut origins = vec![[0; 3]; grid.density.len() / BLOCK_SAMPLES];
@@ -208,11 +253,19 @@ pub fn mesh_segments(segments: &[Segment], resolution: usize, blend: f32) -> Mes
 
             // density rises inwards, the normal is the trilinear blend of the corner gradients, negated
             let mut gradient = Vec3::ZERO;
+            let (mut best, mut owner) = (-1.0, 0);
             for o in CORNERS {
                 let w = [0, 1, 2].map(|a| if o[a] == 1 { f[a] } else { 1.0 - f[a] });
-                gradient += grid.gradient([c[0] + o[0], c[1] + o[1], c[2] + o[2]]) * (w[0] * w[1] * w[2]);
+                let w = w[0] * w[1] * w[2];
+                let corner = [c[0] + o[0], c[1] + o[1], c[2] + o[2]];
+                gradient += grid.gradient(corner) * w;
+                let (k, i) = grid.owner(corner);
+                if i != EMPTY && k * w > best {
+                    (best, owner) = (k * w, i);
+                }
             }
             let n = (-gradient).try_normalize().unwrap_or(Vec3::Y);
+            owners.push(owner);
 
             vertex_of_cell[slot * BLOCK_SAMPLES + local] = mesh.vertex_count() as u32;
             mesh.positions.extend([p.x, p.y, p.z]);
@@ -258,14 +311,30 @@ pub fn mesh_segments(segments: &[Segment], resolution: usize, blend: f32) -> Mes
         }
     }
 
-    mesh.colors = vec![pack_rgba(COLOR[0], COLOR[1], COLOR[2], 1.0); mesh.vertex_count()];
-    mesh
+    mesh.groups = vec![0; mesh.vertex_count()];
+    SegmentSurface { mesh, owners, cell }
+}
+
+#[cfg(test)]
+pub(crate) fn assert_closed(mesh: &Mesh) {
+    use std::collections::HashMap;
+    assert!(mesh.face_count() > 0);
+    let mut edges: HashMap<(u32, u32), i32> = HashMap::new();
+    for f in mesh.faces.chunks_exact(3) {
+        for (a, b) in [(f[0], f[1]), (f[1], f[2]), (f[2], f[0])] {
+            *edges.entry((a, b)).or_default() += 1;
+        }
+    }
+    // Surface Nets can join two sheets at one edge where blobs touch diagonally,
+    // closed means every edge is used as often in both directions
+    for (&(a, b), &count) in &edges {
+        assert_eq!(edges.get(&(b, a)), Some(&count), "edge {}-{} is open", a, b);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
     use std::f32::consts::PI;
 
     fn segment(start: Vec3, end: Vec3, radius: f32) -> Segment {
@@ -274,21 +343,6 @@ mod tests {
 
     fn vertex(mesh: &Mesh, i: u32) -> Vec3 {
         Vec3::from_slice(&mesh.positions[i as usize * 3..i as usize * 3 + 3])
-    }
-
-    fn assert_closed(mesh: &Mesh) {
-        assert!(mesh.face_count() > 0);
-        let mut edges: HashMap<(u32, u32), i32> = HashMap::new();
-        for f in mesh.faces.chunks_exact(3) {
-            for (a, b) in [(f[0], f[1]), (f[1], f[2]), (f[2], f[0])] {
-                *edges.entry((a, b)).or_default() += 1;
-            }
-        }
-        // Surface Nets can join two sheets at one edge where blobs touch diagonally,
-        // closed means every edge is used as often in both directions
-        for (&(a, b), &count) in &edges {
-            assert_eq!(edges.get(&(b, a)), Some(&count), "edge {}-{} is open", a, b);
-        }
     }
 
     fn volume(mesh: &Mesh) -> f32 {
@@ -376,7 +430,8 @@ mod tests {
             let outwards = p - Vec3::Y * p.y.clamp(0.0, 1.0);
             assert!(n.dot(outwards.normalize()) > 0.9);
         }
-        assert_eq!(mesh.colors.len(), mesh.vertex_count());
+        assert!(mesh.colors.is_empty());
+        assert_eq!(mesh.groups.len(), mesh.vertex_count());
     }
 
     #[test]
@@ -401,6 +456,26 @@ mod tests {
         let mesh = mesh_segments(&walk(), 64, 2.0);
         assert_closed(&mesh);
         assert_eq!(mesh.encode(), mesh_segments(&walk(), 64, 2.0).encode());
+    }
+
+    #[test]
+    fn every_vertex_belongs_to_the_nearest_segment() {
+        let pair = [segment(Vec3::ZERO, Vec3::Y, 0.05), segment(Vec3::X * 0.5, Vec3::new(0.5, 1.0, 0.0), 0.05)];
+        let s = surface(&pair, 48, 2.0, |_| 1.0);
+        assert_eq!(s.owners.len(), s.mesh.vertex_count());
+        for (i, &owner) in s.owners.iter().enumerate() {
+            assert_eq!(owner, (vertex(&s.mesh, i as u32).x > 0.25) as u32);
+        }
+    }
+
+    #[test]
+    fn priority_lets_a_segment_win_where_both_reach() {
+        let pair = [segment(Vec3::ZERO, Vec3::Y, 0.05), segment(Vec3::X * 0.12, Vec3::new(0.12, 1.0, 0.0), 0.05)];
+        let even = surface(&pair, 48, 3.0, |_| 1.0);
+        let first = surface(&pair, 48, 3.0, |i| if i == 0 { 4.0 } else { 1.0 });
+        let count = |s: &SegmentSurface| s.owners.iter().filter(|&&o| o == 0).count();
+        assert_eq!(even.mesh, first.mesh);
+        assert!(count(&first) > count(&even));
     }
 
     #[test]

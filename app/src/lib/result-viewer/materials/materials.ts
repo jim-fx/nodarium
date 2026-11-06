@@ -132,6 +132,75 @@ const facesFragmentShader = /* glsl */ `
   }
 `;
 
+// group ids are integers, plant path ids keep 24 of their bits
+const groupsVertexShader = /* glsl */ `
+  attribute float group;
+  #ifdef USE_INSTANCING
+    attribute float instanceGroup;
+  #endif
+
+  varying vec3 vWorldNormal;
+  varying vec3 vWorldPosition;
+  flat varying uint vGroup;
+
+  void main() {
+    vec4 pos = vec4(position, 1.0);
+    vec3 n = normal;
+    float id = group;
+    #ifdef USE_INSTANCING
+      pos = instanceMatrix * pos;
+      n = mat3(instanceMatrix) * n;
+      id = instanceGroup;
+    #endif
+
+    vec4 world = modelMatrix * pos;
+    vWorldPosition = world.xyz;
+    vWorldNormal = mat3(modelMatrix) * n;
+    vGroup = uint(id + 0.5);
+
+    gl_Position = projectionMatrix * viewMatrix * world;
+  }
+`;
+
+const groupsFragmentShader = /* glsl */ `
+  varying vec3 vWorldNormal;
+  varying vec3 vWorldPosition;
+  flat varying uint vGroup;
+
+  // lowbias32, neighbouring ids end up far apart
+  uint hash(uint x) {
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    return x;
+  }
+
+  vec3 hsl(float h, float s, float l) {
+    vec3 rgb = clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+    return l + s * (rgb - 0.5) * (1.0 - abs(2.0 * l - 1.0));
+  }
+
+  void main() {
+    uint h = hash(vGroup);
+    float hue = float(h & 0xffffu) / 65535.0;
+    // a little spread in lightness tells groups of similar hue apart
+    float lightness = 0.5 + 0.12 * (float((h >> 16) & 0xffu) / 255.0 - 0.5);
+    vec3 albedo = hsl(hue, 0.6, lightness);
+
+    vec3 N = normalize(vWorldNormal);
+    if (!gl_FrontFacing) N = -N;
+    vec3 V = normalize(cameraPosition - vWorldPosition);
+    vec3 L = normalize(vec3(0.5, 1.0, 0.3));
+    float diffuse = max((dot(N, L) + 0.3) / 1.3, 0.0);
+    float facing = max(dot(N, V), 0.0);
+    float shade = 0.3 + 0.45 * diffuse + 0.25 * facing;
+    gl_FragColor = vec4(albedo * shade, 1.0);
+    #include <colorspace_fragment>
+  }
+`;
+
 type LitOptions = {
   base: string;
   tip: string;
@@ -281,6 +350,16 @@ export const materials = [
           uFront: { value: new Color('#3b82f6') },
           uBack: { value: new Color('#ef4444') }
         }
+      })
+  },
+  {
+    id: 'groups',
+    name: 'Groups',
+    create: () =>
+      new ShaderMaterial({
+        vertexShader: groupsVertexShader,
+        fragmentShader: groupsFragmentShader,
+        side: DoubleSide
       })
   }
 ] as const satisfies { id: string; name: string; create: () => Material }[];

@@ -1,13 +1,14 @@
 {
   "id": "max/myzel/output",
   "meta": {
-    "description": "Turns a field or grown hyphae into the mesh that is shown"
+    "description": "Shows a field, a mesh or grown hyphae"
   },
   "outputs": [],
   "inputs": {
     "field": {
       "type": "field",
       "accepts": [
+        "mesh",
         "hyphae"
       ],
       "external": true

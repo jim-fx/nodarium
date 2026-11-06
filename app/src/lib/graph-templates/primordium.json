@@ -14,14 +14,12 @@
         85
       ],
       "type": "max/myzel/output",
-      "props": {
-        "show": 1
-      }
+      "props": {}
     },
     {
       "id": 1,
       "position": [
-        170,
+        130,
         85
       ],
       "type": "max/myzel/primordium",
@@ -30,7 +28,7 @@
     {
       "id": 2,
       "position": [
-        210,
+        170,
         85
       ],
       "type": "max/myzel/gills",
@@ -39,7 +37,7 @@
     {
       "id": 3,
       "position": [
-        250,
+        210,
         85
       ],
       "type": "max/myzel/expand",
@@ -48,10 +46,19 @@
     {
       "id": 4,
       "position": [
-        210,
+        170,
         125
       ],
       "type": "max/myzel/time",
+      "props": {}
+    },
+    {
+      "id": 5,
+      "position": [
+        250,
+        85
+      ],
+      "type": "max/myzel/hyphae_to_mesh",
       "props": {}
     }
   ],
@@ -76,6 +83,12 @@
     ],
     [
       3,
+      0,
+      5,
+      "hyphae"
+    ],
+    [
+      5,
       0,
       0,
       "field"

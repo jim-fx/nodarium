@@ -6,6 +6,7 @@ import {
   Color,
   Float32BufferAttribute,
   Group,
+  InstancedBufferAttribute,
   InstancedMesh,
   Material,
   Matrix4,
@@ -43,14 +44,15 @@ export type MeshData = {
   normals: Float32Array;
   /** RGBA8 per vertex, red first */
   colors?: Uint8Array;
+  /** material group per vertex */
+  groups?: Int32Array;
 };
 
-function readLayout(data: Int32Array, headerLength: number, withColors: boolean): MeshData {
+function readLayout(data: Int32Array, headerLength: number): MeshData {
   const vertexCount = data[1];
   const faceCount = data[2];
   const positionsStart = headerLength + faceCount * 3;
   const normalsStart = positionsStart + vertexCount * 3;
-  const colorsStart = normalsStart + vertexCount * 3;
   const floats = (start: number) =>
     new Float32Array(data.buffer, data.byteOffset + start * 4, vertexCount * 3);
   return {
@@ -58,28 +60,53 @@ function readLayout(data: Int32Array, headerLength: number, withColors: boolean)
     faceCount,
     faces: data.subarray(headerLength, positionsStart),
     positions: floats(positionsStart),
-    normals: floats(normalsStart),
-    colors: withColors
-      ? new Uint8Array(data.buffer, data.byteOffset + colorsStart * 4, vertexCount * 4)
-      : undefined
+    normals: floats(normalsStart)
   };
 }
 
 /** Plantarium geometry: `[1, v, f, path id, ...faces, ...positions, ...normals]` */
 export function readGeometry(data: Int32Array) {
-  return readLayout(data, 4, false);
+  return readLayout(data, 4);
 }
 
-/** Myzel mesh: `[14, v, f, ...faces, ...positions, ...normals, ...colors]` */
+/** Set in the flags word of a Myzel mesh when it brings one color per vertex */
+export const MESH_HAS_COLORS = 1;
+
+/** Myzel mesh: `[14, v, f, flags, ...faces, ...positions, ...normals, ...colors?, ...groups]` */
 export function readMesh(data: Int32Array) {
-  const mesh = readLayout(data, 3, true);
-  const expected = 3 + mesh.faceCount * 3 + mesh.vertexCount * 7;
+  const mesh = readLayout(data, 4);
+  const withColors = (data[3] & MESH_HAS_COLORS) !== 0;
+  const colorsStart = 4 + mesh.faceCount * 3 + mesh.vertexCount * 6;
+  const groupsStart = colorsStart + (withColors ? mesh.vertexCount : 0);
+  const expected = groupsStart + mesh.vertexCount;
   if (data.length !== expected) {
     throw new Error(
-      `A mesh with ${mesh.vertexCount} vertices and ${mesh.faceCount} faces needs ${expected} words, got ${data.length}`
+      `A mesh with ${mesh.vertexCount} vertices, ${mesh.faceCount} faces and flags ${
+        data[3]
+      } needs ${expected} words, got ${data.length}`
     );
   }
+  if (withColors) {
+    mesh.colors = new Uint8Array(
+      data.buffer,
+      data.byteOffset + colorsStart * 4,
+      mesh.vertexCount * 4
+    );
+  }
+  mesh.groups = data.subarray(groupsStart, expected);
   return mesh;
+}
+
+/**
+ * Path ids are hashes that would lose bits as floats in the group attribute, any 24 of them still
+ * tell the paths apart
+ */
+const GROUP_MASK = 0xff_ffff;
+
+function groupAttribute(groups: Int32Array) {
+  const out = new Float32Array(groups.length);
+  for (let i = 0; i < groups.length; i++) out[i] = groups[i] & GROUP_MASK;
+  return out;
 }
 
 const coloredMaterials = new WeakMap<Material, Material>();
@@ -254,13 +281,18 @@ function createSlotPool<T extends Mesh | InstancedMesh>(
 }
 
 /** Writes `array` into the attribute, a new one is only made when the size changed */
-function writeAttribute(geometry: BufferGeometry, name: string, array: Float32Array) {
+function writeAttribute(
+  geometry: BufferGeometry,
+  name: string,
+  array: Float32Array,
+  itemSize = 3
+) {
   const attribute = geometry.getAttribute(name) as BufferAttribute | undefined;
   if (attribute && attribute.array.length === array.length) {
     attribute.array.set(array);
     attribute.needsUpdate = true;
   } else {
-    geometry.setAttribute(name, new Float32BufferAttribute(array, 3));
+    geometry.setAttribute(name, new Float32BufferAttribute(array, itemSize));
   }
 }
 
@@ -287,6 +319,10 @@ export function createGeometryPool(
   layout: 'geometry' | 'mesh' = 'geometry'
 ) {
   const read = layout === 'mesh' ? readMesh : readGeometry;
+  // meshes that bring no colors of their own are shown with the material as it is
+  const materialFor = (geometry: BufferGeometry) =>
+    geometry.getAttribute('color') ? withVertexColors(material) : material;
+
   const pool = createSlotPool<Mesh>(parentScene, {
     // the id of the path the geometry was made from, meshes have none and keep their order
     key: (data) => layout === 'mesh' ? 'mesh' : String(readGeometryPathId(data)),
@@ -294,10 +330,15 @@ export function createGeometryPool(
       const mesh = existing ?? new Mesh(new BufferGeometry(), material);
       const geometry = mesh.geometry;
 
-      const { vertexCount, faceCount, faces, positions, normals, colors } = read(data);
+      const { vertexCount, faceCount, faces, positions, normals, colors, groups: meshGroups } =
+        read(data);
       stats.totalVertices += vertexCount;
       stats.totalFaces += faceCount;
       if (layout === 'geometry') mesh.userData.pathId = readGeometryPathId(data);
+      else mesh.userData.myzel = true;
+      // plant geometry is grouped by the path it was made from
+      const groups = meshGroups
+        ?? new Int32Array(vertexCount).fill(readGeometryPathId(data));
 
       // one word per vertex, compared like the other attributes
       const colorWords = colors && new Int32Array(colors.buffer, colors.byteOffset, vertexCount);
@@ -305,17 +346,26 @@ export function createGeometryPool(
       const colorsShown = colorWords
         ? !!shownColors && sameBits(shownColors, colorWords)
         : !geometry.getAttribute('color');
+      const shownGroups: Int32Array | undefined = geometry.userData.groups;
+      const groupsShown = !!shownGroups && sameBits(shownGroups, groups);
 
-      if (!colorsShown || !showsData(geometry, faces, positions, normals)) {
+      if (!colorsShown || !groupsShown || !showsData(geometry, faces, positions, normals)) {
         writeIndex(geometry, faces, vertexCount);
         writeAttribute(geometry, 'position', positions);
         writeAttribute(geometry, 'normal', normals);
         if (colors) writeAttribute(geometry, 'color', linearColors(colors));
         else geometry.deleteAttribute('color');
+        writeAttribute(geometry, 'group', groupAttribute(groups), 1);
         // the renderer would compute the bounds from the vertices again, they are known here
         setBounds(geometry, positions);
-        geometry.userData = { vertexCount, faceCount, colors: colorWords?.slice() };
+        geometry.userData = {
+          vertexCount,
+          faceCount,
+          colors: colorWords?.slice(),
+          groups: groups.slice()
+        };
       }
+      mesh.material = materialFor(geometry);
 
       stats.bounds.union(geometry.boundingBox!);
       return mesh;
@@ -325,7 +375,7 @@ export function createGeometryPool(
   return {
     setMaterial(newMaterial: Material) {
       material = newMaterial;
-      pool.forEach((mesh) => mesh.material = material);
+      pool.forEach((mesh) => mesh.material = materialFor(mesh.geometry));
     },
     update: pool.update
   };
@@ -379,7 +429,20 @@ export function createInstancedGeometryPool(
       mesh.instanceMatrix.needsUpdate = true;
 
       // which path each of the instances sits on
-      mesh.userData.pathIds = Int32Array.from(readInstancePathIds(data));
+      const pathIds = Int32Array.from(readInstancePathIds(data));
+      mesh.userData.pathIds = pathIds;
+      // one group per instance even when the ids are missing, a short buffer would fail the draw
+      const groups = new Float32Array(instanceCount);
+      groups.set(groupAttribute(pathIds).subarray(0, instanceCount));
+      const shownGroups = geometry.getAttribute('instanceGroup') as
+        | InstancedBufferAttribute
+        | undefined;
+      if (shownGroups && shownGroups.array.length === groups.length) {
+        shownGroups.array.set(groups);
+        shownGroups.needsUpdate = true;
+      } else {
+        geometry.setAttribute('instanceGroup', new InstancedBufferAttribute(groups, 1));
+      }
 
       // the frustum culling needs the bounds of the geometry moved by all of its instances
       const bounds = mesh.boundingBox ?? new Box3();
@@ -406,20 +469,20 @@ export function createInstancedGeometryPool(
 }
 
 /**
- * Shows a whole result: Plantarium geometry and instances, Myzel meshes, which bring their own
- * colors, and Myzel hyphae as lines. Items of other kinds are skipped.
+ * Shows a whole result: Plantarium geometry and instances, Myzel meshes, some of which bring their
+ * own colors, and Myzel hyphae as lines. Items of other kinds are skipped.
  */
 export function createResultPools(parentScene: Group, material: Material) {
   const geometries = createGeometryPool(parentScene, material);
   const instances = createInstancedGeometryPool(parentScene, material);
-  const meshes = createGeometryPool(parentScene, withVertexColors(material), 'mesh');
+  const meshes = createGeometryPool(parentScene, material, 'mesh');
   const hyphae = createHyphaePool(parentScene);
 
   return {
     setMaterial(newMaterial: Material) {
       geometries.setMaterial(newMaterial);
       instances.setMaterial(newMaterial);
-      meshes.setMaterial(withVertexColors(newMaterial));
+      meshes.setMaterial(newMaterial);
     },
     update(items: Int32Array[]) {
       const sorted = sortResultItems(items);

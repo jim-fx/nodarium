@@ -1,6 +1,7 @@
 import {
   AgXToneMapping,
   Box3,
+  Float32BufferAttribute,
   Mesh,
   PerspectiveCamera,
   Scene,
@@ -32,6 +33,12 @@ async function renderPreviews() {
   const scene = new Scene();
   const geometry = new SphereGeometry(1, 32, 20);
   geometry.computeBoundingBox();
+  // bands of rings for the groups material, the other materials ignore it
+  const rings = geometry.parameters.heightSegments + 1;
+  const perRing = geometry.parameters.widthSegments + 1;
+  const groups = new Float32Array(rings * perRing);
+  for (let i = 0; i < groups.length; i++) groups[i] = Math.floor(Math.floor(i / perRing) / 4);
+  geometry.setAttribute('group', new Float32BufferAttribute(groups, 1));
   const mesh = new Mesh(geometry);
   scene.add(mesh);
 

@@ -29,6 +29,8 @@ const GRAVITROPISM_IMPACT: f32 = 0.9;
 const AUTOTROPISM_SCALE: f32 = 2.0;
 const TOLERANCE: f32 = 5.0 * std::f32::consts::PI / 180.0;
 const WANDER: f32 = 0.15;
+/// A cap hypha only covers another when it lies within about 45° of straight outwards from it
+const COVER_CONE: f32 = 0.7;
 const BRANCH_ANGLE: f32 = 0.7;
 /// Cells per axis of the coarse grid for long-range autotropism
 const COARSE: usize = 8;
@@ -390,7 +392,8 @@ impl Simulation<'_> {
             let mut covered = false;
             let segments = &self.hyphae.segments;
             self.hash.for_each_near(end, 3.0 * unit, |j, _| {
-                if segments[j as usize].tissue == Tissue::Cap && (segments[j as usize].end - end).dot(outwards) > unit {
+                let offset = segments[j as usize].end - end;
+                if segments[j as usize].tissue == Tissue::Cap && offset.dot(outwards) > unit.max(COVER_CONE * offset.length()) {
                     covered = true;
                 }
             });
@@ -558,6 +561,36 @@ mod tests {
         // without branching every tip stays one hypha
         assert_eq!(none.len(), small.initial_tips * (small.iterations + 1));
         assert!(some.len() > none.len());
+    }
+
+    fn cuticle_of(points: &[Vec3]) -> Vec<Tissue> {
+        let params = GrowthParams { segment_length: 1.0, ..GrowthParams::default() };
+        let mut sim = Simulation {
+            params: &params,
+            hyphae: Hyphae::default(),
+            hash: SpatialHash::new(CUTOFF),
+            coarse: CoarseGrid::new(Vec3::ZERO, 10.0),
+            rng: Rng::new(0),
+            tips: Vec::new(),
+            branch_points: Vec::new(),
+            stipe_started: false,
+        };
+        for &end in points {
+            sim.add(HyphaSegment { end, radius: 0.1, parent: None, birth: 0.0, tissue: Tissue::Cap, flags: 0 });
+        }
+        sim.mark_cuticle();
+        sim.hyphae.segments.iter().map(|s| s.tissue).collect()
+    }
+
+    #[test]
+    fn only_a_hypha_straight_outwards_covers_another() {
+        let outwards = [Vec3::new(2.0, 0.0, 0.0), Vec3::new(4.0, 0.0, 0.0), Vec3::new(-2.0, 0.0, 0.0), Vec3::new(-4.0, 0.0, 0.0)];
+        use Tissue::{Cap, CapCuticle};
+        assert_eq!(cuticle_of(&outwards), vec![Cap, CapCuticle, Cap, CapCuticle]);
+
+        // further out than a segment length, but about 53° off the outwards direction
+        let sideways = [Vec3::new(2.0, 0.0, 0.0), Vec3::new(3.5, 0.0, 2.0), Vec3::new(-2.0, 0.0, 0.0), Vec3::new(-3.5, 0.0, -2.0)];
+        assert_eq!(cuticle_of(&sideways), vec![CapCuticle; 4]);
     }
 
     #[test]
