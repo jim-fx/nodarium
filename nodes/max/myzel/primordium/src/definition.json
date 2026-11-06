@@ -19,9 +19,9 @@
     },
     "initial_tips": {
       "type": "integer",
-      "value": 60,
+      "value": 200,
       "min": 1,
-      "max": 500,
+      "max": 1000,
       "description": "Tips in the knot the fruit body starts from"
     },
     "knot_radius": {
@@ -151,9 +151,9 @@
     },
     "max_segments": {
       "type": "integer",
-      "value": 5000,
+      "value": 50000,
       "min": 100,
-      "max": 50000,
+      "max": 200000,
       "hidden": true,
       "description": "Growth stops at this many segments"
     }

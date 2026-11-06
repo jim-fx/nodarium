@@ -11,6 +11,9 @@ pub struct HyphaeMeshParams {
     pub resolution: usize,
     /// How far, in hypha radii, neighbouring hyphae join into one surface
     pub blend: f32,
+    /// Stipe and cap are tissue: where a ball of this many hypha radii can't
+    /// pass between their hyphae the gap fills, 0 shows every hypha
+    pub fill: f32,
     /// Strength of the fibrous relief, 0 leaves the surface smooth
     pub fibres: f32,
     pub seed: u32,
@@ -18,7 +21,7 @@ pub struct HyphaeMeshParams {
 
 impl Default for HyphaeMeshParams {
     fn default() -> Self {
-        HyphaeMeshParams { resolution: 64, blend: 3.0, fibres: 1.0, seed: 0 }
+        HyphaeMeshParams { resolution: 64, blend: 3.0, fill: 6.0, fibres: 1.0, seed: 0 }
     }
 }
 
@@ -46,13 +49,27 @@ const SMOOTHING_PASSES: usize = 2;
 /// a cap is cuticle wherever a cuticle hypha comes close.
 const CUTICLE_PRIORITY: f32 = 4.0;
 
+/// The tissue of stipe and cap fills the space between its hyphae. Gills are
+/// thin plates with real gaps between them, and the veil a thin membrane.
+fn is_body(tissue: Tissue) -> bool {
+    matches!(tissue, Tissue::Mycelium | Tissue::Stipe | Tissue::Cap | Tissue::CapCuticle)
+}
+
 /// The surface around the hyphae with a fibrous relief, every vertex is in the group of its tissue
 pub fn hyphae_mesh(hyphae: &Hyphae, params: &HyphaeMeshParams) -> Mesh {
     let segments = hyphae.to_segments();
-    let mut s = surface(&segments, params.resolution, params.blend, |i| match hyphae.segments[i].tissue {
-        Tissue::CapCuticle => CUTICLE_PRIORITY,
-        _ => 1.0,
-    });
+    let radius = segments.iter().map(|s| s.radius).fold(0.0, f32::max);
+    let mut s = surface(
+        &segments,
+        params.resolution,
+        params.blend,
+        params.fill * radius,
+        |i| is_body(hyphae.segments[i].tissue),
+        |i| match hyphae.segments[i].tissue {
+            Tissue::CapCuticle => CUTICLE_PRIORITY,
+            _ => 1.0,
+        },
+    );
     if s.mesh.vertex_count() == 0 {
         return s.mesh;
     }
@@ -221,7 +238,7 @@ mod tests {
             if p.y < 0.5 && p.y > 0.05 {
                 assert_eq!(group, Tissue::Stipe as u32, "stipe vertex at {}", p);
                 seen[0] = true;
-            } else if p.y > 1.15 && radial < 0.5 {
+            } else if p.y > 1.12 && radial < 0.5 {
                 assert_eq!(group, Tissue::CapCuticle as u32, "cuticle vertex at {}", p);
                 seen[1] = true;
             } else if (0.85..0.95).contains(&p.y) && (0.3..0.5).contains(&radial) {
@@ -241,7 +258,7 @@ mod tests {
         let fibrous = hyphae_mesh(&bundle(), &HyphaeMeshParams::default());
         assert_eq!(plain.faces, fibrous.faces);
         assert_eq!(plain.groups, fibrous.groups);
-        let cell = surface(&bundle().to_segments(), 64, 3.0, |_| 1.0).cell;
+        let cell = surface(&bundle().to_segments(), 64, 3.0, 0.0, |_| false, |_| 1.0).cell;
         let moved: Vec<f32> =
             (0..plain.vertex_count()).map(|v| (vertex(&plain, v) - vertex(&fibrous, v)).length()).collect();
         assert!(moved.iter().any(|&d| d > 0.0));
