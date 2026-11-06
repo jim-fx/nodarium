@@ -24,6 +24,9 @@ const SMOOTHING: f32 = 0.75;
 /// inside, below a half so the blur doesn't shrink the tissue below its outer hyphae
 const SURFACE_SHARE: f32 = 0.3;
 
+/// Hyphae of a tissue that reach this many closing radii out of it stay as strands
+const STRAND_REACH: f32 = 3.0;
+
 /// How much a closed segment counts for the owner of a sample past its kernel
 const FILL_OWNER_WEIGHT: f32 = 1e-3;
 
@@ -259,6 +262,28 @@ fn transform_line(d: &mut [f32], feature: &mut [u32], v: &mut Vec<usize>, z: &mu
     }
 }
 
+/// Squared distance in samples from every sample to the nearest one with a
+/// finite `d`, plus `d` there, and the `feature` of that sample
+fn distance_transform(d: &mut [f32], feature: &mut [u32], samples: [usize; 3]) {
+    let [nx, ny, nz] = samples;
+    let n = d.len();
+    let (mut v, mut z, mut out) = (Vec::new(), Vec::new(), Vec::new());
+    let (mut line_d, mut line_f) = (Vec::new(), Vec::new());
+    for (len, stride) in [(nx, 1), (ny, nx), (nz, nx * ny)] {
+        for start in (0..n).filter(|&start| start / stride % len == 0) {
+            line_d.clear();
+            line_f.clear();
+            line_d.extend((0..len).map(|k| d[start + k * stride]));
+            line_f.extend((0..len).map(|k| feature[start + k * stride]));
+            transform_line(&mut line_d, &mut line_f, &mut v, &mut z, &mut out);
+            for k in 0..len {
+                d[start + k * stride] = line_d[k];
+                feature[start + k * stride] = line_f[k];
+            }
+        }
+    }
+}
+
 /// Morphological closing of the tubes of the closed segments with a ball of
 /// radius `rho`, blurred by `sigma` and added to the density so that its
 /// surface lies at `threshold`.
@@ -281,21 +306,7 @@ fn close_tubes(grid: &mut SparseGrid, rho: f32, guard: f32, sigma: f32, threshol
             feature[i] = i as u32;
         }
     }
-    let (mut v, mut z, mut out) = (Vec::new(), Vec::new(), Vec::new());
-    let (mut line_d, mut line_f) = (Vec::new(), Vec::new());
-    for (len, stride) in [(nx, 1), (ny, nx), (nz, nx * ny)] {
-        for start in (0..n).filter(|&start| start / stride % len == 0) {
-            line_d.clear();
-            line_f.clear();
-            line_d.extend((0..len).map(|k| d[start + k * stride]));
-            line_f.extend((0..len).map(|k| feature[start + k * stride]));
-            transform_line(&mut line_d, &mut line_f, &mut v, &mut z, &mut out);
-            for k in 0..len {
-                d[start + k * stride] = line_d[k];
-                feature[start + k * stride] = line_f[k];
-            }
-        }
-    }
+    distance_transform(&mut d, &mut feature, grid.samples);
 
     // share of every sample inside the closing, ramping from 0 to 1 over two cells across its surface
     let (rho_cells, guard_cells) = (rho / grid.cell, guard / grid.cell);
@@ -326,13 +337,71 @@ fn close_tubes(grid: &mut SparseGrid, rho: f32, guard: f32, sigma: f32, threshol
     }
     blur(&mut solid, grid.samples, sigma / grid.cell);
 
+    let strands = strands(grid, &solid, STRAND_REACH * rho);
     for i in 0..n {
         if let Some(slot) = grid.index([i % nx, i / nx % ny, i / (nx * ny)]) {
-            // the blur would wear away thin parts, the hyphae themselves always stay
-            let tube = (0.5 - 0.5 * grid.tube[slot] / grid.cell).clamp(0.0, 1.0);
-            grid.density[slot] += threshold * (solid[i] / SURFACE_SHARE).max(2.0 * tube);
+            let mut share = solid[i] / SURFACE_SHARE;
+            if strands[i] {
+                share = share.max(2.0 * (0.5 - 0.5 * grid.tube[slot] / grid.cell).clamp(0.0, 1.0));
+            }
+            grid.density[slot] += threshold * share;
         }
     }
+}
+
+/// The blur wears away thin parts, so the hyphae there stay as they are. Of the
+/// hyphae outside the blurred tissue only those reaching more than `reach` away
+/// from it are kept, as whole strands: a stipe too thin for the blur or a strand
+/// leaving the tissue. Shorter stubs, such as a tip that ends just outside the
+/// tissue or a hypha lying on it, would show as dots and dashes on a smooth surface.
+fn strands(grid: &SparseGrid, solid: &[f32], reach: f32) -> Vec<bool> {
+    let [nx, ny, nz] = grid.samples;
+    let n = solid.len();
+    let near_tube = |i: usize| {
+        grid.index([i % nx, i / nx % ny, i / (nx * ny)]).is_some_and(|s| grid.tube[s] < grid.cell)
+    };
+    let candidate: Vec<bool> = (0..n).map(|i| solid[i] < SURFACE_SHARE && near_tube(i)).collect();
+    let mut keep = vec![false; n];
+    if !candidate.contains(&true) {
+        return keep;
+    }
+
+    let mut d = vec![f32::INFINITY; n];
+    let mut feature = vec![EMPTY; n];
+    for i in 0..n {
+        if solid[i] >= SURFACE_SHARE {
+            d[i] = 0.0;
+        }
+    }
+    distance_transform(&mut d, &mut feature, grid.samples);
+    let reach_sq = (reach / grid.cell).powi(2);
+
+    // breadth first from the far samples back to the tissue, a strand leaving it is about `reach` long until it is far
+    let steps = (reach / grid.cell).ceil() as usize + 2;
+    let mut front: Vec<usize> = (0..n).filter(|&i| candidate[i] && d[i] > reach_sq).collect();
+    for &i in &front {
+        keep[i] = true;
+    }
+    let mut next = Vec::new();
+    for _ in 0..steps {
+        for &i in &front {
+            let (x, y, z) = (i % nx, i / nx % ny, i / (nx * ny));
+            for dz in z.saturating_sub(1)..=(z + 1).min(nz - 1) {
+                for dy in y.saturating_sub(1)..=(y + 1).min(ny - 1) {
+                    for dx in x.saturating_sub(1)..=(x + 1).min(nx - 1) {
+                        let j = dx + nx * (dy + ny * dz);
+                        if candidate[j] && !keep[j] {
+                            keep[j] = true;
+                            next.push(j);
+                        }
+                    }
+                }
+            }
+        }
+        std::mem::swap(&mut front, &mut next);
+        next.clear();
+    }
+    keep
 }
 
 /// Separable gaussian blur of a dense grid, `sigma` in samples
@@ -823,6 +892,96 @@ mod tests {
         assert!(inner_faces(&gills) > 0, "the gap between the gills closed");
         // as one tissue the same gap fills
         assert_eq!(inner_faces(&closed_surface(&segments, 0.15, |_| true)), 0);
+    }
+
+    /// A dense bundle of 16 hyphae from y 0 to 1 that closes into one body
+    fn body() -> Vec<Segment> {
+        (0..16)
+            .map(|i| {
+                let a = i as f32 / 16.0 * 2.0 * PI;
+                let at = Vec3::new(a.cos(), 0.0, a.sin()) * 0.15;
+                segment(at, at + Vec3::Y, 0.03)
+            })
+            .collect()
+    }
+
+    fn highest(s: &SegmentSurface) -> f32 {
+        (0..s.mesh.vertex_count()).map(|v| vertex(&s.mesh, v as u32).y).fold(f32::NEG_INFINITY, f32::max)
+    }
+
+    #[test]
+    fn a_tip_just_outside_the_tissue_leaves_no_spike() {
+        let (r, close) = (0.03, 0.18);
+        let plain = closed_surface(&body(), close, |_| true);
+        let mut tipped = body();
+        let rim = tipped[0].end;
+        tipped.push(segment(rim, rim + Vec3::Y * 2.0 * r, r));
+        let tipped = closed_surface(&tipped, close, |_| true);
+        assert_closed(&tipped.mesh);
+        assert_eq!(components(&tipped.mesh), 1);
+        // as its own tube the tip would reach 3 r above the top of the body
+        assert!(highest(&tipped) < highest(&plain) + r, "{} vs {}", highest(&tipped), highest(&plain));
+    }
+
+    #[test]
+    fn a_strand_leaving_the_tissue_stays() {
+        let (r, close) = (0.03, 0.18);
+        let mut segments = body();
+        let rim = segments[0].end;
+        segments.push(segment(rim, rim + Vec3::Y * 4.0 * close, r));
+        let s = closed_surface(&segments, close, |_| true);
+        assert_closed(&s.mesh);
+        assert_eq!(components(&s.mesh), 1);
+        assert!(highest(&s) > 1.0 + 4.0 * close + 0.5 * r, "strand ends at {}", highest(&s));
+    }
+
+    #[test]
+    fn a_thin_closed_bundle_does_not_vanish() {
+        // narrower than the blur, it stays as its hyphae
+        let r = 0.02;
+        let bundle: Vec<Segment> = (0..4)
+            .map(|i| {
+                let a = i as f32 / 4.0 * 2.0 * PI;
+                let at = Vec3::new(a.cos(), 0.0, a.sin()) * 0.03;
+                segment(at, at + Vec3::Y, r)
+            })
+            .collect();
+        let s = closed_surface(&bundle, 0.3, |_| true);
+        assert_closed(&s.mesh);
+        assert!(highest(&s) > 1.0, "bundle ends at {}", highest(&s));
+        let lowest = (0..s.mesh.vertex_count()).map(|v| vertex(&s.mesh, v as u32).y).fold(f32::INFINITY, f32::min);
+        assert!(lowest < 0.0, "bundle starts at {}", lowest);
+    }
+
+    #[test]
+    fn touching_bundles_leave_no_groove() {
+        // two bundles of hyphae side by side, further apart from each other than within each
+        let r = 0.02;
+        let mut segments = Vec::new();
+        for x in [-0.25, -0.19, -0.13, -0.07, 0.07, 0.13, 0.19, 0.25] {
+            for y in [-0.12, -0.06, 0.0] {
+                segments.push(segment(Vec3::new(x, y, -0.5), Vec3::new(x, y, 0.5), r));
+            }
+        }
+        let top = |close: f32| {
+            let s = surface(&segments, 96, 3.0, close, |_| true, |_| 1.0);
+            assert_closed(&s.mesh);
+            let mut top = [f32::NEG_INFINITY; 2];
+            for v in 0..s.mesh.vertex_count() {
+                let p = vertex(&s.mesh, v as u32);
+                if p.z.abs() < 0.3 {
+                    let i = (p.x.abs() > 0.1) as usize;
+                    if p.x.abs() < 0.04 || i == 1 {
+                        top[i] = top[i].max(p.y);
+                    }
+                }
+            }
+            // depth of the groove between the bundles below their tops
+            top[1] - top[0]
+        };
+        assert!(top(0.0) > r, "without closing the bundles stay apart");
+        let depth = top(6.0 * r);
+        assert!(depth < 0.25 * r, "groove {} deep", depth);
     }
 
     #[test]
