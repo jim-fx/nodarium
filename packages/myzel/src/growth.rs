@@ -87,9 +87,9 @@ impl Default for GrowthParams {
     fn default() -> Self {
         GrowthParams {
             seed: 0,
-            iterations: 70,
-            initial_tips: 200,
-            knot_radius: 0.0015,
+            iterations: 85,
+            initial_tips: 300,
+            knot_radius: 0.002,
             segment_length: 0.0004,
             hypha_radius: 0.00025,
             persistence: 1.0,
@@ -97,8 +97,8 @@ impl Default for GrowthParams {
             density_threshold: 0.6,
             secondary_factor: 4.0,
             leading_share: 0.1,
-            gravitropic_angle: Schedule(vec![0.0, 0.5, 0.05, 0.5, 0.15, 0.0, 0.5, 0.0, 0.7, 0.75, 1.0, 0.85]),
-            autotropism: Schedule(vec![0.0, 0.0, 0.05, 0.0, 0.15, 1.0, 0.45, 0.2, 1.0, 0.1]),
+            gravitropic_angle: Schedule(vec![0.0, 0.5, 0.05, 0.5, 0.15, 0.0, 0.45, 0.0, 0.6, 0.85, 1.0, 1.0]),
+            autotropism: Schedule(vec![0.0, 0.0, 0.05, 0.0, 0.15, 0.7, 0.4, 0.3, 0.75, 0.1, 1.0, 0.5]),
             galvanotropism: Schedule(vec![0.0, 0.1, 0.25, 0.7, 1.0, 0.7]),
             waist_height: 0.008,
             max_segments: 50_000,
@@ -272,10 +272,11 @@ impl Simulation<'_> {
         Vec3::Y * angle.cos() + outwards * angle.sin()
     }
 
-    fn tissue(&self, end: Vec3, angle: f32) -> Tissue {
+    /// A hypha that has become cap stays cap, so the margin can grow down past the waist
+    fn tissue(&self, parent: Tissue, end: Vec3) -> Tissue {
         if !self.stipe_started {
             Tissue::Mycelium
-        } else if end.y < self.params.waist_height && angle <= std::f32::consts::FRAC_PI_2 {
+        } else if parent != Tissue::Cap && end.y < self.params.waist_height {
             Tissue::Stipe
         } else {
             Tissue::Cap
@@ -339,7 +340,7 @@ impl Simulation<'_> {
                 radius: p.hypha_radius,
                 parent: Some(tip.segment),
                 birth: iteration as f32,
-                tissue: self.tissue(end, angle),
+                tissue: self.tissue(self.hyphae.segments[tip.segment as usize].tissue, end),
                 flags: tip.kind | flags::ACTIVE_TIP,
             });
             next_tips.push(Tip { segment, direction, kind: tip.kind });

@@ -2,16 +2,19 @@
 //!
 //! Gills: an angular prepattern around the axis marks thin radial sheets, one
 //! per gill plus shorter lamellulae between the gills that only reach in from
-//! the margin. Tips branch off the cap underside where the pattern is positive
-//! and grow down inside their sheet. A tip stops when it leaves its sheet, when
-//! it comes closer to the stipe than the gap of free gills, or at the lower
-//! edge of the gills.
+//! the margin. The gill chamber is the space between the cap underside and the
+//! stipe, measured from the top of the stipe. Tips branch off the cap underside
+//! where the pattern is positive, from the horizontal down to just inside the
+//! margin, and grow inside their sheet towards the top of the stipe. A tip stops
+//! when it leaves its sheet, when it comes closer to the stipe than the gap of
+//! free gills, or at the edge of the gills, a share of the way across the chamber.
 //!
-//! Veil: strands grow from the cap margin and from the stipe towards each other
-//! and meet halfway. The ones from the stipe carry [`flags::STIPE_SIDE`], so
+//! Veil: strands grow from the cap margin and from the stipe, at a height
+//! between the margin and the top of the stipe, towards each other and meet
+//! halfway. The ones from the stipe carry [`flags::STIPE_SIDE`], so
 //! the veil can tear between the two halves.
 
-use std::f32::consts::TAU;
+use std::f32::consts::{FRAC_PI_2, PI, TAU};
 
 use glam::Vec3;
 
@@ -26,10 +29,18 @@ pub const MAX_LAMELLULAE: usize = 7;
 const SHEET_THICKNESS: f32 = 1.2;
 /// Free gills keep this many segment lengths away from the stipe
 const STIPE_GAP: f32 = 2.0;
-/// Lamellulae reach in from the margin over this share of the gill width
+/// Lamellulae reach in from the margin over this share of the gill length
 const LAMELLULA_REACH: f32 = 0.5;
 /// Gills round off over this many segment lengths next to the stipe
 const INNER_ROUNDING: f32 = 4.0;
+/// Gills end this many segment lengths inside the cap margin
+const MARGIN_INSET: f32 = 3.0;
+/// The cap underside is measured in rings of this angle around the hinge
+const ANGLE_STEP: f32 = PI / 90.0;
+const SECTORS: usize = 48;
+/// Share of the sectors around the axis a ring of the cap has to cover to count, sparse
+/// hyphae further out don't make a cap margin
+const COVERAGE: f32 = 0.25;
 /// Distance of the veil strands at the margin, in segment lengths
 const VEIL_SPACING: f32 = 1.5;
 const WANDER: f32 = 0.2;
@@ -45,13 +56,23 @@ pub struct GillParams {
     /// How far the gills reach down into the space under the cap, 0 to 1
     pub gill_depth: f32,
     pub veil: bool,
+    /// Where the veil meets the stipe, 0 level with the cap margin, 1 at the top of the stipe
+    pub veil_attachment: f32,
     /// Budget for the added segments
     pub max_segments: usize,
 }
 
 impl Default for GillParams {
     fn default() -> Self {
-        GillParams { seed: 0, gill_count: 32, lamellulae: 1, gill_depth: 0.7, veil: true, max_segments: 10_000 }
+        GillParams {
+            seed: 0,
+            gill_count: 32,
+            lamellulae: 1,
+            gill_depth: 0.7,
+            veil: true,
+            veil_attachment: 0.7,
+            max_segments: 10_000,
+        }
     }
 }
 
@@ -59,8 +80,22 @@ fn radial(p: Vec3) -> f32 {
     (p.x * p.x + p.z * p.z).sqrt()
 }
 
-fn outwards(angle: f32) -> Vec3 {
-    Vec3::new(angle.cos(), 0.0, angle.sin())
+fn outwards(azimuth: f32) -> Vec3 {
+    Vec3::new(azimuth.cos(), 0.0, azimuth.sin())
+}
+
+fn azimuth(p: Vec3) -> f32 {
+    p.z.atan2(p.x).rem_euclid(TAU)
+}
+
+/// Angle of `d` to straight up
+fn polar_angle(d: Vec3) -> f32 {
+    radial(d).atan2(d.y)
+}
+
+/// Unit vector at `angle` to straight up, turned to `azimuth` around the axis
+fn direction(angle: f32, azimuth: f32) -> Vec3 {
+    outwards(azimuth) * angle.sin() + Vec3::Y * angle.cos()
 }
 
 fn quantile(values: &mut [f32], q: f32) -> f32 {
@@ -72,18 +107,23 @@ fn is_cap(tissue: Tissue) -> bool {
     matches!(tissue, Tissue::Cap | Tissue::CapCuticle)
 }
 
-/// What the gills and the veil need to know about the primordium, all around the Y axis
+/// What the gills and the veil need to know about the primordium. The cap is
+/// measured in polar coordinates around the hinge, the top of the stipe on the
+/// axis: the gill chamber is the space between the cap underside and the
+/// stipe below the horizontal through the hinge.
 #[derive(Debug)]
 struct Shape {
     unit: f32,
+    hinge: Vec3,
     stipe_radius: f32,
-    /// Gills start this far from the axis
+    /// Gills keep this far from the axis
     free_radius: f32,
-    /// Where the cap comes down lowest, the gills end and the veil starts there
-    margin_radius: f32,
-    margin_y: f32,
-    /// Height of the cap underside per ring of width `unit`
+    /// Distance of the cap underside from the hinge per bin of `ANGLE_STEP` of the angle to straight up
     underside: Vec<Option<f32>>,
+    /// Where the cap ends, as angle to straight up
+    margin_angle: f32,
+    /// Stipe radius per height bin of `unit`
+    stipe_profile: Vec<Option<f32>>,
 }
 
 impl Shape {
@@ -103,26 +143,36 @@ impl Shape {
         }
 
         let top = stipe.iter().map(|p| p.y).fold(f32::MIN, f32::max);
+        let hinge = Vec3::Y * top;
         let mut upper: Vec<f32> = stipe.iter().filter(|p| p.y > top * 0.5).map(|&p| radial(p)).collect();
         let stipe_radius = if upper.is_empty() { 0.0 } else { quantile(&mut upper, 0.9) };
         let free_radius = stipe_radius + STIPE_GAP * unit;
 
-        // the lowest cap hypha in every cell of a polar grid, the underside is a low quantile per ring
-        let cap_radius = cap.iter().map(|&p| radial(p)).fold(0.0, f32::max);
-        let rings = (cap_radius / unit) as usize + 1;
-        let sectors = ((TAU * cap_radius / unit).ceil() as usize).max(8);
-        let mut lowest = vec![f32::INFINITY; rings * sectors];
-        for &p in &cap {
-            let ring = ((radial(p) / unit) as usize).min(rings - 1);
-            let sector = ((p.z.atan2(p.x).rem_euclid(TAU) / TAU * sectors as f32) as usize).min(sectors - 1);
-            let cell = &mut lowest[ring * sectors + sector];
-            *cell = cell.min(p.y);
+        let mut by_height = vec![Vec::new(); (top.max(0.0) / unit) as usize + 1];
+        for &p in &stipe {
+            if p.y >= 0.0 {
+                let bin = ((p.y / unit) as usize).min(by_height.len() - 1);
+                by_height[bin].push(radial(p));
+            }
         }
-        let rings: Vec<Option<f32>> = lowest
-            .chunks(sectors)
+        let stipe_profile = by_height.iter_mut().map(|r| (r.len() >= 3).then(|| quantile(r, 0.9))).collect();
+
+        // the nearest cap hypha in every cell of a polar grid around the hinge, the
+        // underside is a low quantile per ring of cells where the cap covers most of the way around
+        let bins = (PI / ANGLE_STEP) as usize + 1;
+        let mut nearest = vec![f32::INFINITY; bins * SECTORS];
+        for &p in cap.iter().filter(|&&p| radial(p) > free_radius) {
+            let d = p - hinge;
+            let bin = ((polar_angle(d) / ANGLE_STEP) as usize).min(bins - 1);
+            let sector = ((azimuth(d) / TAU * SECTORS as f32) as usize).min(SECTORS - 1);
+            let cell = &mut nearest[bin * SECTORS + sector];
+            *cell = cell.min(d.length());
+        }
+        let rings: Vec<Option<f32>> = nearest
+            .chunks(SECTORS)
             .map(|ring| {
-                let mut heights: Vec<f32> = ring.iter().copied().filter(|h| h.is_finite()).collect();
-                (heights.len() >= 3).then(|| quantile(&mut heights, 0.1))
+                let mut distances: Vec<f32> = ring.iter().copied().filter(|d| d.is_finite()).collect();
+                (distances.len() as f32 >= SECTORS as f32 * COVERAGE).then(|| quantile(&mut distances, 0.1))
             })
             .collect();
         // averaged with the neighbouring rings, so the top edge of the gills is smooth
@@ -133,32 +183,45 @@ impl Shape {
                 Some(near.iter().sum::<f32>() / near.len() as f32)
             })
             .collect();
-
-        let (margin_ring, margin_y) = underside
-            .iter()
-            .enumerate()
-            .filter(|&(ring, _)| (ring as f32 + 0.5) * unit >= free_radius)
-            .filter_map(|(ring, y)| y.map(|y| (ring, y)))
-            .min_by(|a, b| a.1.total_cmp(&b.1))?;
-        Some(Shape {
+        let margin_bin = (0..bins).rev().find(|&b| underside[b].is_some())?;
+        let margin_angle = (margin_bin as f32 + 0.5) * ANGLE_STEP;
+        (margin_angle > FRAC_PI_2).then_some(Shape {
             unit,
+            hinge,
             stipe_radius,
             free_radius,
-            margin_radius: (margin_ring as f32 + 0.5) * unit,
-            margin_y,
             underside,
+            margin_angle,
+            stipe_profile,
         })
     }
 
-    fn underside_at(&self, r: f32) -> Option<f32> {
-        self.underside.get((r / self.unit) as usize).copied().flatten()
+    fn underside_at(&self, angle: f32) -> Option<f32> {
+        self.underside.get((angle / ANGLE_STEP) as usize).copied().flatten()
     }
 
-    /// Lowest point of the gills at distance `r` from the axis
-    fn gill_edge(&self, r: f32, depth: f32) -> Option<f32> {
-        let top = self.underside_at(r)?;
-        let rounding = ((r - self.free_radius) / (INNER_ROUNDING * self.unit)).clamp(0.0, 1.0).sqrt();
-        Some(top - (top - self.margin_y).max(0.0) * depth * rounding)
+    fn stipe_radius_at(&self, y: f32) -> f32 {
+        let bin = ((y.max(0.0) / self.unit) as usize).min(self.stipe_profile.len() - 1);
+        self.stipe_profile[bin].unwrap_or(self.stipe_radius)
+    }
+
+    /// Where the gills end inside the cap margin
+    fn gill_end(&self) -> f32 {
+        let distance = self.underside_at(self.margin_angle).unwrap_or(self.unit);
+        self.margin_angle - MARGIN_INSET * self.unit / distance
+    }
+
+    /// Distance from the hinge where the gills end at `angle`: a share `depth`
+    /// of the way from the cap underside to the stipe, rounded off at the top
+    /// of the gill chamber
+    fn gill_edge(&self, angle: f32, depth: f32) -> Option<f32> {
+        let underside = self.underside_at(angle)?;
+        if angle <= FRAC_PI_2 {
+            return None;
+        }
+        let stipe = self.free_radius / angle.sin();
+        let rounding = ((angle - FRAC_PI_2) * underside / (INNER_ROUNDING * self.unit)).clamp(0.0, 1.0).sqrt();
+        Some(underside - (underside - stipe).max(0.0) * depth * rounding)
     }
 }
 
@@ -166,8 +229,9 @@ impl Shape {
 struct Prepattern {
     gill_count: usize,
     lamellulae: usize,
-    free_radius: f32,
-    margin_radius: f32,
+    /// Angles to straight up, seen from the hinge, the gills span
+    inner_angle: f32,
+    outer_angle: f32,
     half_thickness: f32,
 }
 
@@ -176,7 +240,7 @@ impl Prepattern {
         self.gill_count * (self.lamellulae + 1)
     }
 
-    fn angle(&self, sheet: usize) -> f32 {
+    fn azimuth(&self, sheet: usize) -> f32 {
         sheet as f32 * TAU / self.sheets() as f32
     }
 
@@ -185,23 +249,23 @@ impl Prepattern {
     }
 
     /// Where a sheet starts, lamellulae only reach in from the margin
-    fn inner_radius(&self, sheet: usize) -> f32 {
+    fn inner_angle(&self, sheet: usize) -> f32 {
         if self.is_gill(sheet) {
-            self.free_radius
+            self.inner_angle
         } else {
-            self.margin_radius - (self.margin_radius - self.free_radius) * LAMELLULA_REACH
+            self.outer_angle - (self.outer_angle - self.inner_angle) * LAMELLULA_REACH
         }
     }
 
-    /// The sheet `p` lies in, `None` on the negative part of the pattern between the sheets
-    fn sheet_at(&self, p: Vec3) -> Option<usize> {
-        let r = radial(p);
+    /// The sheet `d`, seen from the hinge, lies in, `None` on the negative part of the pattern between the sheets
+    fn sheet_at(&self, d: Vec3) -> Option<usize> {
         let slot = TAU / self.sheets() as f32;
-        let angle = p.z.atan2(p.x).rem_euclid(TAU);
-        let nearest = (angle / slot).round();
+        let a = azimuth(d);
+        let nearest = (a / slot).round();
         let sheet = nearest as usize % self.sheets();
-        let inside = (angle - nearest * slot).abs() * r <= self.half_thickness;
-        (inside && r >= self.inner_radius(sheet) && r <= self.margin_radius).then_some(sheet)
+        let inside = (a - nearest * slot).abs() * radial(d) <= self.half_thickness;
+        let angle = polar_angle(d);
+        (inside && angle >= self.inner_angle(sheet) && angle <= self.outer_angle).then_some(sheet)
     }
 }
 
@@ -245,29 +309,40 @@ impl Builder<'_> {
     }
 
     fn grow_gills(&mut self, pattern: &Prepattern, depth: f32) {
-        let unit = self.shape.unit;
+        let (unit, hinge) = (self.shape.unit, self.shape.hinge);
         for sheet in 0..pattern.sheets() {
-            let angle = pattern.angle(sheet);
-            let normal = Vec3::new(-angle.sin(), 0.0, angle.cos());
-            let mut r = pattern.inner_radius(sheet);
-            while r <= pattern.margin_radius {
-                let seed = self.shape.underside_at(r).map(|y| outwards(angle) * r + Vec3::Y * y);
-                r += unit;
-                let Some(mut seed) = seed else { continue };
-                // where the cap hyphae are sparse, branch off the next one above
-                let parent = (0..5).find_map(|k| self.attach(seed + Vec3::Y * (k as f32 * ATTACH_REACH * unit), is_cap));
+            let around = pattern.azimuth(sheet);
+            let normal = Vec3::new(-around.sin(), 0.0, around.cos());
+            let mut angle = pattern.inner_angle(sheet);
+            while angle <= pattern.outer_angle {
+                let underside = self.shape.underside_at(angle);
+                let ray = direction(angle, around);
+                angle += unit / underside.unwrap_or(unit).max(unit);
+                let Some(underside) = underside else { continue };
+                let seed = hinge + ray * underside;
+                if radial(seed) < self.shape.free_radius {
+                    continue;
+                }
+                // where the cap hyphae are sparse, branch off the next one further out
+                let parent = (0..5).find_map(|k| self.attach(seed + ray * (k as f32 * ATTACH_REACH * unit), is_cap));
                 let Some(parent) = parent else { continue };
-                seed.y = seed.y.max(self.hyphae.segments[parent as usize].end.y - unit);
                 let Some(mut segment) = self.add(parent, seed, Tissue::Gill, flags::STANDARD) else { return };
-                let (mut at, mut direction) = (seed, Vec3::NEG_Y);
+                let mut at = seed;
+                let mut heading = -ray;
                 loop {
-                    let mut d = direction + Vec3::NEG_Y + self.rng.unit() * WANDER;
+                    let inwards = (hinge - at).normalize_or_zero();
+                    let mut d = heading + inwards + self.rng.unit() * WANDER;
                     // stay in the plane of the sheet and drift back to its middle
                     d -= normal * (d.dot(normal) + at.dot(normal) / unit);
-                    direction = d.try_normalize().unwrap_or(Vec3::NEG_Y);
-                    let next = at + direction * unit;
-                    let above_edge = self.shape.gill_edge(radial(next), depth).is_some_and(|edge| next.y >= edge);
-                    if pattern.sheet_at(next) != Some(sheet) || !above_edge {
+                    heading = d.try_normalize().unwrap_or(inwards);
+                    let next = at + heading * unit;
+                    let from_hinge = next - hinge;
+                    let inside = self
+                        .shape
+                        .gill_edge(polar_angle(from_hinge), depth)
+                        .is_some_and(|edge| from_hinge.length() >= edge);
+                    let free = radial(next) >= self.shape.free_radius;
+                    if pattern.sheet_at(from_hinge) != Some(sheet) || !inside || !free {
                         break;
                     }
                     let Some(s) = self.add(segment, next, Tissue::Gill, flags::STANDARD) else { return };
@@ -296,20 +371,23 @@ impl Builder<'_> {
         }
     }
 
-    fn grow_veil(&mut self) {
+    fn grow_veil(&mut self, attachment: f32) {
         let shape = self.shape;
-        let strands = ((TAU * shape.margin_radius / (VEIL_SPACING * shape.unit)).ceil() as usize).max(3);
+        let Some(distance) = shape.underside_at(shape.margin_angle) else { return };
+        let ring = distance * shape.margin_angle.sin();
+        let strands = ((TAU * ring / (VEIL_SPACING * shape.unit)).ceil() as usize).max(3);
         for strand in 0..strands {
-            let angle = strand as f32 * TAU / strands as f32;
-            let out = outwards(angle);
-            let Some(margin) = self.attach(out * shape.margin_radius + Vec3::Y * shape.margin_y, is_cap) else {
-                continue;
-            };
-            let near_stipe = out * shape.stipe_radius + Vec3::Y * shape.margin_y;
+            let around = strand as f32 * TAU / strands as f32;
+            let ray = direction(shape.margin_angle, around);
+            let edge = shape.hinge + ray * distance;
+            let margin = (0..5).find_map(|k| self.attach(edge + ray * (k as f32 * ATTACH_REACH * shape.unit), is_cap));
+            let Some(margin) = margin else { continue };
+            let a = self.hyphae.segments[margin as usize].end;
+            let height = a.y.max(0.0) + (shape.hinge.y - a.y.max(0.0)).max(0.0) * attachment;
+            let near_stipe = outwards(around) * shape.stipe_radius_at(height) + Vec3::Y * height;
             let Some(stipe) = self.attach(near_stipe, |t| matches!(t, Tissue::Stipe | Tissue::Mycelium)) else {
                 continue;
             };
-            let a = self.hyphae.segments[margin as usize].end;
             let b = self.hyphae.segments[stipe as usize].end;
             let middle = (a + b) / 2.0;
             self.grow_strand(margin, middle, flags::STANDARD);
@@ -330,19 +408,19 @@ pub fn grow_gills(hyphae: &Hyphae, params: &GillParams) -> Hyphae {
         budget: params.max_segments.min(MAX_SEGMENTS),
         birth: hyphae.segments.iter().map(|s| s.birth).fold(0.0, f32::max) + 1.0,
     };
-    if params.gill_count > 0 && shape.margin_radius > shape.free_radius {
+    if params.gill_count > 0 && shape.gill_end() > FRAC_PI_2 {
         let pattern = Prepattern {
             gill_count: params.gill_count.min(MAX_GILLS),
             lamellulae: params.lamellulae.min(MAX_LAMELLULAE),
-            free_radius: shape.free_radius,
-            margin_radius: shape.margin_radius,
+            inner_angle: FRAC_PI_2,
+            outer_angle: shape.gill_end(),
             half_thickness: SHEET_THICKNESS * shape.unit / 2.0,
         };
         builder.grow_gills(&pattern, params.gill_depth.clamp(0.0, 0.95));
     }
     if params.veil {
         builder.birth += 1.0;
-        builder.grow_veil();
+        builder.grow_veil(params.veil_attachment.clamp(0.0, 1.0));
     }
     builder.hyphae
 }
@@ -363,30 +441,43 @@ mod tests {
         (grow_gills(primordium(), params), Shape::measure(primordium()).unwrap())
     }
 
-    /// Sheets around the axis: groups of gill hyphae separated by an empty angle
-    fn count_sheets(h: &Hyphae, from: f32, to: f32) -> usize {
-        let mut angles: Vec<f32> = h
+    /// Sheets around the axis: groups of gill hyphae, between the given angles
+    /// to straight up seen from the hinge, separated by an empty angle
+    fn count_sheets(h: &Hyphae, shape: &Shape, from: f32, to: f32) -> usize {
+        let mut around: Vec<(f32, f32)> = h
             .segments
             .iter()
-            .filter(|s| s.tissue == Tissue::Gill && (from..to).contains(&radial(s.end)))
-            .map(|s| s.end.z.atan2(s.end.x).rem_euclid(TAU))
+            .filter(|s| s.tissue == Tissue::Gill && (from..to).contains(&polar_angle(s.end - shape.hinge)))
+            .map(|s| (azimuth(s.end), radial(s.end)))
             .collect();
-        angles.sort_by(f32::total_cmp);
-        let Some(&first) = angles.first() else { return 0 };
-        let gap = |a: f32, b: f32| (b - a) * from > SHEET_THICKNESS * 0.0004;
-        let wraps = !gap(*angles.last().unwrap(), first + TAU);
-        angles.windows(2).filter(|w| gap(w[0], w[1])).count() + usize::from(!wraps)
+        around.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let Some(&first) = around.first() else { return 0 };
+        let gap = |a: (f32, f32), b: f32| (b - a.0) * a.1 > SHEET_THICKNESS * shape.unit;
+        let wraps = !gap(*around.last().unwrap(), first.0 + TAU);
+        around.windows(2).filter(|w| gap(w[0], w[1].0)).count() + usize::from(!wraps)
     }
 
     #[test]
     fn the_gill_count_matches_the_input() {
         let params = GillParams { gill_count: 24, lamellulae: 1, veil: false, ..GillParams::default() };
         let (h, shape) = with_gills(&params);
-        let width = shape.margin_radius - shape.free_radius;
-        let inner = shape.free_radius + width * 0.15;
-        let outer = shape.free_radius + width * 0.75;
-        assert_eq!(count_sheets(&h, inner, inner + width * 0.25), 24);
-        assert_eq!(count_sheets(&h, outer, outer + width * 0.2), 48);
+        let width = shape.gill_end() - FRAC_PI_2;
+        let inner = FRAC_PI_2 + width * 0.15;
+        let outer = FRAC_PI_2 + width * 0.75;
+        assert_eq!(count_sheets(&h, &shape, inner, inner + width * 0.25), 24);
+        assert_eq!(count_sheets(&h, &shape, outer, outer + width * 0.2), 48);
+    }
+
+    #[test]
+    fn gills_stay_under_the_cap() {
+        let (h, shape) = with_gills(&GillParams::default());
+        for s in h.segments.iter().filter(|s| s.tissue == Tissue::Gill) {
+            let d = s.end - shape.hinge;
+            let angle = polar_angle(d);
+            assert!(angle < shape.margin_angle, "gill at {} reaches past the cap margin", s.end);
+            let underside = shape.underside_at(angle).expect("the cap covers every gill");
+            assert!(d.length() <= underside + shape.unit, "gill at {} grows into the cap flesh", s.end);
+        }
     }
 
     #[test]
@@ -405,13 +496,13 @@ mod tests {
 
     #[test]
     fn gills_hang_under_the_cap() {
-        let (h, _) = with_gills(&GillParams::default());
+        let (h, shape) = with_gills(&GillParams::default());
         for s in h.segments.iter().filter(|s| s.tissue == Tissue::Gill) {
             let parent = &h.segments[s.parent.unwrap() as usize];
             assert!(matches!(parent.tissue, Tissue::Gill | Tissue::Cap | Tissue::CapCuticle));
-            // the first segment branches off the cap onto the sheet, the rest grow down
+            // the first segment branches off the cap onto the sheet, the rest grow from the cap towards the stipe
             if parent.tissue == Tissue::Gill {
-                assert!(s.end.y < parent.end.y, "gills grow down");
+                assert!(s.end.distance(shape.hinge) < parent.end.distance(shape.hinge), "gills grow inwards");
             }
         }
     }
