@@ -563,6 +563,36 @@ mod tests {
         assert!(some.len() > none.len());
     }
 
+    fn cuticle_of(points: &[Vec3]) -> Vec<Tissue> {
+        let params = GrowthParams { segment_length: 1.0, ..GrowthParams::default() };
+        let mut sim = Simulation {
+            params: &params,
+            hyphae: Hyphae::default(),
+            hash: SpatialHash::new(CUTOFF),
+            coarse: CoarseGrid::new(Vec3::ZERO, 10.0),
+            rng: Rng::new(0),
+            tips: Vec::new(),
+            branch_points: Vec::new(),
+            stipe_started: false,
+        };
+        for &end in points {
+            sim.add(HyphaSegment { end, radius: 0.1, parent: None, birth: 0.0, tissue: Tissue::Cap, flags: 0 });
+        }
+        sim.mark_cuticle();
+        sim.hyphae.segments.iter().map(|s| s.tissue).collect()
+    }
+
+    #[test]
+    fn only_a_hypha_straight_outwards_covers_another() {
+        let outwards = [Vec3::new(2.0, 0.0, 0.0), Vec3::new(4.0, 0.0, 0.0), Vec3::new(-2.0, 0.0, 0.0), Vec3::new(-4.0, 0.0, 0.0)];
+        use Tissue::{Cap, CapCuticle};
+        assert_eq!(cuticle_of(&outwards), vec![Cap, CapCuticle, Cap, CapCuticle]);
+
+        // further out than a segment length, but about 53° off the outwards direction
+        let sideways = [Vec3::new(2.0, 0.0, 0.0), Vec3::new(3.5, 0.0, 2.0), Vec3::new(-2.0, 0.0, 0.0), Vec3::new(-3.5, 0.0, -2.0)];
+        assert_eq!(cuticle_of(&sideways), vec![CapCuticle; 4]);
+    }
+
     #[test]
     fn tissues_follow_the_schedule() {
         let h = grow(&GrowthParams::default());
