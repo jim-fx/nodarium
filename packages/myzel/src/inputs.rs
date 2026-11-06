@@ -39,13 +39,6 @@ pub fn read_vec3(arg: &[i32]) -> Vec3 {
     Vec3::new(values[0], values[1], values[2])
 }
 
-/// A color input `[0, 4, r, g, b, 1, 1]` with integer components in [0, 255], as sRGB in [0, 1]
-pub fn read_color(arg: &[i32]) -> [f32; 3] {
-    let framed = arg.len() == 7 && arg[0] == 0 && arg[1] == 4 && arg[5] == 1 && arg[6] == 1;
-    assert!(framed, "expected a color [0, 4, r, g, b, 1, 1], got {} words: {:?}", arg.len(), arg);
-    [arg[2], arg[3], arg[4]].map(|c| c.clamp(0, 255) as f32 / 255.0)
-}
-
 pub fn read_field(arg: &[i32]) -> Field {
     Field::decode(arg)
 }
@@ -71,7 +64,6 @@ mod tests {
         assert_eq!(read_floats(&curve), vec![0.0, 0.5, 1.0]);
         let v = [0, 4, encode_float(1.0), encode_float(2.0), encode_float(3.0), 1, 1];
         assert_eq!(read_vec3(&v), Vec3::new(1.0, 2.0, 3.0));
-        assert_eq!(read_color(&[0, 4, 255, 0, 51, 1, 1]), [1.0, 0.0, 0.2]);
     }
 
     #[test]

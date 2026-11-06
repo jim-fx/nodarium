@@ -2,45 +2,8 @@ use glam::Vec3;
 
 use crate::density::{surface, Segment};
 use crate::hyphae::{Hyphae, Tissue};
-use crate::mesh::{pack_rgba, Mesh};
+use crate::mesh::Mesh;
 use crate::noise::value_noise;
-
-/// sRGB colors with components in [0, 1]
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct TissueColors {
-    /// The youngest cap cuticle
-    pub cuticle_young: [f32; 3],
-    /// The oldest cap cuticle
-    pub cuticle_old: [f32; 3],
-    /// Gills at `t = 0`
-    pub gill_young: [f32; 3],
-    /// Gills at `t = 1`, when the spores are ripe
-    pub gill_mature: [f32; 3],
-    pub stipe: [f32; 3],
-    /// Veil and the ring it leaves on the stipe
-    pub veil: [f32; 3],
-    /// Cap flesh and the mycelium at the base
-    pub flesh: [f32; 3],
-}
-
-const fn rgb(r: u8, g: u8, b: u8) -> [f32; 3] {
-    [r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0]
-}
-
-impl Default for TissueColors {
-    /// A champignon (Agaricus bisporus)
-    fn default() -> Self {
-        TissueColors {
-            cuticle_young: rgb(0xf4, 0xef, 0xe6),
-            cuticle_old: rgb(0xc4, 0xa0, 0x76),
-            gill_young: rgb(0xe2, 0xa4, 0xa0),
-            gill_mature: rgb(0x5c, 0x3e, 0x30),
-            stipe: rgb(0xf2, 0xee, 0xe6),
-            veil: rgb(0xf8, 0xf6, 0xf0),
-            flesh: rgb(0xec, 0xe6, 0xdc),
-        }
-    }
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct HyphaeMeshParams {
@@ -48,17 +11,14 @@ pub struct HyphaeMeshParams {
     pub resolution: usize,
     /// How far, in hypha radii, neighbouring hyphae join into one surface
     pub blend: f32,
-    /// Maturity from 0 to 1, browns the gills
-    pub t: f32,
     /// Strength of the fibrous relief, 0 leaves the surface smooth
     pub fibres: f32,
     pub seed: u32,
-    pub colors: TissueColors,
 }
 
 impl Default for HyphaeMeshParams {
     fn default() -> Self {
-        HyphaeMeshParams { resolution: 64, blend: 3.0, t: 0.0, fibres: 1.0, seed: 0, colors: TissueColors::default() }
+        HyphaeMeshParams { resolution: 64, blend: 3.0, fibres: 1.0, seed: 0 }
     }
 }
 
@@ -86,12 +46,7 @@ const SMOOTHING_PASSES: usize = 2;
 /// a cap is cuticle wherever a cuticle hypha comes close.
 const CUTICLE_PRIORITY: f32 = 4.0;
 
-fn mix(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
-    let t = t.clamp(0.0, 1.0);
-    [0, 1, 2].map(|i| a[i] + (b[i] - a[i]) * t)
-}
-
-/// The surface around the hyphae with one tissue color per vertex and a fibrous relief
+/// The surface around the hyphae with a fibrous relief, every vertex is in the group of its tissue
 pub fn hyphae_mesh(hyphae: &Hyphae, params: &HyphaeMeshParams) -> Mesh {
     let segments = hyphae.to_segments();
     let mut s = surface(&segments, params.resolution, params.blend, |i| match hyphae.segments[i].tissue {
@@ -103,28 +58,7 @@ pub fn hyphae_mesh(hyphae: &Hyphae, params: &HyphaeMeshParams) -> Mesh {
     }
     let owner = |v: usize| &hyphae.segments[s.owners[v] as usize];
 
-    let (oldest, youngest) = hyphae
-        .segments
-        .iter()
-        .filter(|h| h.tissue == Tissue::CapCuticle)
-        .fold((f32::INFINITY, f32::NEG_INFINITY), |(lo, hi), h| (lo.min(h.birth), hi.max(h.birth)));
-    let c = &params.colors;
-    s.mesh.colors = (0..s.mesh.vertex_count())
-        .map(|v| {
-            let h = owner(v);
-            let [r, g, b] = match h.tissue {
-                Tissue::CapCuticle => {
-                    let age = if youngest > oldest { (youngest - h.birth) / (youngest - oldest) } else { 0.0 };
-                    mix(c.cuticle_young, c.cuticle_old, age)
-                }
-                Tissue::Gill => mix(c.gill_young, c.gill_mature, params.t),
-                Tissue::Stipe => c.stipe,
-                Tissue::Veil => c.veil,
-                Tissue::Cap | Tissue::Mycelium => c.flesh,
-            };
-            pack_rgba(r, g, b, 1.0)
-        })
-        .collect();
+    s.mesh.groups = s.owners.iter().map(|&i| hyphae.segments[i as usize].tissue as u32).collect();
 
     if params.fibres > 0.0 {
         add_fibres(&mut s.mesh, &segments, |v| (s.owners[v] as usize, owner(v).tissue), s.cell, params);
@@ -261,49 +195,40 @@ mod tests {
         h
     }
 
-    fn color_of(c: [f32; 3]) -> u32 {
-        pack_rgba(c[0], c[1], c[2], 1.0)
-    }
-
     fn vertex(mesh: &Mesh, v: usize) -> Vec3 {
         Vec3::from_slice(&mesh.positions[v * 3..v * 3 + 3])
     }
 
-    fn smooth(t: f32) -> HyphaeMeshParams {
-        HyphaeMeshParams { t, fibres: 0.0, ..HyphaeMeshParams::default() }
+    fn smooth() -> HyphaeMeshParams {
+        HyphaeMeshParams { fibres: 0.0, ..HyphaeMeshParams::default() }
     }
 
     #[test]
     fn the_mesh_is_closed() {
-        assert_closed(&hyphae_mesh(&bundle(), &smooth(0.0)));
+        assert_closed(&hyphae_mesh(&bundle(), &smooth()));
         assert_closed(&hyphae_mesh(&bundle(), &HyphaeMeshParams::default()));
     }
 
     #[test]
-    fn colors_match_the_tissues() {
-        let c = TissueColors::default();
-        let mesh = hyphae_mesh(&bundle(), &smooth(0.0));
+    fn groups_match_the_tissues() {
+        let mesh = hyphae_mesh(&bundle(), &smooth());
+        assert!(mesh.colors.is_empty());
         let mut seen = [false; 4];
         for v in 0..mesh.vertex_count() {
             let p = vertex(&mesh, v);
             let radial = Vec3::new(p.x, 0.0, p.z).length();
-            let color = mesh.colors[v];
+            let group = mesh.groups[v];
             if p.y < 0.5 && p.y > 0.05 {
-                assert_eq!(color, color_of(c.stipe), "stipe vertex at {}", p);
+                assert_eq!(group, Tissue::Stipe as u32, "stipe vertex at {}", p);
                 seen[0] = true;
             } else if p.y > 1.15 && radial < 0.5 {
-                let young = Vec3::from(c.cuticle_young);
-                let old = Vec3::from(c.cuticle_old);
-                let [r, g, b, _] = color.to_le_bytes().map(|b| b as f32 / 255.0);
-                let along = (Vec3::new(r, g, b) - young).dot(old - young) / (old - young).length_squared();
-                // the middle of the cap is the oldest part, so it is darker
-                assert!((along - (1.0 - radial / 0.6)).abs() < 0.3, "cuticle at {} is {}", radial, along);
+                assert_eq!(group, Tissue::CapCuticle as u32, "cuticle vertex at {}", p);
                 seen[1] = true;
             } else if (0.85..0.95).contains(&p.y) && (0.3..0.5).contains(&radial) {
-                assert_eq!(color, color_of(c.gill_young), "gill vertex at {}", p);
+                assert_eq!(group, Tissue::Gill as u32, "gill vertex at {}", p);
                 seen[2] = true;
             } else if (0.55..0.65).contains(&p.y) && radial > 0.12 {
-                assert_eq!(color, color_of(c.veil), "ring vertex at {}", p);
+                assert_eq!(group, Tissue::Veil as u32, "ring vertex at {}", p);
                 seen[3] = true;
             }
         }
@@ -311,26 +236,11 @@ mod tests {
     }
 
     #[test]
-    fn gills_brown_as_they_mature() {
-        let c = TissueColors::default();
-        let (young, mature) = (hyphae_mesh(&bundle(), &smooth(0.0)), hyphae_mesh(&bundle(), &smooth(1.0)));
-        let colored = |mesh: &Mesh, color: [f32; 3]| {
-            (0..mesh.vertex_count()).filter(|&v| mesh.colors[v] == color_of(color)).collect::<Vec<_>>()
-        };
-        let gills = colored(&young, c.gill_young);
-        assert!(!gills.is_empty());
-        assert_eq!(colored(&mature, c.gill_mature), gills);
-        for v in (0..young.vertex_count()).filter(|v| !gills.contains(v)) {
-            assert_eq!(young.colors[v], mature.colors[v]);
-        }
-    }
-
-    #[test]
     fn fibres_move_vertices_a_little() {
-        let plain = hyphae_mesh(&bundle(), &smooth(0.0));
+        let plain = hyphae_mesh(&bundle(), &smooth());
         let fibrous = hyphae_mesh(&bundle(), &HyphaeMeshParams::default());
         assert_eq!(plain.faces, fibrous.faces);
-        assert_eq!(plain.colors, fibrous.colors);
+        assert_eq!(plain.groups, fibrous.groups);
         let cell = surface(&bundle().to_segments(), 64, 3.0, |_| 1.0).cell;
         let moved: Vec<f32> =
             (0..plain.vertex_count()).map(|v| (vertex(&plain, v) - vertex(&fibrous, v)).length()).collect();
@@ -340,7 +250,7 @@ mod tests {
 
     #[test]
     fn same_input_gives_the_same_output() {
-        let params = HyphaeMeshParams { t: 0.4, seed: 7, ..HyphaeMeshParams::default() };
+        let params = HyphaeMeshParams { seed: 7, ..HyphaeMeshParams::default() };
         assert_eq!(hyphae_mesh(&bundle(), &params).encode(), hyphae_mesh(&bundle(), &params).encode());
         let other = HyphaeMeshParams { seed: 8, ..params.clone() };
         assert_ne!(hyphae_mesh(&bundle(), &params).positions, hyphae_mesh(&bundle(), &other).positions);

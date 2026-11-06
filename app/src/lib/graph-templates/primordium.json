@@ -41,15 +41,6 @@
       ],
       "type": "max/myzel/hyphae_to_mesh",
       "props": {}
-    },
-    {
-      "id": 4,
-      "position": [
-        210,
-        40
-      ],
-      "type": "max/myzel/time",
-      "props": {}
     }
   ],
   "edges": [
@@ -64,12 +55,6 @@
       0,
       3,
       "hyphae"
-    ],
-    [
-      4,
-      0,
-      3,
-      "t"
     ],
     [
       3,

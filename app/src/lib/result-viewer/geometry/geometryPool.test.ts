@@ -90,6 +90,15 @@ describe('createInstancedGeometryPool', () => {
     expect(pool.update([instances(2, 4)]).bounds.max.x).toBe(4);
   });
 
+  it('groups every instance by the path it sits on', () => {
+    const { pool, meshes } = setup();
+    const data = new Int32Array([...instances(2), 0x100_0007, 9]);
+    pool.update([data]);
+    expect([...meshes()[0].geometry.getAttribute('instanceGroup').array]).toEqual([7, 9]);
+    pool.update([instances(3)]);
+    expect([...meshes()[0].geometry.getAttribute('instanceGroup').array]).toEqual([0, 0, 0]);
+  });
+
   it('keeps the other inputs on their meshes when one is removed', () => {
     const { pool, meshes } = setup();
     pool.update([instances(2, 3), instances(2, 4), instances(2, 5)]);
@@ -102,15 +111,29 @@ describe('createInstancedGeometryPool', () => {
   });
 });
 
-// [14, vertices, faces, ...faces, ...positions, ...normals, ...colors] with a single triangle
-function myzelMesh(color = 0xff00_80ff, x = 0) {
-  const data = new Int32Array(3 + 3 + 3 * 7);
-  data.set([14, 3, 1, 0, 1, 2]);
+// [14, vertices, faces, flags, ...faces, ...positions, ...normals, ...colors?, ...groups] with a
+// single triangle, without colors when `color` is null
+function myzelMesh(color: number | null = 0xff00_80ff, x = 0, groups = [0, 0, 0]) {
+  const colors = color === null ? [] : [color, color, color];
+  const data = new Int32Array(4 + 3 + 3 * 6 + colors.length + 3);
+  data.set([14, 3, 1, color === null ? 0 : 1, 0, 1, 2]);
   const floats = new Float32Array(data.buffer);
-  floats.set([x, 0, 0, x + 1, 0, 0, x, 1, 0], 6);
-  floats.set([0, 0, 1, 0, 0, 1, 0, 0, 1], 15);
-  data.set([color, color, color], 24);
+  floats.set([x, 0, 0, x + 1, 0, 0, x, 1, 0], 7);
+  floats.set([0, 0, 1, 0, 0, 1, 0, 0, 1], 16);
+  data.set([...colors, ...groups], 25);
   return data;
+}
+
+// [1, vertices, faces, path id, ...faces, ...positions, ...normals] with a single triangle
+function plantGeometry(pathId: number) {
+  const data = new Int32Array(4 + 3 + 3 * 6);
+  data.set([1, 3, 1, pathId, 0, 1, 2]);
+  new Float32Array(data.buffer).set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1], 7);
+  return data;
+}
+
+function shownMeshes(group: Group) {
+  return group.children.flatMap((pool) => pool.children as Mesh[]).filter((m) => m.visible);
 }
 
 describe('sortResultItems', () => {
@@ -128,8 +151,8 @@ describe('sortResultItems', () => {
 });
 
 describe('readMesh', () => {
-  it('reads faces, positions, normals and colors', () => {
-    const mesh = readMesh(myzelMesh(0x1122_3344));
+  it('reads faces, positions, normals, colors and groups', () => {
+    const mesh = readMesh(myzelMesh(0x1122_3344, 0, [0, 5, 5]));
     expect(mesh.vertexCount).toBe(3);
     expect(mesh.faceCount).toBe(1);
     expect([...mesh.faces]).toEqual([0, 1, 2]);
@@ -137,10 +160,18 @@ describe('readMesh', () => {
     expect([...mesh.normals]).toEqual([0, 0, 1, 0, 0, 1, 0, 0, 1]);
     // red is the lowest byte
     expect([...mesh.colors!.subarray(0, 4)]).toEqual([0x44, 0x33, 0x22, 0x11]);
+    expect([...mesh.groups!]).toEqual([0, 5, 5]);
+  });
+
+  it('reads meshes without colors', () => {
+    const mesh = readMesh(myzelMesh(null, 0, [1, 2, 3]));
+    expect(mesh.colors).toBeUndefined();
+    expect([...mesh.groups!]).toEqual([1, 2, 3]);
   });
 
   it('rejects data of the wrong length', () => {
-    expect(() => readMesh(myzelMesh().subarray(0, 20))).toThrow(/needs 27 words/);
+    expect(() => readMesh(myzelMesh().subarray(0, 20))).toThrow(/needs 31 words/);
+    expect(() => readMesh(myzelMesh(null).subarray(0, 20))).toThrow(/needs 28 words/);
   });
 });
 
@@ -153,9 +184,7 @@ describe('createResultPools', () => {
     expect(stats.totalVertices).toBe(3);
     expect(stats.bounds.max.x).toBe(3);
 
-    const meshes = group.children.flatMap((pool) => pool.children as Mesh[]).filter((m) =>
-      m.visible
-    );
+    const meshes = shownMeshes(group);
     expect(meshes).toHaveLength(1);
     const colors = meshes[0].geometry.getAttribute('color');
     expect(colors.getX(0)).toBeCloseTo(1);
@@ -179,7 +208,40 @@ describe('createResultPools', () => {
     const pools = createResultPools(group, new MeshBasicMaterial());
     pools.update([myzelMesh(0xffff_ffff)]);
     pools.update([myzelMesh(0xff00_0000)]);
-    const mesh = group.children.flatMap((pool) => pool.children as Mesh[]).find((m) => m.visible)!;
+    const mesh = shownMeshes(group)[0];
     expect(mesh.geometry.getAttribute('color').getX(0)).toBe(0);
+  });
+
+  it('shows meshes without colors with the material as it is', () => {
+    const group = new Group();
+    const material = new MeshMatcapMaterial({ matcap: new Texture() });
+    const pools = createResultPools(group, material);
+    pools.update([myzelMesh(0xffff_ffff)]);
+    pools.update([myzelMesh(null)]);
+    const mesh = shownMeshes(group)[0];
+    expect(mesh.geometry.getAttribute('color')).toBeUndefined();
+    expect(mesh.material).toBe(material);
+
+    const other = new MeshBasicMaterial();
+    pools.setMaterial(other);
+    expect(mesh.material).toBe(other);
+  });
+
+  it('gives every vertex the group of its mesh', () => {
+    const group = new Group();
+    const pools = createResultPools(group, new MeshBasicMaterial());
+    pools.update([myzelMesh(null, 0, [0, 3, 5])]);
+    expect([...shownMeshes(group)[0].geometry.getAttribute('group').array]).toEqual([0, 3, 5]);
+    pools.update([myzelMesh(null, 0, [1, 1, 1])]);
+    expect([...shownMeshes(group)[0].geometry.getAttribute('group').array]).toEqual([1, 1, 1]);
+  });
+
+  it('groups plant geometry by its path, keeping 24 bits of the id', () => {
+    const group = new Group();
+    const pools = createResultPools(group, new MeshBasicMaterial());
+    pools.update([plantGeometry(0x7f12_3456)]);
+    expect([...shownMeshes(group)[0].geometry.getAttribute('group').array]).toEqual(
+      [0x12_3456, 0x12_3456, 0x12_3456]
+    );
   });
 });

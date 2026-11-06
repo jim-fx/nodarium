@@ -1,8 +1,6 @@
 use glam::Vec3;
 
-use crate::mesh::{pack_rgba, Mesh};
-
-const COLOR: [f32; 3] = [0.93, 0.89, 0.80];
+use crate::mesh::Mesh;
 
 const BLOCK: usize = 8;
 const BLOCK_SAMPLES: usize = BLOCK * BLOCK * BLOCK;
@@ -313,7 +311,7 @@ pub fn surface(
         }
     }
 
-    mesh.colors = vec![pack_rgba(COLOR[0], COLOR[1], COLOR[2], 1.0); mesh.vertex_count()];
+    mesh.groups = vec![0; mesh.vertex_count()];
     SegmentSurface { mesh, owners, cell }
 }
 
@@ -432,7 +430,8 @@ mod tests {
             let outwards = p - Vec3::Y * p.y.clamp(0.0, 1.0);
             assert!(n.dot(outwards.normalize()) > 0.9);
         }
-        assert_eq!(mesh.colors.len(), mesh.vertex_count());
+        assert!(mesh.colors.is_empty());
+        assert_eq!(mesh.groups.len(), mesh.vertex_count());
     }
 
     #[test]

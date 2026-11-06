@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/hyphae_to_mesh",
   "meta": {
-    "description": "Turns hyphae into the surface around them, colored by tissue and with a fibrous relief along the hyphae"
+    "description": "Turns hyphae into the surface around them with a fibrous relief along the hyphae, every tissue is its own material group"
   },
   "outputs": [
     "mesh"
@@ -18,14 +18,6 @@
       "max": 256,
       "setting": "resolution.field"
     },
-    "t": {
-      "type": "float",
-      "value": 0,
-      "min": 0,
-      "max": 1,
-      "step": 0.01,
-      "description": "Maturity, the gills turn from pink to brown"
-    },
     "fibres": {
       "type": "float",
       "value": 1,
@@ -36,38 +28,6 @@
     },
     "seed": {
       "type": "seed"
-    },
-    "cuticle_young": {
-      "type": "color",
-      "value": [244, 239, 230],
-      "description": "The youngest cap surface"
-    },
-    "cuticle_old": {
-      "type": "color",
-      "value": [196, 160, 118],
-      "description": "The oldest cap surface, the cap darkens from young to old"
-    },
-    "gill_young": {
-      "type": "color",
-      "value": [226, 164, 160]
-    },
-    "gill_mature": {
-      "type": "color",
-      "value": [92, 62, 48]
-    },
-    "stipe": {
-      "type": "color",
-      "value": [242, 238, 230]
-    },
-    "veil": {
-      "type": "color",
-      "value": [248, 246, 240],
-      "description": "The veil and the ring it leaves on the stipe"
-    },
-    "flesh": {
-      "type": "color",
-      "value": [236, 230, 220],
-      "description": "Cap flesh and the mycelium at the base"
     },
     "blend": {
       "type": "float",

@@ -122,6 +122,7 @@ pub fn polygonize(field: &Field, resolution: usize) -> Mesh {
         let [r, g, b] = [0, 1, 2].map(|i| BOTTOM_COLOR[i] + (TOP_COLOR[i] - BOTTOM_COLOR[i]) * t);
         mesh.colors.push(pack_rgba(r, g, b, 1.0));
     }
+    mesh.groups = vec![0; mesh.vertex_count()];
 
     mesh
 }
@@ -182,6 +183,7 @@ mod tests {
             assert!(n.dot(p.normalize()) > 0.99);
         }
         assert_eq!(mesh.colors.len(), mesh.vertex_count());
+        assert_eq!(mesh.groups, vec![0; mesh.vertex_count()]);
     }
 
     #[test]
