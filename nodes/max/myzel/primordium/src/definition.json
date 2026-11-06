@@ -12,21 +12,21 @@
     },
     "iterations": {
       "type": "integer",
-      "value": 70,
+      "value": 85,
       "min": 1,
       "max": 400,
       "description": "How many times every tip grows one segment"
     },
     "initial_tips": {
       "type": "integer",
-      "value": 200,
+      "value": 300,
       "min": 1,
       "max": 1000,
       "description": "Tips in the knot the fruit body starts from"
     },
     "knot_radius": {
       "type": "float",
-      "value": 0.0015,
+      "value": 0.002,
       "min": 0,
       "max": 0.02,
       "step": 0.0005,
@@ -103,12 +103,12 @@
         0.5,
         0.15,
         0,
-        0.5,
+        0.45,
         0,
-        0.7,
-        0.75,
+        0.6,
+        0.85,
         1,
-        0.85
+        1
       ],
       "description": "Preferred angle of the tips to the vertical over the simulation, bottom is up, the middle sideways, top is down"
     },
@@ -120,11 +120,13 @@
         0.05,
         0,
         0.15,
+        0.7,
+        0.4,
+        0.3,
+        0.75,
+        0.1,
         1,
-        0.45,
-        0.2,
-        1,
-        0.1
+        0.5
       ],
       "description": "How strongly tips are pulled towards the mass of the colony over the simulation"
     },
