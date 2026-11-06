@@ -5,6 +5,7 @@ nodarium_definition_file!("src/definition.json");
 
 const SHOW_SURFACE: i32 = 0;
 const SHOW_HYPHAE: i32 = 1;
+const CUT_OPEN: i32 = 1;
 
 /// Wraps items in the list the viewer reads: [0, 1, [0, n + 1, ...item, 1, 1]..., 1, 1]
 fn list(items: &[Vec<i32>]) -> Vec<i32> {
@@ -25,13 +26,17 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     match args[0].first() {
         Some(&HYPHAE_TAG) => {
             let show = read_int(args[2]);
-            let hyphae = read_hyphae(args[0]);
+            let mut hyphae = read_hyphae(args[0]);
+            let cut = read_int(args[4]) == CUT_OPEN;
+            if cut {
+                hyphae = hyphae.retain(|start, s| start.z <= 0.0 && s.end.z <= 0.0);
+            }
             let mut items = Vec::new();
             if show != SHOW_HYPHAE {
                 items.push(mesh_segments(&hyphae.to_segments(), resolution, read_float(args[3])).encode());
             }
             if show != SHOW_SURFACE {
-                items.push(args[0].to_vec());
+                items.push(if cut { hyphae.encode() } else { args[0].to_vec() });
             }
             list(&items)
         }
@@ -48,7 +53,11 @@ mod tests {
     use nodarium_utils::{encode_float, split_args};
 
     fn run(input: &[i32], show: i32) -> Vec<Vec<i32>> {
-        let output = __nodarium_execute_inner(&[input, &[32], &[show], &[encode_float(3.0)]]);
+        run_cut(input, show, 0)
+    }
+
+    fn run_cut(input: &[i32], show: i32, cut: i32) -> Vec<Vec<i32>> {
+        let output = __nodarium_execute_inner(&[input, &[32], &[show], &[encode_float(3.0)], &[cut]]);
         split_args(&output).iter().map(|item| item[2..item.len() - 2].to_vec()).collect()
     }
 
@@ -96,6 +105,15 @@ mod tests {
         assert_eq!(both.len(), 2);
         assert_eq!(both[0][0], MESH_TAG);
         assert_eq!(both[1], input);
+    }
+
+    #[test]
+    fn cutting_open_leaves_out_the_front_half() {
+        let mut h = Hyphae::decode(&hyphae());
+        h.push(HyphaSegment { end: Vec3::new(0.0, 1.0, 0.5), parent: Some(1), ..h.segments[1] });
+        let lines = run_cut(&h.encode(), 1, 1);
+        assert_eq!(Hyphae::decode(&lines[0]).len(), 2);
+        assert_eq!(run_cut(&h.encode(), 1, 0)[0], h.encode());
     }
 
     #[test]

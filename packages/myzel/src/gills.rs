@@ -118,11 +118,19 @@ impl Shape {
             let cell = &mut lowest[ring * sectors + sector];
             *cell = cell.min(p.y);
         }
-        let underside: Vec<Option<f32>> = lowest
+        let rings: Vec<Option<f32>> = lowest
             .chunks(sectors)
             .map(|ring| {
                 let mut heights: Vec<f32> = ring.iter().copied().filter(|h| h.is_finite()).collect();
                 (heights.len() >= 3).then(|| quantile(&mut heights, 0.1))
+            })
+            .collect();
+        // averaged with the neighbouring rings, so the top edge of the gills is smooth
+        let underside: Vec<Option<f32>> = (0..rings.len())
+            .map(|i| {
+                rings[i]?;
+                let near: Vec<f32> = rings[i.saturating_sub(2)..(i + 3).min(rings.len())].iter().flatten().copied().collect();
+                Some(near.iter().sum::<f32>() / near.len() as f32)
             })
             .collect();
 
@@ -173,7 +181,7 @@ impl Prepattern {
     }
 
     fn is_gill(&self, sheet: usize) -> bool {
-        sheet % (self.lamellulae + 1) == 0
+        sheet.is_multiple_of(self.lamellulae + 1)
     }
 
     /// Where a sheet starts, lamellulae only reach in from the margin
@@ -245,8 +253,11 @@ impl Builder<'_> {
             while r <= pattern.margin_radius {
                 let seed = self.shape.underside_at(r).map(|y| outwards(angle) * r + Vec3::Y * y);
                 r += unit;
-                let Some(seed) = seed else { continue };
-                let Some(parent) = self.attach(seed, is_cap) else { continue };
+                let Some(mut seed) = seed else { continue };
+                // where the cap hyphae are sparse, branch off the next one above
+                let parent = (0..5).find_map(|k| self.attach(seed + Vec3::Y * (k as f32 * ATTACH_REACH * unit), is_cap));
+                let Some(parent) = parent else { continue };
+                seed.y = seed.y.max(self.hyphae.segments[parent as usize].end.y - unit);
                 let Some(mut segment) = self.add(parent, seed, Tissue::Gill, flags::STANDARD) else { return };
                 let (mut at, mut direction) = (seed, Vec3::NEG_Y);
                 loop {
@@ -334,4 +345,142 @@ pub fn grow_gills(hyphae: &Hyphae, params: &GillParams) -> Hyphae {
         builder.grow_veil();
     }
     builder.hyphae
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::OnceLock;
+
+    use super::*;
+    use crate::growth::{grow, GrowthParams};
+
+    fn primordium() -> &'static Hyphae {
+        static PRIMORDIUM: OnceLock<Hyphae> = OnceLock::new();
+        PRIMORDIUM.get_or_init(|| grow(&GrowthParams::default()))
+    }
+
+    fn with_gills(params: &GillParams) -> (Hyphae, Shape) {
+        (grow_gills(primordium(), params), Shape::measure(primordium()).unwrap())
+    }
+
+    /// Sheets around the axis: groups of gill hyphae separated by an empty angle
+    fn count_sheets(h: &Hyphae, from: f32, to: f32) -> usize {
+        let mut angles: Vec<f32> = h
+            .segments
+            .iter()
+            .filter(|s| s.tissue == Tissue::Gill && (from..to).contains(&radial(s.end)))
+            .map(|s| s.end.z.atan2(s.end.x).rem_euclid(TAU))
+            .collect();
+        angles.sort_by(f32::total_cmp);
+        let Some(&first) = angles.first() else { return 0 };
+        let gap = |a: f32, b: f32| (b - a) * from > SHEET_THICKNESS * 0.0004;
+        let wraps = !gap(*angles.last().unwrap(), first + TAU);
+        angles.windows(2).filter(|w| gap(w[0], w[1])).count() + usize::from(!wraps)
+    }
+
+    #[test]
+    fn the_gill_count_matches_the_input() {
+        let params = GillParams { gill_count: 24, lamellulae: 1, veil: false, ..GillParams::default() };
+        let (h, shape) = with_gills(&params);
+        let width = shape.margin_radius - shape.free_radius;
+        let inner = shape.free_radius + width * 0.15;
+        let outer = shape.free_radius + width * 0.75;
+        assert_eq!(count_sheets(&h, inner, inner + width * 0.25), 24);
+        assert_eq!(count_sheets(&h, outer, outer + width * 0.2), 48);
+    }
+
+    #[test]
+    fn gills_are_free_of_the_stipe() {
+        let (h, shape) = with_gills(&GillParams::default());
+        assert!(shape.stipe_radius > 0.0);
+        let mut gills = 0;
+        for (i, s) in h.segments.iter().enumerate() {
+            if s.tissue == Tissue::Gill {
+                gills += 1;
+                assert!(radial(s.end) > shape.stipe_radius, "gill segment {} touches the stipe", i);
+            }
+        }
+        assert!(gills > 500);
+    }
+
+    #[test]
+    fn gills_hang_under_the_cap() {
+        let (h, _) = with_gills(&GillParams::default());
+        for s in h.segments.iter().filter(|s| s.tissue == Tissue::Gill) {
+            let parent = &h.segments[s.parent.unwrap() as usize];
+            assert!(matches!(parent.tissue, Tissue::Gill | Tissue::Cap | Tissue::CapCuticle));
+            // the first segment branches off the cap onto the sheet, the rest grow down
+            if parent.tissue == Tissue::Gill {
+                assert!(s.end.y < parent.end.y, "gills grow down");
+            }
+        }
+    }
+
+    #[test]
+    fn the_veil_connects_cap_margin_and_stipe() {
+        let (h, shape) = with_gills(&GillParams::default());
+        let side = |i: usize| h.segments[i].flags & flags::STIPE_SIDE != 0;
+        let mut has_children = vec![false; h.len()];
+        for s in &h.segments {
+            if let Some(p) = s.parent {
+                has_children[p as usize] = true;
+            }
+        }
+        let mut ends = [Vec::new(), Vec::new()];
+        for (i, s) in h.segments.iter().enumerate().filter(|(_, s)| s.tissue == Tissue::Veil) {
+            // a veil hypha starts on the side it remembers
+            let mut root = i;
+            while h.segments[root].tissue == Tissue::Veil {
+                assert_eq!(side(root), side(i));
+                root = h.segments[root].parent.unwrap() as usize;
+            }
+            let anchor = h.segments[root].tissue;
+            if side(i) {
+                assert!(matches!(anchor, Tissue::Stipe | Tissue::Mycelium));
+            } else {
+                assert!(is_cap(anchor));
+            }
+            if !has_children[i] {
+                ends[side(i) as usize].push(s.end);
+            }
+        }
+        let [cap_side, stipe_side] = ends;
+        assert!(cap_side.len() > 50);
+        assert_eq!(cap_side.len(), stipe_side.len());
+        for p in cap_side {
+            let meets = stipe_side.iter().any(|q| q.distance(p) < 2.0 * shape.unit);
+            assert!(meets, "veil strand ending at {} doesn't meet the stipe side", p);
+        }
+    }
+
+    #[test]
+    fn the_input_hyphae_stay_as_they_are() {
+        let h = grow_gills(primordium(), &GillParams::default());
+        assert_eq!(&h.segments[..primordium().len()], &primordium().segments[..]);
+        assert_eq!(h, grow_gills(primordium(), &GillParams::default()));
+    }
+
+    #[test]
+    fn the_budget_holds() {
+        let h = grow_gills(primordium(), &GillParams { max_segments: 100, ..GillParams::default() });
+        assert_eq!(h.len(), primordium().len() + 100);
+        let none = GillParams { gill_count: 0, veil: false, ..GillParams::default() };
+        assert_eq!(&grow_gills(primordium(), &none), primordium());
+    }
+
+    #[test]
+    fn hyphae_without_a_cap_come_back_unchanged() {
+        let mut h = Hyphae::default();
+        let root = h.push(HyphaSegment {
+            end: Vec3::ZERO,
+            radius: 0.001,
+            parent: None,
+            birth: 0.0,
+            tissue: Tissue::Stipe,
+            flags: 0,
+        });
+        h.push(HyphaSegment { end: Vec3::Y * 0.01, parent: Some(root), ..h.segments[0] });
+        assert_eq!(grow_gills(&h, &GillParams::default()), h);
+        assert_eq!(grow_gills(&Hyphae::default(), &GillParams::default()), Hyphae::default());
+    }
 }

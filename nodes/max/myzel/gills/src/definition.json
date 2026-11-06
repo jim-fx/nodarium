@@ -1,0 +1,57 @@
+{
+  "id": "max/myzel/gills",
+  "meta": {
+    "description": "Grows gills under the cap and the partial veil that closes them off. A pattern around the stem marks the gills, tips on the cap underside grow down along it."
+  },
+  "outputs": [
+    "hyphae"
+  ],
+  "inputs": {
+    "hyphae": {
+      "type": "hyphae",
+      "external": true
+    },
+    "seed": {
+      "type": "seed"
+    },
+    "gill_count": {
+      "type": "integer",
+      "value": 32,
+      "min": 0,
+      "max": 512,
+      "description": "Gills that reach from the margin to the stem"
+    },
+    "lamellulae": {
+      "type": "integer",
+      "value": 1,
+      "min": 0,
+      "max": 7,
+      "description": "Short gills between two gills, they only reach halfway in"
+    },
+    "gill_depth": {
+      "type": "float",
+      "value": 0.7,
+      "min": 0,
+      "max": 0.95,
+      "step": 0.05,
+      "description": "How far the gills reach down into the space under the cap"
+    },
+    "veil": {
+      "type": "select",
+      "options": [
+        "closed",
+        "none"
+      ],
+      "value": 0,
+      "description": "The partial veil between cap margin and stem"
+    },
+    "max_segments": {
+      "type": "integer",
+      "value": 10000,
+      "min": 0,
+      "max": 50000,
+      "hidden": true,
+      "description": "Upper limit for the added segments"
+    }
+  }
+}
