@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/hyphae_to_mesh",
   "meta": {
-    "description": "Turns hyphae into the surface around them with a fibrous relief along the hyphae, every tissue is its own material group"
+    "description": "Turns hyphae or paths into the surface around them with a fibrous relief along them. Every tissue is its own material group, for paths every node that made them."
   },
   "outputs": [
     "mesh"
@@ -9,6 +9,9 @@
   "inputs": {
     "hyphae": {
       "type": "hyphae",
+      "accepts": [
+        "path"
+      ],
       "external": true
     },
     "resolution_field": {

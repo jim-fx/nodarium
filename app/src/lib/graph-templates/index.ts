@@ -8,6 +8,7 @@ export { default as fern } from './fern.json';
 export { default as foxglove } from './foxglove.json';
 export { default as grass } from './grass.json';
 export { grid } from './grid';
+export { default as groomedStipe } from './groomed-stipe.json';
 export { default as horsetail } from './horsetail.json';
 export { default as knotweed } from './knotweed.json';
 export { default as ladyFern } from './lady-fern.json';

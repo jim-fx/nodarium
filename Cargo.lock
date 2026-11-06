@@ -168,6 +168,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "myzel_strands"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
 name = "myzel_time"
 version = "0.1.0"
 dependencies = [

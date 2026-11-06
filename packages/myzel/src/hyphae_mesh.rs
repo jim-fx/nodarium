@@ -58,15 +58,65 @@ fn is_body(tissue: Tissue) -> bool {
 
 /// The surface around the hyphae with a fibrous relief, every vertex is in the group of its tissue
 pub fn hyphae_mesh(hyphae: &Hyphae, params: &HyphaeMeshParams) -> Mesh {
-    let segments = hyphae.to_segments();
+    tissue_mesh(
+        &hyphae.to_segments(),
+        |i| hyphae.segments[i].tissue,
+        |i| hyphae.segments[i].tissue as u32,
+        params,
+    )
+}
+
+/// A path for [`paths_mesh`]: its points as `x, y, z, radius` and the material group of its surface
+#[derive(Clone, Copy, Debug)]
+pub struct MeshPath<'a> {
+    pub points: &'a [f32],
+    pub group: u32,
+}
+
+/// The segments between neighbouring points of a path, each with the mean radius of its two
+/// points. A path with a single point is a ball.
+pub fn path_segments(points: &[f32]) -> Vec<Segment> {
+    let point = |i: usize| (Vec3::from_slice(&points[i * 4..i * 4 + 3]), points[i * 4 + 3].abs());
+    let n = points.len() / 4;
+    if n == 1 {
+        let (p, radius) = point(0);
+        return vec![Segment { start: p, end: p, radius }];
+    }
+    (1..n)
+        .map(|i| {
+            let ((a, ra), (b, rb)) = (point(i - 1), point(i));
+            Segment { start: a, end: b, radius: 0.5 * (ra + rb) }
+        })
+        .collect()
+}
+
+/// [`hyphae_mesh`] for paths, every vertex is in the group of its path. Until paths replace
+/// hyphae (#168) and say which tissue they are, all of them are stipe tissue.
+pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
+    let mut segments = Vec::new();
+    let mut groups = Vec::new();
+    for path in paths.iter().filter(|p| p.points.len() >= 4) {
+        let s = path_segments(path.points);
+        groups.extend(std::iter::repeat_n(path.group, s.len()));
+        segments.extend(s);
+    }
+    tissue_mesh(&segments, |_| Tissue::Stipe, |i| groups[i], params)
+}
+
+fn tissue_mesh(
+    segments: &[Segment],
+    tissue: impl Fn(usize) -> Tissue,
+    group: impl Fn(usize) -> u32,
+    params: &HyphaeMeshParams,
+) -> Mesh {
     let radius = segments.iter().map(|s| s.radius).fold(0.0, f32::max);
     let mut s = surface(
-        &segments,
+        segments,
         params.resolution,
         params.blend,
         params.fill * radius,
-        |i| is_body(hyphae.segments[i].tissue),
-        |i| match hyphae.segments[i].tissue {
+        |i| is_body(tissue(i)),
+        |i| match tissue(i) {
             Tissue::CapCuticle => CUTICLE_PRIORITY,
             _ => 1.0,
         },
@@ -74,12 +124,12 @@ pub fn hyphae_mesh(hyphae: &Hyphae, params: &HyphaeMeshParams) -> Mesh {
     if s.mesh.vertex_count() == 0 {
         return s.mesh;
     }
-    let owner = |v: usize| &hyphae.segments[s.owners[v] as usize];
 
-    s.mesh.groups = s.owners.iter().map(|&i| hyphae.segments[i as usize].tissue as u32).collect();
+    s.mesh.groups = s.owners.iter().map(|&i| group(i as usize)).collect();
 
     if params.fibres > 0.0 {
-        add_fibres(&mut s.mesh, &segments, |v| (s.owners[v] as usize, owner(v).tissue), s.cell, params);
+        let owners = &s.owners;
+        add_fibres(&mut s.mesh, segments, |v| (owners[v] as usize, tissue(owners[v] as usize)), s.cell, params);
     }
     s.mesh
 }
@@ -305,6 +355,38 @@ mod tests {
         assert_eq!(hyphae_mesh(&bundle(), &params).encode(), hyphae_mesh(&bundle(), &params).encode());
         let other = HyphaeMeshParams { seed: 8, ..params.clone() };
         assert_ne!(hyphae_mesh(&bundle(), &params).positions, hyphae_mesh(&bundle(), &other).positions);
+    }
+
+    #[test]
+    fn paths_become_one_closed_tissue_in_the_groups_of_their_creators() {
+        let mut paths: Vec<(Vec<f32>, u32)> = Vec::new();
+        for i in 0..24 {
+            let a = i as f32 / 24.0 * 2.0 * PI;
+            let foot = Vec3::new(a.cos(), 0.0, a.sin()) * 0.15;
+            let points = (0..=10).flat_map(|j| (foot + Vec3::Y * j as f32 / 10.0).extend(0.02).to_array()).collect();
+            paths.push((points, if i < 12 { 7 } else { 31 }));
+        }
+        let paths: Vec<MeshPath> = paths.iter().map(|(points, group)| MeshPath { points, group: *group }).collect();
+        let mesh = paths_mesh(&paths, &HyphaeMeshParams::default());
+        assert_closed(&mesh);
+        assert!(mesh.groups.contains(&7) && mesh.groups.contains(&31));
+        assert!(mesh.groups.iter().all(|&g| g == 7 || g == 31));
+        // the bundle is one tissue, not 24 tubes: nothing of the surface lies deep inside it
+        for v in 0..mesh.vertex_count() {
+            let p = vertex(&mesh, v);
+            if (0.2..0.8).contains(&p.y) {
+                assert!(Vec3::new(p.x, 0.0, p.z).length() > 0.12, "vertex inside the bundle at {}", p);
+            }
+        }
+    }
+
+    #[test]
+    fn path_segments_carry_the_mean_radius() {
+        let s = path_segments(&[0.0, 0.0, 0.0, 0.2, 0.0, 1.0, 0.0, 0.1, 0.0, 2.0, 0.0, 0.0]);
+        assert_eq!(s.len(), 2);
+        assert_eq!(s[1].start, Vec3::Y);
+        assert!((s[0].radius - 0.15).abs() < 1e-6 && (s[1].radius - 0.05).abs() < 1e-6);
+        assert_eq!(path_segments(&[1.0, 2.0, 3.0, 0.1]).len(), 1);
     }
 
     #[test]

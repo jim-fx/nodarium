@@ -8,6 +8,7 @@ import {
   fern,
   foxglove,
   grass,
+  groomedStipe,
   horsetail,
   knotweed,
   ladyFern,
@@ -52,5 +53,6 @@ export const projectTemplates: ProjectTemplate[] = [
   { name: 'Japanese Knotweed', graph: toGraph(knotweed) },
   { name: 'Wild Carrot', graph: toGraph(wildCarrot, 'cm') },
   { name: 'Champignon', graph: toGraph(champignon, 'cm') },
-  { name: 'Primordium (hyphae)', graph: toGraph(primordium, 'cm') }
+  { name: 'Primordium (hyphae)', graph: toGraph(primordium, 'cm') },
+  { name: 'Groomed stipe (strands)', graph: toGraph(groomedStipe, 'cm') }
 ];

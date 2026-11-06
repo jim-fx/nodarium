@@ -1,0 +1,54 @@
+{
+  "id": "max/myzel/strands",
+  "meta": {
+    "description": "Fills the tube of every path with thin strands that follow it. A strand keeps its place across the tube from base to tip and thins where the path thins, so it never leaves the tube."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The guide paths, every one becomes a bundle of strands",
+      "external": true
+    },
+    "amount": {
+      "type": "integer",
+      "description": "Strands in every guide",
+      "value": 120,
+      "min": 1,
+      "max": 1000
+    },
+    "thickness": {
+      "type": "float",
+      "description": "Thickness of a strand where the guide is thickest, it thins with the guide",
+      "value": 0.0006,
+      "min": 0,
+      "max": 0.01,
+      "step": 0.0001,
+      "unit": "m"
+    },
+    "spread": {
+      "type": "float",
+      "description": "0 packs the strands along the axis of the guide, 1 fills the whole tube",
+      "value": 1,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    "twist": {
+      "type": "float",
+      "description": "Turns the bundle makes around the guide from base to tip",
+      "value": 0,
+      "min": -4,
+      "max": 4,
+      "step": 0.05
+    },
+    "seed": {
+      "type": "seed"
+    },
+    "creator": {
+      "type": "creator"
+    }
+  }
+}

@@ -22,8 +22,9 @@
 //! has [`mesh_flags::COLORS`] set and then holds one RGBA8 word per vertex, red
 //! in the lowest byte. Meshes without colors are shown with the viewer's
 //! material. `groups` holds one integer per vertex that tells which material
-//! group it belongs to: the [`Tissue`] for meshes made from hyphae, 0 for
-//! meshes made from a field.
+//! group it belongs to: the [`Tissue`] for meshes made from hyphae, the
+//! graph node that made the path for meshes made from paths, 0 for meshes
+//! made from a field.
 //!
 //! # Hyphae `[11, n, ...segments]`
 //!
@@ -52,7 +53,7 @@ pub use field::{opcode, Bbox, Field, FIELD_TAG};
 pub use gills::{grow_gills, GillParams, MAX_GILLS, MAX_LAMELLULAE};
 pub use growth::{grow, GrowthParams, Schedule, MAX_ITERATIONS, MAX_SEGMENTS};
 pub use hyphae::{flags, HyphaSegment, Hyphae, Tissue, HYPHAE_TAG};
-pub use hyphae_mesh::{hyphae_mesh, HyphaeMeshParams};
+pub use hyphae_mesh::{hyphae_mesh, path_segments, paths_mesh, HyphaeMeshParams, MeshPath};
 pub use inputs::{read_field, read_float, read_floats, read_hyphae, read_int, read_mesh, read_vec3};
 pub use mesh::{mesh_flags, pack_rgba, Mesh, MESH_TAG};
 pub use noise::value_noise;
