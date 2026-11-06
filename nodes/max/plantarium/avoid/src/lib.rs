@@ -3,7 +3,7 @@ use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_args,
     geometry::{wrap_path, wrap_path_mut, DeepestPaths},
-    int, split_args, Ctx,
+    int, split_args, BoxGrid, Ctx,
 };
 
 use std::f32::consts::TAU;
@@ -36,23 +36,6 @@ fn point_at(points: &[f32], index: usize) -> Vec3 {
         points[index * 4 + 1],
         points[index * 4 + 2],
     )
-}
-
-/// Box around a path, grown by its thickest point, so paths that are far
-/// apart can be skipped without looking at their segments.
-fn bounds(points: &[f32]) -> (Vec3, Vec3) {
-    let mut min = Vec3::splat(f32::MAX);
-    let mut max = Vec3::splat(f32::MIN);
-    let mut thickness = 0.0f32;
-
-    for i in 0..points.len() / 4 {
-        let point = point_at(points, i);
-        min = min.min(point);
-        max = max.max(point);
-        thickness = thickness.max(points[i * 4 + 3]);
-    }
-
-    (min - Vec3::splat(thickness), max + Vec3::splat(thickness))
 }
 
 /// A segment of a path with everything the tests need worked out once per iteration.
@@ -153,100 +136,111 @@ fn fallback_direction(da: Vec3, db: Vec3, order: usize, path_count: usize) -> Ve
     u * angle.cos() + w * angle.sin()
 }
 
-/// One side of a pair of paths: its points, the push collected for every
-/// point and how many contacts contributed to that push.
-struct Side<'a> {
-    segments: &'a [Segment],
-    /// box around the whole path
-    bounds: (Vec3, Vec3),
-    deltas: &'a mut [Vec3],
-    weights: &'a mut [f32],
+/// Pushes the two points of segment `i` so that the spot at `s` moves by `push`. The push fades
+/// in along the stem, so the base never gets a kink. `weights` counts how many contacts
+/// contributed to the push of a point.
+fn push_points(deltas: &mut [Vec3], weights: &mut [f32], i: usize, s: f32, push: Vec3) {
+    let alpha = (i as f32 + s) / (deltas.len() - 1) as f32;
+    let share = 1.0 / ((1.0 - s) * (1.0 - s) + s * s);
+    let push = push * smoothstep(alpha) * share;
+
+    deltas[i] += push * (1.0 - s);
+    deltas[i + 1] += push * s;
+    weights[i] += 1.0 - s;
+    weights[i + 1] += s;
+}
+
+fn thickness(segment: &Segment, s: f32) -> f32 {
+    (segment.start_thickness + (segment.end_thickness - segment.start_thickness) * s).max(0.0)
+}
+
+/// Where two segments come closer than `radius` plus their thickness and how far the first one
+/// has to move to get away from the second: the spots `s` and `t` along them and the push. The
+/// segments are tested in 3D, so crossings are found wherever they happen. `order` is the place
+/// of the first path among `path_count`.
+fn contact(
+    sa: &Segment,
+    sb: &Segment,
     order: usize,
-}
-
-impl Side<'_> {
-    /// Pushes the two points of segment `i` so that the spot at `s` moves by
-    /// `push`. The push fades in along the stem, so the base never gets a kink.
-    fn push(&mut self, i: usize, s: f32, push: Vec3, alpha: f32) {
-        let share = 1.0 / ((1.0 - s) * (1.0 - s) + s * s);
-        let push = push * smoothstep(alpha) * share;
-
-        self.deltas[i] += push * (1.0 - s);
-        self.deltas[i + 1] += push * s;
-        self.weights[i] += 1.0 - s;
-        self.weights[i + 1] += s;
-    }
-
-    fn thickness(&self, i: usize, s: f32) -> f32 {
-        let Segment { start_thickness: start, end_thickness: end, .. } = self.segments[i];
-        (start + (end - start) * s).max(0.0)
-    }
-}
-
-/// Finds where two paths come closer than `radius` plus their thickness and
-/// pushes them apart. Every segment of one path is tested against every
-/// segment of the other in 3D, so crossings are found wherever they happen. Returns how many
-/// contacts were found.
-fn repel_pair(
-    a: &mut Side,
-    b: &mut Side,
     path_count: usize,
     radius: f32,
     strength: f32,
-) -> usize {
-    let length_a = a.segments.len() + 1;
-    let length_b = b.segments.len() + 1;
-    if length_a < 2 || length_b < 2 {
-        return 0;
-    }
-
+) -> Option<(f32, f32, Vec3)> {
     let margin = Vec3::splat(radius);
-    let mut contacts = 0;
-
-    for i in 0..length_a - 1 {
-        let sa = &a.segments[i];
-        if (sa.min - margin).cmpgt(b.bounds.1).any() || (b.bounds.0 - margin).cmpgt(sa.max).any() {
-            continue;
-        }
-
-        for j in 0..length_b - 1 {
-            let sb = &b.segments[j];
-            // segments that are farther apart than they can reach don't touch
-            if (sa.min - margin).cmpgt(sb.max).any() || (sb.min - margin).cmpgt(sa.max).any() {
-                continue;
-            }
-
-            let (s, t) = closest_params(
-                sa.start,
-                sa.direction,
-                sa.length_squared,
-                sb.start,
-                sb.direction,
-                sb.length_squared,
-            );
-            let offset = sa.start.lerp(sa.end, s) - sb.start.lerp(sb.end, t);
-            let distance = offset.length();
-
-            // radius is the free space between the surfaces of the two stems
-            let required = radius + a.thickness(i, s) + b.thickness(j, t);
-            if distance >= required || required <= 0.0 {
-                continue;
-            }
-
-            let direction = if distance > 0.0001 {
-                offset / distance
-            } else {
-                fallback_direction(sa.direction, sb.direction, a.order, path_count)
-            };
-
-            let push = direction * ((required - distance) * 0.5 * strength);
-            a.push(i, s, push, (i as f32 + s) / (length_a - 1) as f32);
-            b.push(j, t, -push, (j as f32 + t) / (length_b - 1) as f32);
-            contacts += 1;
-        }
+    // segments that are farther apart than they can reach don't touch
+    if (sa.min - margin).cmpgt(sb.max).any() || (sb.min - margin).cmpgt(sa.max).any() {
+        return None;
     }
 
-    contacts
+    let (s, t) = closest_params(
+        sa.start,
+        sa.direction,
+        sa.length_squared,
+        sb.start,
+        sb.direction,
+        sb.length_squared,
+    );
+    let offset = sa.start.lerp(sa.end, s) - sb.start.lerp(sb.end, t);
+    let distance = offset.length();
+
+    // radius is the free space between the surfaces of the two stems
+    let required = radius + thickness(sa, s) + thickness(sb, t);
+    if distance >= required || required <= 0.0 {
+        return None;
+    }
+
+    let direction = if distance > 0.0001 {
+        offset / distance
+    } else {
+        fallback_direction(sa.direction, sb.direction, order, path_count)
+    };
+
+    Some((s, t, direction * ((required - distance) * 0.5 * strength)))
+}
+
+/// The pairs of segments of different paths that may touch: segment `i` of path `a` and segment
+/// `j` of path `b`, listed under `a` with `a < b` and packed into one number, with `b` first, and
+/// `i` and `j` in the returned number of bits each. The pairs of a path are sorted, so the pushes
+/// add up in the same order as when every segment is compared to every segment of later paths.
+/// Pairs may still be too far apart, `contact` tests them.
+fn segment_pairs(segments: &[Vec<Segment>], radius: f32) -> (Vec<Vec<u64>>, u32) {
+    let owners: Vec<(u32, u32)> = segments
+        .iter()
+        .enumerate()
+        .flat_map(|(path, s)| (0..s.len() as u32).map(move |index| (path as u32, index)))
+        .collect();
+
+    // every box grows by half the margin, so two segments the test in `contact` lets through
+    // overlap, a little more covers the rounding of the margin
+    let reach = segments
+        .iter()
+        .flatten()
+        .map(|s| s.min.abs().max(s.max.abs()).max_element())
+        .filter(|r| r.is_finite())
+        .fold(radius, f32::max);
+    let grow = Vec3::splat(radius * 0.5 + reach * 1e-5);
+    let boxes: Vec<(Vec3, Vec3)> = segments.iter().flatten().map(|s| (s.min - grow, s.max + grow)).collect();
+
+    // cells shaped like a typical box and a few times as large: the grid compares the boxes in a
+    // cell sorted along x, so larger cells cost less than they look, while every cell a box is
+    // in costs it once more. Three was the quickest on a bundle of thousands of strands.
+    let extent = boxes.iter().map(|(min, max)| *max - *min).sum::<Vec3>() / boxes.len().max(1) as f32;
+    let grid = BoxGrid::new(extent * 3.0, &boxes);
+
+    let bits = (usize::BITS - segments.iter().map(|s| s.len()).max().unwrap_or(0).leading_zeros()).max(1);
+    assert!(bits <= 20, "a path with {} or more segments is too long to avoid others", 1 << 20);
+    let mut pairs: Vec<Vec<u64>> = vec![Vec::new(); segments.len()];
+    grid.for_each_pair(|e, f| {
+        // e < f and the boxes are listed path by path, so a <= b
+        let ((a, i), (b, j)) = (owners[e as usize], owners[f as usize]);
+        if a != b {
+            pairs[a as usize].push((b as u64) << (2 * bits) | (i as u64) << bits | j as u64);
+        }
+    });
+    for list in &mut pairs {
+        list.sort_unstable();
+    }
+    (pairs, bits)
 }
 
 /// Spreads the displacement of a point over its two neighbours, so a stem
@@ -330,7 +324,6 @@ fn repel(
             .iter()
             .map(|index| wrap_path(&output[*index]).points.to_vec())
             .collect();
-        let boxes: Vec<(Vec3, Vec3)> = points.iter().map(|p| bounds(p)).collect();
         let segments: Vec<Vec<Segment>> = points.iter().map(|p| segments(p)).collect();
         let mut deltas: Vec<Vec<Vec3>> = points
             .iter()
@@ -338,33 +331,21 @@ fn repel(
             .collect();
         let mut weights: Vec<Vec<f32>> = points.iter().map(|p| vec![0.0; p.len() / 4]).collect();
 
+        let (pairs, bits) = segment_pairs(&segments, radius);
+        let mask = (1u64 << bits) - 1;
         let mut contacts = 0;
-        for a in 0..count {
-            for b in (a + 1)..count {
-                let margin = Vec3::splat(radius);
-                if (boxes[a].0 - margin).cmpgt(boxes[b].1).any()
-                    || (boxes[b].0 - margin).cmpgt(boxes[a].1).any()
-                {
+        for (a, list) in pairs.iter().enumerate() {
+            let (deltas_a, deltas_b) = deltas.split_at_mut(a + 1);
+            let (weights_a, weights_b) = weights.split_at_mut(a + 1);
+            for &key in list {
+                let (b, i, j) = ((key >> (2 * bits)) as usize, (key >> bits & mask) as usize, (key & mask) as usize);
+                let Some((s, t, push)) = contact(&segments[a][i], &segments[b][j], a, count, radius, strength)
+                else {
                     continue;
-                }
-
-                let (deltas_a, deltas_b) = deltas.split_at_mut(b);
-                let (weights_a, weights_b) = weights.split_at_mut(b);
-                let mut side_a = Side {
-                    segments: &segments[a],
-                    bounds: boxes[a],
-                    deltas: &mut deltas_a[a],
-                    weights: &mut weights_a[a],
-                    order: a,
                 };
-                let mut side_b = Side {
-                    segments: &segments[b],
-                    bounds: boxes[b],
-                    deltas: &mut deltas_b[0],
-                    weights: &mut weights_b[0],
-                    order: b,
-                };
-                contacts += repel_pair(&mut side_a, &mut side_b, count, radius, strength);
+                push_points(&mut deltas_a[a], &mut weights_a[a], i, s, push);
+                push_points(&mut deltas_b[b - a - 1], &mut weights_b[b - a - 1], j, t, -push);
+                contacts += 1;
             }
         }
 
