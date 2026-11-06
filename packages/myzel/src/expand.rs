@@ -3,22 +3,20 @@
 //! and never adds any, which keeps it cheap enough to run on every change of
 //! the time.
 //!
-//! Every segment is its parent's new end plus its own offset, transformed by
-//! its tissue. Parents come first, so one pass moves everything and a tissue
-//! carries whatever grows from it: the stipe carries the cap, the cap carries
-//! the gills and the veil.
+//! Stipe and cap are moved as a whole, so hyphae keep their order and the
+//! tissues stay as thick as they were:
 //!
-//! - Stipe: offsets stretch along the axis, more in the upper half
-//! - Cap: offsets that point down further than the open angle turn up towards
-//!   it, which unrolls the margin, and the cap grows wider
-//! - Gills: grow wider with the cap and a bit deeper
+//! - Stipe: stretches along the axis, more in the upper half, and grows in girth
+//! - Cap: opens around the top of the stipe, the parts below the horizontal
+//!   turn up until the margin reaches the open angle, and it grows larger
+//! - Gills: open with the cap and get a bit deeper
 //! - Veil: stretches between cap margin and stipe until it tears, then the
 //!   stipe side falls down into the ring and the cap side hangs from the margin
 //!
 //! Stages read their progress from schedules over `t`, so other species can
 //! expand in a different order or not at all.
 
-use std::f32::consts::{FRAC_PI_2, PI, TAU};
+use std::f32::consts::{FRAC_PI_2, PI};
 
 use glam::{Quat, Vec3};
 
@@ -46,7 +44,9 @@ pub struct ExpandParams {
     pub stipe_stretch: f32,
     /// 0 stretches the stipe evenly, 1 only towards the top
     pub apical_stretch: f32,
-    /// How much wider the cap and gills get, 1 doubles them
+    /// How much thicker the stipe gets while it stretches, 1 doubles it
+    pub stipe_thickening: f32,
+    /// How much larger the cap and gills get, 1 doubles them
     pub cap_spread: f32,
     /// Angle to the vertical the cap opens to, 0 is up, 0.5 sideways, 1 down
     pub open_angle: f32,
@@ -67,8 +67,9 @@ impl Default for ExpandParams {
             t: 1.0,
             elongation: Schedule(vec![0.0, 0.0, 0.05, 0.0, 0.3, 0.5, 0.6, 1.0, 1.0, 1.0]),
             opening: Schedule(vec![0.0, 0.0, 0.3, 0.0, 0.65, 0.55, 0.95, 1.0, 1.0, 1.0]),
-            stipe_stretch: 2.0,
-            apical_stretch: 0.6,
+            stipe_stretch: 3.0,
+            apical_stretch: 0.3,
+            stipe_thickening: 1.0,
             cap_spread: 1.0,
             open_angle: 0.6,
             gill_deepening: 0.3,
@@ -99,25 +100,93 @@ fn hash(seed: u32, index: u32) -> f32 {
     (h >> 8) as f32 / (1u32 << 24) as f32
 }
 
-/// Turns an offset that points down further than `angle` towards it and widens it.
-/// Angles are measured from up over outwards, so an incurved margin, pointing
-/// down and back to the axis, lies beyond down and unrolls through it.
-fn open_offset(offset: Vec3, start: Vec3, angle: f32, open: f32, spread: f32) -> Vec3 {
-    let mut opened = offset;
-    if let Some(out) = radial_direction(start, offset) {
-        let (a, b) = (offset.dot(out), offset.y);
-        let mut current = a.atan2(b);
-        if current < -FRAC_PI_2 {
-            current += TAU;
+/// The stipe stretches along the axis and grows in girth. Positions are mapped
+/// as a whole rather than offset by offset, so hyphae keep their order and
+/// neighbours stay neighbours.
+struct StipeGrowth {
+    top: f32,
+    stretch: f32,
+    apical: f32,
+    girth: f32,
+}
+
+impl StipeGrowth {
+    /// How far a point at height `y` rises: the stretch per height integrated from the ground
+    fn lift(&self, y: f32) -> f32 {
+        if self.top <= 0.0 {
+            return 0.0;
         }
-        if open > 0.0 && current > angle {
-            let turned = current + (angle - current) * open;
-            let length = a.hypot(b);
-            opened += out * (length * turned.sin() - a) + Vec3::Y * (length * turned.cos() - b);
+        let h = y.clamp(0.0, self.top);
+        self.stretch * ((1.0 - self.apical) * h + self.apical * h * h / self.top)
+    }
+
+    fn moved(&self, p: Vec3) -> Vec3 {
+        horizontal(p) * self.girth + Vec3::Y * self.lift(p.y)
+    }
+}
+
+/// Cap and gills open around the hinge, the top of the stipe on the axis.
+/// In polar coordinates around it everything below the horizontal turns up,
+/// so the margin ends at the open angle, and distances to the hinge grow.
+/// Cap flesh and gills keep their order from the hinge outwards, so the cap
+/// stays as thick as it was and the gills stay under it.
+struct CapOpening {
+    hinge: Vec3,
+    lifted: Vec3,
+    /// How much the angles below the horizontal are compressed
+    turn: f32,
+    scale: f32,
+    /// Radius of the stipe top, the cap moves out with it where it sits on it
+    rim: f32,
+    rim_shift: f32,
+}
+
+impl CapOpening {
+    fn new(hyphae: &Hyphae, stipe: &StipeGrowth, rim: f32, params: &ExpandParams, opening: f32) -> CapOpening {
+        let hinge = Vec3::Y * stipe.top;
+        let mut angles: Vec<f32> = hyphae
+            .segments
+            .iter()
+            .filter(|s| matches!(s.tissue, Tissue::Cap | Tissue::CapCuticle))
+            .map(|s| polar_angle(s.end - hinge))
+            .filter(|&a| a > FRAC_PI_2)
+            .collect();
+        let turn = if angles.is_empty() {
+            1.0
+        } else {
+            angles.sort_by(f32::total_cmp);
+            let margin = angles[(angles.len() - 1) * 49 / 50];
+            let open = (params.open_angle.clamp(0.0, 1.0) * PI).max(FRAC_PI_2);
+            let target = if margin > open { (open - FRAC_PI_2) / (margin - FRAC_PI_2) } else { 1.0 };
+            1.0 + (target - 1.0) * opening
+        };
+        let scale = 1.0 + params.cap_spread.max(0.0) * opening;
+        CapOpening {
+            hinge,
+            lifted: hinge + Vec3::Y * stipe.lift(stipe.top),
+            turn,
+            scale,
+            rim,
+            rim_shift: rim * (1.0 + stipe.girth - scale),
         }
     }
-    let widen = spread * open;
-    opened + horizontal(opened) * widen - offset
+
+    fn warp(&self, p: Vec3) -> Vec3 {
+        if self.turn == 1.0 && self.scale == 1.0 && self.rim_shift == 0.0 && self.lifted == self.hinge {
+            return p;
+        }
+        let d = p - self.hinge;
+        let angle = polar_angle(d);
+        let angle = if angle > FRAC_PI_2 { FRAC_PI_2 + (angle - FRAC_PI_2) * self.turn } else { angle };
+        let out = horizontal(d).try_normalize().unwrap_or(Vec3::X);
+        let rim = if self.rim > 0.0 { (horizontal(d).length() / self.rim).min(1.0) } else { 1.0 };
+        self.lifted + (out * angle.sin() + Vec3::Y * angle.cos()) * d.length() * self.scale + out * self.rim_shift * rim
+    }
+}
+
+/// Angle of `d` to straight up
+fn polar_angle(d: Vec3) -> f32 {
+    horizontal(d).length().atan2(d.y)
 }
 
 /// One veil strand, the stipe half from its anchor to the middle, then the cap half back to the margin
@@ -246,35 +315,50 @@ pub fn expand(hyphae: &Hyphae, params: &ExpandParams) -> Hyphae {
     let t = params.t.clamp(0.0, 1.0);
     let elongation = params.elongation.at(t);
     let opening = params.opening.at(t);
-    let stretch = params.stipe_stretch.max(0.0) * elongation;
-    let apical = params.apical_stretch.clamp(0.0, 1.0);
-    let open_angle = params.open_angle.clamp(0.0, 1.0) * PI;
-    let spread = params.cap_spread.max(0.0);
+    let top = hyphae.segments.iter().filter(|s| s.tissue == Tissue::Stipe).map(|s| s.end.y).fold(0.0, f32::max);
+    let stipe = StipeGrowth {
+        top,
+        stretch: params.stipe_stretch.max(0.0) * elongation,
+        apical: params.apical_stretch.clamp(0.0, 1.0),
+        girth: params.stipe_thickening.max(0.0) * elongation,
+    };
+    let mut upper: Vec<f32> = hyphae
+        .segments
+        .iter()
+        .filter(|s| s.tissue == Tissue::Stipe && s.end.y > top * 0.75)
+        .map(|s| horizontal(s.end).length())
+        .collect();
+    upper.sort_by(f32::total_cmp);
+    let rim = upper.get(upper.len() * 9 / 10).copied().unwrap_or(0.0);
+    let cap = CapOpening::new(hyphae, &stipe, rim, params, opening);
     let deepen = params.gill_deepening.max(0.0) * opening;
 
-    let top = hyphae.segments.iter().filter(|s| s.tissue == Tissue::Stipe).map(|s| s.end.y).fold(0.0, f32::max);
     let mut out = hyphae.clone();
     let mut moved = vec![Vec3::ZERO; hyphae.len()];
+    // where the gill hypha a segment belongs to branches off the cap, before and after
+    let mut gill_root = vec![(Vec3::ZERO, Vec3::ZERO); hyphae.len()];
     for (i, s) in hyphae.segments.iter().enumerate() {
-        let Some(parent) = s.parent.map(|p| p as usize) else { continue };
-        let start = hyphae.segments[parent].end;
-        let offset = s.end - start;
-        let (own, inflate) = match s.tissue {
-            Tissue::Stipe => {
-                let height = if top > 0.0 { (start.y / top).clamp(0.0, 1.0) } else { 0.0 };
-                let weight = 1.0 + apical * (2.0 * height - 1.0);
-                (Vec3::Y * offset.y * stretch * weight, elongation)
-            }
-            Tissue::Cap | Tissue::CapCuticle => (open_offset(offset, start, open_angle, opening, spread), opening),
+        let parent = s.parent.map(|p| p as usize);
+        let (to, inflate) = match s.tissue {
+            Tissue::Stipe | Tissue::Mycelium => (s.end + stipe.moved(s.end), elongation),
+            Tissue::Cap | Tissue::CapCuticle => (cap.warp(s.end), opening),
             Tissue::Gill => {
-                let widen = horizontal(offset) * spread * opening;
-                (widen + Vec3::Y * offset.y * deepen, opening)
+                let root = match parent {
+                    Some(p) if hyphae.segments[p].tissue == Tissue::Gill => gill_root[p],
+                    Some(p) => (hyphae.segments[p].end, cap.warp(hyphae.segments[p].end)),
+                    None => (s.end, cap.warp(s.end)),
+                };
+                gill_root[i] = root;
+                let to = cap.warp(s.end);
+                (to + (to - root.1) * deepen, opening)
             }
-            Tissue::Veil | Tissue::Mycelium => (Vec3::ZERO, 0.0),
+            Tissue::Veil => (s.end, 0.0),
         };
-        moved[i] = moved[parent] + own;
-        out.segments[i].end = s.end + moved[i];
-        out.segments[i].radius = s.radius * (1.0 + params.inflation.max(0.0) * inflate);
+        moved[i] = to - s.end;
+        out.segments[i].end = to;
+        if s.tissue != Tissue::Mycelium {
+            out.segments[i].radius = s.radius * (1.0 + params.inflation.max(0.0) * inflate);
+        }
     }
     move_veil(hyphae, &mut out, &moved, params);
     out
@@ -358,14 +442,89 @@ mod tests {
     fn the_cap_opens() {
         let (start, end) = (button(), &at(1.0));
         assert!(width(end) > 1.5 * width(start));
-        // the margin turns from pointing down to the open angle
-        let pointing_down = |h: &Hyphae| {
-            (0..h.len())
-                .filter(|&i| h.segments[i].tissue == Tissue::Cap && h.segments[i].parent.is_some())
-                .filter(|&i| (h.segments[i].end - h.start(i)).normalize().y < -0.7)
-                .count()
+        // seen from the top of the stipe the margin turns up from below to the open angle
+        let margin = |h: &Hyphae| {
+            let hinge = Vec3::Y * top(h, Tissue::Stipe);
+            let mut angles: Vec<f32> = h
+                .segments
+                .iter()
+                .filter(|s| matches!(s.tissue, Tissue::Cap | Tissue::CapCuticle))
+                .map(|s| polar_angle(s.end - hinge))
+                .collect();
+            angles.sort_by(f32::total_cmp);
+            angles[(angles.len() - 1) * 49 / 50]
         };
-        assert!(pointing_down(end) * 10 < pointing_down(start), "{} {}", pointing_down(end), pointing_down(start));
+        let open = ExpandParams::default().open_angle * PI;
+        assert!(margin(start) > open + 0.3, "the button is closed, margin at {}", margin(start));
+        assert!((margin(end) - open).abs() < 0.1, "margin at {}, open angle {}", margin(end), open);
+    }
+
+    /// Thickness of the cap above the stipe top and of the flesh halfway to the margin
+    fn flesh(h: &Hyphae) -> (f32, f32) {
+        let hinge = top(h, Tissue::Stipe);
+        let cap: Vec<Vec3> =
+            h.segments.iter().filter(|s| matches!(s.tissue, Tissue::Cap | Tissue::CapCuticle)).map(|s| s.end).collect();
+        let column = |r0: f32, r1: f32| {
+            let ys: Vec<f32> = cap.iter().filter(|p| (r0..r1).contains(&horizontal(**p).length())).map(|p| p.y).collect();
+            ys.iter().fold(f32::MIN, |a, &b| a.max(b)) - ys.iter().fold(f32::MAX, |a, &b| a.min(b).max(hinge))
+        };
+        (column(0.0, 0.003), column(width(h) * 0.45, width(h) * 0.55))
+    }
+
+    #[test]
+    fn the_open_cap_stays_thick() {
+        let (centre, middle) = flesh(&at(1.0));
+        assert!(centre > 0.008, "{} m over the stipe", centre);
+        assert!(middle > 0.004, "{} m halfway to the margin", middle);
+    }
+
+    #[test]
+    fn gills_stay_under_the_open_cap() {
+        for t in [0.0, 0.5, 1.0] {
+            let h = at(t);
+            let gills = h.segments.iter().filter(|s| s.tissue == Tissue::Gill).map(|s| horizontal(s.end).length());
+            assert!(gills.fold(0.0, f32::max) < width(&h), "gills stick out of the cap at t = {}", t);
+        }
+    }
+
+    #[test]
+    fn the_stipe_is_one_solid_cord() {
+        let h = at(1.0);
+        let height = top(&h, Tissue::Stipe);
+        let stipe: Vec<Vec3> = h.segments.iter().filter(|s| s.tissue == Tissue::Stipe).map(|s| s.end).collect();
+        assert!(stipe.iter().all(|p| p.y > -1e-4), "the stipe stays above the ground");
+        let mut radii = Vec::new();
+        for share in [0.1, 0.3, 0.5, 0.7, 0.9] {
+            let mut r: Vec<f32> = stipe
+                .iter()
+                .filter(|p| (p.y - height * share).abs() < height * 0.03)
+                .map(|&p| horizontal(p).length())
+                .collect();
+            r.sort_by(f32::total_cmp);
+            let outer = r[r.len() * 9 / 10];
+            // a solid cross section has a quarter of its hyphae in the inner half of the radius
+            let inner = r.iter().filter(|&&x| x < outer * 0.5).count() as f32 / r.len() as f32;
+            assert!(inner > 0.08, "hollow at {} of the height, {} inside", share, inner);
+            radii.push(outer);
+        }
+        let (thin, thick) = (radii.iter().cloned().fold(f32::MAX, f32::min), radii.iter().cloned().fold(0.0, f32::max));
+        assert!(thick < thin * 1.6, "the stipe radius varies from {} to {}", thin, thick);
+        assert!(thin > 0.005, "{} m thick", 2.0 * thin);
+    }
+
+    #[test]
+    fn the_ring_hangs_on_the_upper_stipe() {
+        let h = at(1.0);
+        let height = top(&h, Tissue::Stipe);
+        let ring: Vec<f32> = h
+            .segments
+            .iter()
+            .filter(|s| s.tissue == Tissue::Veil && s.flags & flags::STIPE_SIDE != 0)
+            .map(|s| s.end.y / height)
+            .collect();
+        assert!(ring.len() > 200);
+        let mean = ring.iter().sum::<f32>() / ring.len() as f32;
+        assert!((0.45..0.9).contains(&mean), "ring at {} of the stipe", mean);
     }
 
     #[test]
