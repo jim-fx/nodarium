@@ -12,7 +12,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         lamellulae: count(args[3]),
         gill_depth: read_float(args[4]),
         veil: read_int(args[5]) == 0,
-        max_segments: count(args[6]),
+        veil_attachment: read_float(args[6]),
+        max_segments: count(args[7]),
     };
     grow_gills(&read_hyphae(args[0]), &params).encode()
 }
@@ -34,6 +35,7 @@ mod tests {
             vec![d.lamellulae as i32],
             vec![encode_float(d.gill_depth)],
             vec![if d.veil { 0 } else { 1 }],
+            vec![encode_float(d.veil_attachment)],
             vec![d.max_segments as i32],
         ];
         let refs: Vec<&[i32]> = args.iter().map(|a| a.as_slice()).collect();
@@ -47,5 +49,6 @@ mod tests {
         assert_eq!(value("max_segments"), d.max_segments);
         assert_eq!(value("veil"), 0);
         assert!((value("gill_depth").as_f64().unwrap() as f32 - d.gill_depth).abs() < 1e-7);
+        assert!((value("veil_attachment").as_f64().unwrap() as f32 - d.veil_attachment).abs() < 1e-7);
     }
 }
