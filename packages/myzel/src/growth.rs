@@ -36,7 +36,7 @@ const BRANCH_ANGLE: f32 = 0.7;
 const COARSE: usize = 8;
 /// Upper limits whatever the inputs say, so no input can hang the graph
 pub const MAX_ITERATIONS: usize = 400;
-pub const MAX_SEGMENTS: usize = 50_000;
+pub const MAX_SEGMENTS: usize = 200_000;
 
 /// A curve input `x0, y0, x1, y1, ...` with x and y in [0, 1], read over normalised simulation time
 #[derive(Clone, Debug, PartialEq)]
@@ -88,7 +88,7 @@ impl Default for GrowthParams {
         GrowthParams {
             seed: 0,
             iterations: 70,
-            initial_tips: 60,
+            initial_tips: 200,
             knot_radius: 0.0015,
             segment_length: 0.0004,
             hypha_radius: 0.00025,
@@ -101,7 +101,7 @@ impl Default for GrowthParams {
             autotropism: Schedule(vec![0.0, 0.0, 0.05, 0.0, 0.15, 1.0, 0.45, 0.2, 1.0, 0.1]),
             galvanotropism: Schedule(vec![0.0, 0.1, 0.25, 0.7, 1.0, 0.7]),
             waist_height: 0.008,
-            max_segments: 5000,
+            max_segments: 50_000,
         }
     }
 }
@@ -465,7 +465,7 @@ mod tests {
     use super::*;
 
     fn params() -> GrowthParams {
-        GrowthParams { max_segments: 3000, ..GrowthParams::default() }
+        GrowthParams { max_segments: 3000, initial_tips: 60, ..GrowthParams::default() }
     }
 
     fn tip_directions(h: &Hyphae) -> Vec<(Vec3, Vec3)> {

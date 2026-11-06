@@ -10,6 +10,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         fibres: read_float(args[2]).max(0.0),
         seed: read_int(args[3]) as u32,
         blend: read_float(args[4]),
+        fill: read_float(args[5]).max(0.0),
     };
     hyphae_mesh(&read_hyphae(args[0]), &params).encode()
 }
@@ -30,6 +31,7 @@ mod tests {
             vec![encode_float(d.fibres)],
             vec![d.seed as i32],
             vec![encode_float(d.blend)],
+            vec![encode_float(d.fill)],
         ];
         let refs: Vec<&[i32]> = args.iter().map(|a| a.as_slice()).collect();
         let mesh = Mesh::decode(&__nodarium_execute_inner(&refs));
@@ -39,7 +41,7 @@ mod tests {
         let def: serde_json::Value = serde_json::from_str(include_str!("definition.json")).unwrap();
         let value = |key: &str| def["inputs"][key]["value"].clone();
         assert_eq!(value("resolution_field"), d.resolution);
-        for (key, expected) in [("fibres", d.fibres), ("blend", d.blend)] {
+        for (key, expected) in [("fibres", d.fibres), ("blend", d.blend), ("fill", d.fill)] {
             assert!((value(key).as_f64().unwrap() as f32 - expected).abs() < 1e-7, "{}", key);
         }
     }
