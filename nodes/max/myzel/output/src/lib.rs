@@ -1,6 +1,6 @@
 use myzel_core::{
-    hyphae_mesh, polygonize, read_field, read_float, read_hyphae, read_int, HyphaeMeshParams, FIELD_TAG,
-    HYPHAE_TAG, MESH_TAG,
+    hyphae_mesh, path_lines, paths_mesh, polygonize, read_field, read_float, read_hyphae, read_int, read_paths,
+    retain_points, HyphaeMeshParams, PathStyle, FIELD_TAG, HYPHAE_TAG, MESH_TAG,
 };
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 
@@ -46,7 +46,25 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         }
         Some(&FIELD_TAG) => list(&[polygonize(&read_field(args[0]), resolution).encode()]),
         Some(&MESH_TAG) => list(&[args[0].to_vec()]),
-        _ => list(&[]),
+        _ => {
+            let show = read_int(args[2]);
+            let mut paths = read_paths(args[0], PathStyle::BODY);
+            if paths.is_empty() {
+                return list(&[]);
+            }
+            if read_int(args[4]) == CUT_OPEN {
+                paths = retain_points(&paths, |p| p.z <= 0.0);
+            }
+            let mut items = Vec::new();
+            if show != SHOW_HYPHAE {
+                let params = HyphaeMeshParams { resolution, blend: read_float(args[3]), ..HyphaeMeshParams::default() };
+                items.push(paths_mesh(&paths, &params).encode());
+            }
+            if show != SHOW_SURFACE {
+                items.push(path_lines(&paths));
+            }
+            list(&items)
+        }
     }
 }
 
@@ -54,8 +72,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 mod tests {
     use super::__nodarium_execute_inner;
     use glam::Vec3;
-    use myzel_core::{flags, Field, HyphaSegment, Hyphae, Mesh, Tissue, HYPHAE_TAG, MESH_TAG};
-    use nodarium_utils::{encode_float, split_args};
+    use myzel_core::{flags, Field, HyphaSegment, Hyphae, Mesh, Tissue, HYPHAE_TAG, LINES_TAG, MESH_TAG};
+    use nodarium_utils::{
+        encode_float,
+        geometry::{create_multiple_paths, wrap_multiple_paths},
+        split_args,
+    };
 
     fn run(input: &[i32], show: i32) -> Vec<Vec<i32>> {
         run_cut(input, show, 0)
@@ -119,6 +141,34 @@ mod tests {
         let lines = run_cut(&h.encode(), 1, 1);
         assert_eq!(Hyphae::decode(&lines[0]).len(), 2);
         assert_eq!(run_cut(&h.encode(), 1, 0)[0], h.encode());
+    }
+
+    fn paths() -> Vec<i32> {
+        let mut paths = create_multiple_paths(2, 3, 1, 9);
+        for (k, path) in wrap_multiple_paths(&mut paths).iter_mut().enumerate() {
+            for i in 0..3 {
+                path.points[i * 4..i * 4 + 4].copy_from_slice(&[k as f32 * 0.5, i as f32, i as f32 - 1.0, 0.1]);
+            }
+        }
+        paths
+    }
+
+    #[test]
+    fn shows_paths_as_surface_lines_or_both() {
+        let input = paths();
+        let surface = run(&input, 0);
+        assert_eq!(surface.len(), 1);
+        let mesh = Mesh::decode(&surface[0]);
+        assert!(mesh.face_count() > 0 && mesh.groups.iter().all(|&g| g == 0));
+
+        let lines = run(&input, 1);
+        assert_eq!(lines.len(), 1);
+        assert_eq!(&lines[0][..2], &[LINES_TAG, 4]);
+
+        let both = run(&input, 2);
+        assert_eq!((both[0][0], both[1][0]), (MESH_TAG, LINES_TAG));
+        // cut open, only the first segment of every path is left
+        assert_eq!(&run_cut(&input, 1, 1)[0][..2], &[LINES_TAG, 2]);
     }
 
     #[test]

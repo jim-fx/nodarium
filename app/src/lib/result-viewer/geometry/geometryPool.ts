@@ -17,9 +17,10 @@ import {
   SRGBColorSpace
 } from 'three';
 import { createHyphaePool } from './hyphae';
+import { createLinesPool } from './lines';
 
 /** The first word of every item in a result says what it holds */
-export const RESULT_TAGS = { geometry: 1, instances: 2, hyphae: 11, mesh: 14 } as const;
+export const RESULT_TAGS = { geometry: 1, instances: 2, hyphae: 11, lines: 12, mesh: 14 } as const;
 
 /** Sorts the items of a result by their tag, items of other tags are left out */
 export function sortResultItems(items: Int32Array[]) {
@@ -27,13 +28,15 @@ export function sortResultItems(items: Int32Array[]) {
   const instances: Int32Array[] = [];
   const meshes: Int32Array[] = [];
   const hyphae: Int32Array[] = [];
+  const lines: Int32Array[] = [];
   for (const item of items) {
     if (item[0] === RESULT_TAGS.geometry) geometries.push(item);
     else if (item[0] === RESULT_TAGS.instances) instances.push(item);
     else if (item[0] === RESULT_TAGS.mesh) meshes.push(item);
     else if (item[0] === RESULT_TAGS.hyphae) hyphae.push(item);
+    else if (item[0] === RESULT_TAGS.lines) lines.push(item);
   }
-  return { geometries, instances, meshes, hyphae };
+  return { geometries, instances, meshes, hyphae, lines };
 }
 
 export type MeshData = {
@@ -46,6 +49,8 @@ export type MeshData = {
   colors?: Uint8Array;
   /** material group per vertex */
   groups?: Int32Array;
+  /** the groups are the tissues of grown hyphae */
+  tissueGroups?: boolean;
 };
 
 function readLayout(data: Int32Array, headerLength: number): MeshData {
@@ -71,6 +76,8 @@ export function readGeometry(data: Int32Array) {
 
 /** Set in the flags word of a Myzel mesh when it brings one color per vertex */
 export const MESH_HAS_COLORS = 1;
+/** Set in the flags word of a Myzel mesh whose groups are the tissues of grown hyphae */
+export const MESH_TISSUE_GROUPS = 2;
 
 /** Myzel mesh: `[14, v, f, flags, ...faces, ...positions, ...normals, ...colors?, ...groups]` */
 export function readMesh(data: Int32Array) {
@@ -94,6 +101,7 @@ export function readMesh(data: Int32Array) {
     );
   }
   mesh.groups = data.subarray(groupsStart, expected);
+  mesh.tissueGroups = (data[3] & MESH_TISSUE_GROUPS) !== 0;
   return mesh;
 }
 
@@ -330,12 +338,23 @@ export function createGeometryPool(
       const mesh = existing ?? new Mesh(new BufferGeometry(), material);
       const geometry = mesh.geometry;
 
-      const { vertexCount, faceCount, faces, positions, normals, colors, groups: meshGroups } =
-        read(data);
+      const {
+        vertexCount,
+        faceCount,
+        faces,
+        positions,
+        normals,
+        colors,
+        groups: meshGroups,
+        tissueGroups
+      } = read(data);
       stats.totalVertices += vertexCount;
       stats.totalFaces += faceCount;
       if (layout === 'geometry') mesh.userData.pathId = readGeometryPathId(data);
-      else mesh.userData.myzel = true;
+      else {
+        mesh.userData.myzel = true;
+        mesh.userData.tissueGroups = !!tissueGroups;
+      }
       // plant geometry is grouped by the path it was made from
       const groups = meshGroups
         ?? new Int32Array(vertexCount).fill(readGeometryPathId(data));
@@ -470,13 +489,14 @@ export function createInstancedGeometryPool(
 
 /**
  * Shows a whole result: Plantarium geometry and instances, Myzel meshes, some of which bring their
- * own colors, and Myzel hyphae as lines. Items of other kinds are skipped.
+ * own colors, and Myzel hyphae and paths as lines. Items of other kinds are skipped.
  */
 export function createResultPools(parentScene: Group, material: Material) {
   const geometries = createGeometryPool(parentScene, material);
   const instances = createInstancedGeometryPool(parentScene, material);
   const meshes = createGeometryPool(parentScene, material, 'mesh');
   const hyphae = createHyphaePool(parentScene);
+  const lines = createLinesPool(parentScene);
 
   return {
     setMaterial(newMaterial: Material) {
@@ -490,7 +510,8 @@ export function createResultPools(parentScene: Group, material: Material) {
         geometries.update(sorted.geometries),
         instances.update(sorted.instances),
         meshes.update(sorted.meshes),
-        hyphae.update(sorted.hyphae)
+        hyphae.update(sorted.hyphae),
+        lines.update(sorted.lines)
       ];
       const bounds = new Box3();
       for (const s of stats) bounds.union(s.bounds);

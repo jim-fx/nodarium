@@ -7,6 +7,8 @@ const HEADER_LEN: usize = 4;
 pub mod mesh_flags {
     /// One RGBA8 color per vertex follows the normals
     pub const COLORS: i32 = 1;
+    /// The groups below [`crate::TISSUE_COUNT`] are tissues of grown hyphae
+    pub const TISSUE_GROUPS: i32 = 2;
 }
 
 /// Triangle mesh with a material group and optionally a color per vertex, see the crate docs for the format
@@ -19,6 +21,8 @@ pub struct Mesh {
     pub colors: Vec<u32>,
     /// One group per vertex, other programs can give each group its own material
     pub groups: Vec<u32>,
+    /// See [`mesh_flags::TISSUE_GROUPS`]
+    pub tissue_groups: bool,
 }
 
 /// Packs a color with components in [0, 1] into one RGBA8 word, red in the lowest byte
@@ -45,7 +49,8 @@ impl Mesh {
         let (v, f) = (self.vertex_count(), self.face_count());
         assert!(self.colors.is_empty() || self.colors.len() == v, "{} colors for {} vertices", self.colors.len(), v);
         assert_eq!(self.groups.len(), v, "every vertex needs a group");
-        let flags = if self.colors.is_empty() { 0 } else { mesh_flags::COLORS };
+        let flags = if self.colors.is_empty() { 0 } else { mesh_flags::COLORS }
+            | if self.tissue_groups { mesh_flags::TISSUE_GROUPS } else { 0 };
         let mut words = Vec::with_capacity(encoded_len(v, f, flags));
         words.extend([MESH_TAG, v as i32, f as i32, flags]);
         words.extend(self.faces.iter().map(|&i| i as i32));
@@ -85,7 +90,7 @@ impl Mesh {
         let normals = take(v * 3).iter().map(|&w| decode_float(w)).collect();
         let colors = if flags & mesh_flags::COLORS != 0 { take(v).iter().map(|&c| c as u32).collect() } else { Vec::new() };
         let groups = take(v).iter().map(|&g| g as u32).collect();
-        Mesh { faces, positions, normals, colors, groups }
+        Mesh { faces, positions, normals, colors, groups, tissue_groups: flags & mesh_flags::TISSUE_GROUPS != 0 }
     }
 }
 
@@ -100,6 +105,7 @@ mod tests {
             normals: vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
             colors: vec![pack_rgba(1.0, 0.0, 0.0, 1.0); 3],
             groups: vec![0, 2, 2],
+            tissue_groups: false,
         }
     }
 
@@ -118,6 +124,14 @@ mod tests {
         let words = mesh.encode();
         assert_eq!(&words[..4], &[MESH_TAG, 3, 1, 0]);
         assert_eq!(words.len(), 4 + 3 + 3 * 7);
+        assert_eq!(Mesh::decode(&words), mesh);
+    }
+
+    #[test]
+    fn tells_tissue_groups_apart() {
+        let mesh = Mesh { tissue_groups: true, ..triangle() };
+        let words = mesh.encode();
+        assert_eq!(words[3], mesh_flags::COLORS | mesh_flags::TISSUE_GROUPS);
         assert_eq!(Mesh::decode(&words), mesh);
     }
 
