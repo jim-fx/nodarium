@@ -19,7 +19,7 @@
     {
       "id": 1,
       "position": [
-        125,
+        155,
         85
       ],
       "type": "max/plantarium/stem",
@@ -32,36 +32,28 @@
     {
       "id": 2,
       "position": [
-        165,
+        195,
         85
       ],
       "type": "max/myzel/strands",
       "props": {
         "amount": 200,
         "thickness": 0.0005,
-        "twist": 0.1
-      }
-    },
-    {
-      "id": 3,
-      "position": [
-        205,
-        85
-      ],
-      "type": "max/plantarium/noise",
-      "props": {
-        "strength": 0.0003
+        "thickness_variation": 0.5,
+        "twist": 0.1,
+        "wobble": 0.25,
+        "length_variation": 0.3
       }
     },
     {
       "id": 4,
       "position": [
-        245,
+        235,
         85
       ],
       "type": "max/myzel/hyphae_to_mesh",
       "props": {
-        "fill": 1,
+        "fill": 1.5,
         "fibres": 1.5
       }
     }
@@ -75,12 +67,6 @@
     ],
     [
       2,
-      0,
-      3,
-      "plant"
-    ],
-    [
-      3,
       0,
       4,
       "hyphae"

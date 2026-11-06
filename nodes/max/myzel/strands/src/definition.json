@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/strands",
   "meta": {
-    "description": "Fills the tube of every path with thin strands that follow it. A strand keeps its place across the tube from base to tip and thins where the path thins, so it never leaves the tube."
+    "description": "Fills the tube of every path with thin strands that follow it. Strands thin where the path thins and never leave its tube."
   },
   "outputs": [
     "path"
@@ -15,18 +15,26 @@
     "amount": {
       "type": "integer",
       "description": "Strands in every guide",
-      "value": 120,
+      "value": 200,
       "min": 1,
       "max": 1000
     },
     "thickness": {
       "type": "float",
       "description": "Thickness of a strand where the guide is thickest, it thins with the guide",
-      "value": 0.0006,
+      "value": 0.0005,
       "min": 0,
       "max": 0.01,
       "step": 0.0001,
       "unit": "m"
+    },
+    "thickness_variation": {
+      "type": "float",
+      "description": "How much thinner than the thickness a strand can be, 0 makes all strands the same, 1 lets some get very thin",
+      "value": 0,
+      "min": 0,
+      "max": 1,
+      "step": 0.05
     },
     "spread": {
       "type": "float",
@@ -42,6 +50,22 @@
       "value": 0,
       "min": -4,
       "max": 4,
+      "step": 0.05
+    },
+    "wobble": {
+      "type": "float",
+      "description": "How far strands meander across the tube, as a share of its radius. Neighbouring strands meander together and stay inside the tube.",
+      "value": 0,
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    },
+    "length_variation": {
+      "type": "float",
+      "description": "Lets strands start above the base and end below the tip, 0 makes all of them run the whole length",
+      "value": 0,
+      "min": 0,
+      "max": 1,
       "step": 0.05
     },
     "seed": {
