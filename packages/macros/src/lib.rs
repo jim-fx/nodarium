@@ -152,4 +152,12 @@ mod tests {
         );
         assert!(matches!(def.inputs.unwrap()["hyphae"], nodarium_types::NodeInput::hyphae(_)));
     }
+
+    #[test]
+    fn parses_pattern_sockets() {
+        let def = definition(
+            r#"{"id":"max/myzel/lamellae","inputs":{"pattern":{"type":"pattern"}},"outputs":["pattern"]}"#,
+        );
+        assert!(matches!(def.inputs.unwrap()["pattern"], nodarium_types::NodeInput::pattern(_)));
+    }
 }

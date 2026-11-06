@@ -9,13 +9,19 @@
   "nodes": [
     {
       "id": 0,
-      "position": [355, 85],
+      "position": [
+        385,
+        85
+      ],
       "type": "max/myzel/output",
       "props": {}
     },
     {
       "id": 1,
-      "position": [205, 140],
+      "position": [
+        205,
+        140
+      ],
       "type": "max/plantarium/stem",
       "props": {
         "length": 0.05,
@@ -25,7 +31,10 @@
     },
     {
       "id": 2,
-      "position": [265, 45],
+      "position": [
+        265,
+        45
+      ],
       "type": "max/myzel/strands",
       "props": {
         "amount": 200,
@@ -38,7 +47,10 @@
     },
     {
       "id": 3,
-      "position": [235, 130],
+      "position": [
+        235,
+        130
+      ],
       "type": "max/myzel/cap",
       "props": {
         "opening": 1
@@ -46,7 +58,10 @@
     },
     {
       "id": 5,
-      "position": [265, 130],
+      "position": [
+        265,
+        130
+      ],
       "type": "max/myzel/strands",
       "props": {
         "amount": 40,
@@ -58,17 +73,49 @@
     },
     {
       "id": 7,
-      "position": [295, 85],
+      "position": [
+        295,
+        85
+      ],
       "type": "max/plantarium/join",
       "props": {}
     },
     {
       "id": 8,
-      "position": [325, 85],
+      "position": [
+        325,
+        85
+      ],
       "type": "max/myzel/hyphae_to_mesh",
       "props": {
         "fill": 1.5,
         "fibres": 0.75
+      }
+    },
+    {
+      "id": 9,
+      "position": [
+        325,
+        150
+      ],
+      "type": "max/myzel/reaction_diffusion",
+      "props": {
+        "spacing": 0.0015,
+        "alignment": 1,
+        "irregularity": 0.15
+      }
+    },
+    {
+      "id": 10,
+      "position": [
+        355,
+        100
+      ],
+      "type": "max/myzel/lamellae",
+      "props": {
+        "depth": 0.005,
+        "irregularity": 0.2,
+        "forking": 0.05
       }
     }
   ],
@@ -111,6 +158,30 @@
     ],
     [
       8,
+      0,
+      10,
+      "mesh"
+    ],
+    [
+      3,
+      0,
+      10,
+      "cap"
+    ],
+    [
+      3,
+      1,
+      10,
+      "hinge"
+    ],
+    [
+      9,
+      0,
+      10,
+      "pattern"
+    ],
+    [
+      10,
       0,
       0,
       "field"

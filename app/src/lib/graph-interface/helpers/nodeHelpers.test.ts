@@ -8,12 +8,13 @@ const definition = {
     field: { type: 'field' },
     base: { type: 'mesh', accepts: ['field'] },
     hyphae: { type: 'hyphae' },
+    pattern: { type: 'pattern' },
     size: { type: 'float', value: 1 }
   },
-  outputs: ['mesh', 'field', 'hyphae']
+  outputs: ['mesh', 'field', 'hyphae', 'pattern']
 };
 
-describe('field, mesh and hyphae sockets', () => {
+describe('field, mesh, hyphae and pattern sockets', () => {
   it('validate as node definition', () => {
     expect(NodeDefinitionSchema.safeParse(definition).success).toBe(true);
   });
@@ -23,6 +24,7 @@ describe('field, mesh and hyphae sockets', () => {
     expect(getParameterHeight(node, 'field')).toBe(50);
     expect(getParameterHeight(node, 'base')).toBe(50);
     expect(getParameterHeight(node, 'hyphae')).toBe(50);
+    expect(getParameterHeight(node, 'pattern')).toBe(50);
     expect(getParameterHeight(node, 'size')).toBe(100);
   });
 });
