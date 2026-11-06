@@ -39,11 +39,12 @@ fn fibre(tissue: Tissue) -> (f32, f32) {
     }
 }
 
-/// Noise wavelength across the fibres, in cells, smaller relief can't be shown by the mesh
-const FIBRE_WAVELENGTH_CELLS: f32 = 2.5;
+/// Noise wavelength across the fibres, in cells. The mesh has about one vertex
+/// per cell, shorter noise falls between them and reads as random bumps
+const FIBRE_WAVELENGTH_CELLS: f32 = 4.0;
 /// Relief depth relative to the wavelength
-const FIBRE_DEPTH: f32 = 0.18;
-const SMOOTHING_PASSES: usize = 2;
+const FIBRE_DEPTH: f32 = 0.12;
+const SMOOTHING_PASSES: usize = 8;
 /// The cuticle is a single layer of hyphae over the cap flesh, so flesh hyphae
 /// just below it often reach the surface vertices more strongly. The surface of
 /// a cap is cuticle wherever a cuticle hypha comes close.
@@ -253,12 +254,45 @@ mod tests {
     }
 
     #[test]
+    fn the_stipe_relief_runs_along_the_hyphae() {
+        let mut h = Hyphae::default();
+        for i in 0..24 {
+            let a = i as f32 / 24.0 * 2.0 * PI;
+            let foot = Vec3::new(a.cos(), 0.0, a.sin()) * 0.15;
+            strand(&mut h, foot, foot + Vec3::Y, 10, 0.0, Tissue::Stipe);
+        }
+        let plain = hyphae_mesh(&h, &smooth());
+        let fibrous = hyphae_mesh(&h, &HyphaeMeshParams::default());
+        let offset = |v: usize| (vertex(&fibrous, v) - vertex(&plain, v)).dot(Vec3::from_slice(&plain.normals[v * 3..v * 3 + 3]));
+        // how much the relief changes per length, along the stipe and around it
+        let (mut along, mut around) = ([0.0f32; 2], [0.0f32; 2]);
+        for f in plain.faces.chunks_exact(3) {
+            for (a, b) in [(f[0], f[1]), (f[1], f[2]), (f[2], f[0])] {
+                let (a, b) = (a as usize, b as usize);
+                let (pa, pb) = (vertex(&plain, a), vertex(&plain, b));
+                if !(0.2..0.8).contains(&pa.y) {
+                    continue;
+                }
+                let edge = pb - pa;
+                let change = (offset(a) - offset(b)).abs() / edge.length();
+                let sums = if edge.y.abs() > 0.9 * edge.length() { &mut along } else if edge.y.abs() < 0.1 * edge.length() { &mut around } else { continue };
+                sums[0] += change;
+                sums[1] += 1.0;
+            }
+        }
+        let (along, around) = (along[0] / along[1], around[0] / around[1]);
+        assert!(along < 0.5 * around, "relief changes {} along and {} around the stipe", along, around);
+    }
+
+    #[test]
     fn fibres_move_vertices_a_little() {
         let plain = hyphae_mesh(&bundle(), &smooth());
         let fibrous = hyphae_mesh(&bundle(), &HyphaeMeshParams::default());
         assert_eq!(plain.faces, fibrous.faces);
         assert_eq!(plain.groups, fibrous.groups);
-        let cell = surface(&bundle().to_segments(), 64, 3.0, 0.0, |_| false, |_| 1.0).cell;
+        let h = bundle();
+        let d = HyphaeMeshParams::default();
+        let cell = surface(&h.to_segments(), d.resolution, d.blend, d.fill * 0.02, |i| is_body(h.segments[i].tissue), |_| 1.0).cell;
         let moved: Vec<f32> =
             (0..plain.vertex_count()).map(|v| (vertex(&plain, v) - vertex(&fibrous, v)).length()).collect();
         assert!(moved.iter().any(|&d| d > 0.0));
