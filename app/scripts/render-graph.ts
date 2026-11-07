@@ -3,12 +3,13 @@
 // rasterizes the result in software: front, side and a view from above, next to each other.
 // Stems are brown, instanced geometry (leaves, flowers) is green.
 //
-// Usage: pnpm render-graph <target...> [--out dir] [--size px] [--seed n]
+// Usage: pnpm render-graph <target...> [--out dir] [--size px] [--seed n] [--focus x,y,z,size]
 //   target   name of a template in src/lib/graph-templates (fern, palm, ...), `templates` for
 //            all json templates, or the path of a graph or an exported `.nodarium.json` project
 //   --out    directory for the screenshots, defaults to ./screenshots
 //   --size   size of a single view in pixels, defaults to 512
 //   --seed   seed of the random nodes, defaults to 1, the same seed gives the same plant
+//   --focus  a close-up: the views look at x,y,z and show a box of `size` around it
 //
 // Prints one line of JSON per target with the path of the screenshot and the size of the plant.
 import type { Graph, NodeId } from '@nodarium/types';
@@ -31,7 +32,8 @@ const { values: options, positionals: targets } = parseArgs({
   options: {
     out: { type: 'string', default: join(process.cwd(), 'screenshots') },
     size: { type: 'string', default: '512' },
-    seed: { type: 'string', default: '1' }
+    seed: { type: 'string', default: '1' },
+    focus: { type: 'string' }
   }
 });
 
@@ -178,8 +180,13 @@ function rasterize(triangles: Triangle[], viewSize: number) {
   const { min, max } = bounds(triangles);
   // the ground stays in the picture, the plant grows from the origin
   const bottom = Math.min(min[1], 0), top = Math.max(max[1], 0);
-  const center: Vec3 = [(min[0] + max[0]) / 2, (bottom + top) / 2, (min[2] + max[2]) / 2];
-  const extent = Math.max(max[0] - min[0], top - bottom, max[2] - min[2], 1e-6) * 1.08;
+  const focus = options.focus?.split(',').map(Number);
+  const center: Vec3 = focus
+    ? [focus[0], focus[1], focus[2]]
+    : [(min[0] + max[0]) / 2, (bottom + top) / 2, (min[2] + max[2]) / 2];
+  const extent = focus
+    ? focus[3]
+    : Math.max(max[0] - min[0], top - bottom, max[2] - min[2], 1e-6) * 1.08;
   const light = [0.4, 0.8, 0.45].map((v) => v / Math.hypot(0.4, 0.8, 0.45));
 
   VIEWS.forEach(({ yaw, pitch }, view) => {
