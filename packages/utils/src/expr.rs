@@ -152,6 +152,7 @@ impl Ctx {
                 let points: Vec<f32> = points.iter().map(|p| decode_float(p[0])).collect();
                 min + curve(&points, x) * (max - min)
             }
+            [[6], value] => self.float(value).round(),
             _ => 0.0,
         };
 
@@ -184,8 +185,8 @@ impl Ctx {
         values
     }
 
-    /// Reads an integer input, a plain value or the expression of a `random_int` node.
-    /// Like `float`, every call draws a new random value.
+    /// Reads an integer input, a plain value or the expression of a `random_int` or `round`
+    /// node. Like `float`, every call draws a new random value.
     pub fn int(&mut self, arg: &[i32]) -> i32 {
         if arg.len() == 1 {
             return arg[0];
@@ -199,6 +200,7 @@ impl Ctx {
                 let range = (max as i64 - min as i64 + 1) as u64;
                 (min as i64 + (self.random_u32(*seed) as u64 % range) as i64) as i32
             }
+            [[6], value] => self.float(value).round() as i32,
             _ => 0,
         }
     }
@@ -644,6 +646,18 @@ mod tests {
             assert!((2..=5).contains(&ctx.int(&random_int_expr(5, 2, 1))));
             assert_eq!(ctx.int(&random_int_expr(4, 4, 1)), 4);
         }
+    }
+
+    #[test]
+    fn test_round_turns_a_float_expression_into_an_int() {
+        let product = concat_args(vec![&[0], &[2], &[encode_float(2.6)], &[encode_float(3.0)]]);
+        let round = concat_args(vec![&[6], &product]);
+        let mut ctx = Ctx::default();
+        assert_eq!(ctx.int(&round), 8);
+        assert_eq!(ctx.float(&round), 8.0);
+        assert_eq!(ctx.int(&concat_args(vec![&[6], &[encode_float(-1.5)]])), -2);
+        let bounded = concat_args(vec![&[4], &round, &round, &[1]]);
+        assert_eq!(ctx.int(&bounded), 8);
     }
 
     #[test]
