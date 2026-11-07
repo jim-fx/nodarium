@@ -134,9 +134,13 @@ impl Ctx {
                     _ => 0.0,
                 }
             }
-            [[1], min, max, [seed]] => {
+            [[1], min, max, [seed], uniform @ ..] => {
                 let (min, max) = (self.float(min), self.float(max));
-                self.random(min, max, *seed)
+                if uniform.first().is_some_and(|u| u.first() == Some(&1)) {
+                    min + self.random_u32(*seed) as f32 / u32::MAX as f32 * (max - min)
+                } else {
+                    self.random(min, max, *seed)
+                }
             }
             [[2], ..] => self.alpha,
             [[5], [field]] => PathField::from_index(*field)
@@ -557,6 +561,38 @@ mod tests {
         let mut once = Ctx::default();
         once.float(&random);
         assert_eq!(ctx.float(&random), once.float(&random));
+    }
+
+    #[test]
+    fn test_uniform_random_covers_its_range_evenly() {
+        let random = concat_args(vec![&[1], &[encode_float(2.0)], &[encode_float(4.0)], &[42], &[1]]);
+        let mut ctx = Ctx::default();
+
+        let mut counts = [0; 4];
+        for _ in 0..2000 {
+            let v = ctx.float(&random);
+            assert!((2.0..=4.0).contains(&v), "{}", v);
+            counts[(((v - 2.0) * 2.0) as usize).min(3)] += 1;
+        }
+        assert!(counts.iter().all(|&c| (420..580).contains(&c)), "{:?}", counts);
+
+        // the same every run, and a draw like any other random
+        let run = || {
+            let mut ctx = Ctx::default();
+            [ctx.float(&random), ctx.float(&random)]
+        };
+        assert_eq!(run(), run());
+        assert_ne!(run()[0], run()[1]);
+    }
+
+    #[test]
+    fn test_random_without_uniform_reads_the_noise() {
+        let plain = concat_args(vec![&[1], &[encode_float(0.0)], &[encode_float(1.0)], &[42]]);
+        let off = concat_args(vec![&[1], &[encode_float(0.0)], &[encode_float(1.0)], &[42], &[0]]);
+        let (mut a, mut b) = (Ctx::default(), Ctx::default());
+        for _ in 0..8 {
+            assert_eq!(a.float(&plain), b.float(&off));
+        }
     }
 
     fn random_int_expr(min: i32, max: i32, seed: i32) -> Vec<i32> {

@@ -13,6 +13,8 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let posed = pose_caps(&items, &hinges, |cap, k| {
         let ray = &cap.rays[k];
         ctx.set_path(items[ray.path], ray.path, count);
+        // a random node gives the whole cap one value, rays that differ would tear it
+        ctx.seed_path(cap.frame.stipe_id);
         let amount = ctx.float(args[2]).clamp(0.0, 1.0);
         let reach = ctx.float(args[3]).clamp(0.0, 1.0);
         if amount <= 0.0 || reach <= 0.0 {
@@ -76,5 +78,19 @@ mod tests {
             assert!(x.distance(y) < 1e-7);
         }
         assert_eq!(curl(&cone(), 0.0, 0.35).0, input);
+    }
+
+    #[test]
+    fn a_random_amount_rolls_the_whole_cap_alike() {
+        use nodarium_utils::concat_args;
+        let (rays, hinges) = grow(&cone());
+        let amount = concat_args(vec![&[1], &[encode_float(0.2)], &[encode_float(1.0)], &[5]]);
+        let (_, margins) = __nodarium_execute_inner(&[&concat_arg_vecs(rays), &hinges, &amount, &[encode_float(0.35)]]);
+        let margins = decode_points(&margins);
+        let (_, flat) = curl(&cone(), 0.0, 0.35);
+        assert!(place(margins[0].position).x < place(flat[0].position).x);
+        for m in &margins {
+            assert!((place(m.position) - place(margins[0].position)).length() < 2e-4);
+        }
     }
 }

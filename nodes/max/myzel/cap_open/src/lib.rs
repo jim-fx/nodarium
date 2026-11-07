@@ -45,6 +45,8 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let posed = pose_caps(&items, &hinges, |cap, k| {
         let ray = &cap.rays[k];
         ctx.set_path(items[ray.path], ray.path, count);
+        // a random node gives the whole cap one value, rays that differ would tear it
+        ctx.seed_path(cap.frame.stipe_id);
         let opening = ctx.float(args[2]).clamp(0.0, 1.0);
         if opening >= 1.0 {
             return None;
@@ -139,6 +141,18 @@ mod tests {
             let nearest = base[0].windows(2).map(|w| distance_to_segment(s, w[0], w[1])).fold(f32::MAX, f32::min);
             assert!(nearest < 3e-4, "an added ray starts {nearest} off the cap");
         }
+    }
+
+    #[test]
+    fn a_random_opening_opens_the_whole_cap_alike() {
+        let p = thick_margin();
+        let (rays, hinges) = grow(&p);
+        let opening = nodarium_utils::concat_args(vec![&[1], &[encode_float(0.2)], &[encode_float(0.8)], &[5]]);
+        let (_, margins) = __nodarium_execute_inner(&[&concat_arg_vecs(rays), &hinges, &opening]);
+        let margins: Vec<Vec2> = decode_points(&margins).iter().map(|m| place(m.position)).collect();
+        let spread = margins.iter().map(|m| m.distance(mean(&margins))).fold(0.0, f32::max);
+        assert!(spread < 2e-4, "margin points up to {spread} apart");
+        assert!(mean(&margins).x < mean(&open(&p, 1.0).1).x);
     }
 
     fn distance_to_segment(p: Vec2, a: Vec2, b: Vec2) -> f32 {
