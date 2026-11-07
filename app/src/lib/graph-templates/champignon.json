@@ -126,7 +126,7 @@
       "props": {
         "to_min": 0.02,
         "to_max": 0.1,
-        "smooth": true
+        "smooth": 1
       }
     },
     {
@@ -139,7 +139,7 @@
       "props": {
         "to_min": 0.025,
         "to_max": 0.055,
-        "smooth": true
+        "smooth": 1
       }
     },
     {
@@ -152,7 +152,7 @@
       "props": {
         "to_min": 0.035,
         "to_max": 0.028,
-        "smooth": true
+        "smooth": 1
       }
     },
     {
@@ -165,7 +165,7 @@
       "props": {
         "to_min": 0.008,
         "to_max": 0.085,
-        "smooth": true
+        "smooth": 1
       }
     },
     {
@@ -178,7 +178,7 @@
       "props": {
         "to_min": 0.015,
         "to_max": 0.004,
-        "smooth": true
+        "smooth": 1
       }
     }
   ],
