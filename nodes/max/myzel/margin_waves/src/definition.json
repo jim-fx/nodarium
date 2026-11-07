@@ -23,7 +23,7 @@
     },
     "waves": {
       "type": "integer",
-      "description": "Lobes around the margin. Real chanterelles have about 4 to 8, thinner flesh gives more. Read for every stipe, so a random node gives every cap its own count.",
+      "description": "Lobes around the margin. Real chanterelles have about 4 to 8, thinner flesh gives more. Read for every stipe, so a random node gives every cap its own count. Here path_info length reads how long the rays of the cap are, so a round node can give a larger cap more lobes.",
       "value": 6,
       "min": 0,
       "max": 24
