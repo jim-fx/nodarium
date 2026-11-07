@@ -1,3 +1,4 @@
+mod bend;
 mod calculate_normals;
 mod extrude_path;
 mod follow;
@@ -7,6 +8,7 @@ mod math;
 mod path_data;
 mod transform;
 
+pub use bend::*;
 pub use calculate_normals::*;
 pub use extrude_path::*;
 pub use follow::*;

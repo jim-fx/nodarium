@@ -2,25 +2,120 @@ use glam::Vec3;
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    concat_args, int,
-    geometry::{is_path, wrap_path, wrap_path_mut, DeepestPaths},
-    log, split_args, Ctx,
+    concat_arg_vecs, concat_args, decode_points,
+    geometry::{
+        is_path, place_root, translate_path, wrap_path, wrap_path_mut, DeepestPaths, PathStructure,
+        PlaceChain,
+    },
+    int, log, split_args, Ctx,
 };
 
 nodarium_definition_file!("src/definition.json");
 
+/// The `mode` that builds the path as a chain of turned segments
+const CHAIN: i32 = 1;
+/// The `weight` option that bends by how far a segment is from the root of its path. The
+/// other one, 0, bends by the place of a segment along its own path.
+const BY_PLACE: i32 = 1;
+
 fn lerp_vec3(a: Vec3, b: Vec3, t: f32) -> Vec3 {
     a + (b - a) * t
+}
+
+/// Turns a segment that points along `rest_dir` down towards gravity by `bend_angle` radians
+fn droop(rest_dir: Vec3, bend_angle: f32) -> Vec3 {
+    let gravity_dir = Vec3::new(0.0, -1.0, 0.0);
+    let mut bend_axis = rest_dir.cross(gravity_dir);
+    let axis_len = bend_axis.length();
+    bend_axis = if axis_len > 0.0001 {
+        bend_axis / axis_len
+    } else {
+        // rest_dir parallel to gravity — pick an arbitrary
+        // perpendicular axis to break symmetry.
+        Vec3::X
+    };
+
+    // Rodrigues' rotation formula
+    let (sin_a, cos_a) = bend_angle.sin_cos();
+    rest_dir * cos_a
+        + bend_axis.cross(rest_dir) * sin_a
+        + bend_axis * bend_axis.dot(rest_dir) * (1.0 - cos_a)
+}
+
+/// The chain mode with the bend weighted by place: every segment turns by how far it is from
+/// the root of its path, and a path moves with the spot on its parent it grows from.
+fn bend_by_place(args: &[&[i32]], ctx: &mut Ctx, depth: i32) -> Vec<i32> {
+    let original: Vec<Vec<i32>> = split_args(args[0]).iter().map(|p| p.to_vec()).collect();
+    let selected = DeepestPaths::new(&original, depth);
+    let structure = PathStructure::new(&original);
+    let roots = decode_points(args[7]);
+    let path_count = original.iter().filter(|p| is_path(p)).count();
+
+    // the inputs are read in the order of the list, as in the other modes
+    let mut path_index = 0;
+    let settings: Vec<Option<(PlaceChain, Vec<f32>)>> = original
+        .iter()
+        .enumerate()
+        .map(|(index, path_data)| {
+            if !selected.contains(path_data) {
+                return None;
+            }
+            ctx.set_path(path_data, path_index, path_count);
+            path_index += 1;
+            let elasticity = ctx.float(args[3]).clamp(0.0, 1.0);
+            let bend_exponent = 0.5 + elasticity * 4.0;
+            let reach = ctx.float(args[6]).max(0.0);
+
+            let path = wrap_path(path_data);
+            if path.length < 2 {
+                return None;
+            }
+            let points: Vec<Vec3> = path
+                .points
+                .chunks_exact(4)
+                .map(|p| Vec3::new(p[0], p[1], p[2]))
+                .collect();
+            let root = place_root(&structure, &original, index, &roots)?;
+            let chain = PlaceChain::new(&points, root, reach);
+            // alpha is how far a segment is into the reach, the same for every path there
+            let strengths = ctx.float_along(args[1], chain.alphas.iter().copied());
+            let angles = strengths
+                .iter()
+                .zip(&chain.alphas)
+                .map(|(strength, alpha)| {
+                    strength * std::f32::consts::FRAC_PI_2 * alpha.powf(bend_exponent)
+                })
+                .collect();
+            Some((chain, angles))
+        })
+        .collect();
+
+    let mut current = original.clone();
+    for &index in structure.order() {
+        let shift = structure.shift(index, &original, &current);
+        if let Some((chain, angles)) = &settings[index] {
+            let bent = chain.bend(chain.points[0] + shift, |k, rest, _| droop(rest, angles[k]));
+            let points = wrap_path_mut(&mut current[index]).points;
+            for (point, position) in points.chunks_exact_mut(4).zip(&bent) {
+                point[..3].copy_from_slice(&position.to_array());
+            }
+        } else {
+            translate_path(&mut current[index], shift);
+        }
+    }
+    concat_arg_vecs(current)
 }
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
 
-
     let plants = split_args(args[0]);
     let depth = ctx.int(args[2]);
     let mode = int(args[4]); // 0 = closed-form, 1 = verlet
+    if mode == CHAIN && int(args[5]) == BY_PLACE {
+        return bend_by_place(args, &mut ctx, depth);
+    }
     let selected = DeepestPaths::new(&plants, depth);
 
     let path_count = plants.iter().filter(|p| is_path(p)).count();
@@ -55,8 +150,6 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 // anchored base outward, so segment lengths are preserved by
                 // construction (no iteration, no rescaling, no oscillation).
 
-                let gravity_dir = Vec3::new(0.0, -1.0, 0.0);
-
                 let original: Vec<Vec3> = (0..path.length)
                     .map(|i| {
                         let s = i * 4;
@@ -71,7 +164,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                     .map(|i| {
                         let d = original[i + 1] - original[i];
                         let l = d.length();
-                        if l > 0.0001 { d / l } else { Vec3::Y }
+                        if l > 0.0001 {
+                            d / l
+                        } else {
+                            Vec3::Y
+                        }
                     })
                     .collect();
 
@@ -87,22 +184,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                     let max_angle = strength * std::f32::consts::FRAC_PI_2;
                     let bend_angle = max_angle * alpha.powf(bend_exponent);
 
-                    let rest_dir = rest_dirs[seg_idx];
-                    let mut bend_axis = rest_dir.cross(gravity_dir);
-                    let axis_len = bend_axis.length();
-                    bend_axis = if axis_len > 0.0001 {
-                        bend_axis / axis_len
-                    } else {
-                        // rest_dir parallel to gravity — pick an arbitrary
-                        // perpendicular axis to break symmetry.
-                        Vec3::X
-                    };
-
-                    // Rodrigues' rotation formula
-                    let (sin_a, cos_a) = bend_angle.sin_cos();
-                    let bent_dir = rest_dir * cos_a
-                        + bend_axis.cross(rest_dir) * sin_a
-                        + bend_axis * bend_axis.dot(rest_dir) * (1.0 - cos_a);
+                    let bent_dir = droop(rest_dirs[seg_idx], bend_angle);
 
                     cur[i] = cur[i - 1] + bent_dir * seg_lens[seg_idx];
                 }
@@ -176,10 +258,91 @@ mod tests {
     use super::__nodarium_execute_inner;
     use glam::Vec3;
     use nodarium_utils::{
-        encode_float,
-        geometry::{create_multiple_paths, wrap_multiple_paths, wrap_path},
+        concat_arg_vecs, encode_float,
+        geometry::{
+            create_multiple_paths, create_path, interpolate_along_path, set_path_link,
+            wrap_multiple_paths, wrap_path, wrap_path_mut, PathLink,
+        },
         split_args,
     };
+
+    const CHAIN: i32 = 1;
+    const BY_PLACE: i32 = 1;
+
+    fn path(id: i32, depth: i32, parent: Option<(i32, f32)>, points: &[Vec3]) -> Vec<i32> {
+        let mut data = create_path(points.len(), depth);
+        let (parent_id, parent_alpha) = parent.unwrap_or((-1, 0.0));
+        set_path_link(
+            &mut data,
+            PathLink {
+                id,
+                parent_id,
+                parent_alpha,
+                ..PathLink::root(0, 0)
+            },
+        );
+        let path = wrap_path_mut(&mut data);
+        for (i, p) in points.iter().enumerate() {
+            path.points[i * 4..i * 4 + 4].copy_from_slice(&[p.x, p.y, p.z, 0.1]);
+        }
+        data
+    }
+
+    fn points(path_data: &[i32]) -> Vec<Vec3> {
+        wrap_path(path_data)
+            .points
+            .chunks_exact(4)
+            .map(|p| Vec3::new(p[0], p[1], p[2]))
+            .collect()
+    }
+
+    fn run(paths: Vec<Vec<i32>>, depth: i32, weight: i32, reach: f32) -> Vec<Vec<i32>> {
+        let out = __nodarium_execute_inner(&[
+            &concat_arg_vecs(paths),
+            &[encode_float(0.5)],
+            &[depth],
+            &[encode_float(0.3)],
+            &[CHAIN],
+            &[weight],
+            &[encode_float(reach)],
+            &[0, 1, 1, 1],
+        ]);
+        split_args(&out).iter().map(|p| p.to_vec()).collect()
+    }
+
+    /// A stipe up to the origin, a long path from its tip that rises along x and a short one
+    /// that is the outer part of the long one
+    fn long_and_short() -> Vec<Vec<i32>> {
+        let stipe = path(
+            0,
+            1,
+            None,
+            &[
+                Vec3::new(0.0, -2.0, 0.0),
+                Vec3::new(0.0, -1.0, 0.0),
+                Vec3::ZERO,
+            ],
+        );
+        let rising = |from: usize| {
+            (from..9)
+                .map(|i| Vec3::new(i as f32, i as f32 * 0.3, 0.0))
+                .collect::<Vec<_>>()
+        };
+        vec![
+            stipe,
+            path(1, 2, Some((0, 1.0)), &rising(0)),
+            path(2, 2, Some((0, 1.0)), &rising(4)),
+        ]
+    }
+
+    fn gap(result: &[Vec<i32>]) -> f32 {
+        let (long, short) = (points(&result[1]), points(&result[2]));
+        long[4..]
+            .iter()
+            .zip(&short)
+            .map(|(a, b)| a.distance(*b))
+            .fold(0.0, f32::max)
+    }
 
     /// A slightly leaning stem from (0, 0, 0) to (0.5, 5, 0) with `resolution` points.
     fn stem(resolution: usize) -> Vec<i32> {
@@ -200,6 +363,9 @@ mod tests {
             &[1],
             &[encode_float(0.3)],
             &[mode],
+            &[0],
+            &[encode_float(0.0)],
+            &[0, 1, 1, 1],
         ]);
         let path = split_args(&out)[0].to_vec();
         let p = wrap_path(&path).points;
@@ -224,5 +390,64 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn by_place_a_short_path_bends_like_the_long_path_it_lies_on() {
+        let along = run(long_and_short(), 1, 0, 0.0);
+        assert!(gap(&along) > 0.5, "gap along each path {}", gap(&along));
+
+        for reach in [0.0, 4.0, 12.0] {
+            let result = run(long_and_short(), 1, BY_PLACE, reach);
+            assert!(points(&result[1])[8].y < 2.0, "the long path droops");
+            assert!(
+                gap(&result) < 1e-5,
+                "gap {} with reach {}",
+                gap(&result),
+                reach
+            );
+        }
+    }
+
+    #[test]
+    fn by_place_the_segments_keep_their_length() {
+        let original = long_and_short();
+        let result = run(original.clone(), 1, BY_PLACE, 4.0);
+        for (before, after) in original.iter().zip(&result) {
+            let (before, after) = (points(before), points(after));
+            for (a, b) in before.windows(2).zip(after.windows(2)) {
+                assert!((a[0].distance(a[1]) - b[0].distance(b[1])).abs() < 1e-4);
+            }
+        }
+    }
+
+    #[test]
+    fn by_place_a_path_moves_with_its_parent() {
+        let trunk = path(
+            0,
+            1,
+            None,
+            &(0..5)
+                .map(|i| Vec3::new(i as f32, 0.5 * i as f32, 0.0))
+                .collect::<Vec<_>>(),
+        );
+        let attach = 0.5;
+        let on_trunk = interpolate_along_path(wrap_path(&trunk).points, attach)
+            .0
+            .truncate();
+        let branch = path(
+            1,
+            2,
+            Some((0, attach)),
+            &[on_trunk, on_trunk + Vec3::Z, on_trunk + Vec3::Z * 2.0],
+        );
+
+        let result = run(vec![branch, trunk], 2, BY_PLACE, 3.0);
+
+        let spot = interpolate_along_path(wrap_path(&result[1]).points, attach)
+            .0
+            .truncate();
+        assert!(spot.distance(on_trunk) > 0.1, "the trunk droops");
+        assert!(points(&result[0])[0].distance(spot) < 1e-4);
     }
 }
