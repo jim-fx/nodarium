@@ -1,6 +1,6 @@
 {
   "id": 11,
-  "version": 2,
+  "version": 3,
   "settings": {
     "resolution.circle": 10,
     "resolution.curve": 24
