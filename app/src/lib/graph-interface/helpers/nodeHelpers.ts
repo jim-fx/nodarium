@@ -15,7 +15,8 @@ const SOCKET_ONLY_TYPES = new Set([
   'points',
   'field',
   'mesh',
-  'hyphae'
+  'hyphae',
+  'pattern'
 ]);
 
 export function getParameterHeight(node: NodeDefinition, inputKey: string) {

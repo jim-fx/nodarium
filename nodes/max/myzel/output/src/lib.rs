@@ -1,14 +1,53 @@
 use myzel_core::{
-    hyphae_mesh, path_lines, paths_mesh, polygonize, read_field, read_float, read_hyphae, read_int, read_paths,
-    retain_points, HyphaeMeshParams, PathStyle, FIELD_TAG, HYPHAE_TAG, MESH_TAG,
+    hyphae_mesh, pack_rgba, path_lines, paths_mesh, polygonize, read_field, read_float, read_hyphae, read_int,
+    read_paths, retain_points, HyphaeMeshParams, Mesh, PathStyle, FIELD_TAG, HYPHAE_TAG, MESH_TAG,
 };
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
+use nodarium_utils::{geometry::orthogonal_to, Pattern, PATTERN_TAG};
+use std::f32::consts::TAU;
 
 nodarium_definition_file!("src/definition.json");
 
 const SHOW_SURFACE: i32 = 0;
 const SHOW_HYPHAE: i32 = 1;
 const CUT_OPEN: i32 = 1;
+/// A pattern is drawn with at most this many points around a ring
+const PATTERN_SEGMENTS: usize = 2048;
+
+/// A pattern as a flat disc around the y axis, dark where its values are low and light where
+/// they are high. Its angles count around the axis like the ones of `cap` on an upright stipe.
+fn pattern_mesh(pattern: &Pattern) -> Mesh {
+    let rings = pattern.rings.len();
+    let segments = pattern.rings.iter().map(|r| r.len()).max().unwrap_or(0).clamp(3, PATTERN_SEGMENTS);
+    if rings < 2 {
+        return Mesh::default();
+    }
+    let side = orthogonal_to(glam::Vec3::Y);
+    let around = glam::Vec3::Y.cross(side);
+    let mut mesh = Mesh::default();
+    for i in 0..rings {
+        let r = pattern.radius(i);
+        for j in 0..segments {
+            // on the middle of the values, like the pattern places them
+            let angle = TAU * (j as f32 + 0.5) / segments as f32;
+            let p = (side * angle.cos() + around * angle.sin()) * r;
+            mesh.positions.extend([p.x, p.y, p.z]);
+            mesh.normals.extend([0.0, 1.0, 0.0]);
+            let v = 0.15 + 0.8 * pattern.ring_value(i, angle).clamp(0.0, 1.0);
+            mesh.colors.push(pack_rgba(v, v * 0.92, v * 0.85, 1.0));
+            mesh.groups.push(0);
+        }
+    }
+    let vertex = |i: usize, j: usize| (i * segments + j % segments) as u32;
+    for i in 0..rings - 1 {
+        for j in 0..segments {
+            // counter-clockwise seen from above
+            mesh.faces.extend([vertex(i, j), vertex(i + 1, j), vertex(i + 1, j + 1)]);
+            mesh.faces.extend([vertex(i, j), vertex(i + 1, j + 1), vertex(i, j + 1)]);
+        }
+    }
+    mesh
+}
 
 /// Wraps items in the list the viewer reads: [0, 1, [0, n + 1, ...item, 1, 1]..., 1, 1]
 fn list(items: &[Vec<i32>]) -> Vec<i32> {
@@ -46,6 +85,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         }
         Some(&FIELD_TAG) => list(&[polygonize(&read_field(args[0]), resolution).encode()]),
         Some(&MESH_TAG) => list(&[args[0].to_vec()]),
+        Some(&PATTERN_TAG) => list(&Pattern::decode(args[0]).map(|p| vec![pattern_mesh(&p).encode()]).unwrap_or_default()),
         _ => {
             let show = read_int(args[2]);
             let mut paths = read_paths(args[0], PathStyle::BODY);
@@ -175,6 +215,35 @@ mod tests {
     fn passes_a_mesh_through() {
         let mesh = myzel_core::polygonize(&Field::sphere(1.0), 16).encode();
         assert_eq!(run(&mesh, 0), vec![mesh]);
+    }
+
+    #[test]
+    fn shows_a_pattern_as_a_disc_seen_from_above() {
+        let pattern = nodarium_utils::Pattern {
+            inner: 0.01,
+            outer: 0.03,
+            spacing: 0.005,
+            rings: vec![vec![0.0, 1.0, 0.0, 1.0]; 3],
+        };
+        let items = run(&pattern.encode(), 0);
+        assert_eq!(items.len(), 1);
+        let mesh = Mesh::decode(&items[0]);
+        assert_eq!(mesh.colors.len(), mesh.vertex_count());
+        assert!(mesh.face_count() > 0);
+        // flat, from the inner to the outer radius
+        for v in mesh.positions.chunks_exact(3) {
+            assert_eq!(v[1], 0.0);
+            let r = (v[0] * v[0] + v[2] * v[2]).sqrt();
+            assert!((0.01 - 1e-6..=0.03 + 1e-6).contains(&r));
+        }
+        // the faces look up
+        let p = |i: u32| Vec3::from_slice(&mesh.positions[i as usize * 3..i as usize * 3 + 3]);
+        for f in mesh.faces.chunks_exact(3) {
+            assert!((p(f[1]) - p(f[0])).cross(p(f[2]) - p(f[0])).y > 0.0);
+        }
+        // light where the pattern is high, dark where it is low
+        let red = |c: u32| c & 0xff;
+        assert!(mesh.colors.iter().any(|&c| red(c) > 200) && mesh.colors.iter().any(|&c| red(c) < 60));
     }
 
     #[test]

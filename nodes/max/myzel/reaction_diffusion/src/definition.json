@@ -1,0 +1,64 @@
+{
+  "id": "max/myzel/reaction_diffusion",
+  "meta": {
+    "description": "A stripe pattern on a disc that grows outward ring by ring, like gills under a cap: where the circumference grows, stripes fork and new ones start between them, so they stay about spacing apart."
+  },
+  "outputs": [
+    "pattern"
+  ],
+  "inputs": {
+    "radius": {
+      "type": "float",
+      "description": "Outer radius of the disc, the pattern reaches this far from the axis",
+      "value": 0.03,
+      "min": 0.001,
+      "max": 0.2,
+      "step": 0.001,
+      "unit": "m"
+    },
+    "inner_radius": {
+      "type": "float",
+      "description": "Where the pattern starts, the stripes there are evenly spaced",
+      "value": 0.005,
+      "min": 0,
+      "max": 0.1,
+      "step": 0.0005,
+      "unit": "m"
+    },
+    "spacing": {
+      "type": "float",
+      "description": "Distance between neighbouring stripes",
+      "value": 0.001,
+      "min": 0.0002,
+      "max": 0.02,
+      "step": 0.0001,
+      "unit": "m"
+    },
+    "alignment": {
+      "type": "float",
+      "description": "0 = winding stripes that fork and join often, 1 = straight stripes running outward",
+      "value": 0.85,
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    },
+    "irregularity": {
+      "type": "float",
+      "description": "0 = evenly spaced stripes that all fork at the same radius, 1 = uneven stripes that fork and start one by one",
+      "value": 0.5,
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    },
+    "steps": {
+      "type": "integer",
+      "description": "How long the pattern settles at every ring as the disc grows. More steps are smoother and slower.",
+      "value": 60,
+      "min": 10,
+      "max": 400
+    },
+    "seed": {
+      "type": "seed"
+    }
+  }
+}

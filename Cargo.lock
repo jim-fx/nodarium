@@ -106,6 +106,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "myzel_lamellae"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+ "noise",
+ "serde_json",
+]
+
+[[package]]
 name = "myzel_map_range"
 version = "0.1.0"
 dependencies = [
@@ -131,6 +143,15 @@ version = "0.1.0"
 dependencies = [
  "glam",
  "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+ "serde_json",
+]
+
+[[package]]
+name = "myzel_reaction_diffusion"
+version = "0.1.0"
+dependencies = [
  "nodarium_macros",
  "nodarium_utils",
  "serde_json",
