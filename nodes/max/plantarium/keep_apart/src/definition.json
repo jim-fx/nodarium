@@ -1,0 +1,39 @@
+{
+  "id": "max/plantarium/keep_apart",
+  "meta": {
+    "description": "Moves whole stems sideways, so a circle around each of them stays clear of the others, like the plants of a group that each need their room. The stems keep their shape and what grows on them moves along."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The stems to move apart. Only paths that don't grow on another path move."
+    },
+    "radius": {
+      "type": "float",
+      "min": 0,
+      "step": 0.005,
+      "value": 0.05,
+      "unit": "m",
+      "description": "The room every stem needs around it, e.g. the radius of its cap or crown. Read for every stem, with its length in path_info, so it can follow the size of each."
+    },
+    "at": {
+      "type": "float",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "value": 1,
+      "description": "Where along a stem its place is measured. 0 is the base, 1 the tip, where a cap sits."
+    },
+    "iterations": {
+      "type": "integer",
+      "min": 1,
+      "max": 64,
+      "value": 24,
+      "hidden": true,
+      "description": "How often the stems are moved. More iterations settle a dense group."
+    }
+  }
+}
