@@ -1,0 +1,33 @@
+{
+  "id": "max/myzel/cap_open",
+  "meta": {
+    "description": "Opens and closes a cap: every ray bends down along its length until its margin meets the stipe. Connect time to watch a button open. Put it after margin_waves and margin_curl, so the closed margin still meets the stipe. Gives the margin of the posed cap as points."
+  },
+  "outputs": [
+    "path",
+    {
+      "type": "points",
+      "label": "margin"
+    }
+  ],
+  "inputs": {
+    "cap": {
+      "type": "path",
+      "description": "The rays of a cap",
+      "external": true
+    },
+    "hinge": {
+      "type": "points",
+      "description": "The hinge of the cap node: where the cap sits and how thick the stipe is",
+      "external": true
+    },
+    "opening": {
+      "type": "float",
+      "description": "0 = a closed button with the margin against the stipe, 1 = open as the cap was drawn",
+      "value": 1,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    }
+  }
+}

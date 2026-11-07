@@ -1,0 +1,25 @@
+{
+  "id": "max/plantarium/separate",
+  "meta": {
+    "description": "Takes apart paths that were joined: the paths made by the same nodes as the paths in like, and the rest. Join two parts, change them together, then separate them again, like the flesh and the ridges of a cap that wave alike but mesh differently."
+  },
+  "outputs": [
+    "path",
+    {
+      "type": "path",
+      "label": "rest"
+    }
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The joined paths",
+      "external": true
+    },
+    "like": {
+      "type": "path",
+      "description": "Paths from the part to take out, as they were before they were joined",
+      "external": true
+    }
+  }
+}
