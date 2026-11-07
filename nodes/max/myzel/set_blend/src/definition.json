@@ -1,0 +1,24 @@
+{
+  "id": "max/myzel/set_blend",
+  "meta": {
+    "description": "Gives the paths that pass through their own blend in hyphae_to_mesh, in place of its blend: crisp ridges next to a soft cap. Every path of the nodes that made them gets it, the other paths keep the blend of hyphae_to_mesh."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The paths, they pass through unchanged",
+      "external": true
+    },
+    "blend": {
+      "type": "float",
+      "value": 3,
+      "min": 1.5,
+      "max": 8,
+      "step": 0.1,
+      "description": "How far, in path radii, these paths join their neighbours into one surface. Low keeps them crisp and apart, high blends them softly. A lone path keeps its radius at any value. Where two values meet, the lower one decides most."
+    }
+  }
+}

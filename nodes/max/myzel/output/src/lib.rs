@@ -1,6 +1,7 @@
 use myzel_core::{
-    hyphae_mesh, pack_rgba, path_lines, paths_mesh, polygonize, read_field, read_float, read_hyphae, read_int,
-    read_paths, retain_points, HyphaeMeshParams, Mesh, PathStyle, FIELD_TAG, HYPHAE_TAG, MESH_TAG,
+    apply_settings, hyphae_mesh, pack_rgba, path_lines, paths_mesh, polygonize, read_field, read_float, read_hyphae,
+    read_int, read_paths, read_settings, retain_points, HyphaeMeshParams, Mesh, PathStyle, FIELD_TAG, HYPHAE_TAG,
+    MESH_TAG,
 };
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{geometry::orthogonal_to, Pattern, PATTERN_TAG};
@@ -92,6 +93,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             if paths.is_empty() {
                 return list(&[]);
             }
+            apply_settings(&mut paths, &read_settings(args[0]));
             if read_int(args[4]) == CUT_OPEN {
                 paths = retain_points(&paths, |p| p.z <= 0.0);
             }

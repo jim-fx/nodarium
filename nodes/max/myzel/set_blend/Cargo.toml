@@ -1,0 +1,16 @@
+[package]
+name = "myzel_set_blend"
+version = "0.1.0"
+authors = ["Max Richter <jim-x@web.de>"]
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+myzel_core = { version = "0.1.0", path = "../../../../packages/myzel" }
+nodarium_macros = { version = "0.1.0", path = "../../../../packages/macros" }
+nodarium_utils = { version = "0.1.0", path = "../../../../packages/utils" }
+
+[dev-dependencies]
+serde_json = "1"
