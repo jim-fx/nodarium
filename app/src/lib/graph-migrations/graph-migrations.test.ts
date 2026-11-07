@@ -199,9 +199,35 @@ describe('replaceNodes', () => {
         outputs: { 0: [instance, 0] }
       };
     });
-    expect(g.groups.map((group) => group.id)).toEqual([0]);
-    expect(g.nodes[1]).toMatchObject({ id: 4, props: { groupId: 0 } });
-    expect(g.edges).toEqual([[0, 0, 4, 'in_0'], [4, 0, 2, 'input']]);
+    // group ids don't share numbers with node ids either
+    expect(g.groups.map((group) => group.id)).toEqual([4]);
+    expect(g.nodes[1]).toMatchObject({ id: 5, props: { groupId: 4 } });
+    expect(g.edges).toEqual([[0, 0, 5, 'in_0'], [5, 0, 2, 'input']]);
+  });
+
+  it('gives new nodes ids no level or group uses yet', () => {
+    // the group was made before nodes 5 to 7 of the top level, so its ids are lower
+    const g = graph([
+      node(0, 'a/b/stem'),
+      node(1, 'a/b/output'),
+      node(5, 'a/b/x'),
+      node(6, 'a/b/x'),
+      node(7, 'a/b/x')
+    ]);
+    g.groups = [
+      { id: 2, nodes: [node(3, 'a/b/branch'), node(4, 'a/b/y')], edges: [] }
+    ] as unknown as Graph['groups'];
+    replaceNodes(g, 'a/b/branch', (_, { nextId, addGroup }) => ({
+      nodes: [node(nextId(), 'a/b/new'), node(nextId(), 'a/b/new')],
+      inputs: {},
+      outputs: { 0: [addGroup({ name: 'n', nodes: [], edges: [] }), 0] }
+    }));
+    const ids = [
+      ...g.nodes.map((n) => n.id),
+      ...g.groups.flatMap((group) => [group.id, ...group.nodes.map((n) => n.id)])
+    ];
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(g.groups[0].nodes.map((n) => n.id)).toEqual([8, 9, 4]);
   });
 
   it('keeps a node the replacement returns nothing for', () => {
@@ -335,8 +361,13 @@ describe('version 3: the cap is split into cap and pose nodes', () => {
     expect(migrated.edges).toContainEqual([open.id, 1, 5, 'a']);
   });
 
-  it('splits caps inside groups', () => {
-    const old = v2([node(9, 'max/plantarium/output')]);
+  it('splits caps inside groups, with ids no other level uses', () => {
+    // nodes 3 and 4 of the top level were made after the group, its own ids are lower
+    const old = v2([
+      node(9, 'max/plantarium/output'),
+      node(3, 'max/plantarium/float'),
+      node(4, 'max/plantarium/float')
+    ]);
     old.groups = [
       {
         id: 0,
@@ -344,7 +375,13 @@ describe('version 3: the cap is split into cap and pose nodes', () => {
         edges: []
       } as unknown as NonNullable<Graph['groups']>[number]
     ];
-    const group = migrateGraph(old).groups![0];
+    const migrated = migrateGraph(old);
+    const group = migrated.groups![0];
+    const ids = [
+      ...migrated.nodes.map((n) => n.id),
+      ...migrated.groups!.flatMap((g) => [g.id, ...g.nodes.map((n) => n.id)])
+    ];
+    expect(new Set(ids).size).toBe(ids.length);
     expect(group.nodes.map((n) => n.type)).toEqual([
       'max/myzel/cap',
       'max/plantarium/curve',
