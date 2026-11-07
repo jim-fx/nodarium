@@ -1,0 +1,24 @@
+{
+  "id": "max/myzel/set_fill",
+  "meta": {
+    "description": "Gives the body paths that pass through their own fill in hyphae_to_mesh, in place of its fill: a closed, smooth stipe next to a cap whose strands show. Every path of the nodes that made them gets it, the other paths keep the fill of hyphae_to_mesh."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The paths, they pass through unchanged",
+      "external": true
+    },
+    "fill": {
+      "type": "float",
+      "value": 6,
+      "min": 0,
+      "max": 20,
+      "step": 0.5,
+      "description": "Where a ball of this many path radii can't pass between these body paths the gap fills, so single paths only show as fibres. 0 shows every path. It counts in radii of the thickest path of the mesh, like the fill of hyphae_to_mesh."
+    }
+  }
+}

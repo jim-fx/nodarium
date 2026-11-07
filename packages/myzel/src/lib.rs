@@ -40,6 +40,14 @@
 //!
 //! Paths as line segments for the viewer, in the groups of their mesh, see [`path_lines`].
 //!
+//! # Settings `[13, setting, value, ...creators]`
+//!
+//! A value of `hyphae_to_mesh` for every path of the graph nodes `creators`: `setting` 0 is the
+//! blend, 1 the fibres, 2 the fill, `value` is an f32. The `set_blend`, `set_fibres` and
+//! `set_fill` nodes put one into a path list next to the paths that pass through them, see
+//! [`with_setting`], and the mesh nodes give it to the paths, see [`apply_settings`]. A later
+//! setting replaces an earlier one, paths without one keep the value of the mesh node.
+//!
 //! Inputs of Myzel nodes are plain values, see [`read_float`] and friends.
 
 mod cap;
@@ -57,6 +65,7 @@ mod mesh;
 mod noise;
 mod paths;
 mod polygonize;
+mod settings;
 mod spatial;
 
 pub use cap::{closing_turn, curl_turn, margin_points, pose_caps, testing, Cap, CapFrame, CapRay, Step};
@@ -77,4 +86,5 @@ pub use inputs::{read_field, read_float, read_floats, read_hyphae, read_int, rea
 pub use mesh::{mesh_flags, pack_rgba, Mesh, MESH_TAG};
 pub use noise::value_noise;
 pub use polygonize::polygonize;
+pub use settings::{apply_settings, read_settings, with_setting, PathSettings, Setting, SettingItem, SETTING_TAG};
 pub use spatial::{distance_sq_to_segment, SpatialHash};

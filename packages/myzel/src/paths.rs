@@ -9,6 +9,7 @@ use nodarium_utils::{
 
 use crate::density::Segment;
 use crate::hyphae::{flags, Hyphae, Tissue};
+use crate::settings::PathSettings;
 
 pub const LINES_TAG: i32 = 12;
 const LINE_WORDS: usize = 7;
@@ -68,6 +69,8 @@ pub struct MeshPath<'a> {
     pub points: Cow<'a, [f32]>,
     pub group: PathGroup,
     pub style: PathStyle,
+    /// Values of the mesh node the path brings with it, see [`crate::apply_settings`]
+    pub settings: PathSettings,
 }
 
 impl MeshPath<'_> {
@@ -96,7 +99,8 @@ fn collect_paths<'a>(list: &'a [i32], style: PathStyle, out: &mut Vec<MeshPath<'
             collect_paths(item, style, out);
         } else if is_path(item) {
             let path = wrap_path(item);
-            out.push(MeshPath { points: Cow::Borrowed(path.points), group: PathGroup::Creator(path.link.creator), style });
+            let group = PathGroup::Creator(path.link.creator);
+            out.push(MeshPath { points: Cow::Borrowed(path.points), group, style, settings: PathSettings::default() });
         }
     }
 }
@@ -148,6 +152,7 @@ impl Hyphae {
                 points: Cow::Owned(points),
                 group: PathGroup::Tissue(tissue),
                 style: PathStyle::of_tissue(tissue),
+                settings: PathSettings::default(),
             })
             .collect()
     }
@@ -332,7 +337,12 @@ mod tests {
     #[test]
     fn retaining_points_splits_paths() {
         let points = vec![0.0, 0.0, -1.0, 0.1, 0.0, 1.0, 1.0, 0.1, 0.0, 2.0, -1.0, 0.1, 0.0, 3.0, -1.0, 0.1];
-        let path = MeshPath { points: Cow::Owned(points), group: PathGroup::Creator(1), style: PathStyle::BODY };
+        let path = MeshPath {
+            points: Cow::Owned(points),
+            group: PathGroup::Creator(1),
+            style: PathStyle::BODY,
+            settings: PathSettings::default(),
+        };
         let kept = retain_points(&[path], |p| p.z <= 0.0);
         assert_eq!(kept.iter().map(|p| p.len()).collect::<Vec<_>>(), [1, 2]);
     }

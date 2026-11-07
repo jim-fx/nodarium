@@ -9,7 +9,7 @@
   "nodes": [
     {
       "id": 0,
-      "position": [355, 85],
+      "position": [415, 85],
       "type": "max/myzel/output",
       "props": {}
     },
@@ -25,7 +25,7 @@
     },
     {
       "id": 2,
-      "position": [265, 45],
+      "position": [325, 45],
       "type": "max/myzel/strands",
       "props": {
         "amount": 200,
@@ -56,17 +56,17 @@
     },
     {
       "id": 7,
-      "position": [295, 85],
+      "position": [355, 85],
       "type": "max/plantarium/join",
       "props": {}
     },
     {
       "id": 8,
-      "position": [325, 85],
+      "position": [385, 85],
       "type": "max/myzel/hyphae_to_mesh",
       "props": {
         "fill": 1.5,
-        "fibres": 0.75
+        "fibres": 1.5
       }
     },
     {
@@ -107,6 +107,22 @@
       "position": [235, 130],
       "type": "max/myzel/cap_open",
       "props": {}
+    },
+    {
+      "id": 24,
+      "position": [295, 130],
+      "type": "max/myzel/set_fibres",
+      "props": {
+        "fibres": 0.4
+      }
+    },
+    {
+      "id": 25,
+      "position": [325, 130],
+      "type": "max/myzel/set_fill",
+      "props": {
+        "fill": 6
+      }
     }
   ],
   "edges": [
@@ -135,7 +151,7 @@
       "a"
     ],
     [
-      5,
+      25,
       0,
       7,
       "b"
@@ -187,6 +203,18 @@
       1,
       23,
       "hinge"
+    ],
+    [
+      5,
+      0,
+      24,
+      "plant"
+    ],
+    [
+      24,
+      0,
+      25,
+      "plant"
     ]
   ]
 }

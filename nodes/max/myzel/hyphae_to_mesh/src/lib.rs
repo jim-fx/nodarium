@@ -1,4 +1,7 @@
-use myzel_core::{paths_mesh, read_float, read_int, read_mesh_paths, HyphaeMeshParams, Mesh, PathStyle, MESH_TAG};
+use myzel_core::{
+    apply_settings, paths_mesh, read_float, read_int, read_mesh_paths, read_settings, HyphaeMeshParams, Mesh, PathStyle,
+    MESH_TAG,
+};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::split_args;
 
@@ -16,6 +19,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     };
     let mut paths = read_mesh_paths(args[0], PathStyle::BODY);
     paths.extend(read_mesh_paths(args[1], PathStyle::LOOSE));
+    // settings from set_blend, set_fibres and set_fill reach the paths of their nodes in either input
+    let settings = [read_settings(args[0]), read_settings(args[1])].concat();
+    apply_settings(&mut paths, &settings);
     let mut mesh = paths_mesh(&paths, &params);
     let meshes = read_meshes(args[7]);
     if !meshes.is_empty() {
@@ -169,6 +175,32 @@ mod tests {
         // the closing (6 mm) leaves a low fillet where the strand was
         assert!(highest(&at(0.0)) < 0.033, "gone at 0, ends at {}", highest(&at(0.0)));
         assert!(highest(&at(1.0)) > 0.05, "kept at 1, ends at {}", highest(&at(1.0)));
+    }
+
+    #[test]
+    fn settings_reach_the_paths_of_their_nodes() {
+        use myzel_core::{with_setting, Setting, SettingItem};
+        use nodarium_utils::{split_args, wrap_arg};
+        let d = HyphaeMeshParams::default();
+        let (body, loose) = (concat_arg_vecs(vec![paths(3, 42, 0.0), paths(2, 9, 0.02)]), paths(2, 300, 0.04));
+        let plain = run(&body, &loose, &d);
+        // the values of the node, set on every node's paths: the same mesh
+        let mut same_body = body.clone();
+        for (setting, value) in [(Setting::Blend, d.blend), (Setting::Fibres, d.fibres), (Setting::Fill, d.fill)] {
+            same_body = with_setting(&same_body, setting, value);
+        }
+        let same_loose = with_setting(&loose, Setting::Blend, d.blend);
+        assert_eq!(run(&same_body, &same_loose, &d), plain);
+        // no relief on any path is the node without relief, a setting in the loose input reaches the body paths too
+        let smooth = run(&body, &loose, &HyphaeMeshParams { fibres: 0.0, ..d.clone() });
+        let for_nine = SettingItem { setting: Setting::Fibres, value: 0.0, creators: vec![9] };
+        let flat_loose = with_setting(&loose, Setting::Fibres, 0.0);
+        let flat_loose: Vec<Vec<i32>> =
+            split_args(&flat_loose).iter().map(|i| i.to_vec()).chain([wrap_arg(&for_nine.encode())]).collect();
+        let flat_body = concat_arg_vecs(vec![with_setting(&paths(3, 42, 0.0), Setting::Fibres, 0.0), paths(2, 9, 0.02)]);
+        let mesh = run(&flat_body, &concat_arg_vecs(flat_loose), &d);
+        assert_eq!(mesh.faces, smooth.faces);
+        assert_eq!(mesh.positions, smooth.positions);
     }
 
     #[test]

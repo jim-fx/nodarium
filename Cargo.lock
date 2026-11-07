@@ -209,6 +209,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "myzel_set_blend"
+version = "0.1.0"
+dependencies = [
+ "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+ "serde_json",
+]
+
+[[package]]
+name = "myzel_set_fibres"
+version = "0.1.0"
+dependencies = [
+ "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+ "serde_json",
+]
+
+[[package]]
+name = "myzel_set_fill"
+version = "0.1.0"
+dependencies = [
+ "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+ "serde_json",
+]
+
+[[package]]
 name = "myzel_smooth_subtract"
 version = "0.1.0"
 dependencies = [
