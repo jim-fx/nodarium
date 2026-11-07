@@ -27,8 +27,11 @@ import {
 } from '#lib/graph-templates/index.ts';
 import type { Graph, ProjectUnit } from '@nodarium/types';
 
+export type TemplateCategory = 'Plants' | 'Mushrooms';
+
 export type ProjectTemplate = {
   name: string;
+  category: TemplateCategory;
   graph: Graph;
 };
 
@@ -37,30 +40,43 @@ function toGraph(template: unknown, unit?: ProjectUnit): Graph {
   return unit ? { ...graph, meta: { ...graph.meta, unit } } : graph;
 }
 
+const plant = (name: string, graph: Graph): ProjectTemplate => ({
+  name,
+  category: 'Plants',
+  graph
+});
+const mushroom = (name: string, graph: Graph): ProjectTemplate => ({
+  name,
+  category: 'Mushrooms',
+  graph
+});
+
+export const templateCategories: TemplateCategory[] = ['Plants', 'Mushrooms'];
+
 export const projectTemplates: ProjectTemplate[] = [
-  { name: 'Default Plant', graph: toGraph(defaultPlant) },
-  { name: 'Fern', graph: toGraph(fern, 'cm') },
-  { name: 'Weeping Willow', graph: toGraph(willow) },
-  { name: 'Agave', graph: toGraph(agave) },
-  { name: 'Ornamental Grass', graph: toGraph(grass, 'cm') },
-  { name: 'Palm', graph: toGraph(palm) },
-  { name: 'Sapling', graph: toGraph(sapling) },
-  { name: 'Lavender', graph: toGraph(lavender, 'cm') },
-  { name: 'Sage', graph: toGraph(sage, 'cm') },
-  { name: 'Bamboo', graph: toGraph(bamboo) },
-  { name: 'Lady Fern', graph: toGraph(ladyFern, 'cm') },
-  { name: 'Maidenhair Fern', graph: toGraph(maidenhair, 'cm') },
-  { name: 'Daisy', graph: toGraph(daisy, 'cm') },
-  { name: 'Field Horsetail', graph: toGraph(horsetail, 'cm') },
-  { name: 'Foxglove', graph: toGraph(foxglove) },
-  { name: "Devil's Backbone", graph: toGraph(devilsBackbone, 'cm') },
-  { name: 'Japanese Knotweed', graph: toGraph(knotweed) },
-  { name: 'Wild Carrot', graph: toGraph(wildCarrot, 'cm') },
-  { name: 'Champignon', graph: toGraph(champignon, 'cm') },
-  { name: 'Primordium (hyphae)', graph: toGraph(primordium, 'cm') },
-  { name: 'Groomed stipe (strands)', graph: toGraph(groomedStipe, 'cm') },
-  { name: 'Groomed cap (opening)', graph: toGraph(groomedCap, 'cm') },
-  { name: 'Groomed veil (opening)', graph: toGraph(groomedVeil, 'cm') },
-  { name: 'Groomed gills', graph: toGraph(groomedGills, 'cm') },
-  { name: 'Chanterelle', graph: toGraph(chanterelle, 'cm') }
+  plant('Default Plant', toGraph(defaultPlant)),
+  plant('Fern', toGraph(fern, 'cm')),
+  plant('Weeping Willow', toGraph(willow)),
+  plant('Agave', toGraph(agave)),
+  plant('Ornamental Grass', toGraph(grass, 'cm')),
+  plant('Palm', toGraph(palm)),
+  plant('Sapling', toGraph(sapling)),
+  plant('Lavender', toGraph(lavender, 'cm')),
+  plant('Sage', toGraph(sage, 'cm')),
+  plant('Bamboo', toGraph(bamboo)),
+  plant('Lady Fern', toGraph(ladyFern, 'cm')),
+  plant('Maidenhair Fern', toGraph(maidenhair, 'cm')),
+  plant('Daisy', toGraph(daisy, 'cm')),
+  plant('Field Horsetail', toGraph(horsetail, 'cm')),
+  plant('Foxglove', toGraph(foxglove)),
+  plant("Devil's Backbone", toGraph(devilsBackbone, 'cm')),
+  plant('Japanese Knotweed', toGraph(knotweed)),
+  plant('Wild Carrot', toGraph(wildCarrot, 'cm')),
+  mushroom('Chanterelle', toGraph(chanterelle, 'cm')),
+  mushroom('Champignon (grown hyphae)', toGraph(primordium, 'cm')),
+  mushroom('Champignon (SDF)', toGraph(champignon, 'cm')),
+  mushroom('Groomed stipe (strands)', toGraph(groomedStipe, 'cm')),
+  mushroom('Groomed cap (opening)', toGraph(groomedCap, 'cm')),
+  mushroom('Groomed veil (opening)', toGraph(groomedVeil, 'cm')),
+  mushroom('Groomed gills', toGraph(groomedGills, 'cm'))
 ];
