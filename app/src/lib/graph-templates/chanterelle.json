@@ -100,8 +100,8 @@
           0.16
         ],
         "margin_curl": 0.3,
-        "rays": 64,
-        "spacing": 0,
+        "rays": 16,
+        "spacing": 0.5,
         "waves": 6,
         "wave_amplitude": 0.15,
         "wave_irregularity": 1,
