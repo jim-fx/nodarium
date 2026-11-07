@@ -66,20 +66,21 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let mut ctx = Ctx::default();
     let items = split_args(args[0]);
     let hinges = decode_points(args[1]);
-    let waves = Waves { count: ctx.int(args[2]).max(0) as u32, irregularity: ctx.float(args[4]) };
     let seed = int(args[5]);
     let alphas = (0..AMPLITUDE_SAMPLES).map(|k| k as f32 / (AMPLITUDE_SAMPLES - 1) as f32);
-    let mut amplitudes: Vec<(i32, Amplitude)> = Vec::new();
+    // every stipe reads its own waves, so a random node gives every cap its own lobes
+    let mut stipes: Vec<(i32, Waves, Amplitude)> = Vec::new();
     for hinge in &hinges {
+        ctx.seed_path(hinge.parent_id);
+        let waves = Waves { count: ctx.int(args[2]).max(0) as u32, irregularity: ctx.float(args[4]) };
         let values = if args[3].len() == 1 {
             let plain = ctx.float(args[3]);
             alphas.clone().map(|a| plain * curve(&PLAIN_PROFILE, a)).collect()
         } else {
             // one amplitude for the whole cap, the same for every ray
-            ctx.seed_path(hinge.parent_id);
             ctx.float_along(args[3], alphas.clone())
         };
-        amplitudes.push((hinge.parent_id, Amplitude(values)));
+        stipes.push((hinge.parent_id, waves, Amplitude(values)));
     }
 
     // caps on one stipe (a cap and its ridges) share the radius, so they wave alike
@@ -87,7 +88,7 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let radius_of = |stipe: i32| caps.iter().filter(|c| c.frame.stipe_id == stipe).map(|c| c.reach()).fold(0.0, f32::max);
 
     let posed = pose_caps(&items, &hinges, |cap, k| {
-        let amplitude = &amplitudes.iter().find(|a| a.0 == cap.frame.stipe_id)?.1;
+        let (_, waves, amplitude) = stipes.iter().find(|a| a.0 == cap.frame.stipe_id)?;
         if waves.count == 0 || amplitude.0.iter().all(|&a| a == 0.0) {
             return None;
         }
@@ -95,7 +96,7 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
         if radius <= 0.0 {
             return None;
         }
-        let lift = radius * wave_shape(&waves, seed, cap.frame.stipe_id, cap.rays[k].angle);
+        let lift = radius * wave_shape(waves, seed, cap.frame.stipe_id, cap.rays[k].angle);
         let offset = |x: f32| lift * amplitude.at(x / radius);
         Some(cap.bend(k, |s| {
             let length = s.length();
@@ -319,5 +320,57 @@ mod tests {
                 assert!(x.distance(y) < 1e-5);
             }
         }
+    }
+
+    #[test]
+    fn every_stipe_reads_its_own_waves() {
+        use myzel_core::{cap_alphas, grow_cap, CapShape};
+        use nodarium_utils::{
+            concat_args, encode_points,
+            geometry::{create_multiple_paths, wrap_multiple_paths},
+        };
+        // two upright stipes 20 cm apart, each with a cap of many rays
+        let mut stipes = create_multiple_paths(2, 12, 1, 3);
+        for (s, path) in wrap_multiple_paths(&mut stipes).iter_mut().enumerate() {
+            for i in 0..12 {
+                path.points[i * 4..i * 4 + 4].copy_from_slice(&[0.2 * s as f32, 0.05 * i as f32 / 11.0, 0.0, 0.005]);
+            }
+        }
+        let c = TestCap { rays: 64, spacing: 0.0, ..cone() };
+        let thickness: Vec<f32> = cap_alphas().map(|_| c.thickness).collect();
+        let shape = CapShape { profile: &c.profile, radius: c.radius, thickness: &thickness, rays: c.rays, seed: c.seed, resolution: 24, creator: 7 };
+        let (mut rays, mut hinges) = (Vec::new(), Vec::new());
+        for stipe in split_args(&stipes) {
+            let (hinge, r) = grow_cap(stipe, &shape);
+            hinges.push(hinge);
+            rays.extend(r);
+        }
+        let (input, hinges) = (concat_arg_vecs(rays), encode_points(&hinges));
+
+        let lobes = |seed: i32| {
+            let waves = concat_args(vec![&[4], &[3], &[9], &[seed]]);
+            let (_, margins) = __nodarium_execute_inner(&[&input, &hinges, &waves, &[encode_float(0.15)], &[encode_float(0.0)], &[3]]);
+            let margins = decode_points(&margins);
+            decode_points(&hinges)
+                .iter()
+                .map(|hinge| {
+                    let frame = CapFrame::new(hinge);
+                    let mut m: Vec<(f32, f32)> = margins
+                        .iter()
+                        .filter(|m| m.position.distance(hinge.position) < 0.1)
+                        .map(|m| (frame.angle(m.position), (m.position - hinge.position).dot(frame.axis)))
+                        .collect();
+                    m.sort_by(|a, b| a.0.total_cmp(&b.0));
+                    let mean = m.iter().map(|p| p.1).sum::<f32>() / m.len() as f32;
+                    let changes = (0..m.len()).filter(|&i| (m[i].1 - mean).signum() != (m[(i + 1) % m.len()].1 - mean).signum()).count();
+                    changes / 2
+                })
+                .collect::<Vec<_>>()
+        };
+        let counts: Vec<Vec<usize>> = (0..8).map(lobes).collect();
+        for c in &counts {
+            assert!(c.iter().all(|n| (3..=9).contains(n)), "{counts:?}");
+        }
+        assert!(counts.iter().any(|c| c[0] != c[1]), "{counts:?}");
     }
 }

@@ -6,5 +6,5 @@ nodarium_definition_file!("src/definition.json");
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
-    concat_args(vec![&[1], args[0], args[1], args[2]])
+    concat_args(vec![&[1], args[0], args[1], args[2], args[3]])
 }

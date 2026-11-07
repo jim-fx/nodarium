@@ -33,7 +33,7 @@
     },
     "thickness": {
       "type": "float",
-      "description": "How thick the stem should be",
+      "description": "How thick the stem should be. A path_info length reads the length of the stem, so the thickness can follow it.",
       "value": 0.2,
       "unit": "m"
     },

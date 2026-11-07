@@ -14,6 +14,11 @@
     },
     "seed": {
       "type": "seed"
+    },
+    "uniform": {
+      "type": "boolean",
+      "value": false,
+      "description": "Every value from min to max is equally likely. Off, values near the middle come more often."
     }
   }
 }
