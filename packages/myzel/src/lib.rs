@@ -42,6 +42,8 @@
 //!
 //! Inputs of Myzel nodes are plain values, see [`read_float`] and friends.
 
+mod cap;
+mod cap_shape;
 mod density;
 mod eval;
 mod expand;
@@ -57,6 +59,8 @@ mod paths;
 mod polygonize;
 mod spatial;
 
+pub use cap::{closing_turn, curl_turn, margin_points, pose_caps, testing, Cap, CapFrame, CapRay, Step};
+pub use cap_shape::{cap_alphas, grow_cap, CapShape};
 pub use density::{mesh_segments, surface, Segment, SegmentSurface};
 pub use eval::{eval, Program};
 pub use expand::{expand, ExpandParams};

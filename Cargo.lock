@@ -41,6 +41,17 @@ name = "myzel_cap"
 version = "0.1.0"
 dependencies = [
  "glam",
+ "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "myzel_cap_open"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "myzel_core",
  "nodarium_macros",
  "nodarium_utils",
 ]
@@ -119,6 +130,26 @@ dependencies = [
 
 [[package]]
 name = "myzel_map_range"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "myzel_margin_curl"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "myzel_margin_waves"
 version = "0.1.0"
 dependencies = [
  "glam",
@@ -365,6 +396,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "plantarium_fill_gaps"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
 name = "plantarium_float"
 version = "0.1.0"
 dependencies = [
@@ -511,6 +550,14 @@ dependencies = [
  "nodarium_macros",
  "nodarium_utils",
  "serde",
+]
+
+[[package]]
+name = "plantarium_separate"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
 ]
 
 [[package]]

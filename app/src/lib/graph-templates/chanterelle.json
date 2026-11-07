@@ -15,7 +15,7 @@
     },
     {
       "id": 1,
-      "position": [-170, 24],
+      "position": [-230, 188.25],
       "type": "max/plantarium/stem",
       "props": {
         "length": 0.04,
@@ -24,7 +24,7 @@
     },
     {
       "id": 2,
-      "position": [-200, 51.5],
+      "position": [-260, 215.75],
       "type": "max/plantarium/curve",
       "props": {
         "curve": [
@@ -47,7 +47,7 @@
     },
     {
       "id": 3,
-      "position": [-140, 19],
+      "position": [-200, 183.25],
       "type": "max/plantarium/trunk_kink",
       "props": {
         "amount": 3,
@@ -59,7 +59,7 @@
     },
     {
       "id": 4,
-      "position": [-20, 12.5],
+      "position": [-20, 56],
       "type": "max/myzel/strands",
       "props": {
         "amount": 250,
@@ -72,7 +72,7 @@
     },
     {
       "id": 5,
-      "position": [-110, 9],
+      "position": [-170, 116.25],
       "type": "max/myzel/cap",
       "props": {
         "radius": 0.03,
@@ -88,38 +88,12 @@
           0.0,
           25.0
         ],
-        "thickness": 0.012,
-        "thickness_curve": [
-          0,
-          0.67,
-          0.4,
-          0.85,
-          0.75,
-          0.28,
-          1,
-          0.16
-        ],
-        "margin_curl": 0.3,
-        "rays": 16,
-        "spacing": 0.5,
-        "waves": 6,
-        "wave_amplitude": 0.15,
-        "wave_irregularity": 1,
-        "wave_profile": [
-          0,
-          0,
-          0.4,
-          0.05,
-          0.75,
-          0.45,
-          1,
-          1
-        ]
+        "rays": 16
       }
     },
     {
       "id": 6,
-      "position": [10, 86.5],
+      "position": [10, 130],
       "type": "max/myzel/strands",
       "props": {
         "amount": 40,
@@ -131,7 +105,7 @@
     },
     {
       "id": 7,
-      "position": [-50, 192.5],
+      "position": [-170, 199.25],
       "type": "max/myzel/cap",
       "props": {
         "radius": 0.03,
@@ -171,40 +145,12 @@
           8.32,
           22.85
         ],
-        "thickness": 0.0014,
-        "thickness_curve": [
-          0,
-          0.6,
-          0.3,
-          0.6,
-          0.55,
-          1,
-          0.92,
-          1,
-          1,
-          0.7
-        ],
-        "margin_curl": 0,
-        "rays": 30,
-        "spacing": 2.4,
-        "waves": 6,
-        "wave_amplitude": 0.15,
-        "wave_irregularity": 1,
-        "wave_profile": [
-          0,
-          0,
-          0.4,
-          0.05,
-          0.75,
-          0.45,
-          1,
-          1
-        ]
+        "rays": 30
       }
     },
     {
       "id": 8,
-      "position": [40, 87.5],
+      "position": [40, 100],
       "type": "max/plantarium/join",
       "props": {}
     },
@@ -220,7 +166,7 @@
     },
     {
       "id": 40,
-      "position": [10, 31.5],
+      "position": [10, 75],
       "type": "max/plantarium/clump",
       "props": {
         "strength": 0.35,
@@ -233,6 +179,110 @@
           1,
           0.2
         ]
+      }
+    },
+    {
+      "id": 50,
+      "position": [-200, 148.25],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0.67,
+          0.4,
+          0.85,
+          0.75,
+          0.28,
+          1,
+          0.16
+        ],
+        "min": 0,
+        "max": 0.012
+      }
+    },
+    {
+      "id": 51,
+      "position": [-200, 246.75],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0.6,
+          0.3,
+          0.6,
+          0.55,
+          1,
+          0.92,
+          1,
+          1,
+          0.7
+        ],
+        "min": 0,
+        "max": 0.0014
+      }
+    },
+    {
+      "id": 52,
+      "position": [-140, 145.25],
+      "type": "max/plantarium/fill_gaps",
+      "props": {
+        "spacing": 0.5
+      }
+    },
+    {
+      "id": 53,
+      "position": [-140, 170.25],
+      "type": "max/plantarium/fill_gaps",
+      "props": {
+        "spacing": 2.4
+      }
+    },
+    {
+      "id": 54,
+      "position": [-110, 155.25],
+      "type": "max/plantarium/join",
+      "props": {}
+    },
+    {
+      "id": 55,
+      "position": [-110, 185.25],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0,
+          0.4,
+          0.05,
+          0.75,
+          0.45,
+          1,
+          1
+        ],
+        "min": 0,
+        "max": 0.15
+      }
+    },
+    {
+      "id": 56,
+      "position": [-80, 154],
+      "type": "max/myzel/margin_waves",
+      "props": {
+        "waves": 6,
+        "irregularity": 1
+      }
+    },
+    {
+      "id": 57,
+      "position": [-50, 149],
+      "type": "max/plantarium/separate",
+      "props": {}
+    },
+    {
+      "id": 58,
+      "position": [-20, 149],
+      "type": "max/myzel/margin_curl",
+      "props": {
+        "amount": 0.3
       }
     }
   ],
@@ -298,13 +348,91 @@
       "a"
     ],
     [
+      50,
+      0,
       5,
+      "thickness"
+    ],
+    [
+      51,
+      0,
+      7,
+      "thickness"
+    ],
+    [
+      5,
+      0,
+      52,
+      "plant"
+    ],
+    [
+      7,
+      0,
+      53,
+      "plant"
+    ],
+    [
+      52,
+      0,
+      54,
+      "a"
+    ],
+    [
+      53,
+      0,
+      54,
+      "b"
+    ],
+    [
+      54,
+      0,
+      56,
+      "cap"
+    ],
+    [
+      5,
+      1,
+      56,
+      "hinge"
+    ],
+    [
+      55,
+      0,
+      56,
+      "amplitude"
+    ],
+    [
+      56,
+      0,
+      57,
+      "plant"
+    ],
+    [
+      7,
+      0,
+      57,
+      "like"
+    ],
+    [
+      57,
+      1,
+      58,
+      "cap"
+    ],
+    [
+      5,
+      1,
+      58,
+      "hinge"
+    ],
+    [
+      58,
       0,
       6,
       "plant"
     ],
     [
-      7,
+      57,
       0,
       9,
       "loose"

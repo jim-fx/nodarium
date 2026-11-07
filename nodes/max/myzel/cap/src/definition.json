@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/cap",
   "meta": {
-    "description": "Grows a cap at the tip of every path, the stipe: guide rays that leave the stipe top and follow the drawn profile out to the margin. Fill them with strands. Gives the hinge (stipe top) and the margin as points."
+    "description": "Grows an open cap at the tip of every path, the stipe: guide rays that leave the stipe top and follow the drawn profile out to the margin. Fill the gaps between them with fill_gaps, pose them with margin_waves, margin_curl and cap_open, then fill them with strands. Gives the hinge (stipe top) and the margin as points."
   },
   "outputs": [
     "path",
@@ -50,102 +50,26 @@
     },
     "thickness": {
       "type": "float",
-      "description": "Thickness of the flesh over the stipe",
-      "value": 0.008,
+      "description": "Thickness of the flesh. Connect a curve to thin it from the centre (alpha 0) to the margin (alpha 1).",
+      "value": 0.004,
       "min": 0,
       "max": 0.05,
       "step": 0.0005,
       "unit": "m"
     },
-    "thickness_curve": {
-      "type": "curve",
-      "label": "Thickness to the margin",
-      "description": "How the flesh thins from the centre (left) to the margin (right), as a share of the thickness",
-      "value": [
-        0,
-        1,
-        0.6,
-        0.6,
-        1,
-        0.15
-      ]
-    },
-    "margin_curl": {
-      "type": "float",
-      "description": "How far the margin rolls in under the cap. 0 = not at all, 1 = rolled under like a button",
-      "value": 0.2,
-      "min": 0,
-      "max": 1,
-      "step": 0.05
-    },
-    "opening": {
-      "type": "float",
-      "description": "0 = a closed button with the margin against the stipe, 1 = open as the profile is drawn",
-      "value": 1,
-      "min": 0,
-      "max": 1,
-      "step": 0.01
-    },
-    "waves": {
-      "type": "integer",
-      "description": "Lobes around the margin. Real chanterelles have about 4 to 8, thinner flesh gives more.",
-      "value": 6,
-      "min": 0,
-      "max": 24
-    },
-    "wave_amplitude": {
-      "type": "float",
-      "description": "How far the margin moves up and down, as a share of the radius. 0 = a flat margin, about 1 / waves for a wavy one. Grows with opening, a closed button has no lobes.",
-      "value": 0,
-      "min": 0,
-      "max": 0.5,
-      "step": 0.01
-    },
-    "wave_irregularity": {
-      "type": "float",
-      "hidden": true,
-      "description": "How much the lobes vary in width and height, set by the seed. 0 = all alike and evenly spaced",
-      "value": 0.3,
-      "min": 0,
-      "max": 1,
-      "step": 0.05
-    },
-    "wave_profile": {
-      "type": "curve",
-      "hidden": true,
-      "label": "Waves to the margin",
-      "description": "How far in the waving reaches: the share of the amplitude from the centre (left) to the margin (right)",
-      "value": [
-        0,
-        0,
-        0.5,
-        0.25,
-        1,
-        1
-      ]
-    },
     "rays": {
       "type": "integer",
-      "description": "Rays that leave the stipe top. More start between them where they drift apart towards the margin.",
+      "description": "Rays that leave the stipe top, evenly around it. fill_gaps adds more where they drift apart towards the margin.",
       "value": 12,
       "min": 1,
       "max": 128
-    },
-    "spacing": {
-      "type": "float",
-      "hidden": true,
-      "description": "Neighbouring rays are at most this many flesh thicknesses apart, a new ray starts between two where they drift further apart. 0 adds no rays.",
-      "value": 0.5,
-      "min": 0,
-      "max": 4,
-      "step": 0.05
     },
     "seed": {
       "type": "seed"
     },
     "resolution_curve": {
       "type": "integer",
-      "description": "Points along a ray that starts at the stipe, rays that start further out get fewer",
+      "description": "Points along a ray",
       "value": 32,
       "min": 4,
       "max": 64,

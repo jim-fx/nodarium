@@ -15,7 +15,7 @@
     },
     {
       "id": 1,
-      "position": [205, 140],
+      "position": [115, 146.25],
       "type": "max/plantarium/stem",
       "props": {
         "length": 0.05,
@@ -38,11 +38,9 @@
     },
     {
       "id": 3,
-      "position": [235, 130],
+      "position": [145, 140],
       "type": "max/myzel/cap",
-      "props": {
-        "opening": 1
-      }
+      "props": {}
     },
     {
       "id": 5,
@@ -70,6 +68,45 @@
         "fill": 1.5,
         "fibres": 0.75
       }
+    },
+    {
+      "id": 20,
+      "position": [115, 191.25],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          1,
+          0.6,
+          0.6,
+          1,
+          0.15
+        ],
+        "min": 0,
+        "max": 0.008
+      }
+    },
+    {
+      "id": 21,
+      "position": [175, 140],
+      "type": "max/plantarium/fill_gaps",
+      "props": {
+        "spacing": 0.5
+      }
+    },
+    {
+      "id": 22,
+      "position": [205, 135],
+      "type": "max/myzel/margin_curl",
+      "props": {
+        "amount": 0.2
+      }
+    },
+    {
+      "id": 23,
+      "position": [235, 130],
+      "type": "max/myzel/cap_open",
+      "props": {}
     }
   ],
   "edges": [
@@ -86,7 +123,7 @@
       "plant"
     ],
     [
-      3,
+      23,
       0,
       5,
       "plant"
@@ -114,6 +151,42 @@
       0,
       0,
       "field"
+    ],
+    [
+      20,
+      0,
+      3,
+      "thickness"
+    ],
+    [
+      3,
+      0,
+      21,
+      "plant"
+    ],
+    [
+      21,
+      0,
+      22,
+      "cap"
+    ],
+    [
+      3,
+      1,
+      22,
+      "hinge"
+    ],
+    [
+      22,
+      0,
+      23,
+      "cap"
+    ],
+    [
+      3,
+      1,
+      23,
+      "hinge"
     ]
   ]
 }
