@@ -101,7 +101,20 @@
         ],
         "margin_curl": 0.3,
         "rays": 64,
-        "spacing": 0
+        "spacing": 0,
+        "waves": 6,
+        "wave_amplitude": 0.15,
+        "wave_irregularity": 1,
+        "wave_profile": [
+          0,
+          0,
+          0.4,
+          0.05,
+          0.75,
+          0.45,
+          1,
+          1
+        ]
       }
     },
     {
@@ -173,7 +186,20 @@
         ],
         "margin_curl": 0,
         "rays": 30,
-        "spacing": 2.4
+        "spacing": 2.4,
+        "waves": 6,
+        "wave_amplitude": 0.15,
+        "wave_irregularity": 1,
+        "wave_profile": [
+          0,
+          0,
+          0.4,
+          0.05,
+          0.75,
+          0.45,
+          1,
+          1
+        ]
       }
     },
     {
@@ -190,93 +216,6 @@
         "fill": 1.5,
         "fibres": 0.5,
         "blend": 2.4
-      }
-    },
-    {
-      "id": 10,
-      "position": [-110, 124],
-      "type": "max/plantarium/force",
-      "props": {
-        "position": [0.033, 0.072, 0.006],
-        "strength": 2.2,
-        "radius": 0.026,
-        "falloff": 0.5
-      }
-    },
-    {
-      "id": 20,
-      "position": [-80, 64],
-      "type": "max/plantarium/apply_force",
-      "props": {
-        "strength": 1,
-        "stiffness": 0.3
-      }
-    },
-    {
-      "id": 30,
-      "position": [-20, 179.5],
-      "type": "max/plantarium/apply_force",
-      "props": {
-        "strength": 1.6,
-        "stiffness": 0.3
-      }
-    },
-    {
-      "id": 11,
-      "position": [-80, 104],
-      "type": "max/plantarium/force",
-      "props": {
-        "position": [-0.026, 0.072, 0.022],
-        "strength": 2.0,
-        "radius": 0.024,
-        "falloff": 0.5
-      }
-    },
-    {
-      "id": 21,
-      "position": [-50, 81.5],
-      "type": "max/plantarium/apply_force",
-      "props": {
-        "strength": 1,
-        "stiffness": 0.3
-      }
-    },
-    {
-      "id": 31,
-      "position": [10, 179.5],
-      "type": "max/plantarium/apply_force",
-      "props": {
-        "strength": 1.6,
-        "stiffness": 0.3
-      }
-    },
-    {
-      "id": 12,
-      "position": [-50, 121.5],
-      "type": "max/plantarium/force",
-      "props": {
-        "position": [-0.006, 0.072, -0.034],
-        "strength": 2.4,
-        "radius": 0.024,
-        "falloff": 0.5
-      }
-    },
-    {
-      "id": 22,
-      "position": [-20, 105.5],
-      "type": "max/plantarium/apply_force",
-      "props": {
-        "strength": 1,
-        "stiffness": 0.3
-      }
-    },
-    {
-      "id": 32,
-      "position": [40, 117.5],
-      "type": "max/plantarium/apply_force",
-      "props": {
-        "strength": 1.6,
-        "stiffness": 0.3
       }
     },
     {
@@ -347,90 +286,6 @@
       "field"
     ],
     [
-      5,
-      0,
-      20,
-      "plant"
-    ],
-    [
-      10,
-      0,
-      20,
-      "force"
-    ],
-    [
-      7,
-      0,
-      30,
-      "plant"
-    ],
-    [
-      10,
-      0,
-      30,
-      "force"
-    ],
-    [
-      20,
-      0,
-      21,
-      "plant"
-    ],
-    [
-      11,
-      0,
-      21,
-      "force"
-    ],
-    [
-      30,
-      0,
-      31,
-      "plant"
-    ],
-    [
-      11,
-      0,
-      31,
-      "force"
-    ],
-    [
-      21,
-      0,
-      22,
-      "plant"
-    ],
-    [
-      12,
-      0,
-      22,
-      "force"
-    ],
-    [
-      31,
-      0,
-      32,
-      "plant"
-    ],
-    [
-      12,
-      0,
-      32,
-      "force"
-    ],
-    [
-      22,
-      0,
-      6,
-      "plant"
-    ],
-    [
-      32,
-      0,
-      9,
-      "loose"
-    ],
-    [
       4,
       0,
       40,
@@ -441,6 +296,18 @@
       0,
       8,
       "a"
+    ],
+    [
+      5,
+      0,
+      6,
+      "plant"
+    ],
+    [
+      7,
+      0,
+      9,
+      "loose"
     ]
   ]
 }
