@@ -100,18 +100,24 @@ export function replaceNodes(
 ) {
   graph.groups ??= [];
   const groups = graph.groups;
+  // like the editor, ids are unique across the top level, every group and the group ids, so a
+  // node can't be mistaken for one of another level (GraphManager.createIdAllocator)
+  let lastId = Math.max(
+    -1,
+    ...scopes(graph).flatMap((scope) => scope.nodes.map((n) => n.id)),
+    ...groups.map((g) => g.id)
+  );
+  const nextId = () => ++lastId;
   const addGroup = (group: Omit<GroupDefinition, 'id'>) => {
-    const id = Math.max(-1, ...groups.map((g) => g.id)) + 1;
+    const id = nextId();
     groups.push({ ...group, id });
     return id;
   };
+  const context: ReplaceContext = { nextId, addGroup };
 
   for (const scope of scopes(graph)) {
     const old = nodesOfType(scope, type);
     if (old.size === 0) continue;
-
-    let lastId = Math.max(-1, ...scope.nodes.map((n) => n.id));
-    const context: ReplaceContext = { nextId: () => ++lastId, addGroup };
 
     const replacements = new Map<number, Replacement>();
     for (const node of old.values()) {
