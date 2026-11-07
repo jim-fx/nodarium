@@ -1,0 +1,303 @@
+{
+  "id": 0,
+  "version": 3,
+  "settings": {
+    "resolution.field": 160,
+    "resolution.curve": 24
+  },
+  "groups": [],
+  "nodes": [
+    {
+      "id": 0,
+      "position": [0, 0],
+      "type": "max/myzel/output",
+      "props": {}
+    },
+    {
+      "id": 1,
+      "position": [-300, 50.25],
+      "type": "max/plantarium/stem",
+      "props": {
+        "length": 0.022,
+        "thickness": 0.0045,
+        "taper": 0.3
+      }
+    },
+    {
+      "id": 2,
+      "position": [-270, 45.25],
+      "type": "max/plantarium/trunk_kink",
+      "props": {
+        "amount": 1,
+        "angle": 35,
+        "lowest_kink": 0.45,
+        "highest_kink": 0.45
+      }
+    },
+    {
+      "id": 3,
+      "position": [-90, -53.5],
+      "type": "max/myzel/strands",
+      "props": {
+        "amount": 120,
+        "thickness": 0.0005,
+        "thickness_variation": 0.5,
+        "wobble": 0.25,
+        "length_variation": 0.3
+      }
+    },
+    {
+      "id": 4,
+      "position": [-270, 95.25],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          1,
+          0.5,
+          0.7,
+          0.85,
+          0.35,
+          1,
+          0.15
+        ],
+        "min": 0,
+        "max": 0.007
+      }
+    },
+    {
+      "id": 5,
+      "position": [-240, 41.5],
+      "type": "max/myzel/cap",
+      "props": {
+        "radius": 0.04,
+        "profile": [
+          0,
+          31,
+          7,
+          26.5,
+          16,
+          24,
+          28,
+          25,
+          40,
+          28,
+          50,
+          31
+        ],
+        "rays": 16
+      }
+    },
+    {
+      "id": 6,
+      "position": [-210, 41.5],
+      "type": "max/plantarium/fill_gaps",
+      "props": {
+        "spacing": 0.5
+      }
+    },
+    {
+      "id": 7,
+      "position": [-180, 36.5],
+      "type": "max/myzel/margin_waves",
+      "props": {
+        "waves": 5,
+        "amplitude": 0.18,
+        "irregularity": 0.8
+      }
+    },
+    {
+      "id": 8,
+      "position": [-150, 31.5],
+      "type": "max/myzel/margin_curl",
+      "props": {
+        "amount": 0.12
+      }
+    },
+    {
+      "id": 9,
+      "position": [-120, 31.5],
+      "type": "max/myzel/strands",
+      "props": {
+        "amount": 30,
+        "thickness": 0.0005,
+        "thickness_variation": 0.5,
+        "wobble": 0.25,
+        "length_variation": 0.1
+      }
+    },
+    {
+      "id": 10,
+      "position": [-90, 31.5],
+      "type": "max/myzel/set_fibres",
+      "props": {
+        "fibres": 0.3
+      }
+    },
+    {
+      "id": 11,
+      "position": [-90, 64.5],
+      "type": "max/myzel/reaction_diffusion",
+      "props": {
+        "radius": 0.052000000000000005,
+        "inner_radius": 0.004999999999999999,
+        "spacing": 0.0012,
+        "alignment": 0.9,
+        "irregularity": 0.6,
+        "forking": 0.5
+      }
+    },
+    {
+      "id": 12,
+      "position": [-60, 27.5],
+      "type": "max/myzel/lamellae",
+      "props": {
+        "depth": 0.0035,
+        "depth_curve": [
+          0,
+          1,
+          0.3,
+          0.95,
+          0.75,
+          0.6,
+          1,
+          0.12
+        ],
+        "free_distance": 0,
+        "thickness": 0.0003,
+        "edge_wave": 0.5
+      }
+    },
+    {
+      "id": 13,
+      "position": [-60, -2.5],
+      "type": "max/plantarium/join",
+      "props": {}
+    },
+    {
+      "id": 14,
+      "position": [-30, 0],
+      "type": "max/myzel/hyphae_to_mesh",
+      "props": {
+        "fill": 1.5,
+        "fibres": 1
+      }
+    }
+  ],
+  "edges": [
+    [
+      1,
+      0,
+      2,
+      "plant"
+    ],
+    [
+      2,
+      0,
+      3,
+      "plant"
+    ],
+    [
+      2,
+      0,
+      5,
+      "plant"
+    ],
+    [
+      4,
+      0,
+      5,
+      "thickness"
+    ],
+    [
+      5,
+      0,
+      6,
+      "plant"
+    ],
+    [
+      6,
+      0,
+      7,
+      "cap"
+    ],
+    [
+      5,
+      1,
+      7,
+      "hinge"
+    ],
+    [
+      7,
+      0,
+      8,
+      "cap"
+    ],
+    [
+      5,
+      1,
+      8,
+      "hinge"
+    ],
+    [
+      8,
+      0,
+      9,
+      "plant"
+    ],
+    [
+      9,
+      0,
+      10,
+      "plant"
+    ],
+    [
+      8,
+      0,
+      12,
+      "cap"
+    ],
+    [
+      5,
+      1,
+      12,
+      "hinge"
+    ],
+    [
+      11,
+      0,
+      12,
+      "pattern"
+    ],
+    [
+      3,
+      0,
+      13,
+      "a"
+    ],
+    [
+      10,
+      0,
+      13,
+      "b"
+    ],
+    [
+      13,
+      0,
+      14,
+      "hyphae"
+    ],
+    [
+      12,
+      1,
+      14,
+      "meshes"
+    ],
+    [
+      14,
+      0,
+      0,
+      "field"
+    ]
+  ]
+}
