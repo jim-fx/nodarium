@@ -43,6 +43,23 @@ pub struct Segment {
     pub radius: f32,
 }
 
+/// How a segment is meshed, see [`surface`]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Meshing {
+    /// Closed into one tissue with the other closed segments
+    pub closed: bool,
+    /// Where two segments reach a vertex, the one with the larger kernel times priority owns it
+    pub priority: f32,
+    /// The segment continues the one before it in the same path. Their kernels don't add up
+    /// where both reach, so a path is one tube of its own radius and only different paths blend.
+    pub joined: bool,
+}
+
+impl Meshing {
+    /// A segment of its own, not closed
+    pub const LOOSE: Meshing = Meshing { closed: false, priority: 1.0, joined: false };
+}
+
 /// Density samples stored in 8³ blocks, only blocks near a segment are allocated
 struct SparseGrid {
     origin: Vec3,
@@ -60,6 +77,10 @@ struct SparseGrid {
     strand: Vec<f32>,
     /// Distance to the nearest axis of the other segments, the closing keeps away from them
     guard: Vec<f32>,
+    /// Per sample the last blended segment that reached it and the largest kernel of the run of
+    /// joined segments it ends, see [`Meshing::joined`]
+    run: Vec<u32>,
+    run_k: Vec<f32>,
 }
 
 impl SparseGrid {
@@ -85,6 +106,8 @@ impl SparseGrid {
                         self.tube.resize(self.density.len(), f32::INFINITY);
                         self.strand.resize(self.density.len(), f32::INFINITY);
                         self.guard.resize(self.density.len(), f32::INFINITY);
+                        self.run.resize(self.density.len(), EMPTY);
+                        self.run_k.resize(self.density.len(), 0.0);
                     }
                 }
             }
@@ -159,13 +182,18 @@ impl SparseGrid {
         }
     }
 
-    /// Adds the kernel of one segment to every sample it reaches.
+    /// Adds the kernel of one segment to every sample it reaches. Where the segment before it in
+    /// the same path reached the sample too, only the larger of the two counts, see
+    /// [`Meshing::joined`]. Summing them would count every joint twice and swell the path
+    /// beyond its radius, the "bulging" of summed distance surfaces (Zanni et al. 2013,
+    /// "SCALe-invariant Integral Surfaces", §2.1).
     ///
     /// A closed segment instead adds its distance to `tube` out to `closed.reach`
     /// and only uses the kernel to claim samples. Past the kernel it claims them
     /// with a tiny weight, so that the closing has an owner where it fills a gap,
     /// but no blended segment loses a sample to it.
-    fn splat(&mut self, index: u32, priority: f32, segment: &Segment, reach: f32, closed: Option<Closed>) {
+    fn splat(&mut self, index: u32, meshing: &Meshing, segment: &Segment, reach: f32, closed: Option<Closed>) {
+        let priority = meshing.priority;
         let kernel_reach = reach;
         let reach = closed.map_or(reach, |c| c.reach);
         let lo_world = segment.start.min(segment.end) - Vec3::splat(reach);
@@ -210,7 +238,17 @@ impl SparseGrid {
                         }
                         None => {
                             let k = kernel(reach);
-                            self.density[i] += k;
+                            if meshing.joined && self.run[i] == index.wrapping_sub(1) {
+                                // a run of joined segments that reach the sample one after another
+                                // is one tube, a path that comes back to it starts a new run
+                                let largest = self.run_k[i].max(k);
+                                self.density[i] += largest - self.run_k[i];
+                                self.run_k[i] = largest;
+                            } else {
+                                self.density[i] += k;
+                                self.run_k[i] = k;
+                            }
+                            self.run[i] = index;
                             k
                         }
                     };
@@ -411,25 +449,19 @@ impl TissueField {
     /// The tissue of the closed segments, closed and blurred on the grid of
     /// `frame` as [`surface_in`] does it. Its balls grow by `scale`, at infinity
     /// it covers everything. `None` when nothing is closed.
-    pub fn new(
-        frame: &Frame,
-        segments: &[Segment],
-        closed: impl Fn(usize) -> bool,
-        priority: impl Fn(usize) -> f32,
-        scale: f32,
-    ) -> Option<TissueField> {
+    pub fn new(frame: &Frame, segments: &[Segment], meshing: &[Meshing], scale: f32) -> Option<TissueField> {
         if !frame.closing {
             return None;
         }
         let mut grid = frame.grid();
-        for (i, s) in segments.iter().enumerate() {
-            if closed(i) {
+        for (i, (s, m)) in segments.iter().zip(meshing).enumerate() {
+            if m.closed {
                 let radius = s.radius.max(frame.min_radius);
                 let c = Closed { radius, reach: frame.closed_reach(radius), strand: false };
-                grid.splat(i as u32, priority(i), s, frame.reach_factor * radius, Some(c));
+                grid.splat(i as u32, m, s, frame.reach_factor * radius, Some(c));
             }
         }
-        frame.guard(&mut grid, segments, &closed);
+        frame.guard(&mut grid, segments, meshing);
         let solid = closing(&grid, frame.close, GUARD * frame.close, SMOOTHING * frame.close);
 
         // the surface lies between a tissue sample and the next one outside, so half a cell above the outer samples
@@ -448,23 +480,17 @@ impl TissueField {
     }
 
     /// [`surface_in`] of the segments the field was made of, without closing them again.
-    /// `closed` and `priority` must be the same as for the field.
-    pub fn surface(
-        self,
-        segments: &[Segment],
-        closed: impl Fn(usize) -> bool,
-        strand: impl Fn(usize) -> bool,
-        priority: impl Fn(usize) -> f32,
-    ) -> SegmentSurface {
+    /// `meshing` must be the same as for the field.
+    pub fn surface(self, segments: &[Segment], meshing: &[Meshing], strand: impl Fn(usize) -> bool) -> SegmentSurface {
         let TissueField { frame, mut grid, solid, .. } = self;
-        for (i, s) in segments.iter().enumerate() {
+        for (i, (s, m)) in segments.iter().zip(meshing).enumerate() {
             let radius = s.radius.max(frame.min_radius);
-            if !closed(i) {
-                grid.splat(i as u32, priority(i), s, frame.reach_factor * radius, None);
+            if !m.closed {
+                grid.splat(i as u32, m, s, frame.reach_factor * radius, None);
             } else if strand(i) {
                 // the tube and the owners are there already, splatting them again changes nothing
                 let c = Closed { radius, reach: frame.closed_reach(radius), strand: true };
-                grid.splat(i as u32, priority(i), s, frame.reach_factor * radius, Some(c));
+                grid.splat(i as u32, m, s, frame.reach_factor * radius, Some(c));
             }
         }
         add_tissue(&mut grid, &solid, frame.threshold);
@@ -613,26 +639,20 @@ pub struct Frame {
 impl Frame {
     /// The grid around `segments`, with `resolution` cells along its longest side, and how
     /// they are meshed on it, see [`surface`]
-    pub fn new(
-        segments: &[Segment],
-        resolution: usize,
-        blend: f32,
-        close: f32,
-        closed: &impl Fn(usize) -> bool,
-    ) -> Option<Frame> {
+    pub fn new(segments: &[Segment], meshing: &[Meshing], resolution: usize, blend: f32, close: f32) -> Option<Frame> {
         if segments.is_empty() {
             return None;
         }
         let reach_factor = blend.max(1.1);
         let threshold = (1.0 - 1.0 / (reach_factor * reach_factor)).powi(3);
         let close = close.max(0.0);
-        let closing = close > 0.0 && (0..segments.len()).any(closed);
+        let closing = close > 0.0 && meshing.iter().any(|m| m.closed);
         let (mut min, mut max) = (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY));
         let mut widest = 0.0f32;
-        for (i, s) in segments.iter().enumerate() {
+        for (s, m) in segments.iter().zip(meshing) {
             min = min.min(s.start.min(s.end));
             max = max.max(s.start.max(s.end));
-            widest = widest.max(if closing && closed(i) { s.radius + close } else { reach_factor * s.radius });
+            widest = widest.max(if closing && m.closed { s.radius + close } else { reach_factor * s.radius });
         }
         let longest = ((max - min) + Vec3::splat(2.0 * widest)).max_element();
         if !longest.is_finite() || longest <= 0.0 {
@@ -663,6 +683,8 @@ impl Frame {
             tube: Vec::new(),
             strand: Vec::new(),
             guard: Vec::new(),
+            run: Vec::new(),
+            run_k: Vec::new(),
         }
     }
 
@@ -672,9 +694,9 @@ impl Frame {
     }
 
     /// Keeps the closing out of the gaps between the segments that aren't closed
-    fn guard(&self, grid: &mut SparseGrid, segments: &[Segment], closed: &impl Fn(usize) -> bool) {
-        for (i, s) in segments.iter().enumerate() {
-            if !closed(i) {
+    fn guard(&self, grid: &mut SparseGrid, segments: &[Segment], meshing: &[Meshing]) {
+        for (s, m) in segments.iter().zip(meshing) {
+            if !m.closed {
                 grid.guard(s, GUARD * self.close + 2.0 * self.cell);
             }
         }
@@ -702,36 +724,38 @@ pub fn surface(
     strand: impl Fn(usize) -> bool,
     priority: impl Fn(usize) -> f32,
 ) -> SegmentSurface {
-    match Frame::new(segments, resolution, blend, close, &closed) {
-        Some(frame) => surface_in(&frame, segments, closed, strand, priority),
+    let meshing: Vec<Meshing> =
+        (0..segments.len()).map(|i| Meshing { closed: closed(i), priority: priority(i), joined: false }).collect();
+    match Frame::new(segments, &meshing, resolution, blend, close) {
+        Some(frame) => surface_in(&frame, segments, &meshing, strand),
         None => SegmentSurface::default(),
     }
 }
 
-/// [`surface`] on the grid of `frame`, which the segments must lie in. Meshes of segments
-/// taken from the same set, on the frame of the whole set, are sampled at the same places.
+/// [`surface`] on the grid of `frame`, which the segments must lie in, every segment meshed as
+/// `meshing` says. Meshes of segments taken from the same set, on the frame of the whole set,
+/// are sampled at the same places.
 pub fn surface_in(
     frame: &Frame,
     segments: &[Segment],
-    closed: impl Fn(usize) -> bool,
+    meshing: &[Meshing],
     strand: impl Fn(usize) -> bool,
-    priority: impl Fn(usize) -> f32,
 ) -> SegmentSurface {
     if segments.is_empty() {
         return SegmentSurface::default();
     }
     let mut grid = frame.grid();
-    for (i, s) in segments.iter().enumerate() {
+    for (i, (s, m)) in segments.iter().zip(meshing).enumerate() {
         let radius = s.radius.max(frame.min_radius);
-        if frame.closing && closed(i) {
+        if frame.closing && m.closed {
             let c = Closed { radius, reach: frame.closed_reach(radius), strand: strand(i) };
-            grid.splat(i as u32, priority(i), s, frame.reach_factor * radius, Some(c));
+            grid.splat(i as u32, m, s, frame.reach_factor * radius, Some(c));
         } else {
-            grid.splat(i as u32, priority(i), s, frame.reach_factor * radius, None);
+            grid.splat(i as u32, m, s, frame.reach_factor * radius, None);
         }
     }
     if frame.closing {
-        frame.guard(&mut grid, segments, &closed);
+        frame.guard(&mut grid, segments, meshing);
         let solid = closing(&grid, frame.close, GUARD * frame.close, SMOOTHING * frame.close);
         add_tissue(&mut grid, &solid, frame.threshold);
     }
@@ -1217,8 +1241,9 @@ mod tests {
             })
             .collect();
         let close = 0.18;
-        let frame = Frame::new(&slab, 96, 3.0, close, &|_| true).unwrap();
-        let field = |scale: f32| TissueField::new(&frame, &slab, |_| true, |_| 1.0, scale).unwrap();
+        let meshing = vec![Meshing { closed: true, ..Meshing::LOOSE }; slab.len()];
+        let frame = Frame::new(&slab, &meshing, 96, 3.0, close).unwrap();
+        let field = |scale: f32| TissueField::new(&frame, &slab, &meshing, scale).unwrap();
         let f = field(1.0);
         assert!(f.has_tissue());
         // the blur rounds the slab out a little past its outer hyphae
@@ -1249,10 +1274,12 @@ mod tests {
         let closed = |i: usize| i < 17;
         let strand = |i: usize| i == 16;
         let priority = |i: usize| if i == 3 { 2.0 } else { 1.0 };
-        let frame = Frame::new(&segments, 64, 3.0, 0.18, &closed).unwrap();
-        let field = TissueField::new(&frame, &segments, closed, priority, 5.0).unwrap();
-        let reused = field.surface(&segments, closed, strand, priority);
-        let fresh = surface_in(&frame, &segments, closed, strand, priority);
+        let meshing: Vec<Meshing> =
+            (0..segments.len()).map(|i| Meshing { closed: closed(i), priority: priority(i), joined: false }).collect();
+        let frame = Frame::new(&segments, &meshing, 64, 3.0, 0.18).unwrap();
+        let field = TissueField::new(&frame, &segments, &meshing, 5.0).unwrap();
+        let reused = field.surface(&segments, &meshing, strand);
+        let fresh = surface_in(&frame, &segments, &meshing, strand);
         assert!(reused.mesh.face_count() > 0);
         assert_eq!(reused, fresh);
     }

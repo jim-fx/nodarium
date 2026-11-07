@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-use crate::density::{surface_in, Frame, Segment, TissueField};
+use crate::density::{surface_in, Frame, Meshing, Segment, TissueField};
 use crate::hyphae::Hyphae;
 use crate::mesh::Mesh;
 use crate::noise::value_noise;
@@ -49,28 +49,29 @@ pub fn hyphae_mesh(hyphae: &Hyphae, params: &HyphaeMeshParams) -> Mesh {
 pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
     let mut segments = Vec::new();
     let mut owner = Vec::new();
+    let mut meshing = Vec::new();
     for (k, path) in paths.iter().enumerate().filter(|(_, p)| !p.is_empty()) {
         let s = path_segments(&path.points);
         owner.extend(std::iter::repeat_n(k, s.len()));
+        let (closed, priority) = (path.style.body, path.style.priority);
+        meshing.extend((0..s.len()).map(|j| Meshing { closed, priority, joined: j > 0 }));
         segments.extend(s);
     }
     let style = |i: usize| paths[owner[i]].style;
-    let body = |i: usize| style(i).body;
-    let priority = |i: usize| style(i).priority;
     let radius = segments.iter().map(|s| s.radius).fold(0.0, f32::max);
-    let Some(frame) = Frame::new(&segments, params.resolution, params.blend, params.fill * radius, &body) else {
+    let Some(frame) = Frame::new(&segments, &meshing, params.resolution, params.blend, params.fill * radius) else {
         return Mesh::default();
     };
     let loose = params.loose_strands.clamp(0.0, 1.0);
     let scale = if loose > 0.0 { 1.0 / loose } else { f32::INFINITY };
-    let field = (loose < 1.0).then(|| TissueField::new(&frame, &segments, body, priority, scale)).flatten();
+    let field = (loose < 1.0).then(|| TissueField::new(&frame, &segments, &meshing, scale)).flatten();
     let mut s = match field {
         Some(field) => {
             let strand = strands(paths, &field, segments.len());
-            field.surface(&segments, body, |i| strand[i], priority)
+            field.surface(&segments, &meshing, |i| strand[i])
         }
         // at 1 every body path keeps its tube wherever it leaves the tissue
-        None => surface_in(&frame, &segments, body, |i| loose >= 1.0 && body(i), priority),
+        None => surface_in(&frame, &segments, &meshing, |i| loose >= 1.0 && meshing[i].closed),
     };
     if s.mesh.vertex_count() == 0 {
         return s.mesh;
@@ -284,7 +285,7 @@ mod tests {
             } else if p.y > 1.12 && radial < 0.5 {
                 assert_eq!(group, Tissue::CapCuticle as u32, "cuticle vertex at {}", p);
                 seen[1] = true;
-            } else if (0.85..0.95).contains(&p.y) && (0.3..0.5).contains(&radial) {
+            } else if (0.9..0.97).contains(&p.y) && (0.3..0.5).contains(&radial) {
                 assert_eq!(group, Tissue::Gill as u32, "gill vertex at {}", p);
                 seen[2] = true;
             } else if (0.55..0.65).contains(&p.y) && radial > 0.12 {
@@ -402,7 +403,7 @@ mod tests {
         let loose = paths_mesh(&mesh_paths(&points, PathStyle::LOOSE), &smooth());
         let inside = (0..loose.vertex_count()).any(|v| {
             let p = vertex(&loose, v);
-            (0.2..0.8).contains(&p.y) && Vec3::new(p.x, 0.0, p.z).length() < 0.12
+            (0.2..0.8).contains(&p.y) && Vec3::new(p.x, 0.0, p.z).length() < 0.14
         });
         assert!(inside, "the gaps between loose paths stay open, their inner side shows");
     }
@@ -452,7 +453,17 @@ mod tests {
         let mesh = hyphae_mesh(&h, &params);
         let style = |i: usize| PathStyle::of_tissue(h.segments[i].tissue);
         let (resolution, blend, close) = (params.resolution, params.blend, params.fill * 0.02);
-        let old = surface(&h.to_segments(), resolution, blend, close, |i| style(i).body, |_| true, |i| style(i).priority);
+        // a segment that continues its parent of the same tissue is joined to it, as in a path
+        let meshing: Vec<Meshing> = (0..h.len())
+            .map(|i| {
+                let s = &h.segments[i];
+                let joined = i > 0 && s.parent == Some(i as u32 - 1) && h.segments[i - 1].tissue == s.tissue;
+                Meshing { closed: style(i).body, priority: style(i).priority, joined }
+            })
+            .collect();
+        let segments = h.to_segments();
+        let frame = Frame::new(&segments, &meshing, resolution, blend, close).unwrap();
+        let old = surface_in(&frame, &segments, &meshing, |_| true);
         let bounds = |m: &Mesh| {
             m.positions.chunks(3).fold((Vec3::INFINITY, Vec3::NEG_INFINITY), |(lo, hi), p| {
                 (lo.min(Vec3::from_slice(p)), hi.max(Vec3::from_slice(p)))
@@ -494,6 +505,47 @@ mod tests {
             .collect();
         paths.extend(more.iter().map(|p| (p.clone(), 2)));
         paths
+    }
+
+    #[test]
+    fn a_loose_path_keeps_its_radius_where_its_segments_meet() {
+        // segments of 2 r: summed, the kernels of neighbouring segments swelled the path to 1.66 r at blend 3
+        let (r, length) = (0.05, 1.0);
+        let path = line(Vec3::ZERO, Vec3::Y * length, 11, r);
+        for blend in [1.5, 2.4, 3.0] {
+            let params = HyphaeMeshParams { resolution: 128, blend, ..smooth() };
+            let mesh = paths_mesh(&mesh_paths(&[(path.clone(), 1)], PathStyle::LOOSE), &params);
+            assert_closed(&mesh);
+            let cell = surface(&path_segments(&path), 128, blend, 0.0, |_| false, |_| false, |_| 1.0).cell;
+            for v in 0..mesh.vertex_count() {
+                let p = vertex(&mesh, v);
+                let d = (p - Vec3::Y * p.y.clamp(0.0, length)).length();
+                assert!((d - r).abs() < 1.4 * cell, "blend {}: vertex {} from the axis of a path of radius {}", blend, d, r);
+            }
+        }
+    }
+
+    #[test]
+    fn a_loose_path_that_comes_back_blends_with_itself() {
+        // up one arm and down the other, closer than blend 3 joins: like two paths, the gap between the arms fills
+        let (r, gap) = (0.03, 0.075);
+        let up = line(Vec3::ZERO, Vec3::Y, 11, r);
+        let down = line(Vec3::new(gap, 1.0, 0.0), Vec3::new(gap, 0.0, 0.0), 11, r);
+        let between = |paths: &[(Vec<f32>, i32)]| {
+            let mesh = paths_mesh(&mesh_paths(paths, PathStyle::LOOSE), &smooth());
+            assert_closed(&mesh);
+            (0..mesh.vertex_count())
+                .map(|v| vertex(&mesh, v))
+                .filter(|p| (0.3..0.7).contains(&p.y) && (p.x - 0.5 * gap).abs() < 0.25 * gap && p.z.abs() < 0.5 * r)
+                .count()
+        };
+        assert_eq!(between(&[(up.clone(), 1), (down.clone(), 1)]), 0, "two paths");
+        assert_eq!(between(&[([up, down].concat(), 1)]), 0, "one path");
+        // too far apart for blend 3, the arms stay apart
+        let far = line(Vec3::new(4.0 * r, 1.0, 0.0), Vec3::new(4.0 * r, 0.0, 0.0), 11, r);
+        let apart = paths_mesh(&mesh_paths(&[([line(Vec3::ZERO, Vec3::Y, 11, r), far].concat(), 1)], PathStyle::LOOSE), &smooth());
+        let inner = |p: Vec3| (0.3..0.7).contains(&p.y) && (0.5 * r..3.5 * r).contains(&p.x) && p.z.abs() < 0.5 * r;
+        assert!((0..apart.vertex_count()).map(|v| vertex(&apart, v)).any(inner), "the inner sides of the arms show");
     }
 
     fn scaled(paths: &[(Vec<f32>, i32)], k: f32) -> Vec<(Vec<f32>, i32)> {
