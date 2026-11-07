@@ -24,16 +24,16 @@ const SMOOTHING: f32 = 0.75;
 /// inside, below a half so the blur doesn't shrink the tissue below its outer hyphae
 const SURFACE_SHARE: f32 = 0.3;
 
-/// Hyphae of a tissue that reach this many closing radii out of it stay as strands
-const STRAND_REACH: f32 = 3.0;
-
 /// How much a closed segment counts for the owner of a sample past its kernel
 const FILL_OWNER_WEIGHT: f32 = 1e-3;
+
 
 #[derive(Clone, Copy)]
 struct Closed {
     radius: f32,
     reach: f32,
+    /// The segment keeps its own tube where it leaves the tissue
+    strand: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -56,6 +56,8 @@ struct SparseGrid {
     owner_k: Vec<f32>,
     /// Signed distance to the nearest tube of the closed segments
     tube: Vec<f32>,
+    /// Signed distance to the nearest tube of the closed segments that are strands
+    strand: Vec<f32>,
     /// Distance to the nearest axis of the other segments, the closing keeps away from them
     guard: Vec<f32>,
 }
@@ -81,6 +83,7 @@ impl SparseGrid {
                         self.owner.resize(self.density.len(), EMPTY);
                         self.owner_k.resize(self.density.len(), 0.0);
                         self.tube.resize(self.density.len(), f32::INFINITY);
+                        self.strand.resize(self.density.len(), f32::INFINITY);
                         self.guard.resize(self.density.len(), f32::INFINITY);
                     }
                 }
@@ -194,7 +197,11 @@ impl SparseGrid {
                     };
                     let k = match closed {
                         Some(c) => {
-                            self.tube[i] = self.tube[i].min(d_sq.sqrt() - c.radius);
+                            let tube = d_sq.sqrt() - c.radius;
+                            self.tube[i] = self.tube[i].min(tube);
+                            if c.strand {
+                                self.strand[i] = self.strand[i].min(tube);
+                            }
                             if d_sq < kernel_reach * kernel_reach {
                                 kernel(kernel_reach)
                             } else {
@@ -285,14 +292,14 @@ fn distance_transform(d: &mut [f32], feature: &mut [u32], samples: [usize; 3]) {
 }
 
 /// Morphological closing of the tubes of the closed segments with a ball of
-/// radius `rho`, blurred by `sigma` and added to the density so that its
-/// surface lies at `threshold`.
+/// radius `rho`, blurred by `sigma`: per sample its share of tissue, the
+/// surface of the tissue is where it reaches [`SURFACE_SHARE`].
 ///
 /// Outside the closing are the points within `rho` of a point whose distance
 /// to the tubes is more than `rho`, so an empty ball of radius `rho` fits
 /// around them. Gaps the ball can't pass through fill, while convex parts keep
 /// their size. The closing stays `guard` away from the axes of the other segments.
-fn close_tubes(grid: &mut SparseGrid, rho: f32, guard: f32, sigma: f32, threshold: f32) {
+fn closing(grid: &SparseGrid, rho: f32, guard: f32, sigma: f32) -> Vec<f32> {
     let [nx, ny, nz] = grid.samples;
     let n = nx * ny * nz;
     let tube_at = |grid: &SparseGrid, i: usize| grid.index([i % nx, i / nx % ny, i / (nx * ny)]).map(|s| grid.tube[s]);
@@ -336,72 +343,202 @@ fn close_tubes(grid: &mut SparseGrid, rho: f32, guard: f32, sigma: f32, threshol
         solid[i] = closing.max(0.5 - 0.5 * tube).clamp(0.0, 1.0);
     }
     blur(&mut solid, grid.samples, sigma / grid.cell);
+    solid
+}
 
-    let strands = strands(grid, &solid, STRAND_REACH * rho);
-    for i in 0..n {
+/// Adds the closed tissue to the density so that its surface lies at `threshold`.
+///
+/// The blur wears away thin parts and absorbs the hyphae that stand out of the
+/// tissue. Only the strand segments keep their own tube outside it, which ones
+/// are strands is decided before, see [`TissueField`]. Other stubs, such as a
+/// tip that ends just outside the tissue or a hypha lying on it, would show as
+/// dots and dashes on a smooth surface.
+fn add_tissue(grid: &mut SparseGrid, solid: &[f32], threshold: f32) {
+    let [nx, ny, _] = grid.samples;
+    for (i, &v) in solid.iter().enumerate() {
         if let Some(slot) = grid.index([i % nx, i / nx % ny, i / (nx * ny)]) {
-            let mut share = solid[i] / SURFACE_SHARE;
-            if strands[i] {
-                share = share.max(2.0 * (0.5 - 0.5 * grid.tube[slot] / grid.cell).clamp(0.0, 1.0));
+            let mut share = v / SURFACE_SHARE;
+            if v < SURFACE_SHARE {
+                share = share.max(2.0 * (0.5 - 0.5 * grid.strand[slot] / grid.cell).clamp(0.0, 1.0));
             }
             grid.density[slot] += threshold * share;
         }
     }
 }
 
-/// The blur wears away thin parts, so the hyphae there stay as they are. Of the
-/// hyphae outside the blurred tissue only those reaching more than `reach` away
-/// from it are kept, as whole strands: a stipe too thin for the blur or a strand
-/// leaving the tissue. Shorter stubs, such as a tip that ends just outside the
-/// tissue or a hypha lying on it, would show as dots and dashes on a smooth surface.
-fn strands(grid: &SparseGrid, solid: &[f32], reach: f32) -> Vec<bool> {
-    let [nx, ny, nz] = grid.samples;
-    let n = solid.len();
-    let near_tube = |i: usize| {
-        grid.index([i % nx, i / nx % ny, i / (nx * ny)]).is_some_and(|s| grid.tube[s] < grid.cell)
-    };
-    let candidate: Vec<bool> = (0..n).map(|i| solid[i] < SURFACE_SHARE && near_tube(i)).collect();
-    let mut keep = vec![false; n];
-    if !candidate.contains(&true) {
-        return keep;
-    }
+/// The union of balls around samples, every one grown by `scale`, as the lower
+/// envelope of parabolas (Felzenszwalb, Huttenlocher): a ball of radius `R`
+/// around `x` is where `|q - x|² - (scale R)² <= 0`. `radius` is in cells, a
+/// sample without a ball has radius 0.
+///
+/// Per sample it gives the smallest `|q - x|² - (scale R(x))²` of all balls, at
+/// most 0 inside their union, and the centre `x` of that ball. Growing only the
+/// medial balls gives the same union as growing all of them, since a ball inside
+/// another stays inside it when both grow, so no medial axis is needed.
+fn grown_balls(radius: &[f32], samples: [usize; 3], scale: f32) -> (Vec<f32>, Vec<u32>) {
+    let mut power: Vec<f32> =
+        radius.iter().map(|&r| if r > 0.0 { -(scale * r) * (scale * r) } else { f32::INFINITY }).collect();
+    let mut centre: Vec<u32> = (0..radius.len()).map(|i| if radius[i] > 0.0 { i as u32 } else { EMPTY }).collect();
+    distance_transform(&mut power, &mut centre, samples);
+    (power, centre)
+}
 
-    let mut d = vec![f32::INFINITY; n];
-    let mut feature = vec![EMPTY; n];
-    for i in 0..n {
-        if solid[i] >= SURFACE_SHARE {
-            d[i] = 0.0;
+/// The tissue the closed segments form, and whether a strand leaving it is a
+/// small feature next to a large one.
+///
+/// This is the scale axis rule (Miklos, Giesen, Pauly 2010, "Discrete scale axis
+/// representations for 3D geometry"): every ball inside the tissue grows by
+/// `scale`. A strand the grown tissue covers is absorbed, one it doesn't cover
+/// is a free strand. A strand standing `h` out of tissue whose inner ball there
+/// has radius `R` is absorbed while `h < (scale - 1) R`, so a thick stipe absorbs
+/// longer strays than a thin cap margin, and a thin bundle far from any tissue
+/// stays. Nothing depends on the size of the scene.
+pub struct TissueField {
+    frame: Frame,
+    /// The closed segments on the grid of the frame, the start of a mesh of the same segments
+    grid: SparseGrid,
+    /// Share of tissue per sample, the surface lies at [`SURFACE_SHARE`]
+    solid: Vec<f32>,
+    /// Per sample how deep it lies in the tissue, the radius of its ball
+    depth: Vec<f32>,
+    /// Per sample the centre of the grown ball that covers it best, `EMPTY` where no ball is
+    centre: Vec<u32>,
+    scale: f32,
+    any: bool,
+}
+
+impl TissueField {
+    /// The tissue of the closed segments, closed and blurred on the grid of
+    /// `frame` as [`surface_in`] does it. Its balls grow by `scale`, at infinity
+    /// it covers everything. `None` when nothing is closed.
+    pub fn new(
+        frame: &Frame,
+        segments: &[Segment],
+        closed: impl Fn(usize) -> bool,
+        priority: impl Fn(usize) -> f32,
+        scale: f32,
+    ) -> Option<TissueField> {
+        if !frame.closing {
+            return None;
         }
-    }
-    distance_transform(&mut d, &mut feature, grid.samples);
-    let reach_sq = (reach / grid.cell).powi(2);
-
-    // breadth first from the far samples back to the tissue, a strand leaving it is about `reach` long until it is far
-    let steps = (reach / grid.cell).ceil() as usize + 2;
-    let mut front: Vec<usize> = (0..n).filter(|&i| candidate[i] && d[i] > reach_sq).collect();
-    for &i in &front {
-        keep[i] = true;
-    }
-    let mut next = Vec::new();
-    for _ in 0..steps {
-        for &i in &front {
-            let (x, y, z) = (i % nx, i / nx % ny, i / (nx * ny));
-            for dz in z.saturating_sub(1)..=(z + 1).min(nz - 1) {
-                for dy in y.saturating_sub(1)..=(y + 1).min(ny - 1) {
-                    for dx in x.saturating_sub(1)..=(x + 1).min(nx - 1) {
-                        let j = dx + nx * (dy + ny * dz);
-                        if candidate[j] && !keep[j] {
-                            keep[j] = true;
-                            next.push(j);
-                        }
-                    }
-                }
+        let mut grid = frame.grid();
+        for (i, s) in segments.iter().enumerate() {
+            if closed(i) {
+                let radius = s.radius.max(frame.min_radius);
+                let c = Closed { radius, reach: frame.closed_reach(radius), strand: false };
+                grid.splat(i as u32, priority(i), s, frame.reach_factor * radius, Some(c));
             }
         }
-        std::mem::swap(&mut front, &mut next);
-        next.clear();
+        frame.guard(&mut grid, segments, &closed);
+        let solid = closing(&grid, frame.close, GUARD * frame.close, SMOOTHING * frame.close);
+
+        // the surface lies between a tissue sample and the next one outside, so half a cell above the outer samples
+        let n = solid.len();
+        let mut depth: Vec<f32> = solid.iter().map(|&v| if v < SURFACE_SHARE { 0.0 } else { f32::INFINITY }).collect();
+        distance_transform(&mut depth, &mut vec![EMPTY; n], grid.samples);
+        for d in &mut depth {
+            *d = if *d > 0.0 && d.is_finite() { d.sqrt() - 0.5 } else { 0.0 };
+        }
+        let any = depth.iter().any(|&d| d > 0.0);
+        let centre = if any && scale.is_finite() { grown_balls(&depth, grid.samples, scale.max(1.0)).1 } else { Vec::new() };
+        for d in &mut depth {
+            *d *= grid.cell;
+        }
+        Some(TissueField { frame: frame.clone(), grid, solid, depth, centre, scale, any })
     }
-    keep
+
+    /// [`surface_in`] of the segments the field was made of, without closing them again.
+    /// `closed` and `priority` must be the same as for the field.
+    pub fn surface(
+        self,
+        segments: &[Segment],
+        closed: impl Fn(usize) -> bool,
+        strand: impl Fn(usize) -> bool,
+        priority: impl Fn(usize) -> f32,
+    ) -> SegmentSurface {
+        let TissueField { frame, mut grid, solid, .. } = self;
+        for (i, s) in segments.iter().enumerate() {
+            let radius = s.radius.max(frame.min_radius);
+            if !closed(i) {
+                grid.splat(i as u32, priority(i), s, frame.reach_factor * radius, None);
+            } else if strand(i) {
+                // the tube and the owners are there already, splatting them again changes nothing
+                let c = Closed { radius, reach: frame.closed_reach(radius), strand: true };
+                grid.splat(i as u32, priority(i), s, frame.reach_factor * radius, Some(c));
+            }
+        }
+        add_tissue(&mut grid, &solid, frame.threshold);
+        extract(&grid, &frame)
+    }
+
+    /// Whether there is any tissue at all
+    pub fn has_tissue(&self) -> bool {
+        self.any
+    }
+
+    fn index(&self, p: [usize; 3]) -> usize {
+        p[0] + self.frame.samples[0] * (p[1] + self.frame.samples[1] * p[2])
+    }
+
+    /// The sample below `p` and where `p` lies in the cell above it
+    fn cell_of(&self, p: Vec3) -> ([usize; 3], Vec3) {
+        let u = (p - self.frame.origin) / self.frame.cell;
+        let base = [0, 1, 2].map(|a| (u[a].floor().max(0.0) as usize).min(self.frame.samples[a] - 2));
+        (base, (u - Vec3::from(base.map(|v| v as f32))).clamp(Vec3::ZERO, Vec3::ONE))
+    }
+
+    fn share(&self, p: Vec3) -> f32 {
+        let (base, f) = self.cell_of(p);
+        CORNERS
+            .iter()
+            .map(|o| {
+                let w = [0, 1, 2].map(|a| if o[a] == 1 { f[a] } else { 1.0 - f[a] });
+                w[0] * w[1] * w[2] * self.solid[self.index([base[0] + o[0], base[1] + o[1], base[2] + o[2]])]
+            })
+            .sum()
+    }
+
+    /// Whether `p` lies in the tissue
+    pub fn inside(&self, p: Vec3) -> bool {
+        self.share(p) >= SURFACE_SHARE
+    }
+
+    /// Where the line from `inside` to `outside` crosses the surface, as a share of the way
+    pub fn crossing(&self, inside: Vec3, outside: Vec3) -> f32 {
+        let (mut lo, mut hi) = (0.0, 1.0);
+        for _ in 0..8 {
+            let mid = 0.5 * (lo + hi);
+            if self.inside(inside.lerp(outside, mid)) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        0.5 * (lo + hi)
+    }
+
+    /// Whether the grown tissue covers the ball of `radius` around `p`, grown as
+    /// well: a strand there is a small feature next to the tissue
+    pub fn covers(&self, p: Vec3, radius: f32) -> bool {
+        if !self.scale.is_finite() {
+            return self.any;
+        }
+        if self.centre.is_empty() {
+            return false;
+        }
+        let [nx, ny, _] = self.frame.samples;
+        let (base, _) = self.cell_of(p);
+        CORNERS.iter().any(|o| {
+            let c = self.centre[self.index([base[0] + o[0], base[1] + o[1], base[2] + o[2]])];
+            if c == EMPTY {
+                return false;
+            }
+            let c = c as usize;
+            let at = self.frame.origin
+                + Vec3::new((c % nx) as f32, (c / nx % ny) as f32, (c / (nx * ny)) as f32) * self.frame.cell;
+            p.distance(at) + self.scale * radius <= self.scale * self.depth[c]
+        })
+    }
 }
 
 /// Separable gaussian blur of a dense grid, `sigma` in samples
@@ -444,7 +581,7 @@ fn blur(values: &mut [f32], samples: [usize; 3], sigma: f32) {
 /// than that join into one surface. The threshold is chosen so that a lone
 /// segment's surface still sits at its radius, whatever `blend` is.
 pub fn mesh_segments(segments: &[Segment], resolution: usize, blend: f32) -> Mesh {
-    surface(segments, resolution, blend, 0.0, |_| false, |_| 1.0).mesh
+    surface(segments, resolution, blend, 0.0, |_| false, |_| false, |_| 1.0).mesh
 }
 
 /// A mesh from [`surface`] with what each vertex was made of
@@ -457,6 +594,93 @@ pub struct SegmentSurface {
     pub cell: f32,
 }
 
+/// The grid segments are meshed on, see [`Frame::new`]
+#[derive(Clone, Debug, PartialEq)]
+pub struct Frame {
+    reach_factor: f32,
+    /// Density of the surface
+    threshold: f32,
+    /// Radius of the closing
+    close: f32,
+    /// Whether any segment is closed into a tissue
+    closing: bool,
+    cell: f32,
+    min_radius: f32,
+    origin: Vec3,
+    samples: [usize; 3],
+}
+
+impl Frame {
+    /// The grid around `segments`, with `resolution` cells along its longest side, and how
+    /// they are meshed on it, see [`surface`]
+    pub fn new(
+        segments: &[Segment],
+        resolution: usize,
+        blend: f32,
+        close: f32,
+        closed: &impl Fn(usize) -> bool,
+    ) -> Option<Frame> {
+        if segments.is_empty() {
+            return None;
+        }
+        let reach_factor = blend.max(1.1);
+        let threshold = (1.0 - 1.0 / (reach_factor * reach_factor)).powi(3);
+        let close = close.max(0.0);
+        let closing = close > 0.0 && (0..segments.len()).any(closed);
+        let (mut min, mut max) = (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY));
+        let mut widest = 0.0f32;
+        for (i, s) in segments.iter().enumerate() {
+            min = min.min(s.start.min(s.end));
+            max = max.max(s.start.max(s.end));
+            widest = widest.max(if closing && closed(i) { s.radius + close } else { reach_factor * s.radius });
+        }
+        let longest = ((max - min) + Vec3::splat(2.0 * widest)).max_element();
+        if !longest.is_finite() || longest <= 0.0 {
+            return None;
+        }
+        let cell = longest / resolution.max(2) as f32;
+        let min_radius = MIN_RADIUS_IN_CELLS * cell;
+
+        // two cells of empty padding keep the surface closed
+        let pad = widest.max(reach_factor * min_radius) + 4.0 * cell;
+        let origin = min - Vec3::splat(pad);
+        let size = max - min + Vec3::splat(2.0 * pad);
+        let samples = [0, 1, 2].map(|a| (size[a] / cell).ceil() as usize + 1);
+        Some(Frame { reach_factor, threshold, close, closing, cell, min_radius, origin, samples })
+    }
+
+    fn grid(&self) -> SparseGrid {
+        let blocks = self.samples.map(|s| s.div_ceil(BLOCK));
+        SparseGrid {
+            origin: self.origin,
+            cell: self.cell,
+            samples: self.samples,
+            blocks,
+            block_slots: vec![EMPTY; blocks[0] * blocks[1] * blocks[2]],
+            density: Vec::new(),
+            owner: Vec::new(),
+            owner_k: Vec::new(),
+            tube: Vec::new(),
+            strand: Vec::new(),
+            guard: Vec::new(),
+        }
+    }
+
+    /// A closed segment reaches a little past the closing, so every sample near the closed surface knows its distance
+    fn closed_reach(&self, radius: f32) -> f32 {
+        radius + self.close + 2.0 * self.cell
+    }
+
+    /// Keeps the closing out of the gaps between the segments that aren't closed
+    fn guard(&self, grid: &mut SparseGrid, segments: &[Segment], closed: &impl Fn(usize) -> bool) {
+        for (i, s) in segments.iter().enumerate() {
+            if !closed(i) {
+                grid.guard(s, GUARD * self.close + 2.0 * self.cell);
+            }
+        }
+    }
+}
+
 /// [`mesh_segments`] that also tells which segment every vertex belongs to.
 /// A segment owns a vertex where its kernel times `priority(index)` is the largest.
 ///
@@ -466,74 +690,57 @@ pub struct SegmentSurface {
 /// through fill, while convex parts and wider gaps stay about as they are, so
 /// a loose bundle of segments gets one smooth surface without swelling where
 /// it is dense. The closing keeps out of the gaps between the other segments.
+///
+/// The closed segments for which `strand(index)` holds keep their own tube
+/// where they leave the tissue, of the others only the tissue shows.
 pub fn surface(
     segments: &[Segment],
     resolution: usize,
     blend: f32,
     close: f32,
     closed: impl Fn(usize) -> bool,
+    strand: impl Fn(usize) -> bool,
+    priority: impl Fn(usize) -> f32,
+) -> SegmentSurface {
+    match Frame::new(segments, resolution, blend, close, &closed) {
+        Some(frame) => surface_in(&frame, segments, closed, strand, priority),
+        None => SegmentSurface::default(),
+    }
+}
+
+/// [`surface`] on the grid of `frame`, which the segments must lie in. Meshes of segments
+/// taken from the same set, on the frame of the whole set, are sampled at the same places.
+pub fn surface_in(
+    frame: &Frame,
+    segments: &[Segment],
+    closed: impl Fn(usize) -> bool,
+    strand: impl Fn(usize) -> bool,
     priority: impl Fn(usize) -> f32,
 ) -> SegmentSurface {
     if segments.is_empty() {
         return SegmentSurface::default();
     }
-    let reach_factor = blend.max(1.1);
-    let threshold = (1.0 - 1.0 / (reach_factor * reach_factor)).powi(3);
-    let close = close.max(0.0);
-    let closing = close > 0.0 && (0..segments.len()).any(&closed);
-    let is_closed = |i: usize| closing && closed(i);
-    let (mut min, mut max) = (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY));
-    let mut widest = 0.0f32;
+    let mut grid = frame.grid();
     for (i, s) in segments.iter().enumerate() {
-        min = min.min(s.start.min(s.end));
-        max = max.max(s.start.max(s.end));
-        widest = widest.max(if is_closed(i) { s.radius + close } else { reach_factor * s.radius });
-    }
-    let longest = ((max - min) + Vec3::splat(2.0 * widest)).max_element();
-    if !longest.is_finite() || longest <= 0.0 {
-        return SegmentSurface::default();
-    }
-    let cell = longest / resolution.max(2) as f32;
-    let min_radius = MIN_RADIUS_IN_CELLS * cell;
-
-    // two cells of empty padding keep the surface closed
-    // a closed segment reaches a little past `close`, so every sample near the closed surface knows its distance
-    let closed_reach = |radius: f32| radius + close + 2.0 * cell;
-    let pad = widest.max(reach_factor * min_radius) + 4.0 * cell;
-    let origin = min - Vec3::splat(pad);
-    let size = max - min + Vec3::splat(2.0 * pad);
-    let samples = [0, 1, 2].map(|a| (size[a] / cell).ceil() as usize + 1);
-    let blocks = samples.map(|s| s.div_ceil(BLOCK));
-    let mut grid = SparseGrid {
-        origin,
-        cell,
-        samples,
-        blocks,
-        block_slots: vec![EMPTY; blocks[0] * blocks[1] * blocks[2]],
-        density: Vec::new(),
-        owner: Vec::new(),
-        owner_k: Vec::new(),
-        tube: Vec::new(),
-        guard: Vec::new(),
-    };
-    for (i, s) in segments.iter().enumerate() {
-        let radius = s.radius.max(min_radius);
-        if is_closed(i) {
-            let closed = Closed { radius, reach: closed_reach(radius) };
-            grid.splat(i as u32, priority(i), s, reach_factor * radius, Some(closed));
+        let radius = s.radius.max(frame.min_radius);
+        if frame.closing && closed(i) {
+            let c = Closed { radius, reach: frame.closed_reach(radius), strand: strand(i) };
+            grid.splat(i as u32, priority(i), s, frame.reach_factor * radius, Some(c));
         } else {
-            grid.splat(i as u32, priority(i), s, reach_factor * radius, None);
+            grid.splat(i as u32, priority(i), s, frame.reach_factor * radius, None);
         }
     }
-    if closing {
-        let guard = GUARD * close;
-        for (i, s) in segments.iter().enumerate() {
-            if !is_closed(i) {
-                grid.guard(s, guard + 2.0 * cell);
-            }
-        }
-        close_tubes(&mut grid, close, guard, SMOOTHING * close, threshold);
+    if frame.closing {
+        frame.guard(&mut grid, segments, &closed);
+        let solid = closing(&grid, frame.close, GUARD * frame.close, SMOOTHING * frame.close);
+        add_tissue(&mut grid, &solid, frame.threshold);
     }
+    extract(&grid, frame)
+}
+
+/// Surface Nets on the density of the grid
+fn extract(grid: &SparseGrid, frame: &Frame) -> SegmentSurface {
+    let (threshold, cell, samples, blocks) = (frame.threshold, frame.cell, grid.samples, grid.blocks);
 
     let mut mesh = Mesh::default();
     let mut owners = Vec::new();
@@ -627,7 +834,7 @@ pub fn surface(
                     let mut c = p;
                     c[u] = p[u] - 1 + du;
                     c[v] = p[v] - 1 + dv;
-                    cell_of(&grid, c).map(|i| vertex_of_cell[i]).filter(|&i| i != EMPTY)
+                    cell_of(grid, c).map(|i| vertex_of_cell[i]).filter(|&i| i != EMPTY)
                 };
                 let (Some(a), Some(b), Some(c), Some(d)) = (corner(0, 0), corner(1, 0), corner(1, 1), corner(0, 1))
                 else {
@@ -664,6 +871,27 @@ pub(crate) fn assert_closed(mesh: &Mesh) {
     }
 }
 
+/// The number of separate pieces of a mesh
+#[cfg(test)]
+pub(crate) fn components(mesh: &Mesh) -> usize {
+    let mut parent: Vec<usize> = (0..mesh.vertex_count()).collect();
+    fn find(parent: &mut [usize], i: usize) -> usize {
+        let mut i = i;
+        while parent[i] != i {
+            parent[i] = parent[parent[i]];
+            i = parent[i];
+        }
+        i
+    }
+    for f in mesh.faces.chunks_exact(3) {
+        for (a, b) in [(f[0], f[1]), (f[1], f[2])] {
+            let (ra, rb) = (find(&mut parent, a as usize), find(&mut parent, b as usize));
+            parent[ra] = rb;
+        }
+    }
+    (0..parent.len()).filter(|&i| find(&mut parent, i) == i).count()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -684,24 +912,6 @@ mod tests {
             .sum()
     }
 
-    fn components(mesh: &Mesh) -> usize {
-        let mut parent: Vec<usize> = (0..mesh.vertex_count()).collect();
-        fn find(parent: &mut [usize], i: usize) -> usize {
-            let mut i = i;
-            while parent[i] != i {
-                parent[i] = parent[parent[i]];
-                i = parent[i];
-            }
-            i
-        }
-        for f in mesh.faces.chunks_exact(3) {
-            for (a, b) in [(f[0], f[1]), (f[1], f[2])] {
-                let (ra, rb) = (find(&mut parent, a as usize), find(&mut parent, b as usize));
-                parent[ra] = rb;
-            }
-        }
-        (0..parent.len()).filter(|&i| find(&mut parent, i) == i).count()
-    }
 
     #[test]
     fn a_lone_segment_keeps_its_radius() {
@@ -793,7 +1003,7 @@ mod tests {
     #[test]
     fn every_vertex_belongs_to_the_nearest_segment() {
         let pair = [segment(Vec3::ZERO, Vec3::Y, 0.05), segment(Vec3::X * 0.5, Vec3::new(0.5, 1.0, 0.0), 0.05)];
-        let s = surface(&pair, 48, 2.0, 0.0, |_| false, |_| 1.0);
+        let s = surface(&pair, 48, 2.0, 0.0, |_| false, |_| false, |_| 1.0);
         assert_eq!(s.owners.len(), s.mesh.vertex_count());
         for (i, &owner) in s.owners.iter().enumerate() {
             assert_eq!(owner, (vertex(&s.mesh, i as u32).x > 0.25) as u32);
@@ -803,15 +1013,20 @@ mod tests {
     #[test]
     fn priority_lets_a_segment_win_where_both_reach() {
         let pair = [segment(Vec3::ZERO, Vec3::Y, 0.05), segment(Vec3::X * 0.12, Vec3::new(0.12, 1.0, 0.0), 0.05)];
-        let even = surface(&pair, 48, 3.0, 0.0, |_| false, |_| 1.0);
-        let first = surface(&pair, 48, 3.0, 0.0, |_| false, |i| if i == 0 { 4.0 } else { 1.0 });
+        let even = surface(&pair, 48, 3.0, 0.0, |_| false, |_| false, |_| 1.0);
+        let first = surface(&pair, 48, 3.0, 0.0, |_| false, |_| false, |i| if i == 0 { 4.0 } else { 1.0 });
         let count = |s: &SegmentSurface| s.owners.iter().filter(|&&o| o == 0).count();
         assert_eq!(even.mesh, first.mesh);
         assert!(count(&first) > count(&even));
     }
 
     fn closed_surface(segments: &[Segment], close: f32, closed: impl Fn(usize) -> bool) -> SegmentSurface {
-        surface(segments, 64, 3.0, close, closed, |_| 1.0)
+        surface(segments, 64, 3.0, close, closed, |_| false, |_| 1.0)
+    }
+
+    /// Every segment closed into one tissue, those for which `strand` holds keep their tube out of it
+    fn strand_surface(segments: &[Segment], close: f32, strand: impl Fn(usize) -> bool) -> SegmentSurface {
+        surface(segments, 64, 3.0, close, |_| true, strand, |_| 1.0)
     }
 
     #[test]
@@ -838,8 +1053,9 @@ mod tests {
 
     #[test]
     fn closing_leaves_wider_gaps_open() {
+        // thinner than the blur, they only show as strands
         let pair = [segment(Vec3::ZERO, Vec3::Y, 0.03), segment(Vec3::X * 0.5, Vec3::new(0.5, 1.0, 0.0), 0.03)];
-        let closed = closed_surface(&pair, 0.2, |_| true);
+        let closed = strand_surface(&pair, 0.2, |_| true);
         assert_closed(&closed.mesh);
         assert_eq!(components(&closed.mesh), 2);
     }
@@ -924,19 +1140,22 @@ mod tests {
     }
 
     #[test]
-    fn a_strand_leaving_the_tissue_stays() {
+    fn a_strand_keeps_its_tube_out_of_the_tissue() {
         let (r, close) = (0.03, 0.18);
         let mut segments = body();
         let rim = segments[0].end;
         segments.push(segment(rim, rim + Vec3::Y * 4.0 * close, r));
-        let s = closed_surface(&segments, close, |_| true);
-        assert_closed(&s.mesh);
-        assert_eq!(components(&s.mesh), 1);
-        assert!(highest(&s) > 1.0 + 4.0 * close + 0.5 * r, "strand ends at {}", highest(&s));
+        let strand = strand_surface(&segments, close, |i| i == 16);
+        assert_closed(&strand.mesh);
+        assert_eq!(components(&strand.mesh), 1);
+        assert!(highest(&strand) > 1.0 + 4.0 * close + 0.5 * r, "strand ends at {}", highest(&strand));
+        // not a strand, the tissue absorbs it
+        let absorbed = strand_surface(&segments, close, |_| false);
+        assert!(highest(&absorbed) < 1.0 + close, "absorbed strand ends at {}", highest(&absorbed));
     }
 
     #[test]
-    fn a_thin_closed_bundle_does_not_vanish() {
+    fn a_thin_strand_bundle_does_not_vanish() {
         // narrower than the blur, it stays as its hyphae
         let r = 0.02;
         let bundle: Vec<Segment> = (0..4)
@@ -946,11 +1165,96 @@ mod tests {
                 segment(at, at + Vec3::Y, r)
             })
             .collect();
-        let s = closed_surface(&bundle, 0.3, |_| true);
+        let s = strand_surface(&bundle, 0.3, |_| true);
         assert_closed(&s.mesh);
         assert!(highest(&s) > 1.0, "bundle ends at {}", highest(&s));
         let lowest = (0..s.mesh.vertex_count()).map(|v| vertex(&s.mesh, v as u32).y).fold(f32::INFINITY, f32::min);
         assert!(lowest < 0.0, "bundle starts at {}", lowest);
+    }
+
+    /// A small deterministic random number in 0..1
+    fn random(i: u32) -> f32 {
+        let mut x = i.wrapping_mul(0x9E37_79B9) ^ 0x85EB_CA6B;
+        x ^= x >> 15;
+        x = x.wrapping_mul(0x2C1B_3C6D);
+        x ^= x >> 12;
+        (x & 0xFF_FFFF) as f32 / 0x100_0000 as f32
+    }
+
+    #[test]
+    fn grown_balls_are_their_union() {
+        let samples = [23, 17, 19];
+        let n = samples[0] * samples[1] * samples[2];
+        let at = |i: usize| Vec3::new((i % 23) as f32, (i / 23 % 17) as f32, (i / (23 * 17)) as f32);
+        for (round, scale) in [1.0, 1.7, 4.0].into_iter().enumerate() {
+            let mut radius = vec![0.0; n];
+            for k in 0..12 {
+                let i = (random(round as u32 * 100 + k) * n as f32) as usize % n;
+                radius[i] = 0.3 + 2.7 * random(round as u32 * 100 + 50 + k);
+            }
+            let (power, centre) = grown_balls(&radius, samples, scale);
+            for q in 0..n {
+                let brute = (0..n)
+                    .filter(|&x| radius[x] > 0.0)
+                    .map(|x| at(q).distance_squared(at(x)) - (scale * radius[x]).powi(2))
+                    .fold(f32::INFINITY, f32::min);
+                assert!((power[q] - brute).abs() < 1e-3, "sample {} at scale {}: {} vs {}", q, scale, power[q], brute);
+                let x = centre[q] as usize;
+                assert!((at(q).distance_squared(at(x)) - (scale * radius[x]).powi(2) - brute).abs() < 1e-3);
+            }
+        }
+    }
+
+    #[test]
+    fn grown_tissue_covers_a_strand_by_the_thickness_next_to_it() {
+        // a slab 0.4 thick, its inner balls have radius 0.2
+        let slab: Vec<Segment> = (0..21)
+            .flat_map(|i| {
+                (0..9).map(move |j| {
+                    let (x, y) = (i as f32 * 0.05 - 0.5, j as f32 * 0.05 - 0.2);
+                    segment(Vec3::new(x, y, -0.5), Vec3::new(x, y, 0.5), 0.03)
+                })
+            })
+            .collect();
+        let close = 0.18;
+        let frame = Frame::new(&slab, 96, 3.0, close, &|_| true).unwrap();
+        let field = |scale: f32| TissueField::new(&frame, &slab, |_| true, |_| 1.0, scale).unwrap();
+        let f = field(1.0);
+        assert!(f.has_tissue());
+        // the blur rounds the slab out a little past its outer hyphae
+        let top = f.crossing(Vec3::ZERO, Vec3::Y);
+        assert!((0.23..0.23 + SMOOTHING * close).contains(&top), "surface at {}", top);
+        assert!(f.inside(Vec3::Y * (top - 0.02)) && !f.inside(Vec3::Y * (top + 0.02)));
+        // the slab is symmetric, its middle ball reaches the surface
+        let at = |h: f32| Vec3::new(0.0, top + h, 0.0);
+        // at scale 1 nothing outside is covered, at 3 up to (3 - 1) R above the surface, less 3 times the strand radius
+        assert!(!f.covers(at(0.03), 0.0));
+        let f = field(3.0);
+        assert!(f.covers(at(0.2), 0.0) && f.covers(at(2.0 * top - 0.08), 0.0));
+        assert!(!f.covers(at(2.0 * top + 0.08), 0.0));
+        assert!(f.covers(at(2.0 * top - 0.3), 0.06) && !f.covers(at(2.0 * top - 0.1), 0.06));
+        // at infinity everything is covered
+        assert!(field(f32::INFINITY).covers(at(5.0), 1.0));
+    }
+
+    #[test]
+    fn a_field_meshes_like_its_segments() {
+        // a closed body with a strand on top, gills of other segments below it, one hypha twice as important
+        let mut segments = body();
+        let rim = segments[0].end;
+        segments.push(segment(rim, rim + Vec3::Y * 0.6, 0.03));
+        for x in [-0.08, 0.08] {
+            segments.push(segment(Vec3::new(x, -0.02, 0.0), Vec3::new(x, -0.3, 0.0), 0.02));
+        }
+        let closed = |i: usize| i < 17;
+        let strand = |i: usize| i == 16;
+        let priority = |i: usize| if i == 3 { 2.0 } else { 1.0 };
+        let frame = Frame::new(&segments, 64, 3.0, 0.18, &closed).unwrap();
+        let field = TissueField::new(&frame, &segments, closed, priority, 5.0).unwrap();
+        let reused = field.surface(&segments, closed, strand, priority);
+        let fresh = surface_in(&frame, &segments, closed, strand, priority);
+        assert!(reused.mesh.face_count() > 0);
+        assert_eq!(reused, fresh);
     }
 
     #[test]
@@ -964,7 +1268,7 @@ mod tests {
             }
         }
         let top = |close: f32| {
-            let s = surface(&segments, 96, 3.0, close, |_| true, |_| 1.0);
+            let s = surface(&segments, 96, 3.0, close, |_| true, |_| false, |_| 1.0);
             assert_closed(&s.mesh);
             let mut top = [f32::NEG_INFINITY; 2];
             for v in 0..s.mesh.vertex_count() {

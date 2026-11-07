@@ -65,6 +65,14 @@
       "label": "Meshes",
       "external": true,
       "description": "Meshes added as they are, like the plates of lamellae. Each one is its own group, after the groups of the paths."
+    },
+    "loose_strands": {
+      "type": "float",
+      "value": 0.2,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "description": "Body paths that leave the surface: 0 = none, the surface is closed tissue, 1 = every one stays a strand. In between the tissue takes in a strand that stays closer to it than (1 / value - 1) times its half thickness there, so a thick stipe takes in longer strays than a thin cap margin."
     }
   }
 }
