@@ -1,0 +1,103 @@
+{
+  "id": "max/myzel/membrane",
+  "meta": {
+    "description": "A thin skin between two attachments, like the veil between the cap margin and the stipe, made of strands that run across it. It tears along a ragged line: the part on b falls into a skirt (the ring), the part on a stays as a fringe."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "a": {
+      "type": "points",
+      "accepts": [
+        "path"
+      ],
+      "external": true,
+      "description": "The first attachment, e.g. the margin of a cap. Points in a row (a ring when they go around) or paths."
+    },
+    "b": {
+      "type": "points",
+      "accepts": [
+        "path"
+      ],
+      "external": true,
+      "description": "The second attachment, e.g. the stipe. A ring of points in a wraps around a path here, other attachments are joined as they are."
+    },
+    "attachment": {
+      "type": "float",
+      "description": "Where the membrane wraps around a path in b: 0 = level with a, 1 = the tip of the path, -1 = its base",
+      "value": 0,
+      "min": -1,
+      "max": 1,
+      "step": 0.01
+    },
+    "thickness": {
+      "type": "float",
+      "description": "Thickness of the skin",
+      "value": 0.001,
+      "min": 0,
+      "max": 0.01,
+      "step": 0.0001,
+      "unit": "m"
+    },
+    "sag": {
+      "type": "float",
+      "description": "How far the middle of the skin hangs below the line between the attachments, as a share of their distance",
+      "value": 0.05,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    "tear": {
+      "type": "float",
+      "description": "How far it has torn: 0 = intact, at 0.5 it has torn all the way round, at 1 the parts hang free",
+      "value": 0,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    "tear_position": {
+      "type": "float",
+      "description": "Where it tears, 0 = at b (the stipe), 1 = at a (the margin)",
+      "value": 0.95,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    "flare": {
+      "type": "curve",
+      "label": "Flare of the torn parts",
+      "description": "How a torn part hangs, from where it is attached (left) to its torn edge (right): 0 = straight down, 1 = straight out towards the other side",
+      "value": [
+        0,
+        0.45,
+        0.4,
+        0.25,
+        1,
+        0.12
+      ]
+    },
+    "strands": {
+      "type": "integer",
+      "hidden": true,
+      "description": "Strands across the skin. Neighbours touch when there are about as many as the longer attachment is long in thicknesses.",
+      "value": 256,
+      "min": 1,
+      "max": 4096
+    },
+    "seed": {
+      "type": "seed"
+    },
+    "resolution_curve": {
+      "type": "integer",
+      "description": "Points along a strand from one attachment to the other, torn parts get their share",
+      "value": 24,
+      "min": 4,
+      "max": 64,
+      "setting": "resolution.curve"
+    },
+    "creator": {
+      "type": "creator"
+    }
+  }
+}

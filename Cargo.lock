@@ -128,6 +128,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "myzel_membrane"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+ "noise",
+]
+
+[[package]]
 name = "myzel_output"
 version = "0.1.0"
 dependencies = [
