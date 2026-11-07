@@ -1,6 +1,7 @@
 import type { Graph } from '@nodarium/types';
 import { createLogger } from '@nodarium/utils';
-import { removeInputs, renameInputs } from './helpers';
+import { removeInputs, renameInputs, replaceNodes } from './helpers';
+import { splitCap, wiredCapInputs } from './split-cap';
 
 export * from './helpers';
 
@@ -49,6 +50,19 @@ export const MIGRATIONS: Migration[] = [
       }
       removeInputs(graph, 'max/plantarium/noise', ['preserveLength']);
       return graph;
+    }
+  },
+  {
+    version: 3,
+    description:
+      'the cap only grows the open cap, fill_gaps, margin_waves, margin_curl and cap_open pose it',
+    migrate(graph) {
+      const wired = wiredCapInputs(graph);
+      return replaceNodes(
+        graph,
+        'max/myzel/cap',
+        (old, context) => splitCap(old, context, wired.get(old))
+      );
     }
   }
 ];
