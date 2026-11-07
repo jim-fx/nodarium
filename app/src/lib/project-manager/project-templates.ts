@@ -3,6 +3,7 @@ import {
   bamboo,
   champignon,
   chanterelle,
+  chanterelleContinuous,
   daisy,
   defaultPlant,
   devilsBackbone,
@@ -62,5 +63,6 @@ export const projectTemplates: ProjectTemplate[] = [
   { name: 'Groomed cap (opening)', graph: toGraph(groomedCap, 'cm') },
   { name: 'Groomed veil (opening)', graph: toGraph(groomedVeil, 'cm') },
   { name: 'Groomed gills', graph: toGraph(groomedGills, 'cm') },
-  { name: 'Chanterelle', graph: toGraph(chanterelle, 'cm') }
+  { name: 'Chanterelle', graph: toGraph(chanterelle, 'cm') },
+  { name: 'Chanterelle (continuous)', graph: toGraph(chanterelleContinuous, 'cm') }
 ];

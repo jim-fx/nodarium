@@ -1,6 +1,7 @@
 export { default as agave } from './agave.json';
 export { default as bamboo } from './bamboo.json';
 export { default as champignon } from './champignon.json';
+export { default as chanterelleContinuous } from './chanterelle-continuous.json';
 export { default as chanterelle } from './chanterelle.json';
 export { default as daisy } from './daisy.json';
 export { default as defaultPlant } from './default.json';
