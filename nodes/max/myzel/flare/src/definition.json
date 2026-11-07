@@ -1,0 +1,54 @@
+{
+  "id": "max/myzel/flare",
+  "meta": {
+    "description": "Lets the stipe strands flare out into the cap, so stipe and cap are one tissue. Every stipe strand that reaches the stipe top turns smoothly into the cap ray next to it: strands from the outside of the stipe run along the underside of the cap, strands from the core along its top. Rays with too few of them, like the ones fill_gaps adds, get strands that branch off their neighbours. Use it in place of strands on the cap."
+  },
+  "outputs": [
+    {
+      "type": "path",
+      "label": "stipe"
+    },
+    {
+      "type": "path",
+      "label": "cap"
+    }
+  ],
+  "inputs": {
+    "stipe": {
+      "type": "path",
+      "description": "The strands of the stipe",
+      "external": true
+    },
+    "cap": {
+      "type": "path",
+      "description": "The rays of the cap, after fill_gaps and the nodes that pose it",
+      "external": true
+    },
+    "hinge": {
+      "type": "points",
+      "description": "The hinge of the cap node: where the cap sits",
+      "external": true
+    },
+    "amount": {
+      "type": "integer",
+      "description": "Strands in every ray of the cap. Rays that get fewer from the stipe fill up with branches.",
+      "value": 40,
+      "min": 1,
+      "max": 1000
+    },
+    "bend": {
+      "type": "float",
+      "description": "How long the turn from the stipe into the cap is, in stipe radii. Short is a sharp shoulder, long a wide flare.",
+      "value": 1,
+      "min": 0.2,
+      "max": 4,
+      "step": 0.1
+    },
+    "seed": {
+      "type": "seed"
+    },
+    "creator": {
+      "type": "creator"
+    }
+  }
+}
