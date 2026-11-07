@@ -61,6 +61,22 @@ impl Mesh {
         words
     }
 
+    /// Adds another mesh to this one, its groups numbered from `first_group` on. Colors only
+    /// stay when both meshes have them.
+    pub fn append(&mut self, other: &Mesh, first_group: u32) {
+        let offset = self.vertex_count() as u32;
+        let keep_colors = (!self.colors.is_empty() || self.vertex_count() == 0) && !other.colors.is_empty();
+        if keep_colors {
+            self.colors.extend(&other.colors);
+        } else {
+            self.colors.clear();
+        }
+        self.faces.extend(other.faces.iter().map(|&i| i + offset));
+        self.positions.extend(&other.positions);
+        self.normals.extend(&other.normals);
+        self.groups.extend(other.groups.iter().map(|&g| g + first_group));
+    }
+
     pub fn decode(words: &[i32]) -> Mesh {
         assert!(
             words.len() >= HEADER_LEN && words[0] == MESH_TAG,
@@ -116,6 +132,20 @@ mod tests {
         assert_eq!(&words[..4], &[MESH_TAG, 3, 1, mesh_flags::COLORS]);
         assert_eq!(&words[words.len() - 3..], &[0, 2, 2]);
         assert_eq!(Mesh::decode(&words), mesh);
+    }
+
+    #[test]
+    fn appends_a_mesh_with_its_groups_after_the_others() {
+        let mut mesh = Mesh { colors: Vec::new(), ..triangle() };
+        mesh.append(&triangle(), 3);
+        assert_eq!(mesh.vertex_count(), 6);
+        assert_eq!(mesh.faces, vec![0, 1, 2, 3, 4, 5]);
+        assert_eq!(mesh.groups, vec![0, 2, 2, 3, 5, 5]);
+        // one of them has no colors, so the result has none
+        assert!(mesh.colors.is_empty());
+        let mut empty = Mesh::default();
+        empty.append(&triangle(), 0);
+        assert_eq!(empty, triangle());
     }
 
     #[test]

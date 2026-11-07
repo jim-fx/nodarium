@@ -156,7 +156,7 @@ mod tests {
     #[test]
     fn parses_pattern_sockets() {
         let def = definition(
-            r#"{"id":"max/myzel/lamellae","inputs":{"pattern":{"type":"pattern"}},"outputs":["pattern"]}"#,
+            r#"{"id":"max/myzel/lamellae","inputs":{"pattern":{"type":"pattern","external":true}},"outputs":["pattern"]}"#,
         );
         assert!(matches!(def.inputs.unwrap()["pattern"], nodarium_types::NodeInput::pattern(_)));
     }

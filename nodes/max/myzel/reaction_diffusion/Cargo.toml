@@ -8,7 +8,6 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-myzel_core = { version = "0.1.0", path = "../../../../packages/myzel" }
 nodarium_macros = { version = "0.1.0", path = "../../../../packages/macros" }
 nodarium_utils = { version = "0.1.0", path = "../../../../packages/utils" }
 

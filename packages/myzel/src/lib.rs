@@ -40,11 +40,6 @@
 //!
 //! Paths as line segments for the viewer, in the groups of their mesh, see [`path_lines`].
 //!
-//! # Pattern `[15, size, extent, radius, inner, spacing, ...values]`
-//!
-//! A scalar pattern over a ring, `size` x `size` values in 0..1 on a square grid
-//! that spans `extent` around the centre, see [`Pattern`].
-//!
 //! Inputs of Myzel nodes are plain values, see [`read_float`] and friends.
 
 mod density;
@@ -56,11 +51,9 @@ mod growth;
 mod hyphae;
 mod hyphae_mesh;
 mod inputs;
-mod lamellae;
 mod mesh;
 mod noise;
 mod paths;
-mod pattern;
 mod polygonize;
 mod spatial;
 
@@ -77,9 +70,7 @@ pub use paths::{
     PathStyle, LINES_TAG, TISSUE_COUNT,
 };
 pub use inputs::{read_field, read_float, read_floats, read_hyphae, read_int, read_mesh, read_vec3};
-pub use lamellae::{lamellae, pattern_lines, CapUnderside, LamellaForm, LamellaeParams, LineEnd, PatternLine, UndersidePoint};
 pub use mesh::{mesh_flags, pack_rgba, Mesh, MESH_TAG};
 pub use noise::value_noise;
-pub use pattern::{reaction_diffusion, Pattern, ReactionDiffusionParams, MAX_PATTERN_SIZE, PATTERN_TAG};
 pub use polygonize::polygonize;
 pub use spatial::{distance_sq_to_segment, SpatialHash};

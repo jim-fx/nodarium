@@ -145,6 +145,7 @@ export const NodeInputHyphaeSchema = z.object({
   value: z.array(z.number()).optional()
 });
 
+/** A 2D pattern of values, like the stripes of `reaction_diffusion` */
 export const NodeInputPatternSchema = z.object({
   ...DefaultOptionsSchema.shape,
   type: z.literal('pattern'),

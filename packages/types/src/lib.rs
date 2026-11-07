@@ -173,6 +173,7 @@ pub struct NodeInputHyphae {
     pub default_options: DefaultOptions,
 }
 
+/// A 2D pattern of values, see `nodarium_utils::pattern`
 #[derive(Serialize, Deserialize)]
 pub struct NodeInputPattern {
     #[serde(flatten)]

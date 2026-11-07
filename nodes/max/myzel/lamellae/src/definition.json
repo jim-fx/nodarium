@@ -1,51 +1,35 @@
 {
   "id": "max/myzel/lamellae",
   "meta": {
-    "description": "Hangs gills under a cap: the stripes of a pattern become plates or ridges on the underside of the cap's flesh, from the stipe to the margin. They follow the cap as it opens or changes shape. Adds them to a mesh in a material group of their own."
+    "description": "Hangs gill plates (lamellae) under a cap where a pattern has stripes: every stripe of reaction_diffusion becomes a plate that forks and starts between others where the stripes do. Gives every gill as thin paths stacked from the cap underside down to the gill edge, to mesh with the rest, and as a thin plate mesh, which stays sharp at any mesh resolution."
   },
   "outputs": [
-    "mesh"
+    "path",
+    {
+      "type": "mesh",
+      "label": "plates"
+    }
   ],
   "inputs": {
-    "mesh": {
-      "type": "mesh",
-      "label": "Body",
-      "description": "The mesh the gills are added to, the cap and stipe from hyphae_to_mesh",
-      "external": true
-    },
     "cap": {
       "type": "path",
-      "description": "The rays of a cap node, the gills hang from the underside of their flesh",
+      "description": "The rays of a cap node, the gills hang from their underside and follow them when they move",
       "external": true
     },
     "hinge": {
       "type": "points",
-      "description": "The hinge of the same cap node",
+      "description": "The hinge of the cap node: where the cap sits and how thick the stipe is",
       "external": true
     },
     "pattern": {
       "type": "pattern",
-      "description": "Stripes from a reaction_diffusion node, its inner radius lands where the cap leaves the stipe and its radius on the margin",
+      "description": "Stripes around the axis, every stripe becomes a gill. Its radius is the distance along the cap underside from the axis.",
       "external": true
-    },
-    "stipe": {
-      "type": "path",
-      "description": "The stipes the cap grows on, decurrent gills run down along them. Without them they run straight down from the hinge.",
-      "external": true
-    },
-    "form": {
-      "type": "select",
-      "options": [
-        "plates",
-        "ridges"
-      ],
-      "value": 0,
-      "description": "Thin plates with a rounded edge like the gills of a field mushroom, or blunt folds as wide as they are deep like the ridges of a chanterelle"
     },
     "depth": {
       "type": "float",
-      "description": "How far the gills reach down from the cap where they are deepest",
-      "value": 0.006,
+      "description": "How far the gills reach down from the cap underside where they are deepest",
+      "value": 0.004,
       "min": 0,
       "max": 0.05,
       "step": 0.0005,
@@ -58,67 +42,47 @@
       "value": [
         0,
         0.3,
-        0.35,
-        1,
-        0.7,
+        0.2,
         0.85,
+        0.45,
         1,
-        0.2
+        0.8,
+        0.65,
+        1,
+        0.1
       ]
-    },
-    "thickness": {
-      "type": "float",
-      "description": "Thickness of a gill where it meets the cap. Ridges are at least as wide as they are deep.",
-      "value": 0.0005,
-      "min": 0,
-      "max": 0.01,
-      "step": 0.0001,
-      "unit": "m"
     },
     "free_distance": {
       "type": "float",
-      "description": "Gap between the stipe and the gills, along the underside. 0 lets them reach the stipe.",
+      "description": "Gap between the gills and the stipe, Agaricus gills are free",
       "value": 0.001,
       "min": 0,
       "max": 0.02,
       "step": 0.0005,
       "unit": "m"
     },
-    "decurrent": {
+    "thickness": {
       "type": "float",
-      "description": "How far the gills that reach the stipe run down along it, getting lower. Only without a free distance.",
-      "value": 0,
-      "min": 0,
-      "max": 0.05,
-      "step": 0.001,
+      "description": "Thickness of a gill plate",
+      "value": 0.0003,
+      "min": 5e-05,
+      "max": 0.005,
+      "step": 5e-05,
       "unit": "m"
     },
     "edge_wave": {
       "type": "float",
-      "description": "How much the edges of the gills wave sideways, 1 by half a gill spacing",
+      "description": "How much the gill edges wave, sideways and up and down. 0 = straight edges, 1 = waves a third of the gill spacing wide",
       "value": 0.3,
-      "min": 0,
-      "max": 1,
-      "step": 0.05
-    },
-    "irregularity": {
-      "type": "float",
-      "description": "How much depth and thickness vary between neighbouring gills and along them",
-      "value": 0.4,
-      "min": 0,
-      "max": 1,
-      "step": 0.05
-    },
-    "forking": {
-      "type": "float",
-      "description": "Share of the gills that end close to a neighbour which join it: a short gill forks off a long one, two side by side join with a cross vein",
-      "value": 0.2,
       "min": 0,
       "max": 1,
       "step": 0.05
     },
     "seed": {
       "type": "seed"
+    },
+    "creator": {
+      "type": "creator"
     }
   }
 }

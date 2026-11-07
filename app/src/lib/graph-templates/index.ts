@@ -10,6 +10,7 @@ export { default as foxglove } from './foxglove.json';
 export { default as grass } from './grass.json';
 export { grid } from './grid';
 export { default as groomedCap } from './groomed-cap.json';
+export { default as groomedGills } from './groomed-gills.json';
 export { default as groomedStipe } from './groomed-stipe.json';
 export { default as groomedVeil } from './groomed-veil.json';
 export { default as horsetail } from './horsetail.json';
