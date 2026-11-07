@@ -12,6 +12,7 @@ export { grid } from './grid';
 export { default as groomedCap } from './groomed-cap.json';
 export { default as groomedGills } from './groomed-gills.json';
 export { default as groomedStipe } from './groomed-stipe.json';
+export { default as groomedVeil } from './groomed-veil.json';
 export { default as horsetail } from './horsetail.json';
 export { default as knotweed } from './knotweed.json';
 export { default as ladyFern } from './lady-fern.json';
