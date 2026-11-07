@@ -77,10 +77,11 @@
       "type": "max/myzel/reaction_diffusion",
       "props": {
         "radius": 0.027,
-        "inner_radius": 0.005,
+        "inner_radius": 0.00625,
         "spacing": 0.001,
         "alignment": 0.85,
-        "irregularity": 0.5
+        "irregularity": 0.5,
+        "forking": 0
       }
     },
     {

@@ -145,6 +145,8 @@ mod tests {
         assert_eq!(&mesh.groups[v..], &[1, 1, 1, 2, 2, 2]);
         // only a mesh
         assert_eq!(run_with_meshes(&[], &[], &d, &plate.encode()), plate);
+        // nothing connected, the way the host sends an empty list
+        assert_eq!(run_with_meshes(&paths(3, 42, 0.0), &[], &d, &[0, 1, 1, 1]), plain);
     }
 
     #[test]

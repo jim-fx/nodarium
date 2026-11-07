@@ -433,12 +433,18 @@ struct Slice {
     reach: f32,
     /// 0 where a gill that starts or ends on its own begins, 1 at its full depth
     taper: f32,
+    /// How fast the sway dies away from the gill edge, per share of the reach
+    damping: f32,
 }
 
 impl Slice {
-    /// The plate `f` of the way from the top to the gill edge
+    /// The plate `f` of the way from the top to the gill edge. The edge waves like the rim of a
+    /// long leaf: the waves die away within about a wavelength / TAU of the free edge (Liang &
+    /// Mahadevan 2009), and the top stays where it is.
     fn at(&self, f: f32) -> Vec3 {
-        self.top - self.normal * (f * self.reach) + self.sway * (f * f)
+        let (rim, top) = ((-(1.0 - f) * self.damping).exp(), (-self.damping).exp());
+        let sway = if top < 1.0 { (rim - top) / (1.0 - top) } else { f };
+        self.top - self.normal * (f * self.reach) + self.sway * sway
     }
 }
 
@@ -569,7 +575,9 @@ fn cap_gills(underside: &Underside, stipe: &Point, pattern: &Pattern, p: &Params
                 // the middle of the flesh, the underside is a flesh half thickness further down
                 let top = spot.position - spot.normal * ((1.0 - EMBED) * spot.radius);
                 let sideways = frame.out(angle + 0.25 * TAU);
-                Some(Slice { top, normal: spot.normal, sway: sideways * side, reach: d + EMBED * spot.radius, taper })
+                let reach = d + EMBED * spot.radius;
+                let damping = reach * TAU / (WAVE_LENGTH * spacing);
+                Some(Slice { top, normal: spot.normal, sway: sideways * side, reach, taper, damping })
             })
             .collect();
         if plate.len() < 2 {
@@ -976,10 +984,74 @@ mod tests {
     }
 
     #[test]
+    fn the_edge_waves_and_the_waves_die_away_towards_the_cap() {
+        let slice =
+            Slice { top: Vec3::ZERO, normal: Vec3::Y, sway: Vec3::X * 0.001, reach: 0.004, taper: 1.0, damping: 8.0 };
+        let side = |f: f32| slice.at(f).x;
+        assert_eq!(side(0.0), 0.0);
+        assert!((side(1.0) - 0.001).abs() < 1e-9);
+        // within about a wavelength / TAU of the edge, a quarter of the way up only a little is left
+        assert!(side(0.75) < 0.2 * 0.001, "{} left a quarter up", side(0.75));
+        assert!((1..=10).all(|k| side(k as f32 / 10.0) >= side((k - 1) as f32 / 10.0)));
+    }
+
+    /// 12 stripes from 4 mm out, every one splits in two from 12 mm on, the halves move apart
+    /// to evenly spaced stripes by 20 mm
+    fn forking_pattern() -> Pattern {
+        let (from, to, rings) = (0.004, 0.03, 131);
+        let width = 0.0006;
+        let rings = (0..rings)
+            .map(|i| {
+                let r = from + (to - from) * i as f32 / (rings - 1) as f32;
+                let apart = ((r - 0.012) / 0.008).clamp(0.0, 1.0) * TAU / 48.0;
+                let n = (TAU * r / 0.0001) as usize;
+                (0..n)
+                    .map(|j| {
+                        let angle = nodarium_utils::ring_angle(j, n);
+                        (0..12)
+                            .flat_map(|k| [TAU * k as f32 / 12.0 - apart, TAU * k as f32 / 12.0 + apart])
+                            .map(|c| (-(r * turn(c, angle)).powi(2) / (2.0 * width * width)).exp())
+                            .fold(0.0, f32::max)
+                    })
+                    .collect()
+            })
+            .collect();
+        Pattern { inner: from, outer: to, spacing: TAU * 0.008 / 12.0, rings }
+    }
+
+    #[test]
+    fn forks_open_away_from_the_stipe() {
+        // Moore (1987): forked gills always point the fork away from the stipe
+        let pattern = forking_pattern();
+        let gills = trace_gills(&pattern, 0, pattern.rings.len() - 1, LINK_REACH * pattern.spacing);
+        let forks: Vec<&Gill> = gills.iter().filter(|g| !g.free_start && g.points[0].1 > pattern.inner + 1e-6).collect();
+        assert_eq!(forks.len(), 12, "{} forks", forks.len());
+        assert!(gills.iter().all(|g| !g.free_start), "the halves split off, none starts on its own");
+        for fork in forks {
+            let (at, r) = fork.points[0];
+            // the branch goes outward from the fork point
+            assert!(fork.points[1].1 > r);
+            // and the stripe it splits off runs through the fork point and on outward
+            let parent = gills
+                .iter()
+                .find(|g| !std::ptr::eq(*g, fork) && g.points.iter().any(|&(a, s)| (s - r).abs() < 1e-6 && turn(a, at).abs() < 1e-4))
+                .expect("the stripe the fork splits off");
+            assert!(parent.points[0].1 < r && parent.points.last().unwrap().1 > r);
+        }
+    }
+
+    #[test]
     fn a_plate_is_as_thick_as_the_input_at_its_top_and_thinner_at_its_edge() {
         // a straight plate along x, hanging down along -y
         let plate: Vec<Slice> = (0..5)
-            .map(|i| Slice { top: Vec3::new(i as f32 * 0.001, 0.0, 0.0), normal: Vec3::Y, sway: Vec3::ZERO, reach: 0.004, taper: 1.0 })
+            .map(|i| Slice {
+                top: Vec3::new(i as f32 * 0.001, 0.0, 0.0),
+                normal: Vec3::Y,
+                sway: Vec3::ZERO,
+                reach: 0.004,
+                taper: 1.0,
+                damping: 8.0,
+            })
             .collect();
         let mut mesh = Mesh::default();
         add_plate(&mut mesh, &plate, 0.0004, |q, _| q);

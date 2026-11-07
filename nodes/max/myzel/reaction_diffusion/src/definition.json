@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/reaction_diffusion",
   "meta": {
-    "description": "A stripe pattern on a disc that grows outward ring by ring, like gills under a cap: where the circumference grows, stripes fork and new ones start between them, so they stay about spacing apart."
+    "description": "A stripe pattern on a disc that grows outward ring by ring, like gills under a cap: where the circumference grows, new stripes start between others or fork off, so the stripes stay about spacing apart."
   },
   "outputs": [
     "pattern"
@@ -18,8 +18,8 @@
     },
     "inner_radius": {
       "type": "float",
-      "description": "Where the pattern starts, the stripes there are evenly spaced",
-      "value": 0.005,
+      "description": "Where the pattern starts, with its stripes at their closest. For gills: the stipe radius plus the free distance.",
+      "value": 0.006,
       "min": 0,
       "max": 0.1,
       "step": 0.0005,
@@ -36,7 +36,7 @@
     },
     "alignment": {
       "type": "float",
-      "description": "0 = winding stripes that fork and join often, 1 = straight stripes running outward",
+      "description": "0 = a winding labyrinth, 1 = straight stripes running outward",
       "value": 0.85,
       "min": 0,
       "max": 1,
@@ -44,8 +44,16 @@
     },
     "irregularity": {
       "type": "float",
-      "description": "0 = evenly spaced stripes that all fork at the same radius, 1 = uneven stripes that fork and start one by one",
+      "description": "0 = even stripes that get new ones between them all at the same radius, 1 = uneven stripes that get new ones one by one",
       "value": 0.5,
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    },
+    "forking": {
+      "type": "float",
+      "description": "0 = new stripes start between two others, like the short gills (lamellulae) of Agaricus, 1 = they split off a stripe, like forked gills",
+      "value": 0,
       "min": 0,
       "max": 1,
       "step": 0.05
