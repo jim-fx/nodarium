@@ -304,8 +304,8 @@
           1.0,
           0.8
         ],
-        "min": -0.07,
-        "max": 0.08
+        "min": -0.042,
+        "max": 0.048
       }
     },
     {
@@ -359,8 +359,8 @@
           1.0,
           0.0
         ],
-        "min": -0.08,
-        "max": 0.07
+        "min": -0.048,
+        "max": 0.042
       }
     },
     {
@@ -510,15 +510,6 @@
       }
     },
     {
-      "id": 125,
-      "position": [-110, 143.38],
-      "type": "max/plantarium/random_int",
-      "props": {
-        "min": 4,
-        "max": 8
-      }
-    },
-    {
       "id": 126,
       "position": [-110, 208.38],
       "type": "max/plantarium/random",
@@ -532,8 +523,8 @@
       "position": [-140, 195.88],
       "type": "max/plantarium/random",
       "props": {
-        "min": 0.1,
-        "max": 0.24
+        "min": 0.6,
+        "max": 1.1
       }
     },
     {
@@ -561,6 +552,126 @@
       "props": {
         "blend": 2
       }
+    },
+    {
+      "id": 200,
+      "position": [-190, 145.25],
+      "type": "max/plantarium/rotate",
+      "props": {
+        "axis": 1,
+        "angle": 0
+      }
+    },
+    {
+      "id": 201,
+      "position": [-220, 160.25],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0,
+        "max": 6.2832,
+        "uniform": 1
+      }
+    },
+    {
+      "id": 202,
+      "position": [-175, 135.25],
+      "type": "max/plantarium/keep_apart",
+      "props": {
+        "at": 1
+      }
+    },
+    {
+      "id": 210,
+      "position": [-65, 112.75],
+      "type": "max/myzel/cap_lopsided",
+      "props": {}
+    },
+    {
+      "id": 211,
+      "position": [-90, 92.75],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.1,
+        "max": 0.35,
+        "uniform": 1
+      }
+    },
+    {
+      "id": 212,
+      "position": [-90, 77.75],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.4,
+        "max": 1.0,
+        "uniform": 1
+      }
+    },
+    {
+      "id": 213,
+      "position": [-90, 62.75],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": -10,
+        "max": 10
+      }
+    },
+    {
+      "id": 220,
+      "position": [-110, 143.38],
+      "type": "max/plantarium/round",
+      "props": {}
+    },
+    {
+      "id": 221,
+      "position": [-140, 143.38],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 0
+      }
+    },
+    {
+      "id": 222,
+      "position": [-170, 133.38],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2,
+        "b": 55
+      }
+    },
+    {
+      "id": 223,
+      "position": [-200, 133.38],
+      "type": "max/plantarium/path_info",
+      "props": {
+        "info": 5
+      }
+    },
+    {
+      "id": 224,
+      "position": [-170, 158.38],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 3.0,
+        "max": 4.2,
+        "uniform": 1
+      }
+    },
+    {
+      "id": 203,
+      "position": [-185, 175.25],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2,
+        "b": 1.25
+      }
+    },
+    {
+      "id": 230,
+      "position": [-125, 195.88],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 3
+      }
     }
   ],
   "edges": [
@@ -577,19 +688,19 @@
       "plant"
     ],
     [
-      3,
+      202,
       0,
       4,
       "plant"
     ],
     [
-      3,
+      202,
       0,
       5,
       "plant"
     ],
     [
-      3,
+      202,
       0,
       7,
       "plant"
@@ -679,7 +790,7 @@
       "amplitude"
     ],
     [
-      56,
+      210,
       0,
       57,
       "plant"
@@ -871,22 +982,10 @@
       "max"
     ],
     [
-      125,
-      0,
-      56,
-      "waves"
-    ],
-    [
       126,
       0,
       56,
       "irregularity"
-    ],
-    [
-      127,
-      0,
-      55,
-      "max"
     ],
     [
       128,
@@ -905,6 +1004,114 @@
       0,
       60,
       "plant"
+    ],
+    [
+      3,
+      0,
+      200,
+      "plant"
+    ],
+    [
+      201,
+      0,
+      200,
+      "angle"
+    ],
+    [
+      200,
+      0,
+      202,
+      "plant"
+    ],
+    [
+      56,
+      0,
+      210,
+      "cap"
+    ],
+    [
+      5,
+      1,
+      210,
+      "hinge"
+    ],
+    [
+      211,
+      0,
+      210,
+      "amount"
+    ],
+    [
+      212,
+      0,
+      210,
+      "offset"
+    ],
+    [
+      213,
+      0,
+      210,
+      "tilt"
+    ],
+    [
+      223,
+      0,
+      222,
+      "a"
+    ],
+    [
+      222,
+      0,
+      221,
+      "a"
+    ],
+    [
+      224,
+      0,
+      221,
+      "b"
+    ],
+    [
+      221,
+      0,
+      220,
+      "value"
+    ],
+    [
+      220,
+      0,
+      56,
+      "waves"
+    ],
+    [
+      120,
+      0,
+      203,
+      "a"
+    ],
+    [
+      203,
+      0,
+      202,
+      "radius"
+    ],
+    [
+      127,
+      0,
+      230,
+      "a"
+    ],
+    [
+      221,
+      0,
+      230,
+      "b"
+    ],
+    [
+      230,
+      0,
+      55,
+      "max"
     ]
   ]
 }
