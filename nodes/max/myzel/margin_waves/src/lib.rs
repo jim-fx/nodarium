@@ -1,6 +1,6 @@
 use myzel_core::{margin_points, pose_caps, Cap};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
-use nodarium_utils::{concat_arg_vecs, curve, decode_points, encode_points, geometry::path_random, int, split_args, Ctx};
+use nodarium_utils::{concat_arg_vecs, curve, decode_points, encode_points, geometry::path_random, int, split_args, Ctx, PathInfo};
 use std::f32::consts::TAU;
 
 nodarium_definition_file!("src/definition.json");
@@ -68,10 +68,14 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let hinges = decode_points(args[1]);
     let seed = int(args[5]);
     let alphas = (0..AMPLITUDE_SAMPLES).map(|k| k as f32 / (AMPLITUDE_SAMPLES - 1) as f32);
-    // every stipe reads its own waves, so a random node gives every cap its own lobes
+    let caps = Cap::all(&items, &hinges);
+    // every stipe reads its own waves, so a random node gives every cap its own lobes, and
+    // path_info length reads how long its rays are, so the lobes can follow the size of the cap
     let mut stipes: Vec<(i32, Waves, Amplitude)> = Vec::new();
     for hinge in &hinges {
         ctx.seed_path(hinge.parent_id);
+        let length = caps.iter().filter(|c| c.frame.stipe_id == hinge.parent_id).map(|c| c.length).fold(0.0, f32::max);
+        ctx.path = PathInfo { length, ..PathInfo::default() };
         let waves = Waves { count: ctx.int(args[2]).max(0) as u32, irregularity: ctx.float(args[4]) };
         let values = if args[3].len() == 1 {
             let plain = ctx.float(args[3]);
@@ -84,7 +88,6 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     }
 
     // caps on one stipe (a cap and its ridges) share the radius, so they wave alike
-    let caps = Cap::all(&items, &hinges);
     let radius_of = |stipe: i32| caps.iter().filter(|c| c.frame.stipe_id == stipe).map(|c| c.reach()).fold(0.0, f32::max);
 
     let posed = pose_caps(&items, &hinges, |cap, k| {
@@ -320,6 +323,39 @@ mod tests {
                 assert!(x.distance(y) < 1e-5);
             }
         }
+    }
+
+    #[test]
+    fn path_info_length_reads_how_long_the_rays_are() {
+        use nodarium_utils::concat_args;
+        let lobes = |radius: f32| {
+            let cap = TestCap { radius, rays: 64, spacing: 0.0, ..cone() };
+            let (rays, hinges) = grow(&cap);
+            let refs: Vec<&[i32]> = rays.iter().map(|r| r.as_slice()).collect();
+            let length = myzel_core::Cap::all(&refs, &decode_points(&hinges))[0].length;
+            // round(path_info length * 150)
+            let product = concat_args(vec![&[0], &[2], &concat_args(vec![&[5], &[5]]), &[encode_float(150.0)]]);
+            let waves = concat_args(vec![&[6], &product]);
+            let (_, margins) = __nodarium_execute_inner(&[
+                &concat_arg_vecs(rays),
+                &hinges,
+                &waves,
+                &[encode_float(0.15)],
+                &[encode_float(0.0)],
+                &[3],
+            ]);
+            let out = Out { rays: vec![], hinge: decode_points(&hinges)[0], margins: decode_points(&margins) };
+            let mut m = margin_heights(&out);
+            m.sort_by(|a, b| a.0.total_cmp(&b.0));
+            let mean = m.iter().map(|p| p.1).sum::<f32>() / m.len() as f32;
+            let changes = (0..m.len()).filter(|&i| (m[i].1 - mean).signum() != (m[(i + 1) % m.len()].1 - mean).signum()).count();
+            (changes / 2, (length * 150.0).round() as usize)
+        };
+        let (small, expected_small) = lobes(0.03);
+        let (large, expected_large) = lobes(0.06);
+        assert_eq!(small, expected_small);
+        assert_eq!(large, expected_large);
+        assert!(large > small);
     }
 
     #[test]
