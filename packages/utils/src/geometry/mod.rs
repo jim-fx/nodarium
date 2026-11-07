@@ -1,6 +1,7 @@
 mod bend;
 mod calculate_normals;
 mod extrude_path;
+mod fill_gaps;
 mod follow;
 mod geometry_data;
 mod instance_data;
@@ -11,6 +12,7 @@ mod transform;
 pub use bend::*;
 pub use calculate_normals::*;
 pub use extrude_path::*;
+pub use fill_gaps::*;
 pub use follow::*;
 pub use geometry_data::*;
 pub use instance_data::*;
