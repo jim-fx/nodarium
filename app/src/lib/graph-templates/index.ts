@@ -1,5 +1,6 @@
 export { default as agave } from './agave.json';
 export { default as bamboo } from './bamboo.json';
+export { default as champignonGroomed } from './champignon-groomed.json';
 export { default as champignon } from './champignon.json';
 export { default as chanterelle } from './chanterelle.json';
 export { default as daisy } from './daisy.json';
@@ -21,6 +22,7 @@ export { default as lottaFaces } from './lotta-faces.json';
 export { default as lottaNodesAndFaces } from './lotta-nodes-and-faces.json';
 export { default as lottaNodes } from './lotta-nodes.json';
 export { default as maidenhair } from './maidenhair.json';
+export { default as oyster } from './oyster.json';
 export { default as palm } from './palm.json';
 export { default as primordium } from './primordium.json';
 export { default as sage } from './sage.json';

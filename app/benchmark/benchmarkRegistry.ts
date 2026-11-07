@@ -1,4 +1,4 @@
-import { NodeDefinition, NodeId, NodeRegistry } from '@nodarium/types';
+import type { NodeDefinition, NodeId, NodeRegistry } from '@nodarium/types';
 import { createWasmWrapper } from '@nodarium/utils';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';

@@ -14,7 +14,7 @@
   } from '@nodarium/ui';
   import { onMount, tick } from 'svelte';
   import type { ProjectManager } from './project-manager.svelte';
-  import { type ProjectTemplate, projectTemplates } from './project-templates';
+  import { type ProjectTemplate, projectTemplates, templateCategories } from './project-templates';
 
   type Props = {
     projectManager: ProjectManager;
@@ -215,15 +215,24 @@
         <span class="opacity-50">New from template</span>
       </div>
       <div class="min-h-0 overflow-y-auto">
-        {#each projectTemplates as template (template.name)}
-          <button
-            type="button"
-            class="flex h-14 w-full cursor-pointer items-center gap-3 border-x-0 border-t-0 border-b border-outline bg-transparent px-5 text-left text-sm hover:bg-layer-2 font-(--font-family)"
-            onclick={() => createFromTemplate(template)}
+        {#each templateCategories as category (category)}
+          <div
+            class="flex h-8 items-center border-b border-outline px-5 text-xs opacity-50"
+            role="heading"
+            aria-level="3"
           >
-            {@render thumbnail(templatePreviews[template.name], 'h-[34px] w-[34px] border border-outline')}
-            {template.name}
-          </button>
+            {category}
+          </div>
+          {#each projectTemplates.filter((t) => t.category === category) as template (template.name)}
+            <button
+              type="button"
+              class="flex h-14 w-full cursor-pointer items-center gap-3 border-x-0 border-t-0 border-b border-outline bg-transparent px-5 text-left text-sm hover:bg-layer-2 font-(--font-family)"
+              onclick={() => createFromTemplate(template)}
+            >
+              {@render thumbnail(templatePreviews[template.name], 'h-[34px] w-[34px] border border-outline')}
+              {template.name}
+            </button>
+          {/each}
         {/each}
       </div>
       <button

@@ -262,12 +262,25 @@ struct Anchor {
     place: f32,
 }
 
-/// A ring of points around a path: the membrane wraps around the path at `attachment`, between
-/// the level of the ring (0) and the tip of the path (1), or its base (-1). The strands start
-/// inside the surface of the path by `inset`, so the skin grows out of it.
-fn around_path(a: &Curve, b: &Curve, attachment: f32, n: usize, inset: f32) -> Vec<Anchor> {
+/// Where on a path in b the membrane wraps around it, as a share of its length: `anchor` metres
+/// from its base when it is set, so it stays there while the path grows and a moves. Otherwise
+/// at `attachment`, between the level of a (0) and the tip of the path (1), or its base (-1).
+fn wrap_alpha(a: &Curve, b: &Curve, attachment: f32, anchor: f32) -> f32 {
+    let length = b.length();
+    if anchor > 0.0 && length > 0.0 {
+        return (anchor / length).min(1.0);
+    }
     let level = b.closest(a.centre()).1;
-    let alpha = if attachment >= 0.0 { level + attachment * (1.0 - level) } else { level * (1.0 + attachment) };
+    if attachment >= 0.0 {
+        level + attachment * (1.0 - level)
+    } else {
+        level * (1.0 + attachment)
+    }
+}
+
+/// A ring of points around a path: the membrane wraps around the path at `alpha` of its length.
+/// The strands start inside the surface of the path by `inset`, so the skin grows out of it.
+fn around_path(a: &Curve, b: &Curve, alpha: f32, n: usize, inset: f32) -> Vec<Anchor> {
     let ring = b.at(alpha);
     let e1 = orthogonal_to(ring.tangent);
     let e2 = ring.tangent.cross(e1);
@@ -362,6 +375,8 @@ struct Skin<'f> {
     sag: f32,
     tear: f32,
     tear_position: f32,
+    /// How long the skin was when it tore, 0 for as long as the span
+    torn_length: f32,
     flare: &'f [f32],
     resolution: usize,
 }
@@ -415,15 +430,19 @@ fn strands(anchors: &[Anchor], closed: bool, skin: &Skin, seed: i32, creator: i3
         let ragged = 0.6 * wave(anchor.place, RAGGED_SCALE, 1.0) + 0.4 * (2.0 * random(k, 2) - 1.0);
         let cut = (skin.tear_position + RAGGED * ragged).clamp(0.0, 1.0);
         let count = |share: f32| ((res as f32 * share).round() as usize).max(MIN_POINTS);
+        // a torn part keeps the length it tore at: past the torn length it stops stretching with
+        // the span, and the parts take only their share of it from either end
+        let kept = if skin.torn_length > 0.0 && span > skin.torn_length { skin.torn_length / span } else { 1.0 };
+        let (on_b_share, on_a_share) = (cut * kept, (1.0 - cut) * kept);
 
         if cut > MIN_PART {
             let m = count(cut);
-            let points: Vec<Vec3> = (0..m).map(|i| skin_at(cut * i as f32 / (m - 1) as f32)).collect();
+            let points: Vec<Vec3> = (0..m).map(|i| skin_at(on_b_share * i as f32 / (m - 1) as f32)).collect();
             on_b.push(encode(link_b(k), depth_b, &fall(&points, horizontal(chord), skin.flare, relax), edge));
         }
         if cut < 1.0 - MIN_PART {
             let m = count(1.0 - cut);
-            let points: Vec<Vec3> = (0..m).map(|i| skin_at(1.0 - (1.0 - cut) * i as f32 / (m - 1) as f32)).collect();
+            let points: Vec<Vec3> = (0..m).map(|i| skin_at(1.0 - on_a_share * i as f32 / (m - 1) as f32)).collect();
             let s = anchor.a_source;
             let link = PathLink::child(creator, s.id, s.alpha, 2 * (offset + k) as i32 + 1);
             on_a.push(encode(link, s.depth + 1, &fall(&points, horizontal(-chord), skin.flare, relax), edge));
@@ -437,11 +456,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
     let a = read_curves(args[0]);
     let b = read_curves(args[1]);
-    let flare = read_floats(args[7]);
-    let seed = int(args[9]);
-    let resolution = int(args[10]).max(4) as usize;
+    let flare = read_floats(args[9]);
+    let seed = int(args[11]);
+    let resolution = int(args[12]).max(4) as usize;
     // the graph node that makes the membrane, it is the last input
-    let creator = int(args[11]);
+    let creator = int(args[13]);
 
     // every attachment in a joins the attachment in b closest to it
     let pairs: Vec<(usize, usize)> = if b.is_empty() {
@@ -476,18 +495,21 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             }
         }
         let attachment = ctx.float(args[2]).clamp(-1.0, 1.0);
+        let anchor = ctx.float(args[3]).max(0.0);
         let skin = Skin {
-            thickness: ctx.float(args[3]).max(0.0),
-            sag: ctx.float(args[4]).max(0.0),
-            tear: ctx.float(args[5]).clamp(0.0, 1.0),
-            tear_position: ctx.float(args[6]).clamp(0.0, 1.0),
+            thickness: ctx.float(args[4]).max(0.0),
+            sag: ctx.float(args[5]).max(0.0),
+            tear: ctx.float(args[6]).clamp(0.0, 1.0),
+            tear_position: ctx.float(args[7]).clamp(0.0, 1.0),
+            torn_length: ctx.float(args[8]).max(0.0),
             flare: &flare,
             resolution,
         };
-        let n = ctx.int(args[8]).clamp(1, MAX_STRANDS) as usize;
+        let n = ctx.int(args[10]).clamp(1, MAX_STRANDS) as usize;
 
         let (anchors, closed) = if curve_a.closed && curve_b.path.is_some() {
-            (around_path(curve_a, curve_b, attachment, n, 0.5 * skin.thickness), true)
+            let alpha = wrap_alpha(curve_a, curve_b, attachment, anchor);
+            (around_path(curve_a, curve_b, alpha, n, 0.5 * skin.thickness), true)
         } else if curve_a.closed && (curve_b.closed || curve_b.points.len() == 1) {
             (ring_to_ring(curve_a, curve_b, n), true)
         } else {
@@ -522,10 +544,14 @@ mod tests {
 
     /// Upright stipes 5 cm tall and 5 mm in radius, at these x
     fn stipes(xs: &[f32]) -> Vec<i32> {
+        tall_stipes(xs, STIPE_TOP)
+    }
+
+    fn tall_stipes(xs: &[f32], top: f32) -> Vec<i32> {
         let mut data = create_multiple_paths(xs.len(), 12, 1, 3);
         for (k, path) in wrap_multiple_paths(&mut data).iter_mut().enumerate() {
             for i in 0..12 {
-                path.points[i * 4..i * 4 + 4].copy_from_slice(&[xs[k], STIPE_TOP * i as f32 / 11.0, 0.0, STIPE_RADIUS]);
+                path.points[i * 4..i * 4 + 4].copy_from_slice(&[xs[k], top * i as f32 / 11.0, 0.0, STIPE_RADIUS]);
             }
         }
         data
@@ -565,10 +591,12 @@ mod tests {
     #[derive(Clone)]
     struct Params {
         attachment: f32,
+        anchor: f32,
         thickness: f32,
         sag: f32,
         tear: f32,
         tear_position: f32,
+        torn_length: f32,
         flare: Vec<f32>,
         strands: i32,
         seed: i32,
@@ -577,10 +605,12 @@ mod tests {
     fn veil() -> Params {
         Params {
             attachment: 0.0,
+            anchor: 0.0,
             thickness: 0.001,
             sag: 0.1,
             tear: 0.0,
             tear_position: 0.5,
+            torn_length: 0.0,
             flare: vec![0.0, 0.15, 0.6, 0.3, 1.0, 0.5],
             strands: 160,
             seed: 3,
@@ -592,10 +622,12 @@ mod tests {
             a,
             b,
             &[encode_float(p.attachment)],
+            &[encode_float(p.anchor)],
             &[encode_float(p.thickness)],
             &[encode_float(p.sag)],
             &[encode_float(p.tear)],
             &[encode_float(p.tear_position)],
+            &[encode_float(p.torn_length)],
             flare,
             &[p.strands],
             &[p.seed],
@@ -713,6 +745,83 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn the_anchor_holds_the_ring_while_the_stipe_grows() {
+        // the stipe grows from 4 to 6 cm and lifts the margin with it, 1 cm under its top
+        let anchor = 0.025;
+        let mut followed = Vec::new();
+        for top in [0.04, 0.05, 0.06] {
+            let stipe = tall_stipes(&[0.0], top);
+            let id = stipe_ids(&stipe)[0];
+            let margin = encode_points(&ring(0.0, MARGIN_RADIUS, top - 0.01, 96, id));
+            for tear in [0.0, 0.3, 1.0] {
+                let p = Params { anchor, tear, attachment: 0.5, ..veil() };
+                let strands = run(&margin, &stipe, &p);
+                let ring: Vec<_> = strands.iter().filter(|s| path_link(s).parent_id == id).collect();
+                assert_eq!(ring.len(), p.strands as usize);
+                for s in ring {
+                    let start = points(s)[0];
+                    assert!((start.y - anchor).abs() < 1e-5, "ring at {} on a stipe {} tall", start.y, top);
+                    assert!((from_axis(start) - (STIPE_RADIUS - 0.5 * p.thickness)).abs() < 1e-5);
+                    assert!((path_link(s).parent_alpha - anchor / top).abs() < 1e-5);
+                }
+            }
+            // without the anchor the ring rides up with the margin
+            let p = Params { attachment: 0.5, ..veil() };
+            followed.push(points(&run(&margin, &stipe, &p)[0])[0].y);
+        }
+        assert!(followed[2] - followed[0] > 0.015, "the ring rides from {} to {}", followed[0], followed[2]);
+        // an anchor past the tip holds it at the tip
+        let p = Params { anchor: 0.08, ..veil() };
+        let (strands, _) = run_veil(&p);
+        assert!((points(&strands[0])[0].y - STIPE_TOP).abs() < 1e-5);
+    }
+
+    #[test]
+    fn torn_parts_keep_the_length_they_tore_at() {
+        fn length(path: &[i32]) -> f32 {
+            points(path).windows(2).map(|w| w[0].distance(w[1])).sum()
+        }
+        // the parts of every strand by its index, on the stipe and on the margin, as the margin
+        // moves out from 2 to 3 cm
+        let parts = |radius: f32, torn_length: f32| {
+            let stipe = stipes(&[0.0]);
+            let id = stipe_ids(&stipe)[0];
+            let margin = encode_points(&ring(0.0, radius, MARGIN_HEIGHT, 96, id));
+            // a flat skin, so its length along it is the span
+            let p = Params { tear: 1.0, torn_length, sag: 0.0, ..veil() };
+            let mut ring = vec![0.0; p.strands as usize];
+            let mut fringe = vec![0.0; p.strands as usize];
+            for s in run(&margin, &stipe, &p) {
+                let k = (path_link(&s).index / 2) as usize;
+                if path_link(&s).parent_id == id {
+                    ring[k] = length(&s);
+                } else {
+                    fringe[k] = length(&s);
+                }
+            }
+            (ring, fringe)
+        };
+        let torn_length = 0.008;
+        let (ring, fringe) = parts(0.02, torn_length);
+        let (wider_ring, wider_fringe) = parts(0.03, torn_length);
+        for k in 0..ring.len() {
+            // both parts together are the torn length, less the recoil
+            let together = ring[k] + fringe[k];
+            assert!(together <= torn_length * (1.0 - super::RECOIL) * 1.01 && together > 0.4 * torn_length, "strand {} is {} long", k, together);
+            assert!((wider_ring[k] - ring[k]).abs() < 1e-3 * torn_length, "ring part {} grows from {} to {}", k, ring[k], wider_ring[k]);
+            assert!((wider_fringe[k] - fringe[k]).abs() < 1e-3 * torn_length);
+        }
+        // without it they stretch with the span
+        let (free, _) = parts(0.02, 0.0);
+        let (wider_free, _) = parts(0.03, 0.0);
+        let mean = |v: &[f32]| v.iter().sum::<f32>() / v.len() as f32;
+        assert!(mean(&wider_free) > 1.4 * mean(&free));
+        // and a span shorter than the torn length keeps its own length
+        let (short, _) = parts(0.02, 0.1);
+        assert_eq!(short, free);
     }
 
     #[test]

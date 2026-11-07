@@ -11,7 +11,7 @@
 //   --seed   seed of the random nodes, defaults to 1, the same seed gives the same plant
 //
 // Prints one line of JSON per target with the path of the screenshot and the size of the plant.
-import type { Graph, NodeId } from '@nodarium/types';
+import { type Graph, INTERNAL_PREFIX, type NodeId } from '@nodarium/types';
 import { splitNestedArray } from '@nodarium/utils';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -73,7 +73,9 @@ async function loadGraph(file: string): Promise<Graph> {
 
 async function execute(graph: Graph, seed: number) {
   const registry = new BenchmarkRegistry();
-  await registry.load(graph.nodes.map((n) => n.type) as NodeId[]);
+  // group nodes have no wasm, the runtime loads the nodes inside them once it expands them
+  const types = graph.nodes.map((n) => n.type).filter((t) => !t.startsWith(INTERNAL_PREFIX));
+  await registry.load(types as NodeId[]);
   const runtime = new MemoryRuntimeExecutor(registry);
   // a fixed seed makes screenshots comparable
   return runtime.execute(graph, { ...graph.settings, seed });

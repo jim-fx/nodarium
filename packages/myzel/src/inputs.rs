@@ -5,15 +5,18 @@ use crate::field::Field;
 use crate::hyphae::Hyphae;
 use crate::mesh::Mesh;
 
-/// A float input, which the host sends as one f32 word
+/// A float input. The host sends a value set on the node as one f32 word, a connected float or
+/// time node sends it in brackets of its own, `[0, 2, value, 1, 1]`.
 pub fn read_float(arg: &[i32]) -> f32 {
-    assert!(
-        arg.len() == 1,
-        "expected a plain float (one word), got {} words. Myzel nodes take no expressions, \
-         connect a value or set it on the node",
-        arg.len()
-    );
-    decode_float(arg[0])
+    let word = match arg {
+        [word] | [0, 2, word, 1, 1] => *word,
+        _ => panic!(
+            "expected a plain float (one word), got {} words. Myzel nodes take no expressions, \
+             connect a value or set it on the node",
+            arg.len()
+        ),
+    };
+    decode_float(word)
 }
 
 /// An integer, select or seed input, which the host sends as one word
@@ -79,6 +82,14 @@ mod tests {
         // a point at 0 is not mistaken for a bracket
         let zeros = [0, 3, 0, 0, 1, 1];
         assert_eq!(read_floats(&nodarium_utils::concat_args(vec![&zeros])), vec![0.0, 0.0]);
+    }
+
+    #[test]
+    fn reads_a_float_in_brackets_from_a_connected_node() {
+        // the float and time nodes send their value as [0, 2, value, 1, 1]
+        let connected = nodarium_utils::concat_args(vec![&[encode_float(0.25)]]);
+        assert_eq!(connected, vec![0, 2, encode_float(0.25), 1, 1]);
+        assert_eq!(read_float(&connected), 0.25);
     }
 
     #[test]

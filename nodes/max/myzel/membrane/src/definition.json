@@ -31,6 +31,15 @@
       "max": 1,
       "step": 0.01
     },
+    "anchor": {
+      "type": "float",
+      "description": "Holds the membrane on a path in b this far from its base, measured along it, instead of following a with attachment. It stays put while b grows and a moves, like the ring of a mushroom whose stipe lengthens above it. 0 = attachment places it.",
+      "value": 0,
+      "min": 0,
+      "max": 0.5,
+      "step": 0.0005,
+      "unit": "m"
+    },
     "thickness": {
       "type": "float",
       "description": "Thickness of the skin",
@@ -63,6 +72,16 @@
       "min": 0,
       "max": 1,
       "step": 0.01
+    },
+    "torn_length": {
+      "type": "float",
+      "hidden": true,
+      "description": "How long the skin was when it tore. The torn parts share this length by tear_position and keep it while a and b move further apart, so a ring stays short while the cap opens. 0 = the parts stretch with the distance between a and b.",
+      "value": 0,
+      "min": 0,
+      "max": 0.1,
+      "step": 0.0005,
+      "unit": "m"
     },
     "flare": {
       "type": "curve",
