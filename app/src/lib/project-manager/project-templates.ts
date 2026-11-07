@@ -10,7 +10,9 @@ import {
   foxglove,
   grass,
   groomedCap,
+  groomedGills,
   groomedStipe,
+  groomedVeil,
   horsetail,
   knotweed,
   ladyFern,
@@ -58,5 +60,7 @@ export const projectTemplates: ProjectTemplate[] = [
   { name: 'Primordium (hyphae)', graph: toGraph(primordium, 'cm') },
   { name: 'Groomed stipe (strands)', graph: toGraph(groomedStipe, 'cm') },
   { name: 'Groomed cap (opening)', graph: toGraph(groomedCap, 'cm') },
+  { name: 'Groomed veil (opening)', graph: toGraph(groomedVeil, 'cm') },
+  { name: 'Groomed gills', graph: toGraph(groomedGills, 'cm') },
   { name: 'Chanterelle', graph: toGraph(chanterelle, 'cm') }
 ];

@@ -178,4 +178,38 @@ describe('nodes with several outputs', () => {
       data: Int32Array.of(10, 32)
     });
   });
+
+  it('previews a debugged pattern with the Myzel output node', async () => {
+    const pattern = {
+      id: 'max/myzel/reaction_diffusion',
+      inputs: {},
+      outputs: ['pattern'],
+      execute: () => Int32Array.of(15, 0, 0)
+    } as unknown as NodeDefinition;
+    const myzelOutput = {
+      id: 'max/myzel/output',
+      inputs: {
+        field: { type: 'field', accepts: ['pattern'] },
+        resolution: { type: 'integer', value: 64 }
+      },
+      outputs: [],
+      execute: vi.fn(([p, resolution]: Int32Array[]) => Int32Array.of(p[0], resolution[0]))
+    } as unknown as NodeDefinition;
+    const registry = createMockNodeRegistry([pattern, myzelOutput, debug]);
+    const runtime = new MemoryRuntimeExecutor(registry);
+
+    await runtime.execute(
+      graph(
+        [node(0, pattern.id), node(1, debug.id), node(2, myzelOutput.id)],
+        [[0, 0, 1, 'input'], [0, 0, 2, 'field']]
+      ),
+      {}
+    );
+
+    expect(runtime.getDebugData()[0]).toEqual({
+      type: 'pattern',
+      output: 0,
+      data: Int32Array.of(15, 32)
+    });
+  });
 });

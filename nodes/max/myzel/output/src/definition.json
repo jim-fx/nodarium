@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/output",
   "meta": {
-    "description": "Shows a field, a mesh, paths or grown hyphae"
+    "description": "Shows a field, a mesh, paths, grown hyphae or a pattern"
   },
   "outputs": [],
   "inputs": {
@@ -10,7 +10,8 @@
       "accepts": [
         "mesh",
         "hyphae",
-        "path"
+        "path",
+        "pattern"
       ],
       "external": true
     },

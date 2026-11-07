@@ -19,7 +19,7 @@
       "type": "float",
       "step": 0.05,
       "value": 1,
-      "description": "How far the paths are bent by the forces. Alpha goes along the path, so the strength can change from base to tip."
+      "description": "How far the paths are bent by the forces. Alpha goes along the path, so the strength can change from base to tip. By place, alpha goes from the root to the reach."
     },
     "stiffness": {
       "type": "float",
@@ -28,6 +28,27 @@
       "step": 0.05,
       "value": 0.3,
       "description": "How much of the path stays rigid. 0 bends the whole path evenly, 1 keeps the base straight and bends only the tip."
+    },
+    "weight": {
+      "type": "select",
+      "internal": true,
+      "options": ["along each path", "by place"],
+      "value": 0,
+      "description": "How the bend is spread over a path. Along each path: from its base to its tip, so a short path bends more at a place than a long one. By place: by the distance from the root, the spot on the parent the path grows from, so paths that lie on top of each other bend together, like the rays a cap adds further out."
+    },
+    "reach": {
+      "type": "float",
+      "min": 0,
+      "max": 3,
+      "step": 0.001,
+      "value": 0.03,
+      "unit": "m",
+      "description": "By place only: how far from the root the bend reaches its full strength. Alpha of the strength goes from 0 at the root to 1 at the reach. 0 bends every segment fully, so only the falloff of the forces is left."
+    },
+    "root": {
+      "type": "points",
+      "external": true,
+      "description": "By place only: where the paths grow from, when their parent is not in the plant, like the hinge of a cap for its rays. A path grows from the point that sits on its parent. Without one it grows from the spot on its parent, or from its own base."
     },
     "depth": {
       "type": "integer",

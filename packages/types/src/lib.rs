@@ -173,6 +173,13 @@ pub struct NodeInputHyphae {
     pub default_options: DefaultOptions,
 }
 
+/// A 2D pattern of values, see `nodarium_utils::pattern`
+#[derive(Serialize, Deserialize)]
+pub struct NodeInputPattern {
+    #[serde(flatten)]
+    pub default_options: DefaultOptions,
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[allow(non_camel_case_types)]
@@ -193,6 +200,7 @@ pub enum NodeInput {
     field(NodeInputField),
     mesh(NodeInputMesh),
     hyphae(NodeInputHyphae),
+    pattern(NodeInputPattern),
 }
 
 #[derive(Serialize, Deserialize)]

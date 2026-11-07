@@ -69,6 +69,21 @@ impl PathStructure {
         self.parents[index].map(|(parent, _)| parent)
     }
 
+    /// Where a path grows from in `paths`: the spot on its parent, or its own base when it has
+    /// no parent. `None` for an item that is not a path.
+    pub fn root(&self, index: usize, paths: &[Vec<i32>]) -> Option<Vec3> {
+        if let Some((parent, alpha)) = self.parents[index] {
+            if let Some(spot) = xyz(wrap_path(&paths[parent]).points, alpha) {
+                return Some(spot);
+            }
+        }
+        if !is_path(&paths[index]) {
+            return None;
+        }
+        let points = wrap_path(&paths[index]).points;
+        Some(Vec3::from_slice(&points[..3]))
+    }
+
     /// How far the spot a path grows from has moved, between the `original` list and the
     /// `current` one. The spot is found by its alpha along the length of the parent, so this is
     /// exact as long as the parent keeps its length.
@@ -201,6 +216,18 @@ mod tests {
         follow_parents(&original, &mut current);
 
         assert_eq!(base(&current[1]), Vec3::new(5.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn the_root_is_the_spot_on_the_parent_or_the_own_base() {
+        let branch = path(1, 2, Some((0, 0.5)), &[[1.0, 1.0, 0.0], [2.0, 1.0, 0.0]]);
+        let orphan = path(2, 2, Some((42, 0.5)), &[[3.0, 0.0, 0.0], [3.0, 1.0, 0.0]]);
+        let paths = vec![stem(0.0), branch, orphan];
+        let structure = PathStructure::new(&paths);
+
+        assert_eq!(structure.root(0, &paths), Some(Vec3::ZERO));
+        assert!((structure.root(1, &paths).unwrap() - Vec3::Y).length() < 1e-5);
+        assert_eq!(structure.root(2, &paths), Some(Vec3::new(3.0, 0.0, 0.0)));
     }
 
     #[test]

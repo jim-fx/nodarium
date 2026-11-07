@@ -29,7 +29,9 @@ import type { RuntimeNode } from './types';
 /** The node that turns a value of this socket type into something the debug view can draw */
 const DEBUG_PREVIEWS: Record<string, { node: string; args: Int32Array[] }> = {
   // the mesh at a low resolution, args are the inputs after the field
-  field: { node: 'max/myzel/output', args: [Int32Array.of(32)] }
+  field: { node: 'max/myzel/output', args: [Int32Array.of(32)] },
+  // a flat disc colored by the pattern
+  pattern: { node: 'max/myzel/output', args: [Int32Array.of(32)] }
 };
 const log = createLogger('runtime-executor');
 log.mute();
