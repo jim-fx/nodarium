@@ -6,7 +6,16 @@
 //   target   name of a template in src/lib/graph-templates (fern, palm, ...), `templates` for
 //            all json templates, or the path of a graph or an exported `.nodarium.json` project
 //   --check  only report the files whose layout would change, and exit with 1 if there are any
-import type { NodeId, SerializedEdge, SerializedNode } from '@nodarium/types';
+import {
+  GROUP_INPUT,
+  GROUP_INSTANCE,
+  GROUP_OUTPUT,
+  type GroupDefinition,
+  type NodeDefinition,
+  type NodeId,
+  type SerializedEdge,
+  type SerializedNode
+} from '@nodarium/types';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -45,7 +54,7 @@ async function resolveTargets(names: string[]) {
   return files;
 }
 
-type Level = { nodes: SerializedNode[]; edges: SerializedEdge[] };
+type Level = { nodes: SerializedNode[]; edges: SerializedEdge[] } & Partial<GroupDefinition>;
 
 // the root graph and every group in it, wherever they sit in the file
 function findLevels(value: unknown, levels: Level[] = []): Level[] {
@@ -75,6 +84,45 @@ function findPositions(value: unknown, positions: unknown[] = []): unknown[] {
 
 const round = (v: number) => Math.round(v * 100) / 100;
 
+// The definition a node is shown with in the editor, which sets how tall it is: group nodes
+// show the inputs and outputs of their group, and exposed hidden inputs are shown on the node
+// (GraphManager.getNodeType)
+function definition(
+  node: SerializedNode,
+  level: Level,
+  groups: Map<number, Level>
+): NodeDefinition | undefined {
+  const external = (inputs: Level['inputs']) =>
+    Object.values(inputs ?? {}).map((input) => ({ ...input, external: true }));
+  if (node.type === GROUP_INSTANCE) {
+    const group = groups.get(node.props?.groupId as number);
+    return {
+      id: GROUP_INSTANCE,
+      inputs: { groupId: { type: 'select', internal: true, options: [] }, ...group?.inputs },
+      outputs: group?.outputs ?? []
+    } as unknown as NodeDefinition;
+  }
+  if (node.type === GROUP_INPUT) {
+    const inputs = external(level.inputs).map((input, i) => [`in_${i}`, input]);
+    return { id: GROUP_INPUT, inputs: Object.fromEntries(inputs) } as unknown as NodeDefinition;
+  }
+  if (node.type === GROUP_OUTPUT) {
+    const inputs = (level.outputs ?? []).map((o, i) => [`out_${i}`, { ...o, external: true }]);
+    return {
+      id: GROUP_OUTPUT,
+      inputs: Object.fromEntries(inputs),
+      outputs: []
+    } as unknown as NodeDefinition;
+  }
+  const type = registry.getNode(node.type);
+  if (!type?.inputs || !node.exposed?.length) return type;
+  const inputs = Object.entries(type.inputs).map(([key, input]) => [
+    key,
+    node.exposed!.includes(key) ? { ...input, hidden: false } : input
+  ]);
+  return { ...type, inputs: Object.fromEntries(inputs) };
+}
+
 const registry = new BenchmarkRegistry();
 let changed = 0;
 
@@ -86,8 +134,13 @@ for (const file of await resolveTargets(targets)) {
   const types = levels.flatMap((l) => l.nodes.map((n) => n.type));
   await registry.load(types.filter((t) => !t.startsWith('__internal/')) as NodeId[]);
 
+  const groups = new Map<number, Level>();
   for (const level of levels) {
-    const positions = layoutGraph(level.nodes, level.edges, (n) => registry.getNode(n.type));
+    if (level.id !== undefined && level.inputs) groups.set(level.id, level);
+  }
+
+  for (const level of levels) {
+    const positions = layoutGraph(level.nodes, level.edges, (n) => definition(n, level, groups));
     for (const node of level.nodes) {
       const [x, y] = positions.get(node.id)!;
       node.position = [round(x), round(y)];
