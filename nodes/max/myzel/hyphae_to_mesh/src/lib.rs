@@ -12,6 +12,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         seed: read_int(args[4]) as u32,
         blend: read_float(args[5]),
         fill: read_float(args[6]).max(0.0),
+        loose_strands: read_float(args[8]).clamp(0.0, 1.0),
     };
     let mut paths = read_mesh_paths(args[0], PathStyle::BODY);
     paths.extend(read_mesh_paths(args[1], PathStyle::LOOSE));
@@ -63,6 +64,7 @@ mod tests {
             vec![encode_float(d.blend)],
             vec![encode_float(d.fill)],
             meshes.to_vec(),
+            vec![encode_float(d.loose_strands)],
         ];
         let refs: Vec<&[i32]> = args.iter().map(|a| a.as_slice()).collect();
         Mesh::decode(&__nodarium_execute_inner(&refs))
@@ -91,7 +93,7 @@ mod tests {
         let def: serde_json::Value = serde_json::from_str(include_str!("definition.json")).unwrap();
         let value = |key: &str| def["inputs"][key]["value"].clone();
         assert_eq!(value("resolution_field"), d.resolution);
-        for (key, expected) in [("fibres", d.fibres), ("blend", d.blend), ("fill", d.fill)] {
+        for (key, expected) in [("fibres", d.fibres), ("blend", d.blend), ("fill", d.fill), ("loose_strands", d.loose_strands)] {
             assert!((value(key).as_f64().unwrap() as f32 - expected).abs() < 1e-7, "{}", key);
         }
     }
@@ -147,6 +149,26 @@ mod tests {
         assert_eq!(run_with_meshes(&[], &[], &d, &plate.encode()), plate);
         // nothing connected, the way the host sends an empty list
         assert_eq!(run_with_meshes(&paths(3, 42, 0.0), &[], &d, &[0, 1, 1, 1]), plain);
+    }
+
+    #[test]
+    fn loose_strands_keeps_a_strand_that_leaves_the_body() {
+        // a stipe of 16 paths 30 mm high and a strand that leaves its top for 20 mm
+        let mut body = create_multiple_paths(17, 11, 1, 7);
+        for (k, path) in wrap_multiple_paths(&mut body).iter_mut().enumerate() {
+            let a = k as f32 / 16.0 * std::f32::consts::TAU;
+            let (x, z) = (0.005 * a.cos(), 0.005 * a.sin());
+            for i in 0..11 {
+                let t = i as f32 / 10.0;
+                let point = if k < 16 { [x, 0.03 * t, z, 0.001] } else { [0.005, 0.03 + 0.02 * t, 0.0, 0.001] };
+                path.points[i * 4..i * 4 + 4].copy_from_slice(&point);
+            }
+        }
+        let highest = |m: &Mesh| (0..m.vertex_count()).map(|v| m.positions[v * 3 + 1]).fold(f32::MIN, f32::max);
+        let at = |loose_strands: f32| run(&body, &[], &HyphaeMeshParams { loose_strands, ..HyphaeMeshParams::default() });
+        // the closing (6 mm) leaves a low fillet where the strand was
+        assert!(highest(&at(0.0)) < 0.033, "gone at 0, ends at {}", highest(&at(0.0)));
+        assert!(highest(&at(1.0)) > 0.05, "kept at 1, ends at {}", highest(&at(1.0)));
     }
 
     #[test]

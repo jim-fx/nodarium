@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-use crate::density::{surface, Segment};
+use crate::density::{surface_in, Frame, Segment, TissueField};
 use crate::hyphae::Hyphae;
 use crate::mesh::Mesh;
 use crate::noise::value_noise;
@@ -18,11 +18,15 @@ pub struct HyphaeMeshParams {
     /// Strength of the fibrous relief, 0 leaves the surface smooth
     pub fibres: f32,
     pub seed: u32,
+    /// Body paths that leave the tissue: 0 keeps none of them, the surface is closed
+    /// tissue, 1 keeps every one as a strand. In between a strand stays where the
+    /// tissue grown by `1 / loose_strands` doesn't cover it, see [`TissueField`].
+    pub loose_strands: f32,
 }
 
 impl Default for HyphaeMeshParams {
     fn default() -> Self {
-        HyphaeMeshParams { resolution: 64, blend: 3.0, fill: 6.0, fibres: 1.0, seed: 0 }
+        HyphaeMeshParams { resolution: 64, blend: 3.0, fill: 6.0, fibres: 1.0, seed: 0, loose_strands: 0.2 }
     }
 }
 
@@ -39,7 +43,8 @@ pub fn hyphae_mesh(hyphae: &Hyphae, params: &HyphaeMeshParams) -> Mesh {
 }
 
 /// The surface around the paths with a fibrous relief along them. The body paths fill into one
-/// tissue, see [`HyphaeMeshParams::fill`]. Every vertex is in the group of the path that owns it,
+/// tissue, see [`HyphaeMeshParams::fill`], and only some of them leave it as strands, see
+/// [`HyphaeMeshParams::loose_strands`]. Every vertex is in the group of the path that owns it,
 /// see [`group_numbers`].
 pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
     let mut segments = Vec::new();
@@ -50,9 +55,23 @@ pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
         segments.extend(s);
     }
     let style = |i: usize| paths[owner[i]].style;
+    let body = |i: usize| style(i).body;
+    let priority = |i: usize| style(i).priority;
     let radius = segments.iter().map(|s| s.radius).fold(0.0, f32::max);
-    let mut s =
-        surface(&segments, params.resolution, params.blend, params.fill * radius, |i| style(i).body, |i| style(i).priority);
+    let Some(frame) = Frame::new(&segments, params.resolution, params.blend, params.fill * radius, &body) else {
+        return Mesh::default();
+    };
+    let loose = params.loose_strands.clamp(0.0, 1.0);
+    let scale = if loose > 0.0 { 1.0 / loose } else { f32::INFINITY };
+    let field = (loose < 1.0).then(|| TissueField::new(&frame, &segments, body, priority, scale)).flatten();
+    let mut s = match field {
+        Some(field) => {
+            let strand = strands(paths, &field, segments.len());
+            field.surface(&segments, body, |i| strand[i], priority)
+        }
+        // at 1 every body path keeps its tube wherever it leaves the tissue
+        None => surface_in(&frame, &segments, body, |i| loose >= 1.0 && body(i), priority),
+    };
     if s.mesh.vertex_count() == 0 {
         return s.mesh;
     }
@@ -66,6 +85,44 @@ pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
         add_fibres(&mut s.mesh, &segments, |v| (owners[v] as usize, style(owners[v] as usize)), s.cell, params);
     }
     s.mesh
+}
+
+/// Per segment of the paths, in the order [`paths_mesh`] makes them, whether it is a strand that
+/// keeps its own tube where it leaves the tissue. Every body path is split into runs of points
+/// outside and inside the tissue:
+///
+/// - a run outside that the grown tissue covers completely is a small feature next to a large
+///   one, the tissue absorbs it
+/// - any other run outside is a strand, from the last point inside to the next one, so it grows
+///   out of the tissue
+///
+/// A path outside the tissue all along, such as a bundle too thin for the blur, is one run.
+fn strands(paths: &[MeshPath], field: &TissueField, count: usize) -> Vec<bool> {
+    let mut strand = Vec::with_capacity(count);
+    for path in paths.iter().filter(|p| !p.is_empty()) {
+        let first = strand.len();
+        let n = path.len();
+        strand.extend(std::iter::repeat_n(false, path_segments(&path.points).len()));
+        if !path.style.body {
+            continue;
+        }
+        let inside: Vec<bool> = (0..n).map(|i| field.inside(path.point(i))).collect();
+        let mut start = 0;
+        for end in 1..=n {
+            if end < n && inside[end] == inside[start] {
+                continue;
+            }
+            let run = start..end;
+            start = end;
+            if inside[run.start] || run.clone().all(|i| field.covers(path.point(i), path.points[i * 4 + 3].abs())) {
+                continue;
+            }
+            // segment j joins the points j and j + 1, a path of one point is one ball
+            let segments = if n == 1 { 0..1 } else { run.start.saturating_sub(1)..run.end.min(n - 1) };
+            strand[first + segments.start..first + segments.end].fill(true);
+        }
+    }
+    strand
 }
 
 /// Moves every vertex along its normal by noise that is stretched along the
@@ -154,7 +211,7 @@ fn add_fibres(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::density::assert_closed;
+    use crate::density::{assert_closed, components, surface};
     use crate::hyphae::{flags, HyphaSegment, Tissue};
     use crate::paths::PathGroup;
     use std::borrow::Cow;
@@ -278,7 +335,7 @@ mod tests {
         let h = bundle();
         let d = HyphaeMeshParams::default();
         let body = |i: usize| PathStyle::of_tissue(h.segments[i].tissue).body;
-        let cell = surface(&h.to_segments(), d.resolution, d.blend, d.fill * 0.02, body, |_| 1.0).cell;
+        let cell = surface(&h.to_segments(), d.resolution, d.blend, d.fill * 0.02, body, |_| false, |_| 1.0).cell;
         let moved: Vec<f32> =
             (0..plain.vertex_count()).map(|v| (vertex(&plain, v) - vertex(&fibrous, v)).length()).collect();
         assert!(moved.iter().any(|&d| d > 0.0));
@@ -390,11 +447,12 @@ mod tests {
     fn hyphae_as_paths_mesh_like_their_segments() {
         // the paths leave out the balls at the roots of the hyphae, the surface stays about where it was
         let h = bundle();
-        let params = smooth();
+        // every hypha leaving the tissue stays, as the segments do
+        let params = HyphaeMeshParams { loose_strands: 1.0, ..smooth() };
         let mesh = hyphae_mesh(&h, &params);
         let style = |i: usize| PathStyle::of_tissue(h.segments[i].tissue);
-        let old =
-            surface(&h.to_segments(), params.resolution, params.blend, params.fill * 0.02, |i| style(i).body, |i| style(i).priority);
+        let (resolution, blend, close) = (params.resolution, params.blend, params.fill * 0.02);
+        let old = surface(&h.to_segments(), resolution, blend, close, |i| style(i).body, |_| true, |i| style(i).priority);
         let bounds = |m: &Mesh| {
             m.positions.chunks(3).fold((Vec3::INFINITY, Vec3::NEG_INFINITY), |(lo, hi), p| {
                 (lo.min(Vec3::from_slice(p)), hi.max(Vec3::from_slice(p)))
@@ -418,5 +476,154 @@ mod tests {
     #[test]
     fn no_hyphae_give_an_empty_mesh() {
         assert_eq!(hyphae_mesh(&Hyphae::default(), &HyphaeMeshParams::default()), Mesh::default());
+    }
+
+    /// A straight path from `a` to `b` of `points` points with radius `r`
+    fn line(a: Vec3, b: Vec3, points: usize, r: f32) -> Vec<f32> {
+        (0..points).flat_map(|i| a.lerp(b, i as f32 / (points - 1) as f32).extend(r).to_array()).collect()
+    }
+
+    /// A body of 16 paths in a ring of radius 0.15 from y 0 to 1, as `density`'s tests have it, and more paths
+    fn body_and(more: &[Vec<f32>]) -> Vec<(Vec<f32>, i32)> {
+        let mut paths: Vec<(Vec<f32>, i32)> = (0..16)
+            .map(|i| {
+                let a = i as f32 / 16.0 * 2.0 * PI;
+                let at = Vec3::new(a.cos(), 0.0, a.sin()) * 0.15;
+                (line(at, at + Vec3::Y, 11, 0.03), 1)
+            })
+            .collect();
+        paths.extend(more.iter().map(|p| (p.clone(), 2)));
+        paths
+    }
+
+    fn scaled(paths: &[(Vec<f32>, i32)], k: f32) -> Vec<(Vec<f32>, i32)> {
+        paths.iter().map(|(p, c)| (p.iter().map(|v| v * k).collect(), *c)).collect()
+    }
+
+    fn loose(loose_strands: f32) -> HyphaeMeshParams {
+        HyphaeMeshParams { loose_strands, ..smooth() }
+    }
+
+    fn mesh_body(paths: &[(Vec<f32>, i32)], params: &HyphaeMeshParams) -> Mesh {
+        let mesh = paths_mesh(&mesh_paths(paths, PathStyle::BODY), params);
+        assert_closed(&mesh);
+        mesh
+    }
+
+    fn highest(mesh: &Mesh) -> f32 {
+        (0..mesh.vertex_count()).map(|v| vertex(mesh, v).y).fold(f32::NEG_INFINITY, f32::max)
+    }
+
+    #[test]
+    fn a_strand_leaving_the_tissue_is_gone_at_0_and_kept_at_1() {
+        // the scene of `a_strand_keeps_its_tube_out_of_the_tissue`: the closing has radius 6 r = 0.18
+        let (r, close) = (0.03, 0.18);
+        let rim = Vec3::new(0.15, 1.0, 0.0);
+        let paths = body_and(&[line(rim, rim + Vec3::Y * 4.0 * close, 8, r)]);
+        let gone = mesh_body(&paths, &loose(0.0));
+        assert_eq!(components(&gone), 1);
+        // the hyphae of the body end at 1, the closing leaves a low fillet where the strand was
+        assert!(highest(&gone) < 1.0 + 0.5 * close, "strand ends at {}", highest(&gone));
+        let kept = mesh_body(&paths, &loose(1.0));
+        assert_eq!(components(&kept), 1);
+        assert!(highest(&kept) > 1.0 + 4.0 * close + 0.5 * r, "strand ends at {}", highest(&kept));
+    }
+
+    #[test]
+    fn a_tip_just_outside_the_tissue_leaves_no_spike() {
+        let r = 0.03;
+        let rim = Vec3::new(0.15, 1.0, 0.0);
+        let tipped = mesh_body(&body_and(&[line(rim, rim + Vec3::Y * 3.0 * r, 3, r)]), &loose(0.2));
+        assert_eq!(components(&tipped), 1);
+        // as its own tube the tip would reach 4 r above the hyphae of the body
+        assert!(highest(&tipped) < 1.0 + r, "tip ends at {}", highest(&tipped));
+    }
+
+    #[test]
+    fn strands_stay_by_the_thickness_of_the_tissue_next_to_them() {
+        // the same tip, 3 mm out of the top of a stipe 20 mm wide and of a lone bundle 1 mm wide
+        let (r, tip) = (0.0001, 0.003);
+        let column = |width: f32, height: f32| {
+            let rings = (width / 2.0 / (6.0 * r)).ceil() as usize;
+            let mut paths: Vec<Vec<f32>> = vec![line(Vec3::ZERO, Vec3::Y * height, 12, r)];
+            for ring in 1..=rings {
+                let radius = width / 2.0 * ring as f32 / rings as f32 - r;
+                let around = (2.0 * PI * radius / (6.0 * r)).ceil() as usize;
+                for i in 0..around {
+                    let a = i as f32 / around as f32 * 2.0 * PI;
+                    let at = Vec3::new(a.cos(), 0.0, a.sin()) * radius;
+                    paths.push(line(at, at + Vec3::Y * height, 12, r));
+                }
+            }
+            paths.push(line(Vec3::Y * height, Vec3::Y * (height + tip), 5, r));
+            paths.into_iter().map(|p| (p, 1)).collect::<Vec<_>>()
+        };
+        let params = HyphaeMeshParams { resolution: 96, fill: 6.0, ..smooth() };
+        let stipe = mesh_body(&column(0.02, 0.03), &params);
+        assert!(highest(&stipe) < 0.03 + 0.5 * tip, "the stipe ends at {}", highest(&stipe));
+        let bundle = mesh_body(&column(0.001, 0.01), &params);
+        assert!(highest(&bundle) > 0.01 + 0.9 * tip, "the bundle ends at {}", highest(&bundle));
+    }
+
+    #[test]
+    fn free_strands_stay_by_their_distance_to_the_tissue() {
+        // upright strands next to the body, a strand is absorbed while it is closer than (1 / 0.2 - 1) R
+        let free = |x: f32| line(Vec3::new(0.15 + x, 0.0, 0.0), Vec3::new(0.15 + x, 1.0, 0.0), 11, 0.03);
+        let paths = body_and(&[free(0.3), free(1.0), free(2.0)]);
+        let count = |l: f32| components(&mesh_body(&paths, &HyphaeMeshParams { resolution: 96, ..loose(l) }));
+        assert_eq!(count(0.0), 1);
+        assert_eq!(count(0.2), 1 + 2);
+        assert_eq!(count(1.0), 1 + 3);
+    }
+
+    #[test]
+    fn the_same_strands_stay_at_any_size() {
+        let free = |x: f32, h: f32| line(Vec3::new(0.15 + x, 0.0, 0.0), Vec3::new(0.15 + x, h, 0.0), 11, 0.03);
+        let rim = Vec3::new(0.15, 1.0, 0.0);
+        let paths = body_and(&[free(0.3, 1.0), free(1.0, 1.0), line(rim, rim + Vec3::new(0.1, 0.6, 0.0), 8, 0.03)]);
+        let params = HyphaeMeshParams { resolution: 96, ..loose(0.2) };
+        let full = mesh_body(&paths, &params);
+        let half = mesh_body(&scaled(&paths, 0.5), &params);
+        assert_eq!(components(&full), components(&half));
+        assert!((highest(&half) - 0.5 * highest(&full)).abs() < 1e-3, "{} vs {}", highest(&half), highest(&full));
+        let ratio = half.vertex_count() as f32 / full.vertex_count() as f32;
+        assert!((0.98..1.02).contains(&ratio), "{} vertices, {} at full size", half.vertex_count(), full.vertex_count());
+    }
+
+    #[test]
+    fn a_thin_body_bundle_without_tissue_stays() {
+        // narrower than the blur, there is no tissue to absorb it, even at 0
+        let bundle: Vec<(Vec<f32>, i32)> = (0..4)
+            .map(|i| {
+                let a = i as f32 / 4.0 * 2.0 * PI;
+                let at = Vec3::new(a.cos(), 0.0, a.sin()) * 0.03;
+                (line(at, at + Vec3::Y, 11, 0.02), 1)
+            })
+            .collect();
+        for l in [0.0, 0.2] {
+            let mesh = mesh_body(&bundle, &HyphaeMeshParams { fill: 15.0, ..loose(l) });
+            assert!(highest(&mesh) > 1.0, "bundle ends at {}", highest(&mesh));
+        }
+    }
+
+    #[test]
+    fn an_arc_outside_the_tissue_is_absorbed_or_kept_whole() {
+        // a path that leaves the top of the body and comes back in further round
+        let (r, close) = (0.03, 0.18);
+        let arc: Vec<f32> = (0..=12)
+            .flat_map(|i| {
+                let t = i as f32 / 12.0;
+                let a = t * PI;
+                Vec3::new(0.12 * a.cos(), 0.9 + 0.5 * a.sin(), 0.12 * a.sin()).extend(r).to_array()
+            })
+            .collect();
+        let paths = body_and(&[arc]);
+        let gone = mesh_body(&paths, &loose(0.0));
+        assert_eq!(components(&gone), 1);
+        // only the low fillets of the closing show where it leaves and enters the body
+        assert!(highest(&gone) < 1.0 + 0.1, "arc reaches {}", highest(&gone));
+        let kept = mesh_body(&paths, &loose(1.0));
+        assert_eq!(components(&kept), 1);
+        assert!(highest(&kept) > 1.4 - close, "arc reaches {}", highest(&kept));
     }
 }
