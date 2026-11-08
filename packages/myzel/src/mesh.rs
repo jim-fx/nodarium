@@ -95,6 +95,32 @@ impl Mesh {
             len,
             words.len()
         );
+        Self::decode_unchecked(words)
+    }
+
+    /// The mesh when `words` are one, `None` for anything else: counts that don't match the
+    /// length, unknown flags or a face with a vertex that isn't there
+    pub fn try_decode(words: &[i32]) -> Option<Mesh> {
+        if words.len() < HEADER_LEN || words[0] != MESH_TAG {
+            return None;
+        }
+        let (v, f, flags) = (usize::try_from(words[1]).ok()?, usize::try_from(words[2]).ok()?, words[3]);
+        if flags & !(mesh_flags::COLORS | mesh_flags::TISSUE_GROUPS) != 0 {
+            return None;
+        }
+        // in u64, so counts up to i32::MAX can't overflow on wasm32
+        let per_vertex = 7 + u64::from(flags & mesh_flags::COLORS != 0);
+        if words.len() as u64 != HEADER_LEN as u64 + f as u64 * 3 + v as u64 * per_vertex {
+            return None;
+        }
+        if words[HEADER_LEN..HEADER_LEN + f * 3].iter().any(|&i| i < 0 || i as usize >= v) {
+            return None;
+        }
+        Some(Self::decode_unchecked(words))
+    }
+
+    fn decode_unchecked(words: &[i32]) -> Mesh {
+        let (v, f, flags) = (words[1] as usize, words[2] as usize, words[3]);
         let mut rest = &words[HEADER_LEN..];
         let mut take = |n: usize| {
             let (head, tail) = rest.split_at(n);
@@ -169,6 +195,27 @@ mod tests {
     fn packs_red_into_the_lowest_byte() {
         assert_eq!(pack_rgba(1.0, 0.0, 0.0, 0.0), 0xff);
         assert_eq!(pack_rgba(0.0, 0.0, 0.0, 1.0), 0xff00_0000);
+    }
+
+    #[test]
+    fn try_decode_takes_only_whole_meshes() {
+        let words = triangle().encode();
+        assert_eq!(Mesh::try_decode(&words), Some(triangle()));
+        assert_eq!(Mesh::try_decode(&Mesh::default().encode()), Some(Mesh::default()));
+        assert_eq!(Mesh::try_decode(&[]), None);
+        assert_eq!(Mesh::try_decode(&[MESH_TAG]), None);
+        assert_eq!(Mesh::try_decode(&words[..words.len() - 1]), None);
+        assert_eq!(Mesh::try_decode(&[words.clone(), vec![0]].concat()), None);
+        // a 14 in front of other words, like the index of a path
+        assert_eq!(Mesh::try_decode(&[MESH_TAG, 2, 0, 0, 5, 9]), None);
+        assert_eq!(Mesh::try_decode(&[MESH_TAG, -1, 0, 0]), None);
+        assert_eq!(Mesh::try_decode(&[MESH_TAG, i32::MAX, i32::MAX, 0]), None);
+        let mut unknown_flag = words.clone();
+        unknown_flag[3] |= 8;
+        assert_eq!(Mesh::try_decode(&unknown_flag), None);
+        let mut missing_vertex = words.clone();
+        missing_vertex[HEADER_LEN + 2] = 3;
+        assert_eq!(Mesh::try_decode(&missing_vertex), None);
     }
 
     #[test]
