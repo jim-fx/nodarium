@@ -3,12 +3,14 @@
 // rasterizes the result in software: front, side and a view from above, next to each other.
 // Stems are brown, instanced geometry (leaves, flowers) is green.
 //
-// Usage: pnpm render-graph <target...> [--out dir] [--size px] [--seed n]
+// Usage: pnpm render-graph <target...> [--out dir] [--size px] [--seed n] [--focus x,z,r]
 //   target   name of a template in src/lib/graph-templates (fern, palm, ...), `templates` for
 //            all json templates, or the path of a graph or an exported `.nodarium.json` project
 //   --out    directory for the screenshots, defaults to ./screenshots
 //   --size   size of a single view in pixels, defaults to 512
 //   --seed   seed of the random nodes, defaults to 1, the same seed gives the same plant
+//   --focus  only renders what lies within r (m) of x, z seen from above, a close-up of one part;
+//            the printed size is that of the close-up and the instance count is left out
 //
 // Prints one line of JSON per target with the path of the screenshot and the size of the plant.
 import { type Graph, INTERNAL_PREFIX, type NodeId } from '@nodarium/types';
@@ -31,7 +33,8 @@ const { values: options, positionals: targets } = parseArgs({
   options: {
     out: { type: 'string', default: join(process.cwd(), 'screenshots') },
     size: { type: 'string', default: '512' },
-    seed: { type: 'string', default: '1' }
+    seed: { type: 'string', default: '1' },
+    focus: { type: 'string' }
   }
 });
 
@@ -151,6 +154,15 @@ function collectTriangles(result: Int32Array) {
   }
 
   return { triangles, instances };
+}
+
+function focus<T extends { triangles: Triangle[] }>(collected: T): T {
+  if (!options.focus) return collected;
+  const [x, z, r] = options.focus.split(',').map(Number);
+  const triangles = collected.triangles.filter(({ a, b, c }) =>
+    Math.hypot((a[0] + b[0] + c[0]) / 3 - x, (a[2] + b[2] + c[2]) / 3 - z) <= r
+  );
+  return { ...collected, triangles };
 }
 
 function bounds(triangles: Triangle[]) {
@@ -317,7 +329,7 @@ for (const file of await resolveTargets(targets)) {
     );
     continue;
   }
-  const { triangles, instances } = collectTriangles(result);
+  const { triangles, instances } = focus(collectTriangles(result));
   if (triangles.length === 0) {
     console.log(JSON.stringify({ name, error: 'the graph produced no geometry' }));
     continue;
@@ -341,7 +353,8 @@ for (const file of await resolveTargets(targets)) {
     name,
     screenshot: out,
     triangles: triangles.length,
-    instances,
+    // instances aren't split by the focus, so a close-up reports only what it can count
+    instances: options.focus ? undefined : instances,
     leafArea: Number(leafArea.toPrecision(4)),
     min: round(min),
     max: round(max),
