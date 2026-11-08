@@ -243,7 +243,8 @@ impl Underside {
         }
         rays.sort_by(|a, b| a.0.total_cmp(&b.0));
         if rays.iter().all(|r| r.2.is_none()) {
-            // no ray crosses the axis: each one is as long as it reaches from the axis
+            // no ray crosses the axis: each one is as long as it reaches from the axis. This also
+            // keeps `crossing` from being empty, which the median below relies on
             for r in &mut rays {
                 r.2 = Some(r.3);
             }
@@ -840,6 +841,7 @@ fn cap_gills(underside: &mut Underside, hinge: &Point, stipe: Option<&Stipe>, pa
 pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let mut ctx = Ctx::default();
     let mut plates = Mesh::default();
+    // args follow the key order of the inputs in definition.json, so a new input there shifts these
     let Some(pattern) = Pattern::decode(args[2]) else {
         return (concat_arg_vecs(Vec::new()), plates.encode());
     };
