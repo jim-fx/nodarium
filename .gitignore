@@ -7,3 +7,4 @@ node_modules/
 .direnv/
 
 .pnpm-store/
+.dprint-cache/

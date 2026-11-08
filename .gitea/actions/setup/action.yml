@@ -26,3 +26,34 @@ runs:
     - name: 📦 Install Dependencies
       shell: bash
       run: pnpm install --frozen-lockfile --store-dir .pnpm-store
+
+    # The runner's downloads from GitHub releases (dprint's exec plugin) time out now and
+    # then, so the plugins are fetched once with retries and kept in the cache
+    - name: 🎨 Use a dprint Cache in the Workspace
+      shell: bash
+      run: echo "DPRINT_CACHE_DIR=$GITHUB_WORKSPACE/.dprint-cache" >> "$GITHUB_ENV"
+
+    - name: 💾 Restore dprint Plugins
+      id: dprint-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: .dprint-cache
+        key: ${{ runner.os }}-dprint-${{ hashFiles('.dprint.jsonc') }}
+
+    - name: 🎨 Fetch dprint Plugins
+      if: steps.dprint-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        for attempt in 1 2 3 4 5 6; do
+          pnpm dprint output-resolved-config > /dev/null && exit 0
+          echo "dprint plugins not fetched (attempt $attempt), retrying in $((attempt * 15)) s"
+          sleep $((attempt * 15))
+        done
+        exit 1
+
+    - name: 💾 Save dprint Plugins
+      if: steps.dprint-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: .dprint-cache
+        key: ${{ runner.os }}-dprint-${{ hashFiles('.dprint.jsonc') }}

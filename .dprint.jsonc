@@ -43,6 +43,7 @@
     "**/yaml.lock",
     "**/.DS_Store",
     "**/.pnpm-store",
+    "**/.dprint-cache",
     "**/.cargo",
     "**/target",
   ],
