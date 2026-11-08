@@ -50,6 +50,14 @@
       "value": 1,
       "hidden": true,
       "description": "On which layer of paths to work, counted from the outermost. 1 is the layer of branches and leaves, higher values reach down to the trunk."
+    },
+    "mode": {
+      "type": "select",
+      "internal": true,
+      "label": "Mode",
+      "options": ["auto", "contacts", "density"],
+      "value": 0,
+      "description": "How overlaps are found. contacts pushes apart every two stems that touch, exact for a few stems but slow for thousands of strands. density first spreads crowded places by how full they are, like hair keeping its volume, then pushes the stems that still touch apart a few times. auto uses density from a thousand paths on."
     }
   }
 }
