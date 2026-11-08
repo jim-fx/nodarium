@@ -9,7 +9,8 @@
 //   --out    directory for the screenshots, defaults to ./screenshots
 //   --size   size of a single view in pixels, defaults to 512
 //   --seed   seed of the random nodes, defaults to 1, the same seed gives the same plant
-//   --focus  only renders what lies within r (m) of x, z seen from above, a close-up of one part
+//   --focus  only renders what lies within r (m) of x, z seen from above, a close-up of one part;
+//            the printed size is that of the close-up and the instance count is left out
 //
 // Prints one line of JSON per target with the path of the screenshot and the size of the plant.
 import { type Graph, INTERNAL_PREFIX, type NodeId } from '@nodarium/types';
@@ -352,7 +353,8 @@ for (const file of await resolveTargets(targets)) {
     name,
     screenshot: out,
     triangles: triangles.length,
-    instances,
+    // instances aren't split by the focus, so a close-up reports only what it can count
+    instances: options.focus ? undefined : instances,
     leafArea: Number(leafArea.toPrecision(4)),
     min: round(min),
     max: round(max),
