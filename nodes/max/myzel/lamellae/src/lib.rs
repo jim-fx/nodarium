@@ -19,7 +19,7 @@ use nodarium_utils::{
     geometry::{create_path, orthogonal_to, set_path_link, wrap_path, wrap_path_mut, PathLink},
     int, split_args, Ctx, Pattern, Point,
 };
-use myzel_core::Mesh;
+use myzel_core::{add_sheet, smooth_normals, Mesh, SheetGrid};
 use noise::{NoiseFn, OpenSimplex};
 use std::f32::consts::TAU;
 
@@ -457,65 +457,22 @@ const EDGE_THINNING: f32 = 0.5;
 /// `place` moves a vertex of slice `i` where it may be.
 fn add_plate(mesh: &mut Mesh, plate: &[Slice], thickness: f32, place: impl Fn(Vec3, usize) -> Vec3) {
     let m = plate.len();
-    let base = mesh.vertex_count() as u32;
-    let mut push = |p: Vec3, i: usize| {
-        let p = place(p, i);
-        mesh.positions.extend([p.x, p.y, p.z]);
-        mesh.normals.extend([0.0; 3]);
-        mesh.groups.push(0);
-    };
     let along = |i: usize| (plate[(i + 1).min(m - 1)].top - plate[i.saturating_sub(1)].top).try_normalize().unwrap_or(Vec3::X);
-    // both faces row by row, then the gill edge between them
-    for side in [1.0f32, -1.0] {
-        for (i, slice) in plate.iter().enumerate() {
-            let across = slice.normal.cross(along(i)).try_normalize().unwrap_or(Vec3::Z);
-            for k in 0..PLATE_ROWS {
-                let f = k as f32 / (PLATE_ROWS - 1) as f32;
-                let half = 0.5 * thickness * (1.0 - EDGE_THINNING * f) * (0.5 + 0.5 * slice.taper);
-                push(slice.at(f) + across * (side * half), i);
-            }
-        }
-    }
-    for (i, slice) in plate.iter().enumerate() {
+    // both faces row by row from the top to the gill edge, then the gill edge between them
+    let face = |side: f32, i: usize, k: usize| {
+        let slice = &plate[i];
+        let across = slice.normal.cross(along(i)).try_normalize().unwrap_or(Vec3::Z);
+        let f = k as f32 / (PLATE_ROWS - 1) as f32;
+        let half = 0.5 * thickness * (1.0 - EDGE_THINNING * f) * (0.5 + 0.5 * slice.taper);
+        place(slice.at(f) + across * (side * half), i)
+    };
+    let edge = |i: usize| {
+        let slice = &plate[i];
         let half = 0.5 * thickness * (1.0 - EDGE_THINNING) * (0.5 + 0.5 * slice.taper);
-        push(slice.at(1.0) - slice.normal * half, i);
-    }
-    let a = |i: usize, k: usize| base + (i * PLATE_ROWS + k) as u32;
-    let b = |i: usize, k: usize| base + ((m + i) * PLATE_ROWS + k) as u32;
-    let edge = |i: usize| base + (2 * m * PLATE_ROWS + i) as u32;
-    let faces = &mut mesh.faces;
-    let mut quad = |p: u32, q: u32, r: u32, t: u32| faces.extend([p, q, r, p, r, t]);
-    for i in 0..m - 1 {
-        for k in 0..PLATE_ROWS - 1 {
-            quad(a(i, k), a(i + 1, k), a(i + 1, k + 1), a(i, k + 1));
-            quad(b(i, k), b(i, k + 1), b(i + 1, k + 1), b(i + 1, k));
-        }
-        // the top, inside the flesh
-        quad(a(i + 1, 0), a(i, 0), b(i, 0), b(i + 1, 0));
-        let last = PLATE_ROWS - 1;
-        quad(a(i, last), a(i + 1, last), edge(i + 1), edge(i));
-        quad(edge(i), edge(i + 1), b(i + 1, last), b(i, last));
-    }
-    for k in 0..PLATE_ROWS - 1 {
-        quad(a(0, k), a(0, k + 1), b(0, k + 1), b(0, k));
-        quad(a(m - 1, k), b(m - 1, k), b(m - 1, k + 1), a(m - 1, k + 1));
-    }
-    let last = PLATE_ROWS - 1;
-    mesh.faces.extend([a(0, last), edge(0), b(0, last)]);
-    mesh.faces.extend([a(m - 1, last), b(m - 1, last), edge(m - 1)]);
-}
-
-/// Vertex normals from the faces around every vertex, weighted by their area
-fn smooth_normals(mesh: &mut Mesh) {
-    let p = |i: u32| Vec3::from_slice(&mesh.positions[i as usize * 3..i as usize * 3 + 3]);
-    let mut normals = vec![Vec3::ZERO; mesh.vertex_count()];
-    for f in mesh.faces.chunks_exact(3) {
-        let n = (p(f[1]) - p(f[0])).cross(p(f[2]) - p(f[0]));
-        for &v in f {
-            normals[v as usize] += n;
-        }
-    }
-    mesh.normals = normals.iter().flat_map(|n| n.try_normalize().unwrap_or(Vec3::Y).to_array()).collect();
+        place(slice.at(1.0) - slice.normal * half, i)
+    };
+    let grid = SheetGrid { columns: m, rows: PLATE_ROWS, wrap: false };
+    add_sheet(mesh, grid, |i, k| face(1.0, i, k), |i, k| face(-1.0, i, k), Some(&edge));
 }
 
 /// The gills of one cap, as stacks of paths and as plates
