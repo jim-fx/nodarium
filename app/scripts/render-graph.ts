@@ -1,14 +1,15 @@
 // Renders graph templates or project files to PNG screenshots, without a browser.
 // It executes the graph with the compiled nodes in static/nodes (`pnpm build:nodes`) and
 // rasterizes the result in software: front, side and a view from above, next to each other.
-// Stems are brown, instanced geometry (leaves, flowers) is green.
+// Stems are brown, instanced geometry (leaves, flowers) is green, Myzel meshes show their colors.
 //
-// Usage: pnpm render-graph <target...> [--out dir] [--size px] [--seed n] [--focus x,z,r] [--below]
+// Usage: pnpm render-graph <target...> [--out dir] [--size px] [--seed n] [--time t] [--focus x,z,r] [--below]
 //   target   name of a template in src/lib/graph-templates (fern, palm, ...), `templates` for
 //            all json templates, or the path of a graph or an exported `.nodarium.json` project
 //   --out    directory for the screenshots, defaults to ./screenshots
 //   --size   size of a single view in pixels, defaults to 512
 //   --seed   seed of the random nodes, defaults to 1, the same seed gives the same plant
+//   --time   the time of the graph from 0 to 1 (setting time.t), defaults to the graph's own
 //   --focus  only renders what lies within r (m) of x, z seen from above, a close-up of one part;
 //            the printed size is that of the close-up and the instance count is left out
 //   --below  adds a fourth view from below, for the underside of caps and leaves
@@ -35,6 +36,7 @@ const { values: options, positionals: targets } = parseArgs({
     out: { type: 'string', default: join(process.cwd(), 'screenshots') },
     size: { type: 'string', default: '512' },
     seed: { type: 'string', default: '1' },
+    time: { type: 'string' },
     focus: { type: 'string' },
     below: { type: 'boolean', default: false }
   }
@@ -42,13 +44,14 @@ const { values: options, positionals: targets } = parseArgs({
 
 if (targets.length === 0) {
   console.error(
-    'Usage: pnpm render-graph <template|templates|file.json...> [--out dir] [--size px] [--seed n] [--focus x,z,r] [--below]'
+    'Usage: pnpm render-graph <template|templates|file.json...> [--out dir] [--size px] [--seed n] [--time t] [--focus x,z,r] [--below]'
   );
   process.exit(1);
 }
 
 type Vec3 = [number, number, number];
-type Triangle = { a: Vec3; b: Vec3; c: Vec3; instanced: boolean };
+// the mean sRGB color of its vertices, over the stem color by their alpha
+type Triangle = { a: Vec3; b: Vec3; c: Vec3; instanced: boolean; color?: Vec3 };
 
 const STEM_COLOR = [125, 95, 60];
 const INSTANCE_COLOR = [70, 140, 60];
@@ -83,7 +86,8 @@ async function execute(graph: Graph, seed: number) {
   await registry.load(types as NodeId[]);
   const runtime = new MemoryRuntimeExecutor(registry);
   // a fixed seed makes screenshots comparable
-  return runtime.execute(graph, { ...graph.settings, seed });
+  const time = options.time === undefined ? {} : { 'time.t': Number(options.time) };
+  return runtime.execute(graph, { ...graph.settings, ...time, seed });
 }
 
 function floats(data: Int32Array, offset: number, length: number) {
@@ -106,12 +110,27 @@ function collectTriangles(result: Int32Array) {
       const vertex = (
         v: number
       ): Vec3 => [positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]];
+      const colorStart = 4 + faceCount * 3 + vertexCount * 6;
+      const colors = part[3] & 1
+        ? new Uint8Array(part.buffer, part.byteOffset + colorStart * 4, vertexCount * 4)
+        : undefined;
+      const color = (corners: number[]): Vec3 | undefined => {
+        if (!colors) return undefined;
+        return [0, 1, 2].map((c) =>
+          corners.reduce((sum, v) => {
+            const alpha = colors[v * 4 + 3] / 255;
+            return sum + (colors[v * 4 + c] * alpha + STEM_COLOR[c] * (1 - alpha)) / 3;
+          }, 0)
+        ) as Vec3;
+      };
       for (let f = 0; f < faceCount; f++) {
+        const corners = [faces[f * 3], faces[f * 3 + 1], faces[f * 3 + 2]];
         triangles.push({
-          a: vertex(faces[f * 3]),
-          b: vertex(faces[f * 3 + 1]),
-          c: vertex(faces[f * 3 + 2]),
-          instanced: false
+          a: vertex(corners[0]),
+          b: vertex(corners[1]),
+          c: vertex(corners[2]),
+          instanced: false,
+          color: color(corners)
         });
       }
       continue;
@@ -231,7 +250,7 @@ function rasterize(triangles: Triangle[], viewSize: number) {
       // both sides of a leaf are lit the same
       const shade = 0.35
         + 0.65 * Math.abs((n[0] * light[0] + n[1] * light[1] + n[2] * light[2]) / length);
-      const color = (t.instanced ? INSTANCE_COLOR : STEM_COLOR).map((c) =>
+      const color = (t.color ?? (t.instanced ? INSTANCE_COLOR : STEM_COLOR)).map((c) =>
         Math.min(255, c * shade)
       );
 

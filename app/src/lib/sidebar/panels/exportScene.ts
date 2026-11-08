@@ -2,6 +2,7 @@ import { TISSUES } from '#lib/result-viewer/geometry/hyphae.ts';
 import {
   BufferAttribute,
   BufferGeometry,
+  Color,
   Group,
   InstancedMesh,
   type Material,
@@ -65,6 +66,47 @@ export function splitByGroup(mesh: Mesh): Group | null {
   }
   return result;
 }
+
+/**
+ * Adds the vertex colors of the meshes to the `v` lines of an OBJ that three's OBJExporter wrote
+ * from `scene`, as `v x y z r g b` in sRGB, which Blender and MeshLab read. The exporter writes
+ * colors only for points. A vertex without a color of its own (alpha 0) is white.
+ */
+export function addObjVertexColors(obj: string, scene: Object3D) {
+  // the exporter visits the scene in this order and starts every object with an `o` line
+  const objects: (BufferAttribute | undefined)[] = [];
+  scene.traverse((object) => {
+    const kind = object as Partial<Record<'isMesh' | 'isLine' | 'isPoints', boolean>>;
+    if (kind.isMesh) {
+      const colors = (object as Mesh).geometry.getAttribute('color');
+      objects.push(colors instanceof BufferAttribute ? colors : undefined);
+    } else if (kind.isLine || kind.isPoints) {
+      objects.push(undefined);
+    }
+  });
+  if (!objects.some(Boolean)) return obj;
+
+  const color = new Color();
+  let object = -1;
+  let vertex = 0;
+  return obj.split('\n').map((line) => {
+    if (line.startsWith('o ')) {
+      object++;
+      vertex = 0;
+      return line;
+    }
+    const colors = objects[object];
+    if (!colors || !line.startsWith('v ')) return line;
+    const i = vertex++;
+    const alpha = colors.itemSize === 4 ? colors.getW(i) : 1;
+    color.setRGB(colors.getX(i), colors.getY(i), colors.getZ(i)).lerp(white, 1 - alpha);
+    const { r, g, b } = color.convertLinearToSRGB();
+    return `${line} ${round(r)} ${round(g)} ${round(b)}`;
+  }).join('\n');
+}
+
+const white = new Color(1, 1, 1);
+const round = (v: number) => Math.round(v * 10000) / 10000;
 
 /**
  * Builds a copy of the scene that is safe to hand to the exporters:

@@ -119,20 +119,49 @@ function groupAttribute(groups: Int32Array) {
 
 const coloredMaterials = new WeakMap<Material, Material>();
 
+/** The material where a vertex has no color of its own (alpha 0), its color where it has one */
+const VERTEX_COLOR_FRAGMENT = /* glsl */ `
+  #if defined( USE_COLOR_ALPHA )
+    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vColor.rgb, vColor.a);
+  #elif defined( USE_COLOR )
+    diffuseColor.rgb *= vColor.rgb;
+  #endif
+`;
+
+/** The matcap where a vertex has no color, its color shaded by the facing where it has one */
+const MATCAP_OUTGOING = /* glsl */ `
+  vec3 colorShade = vColor.rgb * mix(0.2, 0.8, uv.y);
+  vec3 outgoingLight = diffuseColor.rgb * mix(matcapColor.rgb, colorShade, vColor.a);
+`;
+
 /**
- * The material to show meshes that bring their own colors with. Tints that would hide the colors
- * are left out: the matcap texture and the shader changes the plant material adds on top. Shader
- * materials stay as they are, they are views like normals or faces that color by something else.
+ * The material to show meshes that bring their own colors with. Vertices without a color of their
+ * own (alpha 0, `NO_COLOR` of myzel_core) keep the look of the material, the matcap tint is left
+ * out where they have one. Shader materials stay as they are unless they take vertex colors, the
+ * others are views like normals or faces that color by something else.
  */
 export function withVertexColors(material: Material) {
-  if (material instanceof ShaderMaterial) return material;
+  if (material instanceof ShaderMaterial && !material.userData.vertexColors) return material;
   let colored = coloredMaterials.get(material);
-  if (!colored) {
-    colored = material.clone();
-    colored.vertexColors = true;
-    if (colored instanceof MeshMatcapMaterial) colored.matcap = null;
-    coloredMaterials.set(material, colored);
+  if (colored) return colored;
+  colored = material.clone();
+  colored.vertexColors = true;
+  if (colored instanceof ShaderMaterial && material instanceof ShaderMaterial) {
+    // the viewer sets the height range on the material it knows
+    colored.uniforms = material.uniforms;
+  } else {
+    const isMatcap = material instanceof MeshMatcapMaterial;
+    colored.onBeforeCompile = (shader, renderer) => {
+      material.onBeforeCompile(shader, renderer);
+      shader.fragmentShader = isMatcap
+        ? shader.fragmentShader
+          .replace('#include <color_fragment>', '')
+          .replace('vec3 outgoingLight = diffuseColor.rgb * matcapColor.rgb;', MATCAP_OUTGOING)
+        : shader.fragmentShader.replace('#include <color_fragment>', VERTEX_COLOR_FRAGMENT);
+    };
+    colored.customProgramCacheKey = () => `${material.customProgramCacheKey()}:vertex-colors`;
   }
+  coloredMaterials.set(material, colored);
   return colored;
 }
 
@@ -163,14 +192,15 @@ function sameFloats(attribute: BufferAttribute | undefined, values: Float32Array
 
 const color = new Color();
 
-/** Vertex colors are stored in sRGB, the renderer works with linear colors */
+/** Vertex colors are stored in sRGB, the renderer works with linear colors. Alpha stays as it is. */
 function linearColors(colors: Uint8Array) {
-  const out = new Float32Array((colors.length / 4) * 3);
-  for (let i = 0, j = 0; i < colors.length; i += 4, j += 3) {
+  const out = new Float32Array(colors.length);
+  for (let i = 0; i < colors.length; i += 4) {
     color.setRGB(colors[i] / 255, colors[i + 1] / 255, colors[i + 2] / 255, SRGBColorSpace);
-    out[j] = color.r;
-    out[j + 1] = color.g;
-    out[j + 2] = color.b;
+    out[i] = color.r;
+    out[i + 1] = color.g;
+    out[i + 2] = color.b;
+    out[i + 3] = colors[i + 3] / 255;
   }
   return out;
 }
@@ -372,7 +402,7 @@ export function createGeometryPool(
         writeIndex(geometry, faces, vertexCount);
         writeAttribute(geometry, 'position', positions);
         writeAttribute(geometry, 'normal', normals);
-        if (colors) writeAttribute(geometry, 'color', linearColors(colors));
+        if (colors) writeAttribute(geometry, 'color', linearColors(colors), 4);
         else geometry.deleteAttribute('color');
         writeAttribute(geometry, 'group', groupAttribute(groups), 1);
         // the renderer would compute the bounds from the vertices again, they are known here
