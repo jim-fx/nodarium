@@ -16,7 +16,7 @@
 //                static/nodes/max, the templates need it to end in static/nodes/max
 //   --templates  the templates timed node by node through the runtime, hyphae_to_mesh apart
 //
-// The strands grow from a stem 5 cm tall and 7 mm thick, like the groomed stipe template. The
+// The strands grow from a stem 5 cm tall and 7 mm thick, like a groomed stipe. The
 // chain is the groomed mushroom at about 5000 strands: a stipe of strands that clump, and a cap
 // whose guides are filled, waved, made lopsided, curled and opened, then filled with strands.
 // avoid runs on both, joined, once where the strands fit (radius 0) and once where they can't
@@ -40,8 +40,7 @@ const { values: options } = parseArgs({
     wasm: { type: 'string', default: join(root, 'app', 'static', 'nodes', 'max') },
     templates: {
       type: 'string',
-      default:
-        'champignon-groomed,chanterelle,groomed-cap,groomed-veil,groomed-gills,groomed-stipe,oyster'
+      default: 'champignon-groomed,chanterelle,oyster'
     }
   }
 });
@@ -182,7 +181,7 @@ function check(label: string, result: Int32Array) {
 }
 
 const STIPE = { length: 0.05, thickness: 0.007, taper: 0.25, resolution_curve: 24 };
-// as thick as in the groomed stipe template, where 200 strands of 0.5 mm fill a 7 mm stipe, so
+// as thick as in a groomed stipe, where 200 strands of 0.5 mm fill a 7 mm stipe, so
 // more strands get thinner and fill the guide about as densely
 const strands = (amount: number, guideThickness = STIPE.thickness) => ({
   amount,
@@ -192,7 +191,7 @@ const strands = (amount: number, guideThickness = STIPE.thickness) => ({
   wobble: 0.25,
   length_variation: 0.3
 });
-// the cap strands of the groomed cap template, 40 of 0.5 mm per guide, thinner when there are more
+// the cap strands of a groomed cap, 40 of 0.5 mm per guide, thinner when there are more
 const capStrands = (amount: number) => ({
   amount,
   thickness: 0.0005 * Math.sqrt(40 / amount),
