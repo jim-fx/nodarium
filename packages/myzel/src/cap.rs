@@ -100,6 +100,9 @@ pub struct Cap {
     pub rays: Vec<CapRay>,
     /// Distance along the rays from the axis to the margin
     pub length: f32,
+    /// The donor of every ray that starts out on the cap, found once, a cap bends its rays
+    /// many times
+    donors: Vec<Option<usize>>,
 }
 
 impl Cap {
@@ -179,7 +182,8 @@ impl Cap {
             n => lengths[n / 2],
         };
         rays.sort_by(|a, b| a.angle.total_cmp(&b.angle));
-        Some(Cap { frame, rays, length })
+        let donors = rays.iter().map(|ray| if ray.crosses { None } else { Self::donor(&rays, ray) }).collect();
+        Some(Cap { frame, rays, length, donors })
     }
 
     /// How far from the axis the furthest tip is
@@ -206,12 +210,16 @@ impl Cap {
     }
 
     /// The nearest ray that leaves the stipe
-    fn donor(&self, ray: &CapRay) -> Option<&CapRay> {
+    fn donor(rays: &[CapRay], ray: &CapRay) -> Option<usize> {
         let distance = |r: &CapRay| {
             let d = (r.angle - ray.angle).rem_euclid(TAU);
             d.min(TAU - d)
         };
-        self.rays.iter().filter(|r| r.crosses).min_by(|a, b| distance(a).total_cmp(&distance(b)))
+        rays.iter()
+            .enumerate()
+            .filter(|(_, r)| r.crosses)
+            .min_by(|(_, a), (_, b)| distance(a).total_cmp(&distance(b)))
+            .map(|(k, _)| k)
     }
 
     /// Where the start of a ray that starts out on the cap moves when its donor bends from the
@@ -237,8 +245,8 @@ impl Cap {
     /// positive turn. The steps keep their lengths, the ray keeps its points.
     pub fn bend(&self, k: usize, turn: impl Fn(&Step) -> f32) -> Vec<Vec2> {
         let ray = &self.rays[k];
-        let mut p = match (ray.crosses, self.donor(ray)) {
-            (false, Some(donor)) => self.carried_start(ray, donor, &turn),
+        let mut p = match self.donors[k] {
+            Some(donor) => self.carried_start(ray, &self.rays[donor], &turn),
             _ => ray.plane[0],
         };
         let mut points = Vec::with_capacity(ray.plane.len());
