@@ -1,21 +1,27 @@
 // Times the path nodes on thousands of strands, straight on the compiled node wasm
 // (`pnpm build:nodes`), without the runtime and without meshing the paths into tubes.
 //
-// Usage: pnpm bench:paths [--counts 500,2000,10000] [--runs 5] [--only noise,avoid]
+// Usage: pnpm bench:paths [--counts 500,2000,5000,10000] [--runs 5] [--only noise,avoid,chain]
 //                         [--dump dir] [--compare dir] [--wasm dir] [--radius m]
-//   --counts   how many strands the nodes get
-//   --runs     runs per measurement, the median is printed
-//   --only     a part of the nodes, `chain` is the stipe and cap through the modifiers
-//   --dump     writes the output of every measurement to dir
-//   --compare  checks the output of every measurement against an earlier --dump
-//   --radius   the free space avoid keeps between strands, 0.2 mm by default
-//   --wasm     where the node wasm is, as <dir>/<collection>/<node>.wasm, defaults to static/nodes
+//                         [--templates champignon-groomed,chanterelle]
+//   --counts     how many strands the nodes get
+//   --runs       runs per measurement, the median is printed
+//   --only       a part of the measurements: node names, `cap` for the cap nodes on a cap with
+//                hundreds of rays, `chain` for the groomed stipe and cap, `templates`
+//   --dump       writes the output of every measurement to dir
+//   --compare    checks the output of every measurement against an earlier --dump
+//   --radius     the free space avoid keeps between strands in the over-packed case of the chain,
+//                0.2 mm by default, everywhere else avoid keeps none (the strands fit)
+//   --wasm       where the node wasm is, as <dir>/<collection>/<node>.wasm, defaults to
+//                static/nodes/max, the templates need it to end in static/nodes/max
+//   --templates  the templates timed node by node through the runtime, hyphae_to_mesh apart
 //
 // The strands grow from a stem 5 cm tall and 7 mm thick, like the groomed stipe template. The
-// chain is a stand-in for a groomed mushroom until there is a cap node: a stipe of 2500 strands
-// and a cap of 24 umbel rays with 104 strands each, joined and bent by noise, gravity,
-// apply_force and avoid.
-import { createWasmWrapper, readNodeValue } from '@nodarium/utils';
+// chain is the groomed mushroom at about 5000 strands: a stipe of strands that clump, and a cap
+// whose guides are filled, waved, made lopsided, curled and opened, then filled with strands.
+// avoid runs on both, joined, once where the strands fit (radius 0) and once where they can't
+// (radius --radius, about 2.4 times as much tube as the stipe holds).
+import { createPerformanceStore, createWasmWrapper, readNodeValue } from '@nodarium/utils';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,13 +31,18 @@ const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 
 const { values: options } = parseArgs({
   options: {
-    counts: { type: 'string', default: '500,2000,10000' },
+    counts: { type: 'string', default: '500,2000,5000,10000' },
     runs: { type: 'string', default: '5' },
     only: { type: 'string' },
     dump: { type: 'string' },
     compare: { type: 'string' },
     radius: { type: 'string', default: '0.0002' },
-    wasm: { type: 'string', default: join(root, 'app', 'static', 'nodes', 'max') }
+    wasm: { type: 'string', default: join(root, 'app', 'static', 'nodes', 'max') },
+    templates: {
+      type: 'string',
+      default:
+        'champignon-groomed,chanterelle,groomed-cap,groomed-veil,groomed-gills,groomed-stipe,oyster'
+    }
   }
 });
 const counts = options.counts.split(',').map(Number);
@@ -61,10 +72,11 @@ function encode(type: string, value: unknown): Int32Array {
 
 type Inputs = Record<string, Int32Array>;
 type Props = Record<string, unknown>;
+type Run = (inputs: Inputs, props: Props, id: number) => Int32Array[];
 
-const nodes = new Map<string, { run: (inputs: Inputs, props: Props, id: number) => Int32Array }>();
+const nodes = new Map<string, Run>();
 
-function load(name: string) {
+function load(name: string): Run {
   if (nodes.has(name)) return nodes.get(name)!;
   const [collection, node] = name.split('/');
   const definition = JSON.parse(
@@ -74,7 +86,7 @@ function load(name: string) {
   const wrapper = createWasmWrapper(
     bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
   );
-  const run = (links: Inputs, props: Props, id: number) => {
+  const run: Run = (links, props, id) => {
     const inputs = Object.entries(
       definition.inputs as Record<string, { type: string; value?: unknown }>
     ).map(([key, input]) => {
@@ -82,22 +94,25 @@ function load(name: string) {
       if (input.type === 'creator') return Int32Array.of(id);
       if (key in props) return encode(input.type, props[key]);
       if (input.type === 'seed') return Int32Array.of(0);
-      if (['path', 'force'].includes(input.type)) return new Int32Array(0);
+      if (['path', 'force', 'points', 'pattern', 'mesh'].includes(input.type)) {
+        return new Int32Array(0);
+      }
       if (input.type === 'vec3') return encode('vec3', input.value ?? [0, 0, 0]);
       return encode(input.type, input.value ?? 0);
     });
     wrapper.reset();
     const outputs = wrapper.execute(inputs);
-    // the first output, umbel also puts out the tips of its rays
-    return readNodeValue(Array.isArray(outputs) ? outputs[0] : outputs);
+    return (Array.isArray(outputs) ? outputs : [outputs]).map(readNodeValue);
   };
-  nodes.set(name, { run });
-  return nodes.get(name)!;
+  nodes.set(name, run);
+  return run;
 }
 
 // every node gets a fixed id, so the ids and the random values of the paths don't depend on --only
 const node = (id: number, name: string, inputs: Inputs = {}, props: Props = {}) =>
-  load(name).run(inputs, props, id);
+  load(name)(inputs, props, id)[0];
+const nodeAll = (id: number, name: string, inputs: Inputs = {}, props: Props = {}) =>
+  load(name)(inputs, props, id);
 
 function median(values: number[]) {
   const sorted = [...values].sort((a, b) => a - b);
@@ -106,15 +121,14 @@ function median(values: number[]) {
 }
 
 function time(id: number, name: string, inputs: Inputs, props: Props) {
-  const n = load(name);
   const times: number[] = [];
-  let result = new Int32Array(0);
+  let result: Int32Array[] = [];
   for (let i = 0; i < runs; i++) {
     const start = performance.now();
-    result = n.run(inputs, props, id);
+    result = load(name)(inputs, props, id);
     times.push(performance.now() - start);
   }
-  return { ms: median(times), result };
+  return { ms: median(times), result: result[0], outputs: result };
 }
 
 // Splits a list of paths into its paths, like split_args
@@ -151,7 +165,7 @@ function difference(a: Int32Array, b: Int32Array) {
 }
 
 function check(label: string, result: Int32Array) {
-  const file = label.replaceAll('/', '_').replaceAll(' ', '_') + '.bin';
+  const file = label.replace(/[^A-Za-z0-9.-]+/g, '_') + '.bin';
   if (options.dump) {
     mkdirSync(options.dump, { recursive: true });
     writeFileSync(join(options.dump, file), result);
@@ -178,13 +192,25 @@ const strands = (amount: number, guideThickness = STIPE.thickness) => ({
   wobble: 0.25,
   length_variation: 0.3
 });
-const MODIFIERS: [string, (force: Int32Array) => Inputs, Props][] = [
-  ['plantarium/noise', () => ({}), { scale: 1, strength: 0.5 }],
-  ['plantarium/gravity', () => ({}), { strength: 0.2 }],
-  ['plantarium/apply_force', (force) => ({ force }), { strength: 1, stiffness: 0.3 }],
-  ['plantarium/avoid', () => ({}), { radius: Number(options.radius), strength: 1, smoothing: 0.5 }],
-  ['plantarium/clump', () => ({}), { strength: 0.5, clumps: 12 }],
-  ['plantarium/branch', () => ({}), { amount: 2, length: 0.01, lowest_branch: 0.3 }]
+// the cap strands of the groomed cap template, 40 of 0.5 mm per guide, thinner when there are more
+const capStrands = (amount: number) => ({
+  amount,
+  thickness: 0.0005 * Math.sqrt(40 / amount),
+  thickness_variation: 0.5,
+  wobble: 0.25,
+  length_variation: 0.1
+});
+const AVOID = { strength: 1, smoothing: 0.5 };
+const MODIFIERS: [string, string, (force: Int32Array) => Inputs, Props][] = [
+  ['plantarium/noise', '', () => ({}), { scale: 1, strength: 0.5 }],
+  ['plantarium/gravity', '', () => ({}), { strength: 0.2 }],
+  ['plantarium/apply_force', '', (force) => ({ force }), { strength: 1, stiffness: 0.3 }],
+  ['plantarium/avoid', 'contacts', () => ({}), { ...AVOID, radius: 0, mode: 1 }],
+  ['plantarium/avoid', 'density', () => ({}), { ...AVOID, radius: 0, mode: 2 }],
+  ['plantarium/clump', '', () => ({}), { strength: 0.5, clumps: 12 }],
+  ['plantarium/branch', '', () => ({}), { amount: 2, length: 0.01, lowest_branch: 0.3 }],
+  ['plantarium/fill_gaps', '', () => ({}), { spacing: 0.5 }],
+  ['plantarium/separate', '', () => ({}), {}]
 ];
 const pointForce = () =>
   node(3, 'plantarium/force', {}, {
@@ -195,12 +221,15 @@ const pointForce = () =>
   });
 
 const rows: string[][] = [];
-const wanted = (name: string) => !only || only.some((o) => name.endsWith(o));
+const wanted = (...names: string[]) =>
+  !only || only.some((o) => names.some((name) => name.endsWith(o)));
+const label = (name: string, variant: string) => (variant ? `${name} (${variant})` : name);
 
 for (const count of counts) {
+  if (!wanted('nodes', 'strands', ...MODIFIERS.map((m) => m[0]), 'keep_apart')) break;
   const stem = node(1, 'plantarium/stem', {}, STIPE);
   const grown = time(2, 'myzel/strands', { plant: stem }, strands(count));
-  if (wanted('strands')) {
+  if (wanted('nodes', 'strands')) {
     rows.push([
       'myzel/strands',
       `${count}`,
@@ -209,52 +238,163 @@ for (const count of counts) {
     ]);
   }
   const force = pointForce();
-  for (const [k, [name, links, props]] of MODIFIERS.entries()) {
-    if (!wanted(name)) continue;
-    const { ms, result } = time(10 + k, name, { plant: grown.result, ...links(force) }, props);
-    rows.push([name, `${count}`, ms.toFixed(1), check(`${name}-${count}`, result)]);
+  for (const [k, [name, variant, links, props]] of MODIFIERS.entries()) {
+    if (!wanted('nodes', name)) continue;
+    // separate takes every other strand back out, they all share one creator
+    const extra = name.endsWith('separate') ? { like: grown.result } : links(force);
+    const { ms, result } = time(10 + k, name, { plant: grown.result, ...extra }, props);
+    const tag = `${name}${variant ? '-' + variant : ''}-${count}`;
+    rows.push([label(name, variant), `${count}`, ms.toFixed(1), check(tag, result)]);
+  }
+  // keep_apart moves stems without a parent, a troop of `count` of them on one spot
+  if (wanted('nodes', 'keep_apart') && count <= 1000) {
+    const troop = node(4, 'plantarium/stem', {}, { ...STIPE, amount: count });
+    const { ms, result } = time(30, 'plantarium/keep_apart', { plant: troop }, { radius: 0.01 });
+    rows.push([
+      'plantarium/keep_apart (stems)',
+      `${count}`,
+      ms.toFixed(1),
+      check(`keep_apart-${count}`, result)
+    ]);
   }
   console.error(`${count} strands done`);
+}
+
+// The cap nodes at their most rays: 128 from the cap and as many as fill_gaps adds
+if (wanted('cap')) {
+  const steps = new Map<string, number[]>();
+  const outputs = new Map<string, Int32Array>();
+  let rays = 0;
+  for (let r = 0; r < runs; r++) {
+    let nextId = 200;
+    const step = (name: string, inputs: Inputs, props: Props) => {
+      const t = performance.now();
+      const out = nodeAll(nextId++, name, inputs, props);
+      steps.set(name, [...(steps.get(name) ?? []), performance.now() - t]);
+      outputs.set(name, out[0]);
+      return out;
+    };
+    const stem = step('plantarium/stem', {}, STIPE)[0];
+    const [cap, hinge] = step('myzel/cap', { plant: stem }, { rays: 128, radius: 0.03 });
+    const [filled] = step('plantarium/fill_gaps', { plant: cap }, { spacing: 0.1 });
+    rays = pathCount(filled);
+    const [waved] = step('myzel/margin_waves', { cap: filled, hinge }, {});
+    const [lopsided] = step('myzel/cap_lopsided', { cap: waved, hinge }, {});
+    const [curled] = step('myzel/margin_curl', { cap: lopsided, hinge }, { amount: 0.2 });
+    const [opened, margin] = step('myzel/cap_open', { cap: curled, hinge }, { opening: 0.8 });
+    step('myzel/membrane', { a: margin, b: stem }, { strands: 4096, tear: 0.5 });
+    const [pattern] = step('myzel/reaction_diffusion', {}, {
+      radius: 0.03,
+      inner_radius: 0.0065,
+      spacing: 0.0005
+    });
+    step('myzel/lamellae', { cap: opened, hinge, pattern }, {});
+  }
+  for (const [name, t] of steps) {
+    rows.push([
+      `cap: ${name}`,
+      `${rays}`,
+      median(t).toFixed(1),
+      check(`cap ${name}`, outputs.get(name)!)
+    ]);
+  }
 }
 
 if (wanted('chain')) {
   const times: number[] = [];
   const steps = new Map<string, number[]>();
   const outputs = new Map<string, Int32Array>();
+  let guides = 0;
   for (let r = 0; r < runs; r++) {
-    const start = performance.now();
     let nextId = 100;
-    const step = (name: string, inputs: Inputs, props: Props, label = name) => {
+    let total = 0;
+    const step = (name: string, inputs: Inputs, props: Props, as = name, count = true) => {
       const t = performance.now();
-      const out = load(name).run(inputs, props, nextId++);
-      steps.set(label, [...(steps.get(label) ?? []), performance.now() - t]);
-      outputs.set(label, out);
+      const out = nodeAll(nextId++, name, inputs, props);
+      const ms = performance.now() - t;
+      if (count) total += ms;
+      steps.set(as, [...(steps.get(as) ?? []), ms]);
+      outputs.set(as, out[0]);
       return out;
     };
-    const stem = step('plantarium/stem', {}, STIPE);
-    const stipe = step('myzel/strands', { plant: stem }, strands(2500), 'stipe strands');
-    const rays = step('plantarium/umbel', { plant: stem }, {
-      amount: 24,
-      length: 0.03,
-      length_variation: 0,
-      opening: 170,
-      thickness: 0.002,
-      resolution_curve: 24
-    });
-    const gills = step('myzel/strands', { plant: rays }, strands(104, 0.002), 'cap strands');
-    let plant = step('plantarium/join', { a: stipe, b: gills }, {});
-    const force = step('plantarium/force', {}, {
-      position: [0.02, 0.04, 0],
-      strength: 1,
-      radius: 0.05,
-      falloff: 1
-    });
-    // the cap strands are one layer deeper than the stipe strands, depth 2 bends both but not
-    // the stem they grow on
-    for (const [name, links, props] of MODIFIERS.slice(0, 4)) {
-      plant = step(name, { plant, ...links(force) }, { ...props, depth: 2 });
+    const [stem] = step('plantarium/stem', {}, STIPE);
+    const [stipe] = step('myzel/strands', { plant: stem }, strands(2500), 'stipe: myzel/strands');
+    const [clumped] = step(
+      'plantarium/clump',
+      { plant: stipe },
+      { strength: 0.5, clumps: 12 },
+      'stipe: plantarium/clump'
+    );
+    const [cap, hinge] = step('myzel/cap', { plant: stem }, { rays: 14 }, 'cap: myzel/cap');
+    const [filled] = step(
+      'plantarium/fill_gaps',
+      { plant: cap },
+      { spacing: 0.5 },
+      'cap: plantarium/fill_gaps'
+    );
+    guides = pathCount(filled);
+    const [waved] = step(
+      'myzel/margin_waves',
+      { cap: filled, hinge },
+      {},
+      'cap: myzel/margin_waves'
+    );
+    const [lopsided] = step(
+      'myzel/cap_lopsided',
+      { cap: waved, hinge },
+      {},
+      'cap: myzel/cap_lopsided'
+    );
+    const [curled] = step(
+      'myzel/margin_curl',
+      { cap: lopsided, hinge },
+      { amount: 0.2 },
+      'cap: myzel/margin_curl'
+    );
+    const [opened, margin] = step(
+      'myzel/cap_open',
+      { cap: curled, hinge },
+      { opening: 1 },
+      'cap: myzel/cap_open'
+    );
+    const [capStrandList] = step(
+      'myzel/strands',
+      { plant: opened },
+      capStrands(Math.round(2500 / guides)),
+      'cap: myzel/strands'
+    );
+    step('myzel/membrane', { a: margin, b: stem }, { tear: 0.5 }, 'veil: myzel/membrane');
+    const [pattern] = step('myzel/reaction_diffusion', {}, {
+      radius: 0.027,
+      inner_radius: 0.00625,
+      spacing: 0.001
+    }, 'gills: myzel/reaction_diffusion');
+    step('myzel/lamellae', { cap: opened, hinge, pattern }, {}, 'gills: myzel/lamellae');
+    const [joined] = step(
+      'plantarium/join',
+      { a: clumped, b: capStrandList },
+      {},
+      'plantarium/join'
+    );
+    times.push(total);
+    // the strands of the stipe and the cap are both two layers below the stem
+    const avoid = { ...AVOID, depth: 2 };
+    for (const [mode, name] of [[1, 'contacts'], [2, 'density']] as const) {
+      step(
+        'plantarium/avoid',
+        { plant: joined },
+        { ...avoid, radius: 0, mode },
+        `avoid ${name}, radius 0`,
+        false
+      );
+      step(
+        'plantarium/avoid',
+        { plant: joined },
+        { ...avoid, radius: Number(options.radius), mode },
+        `avoid ${name}, radius ${Number(options.radius) * 1000} mm (over-packed)`,
+        false
+      );
     }
-    times.push(performance.now() - start);
   }
   for (const [name, t] of steps) {
     rows.push([
@@ -264,8 +404,63 @@ if (wanted('chain')) {
       check(`chain ${name}`, outputs.get(name)!)
     ]);
   }
-  const result = outputs.get('plantarium/avoid')!;
-  rows.push([`chain total (${pathCount(result)} paths)`, '', median(times).toFixed(1), '']);
+  const joined = outputs.get('plantarium/join')!;
+  rows.push([
+    `chain total without avoid (${pathCount(joined)} paths, ${guides} cap guides)`,
+    '',
+    median(times).toFixed(1),
+    ''
+  ]);
+}
+
+// The templates through the runtime, every node type summed, hyphae_to_mesh apart
+if (wanted('templates')) {
+  // the registry reads <cwd>/static/nodes/<collection>/<node>.wasm, the same nodes as --wasm
+  process.chdir(dirname(dirname(dirname(options.wasm))));
+  const { BenchmarkRegistry } = await import('../benchmark/benchmarkRegistry.ts');
+  const { parseProjectFile } = await import('../src/lib/project-manager/project-file.ts');
+  const { MemoryRuntimeExecutor } = await import('../src/lib/runtime/runtime-executor.ts');
+  const { INTERNAL_PREFIX } = await import('@nodarium/types');
+  for (const template of options.templates.split(',')) {
+    const file = join(root, 'app', 'src', 'lib', 'graph-templates', `${template}.json`);
+    const graph = parseProjectFile(JSON.parse(readFileSync(file, 'utf8'))).graph;
+    const registry = new BenchmarkRegistry();
+    // types inside groups are loaded by the runtime when it expands them
+    await registry.load(
+      graph.nodes.map((n) => n.type).filter((t) => !t.startsWith(INTERNAL_PREFIX))
+    );
+    const runtime = new MemoryRuntimeExecutor(registry);
+    runtime.perf = createPerformanceStore();
+    const perType = new Map<string, number[]>();
+    const totals: number[] = [];
+    const meshes: number[] = [];
+    for (let r = 0; r < runs; r++) {
+      runtime.perf.startRun();
+      await runtime.execute(graph, { ...graph.settings, seed: 1 });
+      runtime.perf.stopRun();
+      const run = runtime.perf.get().at(-1)!;
+      let total = 0;
+      let mesh = 0;
+      for (const [key, values] of Object.entries(run)) {
+        if (!key.startsWith('node/')) continue;
+        const sum = values.reduce((a, b) => a + b, 0);
+        const type = key.slice('node/max/'.length);
+        perType.set(type, [...(perType.get(type) ?? []), sum]);
+        if (type === 'myzel/hyphae_to_mesh') mesh += sum;
+        else total += sum;
+      }
+      totals.push(total);
+      meshes.push(mesh);
+    }
+    const sorted = [...perType].sort((a, b) => median(b[1]) - median(a[1]));
+    for (const [type, t] of sorted) {
+      if (type === 'myzel/hyphae_to_mesh' || median(t) < 0.5) continue;
+      rows.push([`${template}: ${type}`, '', median(t).toFixed(1), '']);
+    }
+    rows.push([`${template}: total without hyphae_to_mesh`, '', median(totals).toFixed(1), '']);
+    rows.push([`${template}: hyphae_to_mesh (context)`, '', median(meshes).toFixed(1), '']);
+    console.error(`${template} done`);
+  }
 }
 
 const header = ['node', 'paths', 'median ms', options.compare ? 'output' : ''];
