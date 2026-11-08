@@ -1,0 +1,60 @@
+{
+  "id": "max/plantarium/neighbour_sensing",
+  "meta": {
+    "description": "Lets paths sense their neighbours like growing hyphae: they turn away from crowded places or bundle with paths close by, so a bundle of strands gets a fibrous, slightly irregular texture. Every path still follows where it was, it never strays further than the max offset, and its base stays where it is."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The paths that sense each other, e.g. the strands of a stipe or a cap."
+    },
+    "strength": {
+      "type": "float",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "value": 0.6,
+      "description": "How far the paths follow what they sense, as a share of the max offset. 0 leaves them where they are."
+    },
+    "range": {
+      "type": "float",
+      "min": 0,
+      "max": 0.05,
+      "step": 0.0005,
+      "value": 0.002,
+      "unit": "m",
+      "description": "How far a path senses its neighbours. About two to three strand spacings gives cords of a few strands, larger values gather wider bands."
+    },
+    "bundling": {
+      "type": "float",
+      "min": -1,
+      "max": 1,
+      "step": 0.05,
+      "value": 0.6,
+      "description": "-1 turns paths away from their neighbours, so they spread evenly, 1 turns them towards each other, so they bundle into cords with gaps between them."
+    },
+    "max_offset": {
+      "type": "float",
+      "min": 0,
+      "max": 0.02,
+      "step": 0.0001,
+      "value": 0.0006,
+      "unit": "m",
+      "description": "The furthest a point strays from where it was. Strands of a guide leave its tube by at most this much."
+    },
+    "seed": {
+      "type": "seed"
+    },
+    "depth": {
+      "type": "integer",
+      "min": 1,
+      "max": 10,
+      "value": 1,
+      "hidden": true,
+      "description": "On which layers of paths to work, counted from the deepest. 1 works only on the deepest paths, e.g. the strands."
+    }
+  }
+}
