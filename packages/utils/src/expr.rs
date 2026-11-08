@@ -79,6 +79,8 @@ pub struct Ctx {
     /// The path the node is working on. The `path_info` node reads it.
     pub path: PathInfo,
     calls: i32,
+    /// The path the random values are drawn for, set by `seed_path`
+    path_id: i32,
 }
 
 impl Ctx {
@@ -108,6 +110,7 @@ impl Ctx {
     /// Makes the random values that follow depend on the path with this id.
     pub fn seed_path(&mut self, id: i32) {
         self.calls = (id as u32 % 100_000) as i32;
+        self.path_id = id;
     }
 
     /// Like `set_path`, for a path that doesn't exist yet, e.g. a stem that is about to be made.
@@ -134,9 +137,14 @@ impl Ctx {
                     _ => 0.0,
                 }
             }
-            [[1], min, max, [seed], uniform @ ..] => {
+            [[1], min, max, [seed], options @ ..] => {
                 let (min, max) = (self.float(min), self.float(max));
-                if uniform.first().is_some_and(|u| u.first() == Some(&1)) {
+                let flag = |i: usize| options.get(i).is_some_and(|o| o.first() == Some(&1));
+                let uniform = flag(0);
+                if flag(1) {
+                    let salt = options.get(2).and_then(|o| o.first()).copied().unwrap_or(0);
+                    min + self.per_path(*seed, salt, uniform) * (max - min)
+                } else if uniform {
                     min + self.random_u32(*seed) as f32 / u32::MAX as f32 * (max - min)
                 } else {
                     self.random(min, max, *seed)
@@ -239,6 +247,19 @@ impl Ctx {
         self.calls = (self.calls + 512) % i32::MAX;
 
         min + value * (max - min)
+    }
+
+    /// A number from 0 to 1 that only depends on the seed, the path and `salt` (the random
+    /// node), so every node that reads it for the same path gets the same value. It draws
+    /// nothing, the values after it stay as they were.
+    fn per_path(&self, seed: i32, salt: i32, uniform: bool) -> f32 {
+        let draw = |k: i32| crate::geometry::path_random(seed, self.path_id, salt.wrapping_mul(2).wrapping_add(k));
+        if uniform {
+            draw(0)
+        } else {
+            // values near the middle come more often, as with the noise of `random`
+            0.5 * (draw(0) + draw(1))
+        }
     }
 
     /// A uniformly distributed random number. Unlike `random`, which reads a noise
@@ -356,6 +377,36 @@ mod tests {
         let first = run();
         assert_ne!(first[0], first[1]);
         assert_eq!(first, run());
+    }
+
+    #[test]
+    fn a_random_per_path_is_the_same_wherever_the_path_reads_it() {
+        let random = |uniform: i32, salt: i32| {
+            concat_args(vec![&[1], &[encode_float(0.0)], &[encode_float(10.0)], &[7], &[uniform], &[1], &[salt]])
+        };
+        let other = concat_args(vec![&[1], &[encode_float(0.0)], &[encode_float(10.0)], &[7]]);
+        let read = |path: i32, first: &[i32], salt: i32| {
+            let mut ctx = Ctx::default();
+            ctx.seed_path(path);
+            ctx.float(first);
+            ctx.float(&random(1, salt))
+        };
+        // read first or after other random values, it stays the same
+        let age = read(3, &random(1, 5), 5);
+        assert_eq!(age, read(3, &other, 5));
+        assert_eq!(age, read(3, &concat_args(vec![&[encode_float(1.0)]]), 5));
+        assert!((0.0..=10.0).contains(&age));
+        // every path and every random node has its own
+        assert_ne!(age, read(4, &other, 5));
+        assert_ne!(age, read(3, &other, 6));
+
+        // and it draws nothing, the values after it stay as they were
+        let mut a = Ctx::default();
+        a.seed_path(3);
+        a.float(&random(0, 5));
+        let mut b = Ctx::default();
+        b.seed_path(3);
+        assert_eq!(a.float(&other), b.float(&other));
     }
 
     #[test]
