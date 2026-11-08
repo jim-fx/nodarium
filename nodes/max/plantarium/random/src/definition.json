@@ -19,6 +19,15 @@
       "type": "boolean",
       "value": false,
       "description": "Every value from min to max is equally likely. Off, values near the middle come more often."
+    },
+    "per_path": {
+      "type": "boolean",
+      "value": false,
+      "label": "once per path",
+      "description": "One value for every path, the same in every node that reads it, like the age of a mushroom that its stipe, its cap and how far the cap opens all read. Off, every read draws a new value."
+    },
+    "creator": {
+      "type": "creator"
     }
   }
 }

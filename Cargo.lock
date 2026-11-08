@@ -533,6 +533,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "plantarium_neighbour_sensing"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
 name = "plantarium_noise"
 version = "0.1.0"
 dependencies = [

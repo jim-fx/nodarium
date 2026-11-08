@@ -11,6 +11,16 @@
 //! perpendicular to the underside. The depth follows `depth_curve` from the stipe to the margin,
 //! a gill that starts or ends on its own grows in and out over a few spacings, and the edge
 //! waves sideways and up and down with `edge_wave`.
+//!
+//! `blunt` turns the plates into the false gills of Cantharellus: low folds with a round back,
+//! a half ellipse as wide as the thickness that flares into the flesh, never deeper than wide.
+//! As a mesh they stay blunt at any mesh resolution, as paths meshed loose they'd melt into
+//! fins with slits between them.
+//!
+//! With the stipe connected, the gills that leave it run on `decurrent` down it (decurrent
+//! gills, like Pleurotus and Cantharellus), at the angle they meet it and lower and lower until
+//! they are gone. Where they turn from the cap onto the stipe the way they hang turns over
+//! about a depth, so their edge curves round the corner.
 
 use glam::{Vec2, Vec3};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
@@ -21,7 +31,7 @@ use nodarium_utils::{
 };
 use myzel_core::{add_sheet, smooth_normals, Mesh, SheetGrid};
 use noise::{NoiseFn, OpenSimplex};
-use std::f32::consts::TAU;
+use std::f32::consts::{PI, TAU};
 
 nodarium_definition_file!("src/definition.json");
 
@@ -51,6 +61,9 @@ const NOISE_GAIN: f32 = 2.0;
 /// full thickness over 4 of its start radii. The underside only follows it from there on, or it
 /// would step up where the ray starts.
 const RAY_RAMP: f32 = 4.0;
+/// Where a gill turns from the stipe onto the cap, the way it hangs turns over about this many
+/// depths on either side. Under 0.8 the edge folds over itself in a right-angled corner.
+const CORNER: f32 = 1.2;
 
 /// The words inside the brackets of a framed list `[0, n + 1, ...words, 1, 1]`
 fn unframe(arg: &[i32]) -> Option<&[i32]> {
@@ -139,6 +152,8 @@ struct Ray {
     sections: Vec<Section>,
     /// Where the ray has its full thickness
     settled: f32,
+    /// From the axis to the tip
+    length: f32,
 }
 
 impl Ray {
@@ -167,16 +182,20 @@ struct Underside {
     frame: Frame,
     /// Sorted by angle
     rays: Vec<Ray>,
-    /// Distance along the rays from the axis to the margin
+    /// Distance along the rays from the axis to the margin, the middle of all rays. The pattern
+    /// is stretched to the length of every ray, so the gills of a cap that reaches further on
+    /// one side (cap_lopsided) reach the margin all round.
     length: f32,
     /// Half the flesh thickness at the margin
     margin_radius: f32,
+    /// The stretch starts here, the gills next to the stipe stay next to it
+    anchor: f32,
 }
 
 impl Underside {
     fn new(frame: Frame, paths: &[&[i32]]) -> Option<Underside> {
-        let mut rays: Vec<(f32, Vec<Section>, f32, bool)> = Vec::new();
-        let mut lengths = Vec::new();
+        // angle, sections, the length of a ray that crosses the axis, where it starts from the axis
+        let mut rays: Vec<(f32, Vec<Section>, Option<f32>, f32)> = Vec::new();
         for path in paths {
             let path = wrap_path(path);
             let n = path.length;
@@ -200,11 +219,10 @@ impl Underside {
                 to_end[i] = to_end[i + 1] + point(i).distance(point(i + 1));
             }
             // a ray that starts in the stipe crosses the axis, from there on it measures the cap
-            let crossing = (1..n).find(|&k| plane[k - 1].x < 0.0 && plane[k].x >= 0.0);
-            if let Some(k) = crossing {
+            let crossing = (1..n).find(|&k| plane[k - 1].x < 0.0 && plane[k].x >= 0.0).map(|k| {
                 let t = -plane[k - 1].x / (plane[k].x - plane[k - 1].x);
-                lengths.push(to_end[k - 1] + (to_end[k] - to_end[k - 1]) * t);
-            }
+                to_end[k - 1] + (to_end[k] - to_end[k - 1]) * t
+            });
             let sections: Vec<Section> = (0..n)
                 .map(|i| {
                     let tangent =
@@ -218,39 +236,63 @@ impl Underside {
                     }
                 })
                 .collect();
-            rays.push((angle, sections, plane[0].x + to_end[0], crossing.is_some()));
+            rays.push((angle, sections, crossing, plane[0].x + to_end[0]));
         }
         if rays.is_empty() {
             return None;
         }
+        rays.sort_by(|a, b| a.0.total_cmp(&b.0));
+        if rays.iter().all(|r| r.2.is_none()) {
+            // no ray crosses the axis: each one is as long as it reaches from the axis. This also
+            // keeps `crossing` from being empty, which the median below relies on
+            for r in &mut rays {
+                r.2 = Some(r.3);
+            }
+        }
+        let crossing: Vec<(f32, f32)> = rays.iter().filter_map(|r| r.2.map(|l| (r.0, l))).collect();
+        let mut lengths: Vec<f32> = crossing.iter().map(|c| c.1).collect();
         lengths.sort_by(f32::total_cmp);
-        let length = match lengths.len() {
-            0 => rays.iter().map(|r| r.2).fold(0.0, f32::max),
-            n => lengths[n / 2],
+        let length = lengths[lengths.len() / 2];
+        // a ray that starts out on the cap is as long as the rays around it that cross the axis
+        let around = |angle: f32| {
+            let k = crossing.partition_point(|c| c.0 <= angle);
+            let (a, b) = (crossing[(k + crossing.len() - 1) % crossing.len()], crossing[k % crossing.len()]);
+            let (into, span) = ((angle - a.0).rem_euclid(TAU), (b.0 - a.0).rem_euclid(TAU));
+            a.1 + (b.1 - a.1) * if span > 0.0 { into / span } else { 0.0 }
         };
         let margin_radius = rays.iter().map(|r| r.1.last().unwrap().radius).sum::<f32>() / rays.len() as f32;
-        let mut rays: Vec<Ray> = rays
+        let rays: Vec<Ray> = rays
             .into_iter()
-            .map(|(angle, sections, _, from_stipe)| {
+            .map(|(angle, sections, own, _)| {
+                let length = own.unwrap_or_else(|| around(angle));
                 let sections: Vec<Section> = sections.into_iter().map(|a: Section| Section { s: a.s + length, ..a }).collect();
-                let settled = if from_stipe { f32::MIN } else { sections[0].s + RAY_RAMP * sections[0].radius };
-                Ray { angle, sections, settled }
+                let settled = if own.is_some() { f32::MIN } else { sections[0].s + RAY_RAMP * sections[0].radius };
+                Ray { angle, sections, settled, length }
             })
             .collect();
-        rays.sort_by(|a, b| a.angle.total_cmp(&b.angle));
-        Some(Underside { frame, rays, length, margin_radius })
+        Some(Underside { frame, rays, length, margin_radius, anchor: 0.0 })
     }
 
-    /// The underside at an angle and a distance from the axis, between the nearest rays on
-    /// either side that reach that far in
+    /// Where a distance `s` of the pattern from the axis lies on a ray
+    fn on_ray(&self, ray: &Ray, s: f32) -> f32 {
+        let span = self.length - self.anchor;
+        if span <= 0.0 || s <= self.anchor {
+            return s;
+        }
+        self.anchor + (s - self.anchor) * (ray.length - self.anchor).max(0.0) / span
+    }
+
+    /// The underside at an angle and a distance of the pattern from the axis, between the
+    /// nearest rays on either side that reach that far in
     fn at(&self, angle: f32, s: f32) -> Option<Spot> {
         let n = self.rays.len();
         let first = self.rays.partition_point(|r| r.angle <= angle);
-        let left = (1..=n).map(|k| (first + n - k) % n).find(|&i| self.rays[i].reaches(s))?;
-        let right = (0..n).map(|k| (first + k) % n).find(|&i| self.rays[i].reaches(s))?;
-        let (a, b) = (self.rays[left].at(s), self.rays[right].at(s));
-        let (to_left, to_right) =
-            ((angle - self.rays[left].angle).rem_euclid(TAU), (self.rays[right].angle - angle).rem_euclid(TAU));
+        let reaches = |i: usize| self.rays[i].reaches(self.on_ray(&self.rays[i], s));
+        let left = (1..=n).map(|k| (first + n - k) % n).find(|&i| reaches(i))?;
+        let right = (0..n).map(|k| (first + k) % n).find(|&i| reaches(i))?;
+        let (ray_a, ray_b) = (&self.rays[left], &self.rays[right]);
+        let (a, b) = (ray_a.at(self.on_ray(ray_a, s)), ray_b.at(self.on_ray(ray_b, s)));
+        let (to_left, to_right) = ((angle - ray_a.angle).rem_euclid(TAU), (ray_b.angle - angle).rem_euclid(TAU));
         let t = if to_left + to_right > 0.0 { to_left / (to_left + to_right) } else { 0.0 };
         let section = if left == right { a } else { a.lerp(&b, t) };
         let f = &self.frame;
@@ -414,7 +456,9 @@ pub struct Params {
     pub depth: f32,
     pub depth_curve: Vec<f32>,
     pub free_distance: f32,
+    pub decurrent: f32,
     pub thickness: f32,
+    pub blunt: f32,
     pub edge_wave: f32,
     pub seed: i32,
     pub creator: i32,
@@ -431,6 +475,8 @@ struct Slice {
     sway: Vec3,
     /// From the top to the gill edge
     reach: f32,
+    /// Share of the reach inside the flesh, the gill comes out of it there
+    surface: f32,
     /// 0 where a gill that starts or ends on its own begins, 1 at its full depth
     taper: f32,
     /// How fast the sway dies away from the gill edge, per share of the reach
@@ -449,41 +495,196 @@ impl Slice {
 }
 
 /// Rows of a plate from the top to the gill edge
-const PLATE_ROWS: usize = 6;
+const PLATE_ROWS: usize = 8;
 /// A plate is this share of its thickness thinner at the gill edge than at the top
 const EDGE_THINNING: f32 = 0.5;
+/// A blunt fold is this share of its width wider where it comes out of the flesh, so it grows
+/// out of it in a curve instead of a crease
+const FLARE: f32 = 0.6;
+/// The flare is gone this share of the way from the flesh to the fold's back
+const FLARE_REACH: f32 = 0.4;
 
-/// Adds one gill as a thin closed plate: two faces, the top, a rounded edge and both ends
-/// `place` moves a vertex of slice `i` where it may be.
-fn add_plate(mesh: &mut Mesh, plate: &[Slice], thickness: f32, place: impl Fn(Vec3, usize) -> Vec3) {
+/// Half the thickness of a gill `f` of the way from its top to its edge, as a share of half
+/// the thickness. A plate thins towards its edge, a blunt fold is a half ellipse out of the
+/// flesh, as wide as the thickness and as deep as the depth.
+fn half_share(f: f32, surface: f32, blunt: f32) -> f32 {
+    let z = if surface < 1.0 { ((f - surface) / (1.0 - surface)).clamp(0.0, 1.0) } else { 0.0 };
+    let plate = 1.0 - EDGE_THINNING * f;
+    let fold = (1.0 - z * z).max(0.0).sqrt() + FLARE * (1.0 - z / FLARE_REACH).max(0.0).powi(2);
+    plate + (fold - plate) * blunt
+}
+
+/// The share of the reach inside the flesh. A gill of no depth keeps a sliver of its rows
+/// outside it, so its faces don't collapse.
+fn surface(inside: f32, reach: f32) -> f32 {
+    if reach > 0.0 {
+        (inside / reach).min(0.95)
+    } else {
+        0.95
+    }
+}
+
+/// Where row `k` of a plate lies, from the top (0) to the gill edge (1). The first row is the
+/// top inside the flesh, the others share out the part outside it, a blunt fold's rows close
+/// in on its round back.
+fn row(k: usize, surface: f32, blunt: f32) -> f32 {
+    if k == 0 {
+        return 0.0;
+    }
+    let t = (k - 1) as f32 / (PLATE_ROWS - 2) as f32;
+    let round = (0.5 * PI * (k - 1) as f32 / (PLATE_ROWS - 1) as f32).sin();
+    surface + (1.0 - surface) * (t + (round - t) * blunt)
+}
+
+/// Adds one gill as a closed plate: two faces, the top, the edge and both ends. A thin plate
+/// gets a rounded edge, a blunt fold its round back. `place` moves a vertex of slice `i` where
+/// it may be.
+fn add_plate(mesh: &mut Mesh, plate: &[Slice], thickness: f32, blunt: f32, place: impl Fn(Vec3, usize) -> Vec3) {
     let m = plate.len();
     let along = |i: usize| (plate[(i + 1).min(m - 1)].top - plate[i.saturating_sub(1)].top).try_normalize().unwrap_or(Vec3::X);
     // both faces row by row from the top to the gill edge, then the gill edge between them
     let face = |side: f32, i: usize, k: usize| {
         let slice = &plate[i];
         let across = slice.normal.cross(along(i)).try_normalize().unwrap_or(Vec3::Z);
-        let f = k as f32 / (PLATE_ROWS - 1) as f32;
-        let half = 0.5 * thickness * (1.0 - EDGE_THINNING * f) * (0.5 + 0.5 * slice.taper);
+        let f = row(k, slice.surface, blunt);
+        let half = 0.5 * thickness * half_share(f, slice.surface, blunt) * (0.5 + 0.5 * slice.taper);
         place(slice.at(f) + across * (side * half), i)
     };
     let edge = |i: usize| {
         let slice = &plate[i];
-        let half = 0.5 * thickness * (1.0 - EDGE_THINNING) * (0.5 + 0.5 * slice.taper);
-        place(slice.at(1.0) - slice.normal * half, i)
+        let rim = (1.0 - blunt) * 0.5 * thickness * (1.0 - EDGE_THINNING) * (0.5 + 0.5 * slice.taper);
+        place(slice.at(1.0) - slice.normal * rim, i)
     };
     let grid = SheetGrid { columns: m, rows: PLATE_ROWS, wrap: false };
     add_sheet(mesh, grid, |i, k| face(1.0, i, k), |i, k| face(-1.0, i, k), Some(&edge));
 }
 
+/// The stipe a cap sits on, as its path: the middle line and the radius along it
+struct Stipe {
+    points: Vec<Vec3>,
+    radius: Vec<f32>,
+    /// Distance along the stipe from its base
+    along: Vec<f32>,
+}
+
+impl Stipe {
+    fn new(path: &[i32]) -> Option<Stipe> {
+        let path = wrap_path(path);
+        if path.length < 2 {
+            return None;
+        }
+        let points: Vec<Vec3> = path.points.chunks_exact(4).map(|p| Vec3::new(p[0], p[1], p[2])).collect();
+        let radius = path.points.chunks_exact(4).map(|p| p[3].abs()).collect();
+        let mut along = vec![0.0f32; points.len()];
+        for i in 1..points.len() {
+            along[i] = along[i - 1] + points[i].distance(points[i - 1]);
+        }
+        Some(Stipe { points, radius, along })
+    }
+
+    /// How far along the stipe the point of its middle line nearest to `p` is
+    fn nearest(&self, p: Vec3) -> f32 {
+        let mut best = (f32::MAX, 0.0);
+        for k in 1..self.points.len() {
+            let (a, b) = (self.points[k - 1], self.points[k]);
+            let ab = b - a;
+            let t = if ab.length_squared() > 0.0 { ((p - a).dot(ab) / ab.length_squared()).clamp(0.0, 1.0) } else { 0.0 };
+            let d = p.distance_squared(a + ab * t);
+            if d < best.0 {
+                best = (d, self.along[k - 1] + (self.along[k] - self.along[k - 1]) * t);
+            }
+        }
+        best.1
+    }
+
+    /// The middle, the direction up the stipe and the radius, `s` along it
+    fn at(&self, s: f32) -> (Vec3, Vec3, f32) {
+        let n = self.points.len();
+        let k = self.along.partition_point(|&a| a <= s).clamp(1, n - 1);
+        let span = self.along[k] - self.along[k - 1];
+        let t = if span > 0.0 { ((s - self.along[k - 1]) / span).clamp(0.0, 1.0) } else { 0.0 };
+        let up = (self.points[k] - self.points[k - 1]).try_normalize().unwrap_or(Vec3::Y);
+        (self.points[k - 1].lerp(self.points[k], t), up, self.radius[k - 1] + (self.radius[k] - self.radius[k - 1]) * t)
+    }
+
+    /// The length of the stipe
+    fn length(&self) -> f32 {
+        *self.along.last().unwrap()
+    }
+}
+
+/// A gill that runs on from the cap underside `length` down the stipe, at the angle it meets the
+/// stipe, lower and lower until it is gone. The slices go down from where the gill meets the stipe.
+fn run_down(stipe: &Stipe, frame: &Frame, first: &Slice, angle: f32, length: f32, step: f32) -> Vec<Slice> {
+    let embed = first.reach * first.surface;
+    let depth = first.reach - embed;
+    // the length counts from where the gill comes out of the cap underside
+    let start = stipe.nearest(first.top - first.normal * embed).min(stipe.length());
+    let count = ((length / step.max(1e-5)).ceil() as usize).max(1);
+    (1..=count)
+        .map_while(|k| {
+            let down = length * k as f32 / count as f32;
+            let s = start - down;
+            if s < 0.0 {
+                return None;
+            }
+            let (middle, up, radius) = stipe.at(s);
+            let out = frame.out(angle);
+            let out = (out - up * up.dot(out)).try_normalize()?;
+            let inside = embed.min(0.5 * radius);
+            let fade = smoothstep(0.0, 1.0, 1.0 - down / length);
+            let reach = depth * fade + inside;
+            Some(Slice {
+                top: middle + out * (radius - inside),
+                normal: -out,
+                sway: Vec3::ZERO,
+                reach,
+                surface: surface(inside, reach),
+                taper: first.taper * fade,
+                damping: first.damping,
+            })
+        })
+        .collect()
+}
+
+/// Turns the gill round the corner from the stipe onto the cap underside at slice `corner`:
+/// the direction the gill hangs in turns over about CORNER depths on both sides, so the edge
+/// curves round the corner instead of folding over itself
+fn round_corner(plate: &mut [Slice], corner: usize) {
+    let n = plate.len();
+    if corner == 0 || corner >= n {
+        return;
+    }
+    let mut along = vec![0.0f32; n];
+    for i in 1..n {
+        along[i] = along[i - 1] + plate[i].top.distance(plate[i - 1].top);
+    }
+    let width = CORNER * plate[corner].reach.max(plate[corner - 1].reach).max(1e-6);
+    let normals: Vec<Vec3> = plate.iter().map(|s| s.normal).collect();
+    for i in 0..n {
+        let near = (-((along[i] - along[corner]) / (2.0 * width)).powi(2)).exp();
+        if near < 1e-3 {
+            continue;
+        }
+        let mut sum = Vec3::ZERO;
+        for j in 0..n {
+            sum += normals[j] * (-0.5 * ((along[j] - along[i]) / width).powi(2)).exp();
+        }
+        let smooth = sum.try_normalize().unwrap_or(normals[i]);
+        plate[i].normal = normals[i].lerp(smooth, near).try_normalize().unwrap_or(normals[i]);
+    }
+}
+
 /// The gills of one cap, as stacks of paths and as plates
-fn cap_gills(underside: &Underside, stipe: &Point, pattern: &Pattern, p: &Params, plates: &mut Mesh) -> Vec<Vec<i32>> {
+fn cap_gills(underside: &mut Underside, hinge: &Point, stipe: Option<&Stipe>, pattern: &Pattern, p: &Params, plates: &mut Mesh) -> Vec<Vec<i32>> {
     let spacing = pattern.spacing.max(1e-5);
-    let free = stipe.scale.abs() + p.free_distance.max(0.0);
+    let free = hinge.scale.abs() + p.free_distance.max(0.0);
     // gills run from the free distance to the margin, inside the pattern
     let (lo, hi) = (free.max(pattern.inner), (underside.length - underside.margin_radius).min(pattern.outer));
     if pattern.rings.len() < 2 || hi <= lo {
         return Vec::new();
     }
+    underside.anchor = lo;
     let from = (0..pattern.rings.len()).find(|&i| pattern.radius(i) >= lo);
     let to = (0..pattern.rings.len()).rev().find(|&i| pattern.radius(i) <= hi);
     let (Some(from), Some(to)) = (from, to) else {
@@ -499,11 +700,14 @@ fn cap_gills(underside: &Underside, stipe: &Point, pattern: &Pattern, p: &Params
     });
 
     let thickness = p.thickness.max(1e-6);
+    let blunt = p.blunt.clamp(0.0, 1.0);
     let depth = p.depth.max(0.0);
     let embed = EMBED * underside.rays.iter().flat_map(|r| r.sections.iter()).map(|a| a.radius).fold(0.0, f32::max);
     let strands = (((embed + depth) / (STRAND_GAP * thickness)).ceil() as usize + 1).clamp(2, MAX_STRANDS);
     let wave = p.edge_wave.clamp(0.0, 1.0);
-    let frame = &underside.frame;
+    let decurrent = p.decurrent.max(0.0);
+    let frame = underside.frame;
+    let underside = &*underside;
 
     let mut paths = Vec::new();
     for (g, gill) in gills.iter_mut().enumerate() {
@@ -513,7 +717,7 @@ fn cap_gills(underside: &Underside, stipe: &Point, pattern: &Pattern, p: &Params
         let sway = OpenSimplex::new(p.seed.wrapping_add(g as i32 * 2) as u32);
         let lift = OpenSimplex::new(p.seed.wrapping_add(g as i32 * 2 + 1) as u32);
         // the plate at every point: where its top is, which way is down and how deep it is
-        let plate: Vec<Slice> = points
+        let mut plate: Vec<Slice> = points
             .iter()
             .map_while(|&(angle, s)| {
                 let spot = underside.at(angle, s)?;
@@ -529,19 +733,40 @@ fn cap_gills(underside: &Underside, stipe: &Point, pattern: &Pattern, p: &Params
                 let side = wave * WAVE_SWAY * spacing * NOISE_GAIN * sway.get([x, 0.0]) as f32;
                 let deeper = 1.0 + wave * WAVE_DEPTH * NOISE_GAIN * lift.get([x, 0.0]) as f32;
                 let d = depth * curve(&p.depth_curve, along).max(0.0) * taper * deeper;
+                // a blunt fold is never deeper than it is wide
+                let d = d + (d.min(thickness) - d) * blunt;
                 // the middle of the flesh, the underside is a flesh half thickness further down
                 let top = spot.position - spot.normal * ((1.0 - EMBED) * spot.radius);
                 let sideways = frame.out(angle + 0.25 * TAU);
-                let reach = d + EMBED * spot.radius;
+                let inside = EMBED * spot.radius;
+                let reach = d + inside;
                 let damping = reach * TAU / (WAVE_LENGTH * spacing);
-                Some(Slice { top, normal: spot.normal, sway: sideways * side, reach, taper, damping })
+                let surface = surface(inside, reach);
+                Some(Slice { top, normal: spot.normal, sway: sideways * side, reach, surface, taper, damping })
             })
             .collect();
         if plate.len() < 2 {
             continue;
         }
-        // keep the free distance to the stipe
+        let mut angles: Vec<f32> = points.iter().take(plate.len()).map(|a| a.0).collect();
+        // a gill that leaves the stipe runs on down it
+        let down = match stipe {
+            Some(stipe) if decurrent > 0.0 && !gill.free_start && start - lo < spacing => {
+                run_down(stipe, &frame, &plate[0], points[0].0, decurrent, POINT_SPACING * spacing)
+            }
+            _ => Vec::new(),
+        };
+        let corner = down.len();
+        if corner > 0 {
+            angles.splice(0..0, std::iter::repeat_n(points[0].0, corner));
+            plate.splice(0..0, down.into_iter().rev());
+            round_corner(&mut plate, corner);
+        }
+        // keep the free distance to the stipe, a gill that runs down it is on it
         let keep_free = |q: Vec3, angle: f32| {
+            if corner > 0 {
+                return q;
+            }
             let rel = q - frame.hinge;
             let flat = rel - frame.axis * rel.dot(frame.axis);
             let from_axis = flat.length();
@@ -551,16 +776,16 @@ fn cap_gills(underside: &Underside, stipe: &Point, pattern: &Pattern, p: &Params
                 q
             }
         };
-        add_plate(plates, &plate, thickness, |q, i| keep_free(q, points[i].0));
+        add_plate(plates, &plate, thickness, blunt, |q, i| keep_free(q, angles[i]));
         for j in 0..strands {
             let f = j as f32 / (strands - 1) as f32;
-            let link = PathLink::child(p.creator, stipe.parent_id, 1.0, paths.len() as i32);
-            let mut data = create_path(plate.len(), stipe.depth + 1);
+            let link = PathLink::child(p.creator, hinge.parent_id, 1.0, paths.len() as i32);
+            let mut data = create_path(plate.len(), hinge.depth + 1);
             set_path_link(&mut data, link);
             let path = wrap_path_mut(&mut data);
             for (m, slice) in plate.iter().enumerate() {
-                let q = keep_free(slice.at(f), points[m].0);
-                let r = 0.5 * thickness * (0.5 + 0.5 * slice.taper);
+                let q = keep_free(slice.at(f), angles[m]);
+                let r = 0.5 * thickness * half_share(f, slice.surface, blunt) * (0.5 + 0.5 * slice.taper);
                 path.points[m * 4..m * 4 + 4].copy_from_slice(&[q.x, q.y, q.z, r]);
             }
             paths.push(data);
@@ -573,25 +798,38 @@ fn cap_gills(underside: &Underside, stipe: &Point, pattern: &Pattern, p: &Params
 pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let mut ctx = Ctx::default();
     let mut plates = Mesh::default();
+    // args follow the key order of the inputs in definition.json, so a new input there shifts these
     let Some(pattern) = Pattern::decode(args[2]) else {
         return (concat_arg_vecs(Vec::new()), plates.encode());
     };
-    let params = Params {
-        depth: ctx.float(args[3]),
-        depth_curve: read_floats(args[4]),
-        free_distance: ctx.float(args[5]),
-        thickness: ctx.float(args[6]),
-        edge_wave: ctx.float(args[7]),
-        seed: int(args[8]),
-        creator: int(args[9]),
-    };
     let rays = split_args(args[0]);
+    let stipes = split_args(args[3]);
+    let hinges = decode_points(args[1]);
     let mut output = Vec::new();
-    for hinge in decode_points(args[1]) {
+    for (rank, hinge) in hinges.iter().enumerate() {
         // the rays of this cap grow on its stipe
         let own: Vec<&[i32]> = rays.iter().copied().filter(|r| r.len() > 9 && wrap_path(r).link.parent_id == hinge.parent_id).collect();
-        if let Some(underside) = Underside::new(Frame::new(&hinge), &own) {
-            output.extend(cap_gills(&underside, &hinge, &pattern, &params, &mut plates));
+        let stipe_path = stipes.iter().copied().find(|s| s.len() > 9 && wrap_path(s).link.id == hinge.parent_id);
+        // the sizes are read for every stipe, so they can follow the size of the mushroom
+        match stipe_path {
+            Some(path) => ctx.set_path(path, rank, hinges.len()),
+            None => ctx.seed_path(hinge.parent_id),
+        }
+        ctx.alpha = 1.0;
+        let params = Params {
+            depth: ctx.float(args[4]),
+            depth_curve: read_floats(args[5]),
+            free_distance: ctx.float(args[6]),
+            decurrent: ctx.float(args[7]),
+            thickness: ctx.float(args[8]),
+            blunt: ctx.float(args[9]),
+            edge_wave: ctx.float(args[10]),
+            seed: int(args[11]),
+            creator: int(args[12]),
+        };
+        let stipe = stipe_path.and_then(Stipe::new);
+        if let Some(mut underside) = Underside::new(Frame::new(hinge), &own) {
+            output.extend(cap_gills(&mut underside, hinge, stipe.as_ref(), &pattern, &params, &mut plates));
         }
     }
     smooth_normals(&mut plates);
@@ -694,11 +932,26 @@ mod tests {
             depth: 0.006,
             depth_curve: vec![0.0, 0.3, 0.2, 0.85, 0.45, 1.0, 0.8, 0.65, 1.0, 0.1],
             free_distance: 0.001,
+            decurrent: 0.0,
             thickness: 0.0004,
+            blunt: 0.0,
             edge_wave: 0.3,
             seed: 2,
             creator: CREATOR,
         }
+    }
+
+    /// The stipe under the cap: upright from the ground to the hinge
+    fn stipe() -> Vec<i32> {
+        let n = 21;
+        let mut data = create_path(n, 1);
+        set_path_link(&mut data, PathLink { id: STIPE_ID, ..PathLink::root(3, 0) });
+        let path = wrap_path_mut(&mut data);
+        for i in 0..n {
+            let y = HINGE.y * i as f32 / (n - 1) as f32;
+            path.points[i * 4..i * 4 + 4].copy_from_slice(&[HINGE.x, y, HINGE.z, STIPE_RADIUS]);
+        }
+        concat_arg_vecs(vec![data])
     }
 
     fn floats(values: &[f32]) -> Vec<i32> {
@@ -718,14 +971,21 @@ mod tests {
     }
 
     fn execute_both(cap: &[i32], pattern: &Pattern, p: &Params, curve: Vec<i32>) -> (Vec<i32>, Vec<i32>) {
+        execute_on(cap, &stipe(), pattern, p, curve)
+    }
+
+    fn execute_on(cap: &[i32], stipe: &[i32], pattern: &Pattern, p: &Params, curve: Vec<i32>) -> (Vec<i32>, Vec<i32>) {
         __nodarium_execute_inner(&[
             cap,
             &hinge(),
             &pattern.encode(),
+            stipe,
             &[encode_float(p.depth)],
             &curve,
             &[encode_float(p.free_distance)],
+            &[encode_float(p.decurrent)],
             &[encode_float(p.thickness)],
+            &[encode_float(p.blunt)],
             &[encode_float(p.edge_wave)],
             &[p.seed],
             &[p.creator],
@@ -943,7 +1203,7 @@ mod tests {
     #[test]
     fn the_edge_waves_and_the_waves_die_away_towards_the_cap() {
         let slice =
-            Slice { top: Vec3::ZERO, normal: Vec3::Y, sway: Vec3::X * 0.001, reach: 0.004, taper: 1.0, damping: 8.0 };
+            Slice { top: Vec3::ZERO, normal: Vec3::Y, sway: Vec3::X * 0.001, reach: 0.004, surface: 0.25, taper: 1.0, damping: 8.0 };
         let side = |f: f32| slice.at(f).x;
         assert_eq!(side(0.0), 0.0);
         assert!((side(1.0) - 0.001).abs() < 1e-9);
@@ -1006,12 +1266,13 @@ mod tests {
                 normal: Vec3::Y,
                 sway: Vec3::ZERO,
                 reach: 0.004,
+                surface: 0.25,
                 taper: 1.0,
                 damping: 8.0,
             })
             .collect();
         let mut mesh = Mesh::default();
-        add_plate(&mut mesh, &plate, 0.0004, |q, _| q);
+        add_plate(&mut mesh, &plate, 0.0004, 0.0, |q, _| q);
         let vertex = |v: usize| Vec3::from_slice(&mesh.positions[v * 3..v * 3 + 3]);
         let (m, rows) = (plate.len(), PLATE_ROWS);
         assert_eq!(mesh.vertex_count(), m * (2 * rows + 1));
@@ -1021,6 +1282,190 @@ mod tests {
         // the edge hangs reach below the top, and its rim a little further
         assert!((vertex(2 * rows + rows - 1).y + 0.004).abs() < 1e-6);
         assert!(vertex(2 * m * rows + 2).y < -0.004);
+    }
+
+    /// The underside of the test cap, `x` from the axis
+    fn underside(x: f32) -> f32 {
+        HINGE.y + midline(x) - flesh(x)
+    }
+
+    #[test]
+    fn a_blunt_fold_is_at_least_as_wide_as_it_is_deep() {
+        // a straight fold along x out of flesh above y = 0, its top 1 mm up in the flesh
+        let (width, depth) = (0.0015, 0.0012);
+        let plate: Vec<Slice> = (0..5)
+            .map(|i| Slice {
+                top: Vec3::new(i as f32 * 0.001, 0.001, 0.0),
+                normal: Vec3::Y,
+                sway: Vec3::ZERO,
+                reach: 0.001 + depth,
+                surface: 0.001 / (0.001 + depth),
+                taper: 1.0,
+                damping: 8.0,
+            })
+            .collect();
+        let mut mesh = Mesh::default();
+        add_plate(&mut mesh, &plate, width, 1.0, |q, _| q);
+        // the cross-section of the middle slice: its width at every height out of the flesh
+        let section: Vec<Vec3> = (0..mesh.vertex_count())
+            .map(|v| Vec3::from_slice(&mesh.positions[v * 3..v * 3 + 3]))
+            .filter(|q| (q.x - 0.002).abs() < 1e-6)
+            .collect();
+        let deepest = section.iter().map(|q| -q.y).fold(f32::MIN, f32::max);
+        assert!((deepest - depth).abs() < 1e-6, "the fold reaches {deepest} out of the flesh");
+        let wide_at = |h: f32| {
+            let near: Vec<&Vec3> = section.iter().filter(|q| -q.y <= h + 1e-6 && q.y <= 1e-6).collect();
+            near.iter().map(|q| q.z).fold(f32::MIN, f32::max) - near.iter().map(|q| q.z).fold(f32::MAX, f32::min)
+        };
+        assert!(wide_at(0.0) >= width, "{} wide where it leaves the flesh", wide_at(0.0));
+        assert!(wide_at(0.0) >= deepest);
+        // a round back, not a sharp edge: still most of its width half way out
+        let half_way = 2.0 * half_share(plate[2].surface + 0.5 * (1.0 - plate[2].surface), plate[2].surface, 1.0);
+        assert!(half_way > 0.8, "{half_way} of the width half way out");
+    }
+
+    #[test]
+    fn blunt_folds_are_never_deeper_than_wide() {
+        let p = Params { blunt: 1.0, thickness: 0.0015, edge_wave: 0.0, ..params() };
+        let gills = run(&cap(0.0), &pattern(24, 0.03), &p);
+        assert!(!gills.is_empty());
+        let deepest = gills.iter().flat_map(|g| points(g)).map(|q| underside(from_axis(q)) - q.y).fold(0.0, f32::max);
+        // measured straight down under a cap that slopes by up to 22°, a bit more than across it
+        let slope = 1.0 / (1.0f32 + (0.01 / RADIUS).powi(2)).sqrt();
+        assert!(deepest * slope <= 1.05 * p.thickness, "folds reach {deepest} below the cap, {} wide", p.thickness);
+        assert!(deepest > 0.5 * p.thickness, "folds reach only {deepest} below the cap");
+        let mesh = plates(&cap(0.0), &pattern(24, 0.03), &p);
+        let lowest = (0..mesh.vertex_count())
+            .map(|v| Vec3::from_slice(&mesh.positions[v * 3..v * 3 + 3]))
+            .map(|q| underside(from_axis(q)) - q.y)
+            .fold(0.0, f32::max);
+        assert!(lowest * slope <= 1.05 * p.thickness, "the fold mesh reaches {lowest} below the cap");
+    }
+
+    fn decurrent(length: f32) -> Params {
+        Params { decurrent: length, free_distance: 0.0, depth_curve: vec![0.0, 1.0, 1.0, 1.0], edge_wave: 0.0, ..params() }
+    }
+
+    #[test]
+    fn decurrent_gills_run_down_the_stipe_by_the_given_length() {
+        // the lowest point next to the stipe, the gills under the cap hang lower further out
+        let lowest = |length: f32| {
+            let mesh = plates(&cap(0.0), &pattern(24, 0.014), &decurrent(length));
+            let vertex = |v: usize| Vec3::from_slice(&mesh.positions[v * 3..v * 3 + 3]);
+            (0..mesh.vertex_count()).map(vertex).filter(|q| from_axis(*q) < 0.008).map(|q| q.y).fold(f32::MAX, f32::min)
+        };
+        let (none, short, long) = (lowest(0.0), lowest(0.01), lowest(0.02));
+        assert!(short < none - 0.002, "gills of 1 cm reach {short}, without {none}");
+        assert!(((short - long) - 0.01).abs() < 0.0005, "1 cm more reaches {} further down", short - long);
+        // they start where the underside meets the stipe
+        let junction = underside(STIPE_RADIUS);
+        assert!((short - (junction - 0.01)).abs() < 0.001, "1 cm down from {junction} ends at {short}");
+    }
+
+    #[test]
+    fn decurrent_gills_stay_on_the_stipe_and_get_lower() {
+        let p = decurrent(0.02);
+        let junction = underside(STIPE_RADIUS);
+        // the tops of the gills lie in the stipe, just under its surface
+        let gills = run(&cap(0.0), &pattern(24, 0.014), &p);
+        let embed = EMBED * flesh(0.0);
+        let strands = (((embed + p.depth) / (STRAND_GAP * p.thickness)).ceil() as usize + 1).clamp(2, MAX_STRANDS);
+        let mut decurrent = 0;
+        for gill in gills.iter().step_by(strands) {
+            // a gill that runs down the stipe starts at its lower end, on the stipe up to the cap
+            let tops = points(gill);
+            let on_stipe: Vec<&Vec3> = tops.iter().take_while(|q| from_axis(**q) <= STIPE_RADIUS + 1e-5).collect();
+            if on_stipe.len() < 2 {
+                continue;
+            }
+            decurrent += 1;
+            for q in &on_stipe {
+                assert!(from_axis(**q) > 0.5 * STIPE_RADIUS - 1e-5, "a gill top {} from the axis", from_axis(**q));
+            }
+            let (low, high) = (on_stipe[0].y, on_stipe[on_stipe.len() - 1].y);
+            assert!((low - (junction - p.decurrent)).abs() < 0.001, "a gill reaches down to {low}");
+            assert!(high > junction - 0.002, "a gill leaves the stipe at {high}");
+        }
+        assert_eq!(decurrent, 24, "every gill that leaves the stipe runs down it");
+        // below where the gills under the cap hang, only the ones on the stipe are left
+        let mesh = plates(&cap(0.0), &pattern(24, 0.014), &p);
+        let on_stipe: Vec<Vec3> = (0..mesh.vertex_count())
+            .map(|v| Vec3::from_slice(&mesh.positions[v * 3..v * 3 + 3]))
+            .filter(|q| q.y < junction - 0.012 && from_axis(*q) < 0.015)
+            .collect();
+        assert!(on_stipe.len() > 100);
+        for q in &on_stipe {
+            let x = from_axis(*q);
+            assert!(x > 0.5 * STIPE_RADIUS - 1e-4, "{x} from the axis, inside the stipe");
+            assert!(x < STIPE_RADIUS + p.depth + p.thickness, "{x} from the axis, off the stipe");
+        }
+        // lower and lower: how far they stand off the stipe, from the top down
+        let stand_off = |y: f32| on_stipe.iter().filter(|q| (q.y - y).abs() < 0.0005).map(|q| from_axis(*q)).fold(0.0, f32::max) - STIPE_RADIUS;
+        let (high, middle, low) = (stand_off(junction - 0.013), stand_off(junction - 0.016), stand_off(junction - 0.019));
+        assert!(high > middle && middle > low, "{high}, {middle}, {low} off the stipe");
+        assert!(high < 0.6 * p.depth && low < 0.1 * p.depth);
+    }
+
+    #[test]
+    fn the_edge_of_a_decurrent_gill_turns_the_corner_without_folding() {
+        let p = Params { depth: 0.004, ..decurrent(0.015) };
+        let gills = run(&cap(0.0), &pattern(24, 0.014), &p);
+        let (top, edge) = (points(&gills[0]), points(&gills[gills.len() / 24 - 1]));
+        assert!(top.iter().any(|q| q.y < underside(STIPE_RADIUS) - 0.005), "the first gill runs down the stipe");
+        for k in 1..top.len() {
+            let (a, b) = (top[k] - top[k - 1], edge[k] - edge[k - 1]);
+            assert!(a.dot(b) > 0.0, "the edge runs back at {k}: {a} on top, {b} at the edge");
+        }
+    }
+
+    #[test]
+    fn gills_without_decurrent_ignore_the_stipe() {
+        let p = params();
+        let curve = floats(&p.depth_curve);
+        let with = execute_on(&cap(0.0), &stipe(), &pattern(24, 0.014), &p, curve.clone());
+        let without = execute_on(&cap(0.0), &[], &pattern(24, 0.014), &p, curve.clone());
+        assert_eq!(with, without);
+        // and decurrent gills without a stipe stay under the cap
+        let alone = execute_on(&cap(0.0), &[], &pattern(24, 0.014), &decurrent(0.02), floats(&[0.0, 1.0, 1.0, 1.0]));
+        let lowest = Mesh::decode(&alone.1).positions.chunks_exact(3).map(|q| q[1]).fold(f32::MAX, f32::min);
+        assert!(lowest > underside(RADIUS) - 0.01);
+    }
+
+    #[test]
+    fn gills_reach_the_margin_of_a_lopsided_cap_all_round() {
+        // every ray stretched from the axis, 1.4 times as long on one side, 0.6 times on the other
+        let stretch = |angle: f32| 1.0 + 0.4 * angle.cos();
+        let rays: Vec<Vec<i32>> = split_args(&cap(0.0))
+            .iter()
+            .map(|r| {
+                let mut ray = r.to_vec();
+                let path = wrap_path_mut(&mut ray);
+                let n = path.points.len() / 4;
+                let tip = Vec3::from_slice(&path.points[(n - 1) * 4..(n - 1) * 4 + 3]);
+                let k = stretch((tip.z - HINGE.z).atan2(tip.x - HINGE.x));
+                for i in 0..n {
+                    let (x, z) = (path.points[i * 4] - HINGE.x, path.points[i * 4 + 2] - HINGE.z);
+                    if x * tip.x + z * tip.z > 0.0 {
+                        path.points[i * 4] = HINGE.x + x * k;
+                        path.points[i * 4 + 2] = HINGE.z + z * k;
+                    }
+                }
+                ray
+            })
+            .collect();
+        let gills = run(&concat_arg_vecs(rays), &pattern(24, 0.014), &Params { edge_wave: 0.0, ..params() });
+        let reach = |angle: f32| {
+            gills
+                .iter()
+                .flat_map(|g| points(g))
+                .filter(|q| turn((q.z - HINGE.z).atan2(q.x - HINGE.x), angle).abs() < 0.2)
+                .map(from_axis)
+                .fold(0.0, f32::max)
+        };
+        assert!(reach(0.0) > 0.85 * 1.4 * RADIUS, "the long side's gills reach {}", reach(0.0));
+        assert!(reach(PI) > 0.85 * 0.6 * RADIUS && reach(PI) < 0.6 * RADIUS + 1e-3, "the short side's gills reach {}", reach(PI));
+        let closest = gills.iter().flat_map(|g| points(g)).map(from_axis).fold(f32::MAX, f32::min);
+        assert!(closest >= STIPE_RADIUS + 0.001 - 1e-5);
     }
 
     #[test]
@@ -1046,10 +1491,13 @@ mod tests {
             &cap(0.0),
             &hinge(),
             &[],
+            &stipe(),
             &[encode_float(0.006)],
             &floats(&[0.0, 1.0, 1.0, 1.0]),
             &[encode_float(0.001)],
+            &[encode_float(0.0)],
             &[encode_float(0.0004)],
+            &[encode_float(0.0)],
             &[encode_float(0.3)],
             &[2],
             &[CREATOR],

@@ -70,7 +70,7 @@ mod settings;
 mod sheet;
 mod spatial;
 
-pub use cap::{closing_turn, curl_turn, margin_points, pose_caps, testing, Cap, CapFrame, CapRay, Step};
+pub use cap::{closing_turn, curl_turn, margin_points, pose_caps, pose_caps_of, testing, Cap, CapFrame, CapRay, Step};
 pub use cap_shape::{cap_alphas, grow_cap, CapShape};
 pub use density::{mesh_segments, surface, surface_in, Frame, Meshing, Segment, SegmentSurface, TissueField};
 pub use eval::{eval, Program};

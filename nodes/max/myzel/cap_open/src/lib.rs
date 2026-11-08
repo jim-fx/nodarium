@@ -1,4 +1,4 @@
-use myzel_core::{closing_turn, margin_points, pose_caps, Cap};
+use myzel_core::{closing_turn, margin_points, pose_caps_of, Cap};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{concat_arg_vecs, decode_points, encode_points, geometry::wrap_path, split_args, Ctx};
 use std::f32::consts::TAU;
@@ -36,25 +36,72 @@ fn closing(cap: &Cap, k: usize, reach: f32) -> f32 {
     best
 }
 
+/// How far one stipe's caps close, around its axis
+struct Closing {
+    stipe: i32,
+    opening: f32,
+    /// The closing of every ray of the outermost cap, by angle
+    samples: Vec<(f32, f32)>,
+}
+
+impl Closing {
+    fn at(&self, angle: f32) -> f32 {
+        let n = self.samples.len();
+        if n == 0 {
+            return 0.0;
+        }
+        let next = self.samples.partition_point(|s| s.0 <= angle);
+        let (a, b) = (self.samples[(next + n - 1) % n], self.samples[next % n]);
+        let span = (b.0 - a.0).rem_euclid(TAU);
+        let t = if span > 0.0 { (angle - a.0).rem_euclid(TAU) / span } else { 0.0 };
+        a.1 + (b.1 - a.1) * t.clamp(0.0, 1.0)
+    }
+}
+
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let mut ctx = Ctx::default();
     let items = split_args(args[0]);
     let hinges = decode_points(args[1]);
     let count = items.len();
-    let posed = pose_caps(&items, &hinges, |cap, k| {
-        let ray = &cap.rays[k];
-        ctx.set_path(items[ray.path], ray.path, count);
+    let caps = Cap::all(&items, &hinges);
+
+    // caps on one stipe (the flesh and its ridges) close by the same angle around the axis,
+    // the one that reaches furthest decides how far, so the others stay against it
+    let mut closings: Vec<Closing> = Vec::new();
+    for cap in &caps {
+        let stipe = cap.frame.stipe_id;
+        if closings.iter().any(|c| c.stipe == stipe) {
+            continue;
+        }
+        let joined: Vec<&Cap> = caps.iter().filter(|c| c.frame.stipe_id == stipe).collect();
+        let outer = joined.iter().copied().max_by(|a, b| a.reach().total_cmp(&b.reach())).unwrap();
+        let first = outer.rays.iter().find(|r| r.crosses).unwrap_or(&outer.rays[0]);
+        ctx.set_path(items[first.path], first.path, count);
         // a random node gives the whole cap one value, rays that differ would tear it
-        ctx.seed_path(cap.frame.stipe_id);
+        ctx.seed_path(stipe);
         let opening = ctx.float(args[2]).clamp(0.0, 1.0);
-        if opening >= 1.0 {
+        let samples = if opening < 1.0 {
+            (0..outer.rays.len())
+                .map(|k| {
+                    let path = wrap_path(items[outer.rays[k].path]);
+                    let margin_radius = path.points[(path.length - 1) * 4 + 3].abs();
+                    // the margin of a closed button lies against the stipe
+                    (outer.rays[k].angle, closing(outer, k, outer.frame.stipe_radius + margin_radius))
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        closings.push(Closing { stipe, opening, samples });
+    }
+
+    let posed = pose_caps_of(&caps, &items, |cap, k| {
+        let c = closings.iter().find(|c| c.stipe == cap.frame.stipe_id)?;
+        if c.opening >= 1.0 {
             return None;
         }
-        let path = wrap_path(items[ray.path]);
-        let margin_radius = path.points[(path.length - 1) * 4 + 3].abs();
-        // the margin of a closed button lies against the stipe
-        let turn = (1.0 - opening) * closing(cap, k, cap.frame.stipe_radius + margin_radius);
+        let turn = (1.0 - c.opening) * c.at(cap.rays[k].angle);
         Some(cap.bend(k, |s| closing_turn(s, turn)))
     });
     let paths: Vec<&[i32]> = posed.iter().map(|p| p.as_slice()).collect();
@@ -153,6 +200,55 @@ mod tests {
         let spread = margins.iter().map(|m| m.distance(mean(&margins))).fold(0.0, f32::max);
         assert!(spread < 2e-4, "margin points up to {spread} apart");
         assert!(mean(&margins).x < mean(&open(&p, 1.0).1).x);
+    }
+
+    /// Of every point of `ridge`, how far the nearest point of `flesh` is, and how far along
+    /// `flesh` that is
+    fn hang(ridge: &[i32], flesh: &[Vec<i32>]) -> Vec<(usize, usize, f32)> {
+        points(ridge)
+            .iter()
+            .map(|q| {
+                let mut best = (0, 0, f32::MAX);
+                for (f, ray) in flesh.iter().enumerate() {
+                    for (i, p) in points(ray).iter().enumerate() {
+                        if p.distance(*q) < best.2 {
+                            best = (f, i, p.distance(*q));
+                        }
+                    }
+                }
+                best
+            })
+            .collect()
+    }
+
+    #[test]
+    fn joined_flesh_and_ridges_close_by_the_same_angle_at_every_ray() {
+        let p = thick_margin();
+        let (flesh, hinges) = grow(&p);
+        let ridges = myzel_core::testing::ridges();
+        let joined = concat_arg_vecs(flesh.iter().chain(&ridges).cloned().collect());
+        for opening in [0.0, 0.3, 0.7] {
+            let (paths, _) = __nodarium_execute_inner(&[&joined, &hinges, &[encode_float(opening)]]);
+            let posed: Vec<Vec<i32>> = split_args(&paths).iter().map(|s| s.to_vec()).collect();
+            let (posed_flesh, posed_ridges) = posed.split_at(flesh.len());
+            // the flesh closes as it does alone
+            let (alone, _) = open(&p, opening);
+            assert_eq!(posed_flesh, alone.as_slice());
+            for (before, after) in ridges.iter().zip(posed_ridges) {
+                let (b, a) = (points(before), points(after));
+                let tip = b.len() - 1;
+                // the tip of a ridge turns as far as the flesh it lies against
+                let (f, i, gap) = hang(before, &flesh)[tip];
+                let i = i.min(points(&flesh[f]).len() - 2);
+                let turned = |x: &[glam::Vec3], y: &[glam::Vec3], i: usize| (x[i + 1] - x[i]).angle_between(y[i + 1] - y[i]);
+                let ridge_turn = turned(&b, &a, tip - 1);
+                let flesh_turn = turned(&points(&flesh[f]), &points(&posed_flesh[f]), i);
+                assert!((ridge_turn - flesh_turn).abs() < 0.1 * flesh_turn + 0.02, "opening {opening}: a ridge tip turns {ridge_turn}, the flesh over it {flesh_turn}");
+                // and stays as close under it
+                let now = hang(after, posed_flesh)[tip].2;
+                assert!((now - gap).abs() < 0.3 * gap + 3e-4, "opening {opening}: a ridge tip {gap} from the flesh moves to {now}");
+            }
+        }
     }
 
     fn distance_to_segment(p: Vec2, a: Vec2, b: Vec2) -> f32 {
