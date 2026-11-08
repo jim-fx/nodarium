@@ -1,7 +1,6 @@
 import {
   agave,
   bamboo,
-  champignon,
   champignonGroomed,
   chanterelle,
   daisy,
@@ -10,10 +9,6 @@ import {
   fern,
   foxglove,
   grass,
-  groomedCap,
-  groomedGills,
-  groomedStipe,
-  groomedVeil,
   horsetail,
   knotweed,
   ladyFern,
@@ -21,7 +16,6 @@ import {
   maidenhair,
   oyster,
   palm,
-  primordium,
   sage,
   sapling,
   wildCarrot,
@@ -76,11 +70,5 @@ export const projectTemplates: ProjectTemplate[] = [
   plant('Wild Carrot', toGraph(wildCarrot, 'cm')),
   mushroom('Champignon', toGraph(champignonGroomed, 'cm')),
   mushroom('Chanterelle', toGraph(chanterelle, 'cm')),
-  mushroom('Oyster mushroom', toGraph(oyster, 'cm')),
-  mushroom('Champignon (grown hyphae)', toGraph(primordium, 'cm')),
-  mushroom('Champignon (SDF)', toGraph(champignon, 'cm')),
-  mushroom('Groomed stipe (strands)', toGraph(groomedStipe, 'cm')),
-  mushroom('Groomed cap (opening)', toGraph(groomedCap, 'cm')),
-  mushroom('Groomed veil (opening)', toGraph(groomedVeil, 'cm')),
-  mushroom('Groomed gills', toGraph(groomedGills, 'cm'))
+  mushroom('Oyster mushroom', toGraph(oyster, 'cm'))
 ];
