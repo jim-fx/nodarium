@@ -201,6 +201,7 @@ const capStrands = (amount: number) => ({
   length_variation: 0.1
 });
 const AVOID = { strength: 1, smoothing: 0.5 };
+const NEIGHBOUR_SENSING = { strength: 0.8, range: 0.003, bundling: 0.6, max_offset: 0.001 };
 const MODIFIERS: [string, string, (force: Int32Array) => Inputs, Props][] = [
   ['plantarium/noise', '', () => ({}), { scale: 1, strength: 0.5 }],
   ['plantarium/gravity', '', () => ({}), { strength: 0.2 }],
@@ -208,6 +209,7 @@ const MODIFIERS: [string, string, (force: Int32Array) => Inputs, Props][] = [
   ['plantarium/avoid', 'contacts', () => ({}), { ...AVOID, radius: 0, mode: 1 }],
   ['plantarium/avoid', 'density', () => ({}), { ...AVOID, radius: 0, mode: 2 }],
   ['plantarium/clump', '', () => ({}), { strength: 0.5, clumps: 12 }],
+  ['plantarium/neighbour_sensing', '', () => ({}), NEIGHBOUR_SENSING],
   ['plantarium/branch', '', () => ({}), { amount: 2, length: 0.01, lowest_branch: 0.3 }],
   ['plantarium/fill_gaps', '', () => ({}), { spacing: 0.5 }],
   ['plantarium/separate', '', () => ({}), {}]
@@ -379,6 +381,13 @@ if (wanted('chain')) {
     times.push(total);
     // the strands of the stipe and the cap are both two layers below the stem
     const avoid = { ...AVOID, depth: 2 };
+    step(
+      'plantarium/neighbour_sensing',
+      { plant: joined },
+      { ...NEIGHBOUR_SENSING, depth: 2 },
+      'plantarium/neighbour_sensing',
+      false
+    );
     for (const [mode, name] of [[1, 'contacts'], [2, 'density']] as const) {
       step(
         'plantarium/avoid',
