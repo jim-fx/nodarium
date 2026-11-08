@@ -165,10 +165,14 @@ fn neighbour_sensing(strands: &[Strand], range: f32) -> Vec<Vec<Vec3>> {
     // the blurred share a single path fills right where it runs, so a lone neighbour at the edge
     // of the range is sensed faintly and the paths of a full bundle balance out
     let own = |field: &Field| thickness * thickness / (2.0 * field.sigma * field.sigma);
+    // a huge range or max offset makes cells so large that the splat underflows to nothing
+    if !(own(&field) > 0.0) || !own(&field).is_finite() {
+        return offsets;
+    }
 
     // the surface of the body: its normal, scaled from 0 inside to 1 on the surface
     let mut surface: Vec<Vec<Vec3>> = original.iter().map(|p| vec![Vec3::ZERO; p.len()]).collect();
-    if let Some(mut shape) = Field::new(&original, SHAPE_SCALE * range, reach) {
+    if let Some(mut shape) = Field::new(&original, SHAPE_SCALE * range, reach).filter(|shape| own(shape) > 0.0) {
         shape.set(&original, &radius);
         for (points, surface) in original.iter().zip(&mut surface) {
             for (q, n) in points.iter().zip(surface.iter_mut()) {
@@ -246,7 +250,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             for (strand, offsets) in strands.iter().zip(&offsets) {
                 let path = wrap_path_mut(&mut output[strand.index]);
                 for (i, offset) in offsets.iter().enumerate() {
-                    if *offset != Vec3::ZERO {
+                    if *offset != Vec3::ZERO && offset.is_finite() {
                         let p = strand.points[i] + *offset;
                         path.points[i * 4..i * 4 + 3].copy_from_slice(&[p.x, p.y, p.z]);
                     }
@@ -390,6 +394,14 @@ mod tests {
             assert!(points(&out).iter().flatten().all(|q| q.is_finite()));
         }
         assert_eq!(run(&input, &Run { range: 1e-42, ..DEFAULT }), input);
+    }
+
+    #[test]
+    fn a_huge_range_or_max_offset_keeps_the_points_finite() {
+        let input = bundle(120);
+        for r in [Run { range: 1e38, ..DEFAULT }, Run { max_offset: 1e24, ..DEFAULT }] {
+            assert!(points(&run(&input, &r)).iter().flatten().all(|q| q.is_finite()));
+        }
     }
 
     #[test]
