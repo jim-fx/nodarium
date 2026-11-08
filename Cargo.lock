@@ -173,6 +173,7 @@ name = "myzel_membrane"
 version = "0.1.0"
 dependencies = [
  "glam",
+ "myzel_core",
  "nodarium_macros",
  "nodarium_utils",
  "noise",
