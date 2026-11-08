@@ -161,7 +161,10 @@ fn blend_colors(mesh: &Mesh, owners: &[u32], segments: &[Segment], colors: &[u32
         let own = own as usize;
         nearest.fill((f32::INFINITY, 0));
         nearest[slot[own]] = (tube(own, p), own);
-        let radius = nearest[slot[own]].0.max(0.0) + seam[own] * SEAM_REACH + widest;
+        // a color counts up to 1.5 times the seams of both segments farther out, so the search
+        // reaches by the widest seam, not by this vertex's own, or a thin path cuts off the fade
+        // from a thick neighbour
+        let radius = nearest[slot[own]].0.max(0.0) + reach + widest;
         hash.for_each_near(p, radius, |i, d| {
             let i = i as usize;
             let d = d - segments[i].radius;
@@ -1099,6 +1102,23 @@ mod tests {
                 assert!(step < 0.2, "the color jumps by {} between {} and {}", step, vertex(&mesh, i as usize), vertex(&mesh, j as usize));
             }
         }
+    }
+
+    #[test]
+    fn a_thin_path_takes_the_color_of_a_thick_neighbour_near_it() {
+        // a thin red path at y 0 and a ten times thicker blue one whose surface is 0.08 above it
+        let segments = [
+            Segment { start: Vec3::new(-1.0, 0.0, 0.0), end: Vec3::new(1.0, 0.0, 0.0), radius: 0.01 },
+            Segment { start: Vec3::new(-1.0, 0.19, 0.0), end: Vec3::new(1.0, 0.19, 0.0), radius: 0.1 },
+        ];
+        let seam = [0.01, 0.1];
+        let mesh = Mesh { positions: vec![0.0, 0.01, 0.0], ..Mesh::default() };
+        let colors = [opaque(RED), opaque(BLUE)];
+        let [r, _, b, _] = linear_rgba(blend_colors(&mesh, &[0], &segments, &colors, &seam)[0]);
+        let ([r0, _, b0, _], [r1, _, b1, _]) = (linear_rgba(colors[0]), linear_rgba(colors[1]));
+        let blue = ((r - r0) * (r1 - r0) + (b - b0) * (b1 - b0)) / ((r1 - r0).powi(2) + (b1 - b0).powi(2));
+        // 0.08 farther than the red tube with a seam of 0.055: exp(-(0.08 / 0.055)²) of blue
+        assert!(blue > 0.05 && blue < 0.5, "blue share {}", blue);
     }
 
     #[test]
