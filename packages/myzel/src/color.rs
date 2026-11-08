@@ -80,7 +80,8 @@ fn is_list(item: &[i32]) -> bool {
 /// Everything else in a list stays as it is.
 pub fn paint_meshes(arg: &[i32], color: [u8; 3]) -> Vec<i32> {
     if arg.first() == Some(&MESH_TAG) {
-        let mut mesh = Mesh::decode(arg);
+        // anything else that starts with the tag stays as it is
+        let Some(mut mesh) = Mesh::try_decode(arg) else { return arg.to_vec() };
         paint_mesh(&mut mesh, color);
         return mesh.encode();
     }

@@ -279,6 +279,14 @@ mod tests {
         assert_eq!(&mesh.positions[..v * 3], &plain.positions[..]);
         assert!(mesh.colors[..v].iter().all(|&c| c == NO_COLOR));
         assert_eq!(&mesh.colors[v..], &[opaque(brown); 3]);
+        // a join of a painted mesh and one without colors, like gill plates and a skin
+        let unpainted = Mesh { colors: Vec::new(), ..plate.clone() };
+        let gills = myzel_core::paint_meshes(&concat_arg_vecs(vec![nodarium_utils::wrap_arg(&unpainted.encode())]), brown);
+        let joined = concat_arg_vecs(
+            nodarium_utils::split_args(&gills).iter().map(|i| i.to_vec()).chain([nodarium_utils::wrap_arg(&unpainted.encode())]).collect(),
+        );
+        let mesh = run_with_meshes(&body, &[], &d, &joined);
+        assert_eq!(&mesh.colors[v..], &[[opaque(brown); 3], [NO_COLOR; 3]].concat());
         // node 42 white, node 9 keeps the material away from the seam
         let set = with_setting(&body, Setting::Color, color_value(white));
         let only_42 = concat_arg_vecs(vec![with_setting(&paths(3, 42, 0.0), Setting::Color, color_value(white)), paths(2, 9, 0.03)]);
