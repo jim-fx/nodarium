@@ -13,7 +13,7 @@
       "nodes": [
         {
           "id": 2,
-          "position": [-240, 99.17],
+          "position": [-270, 104.17],
           "type": "__internal/group/input",
           "props": {}
         },
@@ -25,7 +25,7 @@
         },
         {
           "id": 4,
-          "position": [-180, 5],
+          "position": [-210, 10],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -52,7 +52,7 @@
         },
         {
           "id": 5,
-          "position": [-210, 87.5],
+          "position": [-240, 92.5],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -71,7 +71,7 @@
         },
         {
           "id": 6,
-          "position": [-180, 60],
+          "position": [-210, 65],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -92,7 +92,7 @@
         },
         {
           "id": 7,
-          "position": [-150, 10],
+          "position": [-180, 15],
           "type": "max/plantarium/stem",
           "props": {
             "taper": 0
@@ -100,7 +100,7 @@
         },
         {
           "id": 8,
-          "position": [-90, 5],
+          "position": [-120, 10],
           "type": "max/myzel/strands",
           "props": {
             "amount": 240,
@@ -113,7 +113,7 @@
         },
         {
           "id": 9,
-          "position": [-120, 5],
+          "position": [-150, 10],
           "type": "max/plantarium/trunk_kink",
           "props": {
             "amount": 2,
@@ -125,7 +125,7 @@
         },
         {
           "id": 10,
-          "position": [-60, 5],
+          "position": [-90, 10],
           "type": "max/plantarium/clump",
           "props": {
             "strength": 0.15,
@@ -134,7 +134,7 @@
         },
         {
           "id": 46,
-          "position": [-30, 5],
+          "position": [-60, 10],
           "type": "max/plantarium/neighbour_sensing",
           "props": {
             "strength": 1,
@@ -142,6 +142,11 @@
             "bundling": 0.7,
             "max_offset": 0.0008
           }
+        },
+        {
+          "id": 48,
+          "position": [-30, 5],
+          "type": "max/myzel/set_color"
         }
       ],
       "edges": [
@@ -230,10 +235,22 @@
           "plant"
         ],
         [
-          46,
+          48,
           0,
           3,
           "out_1"
+        ],
+        [
+          46,
+          0,
+          48,
+          "plant"
+        ],
+        [
+          2,
+          5,
+          48,
+          "color"
         ]
       ],
       "inputs": {
@@ -280,6 +297,15 @@
           "max": 0.05,
           "step": 0.0005,
           "unit": "m"
+        },
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "value": [
+            238,
+            233,
+            224
+          ]
         }
       },
       "outputs": [
@@ -299,7 +325,7 @@
       "nodes": [
         {
           "id": 11,
-          "position": [-330, 83.33],
+          "position": [-360, 77.08],
           "type": "__internal/group/input",
           "props": {}
         },
@@ -311,7 +337,7 @@
         },
         {
           "id": 13,
-          "position": [-270, -2.5],
+          "position": [-300, -8.75],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -338,7 +364,7 @@
         },
         {
           "id": 14,
-          "position": [-300, 80],
+          "position": [-330, 73.75],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -357,7 +383,7 @@
         },
         {
           "id": 15,
-          "position": [-270, 52.5],
+          "position": [-300, 46.25],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -378,7 +404,7 @@
         },
         {
           "id": 16,
-          "position": [-240, -7.5],
+          "position": [-270, -13.75],
           "type": "max/myzel/cap",
           "props": {
             "rays": 14
@@ -386,7 +412,7 @@
         },
         {
           "id": 17,
-          "position": [-210, -7.5],
+          "position": [-240, -13.75],
           "type": "max/plantarium/fill_gaps",
           "props": {
             "spacing": 0.5
@@ -394,7 +420,7 @@
         },
         {
           "id": 18,
-          "position": [-210, 17.5],
+          "position": [-240, 11.25],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -413,13 +439,13 @@
         },
         {
           "id": 19,
-          "position": [-180, -6.25],
+          "position": [-210, -12.5],
           "type": "max/myzel/margin_curl",
           "props": {}
         },
         {
           "id": 20,
-          "position": [-180, 38.75],
+          "position": [-210, 32.5],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -444,13 +470,13 @@
         },
         {
           "id": 21,
-          "position": [-150, 5],
+          "position": [-180, -1.25],
           "type": "max/myzel/cap_open",
           "props": {}
         },
         {
           "id": 22,
-          "position": [-120, 5],
+          "position": [-150, -1.25],
           "type": "max/myzel/strands",
           "props": {
             "amount": 40,
@@ -462,7 +488,7 @@
         },
         {
           "id": 47,
-          "position": [-90, 5],
+          "position": [-120, -1.25],
           "type": "max/plantarium/neighbour_sensing",
           "props": {
             "strength": 1,
@@ -473,7 +499,7 @@
         },
         {
           "id": 23,
-          "position": [-60, 5],
+          "position": [-90, -1.25],
           "type": "max/myzel/set_fibres",
           "props": {
             "fibres": 0.4
@@ -481,7 +507,7 @@
         },
         {
           "id": 24,
-          "position": [-30, 5],
+          "position": [-60, -1.25],
           "type": "max/myzel/set_fill",
           "props": {
             "fill": 4
@@ -489,12 +515,37 @@
         },
         {
           "id": 25,
-          "position": [-30, 30],
+          "position": [-30, 35],
           "type": "max/plantarium/math",
           "props": {
             "op_type": 2,
             "b": 1.25
           }
+        },
+        {
+          "id": 49,
+          "position": [-90, 46.25],
+          "type": "max/plantarium/curve",
+          "props": {
+            "curve": [
+              0,
+              0,
+              0.5,
+              0.25,
+              1,
+              1
+            ]
+          }
+        },
+        {
+          "id": 50,
+          "position": [-60, 23.75],
+          "type": "max/myzel/mix_color"
+        },
+        {
+          "id": 51,
+          "position": [-30, 0],
+          "type": "max/myzel/set_color"
         }
       ],
       "edges": [
@@ -667,7 +718,7 @@
           "out_2"
         ],
         [
-          24,
+          51,
           0,
           12,
           "out_3"
@@ -677,6 +728,42 @@
           0,
           12,
           "out_4"
+        ],
+        [
+          11,
+          1,
+          49,
+          "value"
+        ],
+        [
+          11,
+          7,
+          50,
+          "a"
+        ],
+        [
+          11,
+          8,
+          50,
+          "b"
+        ],
+        [
+          49,
+          0,
+          50,
+          "factor"
+        ],
+        [
+          24,
+          0,
+          51,
+          "plant"
+        ],
+        [
+          50,
+          0,
+          51,
+          "color"
         ]
       ],
       "inputs": {
@@ -746,6 +833,24 @@
           "max": 0.05,
           "step": 0.0005,
           "unit": "m"
+        },
+        "color_button": {
+          "type": "color",
+          "label": "Color, button",
+          "value": [
+            244,
+            240,
+            233
+          ]
+        },
+        "color_open": {
+          "type": "color",
+          "label": "Color, open",
+          "value": [
+            222,
+            204,
+            180
+          ]
         }
       },
       "outputs": [
@@ -777,7 +882,7 @@
       "nodes": [
         {
           "id": 26,
-          "position": [-90, 11.88],
+          "position": [-120, -10.25],
           "type": "__internal/group/input",
           "props": {}
         },
@@ -789,7 +894,7 @@
         },
         {
           "id": 28,
-          "position": [-60, -23.75],
+          "position": [-90, -70],
           "type": "max/myzel/reaction_diffusion",
           "props": {
             "inner_radius": 0.0065,
@@ -800,7 +905,7 @@
         },
         {
           "id": 29,
-          "position": [-60, 56.25],
+          "position": [-90, 10],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -821,13 +926,42 @@
         },
         {
           "id": 30,
-          "position": [-30, -5],
+          "position": [-60, -51.25],
           "type": "max/myzel/lamellae",
           "props": {
             "free_distance": 0.001,
             "thickness": 0.0003,
             "edge_wave": 0.3
           }
+        },
+        {
+          "id": 52,
+          "position": [-90, 86.25],
+          "type": "max/plantarium/curve",
+          "props": {
+            "curve": [
+              0,
+              0,
+              0.35,
+              0.05,
+              0.6,
+              0.35,
+              0.85,
+              0.8,
+              1,
+              1
+            ]
+          }
+        },
+        {
+          "id": 53,
+          "position": [-60, 63.75],
+          "type": "max/myzel/mix_color"
+        },
+        {
+          "id": 54,
+          "position": [-30, -5],
+          "type": "max/myzel/set_color"
         }
       ],
       "edges": [
@@ -880,10 +1014,46 @@
           "depth"
         ],
         [
-          30,
+          54,
           1,
           27,
           "out_0"
+        ],
+        [
+          26,
+          3,
+          52,
+          "value"
+        ],
+        [
+          26,
+          6,
+          53,
+          "a"
+        ],
+        [
+          26,
+          7,
+          53,
+          "b"
+        ],
+        [
+          52,
+          0,
+          53,
+          "factor"
+        ],
+        [
+          30,
+          1,
+          54,
+          "mesh"
+        ],
+        [
+          53,
+          0,
+          54,
+          "color"
         ]
       ],
       "inputs": {
@@ -931,6 +1101,24 @@
           "max": 0.05,
           "step": 0.0005,
           "unit": "m"
+        },
+        "color_young": {
+          "type": "color",
+          "label": "Color, young",
+          "value": [
+            214,
+            160,
+            158
+          ]
+        },
+        "color_old": {
+          "type": "color",
+          "label": "Color, old",
+          "value": [
+            66,
+            50,
+            42
+          ]
         }
       },
       "outputs": [
@@ -946,7 +1134,7 @@
       "nodes": [
         {
           "id": 31,
-          "position": [-90, 31.25],
+          "position": [-120, 36.25],
           "type": "__internal/group/input",
           "props": {}
         },
@@ -958,7 +1146,7 @@
         },
         {
           "id": 33,
-          "position": [-60, 65],
+          "position": [-90, 70],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -977,7 +1165,7 @@
         },
         {
           "id": 34,
-          "position": [-60, 10],
+          "position": [-90, 15],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -998,7 +1186,7 @@
         },
         {
           "id": 35,
-          "position": [-30, 0],
+          "position": [-60, 5],
           "type": "max/myzel/membrane",
           "props": {
             "thickness": 0.0012,
@@ -1009,6 +1197,11 @@
           "exposed": [
             "torn_length"
           ]
+        },
+        {
+          "id": 55,
+          "position": [-30, 0],
+          "type": "max/myzel/set_color"
         }
       ],
       "edges": [
@@ -1061,10 +1254,22 @@
           "anchor"
         ],
         [
-          35,
+          55,
           0,
           32,
           "out_0"
+        ],
+        [
+          35,
+          0,
+          55,
+          "plant"
+        ],
+        [
+          31,
+          5,
+          55,
+          "color"
         ]
       ],
       "inputs": {
@@ -1103,6 +1308,15 @@
           "max": 0.2,
           "step": 0.0005,
           "unit": "m"
+        },
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "value": [
+            242,
+            239,
+            232
+          ]
         }
       },
       "outputs": [
@@ -1122,25 +1336,30 @@
     },
     {
       "id": 1,
-      "position": [-150, 81.67],
+      "position": [-150, 84.33],
       "type": "max/myzel/time",
       "props": {}
     },
     {
       "id": 40,
-      "position": [-120, 64.17],
+      "position": [-120, 66.83],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 36,
         "length_button": 0.014,
         "length_open": 0.046,
         "radius_button": 0.007,
-        "radius_open": 0.0085
+        "radius_open": 0.0085,
+        "color": [
+          238,
+          233,
+          224
+        ]
       }
     },
     {
       "id": 41,
-      "position": [-90, 34.17],
+      "position": [-90, 36.83],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 37,
@@ -1161,33 +1380,58 @@
           21.5
         ],
         "flesh_button": 0.013,
-        "flesh_open": 0.0115
+        "flesh_open": 0.0115,
+        "color_button": [
+          244,
+          240,
+          233
+        ],
+        "color_open": [
+          222,
+          204,
+          180
+        ]
       }
     },
     {
       "id": 42,
-      "position": [-60, 61.67],
+      "position": [-60, 68.33],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 38,
         "reach": 0.035,
         "spacing": 0.0009,
-        "depth": 0.005
+        "depth": 0.005,
+        "color_young": [
+          214,
+          160,
+          158
+        ],
+        "color_old": [
+          66,
+          50,
+          42
+        ]
       }
     },
     {
       "id": 43,
-      "position": [-60, 1.67],
+      "position": [-60, -1.67],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 39,
         "ring_button": 0.012,
-        "ring_open": 0.0215
+        "ring_open": 0.0215,
+        "color": [
+          242,
+          239,
+          232
+        ]
       }
     },
     {
       "id": 44,
-      "position": [-60, -28.33],
+      "position": [-60, -31.67],
       "type": "max/plantarium/join",
       "props": {}
     },
