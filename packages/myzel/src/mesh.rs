@@ -17,7 +17,7 @@ pub struct Mesh {
     pub faces: Vec<u32>,
     pub positions: Vec<f32>,
     pub normals: Vec<f32>,
-    /// Empty or one color per vertex
+    /// Empty or one color per vertex, [`crate::NO_COLOR`] where the vertex has none of its own
     pub colors: Vec<u32>,
     /// One group per vertex, other programs can give each group its own material
     pub groups: Vec<u32>,
@@ -61,15 +61,17 @@ impl Mesh {
         words
     }
 
-    /// Adds another mesh to this one, its groups numbered from `first_group` on. Colors only
-    /// stay when both meshes have them.
+    /// Adds another mesh to this one, its groups numbered from `first_group` on. When only one of
+    /// them has colors, the vertices of the other get [`crate::NO_COLOR`].
     pub fn append(&mut self, other: &Mesh, first_group: u32) {
         let offset = self.vertex_count() as u32;
-        let keep_colors = (!self.colors.is_empty() || self.vertex_count() == 0) && !other.colors.is_empty();
-        if keep_colors {
-            self.colors.extend(&other.colors);
-        } else {
-            self.colors.clear();
+        if !self.colors.is_empty() || !other.colors.is_empty() {
+            self.colors.resize(self.vertex_count(), crate::NO_COLOR);
+            if other.colors.is_empty() {
+                self.colors.extend(std::iter::repeat_n(crate::NO_COLOR, other.vertex_count()));
+            } else {
+                self.colors.extend(&other.colors);
+            }
         }
         self.faces.extend(other.faces.iter().map(|&i| i + offset));
         self.positions.extend(&other.positions);
@@ -141,8 +143,12 @@ mod tests {
         assert_eq!(mesh.vertex_count(), 6);
         assert_eq!(mesh.faces, vec![0, 1, 2, 3, 4, 5]);
         assert_eq!(mesh.groups, vec![0, 2, 2, 3, 5, 5]);
-        // one of them has no colors, so the result has none
-        assert!(mesh.colors.is_empty());
+        // the vertices without colors keep the material
+        let red = pack_rgba(1.0, 0.0, 0.0, 1.0);
+        assert_eq!(mesh.colors, [[crate::NO_COLOR; 3], [red; 3]].concat());
+        let mut plain = Mesh { colors: Vec::new(), ..triangle() };
+        plain.append(&Mesh { colors: Vec::new(), ..triangle() }, 0);
+        assert!(plain.colors.is_empty());
         let mut empty = Mesh::default();
         empty.append(&triangle(), 0);
         assert_eq!(empty, triangle());

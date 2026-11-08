@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/hyphae_to_mesh",
   "meta": {
-    "description": "Turns paths into the surface around them with a fibrous relief along them. Every node that made paths is its own material group, grown hyphae are grouped by tissue."
+    "description": "Turns paths into the surface around them with a fibrous relief along them. Every node that made paths is its own material group, grown hyphae are grouped by tissue. Paths and meshes from set_color bring their color, the color goes over smoothly where paths of two colors meet."
   },
   "outputs": [
     "mesh"
@@ -64,7 +64,7 @@
       "type": "mesh",
       "label": "Meshes",
       "external": true,
-      "description": "Meshes added as they are, like the plates of lamellae. Each one is its own group, after the groups of the paths."
+      "description": "Meshes added as they are, like the plates of lamellae. Each one is its own group, after the groups of the paths, and keeps its color from set_color."
     },
     "loose_strands": {
       "type": "float",

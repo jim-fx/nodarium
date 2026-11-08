@@ -1,10 +1,12 @@
 use glam::Vec3;
 
+use crate::color::{linear_rgba, pack_linear, NO_COLOR};
 use crate::density::{surface_in, Frame, Meshing, Segment, TissueField};
 use crate::hyphae::Hyphae;
 use crate::mesh::Mesh;
 use crate::noise::value_noise;
 use crate::paths::{group_numbers, path_segments, MeshPath, PathStyle};
+use crate::spatial::{distance_sq_to_segment, SpatialHash};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct HyphaeMeshParams {
@@ -95,6 +97,12 @@ pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
     let (groups, tissues) = group_numbers(paths);
     s.mesh.groups = s.owners.iter().map(|&i| groups[owner[i as usize]]).collect();
     s.mesh.tissue_groups = tissues;
+    if paths.iter().any(|p| p.settings.color.is_some()) {
+        let colors: Vec<u32> = owner.iter().map(|&k| paths[k].settings.color.unwrap_or(NO_COLOR)).collect();
+        let cell = s.cell;
+        let seam: Vec<f32> = segments.iter().zip(&meshing).map(|(g, m)| seam_width(g, m, cell)).collect();
+        s.mesh.colors = blend_colors(&s.mesh, &s.owners, &segments, &colors, &seam);
+    }
 
     // the relief of a path is its fibres relative to those of the node, so it stays the same where they are the same
     let fibres = |i: usize| paths[owner[i]].settings.fibres.unwrap_or(params.fibres).max(0.0);
@@ -108,6 +116,85 @@ pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
         add_fibres(&mut s.mesh, &segments, owner, s.cell, reference, params.seed);
     }
     s.mesh
+}
+
+/// How far a color goes over into the one next to it: as far as the kernel of the segment reaches,
+/// where paths blend into one surface, but at least a cell
+fn seam_width(segment: &Segment, meshing: &Meshing, cell: f32) -> f32 {
+    (meshing.blend.max(1.1) * segment.radius).max(cell)
+}
+
+/// A seam fades out over this many seam widths
+const SEAM_REACH: f32 = 3.0;
+
+/// The color of every vertex, mixed from the colors of the segments near it. Each color counts by
+/// how much farther its nearest tube is than the nearest tube of any color, `exp(-(Δd / w)²)` with
+/// the seam width `w` of the two segments: one color away from the others, and an even mix where
+/// two colors are equally near, so the color goes over smoothly where the surface goes over from
+/// one path to the next, filled gaps included. Colors mix in linear light, a vertex without a
+/// color of its own ([`NO_COLOR`]) only lowers the alpha.
+fn blend_colors(mesh: &Mesh, owners: &[u32], segments: &[Segment], colors: &[u32], seam: &[f32]) -> Vec<u32> {
+    let mut palette: Vec<u32> = Vec::new();
+    let slot: Vec<usize> = colors
+        .iter()
+        .map(|c| {
+            palette.iter().position(|p| p == c).unwrap_or_else(|| {
+                palette.push(*c);
+                palette.len() - 1
+            })
+        })
+        .collect();
+    let n = mesh.vertex_count();
+    if palette.len() == 1 {
+        return vec![palette[0]; n];
+    }
+    let linear: Vec<[f32; 4]> = palette.iter().map(|&c| linear_rgba(c)).collect();
+    let widest = segments.iter().map(|s| s.radius).fold(0.0, f32::max);
+    let reach = seam.iter().fold(0.0f32, |a, &w| a.max(w)) * SEAM_REACH;
+    let mut hash = SpatialHash::from_segments(reach + widest, segments.iter().map(|s| (s.start, s.end)));
+    let tube = |i: usize, p: Vec3| distance_sq_to_segment(p, segments[i].start, segments[i].end).sqrt() - segments[i].radius;
+
+    let mut nearest = vec![(f32::INFINITY, 0usize); palette.len()];
+    let mut out = Vec::with_capacity(n);
+    for (p, &own) in mesh.positions.chunks_exact(3).zip(owners) {
+        let p = Vec3::from_slice(p);
+        let own = own as usize;
+        nearest.fill((f32::INFINITY, 0));
+        nearest[slot[own]] = (tube(own, p), own);
+        let radius = nearest[slot[own]].0.max(0.0) + seam[own] * SEAM_REACH + widest;
+        hash.for_each_near(p, radius, |i, d| {
+            let i = i as usize;
+            let d = d - segments[i].radius;
+            if d < nearest[slot[i]].0 {
+                nearest[slot[i]] = (d, i);
+            }
+        });
+        let (closest, by) = nearest.iter().copied().fold((f32::INFINITY, own), |a, b| if b.0 < a.0 { b } else { a });
+        let mut sum = [0.0f32; 4];
+        let mut total = 0.0;
+        for (k, &(d, i)) in nearest.iter().enumerate() {
+            let w = 0.5 * (seam[i] + seam[by]);
+            let x = (d - closest) / w;
+            // colors no segment nearby has are infinitely far
+            if x.is_nan() || x >= SEAM_REACH {
+                continue;
+            }
+            let weight = (-x * x).exp();
+            // premultiplied, so a seam to a vertex without color doesn't fade the color towards white
+            let [r, g, b, a] = linear[k];
+            for (c, value) in [r, g, b].into_iter().enumerate() {
+                sum[c] += value * a * weight;
+            }
+            sum[3] += a * weight;
+            total += weight;
+        }
+        out.push(if sum[3] > 0.0 {
+            pack_linear([sum[0] / sum[3], sum[1] / sum[3], sum[2] / sum[3], sum[3] / total])
+        } else {
+            NO_COLOR
+        });
+    }
+    out
 }
 
 /// Per segment of the paths, in the order [`paths_mesh`] makes them, whether it is a strand that
@@ -238,6 +325,7 @@ fn add_fibres(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::color::opaque;
     use crate::density::{assert_closed, components, surface};
     use crate::hyphae::{flags, HyphaSegment, Tissue};
     use crate::paths::PathGroup;
@@ -726,7 +814,7 @@ mod tests {
     }
 
     fn set(blend: f32, fibres: f32, fill: f32) -> PathSettings {
-        PathSettings { blend: Some(blend), fibres: Some(fibres), fill: Some(fill) }
+        PathSettings { blend: Some(blend), fibres: Some(fibres), fill: Some(fill), color: None }
     }
 
     /// Of every vertex of `next` the distance to the nearest vertex of `previous`, the largest
@@ -935,5 +1023,102 @@ mod tests {
         let cell = surface(&path_segments(&points[0].0), 96, 3.0, 0.0, |_| false, |_| false, |_| 1.0).cell;
         assert!((top(&mixed, 0.25) - top(&high, 0.25)).abs() < 2.0 * cell, "{} vs {}", top(&mixed, 0.25), top(&high, 0.25));
         assert!((top(&mixed, -0.25) - top(&low, -0.25)).abs() < 2.0 * cell, "{} vs {}", top(&mixed, -0.25), top(&low, -0.25));
+    }
+
+    fn colored(points: &[(Vec<f32>, i32)], colors: &[(i32, [u8; 3])]) -> Vec<MeshPath<'static>> {
+        mesh_paths(points, PathStyle::BODY)
+            .into_iter()
+            .map(|p| {
+                let color = colors.iter().find(|(creator, _)| p.group == PathGroup::Creator(*creator)).map(|(_, c)| opaque(*c));
+                MeshPath { points: std::borrow::Cow::Owned(p.points.into_owned()), settings: PathSettings { color, ..p.settings }, ..p }
+            })
+            .collect()
+    }
+
+    const RED: [u8; 3] = [220, 40, 30];
+    const BLUE: [u8; 3] = [30, 60, 210];
+
+    #[test]
+    fn paths_without_a_color_keep_the_material() {
+        let points = two_slabs();
+        let params = HyphaeMeshParams { resolution: 96, fill: 6.0, ..HyphaeMeshParams::default() };
+        let plain = paths_mesh(&mesh_paths(&points, PathStyle::BODY), &params);
+        assert!(plain.colors.is_empty());
+        let mesh = paths_mesh(&colored(&points, &[(2, RED)]), &params);
+        // the same surface, only node 2 has a color
+        assert_eq!(mesh.faces, plain.faces);
+        assert_eq!(mesh.positions, plain.positions);
+        assert_eq!(mesh.groups, plain.groups);
+        for v in 0..mesh.vertex_count() {
+            let x = vertex(&mesh, v).x;
+            if x < -0.2 {
+                assert_eq!(mesh.colors[v], NO_COLOR, "vertex at x {}", x);
+            } else if x > 0.2 {
+                assert_eq!(mesh.colors[v], opaque(RED), "vertex at x {}", x);
+            }
+        }
+    }
+
+    #[test]
+    fn a_color_stays_on_its_group_and_goes_over_smoothly_at_the_seam() {
+        let points = two_slabs();
+        let params = HyphaeMeshParams { resolution: 96, fill: 6.0, ..HyphaeMeshParams::default() };
+        let mesh = paths_mesh(&colored(&points, &[(1, RED), (2, BLUE)]), &params);
+        assert_closed(&mesh);
+        let [r0, _, b0, _] = linear_rgba(opaque(RED));
+        let [r1, _, b1, _] = linear_rgba(opaque(BLUE));
+        // red and blue mix along a line, how far along it the color is
+        let blue = |v: usize| {
+            let [r, _, b, a] = linear_rgba(mesh.colors[v]);
+            assert_eq!(a, 1.0);
+            ((r - r0) * (r1 - r0) + (b - b0) * (b1 - b0)) / ((r1 - r0).powi(2) + (b1 - b0).powi(2))
+        };
+        let mut bins = [(0.0f32, 0usize); 8];
+        for v in 0..mesh.vertex_count() {
+            let p = vertex(&mesh, v);
+            if p.x < -0.2 {
+                assert_eq!(mesh.colors[v], opaque(RED), "vertex at {}", p);
+            } else if p.x > 0.2 {
+                assert_eq!(mesh.colors[v], opaque(BLUE), "vertex at {}", p);
+            }
+            if p.y > 0.0 && p.z.abs() < 0.4 && p.x.abs() < 0.24 {
+                let bin = (((p.x + 0.24) / 0.06) as usize).min(7);
+                bins[bin].0 += blue(v);
+                bins[bin].1 += 1;
+            }
+        }
+        let share: Vec<f32> = bins.iter().map(|(sum, n)| sum / *n.max(&1) as f32).collect();
+        assert!(share[0] < 0.01 && share[7] > 0.99, "blue across the seam {:?}", share);
+        assert!(share.iter().filter(|&&s| s > 0.05 && s < 0.95).count() >= 2, "no hard edge: {:?}", share);
+        for pair in share.windows(2) {
+            assert!(pair[1] >= pair[0], "blue across the seam {:?}", share);
+        }
+        for f in mesh.faces.chunks_exact(3) {
+            for (i, j) in [(f[0], f[1]), (f[1], f[2]), (f[2], f[0])] {
+                let step = (blue(i as usize) - blue(j as usize)).abs();
+                assert!(step < 0.2, "the color jumps by {} between {} and {}", step, vertex(&mesh, i as usize), vertex(&mesh, j as usize));
+            }
+        }
+    }
+
+    #[test]
+    fn a_seam_to_paths_without_a_color_fades_the_color_not_its_hue() {
+        let points = two_slabs();
+        let params = HyphaeMeshParams { resolution: 96, fill: 6.0, ..HyphaeMeshParams::default() };
+        let mesh = paths_mesh(&colored(&points, &[(2, RED)]), &params);
+        let red = linear_rgba(opaque(RED));
+        let mut faded = 0;
+        for v in 0..mesh.vertex_count() {
+            let [r, g, b, a] = linear_rgba(mesh.colors[v]);
+            if a > 0.0 {
+                for (c, want) in [r, g, b].into_iter().zip(red) {
+                    assert!((c - want).abs() < 0.02, "vertex at {} has {:?}", vertex(&mesh, v), [r, g, b, a]);
+                }
+            }
+            if a > 0.05 && a < 0.95 {
+                faded += 1;
+            }
+        }
+        assert!(faded > 10, "only {} vertices at the seam", faded);
     }
 }

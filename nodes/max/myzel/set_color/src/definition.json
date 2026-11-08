@@ -1,0 +1,31 @@
+{
+  "id": "max/myzel/set_color",
+  "meta": {
+    "description": "Gives the paths and meshes that pass through a color: white flesh, pink gills, a yolk-yellow chanterelle. Every path of the nodes that made them gets it in hyphae_to_mesh, and where it meets a path of another color the color goes over smoothly. Paths without a color keep the viewer's material. Connect mix_color to let the color follow time."
+  },
+  "outputs": [
+    "path",
+    {
+      "type": "mesh",
+      "label": "mesh"
+    }
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The paths, they pass through unchanged",
+      "external": true
+    },
+    "mesh": {
+      "type": "mesh",
+      "label": "Mesh",
+      "description": "A mesh to color all over, like the plates of lamellae, for the meshes input of hyphae_to_mesh",
+      "external": true
+    },
+    "color": {
+      "type": "color",
+      "value": [240, 236, 228],
+      "description": "The color of the surface"
+    }
+  }
+}

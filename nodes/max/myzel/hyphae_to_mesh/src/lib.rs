@@ -19,7 +19,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     };
     let mut paths = read_mesh_paths(args[0], PathStyle::BODY);
     paths.extend(read_mesh_paths(args[1], PathStyle::LOOSE));
-    // settings from set_blend, set_fibres and set_fill reach the paths of their nodes in either input
+    // settings from set_blend, set_fibres, set_fill and set_color reach the paths of their nodes in either input
     let settings = [read_settings(args[0]), read_settings(args[1])].concat();
     apply_settings(&mut paths, &settings);
     let mut mesh = paths_mesh(&paths, &params);
@@ -201,6 +201,45 @@ mod tests {
         let mesh = run(&flat_body, &concat_arg_vecs(flat_loose), &d);
         assert_eq!(mesh.faces, smooth.faces);
         assert_eq!(mesh.positions, smooth.positions);
+    }
+
+    #[test]
+    fn colors_reach_their_paths_and_meshes() {
+        use myzel_core::{color_value, opaque, paint_mesh, with_setting, Setting, NO_COLOR};
+        let d = HyphaeMeshParams::default();
+        let (white, brown) = ([240, 236, 228], [80, 52, 40]);
+        let body = concat_arg_vecs(vec![paths(3, 42, 0.0), paths(2, 9, 0.03)]);
+        let plain = run(&body, &[], &d);
+        assert!(plain.colors.is_empty());
+        let mut plate = Mesh {
+            faces: vec![0, 1, 2],
+            positions: vec![0.1, 0.0, 0.0, 0.2, 0.0, 0.0, 0.1, 0.1, 0.0],
+            normals: vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
+            colors: Vec::new(),
+            groups: vec![0, 0, 0],
+            tissue_groups: false,
+        };
+        // only the plate has a color, the paths keep the material
+        paint_mesh(&mut plate, brown);
+        let mesh = run_with_meshes(&body, &[], &d, &plate.encode());
+        let v = plain.vertex_count();
+        assert_eq!(&mesh.positions[..v * 3], &plain.positions[..]);
+        assert!(mesh.colors[..v].iter().all(|&c| c == NO_COLOR));
+        assert_eq!(&mesh.colors[v..], &[opaque(brown); 3]);
+        // node 42 white, node 9 keeps the material away from the seam
+        let set = with_setting(&body, Setting::Color, color_value(white));
+        let only_42 = concat_arg_vecs(vec![with_setting(&paths(3, 42, 0.0), Setting::Color, color_value(white)), paths(2, 9, 0.03)]);
+        let mesh = run(&only_42, &[], &d);
+        assert_eq!(mesh.positions, plain.positions);
+        for (k, &c) in mesh.colors.iter().enumerate() {
+            let x = mesh.positions[k * 3];
+            if x < 0.0 {
+                assert_eq!(c, opaque(white), "vertex at x {}", x);
+            } else if x > 0.035 {
+                assert_eq!(c, NO_COLOR, "vertex at x {}", x);
+            }
+        }
+        assert!(run(&set, &[], &d).colors.iter().all(|&c| c == opaque(white)));
     }
 
     #[test]

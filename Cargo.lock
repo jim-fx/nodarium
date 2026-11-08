@@ -179,6 +179,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "myzel_mix_color"
+version = "0.1.0"
+dependencies = [
+ "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+ "serde_json",
+]
+
+[[package]]
 name = "myzel_output"
 version = "0.1.0"
 dependencies = [
@@ -220,6 +230,16 @@ dependencies = [
 
 [[package]]
 name = "myzel_set_blend"
+version = "0.1.0"
+dependencies = [
+ "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+ "serde_json",
+]
+
+[[package]]
+name = "myzel_set_color"
 version = "0.1.0"
 dependencies = [
  "myzel_core",

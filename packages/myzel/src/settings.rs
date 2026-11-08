@@ -17,6 +17,9 @@ pub enum Setting {
     Fibres = 1,
     /// Where a ball of this many path radii can't pass between body paths, the gap fills
     Fill = 2,
+    /// Color of the surface, the value is `r | g << 8 | b << 16` of the sRGB bytes, which an f32
+    /// holds exactly, see [`color_value`]
+    Color = 3,
 }
 
 impl Setting {
@@ -25,6 +28,7 @@ impl Setting {
             0 => Some(Setting::Blend),
             1 => Some(Setting::Fibres),
             2 => Some(Setting::Fill),
+            3 => Some(Setting::Color),
             _ => None,
         }
     }
@@ -36,6 +40,8 @@ pub struct PathSettings {
     pub blend: Option<f32>,
     pub fibres: Option<f32>,
     pub fill: Option<f32>,
+    /// An opaque RGBA8 word as in [`crate::Mesh::colors`]
+    pub color: Option<u32>,
 }
 
 impl PathSettings {
@@ -44,9 +50,18 @@ impl PathSettings {
             Setting::Blend => &mut self.blend,
             Setting::Fibres => &mut self.fibres,
             Setting::Fill => &mut self.fill,
+            Setting::Color => {
+                self.color = Some((value as u32 & 0xff_ffff) | 0xff00_0000);
+                return;
+            }
         };
         *slot = Some(value);
     }
+}
+
+/// The value of a [`Setting::Color`] item for an sRGB color
+pub fn color_value([r, g, b]: [u8; 3]) -> f32 {
+    (r as u32 | (g as u32) << 8 | (b as u32) << 16) as f32
 }
 
 /// A setting for the paths of some nodes `[13, setting, value, ...creators]`, see [`Setting`].
@@ -192,14 +207,14 @@ mod tests {
         let set = with_setting(&twice, Setting::Blend, 1.5);
         let mut paths = read_paths(&set, PathStyle::BODY);
         apply_settings(&mut paths, &read_settings(&set));
-        let all = PathSettings { blend: Some(1.5), fibres: Some(2.0), fill: None };
+        let all = PathSettings { blend: Some(1.5), fibres: Some(2.0), fill: None, color: None };
         assert_eq!(paths.iter().map(|p| p.settings).collect::<Vec<_>>(), vec![all, all]);
 
         let only_four = with_setting(&concat_arg_vecs(vec![with_setting(&list(1, 4), Setting::Fill, 1.0), list(1, 8)]), Setting::Blend, 2.0);
         let mut paths = read_paths(&only_four, PathStyle::BODY);
         apply_settings(&mut paths, &read_settings(&only_four));
-        assert_eq!(paths[0].settings, PathSettings { blend: Some(2.0), fibres: None, fill: Some(1.0) });
-        assert_eq!(paths[1].settings, PathSettings { blend: Some(2.0), fibres: None, fill: None });
+        assert_eq!(paths[0].settings, PathSettings { blend: Some(2.0), fibres: None, fill: Some(1.0), color: None });
+        assert_eq!(paths[1].settings, PathSettings { blend: Some(2.0), fibres: None, fill: None, color: None });
     }
 
     #[test]
