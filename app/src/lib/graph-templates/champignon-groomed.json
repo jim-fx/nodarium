@@ -144,7 +144,7 @@
           }
         },
         {
-          "id": 48,
+          "id": 56,
           "position": [-30, 5],
           "type": "max/myzel/set_color"
         }
@@ -235,7 +235,7 @@
           "plant"
         ],
         [
-          48,
+          56,
           0,
           3,
           "out_1"
@@ -243,13 +243,13 @@
         [
           46,
           0,
-          48,
+          56,
           "plant"
         ],
         [
           2,
           5,
-          48,
+          56,
           "color"
         ]
       ],
@@ -1134,7 +1134,7 @@
       "nodes": [
         {
           "id": 31,
-          "position": [-120, 36.25],
+          "position": [-120, 51.25],
           "type": "__internal/group/input",
           "props": {}
         },
@@ -1146,7 +1146,7 @@
         },
         {
           "id": 33,
-          "position": [-90, 70],
+          "position": [-90, 85],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -1165,16 +1165,16 @@
         },
         {
           "id": 34,
-          "position": [-90, 15],
+          "position": [-90, 30],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
               0,
               0,
               0.2,
-              0.26,
-              0.35,
-              0.84,
+              0.727,
+              0.4,
+              0.727,
               1,
               1
             ]
@@ -1189,10 +1189,10 @@
           "position": [-60, 5],
           "type": "max/myzel/membrane",
           "props": {
-            "thickness": 0.0012,
+            "thickness": 0.0006,
             "sag": 0.05,
-            "tear_position": 0.8,
-            "torn_length": 0.009
+            "tear_position": 0.9,
+            "torn_length": 0.011
           },
           "exposed": [
             "torn_length"
@@ -1251,7 +1251,7 @@
           34,
           0,
           35,
-          "anchor"
+          "along"
         ],
         [
           55,
@@ -1260,10 +1260,22 @@
           "out_0"
         ],
         [
+          55,
+          1,
+          32,
+          "out_1"
+        ],
+        [
           35,
           0,
           55,
           "plant"
+        ],
+        [
+          35,
+          1,
+          55,
+          "mesh"
         ],
         [
           31,
@@ -1294,20 +1306,20 @@
         "ring_button": {
           "type": "float",
           "label": "Ring height, button",
-          "value": 0.012,
+          "value": 0.86,
           "min": 0,
-          "max": 0.2,
-          "step": 0.0005,
-          "unit": "m"
+          "max": 1,
+          "step": 0.01,
+          "description": "Where the veil holds on the stipe on the button, as a share of the stipe from its base"
         },
         "ring_open": {
           "type": "float",
           "label": "Ring height, open",
-          "value": 0.0215,
+          "value": 0.75,
           "min": 0,
-          "max": 0.2,
-          "step": 0.0005,
-          "unit": "m"
+          "max": 1,
+          "step": 0.01,
+          "description": "Where the ring sits on the open mushroom, as a share of the stipe from its base: real rings sit in the upper third"
         },
         "color": {
           "type": "color",
@@ -1323,6 +1335,10 @@
         {
           "type": "path",
           "label": "Veil"
+        },
+        {
+          "type": "mesh",
+          "label": "Skin"
         }
       ]
     }
@@ -1336,13 +1352,13 @@
     },
     {
       "id": 1,
-      "position": [-150, 84.33],
+      "position": [-180, 103.13],
       "type": "max/myzel/time",
       "props": {}
     },
     {
       "id": 40,
-      "position": [-120, 66.83],
+      "position": [-150, 85.63],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 36,
@@ -1359,7 +1375,7 @@
     },
     {
       "id": 41,
-      "position": [-90, 36.83],
+      "position": [-120, 55.63],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 37,
@@ -1395,7 +1411,7 @@
     },
     {
       "id": 42,
-      "position": [-60, 68.33],
+      "position": [-90, 67.5],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 38,
@@ -1416,12 +1432,12 @@
     },
     {
       "id": 43,
-      "position": [-60, -1.67],
+      "position": [-90, -7.5],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 39,
-        "ring_button": 0.012,
-        "ring_open": 0.0215,
+        "ring_button": 0.86,
+        "ring_open": 0.75,
         "color": [
           242,
           239,
@@ -1431,7 +1447,7 @@
     },
     {
       "id": 44,
-      "position": [-60, -31.67],
+      "position": [-60, 0],
       "type": "max/plantarium/join",
       "props": {}
     },
@@ -1443,6 +1459,12 @@
         "fill": 1.5,
         "fibres": 1.5
       }
+    },
+    {
+      "id": 48,
+      "position": [-60, 30],
+      "type": "max/plantarium/join",
+      "props": {}
     }
   ],
   "edges": [
@@ -1525,22 +1547,28 @@
       "hyphae"
     ],
     [
-      43,
-      0,
-      45,
-      "loose"
-    ],
-    [
-      42,
-      0,
-      45,
-      "meshes"
-    ],
-    [
       45,
       0,
       0,
       "field"
+    ],
+    [
+      42,
+      0,
+      48,
+      "a"
+    ],
+    [
+      43,
+      1,
+      48,
+      "b"
+    ],
+    [
+      48,
+      0,
+      45,
+      "meshes"
     ]
   ]
 }

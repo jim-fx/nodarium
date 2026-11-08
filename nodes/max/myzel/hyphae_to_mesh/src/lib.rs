@@ -35,16 +35,25 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     mesh.encode()
 }
 
-/// One mesh as a node sends it, or a list of meshes from `join`
+/// One mesh as a node sends it, or a list of meshes from `join`. The input also takes paths, so a
+/// list can hold paths, geometry and settings too, these are left out.
 fn read_meshes(arg: &[i32]) -> Vec<Mesh> {
     let n = arg.len();
-    match arg.first() {
-        None => Vec::new(),
-        Some(&MESH_TAG) => vec![Mesh::decode(arg)],
-        // one item in brackets [0, n + 1, ...item, 1, 1]
-        Some(0) if n >= 5 && arg[1] as usize == n - 3 && arg[2] == MESH_TAG => vec![Mesh::decode(&arg[2..n - 2])],
-        Some(_) => split_args(arg).into_iter().filter(|item| item.len() < n).flat_map(read_meshes).collect(),
+    if arg.first() == Some(&MESH_TAG) {
+        return Mesh::try_decode(arg).into_iter().collect();
     }
+    if n < 5 || arg[0] != 0 {
+        return Vec::new();
+    }
+    // one item in brackets [0, n + 1, ...item, 1, 1]
+    if arg[1] as usize == n - 3 && arg[2] == MESH_TAG {
+        return Mesh::try_decode(&arg[2..n - 2]).into_iter().collect();
+    }
+    // only a list [0, 1, ...items, 1, 1] is split, the count of any other item is its length
+    if arg[1] == 1 {
+        return split_args(arg).into_iter().filter(|item| item.len() < n).flat_map(read_meshes).collect();
+    }
+    Vec::new()
 }
 
 #[cfg(test)]
@@ -155,6 +164,50 @@ mod tests {
         assert_eq!(run_with_meshes(&[], &[], &d, &plate.encode()), plate);
         // nothing connected, the way the host sends an empty list
         assert_eq!(run_with_meshes(&paths(3, 42, 0.0), &[], &d, &[0, 1, 1, 1]), plain);
+    }
+
+    #[test]
+    fn paths_in_the_meshes_are_left_out() {
+        use nodarium_utils::{split_args, wrap_arg};
+        let d = HyphaeMeshParams::default();
+        let plain = run(&paths(3, 42, 0.0), &[], &d);
+        // 16 paths like the strands of a membrane, the one indexed 14 has a 14 after its header
+        let mut strands = paths(16, 14, 0.0);
+        for path in wrap_multiple_paths(&mut strands).iter_mut() {
+            path.points[0] = f32::from_bits(14);
+        }
+        assert!(split_args(&strands).iter().any(|item| item.contains(&14)));
+        let with_strands = |meshes: &[i32]| run_with_meshes(&paths(3, 42, 0.0), &[], &d, meshes);
+        assert_eq!(with_strands(&strands), plain);
+        assert_eq!(with_strands(split_args(&strands)[14]), plain);
+
+        // meshes and paths from one join: only the meshes are added, in their order
+        let plate = |x: f32| Mesh {
+            faces: vec![0, 1, 2],
+            positions: vec![x, 0.0, 0.0, x + 0.1, 0.0, 0.0, x, 0.1, 0.0],
+            normals: vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
+            colors: Vec::new(),
+            groups: vec![0, 0, 0],
+            tissue_groups: false,
+        };
+        let mut items: Vec<Vec<i32>> = vec![wrap_arg(&plate(0.1).encode())];
+        items.extend(split_args(&strands).iter().map(|item| item.to_vec()));
+        items.push(wrap_arg(&plate(0.2).encode()));
+        items.push(paths(2, 9, 0.04));
+        let mixed = with_strands(&concat_arg_vecs(items));
+        let mut expected = plain.clone();
+        expected.append(&plate(0.1), 1);
+        expected.append(&plate(0.2), 2);
+        assert_eq!(mixed, expected);
+
+        // a 14 in front of words that aren't a mesh, wrapped or not
+        let not_a_mesh = [14, 2, 0, 0, 5, 9];
+        assert_eq!(with_strands(&not_a_mesh), plain);
+        assert_eq!(with_strands(&concat_arg_vecs(vec![wrap_arg(&not_a_mesh), wrap_arg(&plate(0.1).encode())])), {
+            let mut one = plain.clone();
+            one.append(&plate(0.1), 1);
+            one
+        });
     }
 
     #[test]

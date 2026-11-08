@@ -26,7 +26,8 @@
 //! material group it belongs to: for meshes made from paths the graph node that
 //! made the path, numbered by [`group_numbers`], 0 for meshes made from a field.
 //! Meshes of grown hyphae have [`mesh_flags::TISSUE_GROUPS`] set, their groups
-//! are the [`Tissue`]s.
+//! are the [`Tissue`]s. Thin closed sheets like gill plates and veils, which stay
+//! sharp at any mesh resolution, are built with [`add_sheet`].
 //!
 //! # Paths
 //!
@@ -74,6 +75,7 @@ mod noise;
 mod paths;
 mod polygonize;
 mod settings;
+mod sheet;
 mod spatial;
 
 pub use cap::{closing_turn, curl_turn, margin_points, pose_caps, pose_caps_of, testing, Cap, CapFrame, CapRay, Step};
@@ -100,4 +102,5 @@ pub use polygonize::polygonize;
 pub use settings::{
     apply_settings, color_value, read_settings, with_setting, PathSettings, Setting, SettingItem, SETTING_TAG,
 };
+pub use sheet::{add_sheet, sheet_checks, smooth_normals, SheetGrid};
 pub use spatial::{distance_sq_to_segment, SpatialHash};

@@ -1,10 +1,14 @@
 {
   "id": "max/myzel/membrane",
   "meta": {
-    "description": "A thin skin between two attachments, like the veil between the cap margin and the stipe, made of strands that run across it. It tears along a ragged line: the part on b falls into a skirt (the ring), the part on a stays as a fringe."
+    "description": "A thin skin between two attachments, like the veil between the cap margin and the stipe. It tears along a ragged line: the part on b falls into a skirt (the ring), the part on a stays as a fringe. Gives the skin as strands that run across it, to mesh with the rest, and as a thin sheet mesh, which stays sharp at any mesh resolution."
   },
   "outputs": [
-    "path"
+    "path",
+    {
+      "type": "mesh",
+      "label": "skin"
+    }
   ],
   "inputs": {
     "a": {
@@ -39,6 +43,14 @@
       "max": 0.5,
       "step": 0.0005,
       "unit": "m"
+    },
+    "along": {
+      "type": "float",
+      "description": "Holds the membrane on a path in b at this share of its length from its base, like a ring in the upper third of a stipe at 0.7. It keeps that share while b grows, so a longer stipe keeps its ring in the upper third. 0 = anchor or attachment places it.",
+      "value": 0,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
     },
     "thickness": {
       "type": "float",

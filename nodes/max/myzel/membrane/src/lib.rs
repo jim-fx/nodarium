@@ -1,4 +1,5 @@
 use glam::Vec3;
+use myzel_core::{add_sheet, smooth_normals, Mesh, SheetGrid};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs, curve, decode_float,
@@ -6,7 +7,7 @@ use nodarium_utils::{
     int, split_args, Ctx, PathInfo, Point,
 };
 use noise::{NoiseFn, OpenSimplex};
-use std::f32::consts::{FRAC_PI_2, TAU};
+use std::f32::consts::{FRAC_PI_2, PI, TAU};
 
 nodarium_definition_file!("src/definition.json");
 
@@ -31,6 +32,19 @@ const EDGE: f32 = 0.25;
 const RAGGED_SCALE: f64 = 4.0;
 /// The same for where the tear starts, fewer lobes start it in fewer places
 const ONSET_SCALE: f64 = 0.6;
+/// The skin takes this share of the jitter of single strands into its torn edge, the rest of
+/// its raggedness comes from the smooth tear line
+const SKIN_JITTER: f32 = 0.35;
+/// How far the fall of the skin is smoothed between neighbouring strands, in strands either way
+const SKIN_SMOOTH: i32 = 3;
+/// A torn skin folds about once for every this many part lengths around
+const FOLD_LENGTH: f32 = 1.6;
+/// The folds take up this share of the extra length, the skin crumples and stretches for the rest
+const FOLD_DEPTH: f32 = 0.6;
+/// How uneven the folds are, a turn of their phase in radians
+const FOLD_WOBBLE: f32 = 1.5;
+/// Radius of the circle the noise that makes folds uneven is read on
+const FOLD_SCALE: f64 = 1.5;
 const MAX_STRANDS: i32 = 4096;
 const MIN_POINTS: usize = 3;
 
@@ -262,10 +276,14 @@ struct Anchor {
     place: f32,
 }
 
-/// Where on a path in b the membrane wraps around it, as a share of its length: `anchor` metres
-/// from its base when it is set, so it stays there while the path grows and a moves. Otherwise
-/// at `attachment`, between the level of a (0) and the tip of the path (1), or its base (-1).
-fn wrap_alpha(a: &Curve, b: &Curve, attachment: f32, anchor: f32) -> f32 {
+/// Where on a path in b the membrane wraps around it, as a share of its length: at `along` when
+/// it is set, so it keeps its share while the path grows. Else `anchor` metres from its base, so
+/// it stays there while the path grows and a moves. Otherwise at `attachment`, between the level
+/// of a (0) and the tip of the path (1), or its base (-1).
+fn wrap_alpha(a: &Curve, b: &Curve, attachment: f32, anchor: f32, along: f32) -> f32 {
+    if along > 0.0 {
+        return along.min(1.0);
+    }
     let length = b.length();
     if anchor > 0.0 && length > 0.0 {
         return (anchor / length).min(1.0);
@@ -278,15 +296,18 @@ fn wrap_alpha(a: &Curve, b: &Curve, attachment: f32, anchor: f32) -> f32 {
     }
 }
 
+/// The centre and direction of the axis a membrane goes around
+type Axis = (Vec3, Vec3);
+
 /// A ring of points around a path: the membrane wraps around the path at `alpha` of its length.
 /// The strands start inside the surface of the path by `inset`, so the skin grows out of it.
-fn around_path(a: &Curve, b: &Curve, alpha: f32, n: usize, inset: f32) -> Vec<Anchor> {
+fn around_path(a: &Curve, b: &Curve, alpha: f32, n: usize, inset: f32) -> (Vec<Anchor>, Axis) {
     let ring = b.at(alpha);
     let e1 = orthogonal_to(ring.tangent);
     let e2 = ring.tangent.cross(e1);
     let sorted = a.by_angle(ring.position, e1, e2);
     let reach = (ring.radius - inset).max(0.0);
-    (0..n)
+    let anchors = (0..n)
         .map(|k| {
             let angle = TAU * k as f32 / n as f32;
             let (position, a_source) = a.at_angle(&sorted, angle);
@@ -298,12 +319,13 @@ fn around_path(a: &Curve, b: &Curve, alpha: f32, n: usize, inset: f32) -> Vec<An
                 place: k as f32 / n as f32,
             }
         })
-        .collect()
+        .collect();
+    (anchors, (ring.position, ring.tangent))
 }
 
 /// A ring of points to a ring of points or a single point, matched by their angle around the
 /// axis of the ring in a
-fn ring_to_ring(a: &Curve, b: &Curve, n: usize) -> Vec<Anchor> {
+fn ring_to_ring(a: &Curve, b: &Curve, n: usize) -> (Vec<Anchor>, Axis) {
     // Newell's normal of the ring
     let m = a.points.len();
     let normal = (0..m).fold(Vec3::ZERO, |sum, i| sum + a.points[i].cross(a.points[(i + 1) % m]));
@@ -312,14 +334,15 @@ fn ring_to_ring(a: &Curve, b: &Curve, n: usize) -> Vec<Anchor> {
     let e1 = orthogonal_to(axis);
     let e2 = axis.cross(e1);
     let (sorted_a, sorted_b) = (a.by_angle(centre, e1, e2), b.by_angle(centre, e1, e2));
-    (0..n)
+    let anchors = (0..n)
         .map(|k| {
             let angle = TAU * k as f32 / n as f32;
             let (a_position, a_source) = a.at_angle(&sorted_a, angle);
             let (b_position, b_source) = b.at_angle(&sorted_b, angle);
             Anchor { b: b_position, b_source, a: a_position, a_source, place: k as f32 / n as f32 }
         })
-        .collect()
+        .collect();
+    (anchors, (centre, axis))
 }
 
 /// Two attachments joined from end to end, the strands spread evenly along both
@@ -381,11 +404,43 @@ struct Skin<'f> {
     resolution: usize,
 }
 
-/// The strands of one membrane: whole while intact, the part on b and the part on a once torn
-fn strands(anchors: &[Anchor], closed: bool, skin: &Skin, seed: i32, creator: i32, offset: usize) -> (Vec<Vec<i32>>, Vec<Vec<i32>>) {
+/// One strand's share of a piece of the skin mesh: its points from where it is attached to its
+/// other end, and at every point how much longer the circle around the axis it lay on in the
+/// skin is than the one it hangs on now, as a share of the latter (see [`add_skin`])
+type Column = Option<Vec<(Vec3, f32)>>;
+
+/// The pieces of the skin, strand by strand: whole while intact, the parts on b and on a once torn
+struct SkinColumns {
+    intact: Vec<Column>,
+    on_b: Vec<Column>,
+    on_a: Vec<Column>,
+    /// Where every strand sits around the membrane (0..1) and a smooth noise there, for the folds
+    place: Vec<f32>,
+    wobble: Vec<f32>,
+}
+
+/// The strands of one membrane: whole while intact, the part on b and the part on a once torn.
+/// Also the same pieces with `resolution` points each for the skin mesh. `axis` is the centre
+/// and direction of a membrane that goes around, the skin folds around it.
+fn strands(
+    anchors: &[Anchor],
+    axis: Option<Axis>,
+    skin: &Skin,
+    seed: i32,
+    creator: i32,
+    offset: usize,
+) -> (Vec<Vec<i32>>, Vec<Vec<i32>>, SkinColumns) {
     let n = anchors.len();
+    let closed = axis.is_some();
+    let mut columns = SkinColumns {
+        intact: vec![None; n],
+        on_b: vec![None; n],
+        on_a: vec![None; n],
+        place: anchors.iter().map(|a| a.place).collect(),
+        wobble: vec![0.0; n],
+    };
     if n == 0 {
-        return (Vec::new(), Vec::new());
+        return (Vec::new(), Vec::new(), columns);
     }
     let key = path_id(creator, anchors[0].b_source.id, offset as i32);
     let noise = OpenSimplex::new((seed as u32) ^ (key as u32));
@@ -410,6 +465,31 @@ fn strands(anchors: &[Anchor], closed: bool, skin: &Skin, seed: i32, creator: i3
         onset[k] = TEAR_SPREAD * rank as f32 / n as f32;
     }
 
+    // the skin is one sheet: how far its parts have fallen is smoothed over a few neighbouring
+    // strands, and its tear line keeps only some of the jitter of single strands, so it doesn't
+    // pleat from strand to strand
+    let relax_of = |k: usize| smoothstep(0.0, 1.0, (skin.tear - onset[k]) / (1.0 - TEAR_SPREAD));
+    let near = |k: usize| {
+        (-SKIN_SMOOTH..=SKIN_SMOOTH).filter_map(move |d| {
+            let j = k as i32 + d;
+            if closed {
+                Some(j.rem_euclid(n as i32) as usize)
+            } else {
+                (0..n as i32).contains(&j).then_some(j as usize)
+            }
+        })
+    };
+    let skin_relax: Vec<f32> = (0..n).map(|k| near(k).map(relax_of).sum::<f32>() / near(k).count() as f32).collect();
+    let from_axis = |p: Vec3| {
+        axis.map_or(0.0, |(centre, direction)| {
+            let q = p - centre;
+            (q - direction * q.dot(direction)).length()
+        })
+    };
+    for (k, anchor) in anchors.iter().enumerate() {
+        columns.wobble[k] = wave(anchor.place, FOLD_SCALE, 2.0);
+    }
+
     let radius = 0.5 * skin.thickness;
     let edge = |u: f32| radius * (1.0 - EDGE_THIN * smoothstep(1.0 - EDGE, 1.0, u));
     let res = skin.resolution;
@@ -424,6 +504,7 @@ fn strands(anchors: &[Anchor], closed: bool, skin: &Skin, seed: i32, creator: i3
         if skin.tear <= onset[k] {
             let points: Vec<Vec3> = (0..res).map(|i| skin_at(i as f32 / (res - 1) as f32)).collect();
             on_b.push(encode(link_b(k), depth_b, &points, |_| radius));
+            columns.intact[k] = Some(points.into_iter().map(|p| (p, 0.0)).collect());
             continue;
         }
         let relax = smoothstep(0.0, 1.0, (skin.tear - onset[k]) / (1.0 - TEAR_SPREAD));
@@ -435,32 +516,218 @@ fn strands(anchors: &[Anchor], closed: bool, skin: &Skin, seed: i32, creator: i3
         let kept = if skin.torn_length > 0.0 && span > skin.torn_length { skin.torn_length / span } else { 1.0 };
         let (on_b_share, on_a_share) = (cut * kept, (1.0 - cut) * kept);
 
+        let part = |m: usize, at: &dyn Fn(usize, usize) -> f32, side: Vec3| {
+            let points: Vec<Vec3> = (0..m).map(|i| skin_at(at(i, m))).collect();
+            fall(&points, side, skin.flare, relax)
+        };
         if cut > MIN_PART {
-            let m = count(cut);
-            let points: Vec<Vec3> = (0..m).map(|i| skin_at(on_b_share * i as f32 / (m - 1) as f32)).collect();
-            on_b.push(encode(link_b(k), depth_b, &fall(&points, horizontal(chord), skin.flare, relax), edge));
+            let to_b = |i: usize, m: usize| on_b_share * i as f32 / (m - 1) as f32;
+            on_b.push(encode(link_b(k), depth_b, &part(count(cut), &to_b, horizontal(chord)), edge));
         }
         if cut < 1.0 - MIN_PART {
-            let m = count(1.0 - cut);
-            let points: Vec<Vec3> = (0..m).map(|i| skin_at(1.0 - on_a_share * i as f32 / (m - 1) as f32)).collect();
+            let to_a = |i: usize, m: usize| 1.0 - on_a_share * i as f32 / (m - 1) as f32;
             let s = anchor.a_source;
             let link = PathLink::child(creator, s.id, s.alpha, 2 * (offset + k) as i32 + 1);
-            on_a.push(encode(link, s.depth + 1, &fall(&points, horizontal(-chord), skin.flare, relax), edge));
+            on_a.push(encode(link, s.depth + 1, &part(count(1.0 - cut), &to_a, horizontal(-chord)), edge));
+        }
+
+        // the skin takes the same parts with `res` points for every strand, so neighbours line up
+        let skin_ragged = 0.6 * wave(anchor.place, RAGGED_SCALE, 1.0) + 0.4 * SKIN_JITTER * (2.0 * random(k, 2) - 1.0);
+        let skin_cut = (skin.tear_position + RAGGED * skin_ragged).clamp(0.0, 1.0);
+        let skin_part = |share: &dyn Fn(f32) -> f32, side: Vec3| {
+            let rest: Vec<Vec3> = (0..res).map(|i| skin_at(share(i as f32 / (res - 1) as f32))).collect();
+            let fallen = fall(&rest, side, skin.flare, skin_relax[k]);
+            // a part that falls towards the axis has more skin than the circle it hangs on
+            rest.iter().zip(fallen).map(|(r, p)| (p, (from_axis(*r) / from_axis(p).max(1e-6) - 1.0).max(0.0))).collect()
+        };
+        if skin_cut > MIN_PART {
+            columns.on_b[k] = Some(skin_part(&|u| skin_cut * kept * u, horizontal(chord)));
+        }
+        if skin_cut < 1.0 - MIN_PART {
+            columns.on_a[k] = Some(skin_part(&|u| 1.0 - (1.0 - skin_cut) * kept * u, horizontal(-chord)));
         }
     }
-    (on_b, on_a)
+    (on_b, on_a, columns)
+}
+
+/// Adds the skin of one membrane to `mesh` as thin closed sheets: one for every run of
+/// neighbouring strands that have the same piece (whole, on b or on a). Around a ring a run of
+/// every strand closes on itself. A run that ends is half a strand spacing wider on either side,
+/// as wide as its strands cover, so a single torn strand still gives a narrow flap.
+///
+/// A torn part that hangs closer to the axis than it lay in the skin has more skin than the
+/// circle it hangs on, and a thin sheet bends rather than squeezes: it folds (Sharon et al.
+/// 2002), out and in across the sheet, see [`fold`].
+fn add_skin(mesh: &mut Mesh, anchors: &[Anchor], axis: Option<Axis>, columns: &SkinColumns, thickness: f32) {
+    let n = anchors.len();
+    let closed = axis.is_some();
+    let radius = 0.5 * thickness;
+    let torn_edge = |u: f32| radius * (1.0 - EDGE_THIN * smoothstep(1.0 - EDGE, 1.0, u));
+    // the spacing of the strands where they are attached, across the skin
+    let spacing = |k: usize, on: fn(&Anchor) -> Vec3| {
+        let (prev, next, steps) = if closed {
+            ((k + n - 1) % n, (k + 1) % n, 2.0)
+        } else {
+            let (prev, next) = (k.saturating_sub(1), (k + 1).min(n - 1));
+            (prev, next, ((next - prev) as f32).max(1.0))
+        };
+        (on(&anchors[next]) - on(&anchors[prev])) / steps
+    };
+    let from_axis = |p: Vec3| {
+        axis.map_or(0.0, |(centre, direction)| {
+            let q = p - centre;
+            (q - direction * q.dot(direction)).length()
+        })
+    };
+    /// The columns of a piece, where its strands are attached and whether it is torn
+    type Piece<'c> = (&'c [Column], fn(&Anchor) -> Vec3, bool);
+    let pieces: [Piece; 3] = [
+        (&columns.intact, |a: &Anchor| a.b, false),
+        (&columns.on_b, |a: &Anchor| a.b, true),
+        (&columns.on_a, |a: &Anchor| a.a, true),
+    ];
+    for (piece, attached, torn) in pieces {
+        for (mut run, wrap) in runs(piece, closed) {
+            let rows = piece[run[0]].as_ref().map_or(0, Vec::len);
+            if rows < 2 {
+                continue;
+            }
+            let column = |k: usize| piece[k].as_ref().unwrap();
+            let mut grid: Vec<Vec<Vec3>> = run.iter().map(|&k| column(k).iter().map(|q| q.0).collect()).collect();
+            let mut excess: Vec<Vec<f32>> = run.iter().map(|&k| column(k).iter().map(|q| q.1).collect()).collect();
+            if !wrap {
+                // half a spacing more on either side, across the skin
+                let m = grid.len();
+                let side = |c: usize, towards: usize, k: usize, sign: f32| -> Vec<Vec3> {
+                    (0..rows)
+                        .map(|i| {
+                            let across = if m > 1 { grid[c][i] - grid[towards][i] } else { spacing(k, attached) * sign };
+                            grid[c][i] + 0.5 * across
+                        })
+                        .collect()
+                };
+                // not past the ends of a membrane that doesn't go around
+                let (first, last) = (run[0], run[run.len() - 1]);
+                let before = (closed || first > 0).then(|| side(0, 1.min(m - 1), first, -1.0));
+                let after = (closed || last + 1 < n).then(|| side(m - 1, m.saturating_sub(2), last, 1.0));
+                if let Some(before) = before {
+                    grid.insert(0, before);
+                    excess.insert(0, excess[0].clone());
+                    run.insert(0, first);
+                }
+                if let Some(after) = after {
+                    grid.push(after);
+                    excess.push(excess[excess.len() - 1].clone());
+                    run.push(last);
+                }
+                if grid.len() < 2 {
+                    continue;
+                }
+            }
+            if torn && closed {
+                fold(&mut grid, &excess, &run, wrap, columns, &from_axis);
+            }
+            let half: Vec<f32> =
+                (0..rows).map(|i| if torn { torn_edge(i as f32 / (rows - 1) as f32) } else { radius }).collect();
+            let normals = sheet_normals(&grid, wrap);
+            let sheet = SheetGrid { columns: grid.len(), rows, wrap };
+            add_sheet(mesh, sheet, |c, i| grid[c][i] + normals[c][i] * half[i], |c, i| grid[c][i] - normals[c][i] * half[i], None);
+        }
+    }
+}
+
+/// Folds a torn piece of a skin that goes around: about one fold for every `FOLD_LENGTH` part
+/// lengths around it, a little uneven, deep enough to take up `FOLD_DEPTH` of the extra length of
+/// every circle. `run` is the strand of every column.
+fn fold(grid: &mut [Vec<Vec3>], excess: &[Vec<f32>], run: &[usize], wrap: bool, columns: &SkinColumns, from_axis: &dyn Fn(Vec3) -> f32) {
+    let (m, rows) = (grid.len(), grid[0].len());
+    let length = |c: usize| grid[c].windows(2).map(|w| w[0].distance(w[1])).sum::<f32>();
+    let part = (0..m).map(length).sum::<f32>() / m as f32;
+    let around = (0..m).map(|c| from_axis(grid[c][rows - 1])).sum::<f32>() / m as f32 * TAU;
+    if part <= 0.0 || around <= 0.0 {
+        return;
+    }
+    let folds = (around / (FOLD_LENGTH * part)).round().max(2.0);
+    let normals = sheet_normals(grid, wrap);
+    for c in 0..m {
+        let k = run[c];
+        let wave = (TAU * folds * columns.place[k] + FOLD_WOBBLE * columns.wobble[k]).sin();
+        for i in 0..rows {
+            // a wave of `folds` waves around a circle is longer by (π depth / wavelength)²
+            let wavelength = TAU * from_axis(grid[c][i]) / folds;
+            let depth = FOLD_DEPTH * wavelength / PI * excess[c][i].sqrt();
+            grid[c][i] += normals[c][i] * (depth * wave);
+        }
+    }
+}
+
+/// The runs of neighbouring strands that have a piece, and whether a run goes all the way round
+fn runs(piece: &[Column], closed: bool) -> Vec<(Vec<usize>, bool)> {
+    let n = piece.len();
+    let has = |k: usize| piece[k].is_some();
+    if n == 0 {
+        return Vec::new();
+    }
+    if (0..n).all(has) {
+        return vec![((0..n).collect(), closed)];
+    }
+    // around a ring, start after a gap so no run is split at the seam
+    let start = if closed { (0..n).find(|&k| !has(k)).map_or(0, |k| k + 1) } else { 0 };
+    let mut out = Vec::new();
+    let mut run = Vec::new();
+    for step in 0..n {
+        let k = (start + step) % n;
+        if has(k) {
+            run.push(k);
+        } else if !run.is_empty() {
+            out.push((std::mem::take(&mut run), false));
+        }
+    }
+    if !run.is_empty() {
+        out.push((run, false));
+    }
+    out
+}
+
+/// The normal of a sheet at every point of its grid, the way `column × row` points
+fn sheet_normals(grid: &[Vec<Vec3>], wrap: bool) -> Vec<Vec<Vec3>> {
+    let (m, rows) = (grid.len(), grid[0].len());
+    let around = |c: usize| {
+        if wrap {
+            ((c + m - 1) % m, (c + 1) % m)
+        } else {
+            (c.saturating_sub(1), (c + 1).min(m - 1))
+        }
+    };
+    (0..m)
+        .map(|c| {
+            let (prev, next) = around(c);
+            let mut last = Vec3::ZERO;
+            (0..rows)
+                .map(|i| {
+                    let across = grid[next][i] - grid[prev][i];
+                    let down = grid[c][(i + 1).min(rows - 1)] - grid[c][i.saturating_sub(1)];
+                    let normal = across.cross(down).try_normalize().unwrap_or(if last == Vec3::ZERO { orthogonal_to(down) } else { last });
+                    last = normal;
+                    normal
+                })
+                .collect()
+        })
+        .collect()
 }
 
 #[nodarium_execute]
-pub fn execute(args: &[&[i32]]) -> Vec<i32> {
+pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let mut ctx = Ctx::default();
+    // the skin as thin sheets, every one closed
+    let mut sheets = Mesh::default();
     let a = read_curves(args[0]);
     let b = read_curves(args[1]);
-    let flare = read_floats(args[9]);
-    let seed = int(args[11]);
-    let resolution = int(args[12]).max(4) as usize;
+    let flare = read_floats(args[10]);
+    let seed = int(args[12]);
+    let resolution = int(args[13]).max(4) as usize;
     // the graph node that makes the membrane, it is the last input
-    let creator = int(args[13]);
+    let creator = int(args[14]);
 
     // every attachment in a joins the attachment in b closest to it
     let pairs: Vec<(usize, usize)> = if b.is_empty() {
@@ -496,39 +763,45 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         }
         let attachment = ctx.float(args[2]).clamp(-1.0, 1.0);
         let anchor = ctx.float(args[3]).max(0.0);
+        let along = ctx.float(args[4]).clamp(0.0, 1.0);
         let skin = Skin {
-            thickness: ctx.float(args[4]).max(0.0),
-            sag: ctx.float(args[5]).max(0.0),
-            tear: ctx.float(args[6]).clamp(0.0, 1.0),
-            tear_position: ctx.float(args[7]).clamp(0.0, 1.0),
-            torn_length: ctx.float(args[8]).max(0.0),
+            thickness: ctx.float(args[5]).max(0.0),
+            sag: ctx.float(args[6]).max(0.0),
+            tear: ctx.float(args[7]).clamp(0.0, 1.0),
+            tear_position: ctx.float(args[8]).clamp(0.0, 1.0),
+            torn_length: ctx.float(args[9]).max(0.0),
             flare: &flare,
             resolution,
         };
-        let n = ctx.int(args[10]).clamp(1, MAX_STRANDS) as usize;
+        let n = ctx.int(args[11]).clamp(1, MAX_STRANDS) as usize;
 
-        let (anchors, closed) = if curve_a.closed && curve_b.path.is_some() {
-            let alpha = wrap_alpha(curve_a, curve_b, attachment, anchor);
-            (around_path(curve_a, curve_b, alpha, n, 0.5 * skin.thickness), true)
+        let (anchors, axis) = if curve_a.closed && curve_b.path.is_some() {
+            let alpha = wrap_alpha(curve_a, curve_b, attachment, anchor, along);
+            let (anchors, axis) = around_path(curve_a, curve_b, alpha, n, 0.5 * skin.thickness);
+            (anchors, Some(axis))
         } else if curve_a.closed && (curve_b.closed || curve_b.points.len() == 1) {
-            (ring_to_ring(curve_a, curve_b, n), true)
+            let (anchors, axis) = ring_to_ring(curve_a, curve_b, n);
+            (anchors, Some(axis))
         } else {
-            (end_to_end(curve_a, curve_b, n), false)
+            (end_to_end(curve_a, curve_b, n), None)
         };
         // a second membrane on the same attachment numbers its strands after the first
-        let (on_b, on_a) = strands(&anchors, closed, &skin, seed, creator, strands_on[j]);
+        let (on_b, on_a, columns) = strands(&anchors, axis, &skin, seed, creator, strands_on[j]);
+        add_skin(&mut sheets, &anchors, axis, &columns, skin.thickness);
         strands_on[j] += n;
         output.extend(on_b);
         output.extend(on_a);
     }
+    smooth_normals(&mut sheets);
 
-    concat_arg_vecs(output)
+    (concat_arg_vecs(output), sheets.encode())
 }
 
 #[cfg(test)]
 mod tests {
     use super::__nodarium_execute_inner;
     use glam::Vec3;
+    use myzel_core::{sheet_checks, Mesh};
     use nodarium_utils::{
         concat_arg_vecs, encode_float, encode_points,
         geometry::{create_multiple_paths, path_id, path_link, wrap_multiple_paths, wrap_path},
@@ -592,6 +865,7 @@ mod tests {
     struct Params {
         attachment: f32,
         anchor: f32,
+        along: f32,
         thickness: f32,
         sag: f32,
         tear: f32,
@@ -606,6 +880,7 @@ mod tests {
         Params {
             attachment: 0.0,
             anchor: 0.0,
+            along: 0.0,
             thickness: 0.001,
             sag: 0.1,
             tear: 0.0,
@@ -617,12 +892,13 @@ mod tests {
         }
     }
 
-    fn execute_with(a: &[i32], b: &[i32], p: &Params, flare: &[i32]) -> Vec<i32> {
+    fn execute_with(a: &[i32], b: &[i32], p: &Params, flare: &[i32]) -> (Vec<i32>, Vec<i32>) {
         __nodarium_execute_inner(&[
             a,
             b,
             &[encode_float(p.attachment)],
             &[encode_float(p.anchor)],
+            &[encode_float(p.along)],
             &[encode_float(p.thickness)],
             &[encode_float(p.sag)],
             &[encode_float(p.tear)],
@@ -637,7 +913,18 @@ mod tests {
     }
 
     fn run(a: &[i32], b: &[i32], p: &Params) -> Vec<Vec<i32>> {
-        split_args(&execute_with(a, b, p, &floats(&p.flare))).iter().map(|s| s.to_vec()).collect()
+        split_args(&execute_with(a, b, p, &floats(&p.flare)).0).iter().map(|s| s.to_vec()).collect()
+    }
+
+    fn skin(a: &[i32], b: &[i32], p: &Params) -> Mesh {
+        Mesh::decode(&execute_with(a, b, p, &floats(&p.flare)).1)
+    }
+
+    /// The skin of one cap's veil
+    fn veil_skin(p: &Params) -> Mesh {
+        let stipe = stipes(&[0.0]);
+        let margin = encode_points(&ring(0.0, MARGIN_RADIUS, MARGIN_HEIGHT, 96, stipe_ids(&stipe)[0]));
+        skin(&margin, &stipe, p)
     }
 
     /// The veil of one cap: its margin in a, its stipe in b
@@ -943,5 +1230,194 @@ mod tests {
         let empty = [0, 1, 1, 1];
         assert!(run(&margin, &empty, &veil()).is_empty());
         assert!(run(&empty, &stipe, &veil()).is_empty());
+    }
+
+    /// The sheets of a skin mesh: every one is a contiguous block of vertices, its front and then
+    /// its back, `rows` per column. The front and back vertex at the same spot, and its row.
+    fn sheet_pairs(mesh: &Mesh, rows: usize) -> Vec<(Vec3, Vec3, usize)> {
+        // a sheet's vertices end where no face reaches further
+        let mut reach = vec![0usize; mesh.vertex_count()];
+        for f in mesh.faces.chunks_exact(3) {
+            let top = f.iter().map(|&v| v as usize).max().unwrap();
+            for &v in f {
+                reach[v as usize] = reach[v as usize].max(top);
+            }
+        }
+        let vertex = |v: usize| Vec3::from_slice(&mesh.positions[v * 3..v * 3 + 3]);
+        let mut pairs = Vec::new();
+        let mut start = 0;
+        while start < mesh.vertex_count() {
+            let mut end = start;
+            let mut v = start;
+            while v <= end {
+                end = end.max(reach[v]);
+                v += 1;
+            }
+            let count = end + 1 - start;
+            assert_eq!(count % (2 * rows), 0, "a sheet of {count} vertices with {rows} rows");
+            let half = count / 2;
+            for v in start..start + half {
+                pairs.push((vertex(v), vertex(v + half), (v - start) % rows));
+            }
+            start = end + 1;
+        }
+        pairs
+    }
+
+    #[test]
+    fn the_skin_is_closed_and_as_thick_as_thickness() {
+        // resolution_curve is 16 in these tests
+        let rows = 16;
+        for tear in [0.0, 0.3, 1.0] {
+            for thickness in [0.0005, 0.002] {
+                let p = Params { tear, thickness, ..veil() };
+                let mesh = veil_skin(&p);
+                assert!(mesh.face_count() > 0);
+                assert_eq!(sheet_checks::open_edge(&mesh), None, "tear {tear}");
+                // the faces look out of the sheets: they enclose about the skin's area times
+                // its thickness, and no sheet is turned inside out
+                assert!(sheet_checks::volume(&mesh) > 0.0);
+                let pairs = sheet_pairs(&mesh, rows);
+                for &(front, back, row) in &pairs {
+                    let apart = front.distance(back);
+                    if row == 0 {
+                        // as thick as thickness where it is attached
+                        assert!((apart - thickness).abs() < 1e-3 * thickness, "{apart} apart at tear {tear}");
+                    }
+                    assert!(apart <= thickness * 1.001 && apart >= (1.0 - super::EDGE_THIN) * thickness * 0.999);
+                }
+                // a torn edge thins, an intact skin keeps its thickness to the margin
+                let edges: Vec<f32> = pairs.iter().filter(|q| q.2 == rows - 1).map(|q| q.0.distance(q.1)).collect();
+                let thinnest = edges.iter().copied().fold(f32::INFINITY, f32::min);
+                if tear == 0.0 {
+                    assert!((thinnest - thickness).abs() < 1e-3 * thickness);
+                } else {
+                    assert!((thinnest - (1.0 - super::EDGE_THIN) * thickness).abs() < 1e-3 * thickness);
+                }
+                let n = |v: usize| Vec3::from_slice(&mesh.normals[v * 3..v * 3 + 3]);
+                assert!((0..mesh.vertex_count()).all(|v| (n(v).length() - 1.0).abs() < 1e-4));
+            }
+        }
+    }
+
+    #[test]
+    fn the_skin_lies_where_the_strands_are() {
+        for tear in [0.0, 0.45, 1.0] {
+            let p = Params { tear, ..veil() };
+            let strands = run_veil(&p).0;
+            let mesh = veil_skin(&p);
+            let vertices: Vec<Vec3> = mesh.positions.chunks_exact(3).map(Vec3::from_slice).collect();
+            // the attached ends of every strand have the skin next to them, within a strand spacing
+            let spacing = TAU * MARGIN_RADIUS / p.strands as f32;
+            for s in &strands {
+                let start = points(s)[0];
+                let closest = vertices.iter().map(|v| v.distance(start)).fold(f32::INFINITY, f32::min);
+                assert!(closest < spacing + p.thickness, "a strand starts {closest} from the skin at tear {tear}");
+            }
+            // and the skin reaches no further than the strands do
+            let (lo, hi) = strands.iter().flat_map(|s| points(s)).fold((Vec3::INFINITY, Vec3::NEG_INFINITY), |(lo, hi), q| (lo.min(q), hi.max(q)));
+            for v in &vertices {
+                assert!(v.cmpge(lo - Vec3::splat(spacing + p.thickness)).all() && v.cmple(hi + Vec3::splat(spacing + p.thickness)).all());
+            }
+        }
+    }
+
+    #[test]
+    fn a_ring_skin_goes_around_without_seams_and_fringe_flecks_are_flaps() {
+        // a tear near the margin: every strand leaves a part on the stipe, the margin keeps
+        // flecks with gaps between them
+        let p = Params { tear: 1.0, tear_position: 0.95, ..veil() };
+        let (strands, stipe) = run_veil(&p);
+        let ring = strands.iter().filter(|s| path_link(s).parent_id == stipe).count();
+        let fringe = strands.len() - ring;
+        assert_eq!(ring, p.strands as usize);
+        assert!(fringe > 0 && fringe < ring, "{fringe} fringe parts");
+        let mesh = veil_skin(&p);
+        assert_eq!(sheet_checks::open_edge(&mesh), None);
+        let rows = 16;
+        let pairs = sheet_pairs(&mesh, rows);
+        // the ring is one band of every strand, the flecks are flaps half a spacing wider on
+        // either side than their strands
+        let ring_vertices = p.strands as usize * rows;
+        assert!(pairs.len() > ring_vertices);
+        let fleck_columns = (pairs.len() - ring_vertices) / rows;
+        assert!(fleck_columns > fringe, "{fleck_columns} columns for {fringe} fringe parts");
+    }
+
+    #[test]
+    fn along_holds_the_ring_at_its_share_while_the_stipe_grows() {
+        // a ring in the upper third, on stipes from 4 to 6 cm with the margin 5 mm under the top
+        let along = 0.7;
+        for top in [0.04, 0.05, 0.06] {
+            let stipe = tall_stipes(&[0.0], top);
+            let id = stipe_ids(&stipe)[0];
+            let margin = encode_points(&ring(0.0, MARGIN_RADIUS, top - 0.005, 96, id));
+            for tear in [0.0, 0.3, 1.0] {
+                // along wins over the anchor
+                let p = Params { along, anchor: 0.01, tear, ..veil() };
+                let strands = run(&margin, &stipe, &p);
+                let ring: Vec<_> = strands.iter().filter(|s| path_link(s).parent_id == id).collect();
+                assert_eq!(ring.len(), p.strands as usize);
+                for s in ring {
+                    let start = points(s)[0];
+                    // on the stipe, at its share of the height, in the upper third
+                    assert!((start.y - along * top).abs() < 1e-5, "ring at {} on a stipe {} tall", start.y, top);
+                    assert!(start.y > top * 2.0 / 3.0 && start.y < top - 0.005);
+                    assert!((from_axis(start) - (STIPE_RADIUS - 0.5 * p.thickness)).abs() < 1e-5);
+                    assert!((path_link(s).parent_alpha - along).abs() < 1e-5);
+                }
+                // the skin starts there too
+                let mesh = skin(&margin, &stipe, &p);
+                let lowest_start = sheet_pairs(&mesh, 16).iter().filter(|q| q.2 == 0).map(|q| q.0.y).fold(f32::INFINITY, f32::min);
+                assert!((lowest_start - along * top).abs() < p.thickness, "skin starts at {lowest_start}");
+            }
+        }
+    }
+
+    #[test]
+    fn the_torn_edge_is_ragged_and_the_seed_sets_it() {
+        let edge = |seed: i32| {
+            let p = Params { tear: 1.0, seed, torn_length: 0.01, sag: 0.0, ..veil() };
+            let (strands, stipe) = run_veil(&p);
+            let mut lengths = vec![0.0; p.strands as usize];
+            for s in strands.iter().filter(|s| path_link(s).parent_id == stipe) {
+                lengths[(path_link(s).index / 2) as usize] = points(s).windows(2).map(|w| w[0].distance(w[1])).sum::<f32>();
+            }
+            lengths
+        };
+        let (a, b) = (edge(3), edge(4));
+        let mean = |v: &[f32]| v.iter().sum::<f32>() / v.len() as f32;
+        // the ring hangs about as long for every seed, its edge goes up and down around it,
+        // also from one strand to the next
+        assert!((mean(&a) - mean(&b)).abs() < 0.2 * mean(&a));
+        let (lo, hi) = a.iter().fold((f32::INFINITY, 0.0f32), |(lo, hi), &l| (lo.min(l), hi.max(l)));
+        assert!(hi - lo > 0.2 * mean(&a), "the edge only goes from {lo} to {hi}");
+        let jagged = a.windows(2).map(|w| (w[1] - w[0]).abs()).sum::<f32>() / a.len() as f32;
+        assert!(jagged > 0.01 * mean(&a));
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn the_skin_is_empty_without_attachments_and_the_same_for_the_same_inputs() {
+        let stipe = stipes(&[0.0]);
+        let margin = encode_points(&ring(0.0, MARGIN_RADIUS, MARGIN_HEIGHT, 96, stipe_ids(&stipe)[0]));
+        let empty = [0, 1, 1, 1];
+        assert_eq!(skin(&margin, &empty, &veil()).vertex_count(), 0);
+        let p = Params { tear: 0.45, ..veil() };
+        assert_eq!(veil_skin(&p), veil_skin(&p));
+        // a loft between two paths gives one sheet that ends at their ends
+        let mut lines = create_multiple_paths(2, 8, 1, 5);
+        for (k, path) in wrap_multiple_paths(&mut lines).iter_mut().enumerate() {
+            for i in 0..8 {
+                path.points[i * 4..i * 4 + 4].copy_from_slice(&[0.1 * i as f32 / 7.0, 0.1 * k as f32, 0.0, 0.002]);
+            }
+        }
+        let paths = split_args(&lines);
+        let (a, b) = (concat_arg_vecs(vec![paths[0].to_vec()]), concat_arg_vecs(vec![paths[1].to_vec()]));
+        let mesh = skin(&a, &b, &Params { strands: 21, sag: 0.0, ..veil() });
+        assert_eq!(sheet_checks::open_edge(&mesh), None);
+        let xs = mesh.positions.chunks_exact(3).map(|v| v[0]);
+        let (lo, hi) = xs.fold((f32::INFINITY, f32::NEG_INFINITY), |(lo, hi), x| (lo.min(x), hi.max(x)));
+        assert!(lo > -1e-4 && hi < 0.1 + 1e-4, "the sheet runs from {lo} to {hi}");
     }
 }

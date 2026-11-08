@@ -15,7 +15,7 @@
     },
     {
       "id": 1,
-      "position": [115, 95.67],
+      "position": [115, 114],
       "type": "max/plantarium/stem",
       "props": {
         "length": 0.05,
@@ -25,7 +25,7 @@
     },
     {
       "id": 2,
-      "position": [265, 10.67],
+      "position": [265, 29],
       "type": "max/myzel/strands",
       "props": {
         "amount": 200,
@@ -38,13 +38,13 @@
     },
     {
       "id": 3,
-      "position": [145, 89.42],
+      "position": [145, 107.75],
       "type": "max/myzel/cap",
       "props": {}
     },
     {
       "id": 5,
-      "position": [265, 95.67],
+      "position": [265, 114],
       "type": "max/myzel/strands",
       "props": {
         "amount": 40,
@@ -56,7 +56,7 @@
     },
     {
       "id": 7,
-      "position": [295, 72.5],
+      "position": [295, 82.5],
       "type": "max/plantarium/join",
       "props": {}
     },
@@ -71,13 +71,13 @@
     },
     {
       "id": 9,
-      "position": [295, 102.5],
+      "position": [295, 112.5],
       "type": "max/myzel/membrane",
       "props": {}
     },
     {
       "id": 10,
-      "position": [205, 129.42],
+      "position": [205, 147.75],
       "type": "max/plantarium/float",
       "props": {
         "value": 1
@@ -85,7 +85,7 @@
     },
     {
       "id": 11,
-      "position": [265, 188.67],
+      "position": [265, 207],
       "type": "max/plantarium/curve",
       "props": {
         "curve": [
@@ -100,7 +100,7 @@
     },
     {
       "id": 20,
-      "position": [115, 140.67],
+      "position": [115, 159],
       "type": "max/plantarium/curve",
       "props": {
         "curve": [
@@ -117,7 +117,7 @@
     },
     {
       "id": 21,
-      "position": [175, 89.42],
+      "position": [175, 107.75],
       "type": "max/plantarium/fill_gaps",
       "props": {
         "spacing": 0.5
@@ -125,7 +125,7 @@
     },
     {
       "id": 22,
-      "position": [205, 84.42],
+      "position": [205, 102.75],
       "type": "max/myzel/margin_curl",
       "props": {
         "amount": 0.2
@@ -133,7 +133,7 @@
     },
     {
       "id": 23,
-      "position": [235, 95.67],
+      "position": [235, 114],
       "type": "max/myzel/cap_open",
       "props": {}
     }
@@ -213,9 +213,9 @@
     ],
     [
       9,
-      0,
+      1,
       8,
-      "loose"
+      "meshes"
     ],
     [
       20,
