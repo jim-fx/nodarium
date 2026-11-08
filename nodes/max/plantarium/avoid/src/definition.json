@@ -53,7 +53,7 @@
     },
     "mode": {
       "type": "select",
-      "internal": true,
+      "hidden": true,
       "label": "Mode",
       "options": ["auto", "contacts", "density"],
       "value": 0,
