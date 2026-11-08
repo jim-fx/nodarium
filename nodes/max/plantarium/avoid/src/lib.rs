@@ -8,6 +8,8 @@ use nodarium_utils::{
 
 use std::f32::consts::TAU;
 
+mod density;
+
 nodarium_definition_file!("src/definition.json");
 
 const MAX_SMOOTHING: f32 = 10.0;
@@ -279,10 +281,10 @@ fn smooth_deltas(deltas: &mut [Vec3], smoothing: f32) {
 /// Bends the path toward the pushed points without changing its segment
 /// lengths. Only the directions of the segments change, the path keeps its
 /// length and its base.
-fn rebuild_path(path: nodarium_utils::geometry::PathDataMut, original: &[f32], deltas: &[Vec3]) {
+fn rebuild_points(points: &mut [f32], original: &[f32], deltas: &[Vec3]) {
     let mut cursor = Vec3::new(original[0], original[1], original[2]);
 
-    for i in 0..path.length.saturating_sub(1) {
+    for i in 0..(points.len() / 4).saturating_sub(1) {
         let start = i * 4;
         let end = start + 4;
 
@@ -298,32 +300,63 @@ fn rebuild_path(path: nodarium_utils::geometry::PathDataMut, original: &[f32], d
             .unwrap_or_else(|| segment.try_normalize().unwrap_or(Vec3::Y));
 
         cursor += direction * length;
-        path.points[end] = cursor.x;
-        path.points[end + 1] = cursor.y;
-        path.points[end + 2] = cursor.z;
+        points[end] = cursor.x;
+        points[end + 1] = cursor.y;
+        points[end + 2] = cursor.z;
     }
 }
 
-/// Iteratively pushes overlapping paths apart. Every iteration reads the
-/// result of the one before, so a group of stems relaxes into an even spread.
-fn repel(
+/// How overlaps are found
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum Mode {
+    /// every pair of segments that comes close is pushed apart
+    Contacts,
+    /// crowded places are spread by their density first, a few contact passes do the rest
+    Density,
+}
+
+/// From this many paths on, `auto` spreads by density
+const AUTO_DENSITY_PATHS: usize = 1000;
+/// The density mode stops pushing contacts apart once a pass removes less than this share of
+/// the overlap the pass before left
+const STALL: f32 = 0.1;
+/// A contact where both segments move less than this share of a push is left out in the
+/// density mode, the base of a stem barely moves anyway
+const PINNED: f32 = 0.01;
+
+impl Mode {
+    fn new(select: i32, paths: usize) -> Mode {
+        match select {
+            1 => Mode::Contacts,
+            2 => Mode::Density,
+            _ if paths >= AUTO_DENSITY_PATHS => Mode::Density,
+            _ => Mode::Contacts,
+        }
+    }
+}
+
+fn points_of(output: &[Vec<i32>], paths: &[usize]) -> Vec<Vec<f32>> {
+    paths.iter().map(|index| wrap_path(&output[*index]).points.to_vec()).collect()
+}
+
+/// Pushes every pair of segments that touch apart, `iterations` times. Every iteration reads the
+/// result of the one before, so a group of stems relaxes into an even spread. Outside the
+/// `exact` behaviour, contacts at the pinned bases are left out and the passes stop once a pass
+/// no longer removes much of the overlap, as in a bundle too full to come apart.
+fn push_contacts(
     output: &mut [Vec<i32>],
     paths: &[usize],
     radius: f32,
     strength: f32,
     smoothing: f32,
     iterations: usize,
+    exact: bool,
 ) {
     let count = paths.len();
-    if count < 2 || strength <= 0.0 {
-        return;
-    }
+    let mut previous = f32::INFINITY;
 
     for _ in 0..iterations {
-        let points: Vec<Vec<f32>> = paths
-            .iter()
-            .map(|index| wrap_path(&output[*index]).points.to_vec())
-            .collect();
+        let points = points_of(output, paths);
         let segments: Vec<Vec<Segment>> = points.iter().map(|p| segments(p)).collect();
         let mut deltas: Vec<Vec<Vec3>> = points
             .iter()
@@ -333,12 +366,20 @@ fn repel(
 
         let (pairs, bits) = segment_pairs(&segments, radius);
         let mask = (1u64 << bits) - 1;
+        let fade = |path: usize, i: usize| {
+            let n = segments[path].len().max(1) as f32;
+            smoothstep((i + 1) as f32 / n)
+        };
         let mut contacts = 0;
+        let mut overlap = 0.0f32;
         for (a, list) in pairs.iter().enumerate() {
             let (deltas_a, deltas_b) = deltas.split_at_mut(a + 1);
             let (weights_a, weights_b) = weights.split_at_mut(a + 1);
             for &key in list {
                 let (b, i, j) = ((key >> (2 * bits)) as usize, (key >> bits & mask) as usize, (key & mask) as usize);
+                if !exact && fade(a, i) < PINNED && fade(b, j) < PINNED {
+                    continue;
+                }
                 let Some((s, t, push)) = contact(&segments[a][i], &segments[b][j], a, count, radius, strength)
                 else {
                     continue;
@@ -346,13 +387,15 @@ fn repel(
                 push_points(&mut deltas_a[a], &mut weights_a[a], i, s, push);
                 push_points(&mut deltas_b[b - a - 1], &mut weights_b[b - a - 1], j, t, -push);
                 contacts += 1;
+                overlap += push.length();
             }
         }
 
         // nothing touches anymore, the next iterations would not change anything either
-        if contacts == 0 {
+        if contacts == 0 || (!exact && overlap > previous * (1.0 - STALL)) {
             break;
         }
+        previous = overlap;
 
         for (order, index) in paths.iter().enumerate() {
             // a point touched by many contacts takes their average, not their sum
@@ -362,7 +405,57 @@ fn repel(
             smooth_deltas(&mut deltas[order], smoothing);
 
             let path = wrap_path_mut(&mut output[*index]);
-            rebuild_path(path, &points[order], &deltas[order]);
+            rebuild_points(path.points, &points[order], &deltas[order]);
+        }
+    }
+}
+
+/// Spreads the paths by their density, gives the total pressure before and after every step
+fn spread_by_density(
+    output: &mut [Vec<i32>],
+    paths: &[usize],
+    radius: f32,
+    strength: f32,
+    smoothing: f32,
+    iterations: usize,
+) -> Vec<f32> {
+    let mut points = points_of(output, paths);
+    let history = density::spread(&mut points, radius, strength, iterations, |original, pushes, scale| {
+        let n = pushes.len();
+        let mut deltas: Vec<Vec3> = pushes
+            .iter()
+            .enumerate()
+            .map(|(i, push)| *push * smoothstep(i as f32 / (n.max(2) - 1) as f32) * scale)
+            .collect();
+        smooth_deltas(&mut deltas, smoothing);
+        let mut moved = original.to_vec();
+        rebuild_points(&mut moved, original, &deltas);
+        moved
+    });
+    for (p, index) in points.iter().zip(paths) {
+        wrap_path_mut(&mut output[*index]).points.copy_from_slice(p);
+    }
+    history
+}
+
+/// Pushes overlapping paths apart, the way `mode` says
+fn repel(
+    output: &mut [Vec<i32>],
+    paths: &[usize],
+    radius: f32,
+    strength: f32,
+    smoothing: f32,
+    iterations: usize,
+    mode: Mode,
+) {
+    if paths.len() < 2 || strength <= 0.0 {
+        return;
+    }
+    match mode {
+        Mode::Contacts => push_contacts(output, paths, radius, strength, smoothing, iterations, true),
+        Mode::Density => {
+            spread_by_density(output, paths, radius, strength, smoothing, iterations);
+            push_contacts(output, paths, radius, strength, smoothing, iterations, false);
         }
     }
 }
@@ -379,18 +472,21 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let depth = int(args[5]).max(1);
 
     let paths = paths_at_depth(&plants, depth);
+    let mode = Mode::new(args.get(6).map_or(0, |a| int(a)), paths.len());
     let mut output: Vec<Vec<i32>> = plants.iter().map(|p| p.to_vec()).collect();
 
-    repel(&mut output, &paths, radius, strength, smoothing, iterations);
+    repel(&mut output, &paths, radius, strength, smoothing, iterations, mode);
 
     concat_args(output.iter().map(|p| p.as_slice()).collect())
 }
 
 #[cfg(test)]
 mod tests {
+    use super::Mode;
     use nodarium_utils::{
         encode_float,
         geometry::{create_multiple_paths, wrap_multiple_paths},
+        split_args,
     };
 
     fn straight_stems(amount: usize) -> Vec<i32> {
@@ -610,5 +706,104 @@ mod tests {
             0.0
         );
         assert!(horizontal_distance(paths[2].points, paths[3].points, last) > 0.1);
+    }
+
+    fn run_mode(data: &[i32], radius: f32, mode: i32) -> Vec<i32> {
+        super::__nodarium_execute_inner(&[
+            data,
+            &[encode_float(radius)],
+            &[encode_float(1.0)],
+            &[encode_float(0.5)],
+            &[8],
+            &[1],
+            &[mode],
+        ])
+    }
+
+    #[test]
+    fn auto_spreads_by_density_from_a_thousand_paths() {
+        assert_eq!(Mode::new(0, 999), Mode::Contacts);
+        assert_eq!(Mode::new(0, 1000), Mode::Density);
+        assert_eq!(Mode::new(1, 5000), Mode::Contacts);
+        assert_eq!(Mode::new(2, 2), Mode::Density);
+    }
+
+    #[test]
+    fn auto_pushes_a_few_stems_apart_as_before() {
+        let data = straight_stems(3);
+        assert_eq!(run_mode(&data, 0.25, 0), run_mode(&data, 0.25, 1));
+        assert_eq!(run(&data), run_mode(&data, 0.25, 1));
+    }
+
+    #[test]
+    fn density_still_separates_two_stems() {
+        let result = run_mode(&straight_stems(2), 0.25, 2);
+        let mut copy = result.clone();
+        let paths = wrap_multiple_paths(&mut copy);
+
+        let last = paths[0].length - 1;
+        assert!(horizontal_distance(paths[0].points, paths[1].points, last) > 0.1);
+    }
+
+    /// Like the groomed mushroom at 5000 strands: half of them in a stipe 5 cm tall and 6 mm in
+    /// radius, about as full as the groomed stipe (two thirds of what hexagonal packing holds),
+    /// the other half spread out from its top into a cap 2.5 cm in radius. On random spots and
+    /// leaning a little, so they cross.
+    fn bundle(amount: usize) -> Vec<i32> {
+        let mut state = 0x2545_f491u32;
+        let mut random = move || {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            state as f32 / u32::MAX as f32
+        };
+        let points = 24;
+        let stipe = amount / 2;
+        let mut data = create_multiple_paths(amount, points, 0, 0);
+        for (k, strand) in wrap_multiple_paths(&mut data).iter_mut().enumerate() {
+            let (r, angle) = (0.006 * random().sqrt(), random() * std::f32::consts::TAU);
+            let (x, z) = (r * angle.cos(), r * angle.sin());
+            let (lean_x, lean_z) = ((random() - 0.5) * 0.002, (random() - 0.5) * 0.002);
+            let thickness = 0.0005 * (200.0 / stipe as f32).sqrt() * (0.5 + random());
+            let (out, rise) = (0.025 * random(), 0.008 * random());
+            for i in 0..points {
+                let a = i as f32 / (points - 1) as f32;
+                let p = if k < stipe {
+                    [x + lean_x * a, 0.05 * a, z + lean_z * a]
+                } else {
+                    [x + angle.cos() * out * a, 0.05 + rise * a, z + angle.sin() * out * a]
+                };
+                strand.points[i * 4..i * 4 + 4].copy_from_slice(&[p[0], p[1], p[2], thickness]);
+            }
+        }
+        data
+    }
+
+    #[test]
+    fn density_lowers_the_pressure_of_a_bundle_at_every_step() {
+        let data = bundle(5000);
+        let mut output: Vec<Vec<i32>> = split_args(&data).iter().map(|p| p.to_vec()).collect();
+        let paths: Vec<usize> = (0..output.len()).collect();
+
+        let start = std::time::Instant::now();
+        let history = super::spread_by_density(&mut output, &paths, 0.0, 1.0, 0.5, 8);
+        let elapsed = start.elapsed();
+
+        assert_eq!(history.len(), 9, "the pressure stopped falling early: {:?}", history);
+        for step in history.windows(2) {
+            assert!(step[1] < step[0], "the pressure rose: {:?}", history);
+        }
+        // the timing only means something in an optimised build
+        if !cfg!(debug_assertions) {
+            assert!(elapsed.as_millis() < 100, "the density took {:?}", elapsed);
+        }
+    }
+
+    #[test]
+    fn density_gives_the_same_result_every_time() {
+        let data = bundle(1500);
+        let first = run_mode(&data, 0.0, 2);
+        assert_ne!(first, data);
+        assert_eq!(first, run_mode(&data, 0.0, 2));
     }
 }

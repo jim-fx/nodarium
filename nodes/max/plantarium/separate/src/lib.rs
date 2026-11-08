@@ -10,9 +10,11 @@ nodarium_definition_file!("src/definition.json");
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let items = split_args(args[0]);
-    let creators: Vec<i32> = split_args(args[1]).iter().filter(|p| is_path(p)).map(|p| path_link(p).creator).collect();
+    let mut creators: Vec<i32> = split_args(args[1]).iter().filter(|p| is_path(p)).map(|p| path_link(p).creator).collect();
+    creators.sort_unstable();
+    creators.dedup();
     let (taken, rest): (Vec<&[i32]>, Vec<&[i32]>) =
-        items.into_iter().partition(|p| is_path(p) && creators.contains(&path_link(p).creator));
+        items.into_iter().partition(|p| is_path(p) && creators.binary_search(&path_link(p).creator).is_ok());
     let owned = |list: Vec<&[i32]>| concat_arg_vecs(list.into_iter().map(|p| p.to_vec()).collect());
     (owned(taken), owned(rest))
 }
