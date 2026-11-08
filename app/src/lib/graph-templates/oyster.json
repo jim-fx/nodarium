@@ -15,7 +15,7 @@
     },
     {
       "id": 1,
-      "position": [-300, 50.25],
+      "position": [-330, 55.25],
       "type": "max/plantarium/stem",
       "props": {
         "length": 0.022,
@@ -25,7 +25,7 @@
     },
     {
       "id": 2,
-      "position": [-270, 45.25],
+      "position": [-300, 50.25],
       "type": "max/plantarium/trunk_kink",
       "props": {
         "amount": 1,
@@ -48,7 +48,7 @@
     },
     {
       "id": 4,
-      "position": [-270, 95.25],
+      "position": [-300, 100.25],
       "type": "max/plantarium/curve",
       "props": {
         "curve": [
@@ -67,7 +67,7 @@
     },
     {
       "id": 5,
-      "position": [-240, 41.5],
+      "position": [-270, 46.5],
       "type": "max/myzel/cap",
       "props": {
         "radius": 0.04,
@@ -90,7 +90,7 @@
     },
     {
       "id": 6,
-      "position": [-210, 41.5],
+      "position": [-240, 46.5],
       "type": "max/plantarium/fill_gaps",
       "props": {
         "spacing": 0.5
@@ -98,12 +98,22 @@
     },
     {
       "id": 7,
-      "position": [-180, 36.5],
+      "position": [-210, 41.5],
       "type": "max/myzel/margin_waves",
       "props": {
         "waves": 5,
         "amplitude": 0.18,
         "irregularity": 0.8
+      }
+    },
+    {
+      "id": 15,
+      "position": [-180, 36.5],
+      "type": "max/myzel/cap_lopsided",
+      "props": {
+        "amount": 0.6,
+        "offset": 1,
+        "tilt": 0
       }
     },
     {
@@ -165,7 +175,8 @@
         ],
         "free_distance": 0,
         "thickness": 0.0003,
-        "edge_wave": 0.5
+        "edge_wave": 0.5,
+        "decurrent": 0.014
       }
     },
     {
@@ -226,12 +237,6 @@
       1,
       7,
       "hinge"
-    ],
-    [
-      7,
-      0,
-      8,
-      "cap"
     ],
     [
       5,
@@ -298,6 +303,30 @@
       0,
       0,
       "field"
+    ],
+    [
+      7,
+      0,
+      15,
+      "cap"
+    ],
+    [
+      5,
+      1,
+      15,
+      "hinge"
+    ],
+    [
+      15,
+      0,
+      8,
+      "cap"
+    ],
+    [
+      2,
+      0,
+      12,
+      "stipe"
     ]
   ]
 }
