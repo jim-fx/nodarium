@@ -6,8 +6,8 @@
 //!
 //! A ray that leaves the stipe starts on the far side of the axis and crosses it at the top of
 //! the cap, from there on it measures the cap. A ray that starts further out (added by
-//! `fill_gaps`) is carried along by its nearest neighbour that leaves the stipe: it bends as if
-//! it had been part of that ray from the axis on.
+//! `fill_gaps`) starts between two neighbours that reach further in, and stays between them
+//! while they bend, so it bends as if it had been part of the cap from the axis on.
 
 use glam::{Vec2, Vec3};
 use nodarium_utils::{
@@ -65,6 +65,9 @@ pub struct CapRay {
     pub plane: Vec<Vec2>,
     /// Distance along the ray to its tip
     pub to_end: Vec<f32>,
+    /// How far along the cap every point is, 0 at the axis to 1 at the margin. On a cap that
+    /// follows another one (ridges under the flesh) it is read off the cap it follows.
+    alphas: Vec<f32>,
     /// Starts in the stipe and crosses the axis
     pub crosses: bool,
     out: Vec3,
@@ -93,16 +96,41 @@ impl Step {
     }
 }
 
+/// Where a ray that starts out on the cap sits between two rays that reach further in: on each
+/// of them the place nearest its start, and how far it is from the first to the second
+#[derive(Clone, Copy, Debug)]
+struct Carrier {
+    a: (usize, usize, f32),
+    b: (usize, usize, f32),
+    share: f32,
+}
+
+/// How a ray of a cap that lies against another cap (ridges under the flesh) hangs on the two
+/// rays of that cap around it: for every point the place nearest to it on each of them, and
+/// where it is from there, along and across that ray
+#[derive(Clone, Debug)]
+struct Attachment {
+    a: usize,
+    b: usize,
+    share: f32,
+    points: Vec<[(usize, f32, Vec2); 2]>,
+}
+
 /// The rays of one cap: the rays one node made on one stipe
+#[derive(Clone)]
 pub struct Cap {
     pub frame: CapFrame,
     /// Sorted by angle
     pub rays: Vec<CapRay>,
     /// Distance along the rays from the axis to the margin
     pub length: f32,
-    /// The donor of every ray that starts out on the cap, found once, a cap bends its rays
-    /// many times
-    donors: Vec<Option<usize>>,
+    /// The neighbours of every ray that starts out on the cap, found once, a cap bends its
+    /// rays many times
+    carriers: Vec<Option<Carrier>>,
+    /// The cap on the same stipe that reaches furthest, when this one lies against it: it
+    /// bends with it instead of on its own
+    outer: Option<Box<Cap>>,
+    attachments: Vec<Attachment>,
 }
 
 impl Cap {
@@ -123,9 +151,100 @@ impl Cap {
                     creators.push(link.creator);
                 }
             }
-            caps.extend(creators.into_iter().filter_map(|creator| Cap::new(hinge, paths, creator)));
+            let mut joined: Vec<Cap> = creators.into_iter().filter_map(|creator| Cap::new(hinge, paths, creator)).collect();
+            if let Some(outer) = Self::outermost(&joined) {
+                let reference = joined[outer].clone();
+                for (i, cap) in joined.iter_mut().enumerate() {
+                    if i != outer {
+                        cap.follow(&reference);
+                    }
+                }
+            }
+            caps.extend(joined);
         }
         caps
+    }
+
+    /// Of the caps on one stipe, the one that reaches furthest, the others follow it
+    pub fn outermost(caps: &[Cap]) -> Option<usize> {
+        (caps.len() > 1).then(|| (0..caps.len()).max_by(|&a, &b| caps[a].reach().total_cmp(&caps[b].reach())).unwrap())
+    }
+
+    /// The rays that leave the stipe on both sides of `angle`, and how far it is from the first
+    /// to the second
+    pub fn around(&self, angle: f32) -> Option<(usize, usize, f32)> {
+        let crossing: Vec<usize> = (0..self.rays.len()).filter(|&k| self.rays[k].crosses).collect();
+        let first = *crossing.first()?;
+        let mut before = *crossing.last()?;
+        for &k in &crossing {
+            if self.rays[k].angle > angle {
+                let span = (self.rays[k].angle - self.rays[before].angle).rem_euclid(TAU);
+                let into = (angle - self.rays[before].angle).rem_euclid(TAU);
+                return Some((before, k, if span > 0.0 { (into / span).min(1.0) } else { 0.0 }));
+            }
+            before = k;
+        }
+        let span = (self.rays[first].angle - self.rays[before].angle).rem_euclid(TAU);
+        let into = (angle - self.rays[before].angle).rem_euclid(TAU);
+        Some((before, first, if span > 0.0 { (into / span).min(1.0) } else { 0.0 }))
+    }
+
+    /// Makes this cap hang on `outer`, so it bends with it: ridges stay under the flesh
+    /// however far the flesh turns, they don't keep their own lengths
+    fn follow(&mut self, outer: &Cap) {
+        let mut attachments = Vec::with_capacity(self.rays.len());
+        for ray in &self.rays {
+            let Some((a, b, share)) = outer.around(ray.angle) else {
+                return;
+            };
+            let hang = |r: usize, p: Vec2| {
+                let line = &outer.rays[r].plane;
+                let (i, t) = nearest_on(line, p);
+                let (from, to) = (line[i], line[(i + 1).min(line.len() - 1)]);
+                let along = (to - from).try_normalize().unwrap_or(Vec2::X);
+                let o = p - from.lerp(to, t);
+                (i, t, Vec2::new(o.dot(along), o.dot(along.perp())))
+            };
+            let points = ray.plane.iter().map(|&p| [hang(a, p), hang(b, p)]).collect();
+            attachments.push(Attachment { a, b, share, points });
+        }
+        self.attachments = attachments;
+        self.outer = Some(Box::new(outer.clone()));
+    }
+
+    /// Ray `k` of the cap this one hangs on, bent by `turn`, with the turn of every step
+    fn bend_steps(&self, k: usize, turn: &impl Fn(&Step) -> f32) -> (Vec<Vec2>, Vec<f32>) {
+        let ray = &self.rays[k];
+        let mut p = self.start(k, turn);
+        let mut points = Vec::with_capacity(ray.plane.len());
+        let mut turns = Vec::with_capacity(ray.plane.len());
+        points.push(p);
+        for i in 0..ray.plane.len() - 1 {
+            let step = self.step(ray, i, 1.0);
+            let t = turn(&step);
+            p += Vec2::from_angle(-t).rotate(step.to - step.from);
+            points.push(p);
+            turns.push(t);
+        }
+        (points, turns)
+    }
+
+    /// Ray `k` of a cap that hangs on `outer`, when `outer` bends by `turn`
+    fn bend_attached(&self, outer: &Cap, k: usize, turn: &impl Fn(&Step) -> f32) -> Vec<Vec2> {
+        let at = &self.attachments[k];
+        let (bent_a, turns_a) = outer.bend_steps(at.a, turn);
+        let (bent_b, turns_b) = outer.bend_steps(at.b, turn);
+        let place = |r: usize, bent: &[Vec2], turns: &[f32], (i, t, o): (usize, f32, Vec2)| {
+            let line = &outer.rays[r].plane;
+            let j = (i + 1).min(line.len() - 1);
+            let along = (line[j] - line[i]).try_normalize().unwrap_or(Vec2::X);
+            let along = Vec2::from_angle(-turns.get(i).copied().unwrap_or(0.0)).rotate(along);
+            bent[i].lerp(bent[j], t) + along * o.x + along.perp() * o.y
+        };
+        at.points
+            .iter()
+            .map(|[pa, pb]| place(at.a, &bent_a, &turns_a, *pa).lerp(place(at.b, &bent_b, &turns_b, *pb), at.share))
+            .collect()
     }
 
     /// The rays among `paths` that `creator` made on the stipe of `hinge`, `None` when there
@@ -168,6 +287,7 @@ impl Cap {
                 angle: frame.angle(frame.hinge + out),
                 plane,
                 to_end,
+                alphas: Vec::new(),
                 crosses: crossing.is_some(),
                 out,
                 across,
@@ -182,8 +302,12 @@ impl Cap {
             n => lengths[n / 2],
         };
         rays.sort_by(|a, b| a.angle.total_cmp(&b.angle));
-        let donors = rays.iter().map(|ray| if ray.crosses { None } else { Self::donor(&rays, ray) }).collect();
-        Some(Cap { frame, rays, length, donors })
+        let mut cap = Cap { frame, rays, length, carriers: Vec::new(), outer: None, attachments: Vec::new() };
+        for k in 0..cap.rays.len() {
+            cap.rays[k].alphas = cap.rays[k].to_end.iter().map(|&d| cap.alpha(d)).collect();
+        }
+        cap.carriers = (0..cap.rays.len()).map(|k| cap.carrier(k)).collect();
+        Some(cap)
     }
 
     /// How far from the axis the furthest tip is
@@ -200,55 +324,103 @@ impl Cap {
     }
 
     fn step(&self, ray: &CapRay, i: usize, share: f32) -> Step {
-        let to_end = ray.to_end[i] + (ray.to_end[i + 1] - ray.to_end[i]) * share;
         Step {
-            from_alpha: self.alpha(ray.to_end[i]),
-            to_alpha: self.alpha(to_end),
+            from_alpha: ray.alphas[i],
+            to_alpha: ray.alphas[i] + (ray.alphas[i + 1] - ray.alphas[i]) * share,
             from: ray.plane[i],
             to: ray.plane[i].lerp(ray.plane[i + 1], share),
         }
     }
 
-    /// The nearest ray that leaves the stipe
-    fn donor(rays: &[CapRay], ray: &CapRay) -> Option<usize> {
-        let distance = |r: &CapRay| {
-            let d = (r.angle - ray.angle).rem_euclid(TAU);
-            d.min(TAU - d)
-        };
-        rays.iter()
-            .enumerate()
-            .filter(|(_, r)| r.crosses)
-            .min_by(|(_, a), (_, b)| distance(a).total_cmp(&distance(b)))
-            .map(|(k, _)| k)
+    /// How far in a ray starts, the rays that leave the stipe start furthest in
+    fn start_alpha(&self, ray: &CapRay) -> f32 {
+        if ray.crosses {
+            -1.0
+        } else {
+            ray.alphas[0]
+        }
     }
 
-    /// Where the start of a ray that starts out on the cap moves when its donor bends from the
-    /// axis to there: it stays put relative to the donor at the same distance from the margin
-    fn carried_start(&self, ray: &CapRay, donor: &CapRay, turn: &impl Fn(&Step) -> f32) -> Vec2 {
-        let target = ray.to_end[0];
-        let (mut before, mut after, mut last) = (donor.plane[0], donor.plane[0], 0.0);
-        for i in 0..donor.plane.len() - 1 {
-            let (d0, d1) = (donor.to_end[i], donor.to_end[i + 1]);
-            if d0 <= target {
-                break;
-            }
-            let share = if d1 < target { (d0 - target) / (d0 - d1) } else { 1.0 };
-            let step = self.step(donor, i, share);
-            last = turn(&step);
-            after += Vec2::from_angle(-last).rotate(step.to - step.from);
-            before = step.to;
+    /// The neighbours of ray `k` on both sides that start further in, as `fill_gaps` placed
+    /// it between them
+    fn carrier(&self, k: usize) -> Option<Carrier> {
+        let ray = &self.rays[k];
+        if ray.crosses {
+            return None;
         }
-        after + Vec2::from_angle(-last).rotate(ray.plane[0] - before)
+        let start = self.start_alpha(ray);
+        let (mut before, mut after): (Option<(usize, f32)>, Option<(usize, f32)>) = (None, None);
+        for (j, other) in self.rays.iter().enumerate() {
+            if j == k || self.start_alpha(other) >= start - 1e-5 {
+                continue;
+            }
+            let ahead = (other.angle - ray.angle).rem_euclid(TAU);
+            let behind = TAU - ahead;
+            if after.is_none_or(|(_, d)| ahead < d) {
+                after = Some((j, ahead));
+            }
+            if before.is_none_or(|(_, d)| behind < d) {
+                before = Some((j, behind));
+            }
+        }
+        let ((a, da), (b, db)) = match (before, after) {
+            (Some(a), Some(b)) => (a, b),
+            (Some(a), None) | (None, Some(a)) => (a, a),
+            _ => return None,
+        };
+        let nearest = |j: usize| {
+            let (i, t) = nearest_on(&self.rays[j].plane, ray.plane[0]);
+            (j, i, t)
+        };
+        let share = if da + db > 0.0 { da / (da + db) } else { 0.0 };
+        Some(Carrier { a: nearest(a), b: nearest(b), share })
+    }
+
+    /// Where the place `share` along step `i` of ray `k` moves when the ray bends by `turn`,
+    /// and the turn of that step
+    fn bent_at(&self, k: usize, i: usize, share: f32, turn: &impl Fn(&Step) -> f32) -> (Vec2, f32) {
+        let ray = &self.rays[k];
+        let mut p = self.start(k, turn);
+        let mut last = 0.0;
+        for j in 0..i {
+            let step = self.step(ray, j, 1.0);
+            last = turn(&step);
+            p += Vec2::from_angle(-last).rotate(step.to - step.from);
+        }
+        if i + 1 < ray.plane.len() {
+            let step = self.step(ray, i, share);
+            last = turn(&step);
+            p += Vec2::from_angle(-last).rotate(step.to - step.from);
+        }
+        (p, last)
+    }
+
+    /// Where the start of ray `k` moves when the cap bends by `turn`. A ray that starts out on
+    /// the cap keeps its place between its neighbours.
+    fn start(&self, k: usize, turn: &impl Fn(&Step) -> f32) -> Vec2 {
+        let ray = &self.rays[k];
+        let Some(c) = self.carriers[k] else {
+            return ray.plane[0];
+        };
+        let place = |(j, i, t): (usize, usize, f32)| {
+            let plane = &self.rays[j].plane;
+            plane[i].lerp(plane[(i + 1).min(plane.len() - 1)], t)
+        };
+        let (a, turn_a) = self.bent_at(c.a.0, c.a.1, c.a.2, turn);
+        let (b, turn_b) = self.bent_at(c.b.0, c.b.1, c.b.2, turn);
+        let between = place(c.a).lerp(place(c.b), c.share);
+        let last = turn_a + (turn_b - turn_a) * c.share;
+        a.lerp(b, c.share) + Vec2::from_angle(-last).rotate(ray.plane[0] - between)
     }
 
     /// The ray `k` with every step turned by `turn` radians, down and in towards the stipe for a
     /// positive turn. The steps keep their lengths, the ray keeps its points.
     pub fn bend(&self, k: usize, turn: impl Fn(&Step) -> f32) -> Vec<Vec2> {
+        if let Some(outer) = &self.outer {
+            return self.bend_attached(outer, k, &turn);
+        }
         let ray = &self.rays[k];
-        let mut p = match self.donors[k] {
-            Some(donor) => self.carried_start(ray, &self.rays[donor], &turn),
-            _ => ray.plane[0],
-        };
+        let mut p = self.start(k, &turn);
         let mut points = Vec::with_capacity(ray.plane.len());
         points.push(p);
         for i in 0..ray.plane.len() - 1 {
@@ -274,6 +446,21 @@ impl Cap {
     }
 }
 
+/// The step of `line` with the place nearest to `p`, and how far along the step it is
+fn nearest_on(line: &[Vec2], p: Vec2) -> (usize, f32) {
+    let (mut best, mut at) = (f32::MAX, (0, 0.0));
+    for i in 0..line.len().saturating_sub(1) {
+        let (u, v) = (line[i], line[i + 1]);
+        let d = v - u;
+        let t = if d.length_squared() > 0.0 { ((p - u).dot(d) / d.length_squared()).clamp(0.0, 1.0) } else { 0.0 };
+        let distance = p.distance(u + d * t);
+        if distance < best {
+            (best, at) = (distance, (i, t));
+        }
+    }
+    at
+}
+
 /// The turn that closes a ray by `closing` radians, spread evenly from the axis to the margin
 pub fn closing_turn(step: &Step, closing: f32) -> f32 {
     closing * step.alpha()
@@ -289,11 +476,16 @@ pub fn curl_turn(step: &Step, curl: f32, reach: f32) -> f32 {
 
 /// Poses the caps in `paths` that have a hinge in `hinges`. `pose` gives the new plane of ray
 /// `k` of a cap, or `None` to leave it. Paths of no cap pass as they are.
-pub fn pose_caps(paths: &[&[i32]], hinges: &[Point], mut pose: impl FnMut(&Cap, usize) -> Option<Vec<Vec2>>) -> Vec<Vec<i32>> {
+pub fn pose_caps(paths: &[&[i32]], hinges: &[Point], pose: impl FnMut(&Cap, usize) -> Option<Vec<Vec2>>) -> Vec<Vec<i32>> {
+    pose_caps_of(&Cap::all(paths, hinges), paths, pose)
+}
+
+/// Like `pose_caps`, for the caps of `paths` found before
+pub fn pose_caps_of(caps: &[Cap], paths: &[&[i32]], mut pose: impl FnMut(&Cap, usize) -> Option<Vec<Vec2>>) -> Vec<Vec<i32>> {
     let mut output: Vec<Vec<i32>> = paths.iter().map(|p| p.to_vec()).collect();
-    for cap in Cap::all(paths, hinges) {
+    for cap in caps {
         for k in 0..cap.rays.len() {
-            if let Some(plane) = pose(&cap, k) {
+            if let Some(plane) = pose(cap, k) {
                 output[cap.rays[k].path] = cap.write(k, paths, &plane);
             }
         }
@@ -331,11 +523,12 @@ pub fn margin_points(paths: &[&[i32]], hinges: &[Point]) -> Vec<Point> {
 /// Caps on a stipe for the tests of the nodes that pose them
 #[doc(hidden)]
 pub mod testing {
-    use crate::{grow_cap, CapShape};
-    use glam::{Vec2, Vec3};
+    use crate::{grow_cap, CapFrame, CapShape};
+    use glam::{Quat, Vec2, Vec3};
     use nodarium_utils::{
         curve, encode_points,
-        geometry::{create_multiple_paths, fill_gaps, wrap_multiple_paths},
+        geometry::{create_multiple_paths, fill_gaps, path_link, set_path_link, wrap_multiple_paths, PathLink},
+        Point,
     };
 
     pub const STIPE_TOP: f32 = 0.05;
@@ -343,10 +536,17 @@ pub mod testing {
 
     /// An upright stipe 5 cm tall, 5 mm in radius
     pub fn stipe() -> Vec<i32> {
+        leaning_stipe(0.0)
+    }
+
+    /// The stipe, leaning `lean` radians away from upright
+    pub fn leaning_stipe(lean: f32) -> Vec<i32> {
+        let tilt = Quat::from_rotation_z(lean);
         let mut data = create_multiple_paths(1, 12, 1, 3);
         for path in wrap_multiple_paths(&mut data).iter_mut() {
             for i in 0..12 {
-                path.points[i * 4..i * 4 + 4].copy_from_slice(&[0.0, STIPE_TOP * i as f32 / 11.0, 0.0, STIPE_RADIUS]);
+                let p = tilt * Vec3::new(0.0, STIPE_TOP * i as f32 / 11.0, 0.0);
+                path.points[i * 4..i * 4 + 4].copy_from_slice(&[p.x, p.y, p.z, STIPE_RADIUS]);
             }
         }
         data
@@ -380,6 +580,11 @@ pub mod testing {
 
     /// The rays of the cap, with the ones `fill_gaps` adds, and its hinges as the input of a node
     pub fn grow(c: &TestCap) -> (Vec<Vec<i32>>, Vec<i32>) {
+        grow_on(c, &stipe())
+    }
+
+    /// Like `grow`, on another stipe
+    pub fn grow_on(c: &TestCap, stipe: &[i32]) -> (Vec<Vec<i32>>, Vec<i32>) {
         let thickness: Vec<f32> = crate::cap_alphas().map(|a| c.thickness * curve(&c.thickness_curve, a)).collect();
         let shape = CapShape {
             profile: &c.profile,
@@ -390,12 +595,33 @@ pub mod testing {
             resolution: 24,
             creator: 7,
         };
-        let stipe = stipe();
-        let (hinge, mut rays) = grow_cap(nodarium_utils::split_args(&stipe)[0], &shape);
+        let (hinge, mut rays) = grow_cap(nodarium_utils::split_args(stipe)[0], &shape);
         let refs: Vec<&[i32]> = rays.iter().map(|r| r.as_slice()).collect();
         let added = fill_gaps(&refs, c.spacing, c.seed);
         rays.extend(added);
         (rays, encode_points(&[hinge]))
+    }
+
+    /// Ridges of another node under the `cone`, to join with it: like the false gills of a
+    /// chanterelle they run down the stipe, then out under the flesh, not quite to the margin
+    pub fn ridges() -> Vec<Vec<i32>> {
+        let profile = vec![50.0, 22.0, 45.0, 70.0, 30.0, 40.0, 10.0, 56.0];
+        let (mut ridges, _) = grow(&TestCap { profile, thickness: 0.001, rays: 14, spacing: 1.0, ..cone() });
+        for ridge in &mut ridges {
+            let link = path_link(ridge);
+            set_path_link(ridge, PathLink::child(8, link.parent_id, 1.0, link.index));
+        }
+        ridges
+    }
+
+    /// How far the margin points stray from the middle of their neighbours around the axis at
+    /// most, a margin that is smooth all round strays little
+    pub fn roughness(margins: &[Point], hinge: &Point) -> f32 {
+        let frame = CapFrame::new(hinge);
+        let mut ring: Vec<(f32, Vec3)> = margins.iter().map(|m| (frame.angle(m.position), m.position)).collect();
+        ring.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let n = ring.len();
+        (0..n).map(|k| ring[k].1.distance(0.5 * (ring[(k + n - 1) % n].1 + ring[(k + 1) % n].1))).fold(0.0, f32::max)
     }
 
     /// Distance from the axis and height over the stipe top
@@ -410,5 +636,92 @@ pub mod testing {
     /// How long every step of a path is
     pub fn steps(path: &[i32]) -> Vec<f32> {
         points(path).windows(2).map(|w| w[0].distance(w[1])).collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::testing::{cone, grow_on, leaning_stipe, roughness, stipe, TestCap};
+    use super::testing::points;
+    use super::{curl_turn, margin_points, pose_caps, CapFrame};
+    use nodarium_utils::{decode_points, Point};
+
+    fn smoothstep(x: f32) -> f32 {
+        let t = x.clamp(0.0, 1.0);
+        t * t * (3.0 - 2.0 * t)
+    }
+
+    /// Waves the margin like `margin_waves` (6 lobes), then rolls it under like `margin_curl`
+    fn wave_and_curl(rays: Vec<Vec<i32>>, hinges: &[Point], amplitude: f32, curl: f32) -> Vec<Vec<i32>> {
+        let refs: Vec<&[i32]> = rays.iter().map(|r| r.as_slice()).collect();
+        let radius = 0.03;
+        let waved = pose_caps(&refs, hinges, |cap, k| {
+            let lift = amplitude * radius * (6.0 * cap.rays[k].angle).cos();
+            let offset = |x: f32| lift * smoothstep(x / radius);
+            Some(cap.bend(k, |s| -((offset(s.to.x) - offset(s.from.x)) / s.length().max(1e-9)).atan()))
+        });
+        let refs: Vec<&[i32]> = waved.iter().map(|r| r.as_slice()).collect();
+        pose_caps(&refs, hinges, |cap, k| Some(cap.bend(k, |s| curl_turn(s, curl, 0.4))))
+    }
+
+    fn margins(rays: &[Vec<i32>], hinges: &[Point]) -> Vec<Point> {
+        let refs: Vec<&[i32]> = rays.iter().map(|r| r.as_slice()).collect();
+        margin_points(&refs, hinges)
+    }
+
+    fn many_added() -> TestCap {
+        TestCap { rays: 12, spacing: 0.25, ..cone() }
+    }
+
+    #[test]
+    fn rays_added_on_the_cap_stay_between_their_neighbours_on_a_wavy_curled_cap() {
+        let (rays, hinges) = grow_on(&many_added(), &stipe());
+        let hinges = decode_points(&hinges);
+        let added = rays.len() - 12;
+        assert!(added > 30, "only {added} rays added");
+        let flat = roughness(&margins(&rays, &hinges), &hinges[0]);
+        let posed = wave_and_curl(rays, &hinges, 0.18, 0.8);
+        let rough = roughness(&margins(&posed, &hinges), &hinges[0]);
+        // the ring of a wavy margin bends, but no ray juts out of it
+        assert!(rough < 0.04 * 0.03, "a margin point strays {rough} from its neighbours, {flat} before");
+        // the start of every added ray stays on the cap, inside the flesh of its neighbours
+        for ray in &posed[12..] {
+            let start = points(ray)[0];
+            let others = posed.iter().filter(|r| !std::ptr::eq(*r, ray));
+            let nearest = others.flat_map(|r| points(r)).map(|p| p.distance(start)).fold(f32::MAX, f32::min);
+            assert!(nearest < 0.004, "an added ray starts {nearest} from every other ray");
+        }
+    }
+
+    #[test]
+    fn a_cap_on_a_leaning_stipe_poses_as_it_does_upright() {
+        // three kinks of 14° in the chanterelle troop lean a stipe by up to 42°
+        let place = |rays: &[Vec<i32>], hinges: &[Point]| {
+            let frame = CapFrame::new(&hinges[0]);
+            let mut ring: Vec<[f32; 3]> = margins(rays, hinges)
+                .iter()
+                .map(|m| {
+                    let q = m.position - frame.hinge;
+                    [frame.angle(m.position), q.reject_from(frame.axis).length(), q.dot(frame.axis)]
+                })
+                .collect();
+            ring.sort_by(|a, b| a[0].total_cmp(&b[0]));
+            ring
+        };
+        let pose = |lean: f32| {
+            let (rays, hinges) = grow_on(&many_added(), &leaning_stipe(lean));
+            let hinges = decode_points(&hinges);
+            let posed = wave_and_curl(rays, &hinges, 0.18, 0.8);
+            (place(&posed, &hinges), roughness(&margins(&posed, &hinges), &hinges[0]))
+        };
+        let (upright, _) = pose(0.0);
+        let (leaning, rough) = pose(42f32.to_radians());
+        assert!(rough < 0.04 * 0.03, "a margin point strays {rough} from its neighbours");
+        assert_eq!(upright.len(), leaning.len());
+        for (a, b) in upright.iter().zip(&leaning) {
+            for d in 0..3 {
+                assert!((a[d] - b[d]).abs() < 2e-4, "margin {a:?} upright, {b:?} leaning");
+            }
+        }
     }
 }
