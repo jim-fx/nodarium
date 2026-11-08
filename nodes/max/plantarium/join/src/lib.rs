@@ -3,6 +3,7 @@ use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
     concat_arg_vecs,
     geometry::{is_path, path_id, path_link, set_path_link, split_items, PathLink},
+    wrap_arg,
 };
 use std::collections::HashSet;
 
@@ -38,6 +39,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         if arg.len() < 4 {
             continue;
         }
+        // a value that isn't a list, like a Myzel mesh, is one item
+        if arg[0] != 0 {
+            output.push(wrap_arg(arg));
+            continue;
+        }
 
         let items: Vec<Vec<i32>> = split_items(arg).iter().map(|item| item.to_vec()).collect();
         let clashes = items
@@ -62,6 +68,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 mod tests {
     use super::__nodarium_execute_inner;
     use nodarium_utils::{
+        concat_arg_vecs,
         geometry::{create_multiple_paths, path_link, set_path_link, PathLink, NO_PATH},
         split_args, wrap_arg,
     };
@@ -138,5 +145,25 @@ mod tests {
         let result = __nodarium_execute_inner(&[&a, &[0, 1, 1, 1], &b, &[0, 1, 1, 1]]);
 
         assert_eq!(split_args(&result), vec![a.as_slice(), b.as_slice()]);
+    }
+
+    #[test]
+    fn meshes_are_joined_into_a_list_one_item_each() {
+        // two Myzel meshes as nodes send them: [14, vertices, faces, flags, ...], not in brackets
+        let mesh = |v: i32| {
+            let mut data = vec![14, v, 0, 0];
+            data.extend(vec![0; v as usize * 7]);
+            data
+        };
+        let (a, b) = (mesh(3), mesh(4));
+        let paths = list_with_branch(1);
+
+        let result = __nodarium_execute_inner(&[&a, &paths, &b, &[]]);
+
+        let items = split_args(&result);
+        assert_eq!(items.len(), 4);
+        assert_eq!(items[0], wrap_arg(&a).as_slice());
+        assert_eq!(items[3], wrap_arg(&b).as_slice());
+        assert_eq!(links(&concat_arg_vecs(vec![items[1].to_vec(), items[2].to_vec()])), links(&paths));
     }
 }
