@@ -28,6 +28,9 @@ const vertexShader = /* glsl */ `
   varying vec3 vWorldPosition;
   varying float vHeight;
   varying float vVariation;
+  #ifdef USE_COLOR_ALPHA
+    varying vec4 vColor;
+  #endif
 
   float hash(vec3 p) {
     return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
@@ -49,6 +52,9 @@ const vertexShader = /* glsl */ `
     vWorldNormal = mat3(modelMatrix) * n;
     vHeight = clamp((world.y - uHeightRange.x) / max(uHeightRange.y - uHeightRange.x, 1e-4), 0.0, 1.0);
     vVariation = variation;
+    #ifdef USE_COLOR_ALPHA
+      vColor = color;
+    #endif
 
     gl_Position = projectionMatrix * viewMatrix * world;
   }
@@ -69,6 +75,9 @@ const litFragmentShader = /* glsl */ `
   varying vec3 vWorldPosition;
   varying float vHeight;
   varying float vVariation;
+  #ifdef USE_COLOR_ALPHA
+    varying vec4 vColor;
+  #endif
 
   void main() {
     vec3 N = normalize(vWorldNormal);
@@ -80,6 +89,10 @@ const litFragmentShader = /* glsl */ `
     // darker and more saturated at the base, lighter towards the tips
     vec3 albedo = mix(uBase, uTip, smoothstep(0.0, 1.0, vHeight));
     albedo *= 1.0 + (vVariation - 0.5) * uVariation;
+    #ifdef USE_COLOR_ALPHA
+      // a mesh's own colors, where it has them
+      albedo = mix(albedo, vColor.rgb, vColor.a);
+    #endif
 
     // light coming from the sky and bouncing off the ground
     vec3 ambient = mix(uGround, uSky, N.y * 0.5 + 0.5);
@@ -210,7 +223,7 @@ type LitOptions = {
 };
 
 function createLitMaterial(options: LitOptions) {
-  return new ShaderMaterial({
+  const material = new ShaderMaterial({
     vertexShader,
     fragmentShader: litFragmentShader,
     side: DoubleSide,
@@ -227,6 +240,9 @@ function createLitMaterial(options: LitOptions) {
       uLightColor: { value: new Color('#fff1d6').multiplyScalar(0.8) }
     }
   });
+  // see withVertexColors
+  material.userData.vertexColors = true;
+  return material;
 }
 
 function createMatcapStandardMaterial() {
@@ -283,10 +299,15 @@ function createMatcapStandardMaterial() {
 
         vec3 matcapColor = texture2D(uMatcap, matcapUv).rgb;
 
+        float matcapStrength = uMatcapStrength;
+        #ifdef USE_COLOR_ALPHA
+          // the matcap tint would hide the colors of a mesh
+          matcapStrength *= 1.0 - vColor.a;
+        #endif
         diffuseColor.rgb *= mix(
           vec3(1.0),
           matcapColor,
-          uMatcapStrength
+          matcapStrength
         );
       `
     );

@@ -1,6 +1,7 @@
 import {
   Group,
   type InstancedMesh,
+  type Material,
   type Mesh,
   MeshBasicMaterial,
   MeshMatcapMaterial,
@@ -192,15 +193,52 @@ describe('createResultPools', () => {
     expect(material.vertexColors).toBe(false);
   });
 
-  it('leaves tints out that would hide the colors', () => {
+  it('keeps the alpha of the colors, vertices without a color of their own have 0', () => {
+    const group = new Group();
+    createResultPools(group, new MeshBasicMaterial()).update([myzelMesh(0x00ff_ffff)]);
+    const colors = shownMeshes(group)[0].geometry.getAttribute('color');
+    expect(colors.itemSize).toBe(4);
+    expect([colors.getX(0), colors.getY(0), colors.getZ(0), colors.getW(0)]).toEqual([1, 1, 1, 0]);
+  });
+
+  it('keeps the look of the material where a vertex has no color', () => {
+    const compile = (material: Material, fragmentShader: string) => {
+      const shader = { fragmentShader, vertexShader: '', uniforms: {} };
+      material.onBeforeCompile(shader as never, undefined as never);
+      return shader.fragmentShader;
+    };
+    // a tint of its own still runs, the colors mix in by their alpha
     const tinted = new MeshStandardMaterial();
-    tinted.onBeforeCompile = () => {};
-    expect(withVertexColors(tinted).onBeforeCompile).not.toBe(tinted.onBeforeCompile);
+    tinted.onBeforeCompile = (shader) => {
+      shader.fragmentShader += ' tinted';
+    };
+    const tintedColors = withVertexColors(tinted);
+    expect(tintedColors.vertexColors).toBe(true);
+    expect(compile(tintedColors, '#include <color_fragment>')).toMatch(
+      /mix\(diffuseColor.rgb, diffuseColor.rgb \* vColor.rgb, vColor.a\)[\s\S]* tinted$/
+    );
+    expect(tintedColors.customProgramCacheKey()).not.toBe(tinted.customProgramCacheKey());
+
+    // the matcap stays for vertices without a color
     const matcap = new MeshMatcapMaterial({ matcap: new Texture() });
-    expect((withVertexColors(matcap) as MeshMatcapMaterial).matcap).toBeNull();
-    expect(matcap.matcap).not.toBeNull();
-    const shader = new ShaderMaterial();
-    expect(withVertexColors(shader)).toBe(shader);
+    const matcapColors = withVertexColors(matcap) as MeshMatcapMaterial;
+    expect(matcapColors.matcap).toBe(matcap.matcap);
+    expect(
+      compile(
+        matcapColors,
+        '#include <color_fragment>\nvec3 outgoingLight = diffuseColor.rgb * matcapColor.rgb;'
+      )
+    ).toMatch(/^\n\s*vec3 colorShade[\s\S]*mix\(matcapColor.rgb, colorShade, vColor.a\)/);
+
+    // shaders that take vertex colors share their uniforms, the others are views that stay as they are
+    const lit = new ShaderMaterial({ uniforms: { uHeightRange: { value: 1 } } });
+    lit.userData.vertexColors = true;
+    const litColors = withVertexColors(lit) as ShaderMaterial;
+    expect(litColors).not.toBe(lit);
+    expect(litColors.vertexColors).toBe(true);
+    expect(litColors.uniforms).toBe(lit.uniforms);
+    const view = new ShaderMaterial();
+    expect(withVertexColors(view)).toBe(view);
   });
 
   it('updates the colors when only they changed', () => {

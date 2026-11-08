@@ -4,7 +4,7 @@
   import type { Group } from 'three';
   import type { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
   import type { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
-  import { createExportScene } from './exportScene';
+  import { addObjVertexColors, createExportScene } from './exportScene';
 
   const download = (
     data: ArrayBuffer | string,
@@ -49,7 +49,8 @@
         return objExporter;
       }));
     try {
-      const result = exporter.parse(createExportScene(scene));
+      const exportScene = createExportScene(scene);
+      const result = addObjVertexColors(exporter.parse(exportScene), exportScene);
       download(result, 'plant', 'text/plain', 'obj');
       toast('Exported as OBJ', 'success');
     } catch (err) {
