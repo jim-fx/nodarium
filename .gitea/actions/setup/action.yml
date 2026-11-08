@@ -43,9 +43,15 @@ runs:
     - name: 🎨 Fetch dprint Plugins
       if: steps.dprint-cache.outputs.cache-hit != 'true'
       shell: bash
+      # output-resolved-config also validates the plugin configs, and the exec plugin reports
+      # its missing cacheKeyFiles there, so only a failed download counts as a failure
       run: |
         for attempt in 1 2 3 4 5 6; do
-          pnpm dprint output-resolved-config > /dev/null && exit 0
+          if errors=$(pnpm dprint output-resolved-config 2>&1 > /dev/null) \
+            || ! grep -q "Error resolving plugin" <<< "$errors"; then
+            exit 0
+          fi
+          echo "$errors" | grep "Error resolving plugin"
           echo "dprint plugins not fetched (attempt $attempt), retrying in $((attempt * 15)) s"
           sleep $((attempt * 15))
         done
