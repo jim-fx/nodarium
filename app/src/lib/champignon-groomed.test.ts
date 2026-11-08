@@ -67,12 +67,37 @@ function plates(paths: Path[]): Path[][] {
   return gills;
 }
 
+/** A Myzel mesh `[14, v, f, flags, ...faces, ...positions, ...]`: its faces and positions */
+type Mesh = { faces: Int32Array; positions: Float32Array };
+
+function readMesh(data: Int32Array): Mesh {
+  const [v, f] = [data[1], data[2]];
+  return {
+    faces: data.subarray(4, 4 + 3 * f),
+    positions: new Float32Array(data.buffer, data.byteOffset + (4 + 3 * f) * 4, 3 * v)
+  };
+}
+
+/** Every edge is walked once each way: the mesh is closed and its faces are wound alike */
+function isClosed(mesh: Mesh) {
+  const edges = new Map<string, number>();
+  const { faces } = mesh;
+  for (let i = 0; i < faces.length; i += 3) {
+    for (const [a, b] of [[0, 1], [1, 2], [2, 0]]) {
+      const key = `${faces[i + a]} ${faces[i + b]}`;
+      edges.set(key, (edges.get(key) ?? 0) + 1);
+    }
+  }
+  return [...edges].every(([key, n]) => n === 1 && edges.has(key.split(' ').reverse().join(' ')));
+}
+
 type Stage = {
   t: number;
   stipe: Path;
   rays: Path[];
   capRays: Path[];
   veil: Path[];
+  skin: Mesh;
   gills: Path[];
   /** The stipe top and its direction, the cap's axis */
   hinge: Vec;
@@ -113,18 +138,23 @@ describe.skipIf(!BUILT && !ON_CI)('the groomed Champignon matures with time', ()
       veil: [of('max/myzel/membrane'), 0],
       gills: [of('max/myzel/lamellae'), 0]
     } as const;
-
-    for (const t of STEPS) {
+    // a node shows one output to the debug nodes, the membrane's skin needs a run of its own
+    const skin = { skin: [of('max/myzel/membrane'), 1] } as const;
+    const run = async (t: number, debugged: Record<string, readonly [number, number]>) => {
       const graph = structuredClone(base);
       // nothing goes to the output, only what the debug nodes read runs, not the mesh
       graph.edges = graph.edges.filter((e) => e[2] !== output.id);
       let debugId = 1e9;
-      for (const [id, out] of Object.values(probes)) {
+      for (const [id, out] of Object.values(debugged)) {
         graph.nodes.push({ id: ++debugId, type: DEBUG_NODE as NodeId, position: [0, 0] });
         graph.edges.push([id, out, debugId, 'input']);
       }
       await runtime.execute(graph, { ...graph.settings, 'time.t': t, seed: 1 });
-      const debug = runtime.getDebugData();
+      return runtime.getDebugData();
+    };
+
+    for (const t of STEPS) {
+      const debug = await run(t, probes);
       const read = (key: keyof typeof probes) => readPaths(debug[probes[key][0]].data);
       const stipe = read('stipe')[0];
       const [top, below] = [stipe.points.at(-1)!.p, stipe.points.at(-2)!.p];
@@ -137,6 +167,7 @@ describe.skipIf(!BUILT && !ON_CI)('the groomed Champignon matures with time', ()
         // the rays the cap node grows run from the axis, fill_gaps adds more further out
         capRays: read('rays').filter((r) => capRays.some((c) => c.id === r.id)),
         veil: read('veil'),
+        skin: readMesh((await run(t, skin))[skin.skin[0]].data),
         gills: read('gills'),
         hinge: top,
         axis: direction.map((v) => v / length(direction)) as Vec
@@ -233,19 +264,65 @@ describe.skipIf(!BUILT && !ON_CI)('the groomed Champignon matures with time', ()
       expect(ring(s).length, `t = ${s.t}`).toBeGreaterThan(0);
       expect(fringe(s), `t = ${s.t}`).toEqual([]);
     }
+    // open, every strand has torn: no part on the stipe reaches out to the margin any more, and
+    // the margin keeps flecks with gaps between them
     const open = at(1);
-    expect(fringe(open).length).toBe(ring(open).length);
+    const margin = capDiameter(open) / 2;
+    for (const part of ring(open)) {
+      expect(plane(open, part.points.at(-1)!.p)[0]).toBeLessThan(margin - 0.01);
+    }
+    expect(fringe(open).length).toBeGreaterThan(ring(open).length / 4);
+    expect(fringe(open).length).toBeLessThanOrEqual(ring(open).length);
   });
 
-  it('holds the ring where it tore while the stipe grows above it (Hagimoto & Konishi 1959)', () => {
+  it('keeps the ring in the upper third while the stipe grows mainly above it', () => {
     // how far up the stipe the ring is, along it
     const height = (s: Stage) => mean(ring(s).map((v) => v.alpha)) * stipeLength(s);
-    const onset = stages.find((s) => fringe(s).length > 0)!;
     const open = at(1);
-    expect(Math.abs(height(open) - height(onset)) / height(onset)).toBeLessThan(0.15);
-    // while the stipe lengthens by more than that
-    expect(stipeLength(open) / stipeLength(onset)).toBeGreaterThan(1.15);
-    // the ring sits on the stipe under the cap
-    expect(height(open)).toBeLessThan(0.8 * stipeLength(open));
+    // in the upper third when open, below the cap, as in photos of A. bisporus
+    expect(height(open) / stipeLength(open)).toBeGreaterThan(2 / 3);
+    expect(height(open) / stipeLength(open)).toBeLessThan(0.85);
+    // from the first tear on, the stipe above the ring lengthens faster than the stipe below it
+    // (Hagimoto & Konishi 1959: "mainly at the growth zone ... just beneath the pileus and above
+    // the ring"), but the stipe below grows too (Craig et al. 1977), and the cap moves away from
+    // the ring: it doesn't ride up with the cap
+    const onset = stages.find((s) => fringe(s).length > 0)!;
+    const above = (s: Stage) => stipeLength(s) - height(s);
+    expect(above(open) / above(onset)).toBeGreaterThan(height(open) / height(onset));
+    expect(height(open)).toBeGreaterThan(height(onset));
+    for (let i = 1; i < stages.length; i++) {
+      expect(above(stages[i]), `t = ${stages[i].t}`).toBeGreaterThanOrEqual(
+        above(stages[i - 1]) - 1e-4
+      );
+    }
+    // the ring never sits above the margin of the closed cap
+    for (const s of stages.filter((s) => s.t <= 0.4)) {
+      const margin = mean(s.capRays.map((r) => r.points.at(-1)!.p[1]));
+      const ringAt = mean(ring(s).map((v) => v.points[0].p[1]));
+      expect(ringAt, `t = ${s.t}`).toBeLessThan(margin);
+    }
+  });
+
+  it('gives the veil as a thin closed skin at every stage', () => {
+    for (const s of stages) {
+      expect(s.skin.faces.length, `t = ${s.t}`).toBeGreaterThan(0);
+    }
+    for (const t of [0, 0.45, 1]) {
+      expect(isClosed(at(t).skin), `t = ${t}`).toBe(true);
+    }
+    // open, the skin hangs from the ring and the margin and nowhere else: between the ring's
+    // edge and the margin there is none of it
+    const open = at(1);
+    const ys = (from: number, to: number) => {
+      let n = 0;
+      for (let i = 1; i < open.skin.positions.length; i += 3) {
+        if (open.skin.positions[i] > from && open.skin.positions[i] < to) n++;
+      }
+      return n;
+    };
+    const ringTop = Math.max(...ring(open).map((v) => v.points[0].p[1]));
+    const margin = Math.min(...open.capRays.map((r) => r.points.at(-1)!.p[1]));
+    expect(ys(ringTop + 0.003, margin - 0.004)).toBe(0);
+    expect(ys(ringTop - 0.01, ringTop + 0.001)).toBeGreaterThan(0);
   });
 });

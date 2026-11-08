@@ -912,7 +912,7 @@
       "nodes": [
         {
           "id": 31,
-          "position": [-90, 31.25],
+          "position": [-90, 46.25],
           "type": "__internal/group/input",
           "props": {}
         },
@@ -924,7 +924,7 @@
         },
         {
           "id": 33,
-          "position": [-60, 65],
+          "position": [-60, 80],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -943,16 +943,16 @@
         },
         {
           "id": 34,
-          "position": [-60, 10],
+          "position": [-60, 25],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
               0,
               0,
               0.2,
-              0.26,
-              0.35,
-              0.84,
+              0.727,
+              0.4,
+              0.727,
               1,
               1
             ]
@@ -967,10 +967,10 @@
           "position": [-30, 0],
           "type": "max/myzel/membrane",
           "props": {
-            "thickness": 0.0012,
+            "thickness": 0.0006,
             "sag": 0.05,
-            "tear_position": 0.8,
-            "torn_length": 0.009
+            "tear_position": 0.9,
+            "torn_length": 0.011
           },
           "exposed": [
             "torn_length"
@@ -1024,13 +1024,19 @@
           34,
           0,
           35,
-          "anchor"
+          "along"
         ],
         [
           35,
           0,
           32,
           "out_0"
+        ],
+        [
+          35,
+          1,
+          32,
+          "out_1"
         ]
       ],
       "inputs": {
@@ -1055,26 +1061,30 @@
         "ring_button": {
           "type": "float",
           "label": "Ring height, button",
-          "value": 0.012,
+          "value": 0.86,
           "min": 0,
-          "max": 0.2,
-          "step": 0.0005,
-          "unit": "m"
+          "max": 1,
+          "step": 0.01,
+          "description": "Where the veil holds on the stipe on the button, as a share of the stipe from its base"
         },
         "ring_open": {
           "type": "float",
           "label": "Ring height, open",
-          "value": 0.0215,
+          "value": 0.75,
           "min": 0,
-          "max": 0.2,
-          "step": 0.0005,
-          "unit": "m"
+          "max": 1,
+          "step": 0.01,
+          "description": "Where the ring sits on the open mushroom, as a share of the stipe from its base: real rings sit in the upper third"
         }
       },
       "outputs": [
         {
           "type": "path",
           "label": "Veil"
+        },
+        {
+          "type": "mesh",
+          "label": "Skin"
         }
       ]
     }
@@ -1088,13 +1098,13 @@
     },
     {
       "id": 1,
-      "position": [-150, 81.67],
+      "position": [-180, 100.63],
       "type": "max/myzel/time",
       "props": {}
     },
     {
       "id": 40,
-      "position": [-120, 64.17],
+      "position": [-150, 83.13],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 36,
@@ -1106,7 +1116,7 @@
     },
     {
       "id": 41,
-      "position": [-90, 34.17],
+      "position": [-120, 53.13],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 37,
@@ -1132,7 +1142,7 @@
     },
     {
       "id": 42,
-      "position": [-60, 61.67],
+      "position": [-90, 62.5],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 38,
@@ -1143,17 +1153,17 @@
     },
     {
       "id": 43,
-      "position": [-60, 1.67],
+      "position": [-90, -2.5],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 39,
-        "ring_button": 0.012,
-        "ring_open": 0.0215
+        "ring_button": 0.86,
+        "ring_open": 0.75
       }
     },
     {
       "id": 44,
-      "position": [-60, -28.33],
+      "position": [-60, 0],
       "type": "max/plantarium/join",
       "props": {}
     },
@@ -1165,6 +1175,12 @@
         "fill": 1.5,
         "fibres": 1.5
       }
+    },
+    {
+      "id": 46,
+      "position": [-60, 30],
+      "type": "max/plantarium/join",
+      "props": {}
     }
   ],
   "edges": [
@@ -1247,22 +1263,28 @@
       "hyphae"
     ],
     [
-      43,
-      0,
-      45,
-      "loose"
-    ],
-    [
-      42,
-      0,
-      45,
-      "meshes"
-    ],
-    [
       45,
       0,
       0,
       "field"
+    ],
+    [
+      42,
+      0,
+      46,
+      "a"
+    ],
+    [
+      43,
+      1,
+      46,
+      "b"
+    ],
+    [
+      46,
+      0,
+      45,
+      "meshes"
     ]
   ]
 }
