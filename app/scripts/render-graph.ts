@@ -3,7 +3,7 @@
 // rasterizes the result in software: front, side and a view from above, next to each other.
 // Stems are brown, instanced geometry (leaves, flowers) is green.
 //
-// Usage: pnpm render-graph <target...> [--out dir] [--size px] [--seed n] [--focus x,z,r]
+// Usage: pnpm render-graph <target...> [--out dir] [--size px] [--seed n] [--focus x,z,r] [--below]
 //   target   name of a template in src/lib/graph-templates (fern, palm, ...), `templates` for
 //            all json templates, or the path of a graph or an exported `.nodarium.json` project
 //   --out    directory for the screenshots, defaults to ./screenshots
@@ -11,6 +11,7 @@
 //   --seed   seed of the random nodes, defaults to 1, the same seed gives the same plant
 //   --focus  only renders what lies within r (m) of x, z seen from above, a close-up of one part;
 //            the printed size is that of the close-up and the instance count is left out
+//   --below  adds a fourth view from below, for the underside of caps and leaves
 //
 // Prints one line of JSON per target with the path of the screenshot and the size of the plant.
 import { type Graph, INTERNAL_PREFIX, type NodeId } from '@nodarium/types';
@@ -34,13 +35,14 @@ const { values: options, positionals: targets } = parseArgs({
     out: { type: 'string', default: join(process.cwd(), 'screenshots') },
     size: { type: 'string', default: '512' },
     seed: { type: 'string', default: '1' },
-    focus: { type: 'string' }
+    focus: { type: 'string' },
+    below: { type: 'boolean', default: false }
   }
 });
 
 if (targets.length === 0) {
   console.error(
-    'Usage: pnpm render-graph <template|templates|file.json...> [--out dir] [--size px] [--seed n]'
+    'Usage: pnpm render-graph <template|templates|file.json...> [--out dir] [--size px] [--seed n] [--focus x,z,r] [--below]'
   );
   process.exit(1);
 }
@@ -179,8 +181,13 @@ function bounds(triangles: Triangle[]) {
   return { min, max };
 }
 
-/** Front, side and from above, each view gets the same scale so the views can be compared */
-const VIEWS = [{ yaw: 0, pitch: 0 }, { yaw: Math.PI / 2, pitch: 0 }, { yaw: 0.6, pitch: -1.15 }];
+/** Front, side, from above and optionally from below, all at the same scale so they can be compared */
+const VIEWS = [
+  { yaw: 0, pitch: 0 },
+  { yaw: Math.PI / 2, pitch: 0 },
+  { yaw: 0.6, pitch: -1.15 },
+  ...(options.below ? [{ yaw: 0.6, pitch: 1.15 }] : [])
+];
 
 function rasterize(triangles: Triangle[], viewSize: number) {
   const size = viewSize * SUPERSAMPLING;
