@@ -152,12 +152,16 @@ fn neighbour_sensing(strands: &[Strand], range: f32) -> Vec<Vec<Vec3>> {
     let mut offsets: Vec<Vec<Vec3>> = strands.iter().map(|s| vec![Vec3::ZERO; s.points.len()]).collect();
     let reach = strands.iter().flat_map(|s| s.limit.iter().copied()).fold(0.0, f32::max);
     let original: Vec<Vec<Vec3>> = strands.iter().map(|s| s.points.clone()).collect();
+    let (sum, count) = strands.iter().flat_map(|s| s.radius.iter()).fold((0.0f64, 0usize), |(s, c), r| (s + *r as f64, c + 1));
+    let thickness = (sum / count.max(1) as f64) as f32;
+    // paths without thickness splat nothing, and sensing an empty field divides 0 by 0
+    if !(thickness > 0.0) || !thickness.is_finite() {
+        return offsets;
+    }
     let Some(mut field) = Field::new(&original, range, reach) else {
         return offsets;
     };
     let radius: Vec<&[f32]> = strands.iter().map(|s| s.radius.as_slice()).collect();
-    let (sum, count) = strands.iter().flat_map(|s| s.radius.iter()).fold((0.0f64, 0usize), |(s, c), r| (s + *r as f64, c + 1));
-    let thickness = (sum / count.max(1) as f64) as f32;
     // the blurred share a single path fills right where it runs, so a lone neighbour at the edge
     // of the range is sensed faintly and the paths of a full bundle balance out
     let own = |field: &Field| thickness * thickness / (2.0 * field.sigma * field.sigma);
@@ -225,7 +229,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let depth = int(args[6]).max(1);
 
     let mut output: Vec<Vec<i32>> = plants.iter().map(|p| p.to_vec()).collect();
-    if params.range > 0.0 && params.range.is_finite() {
+    // a subnormal range would make every length measured in ranges overflow
+    if params.range > 0.0 && params.range.is_normal() {
         let selected = DeepestPaths::new(&plants, depth);
         let count = selected.count(&plants);
         let strands: Vec<Strand> = plants
@@ -272,6 +277,10 @@ mod tests {
     /// `amount` strands of one guide standing straight up 5 cm in a tube of 7 mm, scattered at
     /// random across it, every third one starting higher up
     fn bundle(amount: usize) -> Vec<i32> {
+        bundle_of(amount, THICKNESS)
+    }
+
+    fn bundle_of(amount: usize, thickness: f32) -> Vec<i32> {
         let mut data = create_multiple_paths(amount, POINTS, 2, CREATOR);
         for (k, path) in wrap_multiple_paths(&mut data).iter_mut().enumerate() {
             let random = |salt: i32| path_random(3, k as i32, salt);
@@ -279,7 +288,7 @@ mod tests {
             let start = if k % 3 == 0 { 0.2 } else { 0.0 };
             for i in 0..POINTS {
                 let a = start + (1.0 - start) * i as f32 / (POINTS - 1) as f32;
-                path.points[i * 4..i * 4 + 4].copy_from_slice(&[home.x, HEIGHT * a, home.y, THICKNESS]);
+                path.points[i * 4..i * 4 + 4].copy_from_slice(&[home.x, HEIGHT * a, home.y, thickness]);
             }
         }
         let paths: Vec<Vec<i32>> = split_args(&data)
@@ -363,6 +372,24 @@ mod tests {
                 assert!(furthest <= TUBE + max_offset * (1.0 + 1e-4), "a strand reaches {} out of a tube of {}", furthest, TUBE);
             }
         }
+    }
+
+    #[test]
+    fn paths_without_thickness_stay_as_they_are() {
+        let input = bundle_of(120, 0.0);
+        let out = run(&input, &DEFAULT);
+        assert!(points(&out).iter().flatten().all(|q| q.is_finite()));
+        assert_eq!(out, input);
+    }
+
+    #[test]
+    fn an_infinite_max_offset_leaves_the_paths_and_returns() {
+        let input = bundle(120);
+        for max_offset in [f32::INFINITY, f32::NAN] {
+            let out = run(&input, &Run { max_offset, ..DEFAULT });
+            assert!(points(&out).iter().flatten().all(|q| q.is_finite()));
+        }
+        assert_eq!(run(&input, &Run { range: 1e-42, ..DEFAULT }), input);
     }
 
     #[test]

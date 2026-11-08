@@ -50,6 +50,10 @@ impl Field {
             return None;
         }
         let mut h = range / CELLS_PER_RANGE;
+        // an infinite reach or a cell that underflows to 0 would never shrink the grid below MAX_NODES
+        if !(h > 0.0) || !h.is_finite() || !reach.is_finite() || !(hi - lo).is_finite() {
+            return None;
+        }
         let nodes = |h: f32| {
             let pad = 2.0 * (range + reach) + 3.0 * h;
             ((hi - lo + pad) / h).ceil() + 1.0
