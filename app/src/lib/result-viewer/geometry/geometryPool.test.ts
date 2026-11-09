@@ -15,6 +15,7 @@ import {
   createResultPools,
   readMesh,
   sortResultItems,
+  takeVertexColors,
   withVertexColors
 } from './geometryPool';
 
@@ -179,7 +180,7 @@ describe('readMesh', () => {
 describe('createResultPools', () => {
   it('shows meshes with their colors next to plain geometry', () => {
     const group = new Group();
-    const material = new MeshBasicMaterial();
+    const material = takeVertexColors(new MeshBasicMaterial());
     const pools = createResultPools(group, material);
     const stats = pools.update([myzelMesh(0xffff_ffff, 2)]);
     expect(stats.totalVertices).toBe(3);
@@ -208,7 +209,7 @@ describe('createResultPools', () => {
       return shader.fragmentShader;
     };
     // a tint of its own still runs, the colors mix in by their alpha
-    const tinted = new MeshStandardMaterial();
+    const tinted = takeVertexColors(new MeshStandardMaterial());
     tinted.onBeforeCompile = (shader) => {
       shader.fragmentShader += ' tinted';
     };
@@ -220,7 +221,7 @@ describe('createResultPools', () => {
     expect(tintedColors.customProgramCacheKey()).not.toBe(tinted.customProgramCacheKey());
 
     // the matcap stays for vertices without a color
-    const matcap = new MeshMatcapMaterial({ matcap: new Texture() });
+    const matcap = takeVertexColors(new MeshMatcapMaterial({ matcap: new Texture() }));
     const matcapColors = withVertexColors(matcap) as MeshMatcapMaterial;
     expect(matcapColors.matcap).toBe(matcap.matcap);
     expect(
@@ -229,16 +230,28 @@ describe('createResultPools', () => {
         '#include <color_fragment>\nvec3 outgoingLight = diffuseColor.rgb * matcapColor.rgb;'
       )
     ).toMatch(/^\n\s*vec3 colorShade[\s\S]*mix\(matcapColor.rgb, colorShade, vColor.a\)/);
+  });
 
-    // shaders that take vertex colors share their uniforms, the others are views that stay as they are
-    const lit = new ShaderMaterial({ uniforms: { uHeightRange: { value: 1 } } });
-    lit.userData.vertexColors = true;
-    const litColors = withVertexColors(lit) as ShaderMaterial;
-    expect(litColors).not.toBe(lit);
-    expect(litColors.vertexColors).toBe(true);
-    expect(litColors.uniforms).toBe(lit.uniforms);
-    const view = new ShaderMaterial();
-    expect(withVertexColors(view)).toBe(view);
+  it('ignores the colors with materials that do not take them', () => {
+    for (
+      const material of [new MeshBasicMaterial(), new MeshMatcapMaterial(), new ShaderMaterial()]
+    ) {
+      expect(withVertexColors(material)).toBe(material);
+      expect(material.vertexColors).toBe(false);
+    }
+
+    const group = new Group();
+    const material = new MeshStandardMaterial();
+    const pools = createResultPools(group, material);
+    pools.update([myzelMesh(0xffff_ffff)]);
+    expect(shownMeshes(group)[0].material).toBe(material);
+
+    // switching to a material that takes colors shows them again
+    const colored = takeVertexColors(new MeshStandardMaterial());
+    pools.setMaterial(colored);
+    expect((shownMeshes(group)[0].material as Material).vertexColors).toBe(true);
+    pools.setMaterial(material);
+    expect(shownMeshes(group)[0].material).toBe(material);
   });
 
   it('updates the colors when only they changed', () => {
@@ -252,7 +265,7 @@ describe('createResultPools', () => {
 
   it('shows meshes without colors with the material as it is', () => {
     const group = new Group();
-    const material = new MeshMatcapMaterial({ matcap: new Texture() });
+    const material = takeVertexColors(new MeshMatcapMaterial({ matcap: new Texture() }));
     const pools = createResultPools(group, material);
     pools.update([myzelMesh(0xffff_ffff)]);
     pools.update([myzelMesh(null)]);

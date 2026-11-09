@@ -12,7 +12,6 @@ import {
   Matrix4,
   Mesh,
   MeshMatcapMaterial,
-  ShaderMaterial,
   Sphere,
   SRGBColorSpace
 } from 'three';
@@ -135,32 +134,36 @@ const MATCAP_OUTGOING = /* glsl */ `
 `;
 
 /**
- * The material to show meshes that bring their own colors with. Vertices without a color of their
- * own (alpha 0, `NO_COLOR` of myzel_core) keep the look of the material, the matcap tint is left
- * out where they have one. Shader materials stay as they are unless they take vertex colors, the
- * others are views like normals or faces that color by something else.
+ * Lets meshes with colors of their own show them with `material`. Only the plant material of the
+ * viewer and the thumbnails take colors, the other materials of the viewer show the shape, its
+ * normals or its faces and ignore them.
+ */
+export function takeVertexColors<T extends Material>(material: T) {
+  material.userData.vertexColors = true;
+  return material;
+}
+
+/**
+ * The material to show meshes that bring their own colors with, the material as it is unless it
+ * takes colors (see takeVertexColors). Vertices without a color of their own (alpha 0, `NO_COLOR`
+ * of myzel_core) keep the look of the material, the matcap tint is left out where they have one.
  */
 export function withVertexColors(material: Material) {
-  if (material instanceof ShaderMaterial && !material.userData.vertexColors) return material;
+  if (!material.userData.vertexColors) return material;
   let colored = coloredMaterials.get(material);
   if (colored) return colored;
   colored = material.clone();
   colored.vertexColors = true;
-  if (colored instanceof ShaderMaterial && material instanceof ShaderMaterial) {
-    // the viewer sets the height range on the material it knows
-    colored.uniforms = material.uniforms;
-  } else {
-    const isMatcap = material instanceof MeshMatcapMaterial;
-    colored.onBeforeCompile = (shader, renderer) => {
-      material.onBeforeCompile(shader, renderer);
-      shader.fragmentShader = isMatcap
-        ? shader.fragmentShader
-          .replace('#include <color_fragment>', '')
-          .replace('vec3 outgoingLight = diffuseColor.rgb * matcapColor.rgb;', MATCAP_OUTGOING)
-        : shader.fragmentShader.replace('#include <color_fragment>', VERTEX_COLOR_FRAGMENT);
-    };
-    colored.customProgramCacheKey = () => `${material.customProgramCacheKey()}:vertex-colors`;
-  }
+  const isMatcap = material instanceof MeshMatcapMaterial;
+  colored.onBeforeCompile = (shader, renderer) => {
+    material.onBeforeCompile(shader, renderer);
+    shader.fragmentShader = isMatcap
+      ? shader.fragmentShader
+        .replace('#include <color_fragment>', '')
+        .replace('vec3 outgoingLight = diffuseColor.rgb * matcapColor.rgb;', MATCAP_OUTGOING)
+      : shader.fragmentShader.replace('#include <color_fragment>', VERTEX_COLOR_FRAGMENT);
+  };
+  colored.customProgramCacheKey = () => `${material.customProgramCacheKey()}:vertex-colors`;
   coloredMaterials.set(material, colored);
   return colored;
 }
