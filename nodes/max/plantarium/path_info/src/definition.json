@@ -18,6 +18,7 @@
         "length"
       ],
       "value": 0,
+      "internal": true,
       "description": "Position goes from 0 at the first path to 1 at the last, index counts the paths from 0, count is how many there are. Depth is 1 for a stem and one more for every branching. Parent position is where on its parent a path grows, from 0 at the base to 1 at the tip, a stem has 0. Length is how long the path is."
     }
   }

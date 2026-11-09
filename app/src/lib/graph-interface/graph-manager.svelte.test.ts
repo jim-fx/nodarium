@@ -794,6 +794,55 @@ describe('setInputExposed', () => {
   });
 });
 
+describe('internal inputs', () => {
+  const mockInternalInputNode: NodeDefinition = {
+    id: 'test/node/internal',
+    inputs: {
+      value: { type: 'float' },
+      mode: { type: 'float', internal: true }
+    },
+    outputs: ['float'],
+    meta: { title: 'Internal Input' },
+    execute: () => new Int32Array()
+  };
+
+  function setup() {
+    const registry = createMockNodeRegistry([mockFloatInputNode, mockInternalInputNode]);
+    const manager = new GraphManager(registry);
+    const source = manager.createNode({ type: 'test/node/input', position: [0, 0], props: {} });
+    const target = manager.createNode({
+      type: 'test/node/internal',
+      position: [100, 0],
+      props: {}
+    });
+    assert.isDefined(source);
+    assert.isDefined(target);
+    return { manager, source, target };
+  }
+
+  it('should not offer an internal input as a socket', () => {
+    const { manager, source, target } = setup();
+    const sockets = manager.getPossibleSockets({ node: source, index: 0, position: [0, 0] })
+      .map(([node, key]) => `${node.id}-${key}`);
+    expect(sockets).toContain(`${target.id}-value`);
+    expect(sockets).not.toContain(`${target.id}-mode`);
+  });
+
+  it('should not offer sockets when dragging from an internal input', () => {
+    const { manager, target } = setup();
+    expect(manager.getPossibleSockets({ node: target, index: 'mode', position: [0, 0] }))
+      .toEqual([]);
+    expect(manager.getPossibleNodes({ node: target, index: 'mode', position: [0, 0] }))
+      .toEqual([]);
+  });
+
+  it('should not create an edge into an internal input', () => {
+    const { manager, source, target } = setup();
+    expect(manager.createEdge(source, 0, target, 'mode')).toBeUndefined();
+    expect(manager.serialize().edges).toEqual([]);
+  });
+});
+
 describe('tryConnectToDebugNode', () => {
   function setup() {
     const registry = createMockNodeRegistry([mockFloatOutputNode, mockFloatInputNode, debugNode]);
