@@ -77,6 +77,21 @@ export function removeInputs(graph: Graph, type: string, inputs: string[]) {
   return graph;
 }
 
+/** The inputs of every node of `type` that have an edge into them, by node */
+export function wiredInputs(graph: Graph, type: string) {
+  const wired = new Map<SerializedNode, Set<string>>();
+  for (const scope of scopes(graph)) {
+    const nodes = nodesOfType(scope, type);
+    for (const edge of scope.edges) {
+      const node = nodes.get(edge[2]);
+      if (!node) continue;
+      if (!wired.has(node)) wired.set(node, new Set());
+      wired.get(node)!.add(edge[3]);
+    }
+  }
+  return wired;
+}
+
 export type InputSocket = [nodeId: number, input: string];
 export type OutputSocket = [nodeId: number, output: number];
 

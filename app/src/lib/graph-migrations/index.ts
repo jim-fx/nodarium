@@ -1,7 +1,8 @@
 import type { Graph } from '@nodarium/types';
 import { createLogger } from '@nodarium/utils';
-import { removeInputs, renameInputs, replaceNodes } from './helpers';
+import { removeInputs, renameInputs, replaceNodes, wiredInputs } from './helpers';
 import { splitCap, wiredCapInputs } from './split-cap';
+import { STRANDS, strandsThickness } from './strands-thickness';
 
 export * from './helpers';
 
@@ -63,6 +64,19 @@ export const MIGRATIONS: Migration[] = [
         'max/myzel/cap',
         (old, context) => splitCap(old, context, wired.get(old))
       );
+    }
+  },
+  {
+    version: 4,
+    description: 'strands lost thickness_variation, a random node into the thickness varies it',
+    migrate(graph) {
+      const wired = wiredInputs(graph, STRANDS);
+      replaceNodes(
+        graph,
+        STRANDS,
+        (old, context) => strandsThickness(old, context, wired.get(old))
+      );
+      return removeInputs(graph, STRANDS, ['thickness_variation']);
     }
   }
 ];

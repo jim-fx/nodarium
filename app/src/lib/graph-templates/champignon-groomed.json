@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 3,
+  "version": 4,
   "settings": {
     "time.t": 1,
     "resolution.field": 128,
@@ -105,10 +105,19 @@
           "props": {
             "amount": 240,
             "thickness": 0.0005,
-            "thickness_variation": 0.5,
             "twist": 0.1,
             "wobble": 0.25,
             "length_variation": 0.3
+          }
+        },
+        {
+          "id": 57,
+          "type": "max/plantarium/random",
+          "position": [-145, 35],
+          "props": {
+            "min": 0.00025,
+            "max": 0.0005,
+            "uniform": 1
           }
         },
         {
@@ -251,6 +260,12 @@
           5,
           56,
           "color"
+        ],
+        [
+          57,
+          0,
+          8,
+          "thickness"
         ]
       ],
       "inputs": {
@@ -481,9 +496,18 @@
           "props": {
             "amount": 40,
             "thickness": 0.0005,
-            "thickness_variation": 0.5,
             "wobble": 0.25,
             "length_variation": 0.1
+          }
+        },
+        {
+          "id": 58,
+          "type": "max/plantarium/random",
+          "position": [-175, 23.75],
+          "props": {
+            "min": 0.00025,
+            "max": 0.0005,
+            "uniform": 1
           }
         },
         {
@@ -764,6 +788,12 @@
           0,
           51,
           "color"
+        ],
+        [
+          58,
+          0,
+          22,
+          "thickness"
         ]
       ],
       "inputs": {
