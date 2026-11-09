@@ -36,6 +36,7 @@ import {
   areEdgesEqual,
   areSocketsCompatible,
   getNodeHeight,
+  isInputConnectable,
   serializeEdge,
   serializeNode
 } from './helpers/nodeHelpers';
@@ -213,6 +214,7 @@ export class GraphManager extends EventEmitter<{
     const targetAcceptedTypes = [targetInput?.type, ...(targetInput?.accepts || [])];
 
     const bestInputEntry = draggedInputs.find(([, input]) => {
+      if (!isInputConnectable(input)) return false;
       const accepted = [input.type, ...(input.accepts || [])];
       return areSocketsCompatible(edgeOutputSocketType, accepted);
     });
@@ -287,6 +289,7 @@ export class GraphManager extends EventEmitter<{
 
       const edgeOutputSocketType = this.getSocketType(fromNode, fromSocketIdx);
       const canPlugIntoDragged = draggedInputs.some(input => {
+        if (!isInputConnectable(input)) return false;
         const acceptedTypes = [input.type, ...(input.accepts || [])];
         return areSocketsCompatible(edgeOutputSocketType, acceptedTypes);
       });
@@ -1292,6 +1295,11 @@ export class GraphManager extends EventEmitter<{
     const toInput = this.getNodeSockets(to).inputs[toSocket];
     const toSocketType = [toInput?.type, ...(toInput?.accepts || [])];
 
+    if (toInput?.internal) {
+      log.error(`Input ${toSocket} of ${to.type} is internal and can not be connected`);
+      return;
+    }
+
     if (!toInput || !areSocketsCompatible(fromSocketType, toSocketType)) {
       log.error(
         `Socket types do not match: ${fromSocketType} !== ${toSocketType}`
@@ -1449,7 +1457,7 @@ export class GraphManager extends EventEmitter<{
     // dragging from an input, look for definitions with a matching output
     if (typeof socket.index === 'string') {
       const input = this.getNodeSockets(socket.node).inputs[socket.index];
-      if (!input) return [];
+      if (!isInputConnectable(input)) return [];
       const accepted = [input.type, ...(input.accepts ?? [])];
       return allDefinitions.filter(d =>
         d.outputs?.some(output => areSocketsCompatible(getOutputType(output), accepted))
@@ -1461,7 +1469,8 @@ export class GraphManager extends EventEmitter<{
     if (!outputType) return [];
     return allDefinitions.filter(d =>
       Object.values(d.inputs ?? {}).some(input =>
-        !input.hidden && areSocketsCompatible(outputType, [input.type, ...(input.accepts ?? [])])
+        isInputConnectable(input)
+        && areSocketsCompatible(outputType, [input.type, ...(input.accepts ?? [])])
       )
     );
   }
@@ -1473,6 +1482,7 @@ export class GraphManager extends EventEmitter<{
     const sockets: [NodeInstance, string | number][] = [];
 
     if (typeof index === 'string') {
+      if (!isInputConnectable(this.getNodeSockets(node).inputs[index])) return [];
       const children = new SvelteSet(this.getChildren(node).map((n) => n.id));
       const nodes = this.getAllNodes().filter(
         (n) => n.id !== node.id && !children.has(n.id)
@@ -1506,7 +1516,7 @@ export class GraphManager extends EventEmitter<{
       for (const node of nodes) {
         const inputs = this.getNodeSockets(node).inputs;
         for (const key in inputs) {
-          if (inputs[key].hidden) continue;
+          if (!isInputConnectable(inputs[key])) continue;
           const otherType = [inputs[key].type];
           otherType.push(...(inputs[key].accepts || []));
 

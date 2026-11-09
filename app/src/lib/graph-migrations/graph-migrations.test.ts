@@ -251,7 +251,7 @@ describe('version 3: the cap is split into cap and pose nodes', () => {
         [[1, 0, 2, 'plant'], [2, 0, 3, 'plant']]
       )
     );
-    expect(migrated.version).toBe(3);
+    expect(migrated.version).toBe(CURRENT_GRAPH_VERSION);
     expect(types(migrated)).toEqual([
       'max/plantarium/stem',
       'max/myzel/cap',
@@ -387,5 +387,83 @@ describe('version 3: the cap is split into cap and pose nodes', () => {
       'max/plantarium/curve',
       'max/myzel/cap_open'
     ]);
+  });
+});
+
+describe('version 4: a random node into the thickness of strands varies it', () => {
+  const v3 = (nodes: SerializedNode[], edges: Graph['edges'] = []): Graph => ({
+    ...graph(nodes, edges),
+    version: 3
+  });
+  const byType = (g: Graph, type: string) => g.nodes.filter((n) => n.type === type);
+  const strands = (g: Graph) => byType(g, 'max/myzel/strands')[0];
+
+  it('only drops a variation of 0', () => {
+    const migrated = migrateGraph(
+      v3([node(1, 'max/myzel/strands', { thickness: 0.001, thickness_variation: 0 })])
+    );
+    expect(migrated.nodes.map((n) => n.type)).toEqual(['max/myzel/strands']);
+    expect(strands(migrated).props).toEqual({ thickness: 0.001 });
+  });
+
+  it('turns a plain variation into a random node from the thinnest to the full thickness', () => {
+    const migrated = migrateGraph(
+      v3(
+        [
+          node(1, 'max/plantarium/stem'),
+          node(2, 'max/myzel/strands', { thickness_variation: 0.5 })
+        ],
+        [[1, 0, 2, 'plant']]
+      )
+    );
+    const [random] = byType(migrated, 'max/plantarium/random');
+    expect(random.props).toEqual({ min: 0.00025, max: 0.0005, uniform: 1 });
+    expect(strands(migrated).props).toEqual({});
+    expect(migrated.edges).toEqual([[1, 0, 2, 'plant'], [random.id, 0, 2, 'thickness']]);
+  });
+
+  it('multiplies a wired thickness by a random share', () => {
+    const migrated = migrateGraph(
+      v3(
+        [
+          node(1, 'max/plantarium/float'),
+          node(2, 'max/myzel/strands', { thickness_variation: 0.25 })
+        ],
+        [[1, 0, 2, 'thickness']]
+      )
+    );
+    const [random] = byType(migrated, 'max/plantarium/random');
+    const [math] = byType(migrated, 'max/plantarium/math');
+    expect(random.props).toEqual({ min: 0.75, max: 1, uniform: 1 });
+    expect(math.props).toMatchObject({ op_type: 2 });
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([
+        [1, 0, math.id, 'a'],
+        [random.id, 0, math.id, 'b'],
+        [math.id, 0, 2, 'thickness']
+      ])
+    );
+    expect(migrated.edges).toHaveLength(3);
+  });
+
+  it('builds the old formula from math nodes for a wired variation', () => {
+    const migrated = migrateGraph(
+      v3(
+        [node(1, 'max/plantarium/float'), node(2, 'max/myzel/strands', { thickness: 0.001 })],
+        [[1, 0, 2, 'thickness_variation']]
+      )
+    );
+    const [thinner, kept, product] = byType(migrated, 'max/plantarium/math');
+    expect(product.props).toMatchObject({ op_type: 2, a: 0.001 });
+    expect(kept.props).toMatchObject({ op_type: 1, a: 1 });
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([
+        [1, 0, thinner.id, 'a'],
+        [thinner.id, 0, kept.id, 'b'],
+        [kept.id, 0, product.id, 'b'],
+        [product.id, 0, 2, 'thickness']
+      ])
+    );
+    expect(migrated.edges.some((e) => e[3] === 'thickness_variation')).toBe(false);
   });
 });

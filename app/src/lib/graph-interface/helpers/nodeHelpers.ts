@@ -123,6 +123,12 @@ export function areSocketsCompatible(
   return inputs === output;
 }
 
+// Whether an edge can be drawn into the input. Internal inputs are only set on the
+// node itself, hidden inputs only take edges while they are exposed on the node.
+export function isInputConnectable(input: { hidden?: boolean; internal?: boolean } | undefined) {
+  return !!input && input.internal !== true && input.hidden !== true;
+}
+
 export function areEdgesEqual(firstEdge: Edge, secondEdge: Edge) {
   if (firstEdge[0].id !== secondEdge[0].id) {
     return false;

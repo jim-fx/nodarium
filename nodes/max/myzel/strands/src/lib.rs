@@ -94,9 +94,9 @@ impl Guide {
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
     let paths = split_args(args[0]);
-    let seed = int(args[8]);
+    let seed = int(args[7]);
     // the graph node that makes the strands, it is the last input
-    let creator = int(args[9]);
+    let creator = int(args[8]);
 
     let guides = DeepestPaths::new(&paths, 1);
     let guide_count = guides.count(&paths);
@@ -125,11 +125,10 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         let guide = Guide { frame: frames(&centre), centre, radius, alpha, along };
 
         let amount = ctx.int(args[1]).max(0);
-        let thickness_variation = ctx.float(args[3]).clamp(0.0, 1.0);
-        let spread = ctx.float(args[4]).clamp(0.0, 1.0);
-        let twist = ctx.float(args[5]);
-        let wobble = ctx.float(args[6]).clamp(0.0, 1.0);
-        let length_variation = ctx.float(args[7]).clamp(0.0, 1.0);
+        let spread = ctx.float(args[3]).clamp(0.0, 1.0);
+        let twist = ctx.float(args[4]);
+        let wobble = ctx.float(args[5]).clamp(0.0, 1.0);
+        let length_variation = ctx.float(args[6]).clamp(0.0, 1.0);
 
         let noise_seed = seed.wrapping_add(path.link.id) as u32;
         let (noise_x, noise_y) = (OpenSimplex::new(noise_seed), OpenSimplex::new(noise_seed.wrapping_add(1)));
@@ -157,8 +156,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 length,
             });
             ctx.seed_path(link.id);
+            // read for every strand, so a random node gives each strand its own thickness
             let thickness = ctx.float_along(args[2], samples.iter().map(|s| s.4));
-            let thinner = 1.0 - thickness_variation * random(4);
 
             let home = place(k as usize, amount as usize) * spread;
             let mut strand_data = create_path(n, path.depth + 1);
@@ -166,7 +165,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             let strand = wrap_path_mut(&mut strand_data);
             for (j, &(c, tube, normal, binormal, a, s)) in samples.iter().enumerate() {
                 let profile = if widest > 0.0 { tube / widest } else { 0.0 };
-                let r = (thickness[j].max(0.0) * thinner * profile).min(tube);
+                let r = (thickness[j].max(0.0) * profile).min(tube);
                 // sampled at the strand's home, so neighbours get about the same push
                 let q = [(home.x / WOBBLE_COHERENCE) as f64, (home.y / WOBBLE_COHERENCE) as f64, (s / wavelength) as f64];
                 let push = (Vec2::new(noise_x.get(q) as f32, noise_y.get(q) as f32) * WOBBLE_GAIN).clamp_length_max(1.0);
@@ -193,7 +192,7 @@ mod tests {
     use glam::Vec3;
     use std::f32::consts::TAU;
     use nodarium_utils::{
-        encode_float,
+        concat_args, encode_float,
         geometry::{create_multiple_paths, path_link, wrap_multiple_paths, wrap_path, PathLink},
         split_args,
     };
@@ -232,7 +231,8 @@ mod tests {
     #[derive(Clone, Copy)]
     struct Params {
         amount: i32,
-        thickness_variation: f32,
+        /// a random node into the thickness that makes some strands as thin as this share of it
+        thinnest: f32,
         spread: f32,
         twist: f32,
         wobble: f32,
@@ -240,14 +240,19 @@ mod tests {
     }
 
     const PLAIN: Params =
-        Params { amount: 30, thickness_variation: 0.0, spread: 1.0, twist: 0.0, wobble: 0.0, length_variation: 0.0 };
+        Params { amount: 30, thinnest: 1.0, spread: 1.0, twist: 0.0, wobble: 0.0, length_variation: 0.0 };
 
     fn grow(guide: &[i32], p: Params) -> Vec<Vec<i32>> {
+        // a uniform random node, drawn again for every strand
+        let thickness = if p.thinnest < 1.0 {
+            concat_args(vec![&[1], &[encode_float(0.0006 * p.thinnest)], &[encode_float(0.0006)], &[3], &[1], &[0], &[0]])
+        } else {
+            vec![encode_float(0.0006)]
+        };
         let out = __nodarium_execute_inner(&[
             guide,
             &[p.amount],
-            &[encode_float(0.0006)],
-            &[encode_float(p.thickness_variation)],
+            &thickness,
             &[encode_float(p.spread)],
             &[encode_float(p.twist)],
             &[encode_float(p.wobble)],
@@ -266,7 +271,7 @@ mod tests {
     fn wobbling_varied_strands_stay_inside_the_tube() {
         let g = straight_guide();
         for wobble in [0.0, 0.5, 1.0] {
-            let p = Params { amount: 200, thickness_variation: 1.0, twist: 0.7, wobble, length_variation: 1.0, ..PLAIN };
+            let p = Params { amount: 200, thinnest: 0.0, twist: 0.7, wobble, length_variation: 1.0, ..PLAIN };
             for s in grow(&g, p) {
                 for q in points(&s) {
                     let offset = Vec3::new(q[0], 0.0, q[2]).length();
@@ -311,7 +316,7 @@ mod tests {
     #[test]
     fn thickness_and_length_vary_within_bounds() {
         let g = straight_guide();
-        let strands = grow(&g, Params { amount: 200, thickness_variation: 0.5, length_variation: 1.0, ..PLAIN });
+        let strands = grow(&g, Params { amount: 200, thinnest: 0.5, length_variation: 1.0, ..PLAIN });
         let (mut thinnest, mut shortened) = (f32::MAX, 0);
         for s in &strands {
             let p = points(s);

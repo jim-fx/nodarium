@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 3,
+  "version": 4,
   "settings": {
     "resolution.field": 256,
     "resolution.curve": 24
@@ -60,10 +60,19 @@
       "props": {
         "amount": 250,
         "thickness": 0.0006,
-        "thickness_variation": 0.5,
         "twist": 0.05,
         "wobble": 0.3,
         "length_variation": 0.15
+      }
+    },
+    {
+      "id": 315,
+      "type": "max/plantarium/random",
+      "position": [-45, 77.5],
+      "props": {
+        "min": 0.0003,
+        "max": 0.0006,
+        "uniform": 1
       }
     },
     {
@@ -93,9 +102,18 @@
       "props": {
         "amount": 40,
         "thickness": 0.0006,
-        "thickness_variation": 0.5,
         "wobble": 0.25,
         "length_variation": 0.1
+      }
+    },
+    {
+      "id": 316,
+      "type": "max/plantarium/random",
+      "position": [-45, 170.5],
+      "props": {
+        "min": 0.0003,
+        "max": 0.0006,
+        "uniform": 1
       }
     },
     {
@@ -1332,6 +1350,18 @@
       1,
       9,
       "meshes"
+    ],
+    [
+      315,
+      0,
+      4,
+      "thickness"
+    ],
+    [
+      316,
+      0,
+      6,
+      "thickness"
     ]
   ]
 }

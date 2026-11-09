@@ -186,7 +186,6 @@ const STIPE = { length: 0.05, thickness: 0.007, taper: 0.25, resolution_curve: 2
 const strands = (amount: number, guideThickness = STIPE.thickness) => ({
   amount,
   thickness: 0.0005 * (guideThickness / 0.007) * Math.sqrt(200 / amount),
-  thickness_variation: 0.5,
   twist: 0.1,
   wobble: 0.25,
   length_variation: 0.3
@@ -195,7 +194,6 @@ const strands = (amount: number, guideThickness = STIPE.thickness) => ({
 const capStrands = (amount: number) => ({
   amount,
   thickness: 0.0005 * Math.sqrt(40 / amount),
-  thickness_variation: 0.5,
   wobble: 0.25,
   length_variation: 0.1
 });

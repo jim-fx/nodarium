@@ -1,5 +1,6 @@
 import type { Graph, SerializedEdge, SerializedNode } from '@nodarium/types';
 import type { InputSocket, OutputSocket, ReplaceContext, Replacement } from './helpers';
+import { wiredInputs } from './helpers';
 
 const CAP = 'max/myzel/cap';
 
@@ -30,17 +31,7 @@ function sameValue(a: unknown, b: unknown) {
 
 /** The inputs of every cap that have an edge into them, by node */
 export function wiredCapInputs(graph: Graph) {
-  const wired = new Map<SerializedNode, Set<string>>();
-  for (const scope of [graph, ...(graph.groups ?? [])]) {
-    const caps = new Map(scope.nodes.filter((n) => n.type === CAP).map((n) => [n.id, n]));
-    for (const edge of scope.edges) {
-      const cap = caps.get(edge[2]);
-      if (!cap) continue;
-      if (!wired.has(cap)) wired.set(cap, new Set());
-      wired.get(cap)!.add(edge[3]);
-    }
-  }
-  return wired;
+  return wiredInputs(graph, CAP);
 }
 
 /**
