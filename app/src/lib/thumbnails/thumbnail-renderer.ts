@@ -1,4 +1,4 @@
-import { createResultPools } from '#lib/result-viewer/geometry/geometryPool.ts';
+import { createResultPools, takeVertexColors } from '#lib/result-viewer/geometry/geometryPool.ts';
 import { splitNestedArray } from '@nodarium/utils';
 import {
   Box3,
@@ -105,7 +105,10 @@ export class ThumbnailRenderer {
       preserveDrawingBuffer: true
     });
     this.renderer.setClearColor(0x000000, 0);
-    this.material = new MeshMatcapMaterial({ color: 0xffffff, matcap, side: DoubleSide });
+    // thumbnails show the colors of a mesh like the plant material of the viewer
+    this.material = takeVertexColors(
+      new MeshMatcapMaterial({ color: 0xffffff, matcap, side: DoubleSide })
+    );
   }
 
   /** bounding rectangle of all non transparent pixels, y pointing down */
