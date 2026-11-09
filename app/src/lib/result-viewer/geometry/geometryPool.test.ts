@@ -220,6 +220,14 @@ describe('createResultPools', () => {
     );
     expect(tintedColors.customProgramCacheKey()).not.toBe(tinted.customProgramCacheKey());
 
+    // a color gets the light of the environment without the ambient light and neutral tone mapping
+    const lit = compile(
+      withVertexColors(takeVertexColors(new MeshStandardMaterial())),
+      '#include <lights_fragment_end>\n#include <tonemapping_fragment>'
+    );
+    expect(lit).toMatch(/irradiance \*= 1.0 - vColor.a;\s*#endif\s*#include <lights_fragment_end>/);
+    expect(lit).toMatch(/mix\(\s*toneMapping\(gl_FragColor.rgb\),\s*NeutralToneMapping\(/);
+
     // the matcap stays for vertices without a color
     const matcap = takeVertexColors(new MeshMatcapMaterial({ matcap: new Texture() }));
     const matcapColors = withVertexColors(matcap) as MeshMatcapMaterial;

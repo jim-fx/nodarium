@@ -127,6 +127,37 @@ const VERTEX_COLOR_FRAGMENT = /* glsl */ `
   #endif
 `;
 
+/**
+ * A color's own light. The ambient light of the viewer adds to the light of the environment map,
+ * the matcap of the plant material darkens that again, but a color leaves the matcap out (see
+ * the plant material) and would get about one and a half times the light: a yellow-orange
+ * turned out a pale yellow. Without the ambient light a surface facing the sky gets about the
+ * light of the environment map, a color looks like its value there.
+ */
+const COLOR_LIGHT_FRAGMENT = /* glsl */ `
+  #if defined( USE_COLOR_ALPHA )
+    irradiance *= 1.0 - vColor.a;
+  #endif
+  #include <lights_fragment_end>
+`;
+
+/**
+ * The AgX tone mapping of the viewer makes bright colors paler and shifts orange towards yellow,
+ * the neutral tone mapping keeps a color as it is up to its highlights. Vertices without a color
+ * keep the tone mapping of the viewer.
+ */
+const COLOR_TONE_MAPPING_FRAGMENT = /* glsl */ `
+  #if defined( TONE_MAPPING ) && defined( USE_COLOR_ALPHA )
+    gl_FragColor.rgb = mix(
+      toneMapping(gl_FragColor.rgb),
+      NeutralToneMapping(gl_FragColor.rgb),
+      vColor.a
+    );
+  #else
+    #include <tonemapping_fragment>
+  #endif
+`;
+
 /** The matcap where a vertex has no color, its color shaded by the facing where it has one */
 const MATCAP_OUTGOING = /* glsl */ `
   vec3 colorShade = vColor.rgb * mix(0.2, 0.8, uv.y);
@@ -147,6 +178,7 @@ export function takeVertexColors<T extends Material>(material: T) {
  * The material to show meshes that bring their own colors with, the material as it is unless it
  * takes colors (see takeVertexColors). Vertices without a color of their own (alpha 0, `NO_COLOR`
  * of myzel_core) keep the look of the material, the matcap tint is left out where they have one.
+ * Lit materials light and tone map a color so it looks close to its value.
  */
 export function withVertexColors(material: Material) {
   if (!material.userData.vertexColors) return material;
@@ -161,7 +193,10 @@ export function withVertexColors(material: Material) {
       ? shader.fragmentShader
         .replace('#include <color_fragment>', '')
         .replace('vec3 outgoingLight = diffuseColor.rgb * matcapColor.rgb;', MATCAP_OUTGOING)
-      : shader.fragmentShader.replace('#include <color_fragment>', VERTEX_COLOR_FRAGMENT);
+      : shader.fragmentShader
+        .replace('#include <color_fragment>', VERTEX_COLOR_FRAGMENT)
+        .replace('#include <lights_fragment_end>', COLOR_LIGHT_FRAGMENT)
+        .replace('#include <tonemapping_fragment>', COLOR_TONE_MAPPING_FRAGMENT);
   };
   colored.customProgramCacheKey = () => `${material.customProgramCacheKey()}:vertex-colors`;
   coloredMaterials.set(material, colored);
