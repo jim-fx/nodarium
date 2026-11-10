@@ -1,4 +1,3 @@
-import { TISSUES } from '#lib/result-viewer/geometry/hyphae.ts';
 import {
   BufferAttribute,
   BufferGeometry,
@@ -10,10 +9,6 @@ import {
   Mesh,
   type Object3D
 } from 'three';
-
-function groupName(mesh: Mesh, group: number) {
-  return mesh.userData.tissueGroups ? (TISSUES[group] ?? `group ${group}`) : `group ${group}`;
-}
 
 /**
  * One mesh per material group, each with its own named material, so other programs can assign
@@ -57,7 +52,7 @@ export function splitByGroup(mesh: Mesh): Group | null {
       geometry.setAttribute(name, new BufferAttribute(array, itemSize));
     }
     geometry.setIndex(indices);
-    const name = groupName(mesh, group);
+    const name = `group ${group}`;
     const material: Material = mesh.material.clone();
     material.name = name;
     const part = new Mesh(geometry, material);

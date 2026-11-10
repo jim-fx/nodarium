@@ -2,7 +2,6 @@ use glam::Vec3;
 
 use crate::color::{linear_rgba, pack_linear, NO_COLOR};
 use crate::density::{surface_in, Frame, Meshing, Segment, TissueField};
-use crate::hyphae::Hyphae;
 use crate::mesh::Mesh;
 use crate::noise::value_noise;
 use crate::paths::{group_numbers, path_segments, MeshPath, PathStyle};
@@ -38,11 +37,6 @@ const FIBRE_WAVELENGTH_CELLS: f32 = 4.0;
 /// Relief depth relative to the wavelength
 const FIBRE_DEPTH: f32 = 0.12;
 const SMOOTHING_PASSES: usize = 8;
-
-/// The surface around the hyphae with a fibrous relief, every vertex is in the group of its tissue
-pub fn hyphae_mesh(hyphae: &Hyphae, params: &HyphaeMeshParams) -> Mesh {
-    paths_mesh(&hyphae.to_paths(), params)
-}
 
 /// The surface around the paths with a fibrous relief along them. The body paths fill into one
 /// tissue, see [`HyphaeMeshParams::fill`], and only some of them leave it as strands, see
@@ -94,9 +88,8 @@ pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
         return s.mesh;
     }
 
-    let (groups, tissues) = group_numbers(paths);
+    let groups = group_numbers(paths);
     s.mesh.groups = s.owners.iter().map(|&i| groups[owner[i as usize]]).collect();
-    s.mesh.tissue_groups = tissues;
     if paths.iter().any(|p| p.settings.color.is_some()) {
         let colors: Vec<u32> = owner.iter().map(|&k| paths[k].settings.color.unwrap_or(NO_COLOR)).collect();
         let cell = s.cell;
@@ -330,48 +323,54 @@ mod tests {
     use super::*;
     use crate::color::opaque;
     use crate::density::{assert_closed, components, surface};
-    use crate::hyphae::{flags, HyphaSegment, Tissue};
     use crate::paths::PathGroup;
     use crate::settings::PathSettings;
     use std::borrow::Cow;
     use std::f32::consts::PI;
 
-    fn add(h: &mut Hyphae, parent: Option<u32>, end: Vec3, birth: f32, tissue: Tissue) -> u32 {
-        h.push(HyphaSegment { end, radius: 0.02, parent, birth, tissue, flags: flags::STANDARD })
+    const STIPE: i32 = 1;
+    const CUTICLE: i32 = 2;
+    const GILL: i32 = 3;
+    const VEIL: i32 = 4;
+
+    fn strand(paths: &mut Vec<(Vec<f32>, i32)>, from: Vec3, to: Vec3, steps: usize, creator: i32) {
+        let points = (0..=steps).flat_map(|i| from.lerp(to, i as f32 / steps as f32).extend(0.02).to_array()).collect();
+        paths.push((points, creator));
     }
 
-    fn strand(h: &mut Hyphae, from: Vec3, to: Vec3, steps: usize, birth: f32, tissue: Tissue) {
-        let mut parent = add(h, None, from, birth, tissue);
-        for i in 1..=steps {
-            parent = add(h, Some(parent), from.lerp(to, i as f32 / steps as f32), birth, tissue);
-        }
-    }
-
-    /// A stipe bundle from 0 to 1, a cap cuticle disc on top of it that is
-    /// older in the middle, gills under the cap and a ring around the stipe
-    fn bundle() -> Hyphae {
-        let mut h = Hyphae::default();
+    /// A stipe bundle from 0 to 1, a cap cuticle disc on top of it, gills under the cap and a
+    /// ring around the stipe, each made by its own node
+    fn bundle() -> Vec<(Vec<f32>, i32)> {
+        let mut paths = Vec::new();
         for i in 0..8 {
             let a = i as f32 / 8.0 * 2.0 * PI;
             let foot = Vec3::new(a.cos(), 0.0, a.sin()) * 0.06;
-            strand(&mut h, foot, foot + Vec3::Y, 10, 0.0, Tissue::Stipe);
+            strand(&mut paths, foot, foot + Vec3::Y, 10, STIPE);
         }
         for i in 0..16 {
             let a = (i as f32 + 0.5) / 16.0 * 2.0 * PI;
             let out = Vec3::new(a.cos(), 0.0, a.sin());
             for r in 0..6 {
                 let (inner, outer) = (r as f32 * 0.1, (r + 1) as f32 * 0.1);
-                let root = add(&mut h, None, out * inner + Vec3::Y * 1.1, r as f32, Tissue::CapCuticle);
-                add(&mut h, Some(root), out * outer + Vec3::Y * 1.1, r as f32, Tissue::CapCuticle);
+                strand(&mut paths, out * inner + Vec3::Y * 1.1, out * outer + Vec3::Y * 1.1, 1, CUTICLE);
             }
-            strand(&mut h, out * 0.2 + Vec3::Y * 0.98, out * 0.55 + Vec3::Y * 0.98, 4, 0.0, Tissue::Gill);
+            strand(&mut paths, out * 0.2 + Vec3::Y * 0.98, out * 0.55 + Vec3::Y * 0.98, 4, GILL);
         }
         for i in 0..16 {
             let a = i as f32 / 16.0 * 2.0 * PI;
             let out = Vec3::new(a.cos(), 0.0, a.sin());
-            strand(&mut h, out * 0.09 + Vec3::Y * 0.6, out * 0.14 + Vec3::Y * 0.6, 2, 0.0, Tissue::Veil);
+            strand(&mut paths, out * 0.09 + Vec3::Y * 0.6, out * 0.14 + Vec3::Y * 0.6, 2, VEIL);
         }
-        h
+        paths
+    }
+
+    fn bundle_mesh(params: &HyphaeMeshParams) -> Mesh {
+        let points = bundle();
+        let mut paths = mesh_paths(&points, PathStyle::BODY);
+        for path in paths.iter_mut().filter(|p| matches!(p.group, PathGroup::Creator(GILL | VEIL))) {
+            path.style = PathStyle::LOOSE;
+        }
+        paths_mesh(&paths, params)
     }
 
     fn vertex(mesh: &Mesh, v: usize) -> Vec3 {
@@ -384,13 +383,13 @@ mod tests {
 
     #[test]
     fn the_mesh_is_closed() {
-        assert_closed(&hyphae_mesh(&bundle(), &smooth()));
-        assert_closed(&hyphae_mesh(&bundle(), &HyphaeMeshParams::default()));
+        assert_closed(&bundle_mesh(&smooth()));
+        assert_closed(&bundle_mesh(&HyphaeMeshParams::default()));
     }
 
     #[test]
-    fn groups_match_the_tissues() {
-        let mesh = hyphae_mesh(&bundle(), &smooth());
+    fn groups_match_the_creators() {
+        let mesh = bundle_mesh(&smooth());
         assert!(mesh.colors.is_empty());
         let mut seen = [false; 4];
         for v in 0..mesh.vertex_count() {
@@ -398,16 +397,16 @@ mod tests {
             let radial = Vec3::new(p.x, 0.0, p.z).length();
             let group = mesh.groups[v];
             if p.y < 0.5 && p.y > 0.05 {
-                assert_eq!(group, Tissue::Stipe as u32, "stipe vertex at {}", p);
+                assert_eq!(group, (STIPE - 1) as u32, "stipe vertex at {}", p);
                 seen[0] = true;
             } else if p.y > 1.12 && radial < 0.5 {
-                assert_eq!(group, Tissue::CapCuticle as u32, "cuticle vertex at {}", p);
+                assert_eq!(group, (CUTICLE - 1) as u32, "cuticle vertex at {}", p);
                 seen[1] = true;
             } else if (0.9..0.97).contains(&p.y) && (0.3..0.5).contains(&radial) {
-                assert_eq!(group, Tissue::Gill as u32, "gill vertex at {}", p);
+                assert_eq!(group, (GILL - 1) as u32, "gill vertex at {}", p);
                 seen[2] = true;
             } else if (0.55..0.65).contains(&p.y) && radial > 0.12 {
-                assert_eq!(group, Tissue::Veil as u32, "ring vertex at {}", p);
+                assert_eq!(group, (VEIL - 1) as u32, "ring vertex at {}", p);
                 seen[3] = true;
             }
         }
@@ -415,15 +414,10 @@ mod tests {
     }
 
     #[test]
-    fn the_stipe_relief_runs_along_the_hyphae() {
-        let mut h = Hyphae::default();
-        for i in 0..24 {
-            let a = i as f32 / 24.0 * 2.0 * PI;
-            let foot = Vec3::new(a.cos(), 0.0, a.sin()) * 0.15;
-            strand(&mut h, foot, foot + Vec3::Y, 10, 0.0, Tissue::Stipe);
-        }
-        let plain = hyphae_mesh(&h, &smooth());
-        let fibrous = hyphae_mesh(&h, &HyphaeMeshParams::default());
+    fn the_stipe_relief_runs_along_the_paths() {
+        let stipe = stipe_points();
+        let plain = paths_mesh(&mesh_paths(&stipe, PathStyle::BODY), &smooth());
+        let fibrous = paths_mesh(&mesh_paths(&stipe, PathStyle::BODY), &HyphaeMeshParams::default());
         let offset = |v: usize| (vertex(&fibrous, v) - vertex(&plain, v)).dot(Vec3::from_slice(&plain.normals[v * 3..v * 3 + 3]));
         // how much the relief changes per length, along the stipe and around it
         let (mut along, mut around) = ([0.0f32; 2], [0.0f32; 2]);
@@ -447,14 +441,13 @@ mod tests {
 
     #[test]
     fn fibres_move_vertices_a_little() {
-        let plain = hyphae_mesh(&bundle(), &smooth());
-        let fibrous = hyphae_mesh(&bundle(), &HyphaeMeshParams::default());
+        let plain = bundle_mesh(&smooth());
+        let fibrous = bundle_mesh(&HyphaeMeshParams::default());
         assert_eq!(plain.faces, fibrous.faces);
         assert_eq!(plain.groups, fibrous.groups);
-        let h = bundle();
         let d = HyphaeMeshParams::default();
-        let body = |i: usize| PathStyle::of_tissue(h.segments[i].tissue).body;
-        let cell = surface(&h.to_segments(), d.resolution, d.blend, d.fill * 0.02, body, |_| false, |_| 1.0).cell;
+        let segments: Vec<Segment> = bundle().iter().flat_map(|(p, _)| path_segments(p)).collect();
+        let cell = surface(&segments, d.resolution, d.blend, d.fill * 0.02, |_| true, |_| false, |_| 1.0).cell;
         let moved: Vec<f32> =
             (0..plain.vertex_count()).map(|v| (vertex(&plain, v) - vertex(&fibrous, v)).length()).collect();
         assert!(moved.iter().any(|&d| d > 0.0));
@@ -464,9 +457,9 @@ mod tests {
     #[test]
     fn same_input_gives_the_same_output() {
         let params = HyphaeMeshParams { seed: 7, ..HyphaeMeshParams::default() };
-        assert_eq!(hyphae_mesh(&bundle(), &params).encode(), hyphae_mesh(&bundle(), &params).encode());
+        assert_eq!(bundle_mesh(&params).encode(), bundle_mesh(&params).encode());
         let other = HyphaeMeshParams { seed: 8, ..params.clone() };
-        assert_ne!(hyphae_mesh(&bundle(), &params).positions, hyphae_mesh(&bundle(), &other).positions);
+        assert_ne!(bundle_mesh(&params).positions, bundle_mesh(&other).positions);
     }
 
     /// 24 straight paths from y 0 to 1 around the y axis, the first half made by node 31, the other by 7
@@ -498,7 +491,6 @@ mod tests {
         let points = stipe_points();
         let mesh = paths_mesh(&mesh_paths(&points, PathStyle::BODY), &HyphaeMeshParams::default());
         assert_closed(&mesh);
-        assert!(!mesh.tissue_groups);
         // creator 7 comes first in the order of the ids
         for v in 0..mesh.vertex_count() {
             let p = vertex(&mesh, v);
@@ -531,74 +523,6 @@ mod tests {
         assert!(inside, "the gaps between loose paths stay open, their inner side shows");
     }
 
-    /// The hyphae that are the same as the paths: a root at the first point, then one segment per point
-    fn equivalent_hyphae(points: &[(Vec<f32>, i32)], tissue: Tissue) -> Hyphae {
-        let mut h = Hyphae::default();
-        for (p, _) in points {
-            let mut parent = None;
-            for c in p.chunks(4) {
-                parent = Some(h.push(HyphaSegment {
-                    end: Vec3::new(c[0], c[1], c[2]),
-                    radius: c[3],
-                    parent,
-                    birth: 0.0,
-                    tissue,
-                    flags: flags::STANDARD,
-                }));
-            }
-        }
-        h
-    }
-
-    #[test]
-    fn paths_and_the_same_hyphae_give_the_same_mesh() {
-        let points = stipe_points();
-        let hyphae = equivalent_hyphae(&points, Tissue::Stipe);
-        let style = PathStyle::of_tissue(Tissue::Stipe);
-        for params in [smooth(), HyphaeMeshParams::default()] {
-            let from_paths = paths_mesh(&mesh_paths(&points, style), &params);
-            let from_hyphae = hyphae_mesh(&hyphae, &params);
-            assert!(from_paths.face_count() > 0);
-            assert_eq!(from_paths.faces, from_hyphae.faces);
-            assert_eq!(from_paths.positions, from_hyphae.positions);
-            assert_eq!(from_paths.normals, from_hyphae.normals);
-            // paths number their creators, hyphae keep their tissue
-            assert!(from_hyphae.tissue_groups && from_hyphae.groups.iter().all(|&g| g == Tissue::Stipe as u32));
-        }
-    }
-
-    #[test]
-    fn hyphae_as_paths_mesh_like_their_segments() {
-        // the paths leave out the balls at the roots of the hyphae, the surface stays about where it was
-        let h = bundle();
-        // every hypha leaving the tissue stays, as the segments do
-        let params = HyphaeMeshParams { loose_strands: 1.0, ..smooth() };
-        let mesh = hyphae_mesh(&h, &params);
-        let style = |i: usize| PathStyle::of_tissue(h.segments[i].tissue);
-        let (resolution, blend, close) = (params.resolution, params.blend, params.fill * 0.02);
-        // a segment that continues its parent of the same tissue is joined to it, as in a path
-        let meshing: Vec<Meshing> = (0..h.len())
-            .map(|i| {
-                let s = &h.segments[i];
-                let joined = i > 0 && s.parent == Some(i as u32 - 1) && h.segments[i - 1].tissue == s.tissue;
-                Meshing { closed: style(i).body, priority: style(i).priority, joined, blend, close }
-            })
-            .collect();
-        let segments = h.to_segments();
-        let frame = Frame::new(&segments, &meshing, resolution).unwrap();
-        let old = surface_in(&frame, &segments, &meshing, |_| true);
-        let bounds = |m: &Mesh| {
-            m.positions.chunks(3).fold((Vec3::INFINITY, Vec3::NEG_INFINITY), |(lo, hi), p| {
-                (lo.min(Vec3::from_slice(p)), hi.max(Vec3::from_slice(p)))
-            })
-        };
-        let ((lo, hi), (old_lo, old_hi)) = (bounds(&mesh), bounds(&old.mesh));
-        assert!((lo - old_lo).abs().max_element() < 2.0 * old.cell, "{} {}", lo, old_lo);
-        assert!((hi - old_hi).abs().max_element() < 2.0 * old.cell, "{} {}", hi, old_hi);
-        let ratio = mesh.vertex_count() as f32 / old.mesh.vertex_count() as f32;
-        assert!((0.9..1.1).contains(&ratio), "{} vertices, {} before", mesh.vertex_count(), old.mesh.vertex_count());
-    }
-
     #[test]
     fn the_same_paths_give_the_same_mesh() {
         let points = stipe_points();
@@ -608,8 +532,8 @@ mod tests {
     }
 
     #[test]
-    fn no_hyphae_give_an_empty_mesh() {
-        assert_eq!(hyphae_mesh(&Hyphae::default(), &HyphaeMeshParams::default()), Mesh::default());
+    fn no_paths_give_an_empty_mesh() {
+        assert_eq!(paths_mesh(&[], &HyphaeMeshParams::default()), Mesh::default());
     }
 
     /// A straight path from `a` to `b` of `points` points with radius `r`

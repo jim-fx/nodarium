@@ -23,7 +23,6 @@ const DefaultOptionsSchema = z.object({
         z.literal('force'),
         z.literal('points'),
         z.literal('mesh'),
-        z.literal('hyphae'),
         z.literal('pattern')
       ])
     )
@@ -132,12 +131,6 @@ export const NodeInputMeshSchema = z.object({
   value: z.array(z.number()).optional()
 });
 
-export const NodeInputHyphaeSchema = z.object({
-  ...DefaultOptionsSchema.shape,
-  type: z.literal('hyphae'),
-  value: z.array(z.number()).optional()
-});
-
 /** A 2D pattern of values, like the stripes of `reaction_diffusion` */
 export const NodeInputPatternSchema = z.object({
   ...DefaultOptionsSchema.shape,
@@ -167,7 +160,6 @@ export const NodeInputSchema = z.union([
   NodeInputForceSchema,
   NodeInputPointsSchema,
   NodeInputMeshSchema,
-  NodeInputHyphaeSchema,
   NodeInputPatternSchema,
   NodeInputAnySchema
 ]);

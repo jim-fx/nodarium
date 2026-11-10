@@ -1,6 +1,6 @@
 use myzel_core::{
-    apply_settings, hyphae_mesh, pack_rgba, path_lines, paths_mesh, read_float, read_hyphae,
-    read_int, read_paths, read_settings, retain_points, HyphaeMeshParams, Mesh, PathStyle, HYPHAE_TAG,
+    apply_settings, pack_rgba, path_lines, paths_mesh, read_float, read_int, read_paths, read_settings,
+    retain_points, HyphaeMeshParams, Mesh, PathStyle,
     MESH_TAG,
 };
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
@@ -67,23 +67,6 @@ fn list(items: &[Vec<i32>]) -> Vec<i32> {
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let resolution = read_int(args[1]).clamp(16, 256) as usize;
     match args[0].first() {
-        Some(&HYPHAE_TAG) => {
-            let show = read_int(args[2]);
-            let mut hyphae = read_hyphae(args[0]);
-            let cut = read_int(args[4]) == CUT_OPEN;
-            if cut {
-                hyphae = hyphae.retain(|start, s| start.z <= 0.0 && s.end.z <= 0.0);
-            }
-            let mut items = Vec::new();
-            if show != SHOW_HYPHAE {
-                let params = HyphaeMeshParams { resolution, blend: read_float(args[3]), ..HyphaeMeshParams::default() };
-                items.push(hyphae_mesh(&hyphae, &params).encode());
-            }
-            if show != SHOW_SURFACE {
-                items.push(if cut { hyphae.encode() } else { args[0].to_vec() });
-            }
-            list(&items)
-        }
         Some(&MESH_TAG) => list(&[args[0].to_vec()]),
         Some(&PATTERN_TAG) => list(&Pattern::decode(args[0]).map(|p| vec![pattern_mesh(&p).encode()]).unwrap_or_default()),
         _ => {
@@ -113,7 +96,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 mod tests {
     use super::__nodarium_execute_inner;
     use glam::Vec3;
-    use myzel_core::{flags, HyphaSegment, Hyphae, Mesh, Tissue, HYPHAE_TAG, LINES_TAG, MESH_TAG};
+    use myzel_core::{Mesh, LINES_TAG, MESH_TAG};
     use nodarium_utils::{
         encode_float,
         geometry::{create_multiple_paths, wrap_multiple_paths},
@@ -127,53 +110,6 @@ mod tests {
     fn run_cut(input: &[i32], show: i32, cut: i32) -> Vec<Vec<i32>> {
         let output = __nodarium_execute_inner(&[input, &[32], &[show], &[encode_float(3.0)], &[cut]]);
         split_args(&output).iter().map(|item| item[2..item.len() - 2].to_vec()).collect()
-    }
-
-    fn hyphae() -> Vec<i32> {
-        let mut h = Hyphae::default();
-        let root = h.push(HyphaSegment {
-            end: Vec3::ZERO,
-            radius: 0.1,
-            parent: None,
-            birth: 0.0,
-            tissue: Tissue::Stipe,
-            flags: 0,
-        });
-        h.push(HyphaSegment {
-            end: Vec3::Y,
-            radius: 0.1,
-            parent: Some(root),
-            birth: 1.0,
-            tissue: Tissue::Stipe,
-            flags: flags::ACTIVE_TIP,
-        });
-        h.encode()
-    }
-
-    #[test]
-    fn shows_hyphae_as_surface_lines_or_both() {
-        let input = hyphae();
-        let surface = run(&input, 0);
-        assert_eq!(surface.len(), 1);
-        assert!(Mesh::decode(&surface[0]).face_count() > 0);
-
-        let lines = run(&input, 1);
-        assert_eq!(lines, vec![input.clone()]);
-        assert_eq!(lines[0][0], HYPHAE_TAG);
-
-        let both = run(&input, 2);
-        assert_eq!(both.len(), 2);
-        assert_eq!(both[0][0], MESH_TAG);
-        assert_eq!(both[1], input);
-    }
-
-    #[test]
-    fn cutting_open_leaves_out_the_front_half() {
-        let mut h = Hyphae::decode(&hyphae());
-        h.push(HyphaSegment { end: Vec3::new(0.0, 1.0, 0.5), parent: Some(1), ..h.segments[1] });
-        let lines = run_cut(&h.encode(), 1, 1);
-        assert_eq!(Hyphae::decode(&lines[0]).len(), 2);
-        assert_eq!(run_cut(&h.encode(), 1, 0)[0], h.encode());
     }
 
     fn paths() -> Vec<i32> {
@@ -212,7 +148,6 @@ mod tests {
             normals: vec![0.0, 0.0, 1.0].repeat(3),
             colors: Vec::new(),
             groups: vec![0; 3],
-            tissue_groups: false,
         }
         .encode();
         assert_eq!(run(&mesh, 0), vec![mesh]);

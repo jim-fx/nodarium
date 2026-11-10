@@ -171,12 +171,6 @@ pub struct NodeInputMesh {
     pub default_options: DefaultOptions,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct NodeInputHyphae {
-    #[serde(flatten)]
-    pub default_options: DefaultOptions,
-}
-
 /// A 2D pattern of values, see `nodarium_utils::pattern`
 #[derive(Serialize, Deserialize)]
 pub struct NodeInputPattern {
@@ -203,7 +197,6 @@ pub enum NodeInput {
     force(NodeInputForce),
     points(NodeInputPoints),
     mesh(NodeInputMesh),
-    hyphae(NodeInputHyphae),
     pattern(NodeInputPattern),
 }
 

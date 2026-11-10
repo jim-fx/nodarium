@@ -4,8 +4,8 @@ import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
 import { describe, expect, it, vi } from 'vitest';
 import { addObjVertexColors, createExportScene } from './exportScene';
 
-// two triangles sharing an edge, the second one is gill
-function twoGroups(groups = [1, 1, 1, 3], tissueGroups = true) {
+// two triangles sharing an edge, each in its own group
+function twoGroups(groups = [1, 1, 1, 3]) {
   const geometry = new BufferGeometry();
   geometry.setAttribute(
     'position',
@@ -15,7 +15,6 @@ function twoGroups(groups = [1, 1, 1, 3], tissueGroups = true) {
   geometry.setIndex([0, 1, 2, 3, 2, 1]);
   const mesh = new Mesh(geometry, new MeshBasicMaterial());
   mesh.userData.myzel = true;
-  mesh.userData.tissueGroups = tissueGroups;
   const scene = new Group();
   scene.add(mesh);
   return scene;
@@ -25,8 +24,11 @@ describe('createExportScene', () => {
   it('splits a mesh into one named mesh and material per group', () => {
     const [split] = createExportScene(twoGroups()).children;
     const parts = split.children as Mesh[];
-    expect(parts.map((p) => p.name)).toEqual(['stipe', 'gill']);
-    expect(parts.map((p) => (p.material as MeshBasicMaterial).name)).toEqual(['stipe', 'gill']);
+    expect(parts.map((p) => p.name)).toEqual(['group 1', 'group 3']);
+    expect(parts.map((p) => (p.material as MeshBasicMaterial).name)).toEqual([
+      'group 1',
+      'group 3'
+    ]);
     expect(parts.map((p) => p.geometry.getAttribute('position').count)).toEqual([3, 3]);
     expect([...parts[1].geometry.getAttribute('position').array]).toEqual([
       1,
@@ -42,7 +44,7 @@ describe('createExportScene', () => {
   });
 
   it('numbers the groups of meshes made from paths', () => {
-    const [split] = createExportScene(twoGroups([0, 0, 0, 1], false)).children;
+    const [split] = createExportScene(twoGroups([0, 0, 0, 1])).children;
     expect(split.children.map((p) => p.name)).toEqual(['group 0', 'group 1']);
   });
 

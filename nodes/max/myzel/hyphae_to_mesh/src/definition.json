@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/hyphae_to_mesh",
   "meta": {
-    "description": "Turns paths into the surface around them with a fibrous relief along them. Every node that made paths is its own material group, grown hyphae are grouped by tissue. Paths and meshes from set_color bring their color, the color goes over smoothly where paths of two colors meet."
+    "description": "Turns paths into the surface around them with a fibrous relief along them. Every node that made paths is its own material group. Paths and meshes from set_color bring their color, the color goes over smoothly where paths of two colors meet."
   },
   "outputs": [
     "mesh"
@@ -10,18 +10,12 @@
     "hyphae": {
       "type": "path",
       "label": "Body",
-      "accepts": [
-        "hyphae"
-      ],
       "external": true,
       "description": "Paths that grow into one body of tissue, like stipe and cap: the gaps between them fill"
     },
     "loose": {
       "type": "path",
       "label": "Loose",
-      "accepts": [
-        "hyphae"
-      ],
       "external": true,
       "description": "Paths that stay apart, like gills and the veil: they join where they touch, the gaps between them stay open"
     },

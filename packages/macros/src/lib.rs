@@ -145,14 +145,6 @@ mod tests {
     }
 
     #[test]
-    fn parses_hyphae_sockets() {
-        let def = definition(
-            r#"{"id":"max/myzel/expand","inputs":{"hyphae":{"type":"hyphae","accepts":["hyphae"]}},"outputs":["hyphae"]}"#,
-        );
-        assert!(matches!(def.inputs.unwrap()["hyphae"], nodarium_types::NodeInput::hyphae(_)));
-    }
-
-    #[test]
     fn parses_pattern_sockets() {
         let def = definition(
             r#"{"id":"max/myzel/lamellae","inputs":{"pattern":{"type":"pattern","external":true}},"outputs":["pattern"]}"#,

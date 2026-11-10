@@ -65,28 +65,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "myzel_expand"
-version = "0.1.0"
-dependencies = [
- "glam",
- "myzel_core",
- "nodarium_macros",
- "nodarium_utils",
- "serde_json",
-]
-
-[[package]]
-name = "myzel_gills"
-version = "0.1.0"
-dependencies = [
- "glam",
- "myzel_core",
- "nodarium_macros",
- "nodarium_utils",
- "serde_json",
-]
-
-[[package]]
 name = "myzel_hyphae_to_mesh"
 version = "0.1.0"
 dependencies = [
@@ -157,17 +135,6 @@ dependencies = [
  "myzel_core",
  "nodarium_macros",
  "nodarium_utils",
-]
-
-[[package]]
-name = "myzel_primordium"
-version = "0.1.0"
-dependencies = [
- "glam",
- "myzel_core",
- "nodarium_macros",
- "nodarium_utils",
- "serde_json",
 ]
 
 [[package]]

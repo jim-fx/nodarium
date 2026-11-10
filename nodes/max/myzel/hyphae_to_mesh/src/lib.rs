@@ -1,5 +1,5 @@
 use myzel_core::{
-    apply_settings, paths_mesh, read_float, read_int, read_mesh_paths, read_settings, HyphaeMeshParams, Mesh, PathStyle,
+    apply_settings, paths_mesh, read_float, read_int, read_paths, read_settings, HyphaeMeshParams, Mesh, PathStyle,
     MESH_TAG,
 };
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
@@ -17,8 +17,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         fill: read_float(args[6]).max(0.0),
         loose_strands: read_float(args[8]).clamp(0.0, 1.0),
     };
-    let mut paths = read_mesh_paths(args[0], PathStyle::BODY);
-    paths.extend(read_mesh_paths(args[1], PathStyle::LOOSE));
+    let mut paths = read_paths(args[0], PathStyle::BODY);
+    paths.extend(read_paths(args[1], PathStyle::LOOSE));
     // settings from set_blend, set_fibres, set_fill and set_color reach the paths of their nodes in either input
     let settings = [read_settings(args[0]), read_settings(args[1])].concat();
     apply_settings(&mut paths, &settings);
@@ -59,7 +59,7 @@ fn read_meshes(arg: &[i32]) -> Vec<Mesh> {
 #[cfg(test)]
 mod tests {
     use super::__nodarium_execute_inner;
-    use myzel_core::{grow, hyphae_mesh, GrowthParams, HyphaeMeshParams, Mesh};
+    use myzel_core::{HyphaeMeshParams, Mesh};
     use nodarium_utils::{
         concat_arg_vecs, encode_float,
         geometry::{create_multiple_paths, wrap_multiple_paths},
@@ -99,12 +99,6 @@ mod tests {
     #[test]
     fn the_defaults_match_the_core_defaults() {
         let d = HyphaeMeshParams::default();
-        let hyphae = grow(&GrowthParams { max_segments: 2000, ..GrowthParams::default() });
-        let mesh = run(&hyphae.encode(), &[], &d);
-        assert!(mesh.face_count() > 0);
-        assert!(mesh.tissue_groups);
-        assert_eq!(mesh, hyphae_mesh(&hyphae, &d));
-
         let def: serde_json::Value = serde_json::from_str(include_str!("definition.json")).unwrap();
         let value = |key: &str| def["inputs"][key]["value"].clone();
         assert_eq!(value("resolution_field"), d.resolution);
@@ -118,7 +112,6 @@ mod tests {
         let d = HyphaeMeshParams::default();
         let mesh = run(&paths(3, 42, 0.0), &[], &d);
         assert!(mesh.face_count() > 0);
-        assert!(!mesh.tissue_groups);
         assert!(mesh.groups.iter().all(|&g| g == 0));
 
         // body and loose paths, from lists inside lists, numbered in the order of their creators
@@ -147,7 +140,6 @@ mod tests {
             normals: vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
             colors: Vec::new(),
             groups: vec![0, 0, 0],
-            tissue_groups: false,
         };
         let mesh = run_with_meshes(&paths(3, 42, 0.0), &[], &d, &plate.encode());
         // the paths as before, then the plate in the next group
@@ -188,7 +180,6 @@ mod tests {
             normals: vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
             colors: Vec::new(),
             groups: vec![0, 0, 0],
-            tissue_groups: false,
         };
         let mut items: Vec<Vec<i32>> = vec![wrap_arg(&plate(0.1).encode())];
         items.extend(split_args(&strands).iter().map(|item| item.to_vec()));
@@ -270,7 +261,6 @@ mod tests {
             normals: vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
             colors: Vec::new(),
             groups: vec![0, 0, 0],
-            tissue_groups: false,
         };
         // only the plate has a color, the paths keep the material
         paint_mesh(&mut plate, brown);
