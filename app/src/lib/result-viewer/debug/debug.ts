@@ -16,7 +16,6 @@ import {
   Vector3
 } from 'three';
 import { createGeometryPool, RESULT_TAGS } from '../geometry/geometryPool';
-import { createHyphaeLines } from '../geometry/hyphae';
 import { createPathLines } from '../geometry/lines';
 import { PATH_HEADER_SIZE } from '../gizmos/gizmo-paths';
 
@@ -36,7 +35,7 @@ const RING_SEGMENTS = 12;
 // drawn on top of the result
 const RENDER_ORDER = 999;
 
-const DRAWN_TYPES = new Set(['path', 'geometry', 'points', 'mesh', 'hyphae', 'pattern']);
+const DRAWN_TYPES = new Set(['path', 'geometry', 'points', 'mesh', 'pattern']);
 // a 2D pattern, see nodarium_utils::pattern
 const PATTERN_TAG = 15;
 
@@ -286,13 +285,6 @@ function createLinesDebug(lines: Int32Array[]) {
   return segments;
 }
 
-/** hyphae as lines colored by tissue */
-function createHyphaeDebug(hyphae: Int32Array[]) {
-  const lines = createHyphaeLines(hyphae, { onTop: true });
-  lines.renderOrder = RENDER_ORDER;
-  return lines;
-}
-
 function clearGroup(group: Group) {
   group.traverse((child) => {
     if (child === group) return;
@@ -320,10 +312,6 @@ export function updateDebugScene(
       continue;
     }
     if (value[0] === PATTERN_TAG) continue;
-    if (value[0] === RESULT_TAGS.hyphae) {
-      group.add(createHyphaeDebug([value]));
-      continue;
-    }
 
     // a path output can carry geometry and instances along, e.g. from the instance node
     const items = splitItems(value);
@@ -332,7 +320,6 @@ export function updateDebugScene(
     const instances = items.filter((item) => item[0] === 2);
     const points = items.filter((item) => item[0] === 4);
     const meshes = items.filter((item) => item[0] === RESULT_TAGS.mesh);
-    const hyphae = items.filter((item) => item[0] === RESULT_TAGS.hyphae);
     const lines = items.filter((item) => item[0] === RESULT_TAGS.lines);
 
     if (paths.length) group.add(createPathDebug(paths));
@@ -340,7 +327,6 @@ export function updateDebugScene(
     if (instances.length) group.add(createInstanceDebug(instances));
     if (points.length) group.add(createPointsDebug(points));
     if (meshes.length) group.add(createGeometryDebug(meshes, 'mesh'));
-    if (hyphae.length) group.add(createHyphaeDebug(hyphae));
     if (lines.length) group.add(createLinesDebug(lines));
   }
 }

@@ -10,18 +10,12 @@
 //! the alpha is how much of the vertex color shows over the material. `groups` holds one small integer per vertex that tells which
 //! material group it belongs to: for meshes made from paths the graph node that
 //! made the path, numbered by [`group_numbers`], 0 for meshes made from a pattern.
-//! Meshes of grown hyphae have [`mesh_flags::TISSUE_GROUPS`] set, their groups
-//! are the [`Tissue`]s. Thin closed sheets like gill plates and veils, which stay
+//! Thin closed sheets like gill plates and veils, which stay
 //! sharp at any mesh resolution, are built with [`add_sheet`].
 //!
 //! # Paths
 //!
-//! Myzel meshes Plantarium paths, see `nodarium_utils::geometry`. Grown hyphae
-//! become paths before meshing, see [`Hyphae::to_paths`].
-//!
-//! # Hyphae `[11, n, ...segments]`
-//!
-//! Grown hyphae, 8 words per segment, parents before children, see [`Hyphae`].
+//! Myzel meshes Plantarium paths, see `nodarium_utils::geometry`.
 //!
 //! # Lines `[12, n, ...n × (x0, y0, z0, x1, y1, z1, group)]`
 //!
@@ -47,10 +41,6 @@ mod cap;
 mod color;
 mod cap_shape;
 mod density;
-mod expand;
-mod gills;
-mod growth;
-mod hyphae;
 mod hyphae_mesh;
 mod inputs;
 mod mesh;
@@ -66,16 +56,12 @@ pub use density::{mesh_segments, surface, surface_in, Frame, Meshing, Segment, S
 pub use color::{
     encode_color, linear_rgba, mix_colors, opaque, pack_linear, paint_mesh, paint_meshes, read_color, NO_COLOR,
 };
-pub use expand::{expand, ExpandParams};
-pub use gills::{grow_gills, GillParams, MAX_GILLS, MAX_LAMELLULAE};
-pub use growth::{grow, GrowthParams, Schedule, MAX_ITERATIONS, MAX_SEGMENTS};
-pub use hyphae::{flags, HyphaSegment, Hyphae, Tissue, HYPHAE_TAG};
-pub use hyphae_mesh::{hyphae_mesh, paths_mesh, HyphaeMeshParams};
+pub use hyphae_mesh::{paths_mesh, HyphaeMeshParams};
 pub use paths::{
-    group_numbers, path_lines, path_segments, read_mesh_paths, read_paths, retain_points, MeshPath, PathGroup,
-    PathStyle, LINES_TAG, TISSUE_COUNT,
+    group_numbers, path_lines, path_segments, read_paths, retain_points, MeshPath, PathGroup,
+    PathStyle, LINES_TAG,
 };
-pub use inputs::{read_float, read_floats, read_hyphae, read_int, read_mesh};
+pub use inputs::{read_float, read_floats, read_int, read_mesh};
 pub use mesh::{mesh_flags, pack_rgba, Mesh, MESH_TAG};
 pub use noise::value_noise;
 pub use settings::{

@@ -147,10 +147,10 @@ pub fn read_settings(list: &[i32]) -> Vec<SettingItem> {
 }
 
 /// Gives every path made by a node the settings for that node. A later setting replaces an
-/// earlier one, so a node closer to the mesh wins. Grown hyphae have no creator and get none.
+/// earlier one, so a node closer to the mesh wins.
 pub fn apply_settings(paths: &mut [MeshPath], settings: &[SettingItem]) {
     for path in paths {
-        let PathGroup::Creator(creator) = path.group else { continue };
+        let PathGroup::Creator(creator) = path.group;
         for s in settings.iter().filter(|s| s.creators.contains(&creator)) {
             path.settings.set(s.setting, s.value);
         }

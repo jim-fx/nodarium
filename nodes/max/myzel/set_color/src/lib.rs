@@ -27,7 +27,6 @@ mod tests {
             normals: vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
             colors: Vec::new(),
             groups: vec![0, 0, 0],
-            tissue_groups: false,
         }
     }
 

@@ -1,6 +1,5 @@
 use nodarium_utils::decode_float;
 
-use crate::hyphae::Hyphae;
 use crate::mesh::Mesh;
 
 /// A float input. The host sends a value set on the node as one f32 word, a connected float or
@@ -41,10 +40,6 @@ pub fn read_floats(arg: &[i32]) -> Vec<f32> {
 
 pub fn read_mesh(arg: &[i32]) -> Mesh {
     Mesh::decode(arg)
-}
-
-pub fn read_hyphae(arg: &[i32]) -> Hyphae {
-    Hyphae::decode(arg)
 }
 
 #[cfg(test)]

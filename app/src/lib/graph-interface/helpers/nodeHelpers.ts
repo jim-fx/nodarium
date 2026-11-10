@@ -14,7 +14,6 @@ const SOCKET_ONLY_TYPES = new Set([
   'force',
   'points',
   'mesh',
-  'hyphae',
   'pattern'
 ]);
 

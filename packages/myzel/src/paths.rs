@@ -8,13 +8,10 @@ use nodarium_utils::{
 };
 
 use crate::density::Segment;
-use crate::hyphae::{flags, Hyphae, Tissue};
 use crate::settings::PathSettings;
 
 pub const LINES_TAG: i32 = 12;
 const LINE_WORDS: usize = 7;
-/// Groups below this are tissues in a mesh that has hyphae in it
-pub const TISSUE_COUNT: u32 = 6;
 
 /// How the surface around a path looks
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -29,29 +26,11 @@ pub struct PathStyle {
     pub fibre_stretch: f32,
 }
 
-/// The cuticle is a single layer of hyphae over the cap flesh, so flesh hyphae
-/// just below it often reach the surface vertices more strongly. The surface of
-/// a cap is cuticle wherever a cuticle hypha comes close.
-const CUTICLE_PRIORITY: f32 = 4.0;
-
 impl PathStyle {
     /// Fibrous like a stipe, fills into one body with the other body paths
     pub const BODY: PathStyle = PathStyle { body: true, priority: 1.0, fibre_strength: 1.0, fibre_stretch: 6.0 };
     /// Thin plates and membranes like gills and the veil: a deep relief would cut through them
     pub const LOOSE: PathStyle = PathStyle { body: false, priority: 1.0, fibre_strength: 0.1, fibre_stretch: 4.0 };
-
-    pub fn of_tissue(tissue: Tissue) -> PathStyle {
-        let (body, priority, fibre_strength, fibre_stretch) = match tissue {
-            Tissue::Stipe => (true, 1.0, 1.0, 6.0),
-            Tissue::Veil => (false, 1.0, 0.8, 5.0),
-            Tissue::Mycelium => (true, 1.0, 0.8, 3.0),
-            Tissue::Cap => (true, 1.0, 0.3, 2.0),
-            // short stretch gives patches, which read as scales
-            Tissue::CapCuticle => (true, CUTICLE_PRIORITY, 0.35, 1.5),
-            Tissue::Gill => (false, 1.0, 0.1, 4.0),
-        };
-        PathStyle { body, priority, fibre_strength, fibre_stretch }
-    }
 }
 
 /// What decides the material group of a path
@@ -59,8 +38,6 @@ impl PathStyle {
 pub enum PathGroup {
     /// The graph node that made the path
     Creator(i32),
-    /// Hyphae grown by the old nodes keep their tissue as the group
-    Tissue(Tissue),
 }
 
 /// A path to mesh: its points as `x, y, z, radius`, its group and how its surface looks
@@ -114,88 +91,16 @@ pub fn read_paths(list: &[i32], style: PathStyle) -> Vec<MeshPath<'_>> {
     out
 }
 
-impl Hyphae {
-    /// The hyphae as paths: a path follows the first child of every segment as long as the
-    /// tissue stays the same, other children start a path at their parent's end. Every path is in
-    /// the group of its tissue and looks like it.
-    pub fn to_paths(&self) -> Vec<MeshPath<'static>> {
-        let mut paths: Vec<(Vec<f32>, Tissue)> = Vec::new();
-        // the path that ends with the end of a segment and has no continuation yet
-        let mut open: Vec<Option<usize>> = vec![None; self.len()];
-        for (i, s) in self.segments.iter().enumerate() {
-            let point = [s.end.x, s.end.y, s.end.z, s.radius];
-            let parent = s.parent.filter(|_| s.flags & flags::BROKEN == 0);
-            if let Some(p) = parent {
-                let p = p as usize;
-                match open[p] {
-                    Some(k) if paths[k].1 == s.tissue => {
-                        open[p] = None;
-                        paths[k].0.extend(point);
-                        open[i] = Some(k);
-                    }
-                    _ => {
-                        let start = self.segments[p].end;
-                        let mut points = vec![start.x, start.y, start.z, s.radius];
-                        points.extend(point);
-                        paths.push((points, s.tissue));
-                        open[i] = Some(paths.len() - 1);
-                    }
-                }
-            } else {
-                paths.push((point.to_vec(), s.tissue));
-                open[i] = Some(paths.len() - 1);
-            }
-        }
-        paths
-            .into_iter()
-            .map(|(points, tissue)| MeshPath {
-                points: Cow::Owned(points),
-                group: PathGroup::Tissue(tissue),
-                style: PathStyle::of_tissue(tissue),
-                settings: PathSettings::default(),
-            })
-            .collect()
-    }
-}
-
-/// The paths or the hyphae of an input, all of them in `style`. Hyphae keep the look of their
-/// tissue, loose hyphae don't fill into a body.
-pub fn read_mesh_paths(arg: &[i32], style: PathStyle) -> Vec<MeshPath<'_>> {
-    if arg.first() == Some(&crate::hyphae::HYPHAE_TAG) {
-        let mut paths = Hyphae::decode(arg).to_paths();
-        if !style.body {
-            for p in &mut paths {
-                p.style.body = false;
-            }
-        }
-        return paths;
-    }
-    read_paths(arg, style)
-}
-
 /// A small material group per path: creators numbered in the order of their ids, so a node
-/// added later gets the next number and the others keep theirs. Tissues keep their own number,
-/// creators then come after the tissues. The flag tells whether there are tissue groups.
-pub fn group_numbers(paths: &[MeshPath]) -> (Vec<u32>, bool) {
-    let tissues = paths.iter().any(|p| matches!(p.group, PathGroup::Tissue(_)));
-    let mut creators: Vec<i32> = paths
-        .iter()
-        .filter_map(|p| match p.group {
-            PathGroup::Creator(c) => Some(c),
-            PathGroup::Tissue(_) => None,
-        })
-        .collect();
+/// added later gets the next number and the others keep theirs
+pub fn group_numbers(paths: &[MeshPath]) -> Vec<u32> {
+    let creator = |p: &MeshPath| match p.group {
+        PathGroup::Creator(c) => c,
+    };
+    let mut creators: Vec<i32> = paths.iter().map(creator).collect();
     creators.sort_unstable();
     creators.dedup();
-    let offset = if tissues { TISSUE_COUNT } else { 0 };
-    let numbers = paths
-        .iter()
-        .map(|p| match p.group {
-            PathGroup::Tissue(t) => t as u32,
-            PathGroup::Creator(c) => offset + creators.binary_search(&c).unwrap() as u32,
-        })
-        .collect();
-    (numbers, tissues)
+    paths.iter().map(|p| creators.binary_search(&creator(p)).unwrap() as u32).collect()
 }
 
 /// The segments between neighbouring points of a path, each with the mean radius of its two
@@ -237,7 +142,7 @@ pub fn retain_points<'a>(paths: &[MeshPath<'a>], keep: impl Fn(Vec3) -> bool) ->
 /// The paths as line segments for the viewer `[12, n, ...n × (x0, y0, z0, x1, y1, z1, group)]`,
 /// in the groups a mesh of the same paths has
 pub fn path_lines(paths: &[MeshPath]) -> Vec<i32> {
-    let (groups, _) = group_numbers(paths);
+    let groups = group_numbers(paths);
     let n: usize = paths.iter().map(|p| p.len().saturating_sub(1)).sum();
     let mut words = Vec::with_capacity(2 + n * LINE_WORDS);
     words.extend([LINES_TAG, n as i32]);
@@ -254,15 +159,10 @@ pub fn path_lines(paths: &[MeshPath]) -> Vec<i32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hyphae::HyphaSegment;
     use nodarium_utils::{
         concat_arg_vecs,
         geometry::{create_multiple_paths, wrap_multiple_paths},
     };
-
-    fn segment(end: Vec3, parent: Option<u32>, tissue: Tissue) -> HyphaSegment {
-        HyphaSegment { end, radius: 0.01, parent, birth: 0.0, tissue, flags: 0 }
-    }
 
     fn list(amount: usize, creator: i32) -> Vec<i32> {
         let mut paths = create_multiple_paths(amount, 3, 1, creator);
@@ -290,37 +190,7 @@ mod tests {
     fn creators_get_small_numbers_in_the_order_of_their_ids() {
         let words = concat_arg_vecs(vec![list(1, 900), list(2, -3), list(1, 42)]);
         let paths = read_paths(&words, PathStyle::BODY);
-        assert_eq!(group_numbers(&paths), (vec![2, 0, 0, 1], false));
-    }
-
-    #[test]
-    fn hyphae_follow_their_first_child_until_the_tissue_changes() {
-        let mut h = Hyphae::default();
-        let root = h.push(segment(Vec3::ZERO, None, Tissue::Stipe));
-        let a = h.push(segment(Vec3::Y, Some(root), Tissue::Stipe));
-        let b = h.push(segment(Vec3::Y * 2.0, Some(a), Tissue::Stipe));
-        h.push(segment(Vec3::new(1.0, 1.0, 0.0), Some(a), Tissue::Stipe));
-        h.push(segment(Vec3::Y * 3.0, Some(b), Tissue::Cap));
-        h.push(HyphaSegment { flags: flags::BROKEN, ..segment(Vec3::Y * 4.0, Some(4), Tissue::Cap) });
-        let paths = h.to_paths();
-        let points: Vec<Vec<f32>> = paths.iter().map(|p| p.points.chunks(4).map(|c| c[1]).collect()).collect();
-        assert_eq!(points, vec![vec![0.0, 1.0, 2.0], vec![1.0, 1.0], vec![2.0, 3.0], vec![4.0]]);
-        assert_eq!(paths[2].group, PathGroup::Tissue(Tissue::Cap));
-        assert_eq!(paths[2].style, PathStyle::of_tissue(Tissue::Cap));
-        // every segment of the hyphae is in a path, the broken one as a point
-        let segments: usize = paths.iter().map(|p| path_segments(&p.points).len()).sum();
-        assert_eq!(segments, h.len() - 1);
-    }
-
-    #[test]
-    fn tissues_keep_their_numbers_next_to_creators() {
-        let mut h = Hyphae::default();
-        let root = h.push(segment(Vec3::ZERO, None, Tissue::Gill));
-        h.push(segment(Vec3::Y, Some(root), Tissue::Gill));
-        let mut paths = h.to_paths();
-        let words = list(1, 77);
-        paths.extend(read_paths(&words, PathStyle::BODY));
-        assert_eq!(group_numbers(&paths), (vec![Tissue::Gill as u32, TISSUE_COUNT], true));
+        assert_eq!(group_numbers(&paths), vec![2, 0, 0, 1]);
     }
 
     #[test]

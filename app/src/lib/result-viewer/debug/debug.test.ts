@@ -1,7 +1,6 @@
 import { concatEncodedArrays } from '@nodarium/utils';
 import { ArrowHelper, Group, Line, LineSegments, type Mesh, Points, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { encodeHyphae } from '../geometry/hyphae-fixtures';
 import { updateDebugScene } from './debug';
 
 function wrap(item: Int32Array) {
@@ -189,19 +188,5 @@ describe('updateDebugScene', () => {
 
     updateDebugScene(group, { 1: { type: 'pattern', data: Int32Array.of(15, 0, 0) } });
     expect(group.children).toHaveLength(0);
-  });
-
-  it('draws hyphae as lines, raw or in a list', () => {
-    const hyphae = encodeHyphae([
-      { end: [0, 0, 0], parent: -1 },
-      { end: [0, 1, 0], parent: 0, tissue: 1 }
-    ]);
-    for (const data of [hyphae, wrap(hyphae)]) {
-      const group = new Group();
-      updateDebugScene(group, { 1: { type: 'hyphae', data } });
-      const { segments } = collect(group);
-      expect(segments).toHaveLength(1);
-      expect(segments[0].geometry.getAttribute('position').count).toBe(2);
-    }
   });
 });
