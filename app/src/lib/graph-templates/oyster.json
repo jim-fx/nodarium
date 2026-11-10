@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 9,
+  "version": 10,
   "settings": {
     "resolution.field": 160,
     "resolution.curve": 24
@@ -41,8 +41,7 @@
       "props": {
         "amount": 120,
         "thickness": 0.0005,
-        "wobble": 0.25,
-        "length_variation": 0.3
+        "wobble": 0.25
       }
     },
     {
@@ -129,8 +128,7 @@
       "props": {
         "amount": 30,
         "thickness": 0.0005,
-        "wobble": 0.25,
-        "length_variation": 0.1
+        "wobble": 0.25
       }
     },
     {
@@ -295,6 +293,26 @@
         "min": 0.016,
         "max": 0.064
       }
+    },
+    {
+      "id": 25,
+      "position": [-120, -41.5],
+      "type": "max/plantarium/random_break",
+      "props": {
+        "chance": 0.5,
+        "lowest_break": 0.85,
+        "highest_break": 1
+      }
+    },
+    {
+      "id": 26,
+      "position": [-150, 51.5],
+      "type": "max/plantarium/random_break",
+      "props": {
+        "chance": 0.5,
+        "lowest_break": 0.95,
+        "highest_break": 1
+      }
     }
   ],
   "edges": [
@@ -341,7 +359,7 @@
       "plant"
     ],
     [
-      9,
+      26,
       0,
       10,
       "plant"
@@ -365,7 +383,7 @@
       "paths"
     ],
     [
-      3,
+      25,
       0,
       16,
       "paths"
@@ -459,6 +477,18 @@
       0,
       5,
       "radius"
+    ],
+    [
+      3,
+      0,
+      25,
+      "plant"
+    ],
+    [
+      9,
+      0,
+      26,
+      "plant"
     ]
   ]
 }

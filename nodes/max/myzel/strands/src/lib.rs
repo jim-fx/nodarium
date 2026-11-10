@@ -2,7 +2,7 @@ use glam::{Vec2, Vec3};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs,
-    geometry::{create_path, orthogonal_to, path_id, path_random, set_path_link, wrap_path, wrap_path_mut, DeepestPaths, PathLink},
+    geometry::{create_path, orthogonal_to, path_random, set_path_link, wrap_path, wrap_path_mut, DeepestPaths, PathLink},
     int, split_args, Ctx, PathInfo,
 };
 use noise::{NoiseFn, OpenSimplex};
@@ -22,8 +22,6 @@ const WOBBLE_WAVELENGTH: f32 = 3.0;
 const WOBBLE_COHERENCE: f32 = 0.8;
 /// OpenSimplex rarely leaves ±0.5, this brings a wobble of 1 close to the full radius
 const WOBBLE_GAIN: f32 = 2.0;
-/// The most a length variation of 1 takes off either end of a strand, as a share of the guide
-const MAX_SHORTENING: f32 = 0.5;
 
 /// A frame that turns as little as possible along the path (parallel transport), so a strand
 /// placed in it doesn't wind around the guide where the guide bends
@@ -68,35 +66,13 @@ fn fold_into_disk(p: Vec2) -> Vec2 {
     }
 }
 
-/// The guide sampled at `u`, a position between its points (0 the first, `n - 1` the last)
-struct Guide {
-    centre: Vec<Vec3>,
-    radius: Vec<f32>,
-    frame: Vec<(Vec3, Vec3)>,
-    alpha: Vec<f32>,
-    along: Vec<f32>,
-}
-
-impl Guide {
-    fn at(&self, u: f32) -> (Vec3, f32, Vec3, Vec3, f32, f32) {
-        let last = self.centre.len() - 1;
-        let i = (u.floor() as usize).min(last.saturating_sub(1));
-        let j = (i + 1).min(last);
-        let t = (u - i as f32).clamp(0.0, 1.0);
-        let normal = self.frame[i].0.lerp(self.frame[j].0, t).normalize_or_zero();
-        let binormal = self.frame[i].1.lerp(self.frame[j].1, t).normalize_or_zero();
-        let lerp = |v: &[f32]| v[i] + (v[j] - v[i]) * t;
-        (self.centre[i].lerp(self.centre[j], t), lerp(&self.radius), normal, binormal, lerp(&self.alpha), lerp(&self.along))
-    }
-}
-
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
     let paths = split_args(args[0]);
-    let seed = int(args[7]);
+    let seed = int(args[5]);
     // the graph node that makes the strands, it is the last input
-    let creator = int(args[8]);
+    let creator = int(args[6]);
 
     let guides = DeepestPaths::new(&paths, 1);
     let guide_count = guides.count(&paths);
@@ -121,14 +97,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             along[i] = along[i - 1] + centre[i].distance(centre[i - 1]);
         }
         let length = along[n - 1];
-        let alpha = along.iter().enumerate().map(|(i, &l)| if length > 0.0 { l / length } else { i as f32 / (n - 1).max(1) as f32 }).collect();
-        let guide = Guide { frame: frames(&centre), centre, radius, alpha, along };
+        let alpha: Vec<f32> = along.iter().enumerate().map(|(i, &l)| if length > 0.0 { l / length } else { i as f32 / (n - 1).max(1) as f32 }).collect();
+        let frame = frames(&centre);
 
         let amount = ctx.int(args[1]).max(0);
         let spread = ctx.float(args[3]).clamp(0.0, 1.0);
-        let twist = ctx.float(args[4]);
-        let wobble = ctx.float(args[5]).clamp(0.0, 1.0);
-        let length_variation = ctx.float(args[6]).clamp(0.0, 1.0);
+        let wobble = ctx.float(args[4]).clamp(0.0, 1.0);
 
         let noise_seed = seed.wrapping_add(path.link.id) as u32;
         let (noise_x, noise_y) = (OpenSimplex::new(noise_seed), OpenSimplex::new(noise_seed.wrapping_add(1)));
@@ -136,34 +110,25 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         let turn = TAU * path_random(seed, path.link.id, 1);
 
         for k in 0..amount {
-            let id = path_id(creator, path.link.id, k);
-            let random = |salt: i32| path_random(seed, id, salt);
-            let (start, end) = (
-                length_variation * MAX_SHORTENING * random(2).powi(3),
-                1.0 - length_variation * MAX_SHORTENING * random(3).powi(3),
-            );
-            let span = (n - 1) as f32;
-            let u: Vec<f32> = (0..n).map(|j| span * (start + (end - start) * j as f32 / span.max(1.0))).collect();
-            let samples: Vec<_> = u.iter().map(|&u| guide.at(u)).collect();
-
-            let link = PathLink::child(creator, path.link.id, samples[0].4, k);
+            let link = PathLink::child(creator, path.link.id, 0.0, k);
             ctx.set_path_info(PathInfo {
                 index: k as usize,
                 rank: k as usize,
                 count: amount as usize,
                 depth: path.depth + 1,
-                parent_position: samples[0].4,
+                parent_position: 0.0,
                 length,
             });
             ctx.seed_path(link.id);
             // read for every strand, so a random node gives each strand its own thickness
-            let thickness = ctx.float_along(args[2], samples.iter().map(|s| s.4));
+            let thickness = ctx.float_along(args[2], alpha.iter().copied());
 
             let home = place(k as usize, amount as usize) * spread;
             let mut strand_data = create_path(n, path.depth + 1);
             set_path_link(&mut strand_data, link);
             let strand = wrap_path_mut(&mut strand_data);
-            for (j, &(c, tube, normal, binormal, a, s)) in samples.iter().enumerate() {
+            for j in 0..n {
+                let (c, tube, (normal, binormal), s) = (centre[j], radius[j], frame[j], along[j]);
                 let profile = if widest > 0.0 { tube / widest } else { 0.0 };
                 let r = (thickness[j].max(0.0) * profile).min(tube);
                 // sampled at the strand's home, so neighbours get about the same push
@@ -175,7 +140,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 let radial = outward * push.dot(outward);
                 let push = push - radial * home.length_squared();
                 let p = fold_into_disk(home + push * wobble * spread);
-                let p = Vec2::from_angle(turn + TAU * twist * a).rotate(p);
+                let p = Vec2::from_angle(turn).rotate(p);
                 let point = c + (normal * p.x + binormal * p.y) * (tube - r);
                 strand.points[j * 4..j * 4 + 4].copy_from_slice(&[point.x, point.y, point.z, r]);
             }
@@ -234,13 +199,11 @@ mod tests {
         /// a random node into the thickness that makes some strands as thin as this share of it
         thinnest: f32,
         spread: f32,
-        twist: f32,
         wobble: f32,
-        length_variation: f32,
     }
 
     const PLAIN: Params =
-        Params { amount: 30, thinnest: 1.0, spread: 1.0, twist: 0.0, wobble: 0.0, length_variation: 0.0 };
+        Params { amount: 30, thinnest: 1.0, spread: 1.0, wobble: 0.0 };
 
     fn grow(guide: &[i32], p: Params) -> Vec<Vec<i32>> {
         // a uniform random node, drawn again for every strand
@@ -254,24 +217,22 @@ mod tests {
             &[p.amount],
             &thickness,
             &[encode_float(p.spread)],
-            &[encode_float(p.twist)],
             &[encode_float(p.wobble)],
-            &[encode_float(p.length_variation)],
             &[4],
             &[CREATOR],
         ]);
         split_args(&out).iter().map(|s| s.to_vec()).collect()
     }
 
-    fn strands(guide: &[i32], amount: i32, spread: f32, twist: f32) -> Vec<Vec<i32>> {
-        grow(guide, Params { amount, spread, twist, ..PLAIN })
+    fn strands(guide: &[i32], amount: i32, spread: f32) -> Vec<Vec<i32>> {
+        grow(guide, Params { amount, spread, ..PLAIN })
     }
 
     #[test]
-    fn wobbling_varied_strands_stay_inside_the_tube() {
+    fn wobbling_thin_strands_stay_inside_the_tube() {
         let g = straight_guide();
         for wobble in [0.0, 0.5, 1.0] {
-            let p = Params { amount: 200, thinnest: 0.0, twist: 0.7, wobble, length_variation: 1.0, ..PLAIN };
+            let p = Params { amount: 200, thinnest: 0.0, wobble, ..PLAIN };
             for s in grow(&g, p) {
                 for q in points(&s) {
                     let offset = Vec3::new(q[0], 0.0, q[2]).length();
@@ -314,31 +275,29 @@ mod tests {
     }
 
     #[test]
-    fn thickness_and_length_vary_within_bounds() {
+    fn thickness_varies_within_bounds() {
         let g = straight_guide();
-        let strands = grow(&g, Params { amount: 200, thinnest: 0.5, length_variation: 1.0, ..PLAIN });
-        let (mut thinnest, mut shortened) = (f32::MAX, 0);
+        let strands = grow(&g, Params { amount: 200, thinnest: 0.5, ..PLAIN });
+        let mut thinnest = f32::MAX;
         for s in &strands {
-            let p = points(s);
-            let base = p[0];
+            let base = points(s)[0];
             // the base thickness relative to the full thickness there
             let share = base[3] / (0.0006 * tube_at(base[1]) / 0.007);
             assert!((0.5 - 1e-4..=1.0 + 1e-4).contains(&share), "thickness share {}", share);
             thinnest = thinnest.min(share);
-            let (start, end) = (p[0][1], p[p.len() - 1][1]);
-            assert!(start >= -1e-6 && start <= 0.025 + 1e-6, "starts at {}", start);
-            assert!(end <= 0.05 + 1e-6 && end >= 0.025 - 1e-6, "ends at {}", end);
-            if start > 0.001 || end < 0.049 {
-                shortened += 1;
-            }
-            let link = path_link(s);
-            assert!((link.parent_alpha - start / 0.05).abs() < 1e-4);
         }
         assert!(thinnest < 0.6, "the thinnest strand keeps {} of the thickness", thinnest);
-        assert!(shortened > 50, "only {} of 200 strands are shorter", shortened);
-        // most strands still run close to the whole length, so the silhouette stays
-        let full = strands.iter().filter(|s| { let p = points(s); p[0][1] < 0.005 && p[p.len() - 1][1] > 0.045 }).count();
-        assert!(full > 50, "only {} of 200 strands run nearly the whole length", full);
+    }
+
+    #[test]
+    fn every_strand_runs_the_whole_length_of_its_guide() {
+        let g = straight_guide();
+        for s in strands(&g, 200, 1.0) {
+            let p = points(&s);
+            assert_eq!(p.len(), 24);
+            assert!(p[0][1].abs() < 1e-6 && (p[23][1] - 0.05).abs() < 1e-6, "from {} to {}", p[0][1], p[23][1]);
+            assert_eq!(path_link(&s).parent_alpha, 0.0);
+        }
     }
 
     #[test]
@@ -367,7 +326,7 @@ mod tests {
     fn every_strand_is_a_child_of_its_guide() {
         let g = guide();
         let parent = wrap_path(split_args(&g)[0]).link;
-        let out = strands(&g, 30, 1.0, 0.5);
+        let out = strands(&g, 30, 1.0);
         assert_eq!(out.len(), 30);
         for (k, s) in out.iter().enumerate() {
             let link = path_link(s);
@@ -380,20 +339,18 @@ mod tests {
     fn strands_stay_inside_the_tube_and_keep_their_place_across_it() {
         let g = guide();
         let guide_points = points(split_args(&g)[0]);
-        for twist in [0.0, 1.5] {
-            for s in strands(&g, 50, 1.0, twist) {
-                let p = points(&s);
-                let mut place = None;
-                for (i, q) in p.iter().enumerate() {
-                    let c = Vec3::new(guide_points[i][0], guide_points[i][1], guide_points[i][2]);
-                    let offset = Vec3::new(q[0], q[1], q[2]).distance(c);
-                    let r = guide_points[i][3];
-                    assert!(offset + q[3] <= r + 1e-6, "strand reaches {} out of a tube of {}", offset + q[3], r);
-                    // where across the tube the strand sits, relative to the room it has
-                    let share = offset / (r - q[3]);
-                    let first = *place.get_or_insert(share);
-                    assert!((share - first).abs() < 1e-3, "strand moves from {} to {} across the tube", first, share);
-                }
+        for s in strands(&g, 50, 1.0) {
+            let p = points(&s);
+            let mut place = None;
+            for (i, q) in p.iter().enumerate() {
+                let c = Vec3::new(guide_points[i][0], guide_points[i][1], guide_points[i][2]);
+                let offset = Vec3::new(q[0], q[1], q[2]).distance(c);
+                let r = guide_points[i][3];
+                assert!(offset + q[3] <= r + 1e-6, "strand reaches {} out of a tube of {}", offset + q[3], r);
+                // where across the tube the strand sits, relative to the room it has
+                let share = offset / (r - q[3]);
+                let first = *place.get_or_insert(share);
+                assert!((share - first).abs() < 1e-3, "strand moves from {} to {} across the tube", first, share);
             }
         }
     }
@@ -401,7 +358,7 @@ mod tests {
     #[test]
     fn strands_thin_with_the_guide() {
         let g = guide();
-        for s in strands(&g, 10, 1.0, 0.0) {
+        for s in strands(&g, 10, 1.0) {
             let p = points(&s);
             assert!((p[0][3] - 0.0006).abs() < 1e-7);
             assert!((p[p.len() - 1][3] - 0.0003).abs() < 1e-6);
@@ -412,7 +369,7 @@ mod tests {
     fn no_spread_packs_the_strands_on_the_axis() {
         let g = guide();
         let guide_points = points(split_args(&g)[0]);
-        for s in strands(&g, 10, 0.0, 0.0) {
+        for s in strands(&g, 10, 0.0) {
             for (q, c) in points(&s).iter().zip(&guide_points) {
                 assert!(Vec3::new(q[0], q[1], q[2]).distance(Vec3::new(c[0], c[1], c[2])) < 1e-6);
             }
@@ -424,26 +381,12 @@ mod tests {
         let g = guide();
         let base = points(split_args(&g)[0])[0];
         let offsets: Vec<f32> =
-            strands(&g, 200, 1.0, 0.0).iter().map(|s| { let p = points(s)[0]; Vec3::new(p[0] - base[0], p[1] - base[1], p[2] - base[2]).length() }).collect();
+            strands(&g, 200, 1.0).iter().map(|s| { let p = points(s)[0]; Vec3::new(p[0] - base[0], p[1] - base[1], p[2] - base[2]).length() }).collect();
         let room = base[3] - 0.0006;
         assert!(offsets.iter().any(|&o| o > 0.9 * room));
         assert!(offsets.iter().any(|&o| o < 0.2 * room));
         // an even fill puts half the strands inside the inner 1/sqrt(2) of the radius
         let inner = offsets.iter().filter(|&&o| o < room / 2f32.sqrt()).count();
         assert!((80..120).contains(&inner), "{} of 200 strands in the inner half", inner);
-    }
-
-    #[test]
-    fn twist_turns_the_strands_around_the_guide() {
-        let g = guide();
-        let straight = strands(&g, 5, 1.0, 0.0);
-        let twisted = strands(&g, 5, 1.0, 0.5);
-        let (a, b) = (points(&straight[3]), points(&twisted[3]));
-        assert_eq!(a[0], b[0]);
-        let last = a.len() - 1;
-        let guide_tip = points(split_args(&g)[0])[last];
-        let side = |p: [f32; 4]| Vec3::new(p[0] - guide_tip[0], p[1] - guide_tip[1], p[2] - guide_tip[2]);
-        // half a turn puts the strand on the other side of the guide
-        assert!(side(a[last]).dot(side(b[last])) < 0.0);
     }
 }

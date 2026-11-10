@@ -8,6 +8,7 @@ import { outputMesh } from './output-mesh';
 import { setMeshColor } from './set-mesh-color';
 import { splitCap, wiredCapInputs } from './split-cap';
 import { STRANDS, strandsThickness } from './strands-thickness';
+import { strandsTubeOnly } from './strands-tube-only';
 
 export * from './helpers';
 
@@ -113,6 +114,12 @@ export const MIGRATIONS: Migration[] = [
     description:
       'cap_lopsided is gone, a curve into the cap radius makes a cap lopsided, random nodes into the radius draw once per path',
     migrate: lopsidedByRadius
+  },
+  {
+    version: 10,
+    description:
+      'strands only fills the tube, a twist node turns the strands and a random_break behind it ends some of them short of the tip',
+    migrate: strandsTubeOnly
   }
 ];
 

@@ -1,0 +1,32 @@
+{
+  "id": "max/plantarium/twist",
+  "meta": {
+    "description": "Twists the paths of a bundle around the line they run along, more towards the tip, like the fibres of a rope. Paths that grow on the same parent are one bundle, e.g. the strands of a stipe. Put it before nodes that cut paths short, like random_break."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The paths to twist. Paths with the same parent and the same creator are one bundle.",
+      "external": true
+    },
+    "turns": {
+      "type": "float",
+      "description": "How often a bundle turns around its line from base to tip. 0 leaves the paths where they are.",
+      "min": -4,
+      "max": 4,
+      "step": 0.05,
+      "value": 0.1
+    },
+    "depth": {
+      "type": "integer",
+      "min": 1,
+      "max": 10,
+      "value": 1,
+      "hidden": true,
+      "description": "On which layers of paths to work, counted from the deepest. 1 twists only the deepest paths, e.g. the strands."
+    }
+  }
+}

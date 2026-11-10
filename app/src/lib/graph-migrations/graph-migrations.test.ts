@@ -1179,7 +1179,7 @@ describe('version 9: a curve into the cap radius makes it lopsided, cap_lopsided
         ]
       )
     );
-    expect(migrated.version).toBe(9);
+    expect(migrated.version).toBe(CURRENT_GRAPH_VERSION);
     expect(migrated.nodes.map((n) => n.type)).not.toContain(LOPSIDED);
     expect(migrated.nodes.find((n) => n.id === 6)!.props).toEqual({ min: -10, max: 10 });
     expect(migrated.edges).toEqual([[1, 0, 2, 'cap'], [2, 0, 4, 'cap'], [2, 0, 5, 'plant']]);
@@ -1236,5 +1236,139 @@ describe('version 9: a curve into the cap radius makes it lopsided, cap_lopsided
     const [group] = migrateGraph(old).groups!;
     expect(group.nodes.map((n) => n.id)).toEqual([10, 11, 12]);
     expect(group.edges).toEqual([[10, 0, 12, 'plant'], [12, 0, 11, 'out_0']]);
+  });
+});
+
+describe('version 10: strands only fills the tube, twist and random_break come behind it', () => {
+  const v9 = (nodes: SerializedNode[], edges: Graph['edges'] = []): Graph => ({
+    ...graph(nodes, edges),
+    version: 9
+  });
+  const STRANDS = 'max/myzel/strands';
+  const TWIST = 'max/plantarium/twist';
+  const BREAK = 'max/plantarium/random_break';
+  const byType = (g: { nodes: SerializedNode[] }, type: string) =>
+    g.nodes.filter((n) => n.type === type);
+
+  it('only drops the inputs at their defaults', () => {
+    const migrated = migrateGraph(
+      v9([node(1, STRANDS, { amount: 12, twist: 0, length_variation: 0 })])
+    );
+    expect(migrated.nodes.map((n) => n.type)).toEqual([STRANDS]);
+    expect(migrated.nodes[0].props).toEqual({ amount: 12 });
+  });
+
+  it('turns a twist into a twist node behind strands', () => {
+    const migrated = migrateGraph(
+      v9(
+        [node(1, STRANDS, { twist: 0.1, wobble: 0.25 }), node(2, 'max/plantarium/clump')],
+        [[1, 0, 2, 'plant']]
+      )
+    );
+    const [twist] = byType(migrated, TWIST);
+    expect(twist.props).toEqual({ turns: 0.1 });
+    expect(migrated.nodes.find((n) => n.id === 1)!.props).toEqual({ wobble: 0.25 });
+    expect(byType(migrated, BREAK)).toEqual([]);
+    expect(migrated.edges).toEqual([[twist.id, 0, 2, 'plant'], [1, 0, twist.id, 'plant']]);
+  });
+
+  it('turns a length variation into a random_break that keeps the mean shortening', () => {
+    const migrated = migrateGraph(
+      v9(
+        [node(1, STRANDS, { length_variation: 0.3 }), node(2, 'max/plantarium/clump')],
+        [[1, 0, 2, 'plant']]
+      )
+    );
+    const [randomBreak] = byType(migrated, BREAK);
+    expect(randomBreak.props).toEqual({ chance: 0.5, lowest_break: 0.85, highest_break: 1 });
+    expect(byType(migrated, TWIST)).toEqual([]);
+    expect(migrated.nodes.find((n) => n.id === 1)!.props).toEqual({});
+    expect(migrated.edges).toEqual([
+      [randomBreak.id, 0, 2, 'plant'],
+      [1, 0, randomBreak.id, 'plant']
+    ]);
+  });
+
+  it('twists before it breaks, and passes the other inputs on to strands', () => {
+    const migrated = migrateGraph(
+      v9(
+        [
+          node(1, 'max/plantarium/stem'),
+          node(2, 'max/plantarium/float'),
+          node(3, STRANDS, { twist: 0.05, length_variation: 0.15 }),
+          node(4, 'max/plantarium/clump')
+        ],
+        [[1, 0, 3, 'plant'], [2, 0, 3, 'thickness'], [3, 0, 4, 'plant']]
+      )
+    );
+    const [twist] = byType(migrated, TWIST);
+    const [randomBreak] = byType(migrated, BREAK);
+    expect(randomBreak.props).toMatchObject({ lowest_break: 0.925 });
+    expect(migrated.edges).toHaveLength(5);
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([
+        [1, 0, 3, 'plant'],
+        [2, 0, 3, 'thickness'],
+        [3, 0, twist.id, 'plant'],
+        [twist.id, 0, randomBreak.id, 'plant'],
+        [randomBreak.id, 0, 4, 'plant']
+      ])
+    );
+  });
+
+  it('wires a wired twist into the twist node', () => {
+    const migrated = migrateGraph(
+      v9([node(1, 'max/plantarium/float'), node(2, STRANDS)], [[1, 0, 2, 'twist']])
+    );
+    const [twist] = byType(migrated, TWIST);
+    expect(migrated.edges).toEqual([[1, 0, twist.id, 'turns'], [2, 0, twist.id, 'plant']]);
+  });
+
+  it('builds 1 - length_variation / 2 from math nodes for a wired length variation', () => {
+    const migrated = migrateGraph(
+      v9([node(1, 'max/plantarium/float'), node(2, STRANDS)], [[1, 0, 2, 'length_variation']])
+    );
+    const [randomBreak] = byType(migrated, BREAK);
+    const [half, lowest] = byType(migrated, 'max/plantarium/math');
+    expect(half.props).toMatchObject({ op_type: 2, b: 0.5 });
+    expect(lowest.props).toMatchObject({ op_type: 1, a: 1 });
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([
+        [1, 0, half.id, 'a'],
+        [half.id, 0, lowest.id, 'b'],
+        [lowest.id, 0, randomBreak.id, 'lowest_break'],
+        [2, 0, randomBreak.id, 'plant']
+      ])
+    );
+    expect(migrated.edges.some((e) => e[3] === 'length_variation')).toBe(false);
+  });
+
+  it('migrates inside groups, and the new nodes do not share ids with other levels', () => {
+    const old = v9([node(1, '__internal/group/instance', { groupId: 20 })]);
+    old.groups = [
+      {
+        id: 20,
+        nodes: [
+          node(10, '__internal/group/input'),
+          node(11, '__internal/group/output'),
+          node(12, STRANDS, { twist: 0.1, length_variation: 0.1 })
+        ],
+        edges: [[10, 0, 12, 'plant'], [12, 0, 11, 'out_0']]
+      } as unknown as NonNullable<Graph['groups']>[number]
+    ];
+    const migrated = migrateGraph(old);
+    const [group] = migrated.groups!;
+    const [twist] = byType(group, TWIST);
+    const [randomBreak] = byType(group, BREAK);
+    const ids = [1, group.id, ...group.nodes.map((n) => n.id)];
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(group.edges).toEqual(
+      expect.arrayContaining([
+        [10, 0, 12, 'plant'],
+        [12, 0, twist.id, 'plant'],
+        [twist.id, 0, randomBreak.id, 'plant'],
+        [randomBreak.id, 0, 11, 'out_0']
+      ])
+    );
   });
 });

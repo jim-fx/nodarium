@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 9,
+  "version": 10,
   "settings": {
     "time.t": 1,
     "resolution.field": 128,
@@ -105,9 +105,7 @@
           "props": {
             "amount": 240,
             "thickness": 0.0005,
-            "twist": 0.1,
-            "wobble": 0.25,
-            "length_variation": 0.3
+            "wobble": 0.25
           }
         },
         {
@@ -156,6 +154,24 @@
           "id": 56,
           "position": [-30, 5],
           "type": "max/myzel/set_color"
+        },
+        {
+          "id": 63,
+          "position": [-120, 25],
+          "type": "max/plantarium/twist",
+          "props": {
+            "turns": 0.1
+          }
+        },
+        {
+          "id": 64,
+          "position": [-100, 25],
+          "type": "max/plantarium/random_break",
+          "props": {
+            "chance": 0.5,
+            "lowest_break": 0.85,
+            "highest_break": 1
+          }
         }
       ],
       "edges": [
@@ -226,7 +242,7 @@
           "plant"
         ],
         [
-          8,
+          64,
           0,
           10,
           "plant"
@@ -266,6 +282,18 @@
           0,
           8,
           "thickness"
+        ],
+        [
+          8,
+          0,
+          63,
+          "plant"
+        ],
+        [
+          63,
+          0,
+          64,
+          "plant"
         ]
       ],
       "inputs": {
@@ -496,8 +524,7 @@
           "props": {
             "amount": 40,
             "thickness": 0.0005,
-            "wobble": 0.25,
-            "length_variation": 0.1
+            "wobble": 0.25
           }
         },
         {
@@ -592,6 +619,16 @@
           "position": [-150, 30],
           "type": "max/myzel/cap_margin",
           "props": {}
+        },
+        {
+          "id": 65,
+          "position": [-150, 13.75],
+          "type": "max/plantarium/random_break",
+          "props": {
+            "chance": 0.5,
+            "lowest_break": 0.95,
+            "highest_break": 1
+          }
         }
       ],
       "edges": [
@@ -710,7 +747,7 @@
           "plant"
         ],
         [
-          22,
+          65,
           0,
           47,
           "plant"
@@ -828,6 +865,12 @@
           0,
           62,
           "cap"
+        ],
+        [
+          22,
+          0,
+          65,
+          "plant"
         ]
       ],
       "inputs": {

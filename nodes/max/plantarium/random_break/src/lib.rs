@@ -220,4 +220,28 @@ mod tests {
         let broken = a.iter().filter(|p| tip_y(p) < 9.99).count();
         assert!(broken > 3 && broken < 17, "{} of 20 broke", broken);
     }
+
+    #[test]
+    fn thousands_of_strands_of_a_missing_guide_keep_their_ids_and_links() {
+        // strands grow on a guide that is not in the list, and the break is checked at the
+        // thousands of strands of a groomed mushroom
+        let guide = 77;
+        let strands: Vec<Vec<i32>> = (0..5000)
+            .map(|k| straight(PathLink::child(9, guide, 0.0, k), 2, [k as f32 * 0.001, 0.0, 0.0], 10.0))
+            .collect();
+        let out = run(strands.clone(), 0.5, 0.85, 1.0, 1);
+        assert_eq!(out.len(), strands.len());
+
+        let mut shortened = 0;
+        for (before, after) in strands.iter().zip(&out) {
+            assert_eq!(path_link(before), path_link(after));
+            assert_eq!(wrap_path(before).length, wrap_path(after).length);
+            let tip = tip_y(after);
+            assert!((8.5 - 1e-3..=10.0 + 1e-3).contains(&tip), "ends at {}", tip);
+            if tip < 9.99 {
+                shortened += 1;
+            }
+        }
+        assert!((2300..2700).contains(&shortened), "{} of 5000 strands were shortened", shortened);
+    }
 }
