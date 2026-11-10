@@ -1,23 +1,20 @@
 {
   "id": "max/myzel/cap",
   "meta": {
-    "description": "Grows an open cap at the tip of every path, the stipe: guide rays that leave the stipe top and follow the drawn profile out to the margin. Fill the gaps between them with fill_gaps, pose them with margin_waves, margin_curl and cap_open, then fill them with strands. Gives the hinge (stipe top) and the margin as points."
+    "description": "Grows an open cap at every point, e.g. from points_on_path at the tip of the stipe: guide rays that leave the stipe and follow the drawn profile out to the margin. Gives the paths it gets with the rays added. Fill the gaps between the rays with fill_gaps, pose them with margin_waves, cap_lopsided, margin_curl and cap_open, then fill them with strands."
   },
   "outputs": [
-    "path",
-    {
-      "type": "points",
-      "label": "hinge"
-    },
-    {
-      "type": "points",
-      "label": "margin"
-    }
+    "path"
   ],
   "inputs": {
     "plant": {
       "type": "path",
-      "description": "The stipes, the cap grows at the tip of every path",
+      "description": "The stipes, the rays are added to them",
+      "external": true
+    },
+    "points": {
+      "type": "points",
+      "description": "Where the caps sit, one cap at every point: on the path of the point at its alpha, around the direction of the path there",
       "external": true
     },
     "radius": {

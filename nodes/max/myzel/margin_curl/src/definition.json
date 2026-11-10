@@ -1,24 +1,15 @@
 {
   "id": "max/myzel/margin_curl",
   "meta": {
-    "description": "Rolls the margin of a cap in under it, every ray bends down towards its tip. Join the caps that share a stipe (flesh and ridges) into one margin_curl and the ridges roll under with the flesh. Gives the margin of the posed cap as points."
+    "description": "Rolls the margin of a cap in under it, every ray bends down towards its tip."
   },
   "outputs": [
-    "path",
-    {
-      "type": "points",
-      "label": "margin"
-    }
+    "path"
   ],
   "inputs": {
     "cap": {
       "type": "path",
-      "description": "The rays of a cap, or of several caps on the same stipes",
-      "external": true
-    },
-    "hinge": {
-      "type": "points",
-      "description": "The hinge of the cap node: where the cap sits",
+      "description": "The paths of the cap node: the rays of the caps and their stipes",
       "external": true
     },
     "amount": {

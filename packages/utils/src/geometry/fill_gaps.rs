@@ -198,7 +198,8 @@ impl Filler<'_> {
 
 /// The paths to add to `items` so that no two neighbouring paths of a fan are further apart
 /// than `spacing` path thicknesses. They are made by the same node as their neighbours, and
-/// count on from the highest index there.
+/// count on from the highest index there. Paths that grow on no parent (several stems of one
+/// node) are no fan.
 pub fn fill_gaps(items: &[&[i32]], spacing: f32, seed: i32) -> Vec<Vec<i32>> {
     if spacing <= 0.0 {
         return Vec::new();
@@ -209,6 +210,9 @@ pub fn fill_gaps(items: &[&[i32]], spacing: f32, seed: i32) -> Vec<Vec<i32>> {
             continue;
         }
         let link = path_link(item);
+        if !link.has_parent() {
+            continue;
+        }
         let key = (link.parent_id, item[3], link.creator);
         match fans.iter_mut().find(|f| f.0 == key) {
             Some(fan) => fan.1.push(i),
@@ -370,6 +374,15 @@ mod tests {
             let angle = tip(path).z.atan2(tip(path).x);
             assert!((-1e-3..PI * 0.5).contains(&angle), "a path at {angle}");
         }
+    }
+
+    #[test]
+    fn paths_without_a_parent_get_none_between_them() {
+        let mut stems = fan(6, TAU, 0.03, 0.001);
+        for (k, stem) in stems.iter_mut().enumerate() {
+            set_path_link(stem, PathLink::root(3, k as i32));
+        }
+        assert!(run(&stems, 1.0).is_empty());
     }
 
     #[test]

@@ -63,4 +63,18 @@ describe('bundled graphs', () => {
     }
     expect([...new Set(unknown)]).toEqual([]);
   });
+
+  const outputsOf = new Map(definitions.map((d) => [d.id as string, d.outputs?.length ?? 0]));
+
+  it.each(Object.entries(graphs))('%s only uses outputs its nodes have', (_, graph) => {
+    const unknown: string[] = [];
+    for (const scope of [graph, ...graph.groups]) {
+      const types = new Map(scope.nodes.map((n) => [n.id, n.type as string]));
+      for (const [from, output] of scope.edges) {
+        const count = outputsOf.get(types.get(from)!);
+        if (count !== undefined && output >= count) unknown.push(`${types.get(from)} ${output}`);
+      }
+    }
+    expect([...new Set(unknown)]).toEqual([]);
+  });
 });

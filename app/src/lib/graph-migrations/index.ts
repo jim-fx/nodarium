@@ -1,5 +1,6 @@
 import type { Graph } from '@nodarium/types';
 import { createLogger } from '@nodarium/utils';
+import { capAtPoints } from './cap-at-points';
 import { removeInputs, renameInputs, replaceNodes, wiredInputs } from './helpers';
 import { joinMeshes } from './join-meshes';
 import { outputMesh } from './output-mesh';
@@ -99,6 +100,12 @@ export const MIGRATIONS: Migration[] = [
     description:
       'the Myzel output takes a mesh and shows paths as lines, hyphae_to_mesh makes the surface of paths',
     migrate: outputMesh
+  },
+  {
+    version: 8,
+    description:
+      'the cap grows at points and gives its stipe with the rays, the pose nodes find the cap from the stipe and cap_margin gives the margin',
+    migrate: capAtPoints
   }
 ];
 

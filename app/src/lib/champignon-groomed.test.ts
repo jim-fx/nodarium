@@ -143,12 +143,14 @@ describe.skipIf(!BUILT && !ON_CI)('the groomed Champignon matures with time', ()
       const [top, below] = [stipe.points.at(-1)!.p, stipe.points.at(-2)!.p];
       const direction = sub(top, below);
       const capRays = read('capRays');
+      // the stipe runs along with the rays, they grow on it
+      const rays = read('rays').filter((r) => r.parent === stipe.id);
       stages.push({
         t,
         stipe,
-        rays: read('rays'),
+        rays,
         // the rays the cap node grows run from the axis, fill_gaps adds more further out
-        capRays: read('rays').filter((r) => capRays.some((c) => c.id === r.id)),
+        capRays: rays.filter((r) => capRays.some((c) => c.id === r.id)),
         skin: readMesh(shapes[meshes.skin[0]].data),
         gills: readMesh(shapes[meshes.gills[0]].data),
         hinge: top,

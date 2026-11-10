@@ -1,24 +1,15 @@
 {
   "id": "max/myzel/margin_waves",
   "meta": {
-    "description": "Lifts and lowers the margin of a cap in lobes around it, like the wavy margin of a chanterelle. Every ray bends in its own plane, so it keeps its length. Put it right after the cap and fill_gaps: it reads how far out a ray is on the open cap. Join caps that share a stipe (flesh and ridges) into one margin_waves and they wave alike. Gives the margin of the posed cap as points."
+    "description": "Lifts and lowers the margin of a cap in lobes around it, like the wavy margin of a chanterelle. Every ray bends in its own plane, so it keeps its length. Put it right after the cap and fill_gaps: it reads how far out a ray is on the open cap."
   },
   "outputs": [
-    "path",
-    {
-      "type": "points",
-      "label": "margin"
-    }
+    "path"
   ],
   "inputs": {
     "cap": {
       "type": "path",
-      "description": "The rays of a cap, or of several caps on the same stipes",
-      "external": true
-    },
-    "hinge": {
-      "type": "points",
-      "description": "The hinge of the cap node: where the cap sits",
+      "description": "The paths of the cap node: the rays of the caps and their stipes",
       "external": true
     },
     "waves": {

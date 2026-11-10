@@ -1,8 +1,8 @@
-use myzel_core::{cap_alphas, grow_cap, margin_points, CapShape};
+use myzel_core::{cap_alphas, grow_cap, CapFrame, CapShape};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
-    concat_arg_vecs, decode_float, encode_points,
-    geometry::{wrap_path, DeepestPaths},
+    concat_arg_vecs, decode_float, decode_points,
+    geometry::{is_path, path_link, wrap_path},
     int, split_args, Ctx,
 };
 
@@ -26,46 +26,73 @@ fn read_floats(arg: &[i32]) -> Vec<f32> {
 }
 
 #[nodarium_execute]
-pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>, Vec<i32>) {
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
     let plant = split_args(args[0]);
-    let profile = read_floats(args[2]);
-    let seed = int(args[5]);
-    let resolution = int(args[6]).max(4) as usize;
+    let points = decode_points(args[1]);
+    let profile = read_floats(args[3]);
+    let seed = int(args[6]);
+    let resolution = int(args[7]).max(4) as usize;
     // the graph node that makes the cap, it is the last input
-    let creator = int(args[7]);
+    let creator = int(args[8]);
 
-    let stipes = DeepestPaths::new(&plant, 1);
-    let selected = |p: &[i32]| stipes.contains(p) && wrap_path(p).length > 1;
-    let count = plant.iter().filter(|p| selected(p)).count();
-
-    let (mut output, mut hinges) = (Vec::new(), Vec::new());
-    for (rank, item) in plant.iter().filter(|p| selected(p)).enumerate() {
-        ctx.set_path(item, rank, count);
-        // the cap sits at the tip of its stipe
-        ctx.alpha = 1.0;
-        let radius = ctx.float(args[1]).max(0.0);
-        let rays = ctx.int(args[4]).max(1) as usize;
+    // the rays of every path, the ones of a point whose path is not in the plant last
+    let mut rays: Vec<(i32, Vec<Vec<i32>>)> = Vec::new();
+    for (rank, point) in points.iter().enumerate() {
+        let stipe = plant.iter().copied().find(|p| is_path(p) && wrap_path(p).length > 1 && path_link(p).id == point.parent_id);
+        // the frame the nodes after it find from the stipe alone
+        let frame = match stipe {
+            Some(stipe) => {
+                ctx.set_path(stipe, rank, points.len());
+                CapFrame::on(stipe, point.alpha)
+            }
+            None => {
+                ctx.seed_path(point.parent_id);
+                CapFrame::at(point)
+            }
+        };
+        ctx.alpha = point.alpha;
+        let radius = ctx.float(args[2]).max(0.0);
+        let count = ctx.int(args[5]).max(1) as usize;
         // along the flesh from the centre to the margin, so a curve can thin it
-        let thickness = ctx.float_along(args[3], cap_alphas());
-        let shape = CapShape { profile: &profile, radius, thickness: &thickness, rays, seed, resolution, creator };
-        let (hinge, rays) = grow_cap(item, &shape);
-        hinges.push(hinge);
-        output.extend(rays);
+        let thickness = ctx.float_along(args[4], cap_alphas());
+        let shape = CapShape { profile: &profile, radius, thickness: &thickness, rays: count, seed, resolution, creator };
+        let own = match rays.iter().position(|r| r.0 == point.parent_id) {
+            Some(i) => &mut rays[i].1,
+            None => {
+                rays.push((point.parent_id, Vec::new()));
+                &mut rays.last_mut().unwrap().1
+            }
+        };
+        // a second cap on the same stipe counts on, so every ray keeps its own id
+        let grown = grow_cap(&frame, stipe.map_or(point.depth, |s| s[3]), own.len() as i32, &shape);
+        own.extend(grown);
     }
 
-    let paths: Vec<&[i32]> = output.iter().map(|p| p.as_slice()).collect();
-    let margins = margin_points(&paths, &hinges);
-    (concat_arg_vecs(output), encode_points(&hinges), encode_points(&margins))
+    // like branch_from_points, the rays of a path come right before it
+    let mut output: Vec<Vec<i32>> = Vec::new();
+    for item in &plant {
+        if is_path(item) {
+            if let Some(i) = rays.iter().position(|r| r.0 == path_link(item).id) {
+                output.append(&mut rays[i].1);
+            }
+        }
+        output.push(item.to_vec());
+    }
+    for (_, own) in rays.iter_mut() {
+        output.append(own);
+    }
+    concat_arg_vecs(output)
 }
 
 #[cfg(test)]
 mod tests {
     use super::__nodarium_execute_inner;
     use glam::{Vec2, Vec3};
+    use myzel_core::{margin_points, Cap, CapFrame};
     use nodarium_utils::{
-        concat_args, decode_points, encode_float,
-        geometry::{create_multiple_paths, path_link, wrap_multiple_paths, wrap_path, PathLink},
+        concat_args, encode_float, encode_points,
+        geometry::{create_multiple_paths, interpolate_along_path, is_path, orthogonal_to, path_link, wrap_multiple_paths, wrap_path, PathLink},
         split_args, Point,
     };
 
@@ -75,13 +102,41 @@ mod tests {
 
     /// An upright stipe 5 cm tall, 5 mm in radius
     fn stipe() -> Vec<i32> {
-        let mut data = create_multiple_paths(1, 12, 1, 3);
-        for path in wrap_multiple_paths(&mut data).iter_mut() {
+        stipes(1)
+    }
+
+    /// `count` of them, 10 cm apart, each leaning a little more
+    fn stipes(count: usize) -> Vec<i32> {
+        let mut data = create_multiple_paths(count, 12, 1, 3);
+        for (s, path) in wrap_multiple_paths(&mut data).iter_mut().enumerate() {
+            let tilt = glam::Quat::from_rotation_z(0.2 * s as f32);
             for i in 0..12 {
-                path.points[i * 4..i * 4 + 4].copy_from_slice(&[0.0, STIPE_TOP * i as f32 / 11.0, 0.0, STIPE_RADIUS]);
+                let p = Vec3::new(0.1 * s as f32, 0.0, 0.0) + tilt * Vec3::new(0.0, STIPE_TOP * i as f32 / 11.0, 0.0);
+                path.points[i * 4..i * 4 + 4].copy_from_slice(&[p.x, p.y, p.z, STIPE_RADIUS]);
             }
         }
         data
+    }
+
+    /// A point on every path at `alpha`, as points_on_path places them
+    fn points_at(plant: &[i32], alpha: f32) -> Vec<Point> {
+        split_args(plant)
+            .iter()
+            .map(|p| {
+                let path = wrap_path(p);
+                let (position, orthogonal, tangent) = interpolate_along_path(path.points, alpha);
+                Point {
+                    position: position.truncate(),
+                    direction: orthogonal,
+                    tangent,
+                    scale: position.w,
+                    parent_id: path.link.id,
+                    alpha,
+                    depth: path.depth,
+                    index: 0,
+                }
+            })
+            .collect()
     }
 
     fn floats(values: &[f32]) -> Vec<i32> {
@@ -121,15 +176,10 @@ mod tests {
         }
     }
 
-    struct Out {
-        rays: Vec<Vec<i32>>,
-        hinges: Vec<Point>,
-        margins: Vec<Point>,
-    }
-
-    fn execute(p: &Params, profile: &[i32]) -> (Vec<i32>, Vec<i32>, Vec<i32>) {
+    fn execute_on(plant: &[i32], points: &[Point], p: &Params, profile: &[i32]) -> Vec<i32> {
         __nodarium_execute_inner(&[
-            &stipe(),
+            plant,
+            &encode_points(points),
             &[encode_float(p.radius)],
             profile,
             &p.thickness,
@@ -140,13 +190,23 @@ mod tests {
         ])
     }
 
-    fn run(p: &Params) -> Out {
-        let (paths, hinges, margins) = execute(p, &floats(&p.profile));
-        Out {
-            rays: split_args(&paths).iter().map(|s| s.to_vec()).collect(),
-            hinges: decode_points(&hinges),
-            margins: decode_points(&margins),
-        }
+    /// Every path the node gives, the stipes and the rays
+    fn grow_on(plant: &[i32], points: &[Point], p: &Params) -> Vec<Vec<i32>> {
+        split_args(&execute_on(plant, points, p, &floats(&p.profile))).iter().map(|s| s.to_vec()).collect()
+    }
+
+    /// The rays of a cap at the tip of the stipe
+    fn run(p: &Params) -> Vec<Vec<i32>> {
+        let plant = stipe();
+        grow_on(&plant, &points_at(&plant, 1.0), p).into_iter().filter(|r| path_link(r).has_parent()).collect()
+    }
+
+    fn margins(paths: &[Vec<i32>]) -> Vec<Point> {
+        margin_points(&paths.iter().map(|p| p.as_slice()).collect::<Vec<_>>())
+    }
+
+    fn with_stipe(rays: &[Vec<i32>]) -> Vec<Vec<i32>> {
+        rays.iter().cloned().chain([split_args(&stipe())[0].to_vec()]).collect()
     }
 
     fn points(path: &[i32]) -> Vec<[f32; 4]> {
@@ -165,22 +225,22 @@ mod tests {
     #[test]
     fn the_margin_lies_on_the_radius_and_height_of_the_profile() {
         let p = cone();
-        let out = run(&p);
-        assert_eq!(out.margins.len(), out.rays.len());
+        let rays = run(&p);
+        let margin = margins(&with_stipe(&rays));
+        assert_eq!(margin.len(), rays.len());
         // the top of the flesh over the stipe is a thickness above the stipe top
         let height = 0.006 - 0.8 * p.radius;
-        for m in &out.margins {
+        for m in &margin {
             let q = place(m.position);
             assert!((q.x - p.radius).abs() < 1e-4, "margin {} from the axis, radius {}", q.x, p.radius);
             assert!((q.y - height).abs() < 1e-4, "margin at {} over the stipe top, expected {}", q.y, height);
         }
-        // in a ring around the axis, counted from the side of the hinge
-        let frame = myzel_core::CapFrame::new(&out.hinges[0]);
-        let angles: Vec<f32> = out.margins.iter().map(|m| frame.angle(m.position)).collect();
+        // in a ring around the axis, counted from the side of the stipe frame
+        let frame = CapFrame::on(split_args(&stipe())[0], 1.0);
+        let angles: Vec<f32> = margin.iter().map(|m| frame.angle(m.position)).collect();
         assert!(angles.windows(2).all(|w| w[1] > w[0]));
 
-        let wide = run(&Params { radius: 0.05, ..cone() });
-        for m in &wide.margins {
+        for m in margins(&with_stipe(&run(&Params { radius: 0.05, ..cone() }))) {
             assert!((place(m.position).x - 0.05).abs() < 1e-4);
         }
     }
@@ -188,11 +248,10 @@ mod tests {
     #[test]
     fn the_outside_of_the_flesh_is_the_drawn_outline() {
         let p = Params { thickness: vec![encode_float(0.006)], ..cone() };
-        let out = run(&p);
         let slope = Vec2::new(1.0, -0.8).normalize();
         // the drawn outline runs from the top at (0, thickness) down to the margin
         let top = Vec2::new(0.0, 0.006);
-        for ray in &out.rays {
+        for ray in &run(&p) {
             for q in points(ray).iter().skip(12).take(8) {
                 let above = (place_of(*q) - top).perp_dot(slope);
                 assert!((q[3] - above).abs() < 2e-4, "flesh reaches {} over the outline", q[3] - above);
@@ -202,22 +261,21 @@ mod tests {
 
     #[test]
     fn the_thickness_follows_alpha_from_the_centre_to_the_margin() {
-        let out = run(&cone());
-        let ray = points(&out.rays[0]);
+        let ray = points(&run(&cone())[0]);
         // the flesh thins to nothing at the margin, as the curve over alpha does
         assert!(ray.last().unwrap()[3] < 1e-4);
         let middle = ray[ray.len() / 2][3];
         assert!(middle > 0.001 && middle < 0.003, "half the flesh {middle} halfway out");
         let even = run(&Params { thickness: vec![encode_float(0.006)], ..cone() });
-        assert!((points(&even.rays[0]).last().unwrap()[3] - 0.003).abs() < 1e-6);
+        assert!((points(&even[0]).last().unwrap()[3] - 0.003).abs() < 1e-6);
     }
 
     #[test]
     fn rays_leave_the_stipe_top_inside_the_stipe() {
-        let out = run(&cone());
+        let rays = run(&cone());
         let stipe_id = wrap_path(split_args(&stipe())[0]).link.id;
-        assert_eq!(out.rays.len(), 10);
-        for (k, ray) in out.rays.iter().enumerate() {
+        assert_eq!(rays.len(), 10);
+        for (k, ray) in rays.iter().enumerate() {
             assert_eq!(path_link(ray), PathLink::child(CREATOR, stipe_id, 1.0, k as i32));
             assert_eq!(ray[3], 2);
             let (start, next) = (points(ray)[0], points(ray)[1]);
@@ -227,22 +285,79 @@ mod tests {
             // it leaves upwards, along the stipe strands
             assert!(b.y - a.y > b.x - a.x, "ray leaves from {:?} to {:?}", a, b);
         }
-        assert_eq!(out.hinges.len(), 1);
-        let hinge = &out.hinges[0];
-        assert!(hinge.position.distance(Vec3::new(0.0, STIPE_TOP, 0.0)) < 1e-6);
-        assert!(hinge.tangent.distance(Vec3::Y) < 1e-5);
-        assert_eq!(hinge.parent_id, stipe_id);
-        assert!((hinge.scale - STIPE_RADIUS).abs() < 1e-7);
+    }
+
+    #[test]
+    fn the_cap_at_the_tip_sits_on_the_stipe_top_whichever_way_the_point_faces() {
+        let plant = stipes(2);
+        let mut at = points_at(&plant, 1.0);
+        let paths = grow_on(&plant, &at, &cone());
+        // the frame of the cap is the stipe top and its last segment, its first ray turns out
+        // from orthogonal_to that, as the nodes after the cap find it from the stipe alone
+        let caps = Cap::all(&paths.iter().map(|p| p.as_slice()).collect::<Vec<_>>());
+        assert_eq!(caps.len(), 2);
+        for (cap, stipe) in caps.iter().zip(split_args(&plant)) {
+            let p = points(stipe);
+            let (tip, below) = (Vec3::from_slice(&p[11][..3]), Vec3::from_slice(&p[10][..3]));
+            assert_eq!(cap.frame.hinge, tip);
+            assert_eq!(cap.frame.axis, (tip - below).normalize());
+            assert_eq!(cap.frame.side, orthogonal_to(cap.frame.axis));
+            assert_eq!(cap.frame.stipe_radius, STIPE_RADIUS);
+        }
+        for point in &mut at {
+            point.direction = -point.direction;
+            point.position += Vec3::splat(1e-3);
+        }
+        assert_eq!(grow_on(&plant, &at, &cone()), paths);
+    }
+
+    #[test]
+    fn gives_its_paths_with_the_rays_of_a_path_right_before_it() {
+        let plant = stipes(3);
+        let paths = grow_on(&plant, &points_at(&plant, 1.0), &cone());
+        assert_eq!(paths.len(), 33);
+        assert!(paths.iter().all(|p| is_path(p)));
+        for (s, stipe) in split_args(&plant).iter().enumerate() {
+            assert_eq!(&paths[11 * s + 10], stipe);
+            let id = path_link(stipe).id;
+            assert!(paths[11 * s..11 * s + 10].iter().all(|r| path_link(r).parent_id == id));
+        }
+        // only the paths of the points get a cap
+        let one = grow_on(&plant, &points_at(&plant, 1.0)[1..2], &cone());
+        assert_eq!(one.len(), 13);
+        assert_eq!(&one[..1], &split_args(&plant)[..1]);
+    }
+
+    #[test]
+    fn caps_on_one_stipe_keep_their_own_ids() {
+        let plant = stipe();
+        let mut at = points_at(&plant, 1.0);
+        at.extend(points_at(&plant, 0.5));
+        let paths = grow_on(&plant, &at, &cone());
+        assert_eq!(paths.len(), 21);
+        let ids: std::collections::HashSet<i32> = paths.iter().map(|p| path_link(p).id).collect();
+        assert_eq!(ids.len(), 21);
+        let caps = Cap::all(&paths.iter().map(|p| p.as_slice()).collect::<Vec<_>>());
+        assert_eq!(caps.len(), 2);
+        assert!((caps[1].frame.hinge.y - 0.5 * STIPE_TOP).abs() < 1e-6);
+    }
+
+    #[test]
+    fn a_point_off_the_plant_grows_its_cap_at_the_point() {
+        let elsewhere = stipes(2);
+        let at = points_at(&elsewhere, 1.0);
+        let paths = grow_on(&stipe(), &at[1..], &cone());
+        assert_eq!(paths.len(), 11);
+        assert_eq!(&paths[..1], &split_args(&stipe())[..]);
+        let start = Vec3::from_slice(&points(&paths[1])[0][..3]);
+        assert!(start.distance(at[1].position) < 0.01);
     }
 
     #[test]
     fn the_same_inputs_give_the_same_cap() {
         let p = cone();
-        let (a, b) = (run(&p), run(&p));
-        assert_eq!(a.rays, b.rays);
-        assert_eq!(a.margins, b.margins);
-        let other = run(&Params { seed: 4, ..p });
-        assert_ne!(a.rays, other.rays);
+        assert_eq!(run(&p), run(&p));
+        assert_ne!(run(&p), run(&Params { seed: 4, ..p }));
     }
 
     #[test]
@@ -251,7 +366,8 @@ mod tests {
         let profile = floats(&p.profile);
         let wrapped = concat_args(vec![&profile]);
         assert_eq!(super::read_floats(&wrapped), p.profile);
-        let (paths, _, _) = execute(&p, &wrapped);
-        assert_eq!(split_args(&paths), split_args(&execute(&p, &profile).0));
+        let plant = stipe();
+        let at = points_at(&plant, 1.0);
+        assert_eq!(split_args(&execute_on(&plant, &at, &p, &wrapped)), split_args(&execute_on(&plant, &at, &p, &profile)));
     }
 }

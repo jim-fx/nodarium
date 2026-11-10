@@ -17,7 +17,7 @@
 //! As a mesh they stay blunt at any mesh resolution, as paths meshed loose they'd melt into
 //! fins with slits between them.
 //!
-//! With the stipe connected, the gills that leave it run on `decurrent` down it (decurrent
+//! The gills that leave the stipe run on `decurrent` down it (decurrent
 //! gills, like Pleurotus and Cantharellus), at the angle they meet it and lower and lower until
 //! they are gone. Where they turn from the cap onto the stipe the way they hang turns over
 //! about a depth, so their edge curves round the corner.
@@ -25,11 +25,11 @@
 use glam::{Vec2, Vec3};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
-    concat_arg_vecs, curve, decode_float, decode_points,
-    geometry::{create_path, orthogonal_to, set_path_link, wrap_path, wrap_path_mut, PathLink},
+    concat_arg_vecs, curve, decode_float,
+    geometry::{create_path, set_path_link, wrap_path, wrap_path_mut, PathLink},
     int, split_args, Ctx, Pattern, Point,
 };
-use myzel_core::{add_sheet, smooth_normals, Mesh, SheetGrid};
+use myzel_core::{add_sheet, smooth_normals, Cap, CapFrame, Mesh, SheetGrid};
 use noise::{NoiseFn, OpenSimplex};
 use std::f32::consts::{PI, TAU};
 
@@ -104,10 +104,8 @@ struct Frame {
 }
 
 impl Frame {
-    fn new(hinge: &Point) -> Frame {
-        let axis = hinge.tangent.try_normalize().unwrap_or(Vec3::Y);
-        let side = orthogonal_to(axis);
-        Frame { hinge: hinge.position, axis, side, around: axis.cross(side) }
+    fn new(cap: &CapFrame) -> Frame {
+        Frame { hinge: cap.hinge, axis: cap.axis, side: cap.side, around: cap.around }
     }
 
     fn out(&self, angle: f32) -> Vec3 {
@@ -779,7 +777,7 @@ fn cap_gills(underside: &mut Underside, hinge: &Point, stipe: Option<&Stipe>, pa
         add_plate(plates, &plate, thickness, blunt, |q, i| keep_free(q, angles[i]));
         for j in 0..strands {
             let f = j as f32 / (strands - 1) as f32;
-            let link = PathLink::child(p.creator, hinge.parent_id, 1.0, paths.len() as i32);
+            let link = PathLink::child(p.creator, hinge.parent_id, hinge.alpha, paths.len() as i32);
             let mut data = create_path(plate.len(), hinge.depth + 1);
             set_path_link(&mut data, link);
             let path = wrap_path_mut(&mut data);
@@ -805,37 +803,44 @@ fn build(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let mut ctx = Ctx::default();
     let mut plates = Mesh::default();
     // args follow the key order of the inputs in definition.json, so a new input there shifts these
-    let Some(pattern) = Pattern::decode(args[2]) else {
+    let Some(pattern) = Pattern::decode(args[1]) else {
         return (concat_arg_vecs(Vec::new()), plates.encode());
     };
-    let rays = split_args(args[0]);
-    let stipes = split_args(args[3]);
-    let hinges = decode_points(args[1]);
+    let items = split_args(args[0]);
+    let caps = Cap::all(&items);
     let mut output = Vec::new();
-    for (rank, hinge) in hinges.iter().enumerate() {
-        // the rays of this cap grow on its stipe
-        let own: Vec<&[i32]> = rays.iter().copied().filter(|r| r.len() > 9 && wrap_path(r).link.parent_id == hinge.parent_id).collect();
-        let stipe_path = stipes.iter().copied().find(|s| s.len() > 9 && wrap_path(s).link.id == hinge.parent_id);
+    for (rank, cap) in caps.iter().enumerate() {
+        let stipe = items[cap.stipe];
         // the sizes are read for every stipe, so they can follow the size of the mushroom
-        match stipe_path {
-            Some(path) => ctx.set_path(path, rank, hinges.len()),
-            None => ctx.seed_path(hinge.parent_id),
-        }
-        ctx.alpha = 1.0;
+        ctx.set_path(stipe, rank, caps.len());
+        ctx.alpha = cap.frame.alpha;
         let params = Params {
-            depth: ctx.float(args[4]),
-            depth_curve: read_floats(args[5]),
-            free_distance: ctx.float(args[6]),
-            decurrent: ctx.float(args[7]),
-            thickness: ctx.float(args[8]),
-            blunt: ctx.float(args[9]),
-            edge_wave: ctx.float(args[10]),
-            seed: int(args[11]),
-            creator: int(args[12]),
+            depth: ctx.float(args[2]),
+            depth_curve: read_floats(args[3]),
+            free_distance: ctx.float(args[4]),
+            decurrent: ctx.float(args[5]),
+            thickness: ctx.float(args[6]),
+            blunt: ctx.float(args[7]),
+            edge_wave: ctx.float(args[8]),
+            seed: int(args[9]),
+            creator: int(args[10]),
         };
-        let stipe = stipe_path.and_then(Stipe::new);
-        if let Some(mut underside) = Underside::new(Frame::new(hinge), &own) {
-            output.extend(cap_gills(&mut underside, hinge, stipe.as_ref(), &pattern, &params, &mut plates));
+        let f = &cap.frame;
+        let hinge = Point {
+            position: f.hinge,
+            direction: f.side,
+            tangent: f.axis,
+            scale: f.stipe_radius,
+            parent_id: f.stipe_id,
+            alpha: f.alpha,
+            depth: stipe[3],
+            index: 0,
+        };
+        let mut rays: Vec<usize> = cap.rays.iter().map(|r| r.path).collect();
+        rays.sort_unstable();
+        let rays: Vec<&[i32]> = rays.into_iter().map(|i| items[i]).collect();
+        if let Some(mut underside) = Underside::new(Frame::new(f), &rays) {
+            output.extend(cap_gills(&mut underside, &hinge, Stipe::new(stipe).as_ref(), &pattern, &params, &mut plates));
         }
     }
     smooth_normals(&mut plates);
@@ -845,7 +850,7 @@ fn build(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nodarium_utils::{encode_float, encode_points, geometry::path_link};
+    use nodarium_utils::{encode_float, geometry::path_link};
 
     const CREATOR: i32 = 9;
     const STIPE_ID: i32 = 1234;
@@ -870,9 +875,18 @@ mod tests {
         0.004 - 0.003 * (x / RADIUS).clamp(0.0, 1.0)
     }
 
+    /// The rays and the stipe they grow on
+    fn cap(bend: f32) -> Vec<i32> {
+        with_stipe(rays(bend))
+    }
+
+    fn with_stipe(rays: Vec<Vec<i32>>) -> Vec<i32> {
+        concat_arg_vecs(rays.into_iter().chain([stipe()]).collect())
+    }
+
     /// 12 rays that start in the stipe and 12 that start 12 mm out between them, like `cap`
     /// makes them. `bend` turns the outer part of every ray down, like a closing cap.
-    fn cap(bend: f32) -> Vec<i32> {
+    fn rays(bend: f32) -> Vec<Vec<i32>> {
         let mut rays = Vec::new();
         for k in 0..24 {
             let primary = k % 2 == 0;
@@ -902,20 +916,7 @@ mod tests {
             }
             rays.push(data);
         }
-        concat_arg_vecs(rays)
-    }
-
-    fn hinge() -> Vec<i32> {
-        encode_points(&[Point {
-            position: HINGE,
-            direction: Vec3::X,
-            tangent: Vec3::Y,
-            scale: STIPE_RADIUS,
-            parent_id: STIPE_ID,
-            alpha: 1.0,
-            depth: 1,
-            index: 0,
-        }])
+        rays
     }
 
     /// `inner` stripes from 4 mm out, every gap gets a new stripe from `split` on
@@ -957,7 +958,7 @@ mod tests {
             let y = HINGE.y * i as f32 / (n - 1) as f32;
             path.points[i * 4..i * 4 + 4].copy_from_slice(&[HINGE.x, y, HINGE.z, STIPE_RADIUS]);
         }
-        concat_arg_vecs(vec![data])
+        data
     }
 
     fn floats(values: &[f32]) -> Vec<i32> {
@@ -977,15 +978,9 @@ mod tests {
     }
 
     fn execute_both(cap: &[i32], pattern: &Pattern, p: &Params, curve: Vec<i32>) -> (Vec<i32>, Vec<i32>) {
-        execute_on(cap, &stipe(), pattern, p, curve)
-    }
-
-    fn execute_on(cap: &[i32], stipe: &[i32], pattern: &Pattern, p: &Params, curve: Vec<i32>) -> (Vec<i32>, Vec<i32>) {
         build(&[
             cap,
-            &hinge(),
             &pattern.encode(),
-            stipe,
             &[encode_float(p.depth)],
             &curve,
             &[encode_float(p.free_distance)],
@@ -1033,9 +1028,9 @@ mod tests {
 
     #[test]
     fn the_underside_has_no_step_where_rays_are_added() {
-        let rays = cap(0.0);
-        let hinge = decode_points(&hinge())[0];
-        let underside = Underside::new(Frame::new(&hinge), &split_args(&rays)).unwrap();
+        let rays = concat_arg_vecs(rays(0.0));
+        let frame = CapFrame::on(&stipe(), 1.0);
+        let underside = Underside::new(Frame::new(&frame), &split_args(&rays)).unwrap();
         for angle in [0.01, 0.2, TAU * 1.5 / 24.0] {
             let height = |s: f32| {
                 let spot = underside.at(angle, s).unwrap();
@@ -1425,26 +1420,32 @@ mod tests {
     }
 
     #[test]
-    fn gills_without_decurrent_ignore_the_stipe() {
-        let p = params();
-        let curve = floats(&p.depth_curve);
-        let with = execute_on(&cap(0.0), &stipe(), &pattern(24, 0.014), &p, curve.clone());
-        let without = execute_on(&cap(0.0), &[], &pattern(24, 0.014), &p, curve.clone());
-        assert_eq!(with, without);
-        // and decurrent gills without a stipe stay under the cap
-        let alone = execute_on(&cap(0.0), &[], &pattern(24, 0.014), &decurrent(0.02), floats(&[0.0, 1.0, 1.0, 1.0]));
-        let lowest = Mesh::decode(&alone.1).positions.chunks_exact(3).map(|q| q[1]).fold(f32::MAX, f32::min);
-        assert!(lowest > underside(RADIUS) - 0.01);
+    fn the_cap_sits_where_its_rays_grow_on_the_stipe() {
+        // the same cap a centimetre lower, on a stipe that goes on above it
+        let lower = |p: &mut [f32]| p[1] -= 0.01;
+        let mut low_rays = rays(0.0);
+        for ray in &mut low_rays {
+            let link = path_link(ray);
+            set_path_link(ray, PathLink::child(link.creator, STIPE_ID, 0.8, link.index));
+            wrap_path_mut(ray).points.chunks_exact_mut(4).for_each(lower);
+        }
+        let low = run(&with_stipe(low_rays), &pattern(24, 0.014), &params());
+        let high = run(&cap(0.0), &pattern(24, 0.014), &params());
+        assert_eq!(low.len(), high.len());
+        for (a, b) in low.iter().zip(&high) {
+            for (x, y) in points(a).iter().zip(points(b)) {
+                assert!(x.distance(y - Vec3::Y * 0.01) < 1e-5, "{x} and {y}");
+            }
+        }
     }
 
     #[test]
     fn gills_reach_the_margin_of_a_lopsided_cap_all_round() {
         // every ray stretched from the axis, 1.4 times as long on one side, 0.6 times on the other
         let stretch = |angle: f32| 1.0 + 0.4 * angle.cos();
-        let rays: Vec<Vec<i32>> = split_args(&cap(0.0))
-            .iter()
-            .map(|r| {
-                let mut ray = r.to_vec();
+        let rays: Vec<Vec<i32>> = rays(0.0)
+            .into_iter()
+            .map(|mut ray| {
                 let path = wrap_path_mut(&mut ray);
                 let n = path.points.len() / 4;
                 let tip = Vec3::from_slice(&path.points[(n - 1) * 4..(n - 1) * 4 + 3]);
@@ -1459,7 +1460,7 @@ mod tests {
                 ray
             })
             .collect();
-        let gills = run(&concat_arg_vecs(rays), &pattern(24, 0.014), &Params { edge_wave: 0.0, ..params() });
+        let gills = run(&with_stipe(rays), &pattern(24, 0.014), &Params { edge_wave: 0.0, ..params() });
         let reach = |angle: f32| {
             gills
                 .iter()
@@ -1495,9 +1496,7 @@ mod tests {
     fn nothing_without_a_pattern_or_a_cap() {
         let (empty, plates) = build(&[
             &cap(0.0),
-            &hinge(),
             &[],
-            &stipe(),
             &[encode_float(0.006)],
             &floats(&[0.0, 1.0, 1.0, 1.0]),
             &[encode_float(0.001)],
@@ -1510,17 +1509,13 @@ mod tests {
         ]);
         assert!(split_args(&empty).is_empty());
         assert_eq!(Mesh::decode(&plates).face_count(), 0);
-        // rays of another stipe don't make a cap for this hinge
-        let other: Vec<i32> = {
-            let mut rays = cap(0.0);
-            let mut paths: Vec<Vec<i32>> = split_args(&rays).iter().map(|s| s.to_vec()).collect();
-            for p in paths.iter_mut() {
-                p[5] = STIPE_ID + 1;
-            }
-            rays = concat_arg_vecs(paths);
-            rays
-        };
-        assert!(run(&other, &pattern(24, 0.014), &params()).is_empty());
+        // rays without their stipe make no cap
+        let mut other = rays(0.0);
+        for p in other.iter_mut() {
+            p[5] = STIPE_ID + 1;
+        }
+        assert!(run(&with_stipe(other), &pattern(24, 0.014), &params()).is_empty());
+        assert!(run(&concat_arg_vecs(rays(0.0)), &pattern(24, 0.014), &params()).is_empty());
     }
 
     #[test]

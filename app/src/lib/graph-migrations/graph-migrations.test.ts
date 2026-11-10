@@ -26,6 +26,17 @@ function graph(nodes: SerializedNode[], edges: Graph['edges'] = []): Graph {
   return { id: 1, version: CURRENT_GRAPH_VERSION, nodes, edges, groups: [] };
 }
 
+/** The graph as the migrations up to `version` leave it, for what later ones change again */
+function migrateTo(version: number, old: Graph): Graph {
+  let migrated: Graph = structuredClone(old);
+  for (const migration of MIGRATIONS) {
+    if (migration.version <= (old.version ?? 0) || migration.version > version) continue;
+    migrated = migration.migrate(migrated);
+    migrated.version = migration.version;
+  }
+  return migrated;
+}
+
 describe('migrateGraph', () => {
   it('has a fixture for every version', () => {
     for (let version = 0; version <= CURRENT_GRAPH_VERSION; version++) {
@@ -245,13 +256,14 @@ describe('version 3: the cap is split into cap and pose nodes', () => {
   const byType = (g: Graph, type: string) => g.nodes.find((n) => n.type === type)!;
 
   it('turns the old defaults into the new nodes the templates use', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      3,
       v2(
         [node(1, 'max/plantarium/stem'), node(2, 'max/myzel/cap'), node(3, 'max/myzel/strands')],
         [[1, 0, 2, 'plant'], [2, 0, 3, 'plant']]
       )
     );
-    expect(migrated.version).toBe(CURRENT_GRAPH_VERSION);
+    expect(migrated.version).toBe(3);
     expect(types(migrated)).toEqual([
       'max/plantarium/stem',
       'max/myzel/cap',
@@ -292,7 +304,8 @@ describe('version 3: the cap is split into cap and pose nodes', () => {
       wave_profile: [0, 0, 1, 1],
       spacing: 0.8
     });
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      3,
       v2(
         [
           node(1, 'max/plantarium/stem'),
@@ -333,7 +346,8 @@ describe('version 3: the cap is split into cap and pose nodes', () => {
   });
 
   it('leaves out pose nodes that would change nothing', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      3,
       v2(
         [node(2, 'max/myzel/cap', { spacing: 0, margin_curl: 0 }), node(5, 'max/myzel/membrane')],
         [[2, 2, 5, 'a']]
@@ -348,7 +362,8 @@ describe('version 3: the cap is split into cap and pose nodes', () => {
   });
 
   it('gives the margin of the added rays when only fill_gaps poses the cap', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      3,
       v2([node(2, 'max/myzel/cap', { margin_curl: 0 }), node(5, 'max/myzel/membrane')], [[
         2,
         2,
@@ -375,7 +390,7 @@ describe('version 3: the cap is split into cap and pose nodes', () => {
         edges: []
       } as unknown as NonNullable<Graph['groups']>[number]
     ];
-    const migrated = migrateGraph(old);
+    const migrated = migrateTo(3, old);
     const group = migrated.groups![0];
     const ids = [
       ...migrated.nodes.map((n) => n.id),
@@ -892,7 +907,8 @@ describe('version 7: the Myzel output takes a mesh and no longer meshes paths', 
         ['max/myzel/cap', 1]
       ] as const
     ) {
-      const migrated = migrateGraph(
+      const migrated = migrateTo(
+        7,
         v6([node(1, type), node(2, OUTPUT)], [[1, output, 2, 'field']])
       );
       expect(migrated.nodes.map((n) => n.type), type).not.toContain(HYPHAE);
@@ -916,5 +932,219 @@ describe('version 7: the Myzel output takes a mesh and no longer meshes paths', 
       [10, HYPHAE]
     ]);
     expect(group.edges).toEqual([[1, 0, 10, 'paths'], [10, 0, 2, 'mesh']]);
+  });
+});
+
+describe('version 8: the cap grows at points, the stipe runs along with its rays', () => {
+  const v7 = (nodes: SerializedNode[], edges: Graph['edges'] = []): Graph => ({
+    ...graph(nodes, edges),
+    version: 7
+  });
+  const CAP = 'max/myzel/cap';
+  const MARGIN = 'max/myzel/cap_margin';
+  const POINTS = 'max/plantarium/points_on_path';
+  const SEPARATE = 'max/plantarium/separate';
+  const ofType = (nodes: SerializedNode[], type: string) => nodes.filter((n) => n.type === type);
+
+  it('puts one point at the tip of every stipe in front of the cap', () => {
+    const migrated = migrateGraph(
+      v7(
+        [
+          node(1, 'max/plantarium/stem'),
+          node(2, CAP, { rays: 14, seed: 5 }),
+          node(3, 'max/myzel/margin_waves'),
+          node(4, 'max/myzel/cap_open'),
+          node(5, 'max/myzel/lamellae'),
+          node(6, 'max/myzel/reaction_diffusion'),
+          node(7, 'max/plantarium/random')
+        ],
+        [
+          [1, 0, 2, 'plant'],
+          [2, 0, 3, 'cap'],
+          [2, 1, 3, 'hinge'],
+          [3, 0, 4, 'cap'],
+          [2, 1, 4, 'hinge'],
+          [4, 0, 5, 'cap'],
+          [2, 1, 5, 'hinge'],
+          [1, 0, 5, 'stipe'],
+          [6, 0, 5, 'pattern'],
+          [7, 0, 2, 'seed']
+        ]
+      )
+    );
+    expect(migrated.version).toBe(8);
+    const [points] = ofType(migrated.nodes, POINTS);
+    expect(points.props).toEqual({ amount: 1, lowest_point: 1, highest_point: 1 });
+    expect(migrated.nodes.find((n) => n.id === 2)!.props).toEqual({ rays: 14 });
+    expect(ofType(migrated.nodes, MARGIN)).toEqual([]);
+    expect(ofType(migrated.nodes, SEPARATE)).toEqual([]);
+    expect(migrated.edges).toEqual([
+      [1, 0, 2, 'plant'],
+      [2, 0, 3, 'cap'],
+      [3, 0, 4, 'cap'],
+      [4, 0, 5, 'cap'],
+      [6, 0, 5, 'pattern'],
+      [1, 0, points.id, 'plant'],
+      [points.id, 0, 2, 'points']
+    ]);
+  });
+
+  it('reads the hinge from the points and the margin from a cap_margin', () => {
+    const migrated = migrateGraph(
+      v7(
+        [
+          node(1, 'max/plantarium/stem'),
+          node(2, CAP),
+          node(3, 'max/myzel/margin_curl'),
+          node(4, 'max/myzel/cap_open'),
+          node(5, 'max/myzel/membrane'),
+          node(6, 'max/myzel/membrane'),
+          node(7, 'max/plantarium/instance_from_points')
+        ],
+        [
+          [1, 0, 2, 'plant'],
+          [2, 0, 3, 'cap'],
+          [2, 1, 3, 'hinge'],
+          [3, 0, 4, 'cap'],
+          [4, 1, 5, 'a'],
+          [4, 1, 6, 'a'],
+          [2, 2, 6, 'b'],
+          [2, 1, 7, 'points']
+        ]
+      )
+    );
+    const [points] = ofType(migrated.nodes, POINTS);
+    const [fromCap, fromOpen] = ofType(migrated.nodes, MARGIN);
+    expect(migrated.edges).toEqual([
+      [1, 0, 2, 'plant'],
+      [2, 0, 3, 'cap'],
+      [3, 0, 4, 'cap'],
+      [fromOpen.id, 0, 5, 'a'],
+      [fromOpen.id, 0, 6, 'a'],
+      [fromCap.id, 0, 6, 'b'],
+      [points.id, 0, 7, 'points'],
+      [1, 0, points.id, 'plant'],
+      [points.id, 0, 2, 'points'],
+      [2, 0, fromCap.id, 'cap'],
+      [4, 0, fromOpen.id, 'cap']
+    ]);
+  });
+
+  it('leaves the stipe behind where the rays go on to other nodes', () => {
+    const migrated = migrateGraph(
+      v7(
+        [
+          node(1, 'max/plantarium/stem'),
+          node(2, CAP),
+          node(3, 'max/plantarium/fill_gaps'),
+          node(4, 'max/myzel/cap_open'),
+          node(5, 'max/myzel/strands'),
+          node(6, 'max/myzel/hyphae_to_mesh'),
+          node(7, 'max/myzel/lamellae')
+        ],
+        [
+          [1, 0, 2, 'plant'],
+          [2, 0, 3, 'plant'],
+          [3, 0, 4, 'cap'],
+          [4, 0, 5, 'plant'],
+          [4, 0, 6, 'paths'],
+          [4, 0, 7, 'cap']
+        ]
+      )
+    );
+    const [separate] = ofType(migrated.nodes, SEPARATE);
+    const [points] = ofType(migrated.nodes, POINTS);
+    expect(migrated.edges).toEqual([
+      [1, 0, 2, 'plant'],
+      [2, 0, 3, 'plant'],
+      [3, 0, 4, 'cap'],
+      [separate.id, 1, 5, 'plant'],
+      [separate.id, 1, 6, 'paths'],
+      [4, 0, 7, 'cap'],
+      [1, 0, points.id, 'plant'],
+      [points.id, 0, 2, 'points'],
+      [4, 0, separate.id, 'plant'],
+      [1, 0, separate.id, 'like']
+    ]);
+  });
+
+  it('drops an exposed hinge and gives an unwired cap no points', () => {
+    const lamellae = node(3, 'max/myzel/lamellae');
+    lamellae.exposed = ['hinge', 'stipe', 'depth'];
+    const migrated = migrateGraph(
+      v7(
+        [node(2, CAP), node(4, 'max/plantarium/instance_from_points'), lamellae],
+        [[2, 1, 4, 'points'], [2, 1, 3, 'hinge'], [2, 0, 3, 'cap']]
+      )
+    );
+    expect(migrated.nodes.find((n) => n.id === 3)!.exposed).toEqual(['depth']);
+    expect(ofType(migrated.nodes, POINTS)).toEqual([]);
+    expect(migrated.edges).toEqual([[2, 0, 3, 'cap']]);
+  });
+
+  it('migrates inside groups and removes the group sockets that carried the hinge', () => {
+    const old = v7([
+      node(1, 'max/plantarium/stem'),
+      { ...node(2, '__internal/group/instance', { groupId: 20 }) },
+      { ...node(3, '__internal/group/instance', { groupId: 21, hinge: 0, depth: 0.004 }) }
+    ], [[1, 0, 2, 'stipe'], [2, 0, 3, 'rays'], [2, 1, 3, 'hinge'], [2, 2, 3, 'depth']]);
+    old.groups = [
+      {
+        id: 20,
+        nodes: [
+          node(10, '__internal/group/input'),
+          node(11, '__internal/group/output'),
+          node(12, CAP),
+          node(13, 'max/myzel/cap_open')
+        ],
+        edges: [
+          [10, 0, 12, 'plant'],
+          [12, 0, 13, 'cap'],
+          [12, 1, 13, 'hinge'],
+          [13, 0, 11, 'out_0'],
+          [12, 1, 11, 'out_1'],
+          [13, 1, 11, 'out_2']
+        ],
+        inputs: { stipe: { type: 'path', external: true } },
+        outputs: [{ type: 'path' }, { type: 'points', label: 'Hinge' }, { type: 'points' }]
+      },
+      {
+        id: 21,
+        nodes: [
+          node(14, '__internal/group/input'),
+          node(15, 'max/myzel/lamellae'),
+          node(16, 'max/myzel/membrane')
+        ],
+        edges: [[14, 0, 15, 'cap'], [14, 1, 15, 'hinge'], [14, 2, 15, 'depth'], [14, 2, 16, 'a']],
+        inputs: {
+          rays: { type: 'path', external: true },
+          hinge: { type: 'points', external: true },
+          depth: { type: 'points', external: true }
+        }
+      }
+    ] as unknown as NonNullable<Graph['groups']>;
+    const migrated = migrateGraph(old);
+    const [cap, gills] = migrated.groups!;
+    const [points] = ofType(cap.nodes, POINTS);
+    const [margin] = ofType(cap.nodes, MARGIN);
+    const ids = [
+      ...migrated.nodes.map((n) => n.id),
+      ...migrated.groups!.flatMap((g) => [g.id, ...g.nodes.map((n) => n.id)])
+    ];
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(cap.outputs).toEqual([{ type: 'path' }, { type: 'points' }]);
+    expect(cap.edges).toEqual([
+      [10, 0, 12, 'plant'],
+      [12, 0, 13, 'cap'],
+      [13, 0, 11, 'out_0'],
+      [margin.id, 0, 11, 'out_1'],
+      [10, 0, points.id, 'plant'],
+      [points.id, 0, 12, 'points'],
+      [13, 0, margin.id, 'cap']
+    ]);
+    expect(Object.keys(gills.inputs!)).toEqual(['rays', 'depth']);
+    expect(gills.edges).toEqual([[14, 0, 15, 'cap'], [14, 1, 15, 'depth'], [14, 1, 16, 'a']]);
+    expect(migrated.nodes.find((n) => n.id === 3)!.props).toEqual({ groupId: 21, depth: 0.004 });
+    expect(migrated.edges).toEqual([[1, 0, 2, 'stipe'], [2, 0, 3, 'rays'], [2, 1, 3, 'depth']]);
   });
 });
