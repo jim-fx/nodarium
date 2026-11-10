@@ -49,11 +49,20 @@ export function outputMesh(graph: Graph) {
 function meshPaths(scope: Scope, output: SerializedNode, nextId: () => number) {
   if (output.props?.show === SHOW_HYPHAE) return;
   const typeOf = (id: number) => scope.nodes.find((n) => n.id === id)?.type;
-  const paths = scope.edges.filter(
-    (e) =>
-      e[2] === output.id && e[3] === 'field' && e[1] === 0 && PATH_MAKERS.has(typeOf(e[0]) ?? '')
-  );
+  const fields = scope.edges.filter((e) => e[2] === output.id && e[3] === 'field');
+  // an input resolves to its last edge at runtime, the editor never makes more than one
+  const winner = fields[fields.length - 1];
+  const paths = winner && winner[1] === 0 && PATH_MAKERS.has(typeOf(winner[0]) ?? '')
+    ? [winner]
+    : [];
   if (paths.length === 0) return;
+
+  if (fields.length > 1) {
+    console.warn(
+      `output migration: the output ${output.id} has ${fields.length} edges into field, only the last one counts`
+    );
+    scope.edges = scope.edges.filter((e) => e === winner || !fields.includes(e));
+  }
 
   const blend = output.props?.blend;
   const mesh: SerializedNode = {

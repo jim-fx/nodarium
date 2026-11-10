@@ -1,5 +1,5 @@
 import type { Graph, SerializedNode } from '@nodarium/types';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   CURRENT_GRAPH_VERSION,
   GraphVersionError,
@@ -850,6 +850,20 @@ describe('version 7: the Myzel output takes a mesh and no longer meshes paths', 
     expect(mesh.position).toEqual([0, 0]);
     expect(migrated.nodes.find((n) => n.id === 2)!.position).toEqual([30, 0]);
     expect(migrated.edges).toEqual([[1, 0, mesh.id, 'paths'], [mesh.id, 0, 2, 'mesh']]);
+  });
+
+  it('keeps only the last of several edges into field, the one the runtime used', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const migrated = migrateGraph(
+      v6(
+        [node(1, 'max/myzel/strands'), node(3, 'max/myzel/cap'), node(2, OUTPUT)],
+        [[1, 0, 2, 'field'], [3, 0, 2, 'field']]
+      )
+    );
+    const mesh = migrated.nodes.find((n) => n.type === HYPHAE)!;
+    expect(migrated.edges).toEqual([[3, 0, mesh.id, 'paths'], [mesh.id, 0, 2, 'mesh']]);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
   });
 
   it('keeps the default blend out of the new node', () => {
