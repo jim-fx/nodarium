@@ -17,8 +17,8 @@
 //   --templates  the templates timed node by node through the runtime, hyphae_to_mesh apart
 //
 // The strands grow from a stem 5 cm tall and 7 mm thick, like a groomed stipe. The
-// chain is the groomed mushroom at about 5000 strands: a stipe of strands that clump, and a cap
-// whose guides are filled, waved, curled and opened, then filled with strands.
+// chain is the groomed mushroom at about 5000 strands: a stipe of strands that twist, break short and clump, and a cap
+// whose guides are filled, waved, curled and opened, then filled with strands that break short.
 // avoid runs on both, joined, once where the strands fit (radius 0) and once where they can't
 // (radius --radius, about 2.4 times as much tube as the stipe holds).
 import { createPerformanceStore, createWasmWrapper, readNodeValue } from '@nodarium/utils';
@@ -188,17 +188,16 @@ const TIP = { amount: 1, lowest_point: 1, highest_point: 1 };
 const strands = (amount: number, guideThickness = STIPE.thickness) => ({
   amount,
   thickness: 0.0005 * (guideThickness / 0.007) * Math.sqrt(200 / amount),
-  twist: 0.1,
-  wobble: 0.25,
-  length_variation: 0.3
+  wobble: 0.25
 });
 // the cap strands of a groomed cap, 40 of 0.5 mm per guide, thinner when there are more
 const capStrands = (amount: number) => ({
   amount,
   thickness: 0.0005 * Math.sqrt(40 / amount),
-  wobble: 0.25,
-  length_variation: 0.1
+  wobble: 0.25
 });
+const STIPE_TWIST = { turns: 0.1 };
+const BREAK = { chance: 0.5, lowest_break: 0.85, highest_break: 1 };
 const AVOID = { strength: 1, smoothing: 0.5 };
 const NEIGHBOUR_SENSING = { strength: 0.8, range: 0.003, bundling: 0.6, max_offset: 0.001 };
 const MODIFIERS: [string, string, (force: Int32Array) => Inputs, Props][] = [
@@ -207,6 +206,8 @@ const MODIFIERS: [string, string, (force: Int32Array) => Inputs, Props][] = [
   ['plantarium/apply_force', '', (force) => ({ force }), { strength: 1, stiffness: 0.3 }],
   ['plantarium/avoid', 'contacts', () => ({}), { ...AVOID, radius: 0, mode: 1 }],
   ['plantarium/avoid', 'density', () => ({}), { ...AVOID, radius: 0, mode: 2 }],
+  ['plantarium/twist', '', () => ({}), STIPE_TWIST],
+  ['plantarium/random_break', '', () => ({}), BREAK],
   ['plantarium/clump', '', () => ({}), { strength: 0.5, clumps: 12 }],
   ['plantarium/neighbour_sensing', '', () => ({}), NEIGHBOUR_SENSING],
   ['plantarium/branch', '', () => ({}), { amount: 2, length: 0.01, lowest_branch: 0.3 }],
@@ -320,7 +321,19 @@ if (wanted('chain')) {
       return out;
     };
     const [stem] = step('plantarium/stem', {}, STIPE);
-    const [stipe] = step('myzel/strands', { plant: stem }, strands(2500), 'stipe: myzel/strands');
+    const [grown] = step('myzel/strands', { plant: stem }, strands(2500), 'stipe: myzel/strands');
+    const [twisted] = step(
+      'plantarium/twist',
+      { plant: grown },
+      STIPE_TWIST,
+      'stipe: plantarium/twist'
+    );
+    const [stipe] = step(
+      'plantarium/random_break',
+      { plant: twisted },
+      BREAK,
+      'stipe: plantarium/random_break'
+    );
     const [clumped] = step(
       'plantarium/clump',
       { plant: stipe },
@@ -360,11 +373,17 @@ if (wanted('chain')) {
       {},
       'cap: plantarium/separate'
     );
-    const [capStrandList] = step(
+    const [grownCap] = step(
       'myzel/strands',
       { plant: rays },
       capStrands(Math.round(2500 / guides)),
       'cap: myzel/strands'
+    );
+    const [capStrandList] = step(
+      'plantarium/random_break',
+      { plant: grownCap },
+      { ...BREAK, lowest_break: 0.95 },
+      'cap: plantarium/random_break'
     );
     const [margin] = step('myzel/cap_margin', { cap: opened }, {}, 'veil: myzel/cap_margin');
     step('myzel/membrane', { a: margin, b: stem }, { tear: 0.5 }, 'veil: myzel/membrane');

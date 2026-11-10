@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 9,
+  "version": 10,
   "settings": {
     "resolution.field": 256,
     "resolution.curve": 24
@@ -60,9 +60,7 @@
       "props": {
         "amount": 250,
         "thickness": 0.0006,
-        "twist": 0.05,
-        "wobble": 0.3,
-        "length_variation": 0.15
+        "wobble": 0.3
       }
     },
     {
@@ -102,8 +100,7 @@
       "props": {
         "amount": 40,
         "thickness": 0.0006,
-        "wobble": 0.25,
-        "length_variation": 0.1
+        "wobble": 0.25
       }
     },
     {
@@ -873,6 +870,34 @@
       "props": {
         "op_type": 2
       }
+    },
+    {
+      "id": 404,
+      "position": [-20, 67.5],
+      "type": "max/plantarium/twist",
+      "props": {
+        "turns": 0.05
+      }
+    },
+    {
+      "id": 405,
+      "position": [0, 67.5],
+      "type": "max/plantarium/random_break",
+      "props": {
+        "chance": 0.5,
+        "lowest_break": 0.925,
+        "highest_break": 1
+      }
+    },
+    {
+      "id": 406,
+      "position": [-20, 160.5],
+      "type": "max/plantarium/random_break",
+      "props": {
+        "chance": 0.5,
+        "lowest_break": 0.95,
+        "highest_break": 1
+      }
     }
   ],
   "edges": [
@@ -907,7 +932,7 @@
       "b"
     ],
     [
-      4,
+      405,
       0,
       40,
       "plant"
@@ -1057,7 +1082,7 @@
       "irregularity"
     ],
     [
-      6,
+      406,
       0,
       59,
       "plant"
@@ -1427,6 +1452,24 @@
       0,
       5,
       "radius"
+    ],
+    [
+      4,
+      0,
+      404,
+      "plant"
+    ],
+    [
+      404,
+      0,
+      405,
+      "plant"
+    ],
+    [
+      6,
+      0,
+      406,
+      "plant"
     ]
   ]
 }
