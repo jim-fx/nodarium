@@ -13,7 +13,6 @@ const SOCKET_ONLY_TYPES = new Set([
   'geometry',
   'force',
   'points',
-  'field',
   'mesh',
   'hyphae',
   'pattern'

@@ -35,15 +35,6 @@ pub fn value_noise(p: Vec3, seed: u32) -> f32 {
     lerp(plane(z), plane(z + 1), w)
 }
 
-/// One independent noise value per axis
-pub(crate) fn value_noise3(p: Vec3, seed: u32) -> Vec3 {
-    Vec3::new(
-        value_noise(p, seed),
-        value_noise(p + Vec3::new(31.4, 17.7, 5.3), seed ^ 0x68e3_1da4),
-        value_noise(p + Vec3::new(-9.1, 43.2, 27.6), seed ^ 0xb529_7a4d),
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

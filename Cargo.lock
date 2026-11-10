@@ -27,16 +27,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
-name = "myzel_bend"
-version = "0.1.0"
-dependencies = [
- "glam",
- "myzel_core",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
 name = "myzel_cap"
 version = "0.1.0"
 dependencies = [
@@ -67,30 +57,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "myzel_capsule"
-version = "0.1.0"
-dependencies = [
- "glam",
- "myzel_core",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
 name = "myzel_core"
 version = "0.1.0"
 dependencies = [
  "glam",
- "nodarium_utils",
-]
-
-[[package]]
-name = "myzel_domain_warp"
-version = "0.1.0"
-dependencies = [
- "glam",
- "myzel_core",
- "nodarium_macros",
  "nodarium_utils",
 ]
 
@@ -136,16 +106,6 @@ dependencies = [
  "nodarium_utils",
  "noise",
  "serde_json",
-]
-
-[[package]]
-name = "myzel_map_range"
-version = "0.1.0"
-dependencies = [
- "glam",
- "myzel_core",
- "nodarium_macros",
- "nodarium_utils",
 ]
 
 [[package]]
@@ -220,16 +180,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "myzel_revolve"
-version = "0.1.0"
-dependencies = [
- "glam",
- "myzel_core",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
 name = "myzel_set_blend"
 version = "0.1.0"
 dependencies = [
@@ -270,36 +220,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "myzel_smooth_subtract"
-version = "0.1.0"
-dependencies = [
- "glam",
- "myzel_core",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "myzel_smooth_union"
-version = "0.1.0"
-dependencies = [
- "glam",
- "myzel_core",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "myzel_sphere"
-version = "0.1.0"
-dependencies = [
- "glam",
- "myzel_core",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
 name = "myzel_strands"
 version = "0.1.0"
 dependencies = [
@@ -311,26 +231,6 @@ dependencies = [
 
 [[package]]
 name = "myzel_time"
-version = "0.1.0"
-dependencies = [
- "glam",
- "myzel_core",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "myzel_transform"
-version = "0.1.0"
-dependencies = [
- "glam",
- "myzel_core",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "myzel_vec3"
 version = "0.1.0"
 dependencies = [
  "glam",

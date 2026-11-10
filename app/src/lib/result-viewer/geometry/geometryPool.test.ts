@@ -143,9 +143,9 @@ describe('sortResultItems', () => {
     const geometry = Int32Array.of(1, 0, 0, 0);
     const instance = Int32Array.of(2, 0, 0, 0, 0);
     const mesh = myzelMesh();
-    const field = Int32Array.of(10, 0, 0, 0, 0, 0, 0, 0);
+    const unknown = Int32Array.of(10, 0, 0, 0, 0, 0, 0, 0);
     const path = Int32Array.of(0, 1, 2);
-    const sorted = sortResultItems([path, mesh, geometry, field, instance]);
+    const sorted = sortResultItems([path, mesh, geometry, unknown, instance]);
     expect(sorted.geometries).toEqual([geometry]);
     expect(sorted.instances).toEqual([instance]);
     expect(sorted.meshes).toEqual([mesh]);

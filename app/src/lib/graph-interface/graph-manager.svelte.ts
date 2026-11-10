@@ -437,7 +437,19 @@ export class GraphManager extends EventEmitter<{
         )
       );
 
-    await this.registry.load(nodeIds);
+    try {
+      await this.registry.load(nodeIds);
+    } catch (error) {
+      log.error('failed to load the node types of the graph', error);
+      toast(
+        `Could not load the graph, a node type it uses is not available (any more): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        'error'
+      );
+      this.status = 'error';
+      return;
+    }
 
     const allCollections = new SvelteSet<`${string}/${string}`>();
     for (const id of nodeIds) {

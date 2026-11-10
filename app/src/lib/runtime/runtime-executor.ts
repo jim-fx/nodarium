@@ -28,9 +28,7 @@ import type { RuntimeNode } from './types';
 
 /** The node that turns a value of this socket type into something the debug view can draw */
 const DEBUG_PREVIEWS: Record<string, { node: string; args: Int32Array[] }> = {
-  // the mesh at a low resolution, args are the inputs after the field
-  field: { node: 'max/myzel/output', args: [Int32Array.of(32)] },
-  // a flat disc colored by the pattern
+  // a flat disc colored by the pattern, args are the inputs after the pattern
   pattern: { node: 'max/myzel/output', args: [Int32Array.of(32)] }
 };
 const log = createLogger('runtime-executor');
@@ -633,7 +631,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
   /**
    * Values the viewer can't draw as they are get turned into something it can, by a node of the
-   * graph's own collection. A field is only bytecode, its preview is the mesh of the output node.
+   * graph's own collection. A pattern is only numbers, its preview is the mesh of the output node.
    */
   private previewDebugData() {
     for (const entry of Object.values(this.debugData)) {

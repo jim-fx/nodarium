@@ -1,19 +1,4 @@
-//! Shared core of the Myzel nodes: a field is a small stack program describing a
-//! shape as a signed distance function, it only becomes a mesh at the very end.
-//!
-//! # Field `[10, n, min_x, min_y, min_z, max_x, max_y, max_z, ...ops]`
-//!
-//! `n` is the number of op words after the 8 header words, the bounding box is
-//! stored as f32 and contains the whole surface. Each op is an integer opcode
-//! followed by its f32 operands (see [`opcode`]), only the seed of `WARP` is a
-//! raw integer word. Primitives push a distance, combining ops pop two and push
-//! one. Transform ops push a transformed point
-//! that the following ops are evaluated at, until the matching `END` pops it
-//! again, so a transform only applies to the field it wraps:
-//!
-//! ```text
-//! TRANSLATE 0 1 0  SPHERE 0.5  END  CAPSULE 0 0 0 0 1 0 0.1  SMOOTH_UNION 0.2
-//! ```
+//! Shared core of the Myzel nodes: meshes, paths, colors and the settings that shape them.
 //!
 //! # Mesh `[14, v, f, flags, ...faces, ...positions, ...normals, ...colors, ...groups]`
 //!
@@ -24,7 +9,7 @@
 //! material, and so are vertices whose alpha is 0 ([`NO_COLOR`]); in between
 //! the alpha is how much of the vertex color shows over the material. `groups` holds one small integer per vertex that tells which
 //! material group it belongs to: for meshes made from paths the graph node that
-//! made the path, numbered by [`group_numbers`], 0 for meshes made from a field.
+//! made the path, numbered by [`group_numbers`], 0 for meshes made from a pattern.
 //! Meshes of grown hyphae have [`mesh_flags::TISSUE_GROUPS`] set, their groups
 //! are the [`Tissue`]s. Thin closed sheets like gill plates and veils, which stay
 //! sharp at any mesh resolution, are built with [`add_sheet`].
@@ -62,9 +47,7 @@ mod cap;
 mod color;
 mod cap_shape;
 mod density;
-mod eval;
 mod expand;
-mod field;
 mod gills;
 mod growth;
 mod hyphae;
@@ -73,7 +56,6 @@ mod inputs;
 mod mesh;
 mod noise;
 mod paths;
-mod polygonize;
 mod settings;
 mod sheet;
 mod spatial;
@@ -84,9 +66,7 @@ pub use density::{mesh_segments, surface, surface_in, Frame, Meshing, Segment, S
 pub use color::{
     encode_color, linear_rgba, mix_colors, opaque, pack_linear, paint_mesh, paint_meshes, read_color, NO_COLOR,
 };
-pub use eval::{eval, Program};
 pub use expand::{expand, ExpandParams};
-pub use field::{opcode, Bbox, Field, FIELD_TAG};
 pub use gills::{grow_gills, GillParams, MAX_GILLS, MAX_LAMELLULAE};
 pub use growth::{grow, GrowthParams, Schedule, MAX_ITERATIONS, MAX_SEGMENTS};
 pub use hyphae::{flags, HyphaSegment, Hyphae, Tissue, HYPHAE_TAG};
@@ -95,10 +75,9 @@ pub use paths::{
     group_numbers, path_lines, path_segments, read_mesh_paths, read_paths, retain_points, MeshPath, PathGroup,
     PathStyle, LINES_TAG, TISSUE_COUNT,
 };
-pub use inputs::{read_field, read_float, read_floats, read_hyphae, read_int, read_mesh, read_vec3};
+pub use inputs::{read_float, read_floats, read_hyphae, read_int, read_mesh};
 pub use mesh::{mesh_flags, pack_rgba, Mesh, MESH_TAG};
 pub use noise::value_noise;
-pub use polygonize::polygonize;
 pub use settings::{
     apply_settings, color_value, read_settings, with_setting, PathSettings, Setting, SettingItem, SETTING_TAG,
 };

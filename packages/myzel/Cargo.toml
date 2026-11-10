@@ -3,7 +3,7 @@ name = "myzel_core"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Field bytecode, evaluator and Surface Nets shared by the Myzel nodes"
+description = "Meshes, paths, colors and settings shared by the Myzel nodes"
 
 [lib]
 crate-type = ["rlib"]
