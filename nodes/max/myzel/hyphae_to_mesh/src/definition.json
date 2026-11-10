@@ -1,23 +1,17 @@
 {
   "id": "max/myzel/hyphae_to_mesh",
   "meta": {
-    "description": "Turns paths into the surface around them with a fibrous relief along them. Every node that made paths is its own material group. Paths and meshes from set_color bring their color, the color goes over smoothly where paths of two colors meet."
+    "description": "Turns paths into the surface around them with a fibrous relief along them. Every node that made paths is its own material group. Paths from set_color bring their color, the color goes over smoothly where paths of two colors meet."
   },
   "outputs": [
     "mesh"
   ],
   "inputs": {
-    "hyphae": {
+    "paths": {
       "type": "path",
-      "label": "Body",
+      "label": "Paths",
       "external": true,
-      "description": "Paths that grow into one body of tissue, like stipe and cap: the gaps between them fill"
-    },
-    "loose": {
-      "type": "path",
-      "label": "Loose",
-      "external": true,
-      "description": "Paths that stay apart, like gills and the veil: they join where they touch, the gaps between them stay open"
+      "description": "Paths that grow into one body of tissue, like stipe and cap: the gaps between them fill. Paths from set_fill with a fill of 0 keep their gaps open, like gills or the veil"
     },
     "resolution_field": {
       "type": "integer",
@@ -32,7 +26,7 @@
       "min": 0,
       "max": 3,
       "step": 0.05,
-      "description": "Relief along the paths, fibrous on the body, faint on loose paths. Paths from set_fibres bring their own."
+      "description": "Relief along the paths. Paths from set_fibres bring their own."
     },
     "seed": {
       "type": "seed"
@@ -44,7 +38,7 @@
       "max": 8,
       "step": 0.1,
       "hidden": true,
-      "description": "How far, in path radii, neighbouring paths join into one surface. Paths from set_blend bring their own."
+      "description": "How far, in path radii, neighbouring paths join into one surface."
     },
     "fill": {
       "type": "float",
@@ -53,15 +47,6 @@
       "max": 20,
       "step": 0.5,
       "description": "Where a ball of this many path radii can't pass between body paths the gap fills, so single paths only show as fibres. 0 shows every path. Paths from set_fill bring their own."
-    },
-    "meshes": {
-      "type": "mesh",
-      "label": "Meshes",
-      "accepts": [
-        "path"
-      ],
-      "external": true,
-      "description": "Meshes added as they are, like the plates of lamellae or the skin of membrane: one mesh, or a list of them from a join node. Each one is its own group, after the groups of the paths, and keeps its color from set_color."
     },
     "loose_strands": {
       "type": "float",

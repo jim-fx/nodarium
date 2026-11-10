@@ -3,7 +3,6 @@ use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
     concat_arg_vecs,
     geometry::{is_path, path_id, path_link, set_path_link, split_items, PathLink},
-    wrap_arg,
 };
 use std::collections::HashSet;
 
@@ -36,12 +35,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     for (slot, arg) in args.iter().enumerate() {
         // an unconnected input is empty, a wrapped list is at least [0, n, 1, n]
-        if arg.len() < 4 {
-            continue;
-        }
-        // a value that isn't a list, like a Myzel mesh, is one item
-        if arg[0] != 0 {
-            output.push(wrap_arg(arg));
+        // anything not framed as a list is no geometry, e.g. a mesh from an old graph
+        if arg.len() < 4 || arg[0] != 0 {
             continue;
         }
 
@@ -68,7 +63,6 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 mod tests {
     use super::__nodarium_execute_inner;
     use nodarium_utils::{
-        concat_arg_vecs,
         geometry::{create_multiple_paths, path_link, set_path_link, PathLink, NO_PATH},
         split_args, wrap_arg,
     };
@@ -148,22 +142,19 @@ mod tests {
     }
 
     #[test]
-    fn meshes_are_joined_into_a_list_one_item_each() {
-        // two Myzel meshes as nodes send them: [14, vertices, faces, flags, ...], not in brackets
-        let mesh = |v: i32| {
-            let mut data = vec![14, v, 0, 0];
-            data.extend(vec![0; v as usize * 7]);
-            data
-        };
-        let (a, b) = (mesh(3), mesh(4));
-        let paths = list_with_branch(1);
+    fn a_mesh_without_faces_is_left_out() {
+        // [tag, vertices, faces, flags, positions, normals, groups]. Read as a list, the words
+        // of its positions frame an item that looks like a path
+        let mut mesh = vec![14, 3, 0, 0];
+        mesh.extend(vec![0; 3 * 3 * 2 + 3]);
+        mesh[5] = 1;
+        mesh[7] = 15;
+        mesh[22] = 1;
+        mesh[23] = 1;
+        let paths = create_multiple_paths(2, 3, 1, 4);
 
-        let result = __nodarium_execute_inner(&[&a, &paths, &b, &[]]);
+        let result = __nodarium_execute_inner(&[&mesh, &paths, &[], &[]]);
 
-        let items = split_args(&result);
-        assert_eq!(items.len(), 4);
-        assert_eq!(items[0], wrap_arg(&a).as_slice());
-        assert_eq!(items[3], wrap_arg(&b).as_slice());
-        assert_eq!(links(&concat_arg_vecs(vec![items[1].to_vec(), items[2].to_vec()])), links(&paths));
+        assert_eq!(result, __nodarium_execute_inner(&[&paths, &[], &[], &[]]));
     }
 }

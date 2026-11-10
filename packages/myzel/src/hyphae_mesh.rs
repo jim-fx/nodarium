@@ -43,8 +43,8 @@ const SMOOTHING_PASSES: usize = 8;
 /// [`HyphaeMeshParams::loose_strands`]. Every vertex is in the group of the path that owns it,
 /// see [`group_numbers`].
 ///
-/// A path that brings its own blend, fibres or fill (see [`crate::PathSettings`]) is meshed with
-/// them instead of `params`: its kernel reaches its own blend, its gaps fill by its own fill, and
+/// A path that brings its own fibres or fill (see [`crate::PathSettings`]) is meshed with
+/// them instead of `params`: its gaps fill by its own fill and
 /// its relief has its own strength. Where paths of different values meet, the surface and the
 /// relief go over from one to the other.
 pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
@@ -62,10 +62,10 @@ pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
         let path = &paths[k];
         let fill = path.settings.fill.unwrap_or(params.fill);
         meshing.push(Meshing {
-            closed: path.style.body,
+            closed: true,
             priority: path.style.priority,
             joined: i > 0 && owner[i - 1] == k,
-            blend: path.settings.blend.unwrap_or(params.blend),
+            blend: params.blend,
             close: (fill * radius).max(0.0),
         });
     }
@@ -209,9 +209,6 @@ fn strands(paths: &[MeshPath], field: &TissueField, count: usize) -> Vec<bool> {
         let first = strand.len();
         let n = path.len();
         strand.extend(std::iter::repeat_n(false, path_segments(&path.points).len()));
-        if !path.style.body {
-            continue;
-        }
         let inside: Vec<bool> = (0..n).map(|i| field.inside(path.point(i))).collect();
         let mut start = 0;
         for end in 1..=n {
@@ -368,9 +365,18 @@ mod tests {
         let points = bundle();
         let mut paths = mesh_paths(&points, PathStyle::BODY);
         for path in paths.iter_mut().filter(|p| matches!(p.group, PathGroup::Creator(GILL | VEIL))) {
-            path.style = PathStyle::LOOSE;
+            path.settings.fill = Some(0.0);
+            path.settings.fibres = Some(0.1 * params.fibres);
         }
         paths_mesh(&paths, params)
+    }
+
+    /// Paths that keep their gaps open: a fill of 0 blends them like any other paths
+    fn open(mut paths: Vec<MeshPath>) -> Vec<MeshPath> {
+        for p in &mut paths {
+            p.settings.fill = Some(0.0);
+        }
+        paths
     }
 
     fn vertex(mesh: &Mesh, v: usize) -> Vec3 {
@@ -515,7 +521,7 @@ mod tests {
     #[test]
     fn loose_paths_keep_their_gaps() {
         let points = stipe_points();
-        let loose = paths_mesh(&mesh_paths(&points, PathStyle::LOOSE), &smooth());
+        let loose = paths_mesh(&open(mesh_paths(&points, PathStyle::BODY)), &smooth());
         let inside = (0..loose.vertex_count()).any(|v| {
             let p = vertex(&loose, v);
             (0.2..0.8).contains(&p.y) && Vec3::new(p.x, 0.0, p.z).length() < 0.14
@@ -561,7 +567,7 @@ mod tests {
         let path = line(Vec3::ZERO, Vec3::Y * length, 11, r);
         for blend in [1.5, 2.4, 3.0] {
             let params = HyphaeMeshParams { resolution: 128, blend, ..smooth() };
-            let mesh = paths_mesh(&mesh_paths(&[(path.clone(), 1)], PathStyle::LOOSE), &params);
+            let mesh = paths_mesh(&open(mesh_paths(&[(path.clone(), 1)], PathStyle::BODY)), &params);
             assert_closed(&mesh);
             let cell = surface(&path_segments(&path), 128, blend, 0.0, |_| false, |_| false, |_| 1.0).cell;
             for v in 0..mesh.vertex_count() {
@@ -579,7 +585,7 @@ mod tests {
         let up = line(Vec3::ZERO, Vec3::Y, 11, r);
         let down = line(Vec3::new(gap, 1.0, 0.0), Vec3::new(gap, 0.0, 0.0), 11, r);
         let between = |paths: &[(Vec<f32>, i32)]| {
-            let mesh = paths_mesh(&mesh_paths(paths, PathStyle::LOOSE), &smooth());
+            let mesh = paths_mesh(&open(mesh_paths(paths, PathStyle::BODY)), &smooth());
             assert_closed(&mesh);
             (0..mesh.vertex_count())
                 .map(|v| vertex(&mesh, v))
@@ -590,7 +596,7 @@ mod tests {
         assert_eq!(between(&[([up, down].concat(), 1)]), 0, "one path");
         // too far apart for blend 3, the arms stay apart
         let far = line(Vec3::new(4.0 * r, 1.0, 0.0), Vec3::new(4.0 * r, 0.0, 0.0), 11, r);
-        let apart = paths_mesh(&mesh_paths(&[([line(Vec3::ZERO, Vec3::Y, 11, r), far].concat(), 1)], PathStyle::LOOSE), &smooth());
+        let apart = paths_mesh(&open(mesh_paths(&[([line(Vec3::ZERO, Vec3::Y, 11, r), far].concat(), 1)], PathStyle::BODY)), &smooth());
         let inner = |p: Vec3| (0.3..0.7).contains(&p.y) && (0.5 * r..3.5 * r).contains(&p.x) && p.z.abs() < 0.5 * r;
         assert!((0..apart.vertex_count()).map(|v| vertex(&apart, v)).any(inner), "the inner sides of the arms show");
     }
@@ -740,37 +746,13 @@ mod tests {
         paths
     }
 
-    fn set(blend: f32, fibres: f32, fill: f32) -> PathSettings {
-        PathSettings { blend: Some(blend), fibres: Some(fibres), fill: Some(fill), color: None }
-    }
-
-    /// Of every vertex of `next` the distance to the nearest vertex of `previous`, the largest
-    fn largest_move(previous: &Mesh, next: &Mesh) -> f32 {
-        let cell = 0.02;
-        let mut buckets: std::collections::HashMap<[i32; 3], Vec<Vec3>> = std::collections::HashMap::new();
-        let key = |p: Vec3| [0, 1, 2].map(|a| (p[a] / cell).floor() as i32);
-        for v in 0..previous.vertex_count() {
-            buckets.entry(key(vertex(previous, v))).or_default().push(vertex(previous, v));
-        }
-        (0..next.vertex_count())
-            .map(|v| {
-                let p = vertex(next, v);
-                let k = key(p);
-                let mut best = f32::INFINITY;
-                for o in 0..27 {
-                    let at = [k[0] + o % 3 - 1, k[1] + o / 3 % 3 - 1, k[2] + o / 9 - 1];
-                    for q in buckets.get(&at).into_iter().flatten() {
-                        best = best.min(p.distance(*q));
-                    }
-                }
-                best
-            })
-            .fold(0.0, f32::max)
+    fn set(fibres: f32, fill: f32) -> PathSettings {
+        PathSettings { fibres: Some(fibres), fill: Some(fill), color: None }
     }
 
     #[test]
     fn settings_equal_to_the_node_give_the_same_mesh() {
-        // a body of two creators and loose paths around it, every path with the values of the node
+        // a body of two creators and paths around it, every path with the values of the node
         let mut points = stipe_points();
         points.extend((0..4).map(|i| {
             let a = i as f32 * 1.7;
@@ -780,73 +762,15 @@ mod tests {
         let paths = |settings: PathSettings| {
             let mut paths = mesh_paths(&points, PathStyle::BODY);
             for p in &mut paths {
-                if p.group == PathGroup::Creator(50) {
-                    p.style = PathStyle::LOOSE;
-                }
                 p.settings = settings;
             }
             paths
         };
         for params in [HyphaeMeshParams::default(), HyphaeMeshParams { blend: 2.0, fill: 1.5, fibres: 0.6, seed: 4, ..HyphaeMeshParams::default() }] {
             let plain = paths_mesh(&paths(PathSettings::default()), &params);
-            let same = paths_mesh(&paths(set(params.blend, params.fibres, params.fill)), &params);
+            let same = paths_mesh(&paths(set(params.fibres, params.fill)), &params);
             assert!(plain.face_count() > 0);
             assert_eq!(plain.encode(), same.encode());
-        }
-    }
-
-    #[test]
-    fn a_loose_path_of_every_blend_keeps_its_radius() {
-        let (r, length) = (0.05, 1.0);
-        let points = vec![(line(Vec3::ZERO, Vec3::Y * length, 11, r), 1), (line(Vec3::X * 0.5, Vec3::new(0.5, length, 0.0), 11, r), 2)];
-        let params = HyphaeMeshParams { resolution: 128, blend: 3.0, ..smooth() };
-        let cell = surface(&path_segments(&points[0].0), 128, 3.0, 0.0, |_| false, |_| false, |_| 1.0).cell;
-        for blend in [1.5, 2.0, 4.0] {
-            let mesh = paths_mesh(&with_settings(&points, PathStyle::LOOSE, 2, PathSettings { blend: Some(blend), ..PathSettings::default() }), &params);
-            assert_eq!(components(&mesh), 2);
-            for v in 0..mesh.vertex_count() {
-                let p = vertex(&mesh, v);
-                let axis = if p.x > 0.25 { Vec3::X * 0.5 } else { Vec3::ZERO };
-                let d = (p - axis - Vec3::Y * p.y.clamp(0.0, length)).length();
-                // the grid is laid out for the widest kernel, blend 4 makes the cells larger
-                let cell = cell * if blend > 3.0 { (1.0 + 8.0 * r) / (1.0 + 6.0 * r) } else { 1.0 };
-                assert!((d - r).abs() < 1.4 * cell, "blend {}: vertex {} from its axis, radius {}", blend, d, r);
-            }
-        }
-    }
-
-    #[test]
-    fn a_crisp_path_joins_a_soft_one_about_as_close_as_two_crisp_ones() {
-        // two parallel paths, the right one has the blend of the node, the left one its own
-        let r = 0.05;
-        let joined = |left: f32, right: f32, gap: f32| {
-            let points = vec![(line(Vec3::ZERO, Vec3::Y, 11, r), 1), (line(Vec3::X * gap, Vec3::new(gap, 1.0, 0.0), 11, r), 2)];
-            let params = HyphaeMeshParams { resolution: 128, blend: right, ..smooth() };
-            let paths = with_settings(&points, PathStyle::LOOSE, 1, PathSettings { blend: Some(left), ..PathSettings::default() });
-            components(&paths_mesh(&paths, &params)) == 1
-        };
-        // of two parallel lines (cross sections): 1.5 and 1.5 join up to 2.24 r apart, 1.5 and 3 up to 2.40 r, 3 and 3 up to 3.26 r
-        assert!(joined(1.5, 3.0, 2.2 * r));
-        assert!(!joined(1.5, 3.0, 2.7 * r));
-        assert!(joined(3.0, 3.0, 2.7 * r));
-        assert!(!joined(1.5, 1.5, 2.6 * r));
-    }
-
-    #[test]
-    fn the_surface_moves_little_while_a_blend_changes() {
-        let r = 0.05;
-        let points = vec![(line(Vec3::ZERO, Vec3::Y, 11, r), 1), (line(Vec3::X * 2.4 * r, Vec3::new(2.4 * r, 1.0, 0.0), 11, r), 2)];
-        let params = HyphaeMeshParams { resolution: 96, blend: 3.0, ..smooth() };
-        let cell = surface(&path_segments(&points[0].0), 96, 3.0, 0.0, |_| false, |_| false, |_| 1.0).cell;
-        let mesh = |blend: f32| {
-            paths_mesh(&with_settings(&points, PathStyle::LOOSE, 1, PathSettings { blend: Some(blend), ..PathSettings::default() }), &params)
-        };
-        let mut previous = mesh(1.5);
-        for step in 1..=15 {
-            let next = mesh(1.5 + 0.1 * step as f32);
-            let moved = largest_move(&previous, &next).max(largest_move(&next, &previous));
-            assert!(moved < 2.0 * cell, "blend {}: a vertex moved {} cells", 1.5 + 0.1 * step as f32, moved / cell);
-            previous = next;
         }
     }
 

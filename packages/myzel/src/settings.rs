@@ -11,8 +11,6 @@ pub const SETTING_TAG: i32 = 13;
 /// A value of `hyphae_to_mesh` that the paths of some nodes bring with them
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Setting {
-    /// How far, in path radii, neighbouring paths join into one surface
-    Blend = 0,
     /// Strength of the fibrous relief
     Fibres = 1,
     /// Where a ball of this many path radii can't pass between body paths, the gap fills
@@ -25,7 +23,6 @@ pub enum Setting {
 impl Setting {
     fn from_index(index: i32) -> Option<Setting> {
         match index {
-            0 => Some(Setting::Blend),
             1 => Some(Setting::Fibres),
             2 => Some(Setting::Fill),
             3 => Some(Setting::Color),
@@ -37,7 +34,6 @@ impl Setting {
 /// What the paths bring with them, `None` keeps the value of `hyphae_to_mesh`
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct PathSettings {
-    pub blend: Option<f32>,
     pub fibres: Option<f32>,
     pub fill: Option<f32>,
     /// An opaque RGBA8 word as in [`crate::Mesh::colors`]
@@ -47,7 +43,6 @@ pub struct PathSettings {
 impl PathSettings {
     fn set(&mut self, setting: Setting, value: f32) {
         let slot = match setting {
-            Setting::Blend => &mut self.blend,
             Setting::Fibres => &mut self.fibres,
             Setting::Fill => &mut self.fill,
             Setting::Color => {
@@ -186,17 +181,17 @@ mod tests {
         let joined = concat_arg_vecs(split_args(&set).iter().map(|i| i.to_vec()).chain([wrap_arg(&list(1, 2))]).collect());
         assert_eq!(read_settings(&joined), settings);
         // a list without paths gets nothing, an unconnected input stays empty
-        assert_eq!(with_setting(&[0, 1, 1, 1], Setting::Blend, 2.0), vec![0, 1, 1, 1]);
+        assert_eq!(with_setting(&[0, 1, 1, 1], Setting::Fibres, 2.0), vec![0, 1, 1, 1]);
     }
 
     #[test]
     fn settings_are_found_in_lists_inside_lists() {
-        let inner = with_setting(&list(1, 4), Setting::Blend, 2.0);
+        let inner = with_setting(&list(1, 4), Setting::Fibres, 2.0);
         let nested = concat_arg_vecs(vec![inner, list(1, 6)]);
         let set = with_setting(&nested, Setting::Fill, 3.0);
         let found = read_settings(&set);
         assert_eq!(found.len(), 2);
-        assert_eq!((found[0].setting, found[0].creators.clone()), (Setting::Blend, vec![4]));
+        assert_eq!((found[0].setting, found[0].creators.clone()), (Setting::Fibres, vec![4]));
         assert_eq!((found[1].setting, found[1].creators.clone()), (Setting::Fill, vec![4, 6]));
     }
 
@@ -204,17 +199,17 @@ mod tests {
     fn the_last_setting_of_a_node_wins() {
         let once = with_setting(&list(1, 4), Setting::Fibres, 0.5);
         let twice = with_setting(&concat_arg_vecs(vec![once, list(1, 8)]), Setting::Fibres, 2.0);
-        let set = with_setting(&twice, Setting::Blend, 1.5);
+        let set = with_setting(&twice, Setting::Fill, 1.5);
         let mut paths = read_paths(&set, PathStyle::BODY);
         apply_settings(&mut paths, &read_settings(&set));
-        let all = PathSettings { blend: Some(1.5), fibres: Some(2.0), fill: None, color: None };
+        let all = PathSettings { fibres: Some(2.0), fill: Some(1.5), color: None };
         assert_eq!(paths.iter().map(|p| p.settings).collect::<Vec<_>>(), vec![all, all]);
 
-        let only_four = with_setting(&concat_arg_vecs(vec![with_setting(&list(1, 4), Setting::Fill, 1.0), list(1, 8)]), Setting::Blend, 2.0);
+        let only_four = with_setting(&concat_arg_vecs(vec![with_setting(&list(1, 4), Setting::Fill, 1.0), list(1, 8)]), Setting::Fibres, 2.0);
         let mut paths = read_paths(&only_four, PathStyle::BODY);
         apply_settings(&mut paths, &read_settings(&only_four));
-        assert_eq!(paths[0].settings, PathSettings { blend: Some(2.0), fibres: None, fill: Some(1.0), color: None });
-        assert_eq!(paths[1].settings, PathSettings { blend: Some(2.0), fibres: None, fill: None, color: None });
+        assert_eq!(paths[0].settings, PathSettings { fibres: Some(2.0), fill: Some(1.0), color: None });
+        assert_eq!(paths[1].settings, PathSettings { fibres: Some(2.0), fill: None, color: None });
     }
 
     #[test]

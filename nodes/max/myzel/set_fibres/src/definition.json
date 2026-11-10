@@ -18,7 +18,7 @@
       "min": 0,
       "max": 3,
       "step": 0.05,
-      "description": "Relief along these paths, 0 leaves their surface smooth. Body paths get it fully, loose paths faintly. Where two values meet, the relief goes over from one to the other in a few rings of the mesh."
+      "description": "Relief along these paths, 0 leaves their surface smooth. Where two values meet, the relief goes over from one to the other in a few rings of the mesh."
     }
   }
 }

@@ -23,9 +23,9 @@
 //!
 //! # Settings `[13, setting, value, ...creators]`
 //!
-//! A value of `hyphae_to_mesh` for every path of the graph nodes `creators`: `setting` 0 is the
-//! blend, 1 the fibres, 2 the fill, 3 the color, `value` is an f32 (the color as
-//! `r | g << 8 | b << 16`, see [`color_value`]). The `set_blend`, `set_fibres`, `set_fill` and
+//! A value of `hyphae_to_mesh` for every path of the graph nodes `creators`: `setting` 1 is the
+//! fibres, 2 the fill, 3 the color, `value` is an f32 (the color as
+//! `r | g << 8 | b << 16`, see [`color_value`]). The `set_fibres`, `set_fill` and
 //! `set_color` nodes put one into a path list next to the paths that pass through them, see
 //! [`with_setting`], and the mesh nodes give it to the paths, see [`apply_settings`]. A later
 //! setting replaces an earlier one, paths without one keep the value of the mesh node.

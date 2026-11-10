@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 4,
+  "version": 5,
   "settings": {
     "resolution.field": 160,
     "resolution.curve": 24
@@ -9,7 +9,7 @@
   "nodes": [
     {
       "id": 0,
-      "position": [0, 0],
+      "position": [30, 0],
       "type": "max/myzel/output",
       "props": {}
     },
@@ -247,6 +247,12 @@
           206
         ]
       }
+    },
+    {
+      "id": 21,
+      "position": [0, 0],
+      "type": "max/myzel/join_meshes",
+      "props": {}
     }
   ],
   "edges": [
@@ -332,13 +338,7 @@
       13,
       0,
       14,
-      "hyphae"
-    ],
-    [
-      14,
-      0,
-      0,
-      "field"
+      "paths"
     ],
     [
       7,
@@ -390,15 +390,9 @@
     ],
     [
       12,
-      1,
+      0,
       18,
       "mesh"
-    ],
-    [
-      18,
-      1,
-      14,
-      "meshes"
     ],
     [
       19,
@@ -411,6 +405,24 @@
       0,
       9,
       "thickness"
+    ],
+    [
+      14,
+      0,
+      21,
+      "a"
+    ],
+    [
+      18,
+      1,
+      21,
+      "b"
+    ],
+    [
+      21,
+      0,
+      0,
+      "field"
     ]
   ]
 }

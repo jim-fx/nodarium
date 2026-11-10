@@ -74,6 +74,18 @@ impl Mesh {
         self.groups.extend(other.groups.iter().map(|&g| g + first_group));
     }
 
+    /// The meshes one after the other, the groups of each numbered after those of the meshes
+    /// before it. Meshes without vertices are left out.
+    pub fn join(meshes: &[Mesh]) -> Mesh {
+        let mut joined = Mesh::default();
+        let mut next = 0;
+        for mesh in meshes.iter().filter(|m| m.vertex_count() > 0) {
+            joined.append(mesh, next);
+            next += mesh.groups.iter().max().map_or(0, |g| g + 1);
+        }
+        joined
+    }
+
     pub fn decode(words: &[i32]) -> Mesh {
         assert!(
             words.len() >= HEADER_LEN && words[0] == MESH_TAG,

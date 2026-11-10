@@ -1,14 +1,10 @@
 {
   "id": "max/myzel/lamellae",
   "meta": {
-    "description": "Hangs gills under a cap where a pattern has stripes: every stripe of reaction_diffusion becomes a gill that forks and starts between others where the stripes do. Thin plates like Agaricus, or with blunt the low rounded folds (false gills) of a chanterelle. Connect the stipe and set decurrent and the gills run on down it. Gives every gill as thin paths stacked from the cap underside down to the gill edge, to mesh with the rest, and as a mesh, which keeps plates thin and folds blunt at any mesh resolution."
+    "description": "Hangs gills under a cap where a pattern has stripes: every stripe of reaction_diffusion becomes a gill that forks and starts between others where the stripes do. Thin plates like Agaricus, or with blunt the low rounded folds (false gills) of a chanterelle. Connect the stipe and set decurrent and the gills run on down it. Gives the gills as a mesh, which keeps plates thin and folds blunt at any mesh resolution."
   },
   "outputs": [
-    "path",
-    {
-      "type": "mesh",
-      "label": "plates"
-    }
+    "mesh"
   ],
   "inputs": {
     "cap": {

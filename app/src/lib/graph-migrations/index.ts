@@ -1,6 +1,7 @@
 import type { Graph } from '@nodarium/types';
 import { createLogger } from '@nodarium/utils';
 import { removeInputs, renameInputs, replaceNodes, wiredInputs } from './helpers';
+import { joinMeshes } from './join-meshes';
 import { splitCap, wiredCapInputs } from './split-cap';
 import { STRANDS, strandsThickness } from './strands-thickness';
 
@@ -78,6 +79,12 @@ export const MIGRATIONS: Migration[] = [
       );
       return removeInputs(graph, STRANDS, ['thickness_variation']);
     }
+  },
+  {
+    version: 5,
+    description:
+      'hyphae_to_mesh takes paths only, join_meshes joins its mesh with those of lamellae and membrane',
+    migrate: joinMeshes
   }
 ];
 

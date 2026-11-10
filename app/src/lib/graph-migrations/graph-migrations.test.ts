@@ -467,3 +467,217 @@ describe('version 4: a random node into the thickness of strands varies it', () 
     expect(migrated.edges.some((e) => e[3] === 'thickness_variation')).toBe(false);
   });
 });
+
+describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh with the others', () => {
+  const v4 = (nodes: SerializedNode[], edges: Graph['edges'] = []): Graph => ({
+    ...graph(nodes, edges),
+    version: 4
+  });
+  const byType = (g: Graph, type: string) => g.nodes.filter((n) => n.type === type);
+  const HYPHAE = 'max/myzel/hyphae_to_mesh';
+  const JOIN_MESHES = 'max/myzel/join_meshes';
+
+  it('joins the meshes of lamellae behind hyphae_to_mesh and moves the mesh output up', () => {
+    const migrated = migrateGraph(
+      v4(
+        [
+          node(1, 'max/myzel/strands'),
+          node(2, HYPHAE, { fill: 1.5 }),
+          node(3, 'max/myzel/lamellae'),
+          node(4, 'max/myzel/output')
+        ],
+        [[1, 0, 2, 'hyphae'], [3, 1, 2, 'meshes'], [2, 0, 4, 'field']]
+      )
+    );
+    const [join] = byType(migrated, JOIN_MESHES);
+    expect(join.position).toEqual([30, 0]);
+    expect(byType(migrated, HYPHAE)[0].props).toEqual({ fill: 1.5 });
+    expect(migrated.edges).toEqual([
+      [1, 0, 2, 'paths'],
+      [2, 0, join.id, 'a'],
+      [3, 0, join.id, 'b'],
+      [join.id, 0, 4, 'field']
+    ]);
+  });
+
+  it('takes the meshes of a join node in its order, after the paths', () => {
+    const migrated = migrateGraph(
+      v4(
+        [
+          node(1, HYPHAE),
+          node(2, 'max/plantarium/join'),
+          node(3, 'max/myzel/lamellae'),
+          node(4, 'max/myzel/membrane', { strands: 100 }),
+          node(5, 'max/myzel/output')
+        ],
+        [[3, 1, 2, 'a'], [4, 1, 2, 'b'], [2, 0, 1, 'meshes'], [1, 0, 5, 'field']]
+      )
+    );
+    expect(migrated.nodes.map((n) => n.type)).not.toContain('max/plantarium/join');
+    const [join] = byType(migrated, JOIN_MESHES);
+    expect(migrated.edges).toEqual([
+      [1, 0, join.id, 'a'],
+      [3, 0, join.id, 'b'],
+      [4, 0, join.id, 'c'],
+      [join.id, 0, 5, 'field']
+    ]);
+    expect(byType(migrated, 'max/myzel/membrane')[0].props).toEqual({});
+  });
+
+  it('chains join nodes when there are more than four meshes', () => {
+    const lamellae = [3, 4, 5, 6, 7].map((id) => node(id, 'max/myzel/lamellae'));
+    const migrated = migrateGraph(
+      v4(
+        [node(1, HYPHAE), node(2, 'max/myzel/output'), ...lamellae],
+        [
+          ...lamellae.map((n): Graph['edges'][number] => [n.id, 1, 1, 'meshes']),
+          [1, 0, 2, 'field']
+        ]
+      )
+    );
+    const [first, second] = byType(migrated, JOIN_MESHES);
+    expect(migrated.edges).toEqual([
+      [1, 0, first.id, 'a'],
+      [3, 0, first.id, 'b'],
+      [4, 0, first.id, 'c'],
+      [5, 0, first.id, 'd'],
+      [first.id, 0, second.id, 'a'],
+      [6, 0, second.id, 'b'],
+      [7, 0, second.id, 'c'],
+      [second.id, 0, 2, 'field']
+    ]);
+  });
+
+  it('joins the mesh of a sheet whose path output went into loose', () => {
+    const migrated = migrateGraph(
+      v4(
+        [
+          node(1, 'max/myzel/strands'),
+          node(2, HYPHAE),
+          node(3, 'max/myzel/lamellae'),
+          node(4, 'max/myzel/output')
+        ],
+        [[1, 0, 2, 'hyphae'], [3, 0, 2, 'loose'], [2, 0, 4, 'field']]
+      )
+    );
+    const [join] = byType(migrated, JOIN_MESHES);
+    expect(migrated.edges).toEqual([
+      [1, 0, 2, 'paths'],
+      [2, 0, join.id, 'a'],
+      [3, 0, join.id, 'b'],
+      [join.id, 0, 4, 'field']
+    ]);
+  });
+
+  it('joins the mesh of a sheet whose path output went through a join into loose or hyphae', () => {
+    const migrated = migrateGraph(
+      v4(
+        [
+          node(1, 'max/myzel/strands'),
+          node(2, HYPHAE),
+          node(3, 'max/myzel/lamellae'),
+          node(4, 'max/myzel/membrane'),
+          node(5, 'max/plantarium/join'),
+          node(6, 'max/myzel/output')
+        ],
+        [
+          [1, 0, 5, 'a'],
+          [3, 0, 5, 'b'],
+          [4, 0, 2, 'loose'],
+          [5, 0, 2, 'hyphae'],
+          [4, 1, 2, 'meshes'],
+          [2, 0, 6, 'field']
+        ]
+      )
+    );
+    const [join] = byType(migrated, JOIN_MESHES);
+    expect(migrated.edges).toEqual([
+      [1, 0, 5, 'a'],
+      [5, 0, 2, 'paths'],
+      [2, 0, join.id, 'a'],
+      [4, 0, join.id, 'b'],
+      [3, 0, join.id, 'c'],
+      [join.id, 0, 6, 'field']
+    ]);
+  });
+
+  it('expands a join that also feeds other nodes and keeps it for them', () => {
+    const migrated = migrateGraph(
+      v4(
+        [
+          node(1, HYPHAE),
+          node(2, 'max/plantarium/join'),
+          node(3, 'max/myzel/lamellae'),
+          node(4, 'max/myzel/strands'),
+          node(5, 'max/myzel/output'),
+          node(6, 'max/plantarium/output')
+        ],
+        [
+          [3, 1, 2, 'a'],
+          [4, 0, 2, 'b'],
+          [2, 0, 1, 'meshes'],
+          [2, 0, 6, 'input'],
+          [1, 0, 5, 'field']
+        ]
+      )
+    );
+    const [join] = byType(migrated, JOIN_MESHES);
+    expect(byType(migrated, 'max/plantarium/join')).toHaveLength(1);
+    expect(migrated.edges).toEqual([
+      [4, 0, 2, 'b'],
+      [2, 0, 6, 'input'],
+      [1, 0, join.id, 'a'],
+      [3, 0, join.id, 'b'],
+      [join.id, 0, 5, 'field']
+    ]);
+  });
+
+  it('leaves hyphae_to_mesh without meshes alone but for the input names', () => {
+    const migrated = migrateGraph(
+      v4(
+        [node(1, 'max/myzel/strands'), node(2, HYPHAE, { loose: 1 }), node(3, 'max/myzel/strands')],
+        [[1, 0, 2, 'hyphae'], [3, 0, 2, 'loose']]
+      )
+    );
+    expect(byType(migrated, JOIN_MESHES)).toEqual([]);
+    expect(migrated.edges).toEqual([[1, 0, 2, 'paths']]);
+    expect(byType(migrated, HYPHAE)[0].props).toEqual({});
+  });
+
+  it('drops the paths of lamellae and membrane', () => {
+    const migrated = migrateGraph(
+      v4(
+        [node(1, 'max/myzel/lamellae'), node(2, 'max/myzel/membrane'), node(3, 'max/myzel/output')],
+        [[1, 0, 3, 'field'], [2, 0, 3, 'field'], [2, 1, 3, 'field']]
+      )
+    );
+    expect(migrated.edges).toEqual([[2, 0, 3, 'field']]);
+  });
+
+  it('lets the paths pass where set_blend was', () => {
+    const migrated = migrateGraph(
+      v4(
+        [node(1, 'max/myzel/strands'), node(2, 'max/myzel/set_blend'), node(3, HYPHAE)],
+        [[1, 0, 2, 'plant'], [2, 0, 3, 'hyphae']]
+      )
+    );
+    expect(migrated.nodes.map((n) => n.id)).toEqual([1, 3]);
+    expect(migrated.edges).toEqual([[1, 0, 3, 'paths']]);
+  });
+
+  it('migrates inside groups with ids no other level uses', () => {
+    const old = v4([node(9, 'max/myzel/output')]);
+    old.groups = [
+      {
+        id: 0,
+        nodes: [node(1, HYPHAE), node(2, 'max/myzel/lamellae')],
+        edges: [[2, 1, 1, 'meshes']]
+      } as unknown as NonNullable<Graph['groups']>[number]
+    ];
+    const migrated = migrateGraph(old);
+    const group = migrated.groups![0];
+    const join = group.nodes.find((n) => n.type === JOIN_MESHES)!;
+    expect(join.id).toBe(10);
+    expect(group.edges).toEqual([[1, 0, 10, 'a'], [2, 0, 10, 'b']]);
+  });
+});

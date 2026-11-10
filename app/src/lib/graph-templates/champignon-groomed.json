@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 4,
+  "version": 5,
   "settings": {
     "time.t": 1,
     "resolution.field": 128,
@@ -1075,7 +1075,7 @@
         ],
         [
           30,
-          1,
+          0,
           54,
           "mesh"
         ],
@@ -1285,25 +1285,13 @@
         ],
         [
           55,
-          0,
+          1,
           32,
           "out_0"
         ],
         [
-          55,
-          1,
-          32,
-          "out_1"
-        ],
-        [
           35,
           0,
-          55,
-          "plant"
-        ],
-        [
-          35,
-          1,
           55,
           "mesh"
         ],
@@ -1363,10 +1351,6 @@
       },
       "outputs": [
         {
-          "type": "path",
-          "label": "Veil"
-        },
-        {
           "type": "mesh",
           "label": "Skin"
         }
@@ -1376,7 +1360,7 @@
   "nodes": [
     {
       "id": 0,
-      "position": [0, 0],
+      "position": [30, 0],
       "type": "max/myzel/output",
       "props": {}
     },
@@ -1491,9 +1475,9 @@
       }
     },
     {
-      "id": 48,
-      "position": [-60, 30],
-      "type": "max/plantarium/join",
+      "id": 59,
+      "position": [0, 0],
+      "type": "max/myzel/join_meshes",
       "props": {}
     }
   ],
@@ -1574,31 +1558,31 @@
       44,
       0,
       45,
-      "hyphae"
+      "paths"
     ],
     [
       45,
       0,
-      0,
-      "field"
+      59,
+      "a"
     ],
     [
       42,
       0,
-      48,
-      "a"
-    ],
-    [
-      43,
-      1,
-      48,
+      59,
       "b"
     ],
     [
-      48,
+      43,
       0,
-      45,
-      "meshes"
+      59,
+      "c"
+    ],
+    [
+      59,
+      0,
+      0,
+      "field"
     ]
   ]
 }
