@@ -681,3 +681,137 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
     expect(group.edges).toEqual([[1, 0, 10, 'a'], [2, 0, 10, 'b']]);
   });
 });
+
+describe('version 6: set_color takes paths only, set_mesh_color paints meshes', () => {
+  const v5 = (nodes: SerializedNode[], edges: Graph['edges'] = []): Graph => ({
+    ...graph(nodes, edges),
+    version: 5
+  });
+  const SET_COLOR = 'max/myzel/set_color';
+  const SET_MESH_COLOR = 'max/myzel/set_mesh_color';
+  const pink = [217, 160, 150];
+
+  it('renames the input of a set_color that only takes paths', () => {
+    const migrated = migrateGraph(
+      v5(
+        [
+          node(1, 'max/myzel/strands'),
+          node(2, SET_COLOR, { color: pink }),
+          node(3, 'max/myzel/hyphae_to_mesh')
+        ],
+        [[1, 0, 2, 'plant'], [2, 0, 3, 'paths']]
+      )
+    );
+    expect(migrated.nodes.map((n) => n.type)).not.toContain(SET_MESH_COLOR);
+    expect(migrated.nodes.find((n) => n.id === 2)!.props).toEqual({ color: pink });
+    expect(migrated.edges).toEqual([[1, 0, 2, 'paths'], [2, 0, 3, 'paths']]);
+  });
+
+  it('turns a set_color that only paints a mesh into set_mesh_color, its mesh is output 0', () => {
+    const migrated = migrateGraph(
+      v5(
+        [
+          node(1, 'max/myzel/lamellae'),
+          node(2, SET_COLOR, { color: pink }),
+          node(3, 'max/myzel/join_meshes')
+        ],
+        [[1, 0, 2, 'mesh'], [2, 1, 3, 'b']]
+      )
+    );
+    expect(migrated.nodes.map((n) => [n.id, n.type])).toEqual([
+      [1, 'max/myzel/lamellae'],
+      [2, SET_MESH_COLOR],
+      [3, 'max/myzel/join_meshes']
+    ]);
+    expect(migrated.nodes[1].props).toEqual({ color: pink });
+    expect(migrated.edges).toEqual([[1, 0, 2, 'mesh'], [2, 0, 3, 'b']]);
+  });
+
+  it('keeps a color wired into a set_color that only paints a mesh', () => {
+    const migrated = migrateGraph(
+      v5(
+        [node(1, 'max/myzel/mix_color'), node(2, SET_COLOR), node(3, 'max/myzel/join_meshes')],
+        [[1, 0, 2, 'color'], [2, 1, 3, 'a']]
+      )
+    );
+    expect(migrated.nodes[1].type).toBe(SET_MESH_COLOR);
+    expect(migrated.edges).toEqual([[1, 0, 2, 'color'], [2, 0, 3, 'a']]);
+  });
+
+  it('splits a set_color with paths and a mesh into one of each with the same color', () => {
+    const migrated = migrateGraph(
+      v5(
+        [
+          node(1, 'max/myzel/strands'),
+          node(2, 'max/myzel/lamellae'),
+          node(3, SET_COLOR, { color: pink }),
+          node(4, 'max/myzel/hyphae_to_mesh'),
+          node(5, 'max/myzel/join_meshes')
+        ],
+        [[1, 0, 3, 'plant'], [2, 0, 3, 'mesh'], [3, 0, 4, 'paths'], [3, 1, 5, 'b']]
+      )
+    );
+    const mesh = migrated.nodes.find((n) => n.type === SET_MESH_COLOR)!;
+    expect(mesh.id).toBe(6);
+    expect(mesh.props).toEqual({ color: pink });
+    expect(mesh.position).toEqual([30, 0]);
+    expect(migrated.nodes.find((n) => n.id === 3)!.type).toBe(SET_COLOR);
+    expect(migrated.edges).toEqual([
+      [1, 0, 3, 'paths'],
+      [2, 0, mesh.id, 'mesh'],
+      [3, 0, 4, 'paths'],
+      [mesh.id, 0, 5, 'b']
+    ]);
+  });
+
+  it('gives both nodes a color that comes from a node and the exposed inputs they have', () => {
+    const old = node(3, SET_COLOR);
+    old.exposed = ['color', 'plant', 'mesh'];
+    const migrated = migrateGraph(
+      v5(
+        [
+          node(1, 'max/myzel/mix_color'),
+          node(2, 'max/myzel/lamellae'),
+          old,
+          node(4, 'max/myzel/join_meshes')
+        ],
+        [[1, 0, 3, 'color'], [2, 0, 3, 'mesh'], [3, 1, 4, 'a'], [3, 0, 4, 'b']]
+      )
+    );
+    const mesh = migrated.nodes.find((n) => n.type === SET_MESH_COLOR)!;
+    expect(mesh.exposed).toEqual(['color', 'mesh']);
+    expect(migrated.nodes.find((n) => n.id === 3)!.exposed).toEqual(['color', 'paths']);
+    expect(migrated.edges).toEqual([
+      [1, 0, 3, 'color'],
+      [1, 0, mesh.id, 'color'],
+      [2, 0, mesh.id, 'mesh'],
+      [mesh.id, 0, 4, 'a'],
+      [3, 0, 4, 'b']
+    ]);
+  });
+
+  it('migrates inside groups with ids no other level uses', () => {
+    const old = v5([node(9, 'max/myzel/output')]);
+    old.groups = [
+      {
+        id: 0,
+        nodes: [node(1, SET_COLOR), node(2, SET_COLOR), node(3, SET_COLOR)],
+        edges: [[5, 0, 1, 'plant'], [6, 0, 1, 'mesh'], [1, 1, 7, 'a'], [8, 0, 2, 'mesh']]
+      } as unknown as NonNullable<Graph['groups']>[number]
+    ];
+    const migrated = migrateGraph(old);
+    const group = migrated.groups![0];
+    expect(group.nodes.map((n) => [n.id, n.type])).toEqual([
+      [1, SET_COLOR],
+      [2, SET_MESH_COLOR],
+      [3, SET_COLOR],
+      [10, SET_MESH_COLOR]
+    ]);
+    expect(group.edges).toEqual([
+      [5, 0, 1, 'paths'],
+      [6, 0, 10, 'mesh'],
+      [10, 0, 7, 'a'],
+      [8, 0, 2, 'mesh']
+    ]);
+  });
+});

@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 5,
+  "version": 6,
   "settings": {
     "resolution.field": 160,
     "resolution.curve": 24
@@ -239,7 +239,7 @@
     {
       "id": 18,
       "position": [-60, 27.5],
-      "type": "max/myzel/set_color",
+      "type": "max/myzel/set_mesh_color",
       "props": {
         "color": [
           234,
@@ -368,7 +368,7 @@
       3,
       0,
       16,
-      "plant"
+      "paths"
     ],
     [
       16,
@@ -380,7 +380,7 @@
       10,
       0,
       17,
-      "plant"
+      "paths"
     ],
     [
       17,
@@ -414,7 +414,7 @@
     ],
     [
       18,
-      1,
+      0,
       21,
       "b"
     ],

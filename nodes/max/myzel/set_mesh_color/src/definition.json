@@ -1,0 +1,25 @@
+{
+  "id": "max/myzel/set_mesh_color",
+  "meta": {
+    "description": "Gives every vertex of a mesh a color, like the plates of lamellae or the skin of membrane. Nothing else of the mesh changes. The surface of hyphae_to_mesh takes its colors from set_color instead."
+  },
+  "outputs": [
+    {
+      "type": "mesh",
+      "label": "mesh"
+    }
+  ],
+  "inputs": {
+    "mesh": {
+      "type": "mesh",
+      "label": "Mesh",
+      "description": "The mesh to color all over",
+      "external": true
+    },
+    "color": {
+      "type": "color",
+      "value": [240, 236, 228],
+      "description": "The color of the mesh, set here or from a color node like mix_color to let it follow time. join_meshes keeps it and the viewer shows it"
+    }
+  }
+}

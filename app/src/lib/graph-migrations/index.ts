@@ -2,6 +2,7 @@ import type { Graph } from '@nodarium/types';
 import { createLogger } from '@nodarium/utils';
 import { removeInputs, renameInputs, replaceNodes, wiredInputs } from './helpers';
 import { joinMeshes } from './join-meshes';
+import { setMeshColor } from './set-mesh-color';
 import { splitCap, wiredCapInputs } from './split-cap';
 import { STRANDS, strandsThickness } from './strands-thickness';
 
@@ -85,6 +86,12 @@ export const MIGRATIONS: Migration[] = [
     description:
       'hyphae_to_mesh takes paths only, join_meshes joins its mesh with those of lamellae and membrane',
     migrate: joinMeshes
+  },
+  {
+    version: 6,
+    description:
+      'set_color takes paths only, its mesh moved to set_mesh_color and the input plant is called paths',
+    migrate: setMeshColor
   }
 ];
 

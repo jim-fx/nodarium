@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 5,
+  "version": 6,
   "settings": {
     "time.t": 1,
     "resolution.field": 128,
@@ -253,7 +253,7 @@
           46,
           0,
           56,
-          "plant"
+          "paths"
         ],
         [
           2,
@@ -480,7 +480,7 @@
               1
             ],
             "min": 0.08,
-            "max": 1.0
+            "max": 1
           }
         },
         {
@@ -781,7 +781,7 @@
           24,
           0,
           51,
-          "plant"
+          "paths"
         ],
         [
           50,
@@ -991,7 +991,7 @@
         {
           "id": 54,
           "position": [-30, -5],
-          "type": "max/myzel/set_color"
+          "type": "max/myzel/set_mesh_color"
         }
       ],
       "edges": [
@@ -1045,7 +1045,7 @@
         ],
         [
           54,
-          1,
+          0,
           27,
           "out_0"
         ],
@@ -1231,7 +1231,7 @@
         {
           "id": 55,
           "position": [-30, 0],
-          "type": "max/myzel/set_color"
+          "type": "max/myzel/set_mesh_color"
         }
       ],
       "edges": [
@@ -1285,7 +1285,7 @@
         ],
         [
           55,
-          1,
+          0,
           32,
           "out_0"
         ],
