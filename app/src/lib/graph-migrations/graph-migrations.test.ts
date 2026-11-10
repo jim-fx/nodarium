@@ -947,7 +947,8 @@ describe('version 8: the cap grows at points, the stipe runs along with its rays
   const ofType = (nodes: SerializedNode[], type: string) => nodes.filter((n) => n.type === type);
 
   it('puts one point at the tip of every stipe in front of the cap', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      8,
       v7(
         [
           node(1, 'max/plantarium/stem'),
@@ -1146,5 +1147,94 @@ describe('version 8: the cap grows at points, the stipe runs along with its rays
     expect(gills.edges).toEqual([[14, 0, 15, 'cap'], [14, 1, 15, 'depth'], [14, 1, 16, 'a']]);
     expect(migrated.nodes.find((n) => n.id === 3)!.props).toEqual({ groupId: 21, depth: 0.004 });
     expect(migrated.edges).toEqual([[1, 0, 2, 'stipe'], [2, 0, 3, 'rays'], [2, 1, 3, 'depth']]);
+  });
+});
+
+describe('version 9: a curve into the cap radius makes it lopsided, cap_lopsided is gone', () => {
+  const v8 = (nodes: SerializedNode[], edges: Graph['edges'] = []): Graph => ({
+    ...graph(nodes, edges),
+    version: 8
+  });
+  const CAP = 'max/myzel/cap';
+  const LOPSIDED = 'max/myzel/cap_lopsided';
+  const RANDOM = 'max/plantarium/random';
+
+  it('links the neighbours of cap_lopsided, the cap becomes round', () => {
+    const migrated = migrateGraph(
+      v8(
+        [
+          node(1, CAP),
+          node(2, 'max/myzel/margin_waves'),
+          node(3, LOPSIDED, { amount: 0.6, offset: 1 }),
+          node(4, 'max/myzel/margin_curl'),
+          node(5, 'max/plantarium/separate'),
+          node(6, RANDOM, { min: -10, max: 10 })
+        ],
+        [
+          [1, 0, 2, 'cap'],
+          [2, 0, 3, 'cap'],
+          [6, 0, 3, 'tilt'],
+          [3, 0, 4, 'cap'],
+          [3, 0, 5, 'plant']
+        ]
+      )
+    );
+    expect(migrated.version).toBe(9);
+    expect(migrated.nodes.map((n) => n.type)).not.toContain(LOPSIDED);
+    expect(migrated.nodes.find((n) => n.id === 6)!.props).toEqual({ min: -10, max: 10 });
+    expect(migrated.edges).toEqual([[1, 0, 2, 'cap'], [2, 0, 4, 'cap'], [2, 0, 5, 'plant']]);
+  });
+
+  it('drops the edges out of a cap_lopsided that got nothing', () => {
+    const migrated = migrateGraph(
+      v8([node(3, LOPSIDED), node(4, 'max/myzel/margin_curl')], [[3, 0, 4, 'cap']])
+    );
+    expect(migrated.nodes.map((n) => n.id)).toEqual([4]);
+    expect(migrated.edges).toEqual([]);
+  });
+
+  it('makes the random nodes into the cap radius draw once per path', () => {
+    const migrated = migrateGraph(
+      v8(
+        [
+          node(1, CAP),
+          node(2, 'max/plantarium/math', { op_type: 2 }),
+          node(3, RANDOM, { min: 0.9, max: 1.1 }),
+          node(4, 'max/plantarium/curve'),
+          node(5, RANDOM, { min: 0, max: 1, uniform: 1 }),
+          node(6, RANDOM, { min: 0.001, max: 0.002 })
+        ],
+        [
+          [2, 0, 1, 'radius'],
+          [3, 0, 2, 'a'],
+          [4, 0, 2, 'b'],
+          [5, 0, 4, 'value'],
+          [6, 0, 1, 'thickness']
+        ]
+      )
+    );
+    const props = (id: number) => migrated.nodes.find((n) => n.id === id)!.props;
+    expect(props(3)).toEqual({ min: 0.9, max: 1.1, per_path: 1 });
+    expect(props(5)).toEqual({ min: 0, max: 1, uniform: 1, per_path: 1 });
+    expect(props(6)).toEqual({ min: 0.001, max: 0.002 });
+  });
+
+  it('migrates inside groups', () => {
+    const old = v8([node(1, '__internal/group/instance', { groupId: 20 })]);
+    old.groups = [
+      {
+        id: 20,
+        nodes: [
+          node(10, '__internal/group/input'),
+          node(11, '__internal/group/output'),
+          node(12, CAP),
+          node(13, LOPSIDED)
+        ],
+        edges: [[10, 0, 12, 'plant'], [12, 0, 13, 'cap'], [13, 0, 11, 'out_0']]
+      } as unknown as NonNullable<Graph['groups']>[number]
+    ];
+    const [group] = migrateGraph(old).groups!;
+    expect(group.nodes.map((n) => n.id)).toEqual([10, 11, 12]);
+    expect(group.edges).toEqual([[10, 0, 12, 'plant'], [12, 0, 11, 'out_0']]);
   });
 });

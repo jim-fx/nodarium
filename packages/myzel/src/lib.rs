@@ -51,7 +51,7 @@ mod sheet;
 mod spatial;
 
 pub use cap::{closing_turn, curl_turn, margin_points, pose_caps, pose_caps_of, testing, Cap, CapFrame, CapRay, Step};
-pub use cap_shape::{cap_alphas, grow_cap, CapShape};
+pub use cap_shape::{cap_alphas, grow_cap, ray_angles, CapShape};
 pub use density::{mesh_segments, surface, surface_in, Frame, Meshing, Segment, SegmentSurface, TissueField};
 pub use color::{
     encode_color, linear_rgba, mix_colors, opaque, pack_linear, paint_mesh, read_color, NO_COLOR,

@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 8,
+  "version": 9,
   "settings": {
     "resolution.field": 160,
     "resolution.curve": 24
@@ -79,7 +79,6 @@
       "position": [-300, 51.5],
       "type": "max/myzel/cap",
       "props": {
-        "radius": 0.04,
         "profile": [
           0,
           31,
@@ -113,16 +112,6 @@
         "waves": 5,
         "amplitude": 0.18,
         "irregularity": 0.8
-      }
-    },
-    {
-      "id": 15,
-      "position": [-210, 41.5],
-      "type": "max/myzel/cap_lopsided",
-      "props": {
-        "amount": 0.6,
-        "offset": 1,
-        "tilt": 0
       }
     },
     {
@@ -269,6 +258,43 @@
       "position": [-165, 11.5],
       "type": "max/plantarium/separate",
       "props": {}
+    },
+    {
+      "id": 24,
+      "position": [-330, 130],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0.956,
+          0.04,
+          0.982,
+          0.1,
+          0.885,
+          0.2,
+          0.595,
+          0.3,
+          0.39,
+          0.4,
+          0.254,
+          0.5,
+          0.047,
+          0.54,
+          0.016,
+          0.6,
+          0.093,
+          0.7,
+          0.405,
+          0.8,
+          0.609,
+          0.9,
+          0.738,
+          1,
+          0.956
+        ],
+        "min": 0.016,
+        "max": 0.064
+      }
     }
   ],
   "edges": [
@@ -337,18 +363,6 @@
       0,
       14,
       "paths"
-    ],
-    [
-      7,
-      0,
-      15,
-      "cap"
-    ],
-    [
-      15,
-      0,
-      8,
-      "cap"
     ],
     [
       3,
@@ -433,6 +447,18 @@
       0,
       23,
       "like"
+    ],
+    [
+      7,
+      0,
+      8,
+      "cap"
+    ],
+    [
+      24,
+      0,
+      5,
+      "radius"
     ]
   ]
 }
