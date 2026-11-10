@@ -16,8 +16,6 @@ const LINE_WORDS: usize = 7;
 /// How the surface around a path looks
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PathStyle {
-    /// Body tissue fills the gaps between its paths, other paths keep theirs
-    pub body: bool,
     /// Where two paths reach a vertex, the one with the larger kernel times priority owns it
     pub priority: f32,
     /// Strength of the fibrous relief
@@ -27,10 +25,8 @@ pub struct PathStyle {
 }
 
 impl PathStyle {
-    /// Fibrous like a stipe, fills into one body with the other body paths
-    pub const BODY: PathStyle = PathStyle { body: true, priority: 1.0, fibre_strength: 1.0, fibre_stretch: 6.0 };
-    /// Thin plates and membranes like gills and the veil: a deep relief would cut through them
-    pub const LOOSE: PathStyle = PathStyle { body: false, priority: 1.0, fibre_strength: 0.1, fibre_stretch: 4.0 };
+    /// Fibrous like a stipe, fills into one body with the other paths
+    pub const BODY: PathStyle = PathStyle { priority: 1.0, fibre_strength: 1.0, fibre_stretch: 6.0 };
 }
 
 /// What decides the material group of a path

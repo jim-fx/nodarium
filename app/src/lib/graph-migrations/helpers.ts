@@ -2,9 +2,9 @@ import type { Graph, GroupDefinition, SerializedEdge, SerializedNode } from '@no
 
 // Helpers mutate the graph, migrateGraph() hands every migration its own copy
 
-type Scope = { nodes: SerializedNode[]; edges: SerializedEdge[] };
+export type Scope = { nodes: SerializedNode[]; edges: SerializedEdge[] };
 
-function scopes(graph: Graph): Scope[] {
+export function scopes(graph: Graph): Scope[] {
   return [graph, ...(graph.groups ?? [])];
 }
 
@@ -108,6 +108,19 @@ export type ReplaceContext = {
   addGroup(group: Omit<GroupDefinition, 'id'>): number;
 };
 
+/**
+ * Like the editor, ids are unique across the top level, every group and the group ids, so a node
+ * can't be mistaken for one of another level (GraphManager.createIdAllocator)
+ */
+export function idAllocator(graph: Graph) {
+  let lastId = Math.max(
+    -1,
+    ...scopes(graph).flatMap((scope) => scope.nodes.map((n) => n.id)),
+    ...(graph.groups ?? []).map((g) => g.id)
+  );
+  return () => ++lastId;
+}
+
 export function replaceNodes(
   graph: Graph,
   type: string,
@@ -115,14 +128,7 @@ export function replaceNodes(
 ) {
   graph.groups ??= [];
   const groups = graph.groups;
-  // like the editor, ids are unique across the top level, every group and the group ids, so a
-  // node can't be mistaken for one of another level (GraphManager.createIdAllocator)
-  let lastId = Math.max(
-    -1,
-    ...scopes(graph).flatMap((scope) => scope.nodes.map((n) => n.id)),
-    ...groups.map((g) => g.id)
-  );
-  const nextId = () => ++lastId;
+  const nextId = idAllocator(graph);
   const addGroup = (group: Omit<GroupDefinition, 'id'>) => {
     const id = nextId();
     groups.push({ ...group, id });

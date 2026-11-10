@@ -46,6 +46,9 @@ const FOLD_WOBBLE: f32 = 1.5;
 /// Radius of the circle the noise that makes folds uneven is read on
 const FOLD_SCALE: f64 = 1.5;
 const MAX_STRANDS: i32 = 4096;
+/// Strands across the skin. Neighbours touch when there are about as many as the longer
+/// attachment is long in thicknesses.
+const STRANDS: i32 = 256;
 const MIN_POINTS: usize = 3;
 
 /// The words inside the brackets of a framed list `[0, n + 1, ...words, 1, 1]`
@@ -717,17 +720,23 @@ fn sheet_normals(grid: &[Vec<Vec3>], wrap: bool) -> Vec<Vec<Vec3>> {
 }
 
 #[nodarium_execute]
-pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
+    build(args, STRANDS).1
+}
+
+/// The strands across the skin and the skin. Only the skin is an output, the strands are what the
+/// tests look at.
+fn build(args: &[&[i32]], strand_count: i32) -> (Vec<i32>, Vec<i32>) {
     let mut ctx = Ctx::default();
     // the skin as thin sheets, every one closed
     let mut sheets = Mesh::default();
     let a = read_curves(args[0]);
     let b = read_curves(args[1]);
     let flare = read_floats(args[10]);
-    let seed = int(args[12]);
-    let resolution = int(args[13]).max(4) as usize;
+    let seed = int(args[11]);
+    let resolution = int(args[12]).max(4) as usize;
     // the graph node that makes the membrane, it is the last input
-    let creator = int(args[14]);
+    let creator = int(args[13]);
 
     // every attachment in a joins the attachment in b closest to it
     let pairs: Vec<(usize, usize)> = if b.is_empty() {
@@ -773,7 +782,7 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
             flare: &flare,
             resolution,
         };
-        let n = ctx.int(args[11]).clamp(1, MAX_STRANDS) as usize;
+        let n = strand_count.clamp(1, MAX_STRANDS) as usize;
 
         let (anchors, axis) = if curve_a.closed && curve_b.path.is_some() {
             let alpha = wrap_alpha(curve_a, curve_b, attachment, anchor, along);
@@ -799,7 +808,7 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
 
 #[cfg(test)]
 mod tests {
-    use super::__nodarium_execute_inner;
+    use super::build;
     use glam::Vec3;
     use myzel_core::{sheet_checks, Mesh};
     use nodarium_utils::{
@@ -893,7 +902,7 @@ mod tests {
     }
 
     fn execute_with(a: &[i32], b: &[i32], p: &Params, flare: &[i32]) -> (Vec<i32>, Vec<i32>) {
-        __nodarium_execute_inner(&[
+        build(&[
             a,
             b,
             &[encode_float(p.attachment)],
@@ -905,11 +914,10 @@ mod tests {
             &[encode_float(p.tear_position)],
             &[encode_float(p.torn_length)],
             flare,
-            &[p.strands],
             &[p.seed],
             &[16],
             &[CREATOR],
-        ])
+        ], p.strands)
     }
 
     fn run(a: &[i32], b: &[i32], p: &Params) -> Vec<Vec<i32>> {

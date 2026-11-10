@@ -1,7 +1,7 @@
 {
   "id": "max/plantarium/join",
   "meta": {
-    "description": "Joins multiple paths, geometries or meshes into one list, for example to add roots to a plant, to give an instance node several leaves to pick from or to give hyphae_to_mesh several meshes"
+    "description": "Joins multiple paths or geometries into one list, for example to add roots to a plant or to give an instance node several leaves to pick from"
   },
   "outputs": [
     "path"
@@ -9,19 +9,19 @@
   "inputs": {
     "a": {
       "type": "path",
-      "accepts": ["geometry", "mesh"]
+      "accepts": ["geometry"]
     },
     "b": {
       "type": "path",
-      "accepts": ["geometry", "mesh"]
+      "accepts": ["geometry"]
     },
     "c": {
       "type": "path",
-      "accepts": ["geometry", "mesh"]
+      "accepts": ["geometry"]
     },
     "d": {
       "type": "path",
-      "accepts": ["geometry", "mesh"]
+      "accepts": ["geometry"]
     }
   }
 }

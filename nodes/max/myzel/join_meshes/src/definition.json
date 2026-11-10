@@ -1,0 +1,27 @@
+{
+  "id": "max/myzel/join_meshes",
+  "meta": {
+    "description": "Joins meshes into one, like the body from hyphae_to_mesh with the gills of lamellae and the veil of membrane. The groups of each mesh are numbered after those of the meshes before it, and the colors stay."
+  },
+  "outputs": [
+    "mesh"
+  ],
+  "inputs": {
+    "a": {
+      "type": "mesh",
+      "external": true
+    },
+    "b": {
+      "type": "mesh",
+      "external": true
+    },
+    "c": {
+      "type": "mesh",
+      "external": true
+    },
+    "d": {
+      "type": "mesh",
+      "external": true
+    }
+  }
+}

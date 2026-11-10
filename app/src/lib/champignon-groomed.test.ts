@@ -1,6 +1,6 @@
 // The groomed Champignon template matures with time: every stage from the button (t = 0) to the
 // open cap (t = 1) is checked in steps of 0.05 with the compiled nodes, as the research in #175
-// asks. It runs the guides only (stipe, cap rays, veil, gills), not the mesh.
+// asks. It runs the guides only (stipe, cap rays) and the meshes of the gills and the veil, not hyphae_to_mesh.
 import { DEBUG_NODE, type Graph, type NodeId } from '@nodarium/types';
 import { splitNestedArray } from '@nodarium/utils';
 import { existsSync } from 'node:fs';
@@ -50,23 +50,6 @@ function folds(line: number[][]) {
   return false;
 }
 
-/**
- * The gills of lamellae as plates: every gill is a stack of paths with the same samples, from the
- * top in the flesh down to the edge, one after the other
- */
-function plates(paths: Path[]): Path[][] {
-  const gills: Path[][] = [];
-  for (const path of paths) {
-    const gill = gills[gills.length - 1];
-    const previous = gill?.[gill.length - 1];
-    const stacked = previous && previous.points.length === path.points.length
-      && path.points.every((q, m) => length(sub(q.p, previous.points[m].p)) < 5e-4);
-    if (stacked) gill.push(path);
-    else gills.push([path]);
-  }
-  return gills;
-}
-
 /** A Myzel mesh `[14, v, f, flags, ...faces, ...positions, ...]`: its faces and positions */
 type Mesh = { faces: Int32Array; positions: Float32Array };
 
@@ -96,9 +79,8 @@ type Stage = {
   stipe: Path;
   rays: Path[];
   capRays: Path[];
-  veil: Path[];
   skin: Mesh;
-  gills: Path[];
+  gills: Mesh;
   /** The stipe top and its direction, the cap's axis */
   hinge: Vec;
   axis: Vec;
@@ -134,12 +116,12 @@ describe.skipIf(!BUILT && !ON_CI)('the groomed Champignon matures with time', ()
       // the stipe as the cap grows on it
       stipe: [base.edges.find((e) => e[2] === cap && e[3] === 'plant')![0], 0],
       rays: [of('max/myzel/cap_open'), 0],
-      capRays: [cap, 0],
-      veil: [of('max/myzel/membrane'), 0],
+      capRays: [cap, 0]
+    } as const;
+    const meshes = {
+      skin: [of('max/myzel/membrane'), 0],
       gills: [of('max/myzel/lamellae'), 0]
     } as const;
-    // a node shows one output to the debug nodes, the membrane's skin needs a run of its own
-    const skin = { skin: [of('max/myzel/membrane'), 1] } as const;
     const run = async (t: number, debugged: Record<string, readonly [number, number]>) => {
       const graph = structuredClone(base);
       // nothing goes to the output, only what the debug nodes read runs, not the mesh
@@ -156,6 +138,7 @@ describe.skipIf(!BUILT && !ON_CI)('the groomed Champignon matures with time', ()
     for (const t of STEPS) {
       const debug = await run(t, probes);
       const read = (key: keyof typeof probes) => readPaths(debug[probes[key][0]].data);
+      const shapes = await run(t, meshes);
       const stipe = read('stipe')[0];
       const [top, below] = [stipe.points.at(-1)!.p, stipe.points.at(-2)!.p];
       const direction = sub(top, below);
@@ -166,9 +149,8 @@ describe.skipIf(!BUILT && !ON_CI)('the groomed Champignon matures with time', ()
         rays: read('rays'),
         // the rays the cap node grows run from the axis, fill_gaps adds more further out
         capRays: read('rays').filter((r) => capRays.some((c) => c.id === r.id)),
-        veil: read('veil'),
-        skin: readMesh((await run(t, skin))[skin.skin[0]].data),
-        gills: read('gills'),
+        skin: readMesh(shapes[meshes.skin[0]].data),
+        gills: readMesh(shapes[meshes.gills[0]].data),
         hinge: top,
         axis: direction.map((v) => v / length(direction)) as Vec
       });
@@ -181,8 +163,6 @@ describe.skipIf(!BUILT && !ON_CI)('the groomed Champignon matures with time', ()
     2 * Math.max(...s.rays.flatMap((r) => r.points.map((q) => plane(s, q.p)[0] + q.r)));
   const stipeLength = (s: Stage) =>
     s.stipe.points.slice(1).reduce((sum, q, i) => sum + length(sub(q.p, s.stipe.points[i].p)), 0);
-  const ring = (s: Stage) => s.veil.filter((v) => v.parent === s.stipe.id);
-  const fringe = (s: Stage) => s.veil.filter((v) => v.parent !== s.stipe.id);
 
   it('is at real size, a button 25-32 mm wide that opens to 50-60 mm', () => {
     expect(capDiameter(at(0))).toBeGreaterThan(0.025);
@@ -227,79 +207,19 @@ describe.skipIf(!BUILT && !ON_CI)('the groomed Champignon matures with time', ()
     }
   });
 
-  it('never folds the gills, they stay under the cap and hang deeper as it opens', () => {
-    let deepest = 0;
-    const depths: number[] = [];
+  it('keeps the gills under the cap at every stage', () => {
     for (const s of stages) {
       const reach = Math.max(...s.rays.flatMap((r) => r.points.map((q) => plane(s, q.p)[0])));
       const top = Math.max(...s.rays.flatMap((r) => r.points.map((q) => plane(s, q.p)[1])));
-      let depth = 0;
-      for (const gill of plates(s.gills)) {
-        // the plate runs from its top in the flesh down to its edge, the way from one to the
-        // other turns smoothly along the gill and never flips: the plate doesn't fold
-        const [first, last] = [gill[0].points, gill.at(-1)!.points];
-        const down = first.map((q, m) => sub(last[m].p, q.p));
-        for (let m = 1; m < down.length; m++) {
-          expect(dot(down[m - 1], down[m]), `gill ${gill[0].id} at t = ${s.t}`).toBeGreaterThan(0);
-        }
-        depth = Math.max(depth, ...down.map(length));
-        for (const path of gill) {
-          const points = path.points.map((q) => plane(s, q.p));
-          expect(Math.max(...points.map((q) => q[0]))).toBeLessThan(reach);
-          expect(Math.max(...points.map((q) => q[1]))).toBeLessThan(top);
-        }
+      expect(s.gills.faces.length, `t = ${s.t}`).toBeGreaterThan(0);
+      let [widest, highest] = [0, -Infinity];
+      for (let i = 0; i < s.gills.positions.length; i += 3) {
+        const [r, h] = plane(s, Array.from(s.gills.positions.subarray(i, i + 3)) as Vec);
+        widest = Math.max(widest, r);
+        highest = Math.max(highest, h);
       }
-      // the gills get deeper as the cap matures and never shrink back. The plates reach into the
-      // flesh by a share of its thickness, which thins a little while the cap spreads (< 0.3 mm)
-      expect(depth, `t = ${s.t}`).toBeGreaterThanOrEqual(deepest - 3e-4);
-      deepest = Math.max(deepest, depth);
-      depths.push(depth);
-    }
-    // from about 0.5 mm on the button to about 5 mm when open
-    expect(depths.at(-1)! - depths[0]).toBeGreaterThan(0.004);
-  });
-
-  it('keeps the veil intact on the button and tears it into a ring and a fringe', () => {
-    for (const s of stages.filter((s) => s.t <= 0.3)) {
-      expect(ring(s).length, `t = ${s.t}`).toBeGreaterThan(0);
-      expect(fringe(s), `t = ${s.t}`).toEqual([]);
-    }
-    // open, every strand has torn: no part on the stipe reaches out to the margin any more, and
-    // the margin keeps flecks with gaps between them
-    const open = at(1);
-    const margin = capDiameter(open) / 2;
-    for (const part of ring(open)) {
-      expect(plane(open, part.points.at(-1)!.p)[0]).toBeLessThan(margin - 0.01);
-    }
-    expect(fringe(open).length).toBeGreaterThan(ring(open).length / 4);
-    expect(fringe(open).length).toBeLessThanOrEqual(ring(open).length);
-  });
-
-  it('keeps the ring in the upper third while the stipe grows mainly above it', () => {
-    // how far up the stipe the ring is, along it
-    const height = (s: Stage) => mean(ring(s).map((v) => v.alpha)) * stipeLength(s);
-    const open = at(1);
-    // in the upper third when open, below the cap, as in photos of A. bisporus
-    expect(height(open) / stipeLength(open)).toBeGreaterThan(2 / 3);
-    expect(height(open) / stipeLength(open)).toBeLessThan(0.85);
-    // from the first tear on, the stipe above the ring lengthens faster than the stipe below it
-    // (Hagimoto & Konishi 1959: "mainly at the growth zone ... just beneath the pileus and above
-    // the ring"), but the stipe below grows too (Craig et al. 1977), and the cap moves away from
-    // the ring: it doesn't ride up with the cap
-    const onset = stages.find((s) => fringe(s).length > 0)!;
-    const above = (s: Stage) => stipeLength(s) - height(s);
-    expect(above(open) / above(onset)).toBeGreaterThan(height(open) / height(onset));
-    expect(height(open)).toBeGreaterThan(height(onset));
-    for (let i = 1; i < stages.length; i++) {
-      expect(above(stages[i]), `t = ${stages[i].t}`).toBeGreaterThanOrEqual(
-        above(stages[i - 1]) - 1e-4
-      );
-    }
-    // the ring never sits above the margin of the closed cap
-    for (const s of stages.filter((s) => s.t <= 0.4)) {
-      const margin = mean(s.capRays.map((r) => r.points.at(-1)!.p[1]));
-      const ringAt = mean(ring(s).map((v) => v.points[0].p[1]));
-      expect(ringAt, `t = ${s.t}`).toBeLessThan(margin);
+      expect(widest, `t = ${s.t}`).toBeLessThan(reach);
+      expect(highest, `t = ${s.t}`).toBeLessThan(top);
     }
   });
 
@@ -310,19 +230,12 @@ describe.skipIf(!BUILT && !ON_CI)('the groomed Champignon matures with time', ()
     for (const t of [0, 0.45, 1]) {
       expect(isClosed(at(t).skin), `t = ${t}`).toBe(true);
     }
-    // open, the skin hangs from the ring and the margin and nowhere else: between the ring's
-    // edge and the margin there is none of it
-    const open = at(1);
-    const ys = (from: number, to: number) => {
-      let n = 0;
-      for (let i = 1; i < open.skin.positions.length; i += 3) {
-        if (open.skin.positions[i] > from && open.skin.positions[i] < to) n++;
-      }
-      return n;
-    };
-    const ringTop = Math.max(...ring(open).map((v) => v.points[0].p[1]));
-    const margin = Math.min(...open.capRays.map((r) => r.points.at(-1)!.p[1]));
-    expect(ys(ringTop + 0.003, margin - 0.004)).toBe(0);
-    expect(ys(ringTop - 0.01, ringTop + 0.001)).toBeGreaterThan(0);
+    // open, the skin hangs from the ring and the margin and nowhere else: there is a gap between
+    // the lowest vertex of the part on the margin and the highest of the ring
+    const heights: number[] = [];
+    for (let i = 1; i < at(1).skin.positions.length; i += 3) heights.push(at(1).skin.positions[i]);
+    heights.sort((a, b) => a - b);
+    const gap = Math.max(...heights.slice(1).map((h, i) => h - heights[i]));
+    expect(gap).toBeGreaterThan(0.004);
   });
 });

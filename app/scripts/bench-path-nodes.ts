@@ -281,7 +281,7 @@ if (wanted('cap')) {
     const [lopsided] = step('myzel/cap_lopsided', { cap: waved, hinge }, {});
     const [curled] = step('myzel/margin_curl', { cap: lopsided, hinge }, { amount: 0.2 });
     const [opened, margin] = step('myzel/cap_open', { cap: curled, hinge }, { opening: 0.8 });
-    step('myzel/membrane', { a: margin, b: stem }, { strands: 4096, tear: 0.5 });
+    step('myzel/membrane', { a: margin, b: stem }, { tear: 0.5 });
     const [pattern] = step('myzel/reaction_diffusion', {}, {
       radius: 0.03,
       inner_radius: 0.0065,

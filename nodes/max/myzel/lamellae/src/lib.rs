@@ -795,7 +795,13 @@ fn cap_gills(underside: &mut Underside, hinge: &Point, stipe: Option<&Stipe>, pa
 }
 
 #[nodarium_execute]
-pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
+    build(args).1
+}
+
+/// The paths of the gills and the mesh of their plates. Only the mesh is an output, the paths are
+/// what the tests look at.
+fn build(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let mut ctx = Ctx::default();
     let mut plates = Mesh::default();
     // args follow the key order of the inputs in definition.json, so a new input there shifts these
@@ -975,7 +981,7 @@ mod tests {
     }
 
     fn execute_on(cap: &[i32], stipe: &[i32], pattern: &Pattern, p: &Params, curve: Vec<i32>) -> (Vec<i32>, Vec<i32>) {
-        __nodarium_execute_inner(&[
+        build(&[
             cap,
             &hinge(),
             &pattern.encode(),
@@ -1487,7 +1493,7 @@ mod tests {
 
     #[test]
     fn nothing_without_a_pattern_or_a_cap() {
-        let (empty, plates) = __nodarium_execute_inner(&[
+        let (empty, plates) = build(&[
             &cap(0.0),
             &hinge(),
             &[],
