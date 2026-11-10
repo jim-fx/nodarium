@@ -92,10 +92,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         if waves.count == 0 || amplitude.0.iter().all(|&a| a == 0.0) {
             return None;
         }
-        if cap.length <= 0.0 {
+        let ray = &cap.rays[k];
+        if ray.length <= 0.0 {
             return None;
         }
-        let lift = cap.length * wave_shape(waves, seed, cap.frame.stipe_id, cap.rays[k].angle);
+        // by the length of the ray, so a cap that reaches further on one side waves more there
+        let lift = ray.length * wave_shape(waves, seed, cap.frame.stipe_id, ray.angle);
         // by how far along its ray a place is, which no pose changes, so the waves look the same
         // wherever the node sits in the chain of a cap
         let offset = |alpha: f32| lift * amplitude.at(alpha);
@@ -280,6 +282,26 @@ mod tests {
         // the root in the stipe keeps its size, so the points along the rays don't scale exactly
         for (s, l) in small.iter().zip(&large) {
             assert!((*l - *s * 2.0).length() < 0.02 * l.length() + 1e-6, "{s} and {l}");
+        }
+    }
+
+    #[test]
+    fn a_lopsided_cap_waves_by_the_length_of_every_ray() {
+        let around = vec![0.0, 1.0, 0.5, 0.5, 1.0, 1.0];
+        let p = Params { cap: TestCap { thickness: 0.0, rays: 16, spacing: 0.0, ..cone() }, ..wavy() };
+        let lift = |cap: TestCap| {
+            let flat = margins(&run(&Params { cap: cap.clone(), amplitude: 0.0, ..p.clone() }));
+            let wavy = margins(&run(&Params { cap, ..p.clone() }));
+            wavy.iter().zip(&flat).map(|(a, b)| a.position - b.position).collect::<Vec<_>>()
+        };
+        let round = lift(p.cap.clone());
+        let lopsided = lift(TestCap { around: around.clone(), ..p.cap.clone() });
+        let f = frame(&grow(&p.cap));
+        let angles: Vec<f32> = margins(&grow(&p.cap)).iter().map(|m| f.angle(m.position)).collect();
+        // like the round cap scaled to the radius of the ray, up to the root that keeps its size
+        for ((r, l), angle) in round.iter().zip(&lopsided).zip(angles) {
+            let scale = nodarium_utils::curve(&around, angle / TAU);
+            assert!((*l - *r * scale).length() < 0.03 * l.length() + 1e-6, "{r} and {l} at {angle}");
         }
     }
 

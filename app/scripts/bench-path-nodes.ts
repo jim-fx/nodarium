@@ -18,7 +18,7 @@
 //
 // The strands grow from a stem 5 cm tall and 7 mm thick, like a groomed stipe. The
 // chain is the groomed mushroom at about 5000 strands: a stipe of strands that clump, and a cap
-// whose guides are filled, waved, made lopsided, curled and opened, then filled with strands.
+// whose guides are filled, waved, curled and opened, then filled with strands.
 // avoid runs on both, joined, once where the strands fit (radius 0) and once where they can't
 // (radius --radius, about 2.4 times as much tube as the stipe holds).
 import { createPerformanceStore, createWasmWrapper, readNodeValue } from '@nodarium/utils';
@@ -281,8 +281,7 @@ if (wanted('cap')) {
     const [filled] = step('plantarium/fill_gaps', { plant: cap }, { spacing: 0.1 });
     rays = pathCount(filled);
     const [waved] = step('myzel/margin_waves', { cap: filled }, {});
-    const [lopsided] = step('myzel/cap_lopsided', { cap: waved }, {});
-    const [curled] = step('myzel/margin_curl', { cap: lopsided }, { amount: 0.2 });
+    const [curled] = step('myzel/margin_curl', { cap: waved }, { amount: 0.2 });
     const [opened] = step('myzel/cap_open', { cap: curled }, { opening: 0.8 });
     const [margin] = step('myzel/cap_margin', { cap: opened }, {});
     step('myzel/membrane', { a: margin, b: stem }, { tear: 0.5 });
@@ -343,15 +342,9 @@ if (wanted('chain')) {
       {},
       'cap: myzel/margin_waves'
     );
-    const [lopsided] = step(
-      'myzel/cap_lopsided',
-      { cap: waved },
-      {},
-      'cap: myzel/cap_lopsided'
-    );
     const [curled] = step(
       'myzel/margin_curl',
-      { cap: lopsided },
+      { cap: waved },
       { amount: 0.2 },
       'cap: myzel/margin_curl'
     );

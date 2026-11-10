@@ -182,7 +182,7 @@ struct Underside {
     rays: Vec<Ray>,
     /// Distance along the rays from the axis to the margin, the middle of all rays. The pattern
     /// is stretched to the length of every ray, so the gills of a cap that reaches further on
-    /// one side (cap_lopsided) reach the margin all round.
+    /// one side (a radius that changes around the axis) reach the margin all round.
     length: f32,
     /// Half the flesh thickness at the margin
     margin_radius: f32,

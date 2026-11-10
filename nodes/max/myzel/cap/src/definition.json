@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/cap",
   "meta": {
-    "description": "Grows an open cap at every point, e.g. from points_on_path at the tip of the stipe: guide rays that leave the stipe and follow the drawn profile out to the margin. Gives the paths it gets with the rays added. Fill the gaps between the rays with fill_gaps, pose them with margin_waves, cap_lopsided, margin_curl and cap_open, then fill them with strands."
+    "description": "Grows an open cap at every point, e.g. from points_on_path at the tip of the stipe: guide rays that leave the stipe and follow the drawn profile out to the margin. Gives the paths it gets with the rays added. Fill the gaps between the rays with fill_gaps, pose them with margin_waves, margin_curl and cap_open, then fill them with strands. The cap grows along the stipe at its point, so whatever bends the stipe tilts the cap."
   },
   "outputs": [
     "path"
@@ -19,7 +19,7 @@
     },
     "radius": {
       "type": "float",
-      "description": "Radius of the open cap, the profile spans from the axis to this radius",
+      "description": "Radius of the open cap, the profile spans from the axis to this radius. Read for every ray, with alpha once around the axis from 0 to 1. At alpha 0.25 the ray points where the stipe leans, so a cap turns with its stipe. A curve with one bump makes the cap reach further on one side, two bumps make it oval, a random gives every ray its own radius, a ragged margin. A random once per path keeps the cap round.",
       "value": 0.025,
       "min": 0,
       "max": 0.2,

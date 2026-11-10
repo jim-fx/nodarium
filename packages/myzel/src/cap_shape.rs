@@ -1,5 +1,6 @@
-//! The shape of a cap as the `cap` node grows it: guide rays from a drawn profile, all alike,
-//! evenly around the stipe axis. Shared so the nodes that pose a cap can test with real caps.
+//! The shape of a cap as the `cap` node grows it: guide rays from a drawn profile, evenly around
+//! the stipe axis, every ray the profile scaled to its own radius. Shared so the nodes that pose
+//! a cap can test with real caps.
 
 use crate::CapFrame;
 use glam::Vec2;
@@ -103,13 +104,14 @@ struct Ray2 {
     radius: Vec<f32>,
 }
 
-/// The angles of `rays` rays evenly around the axis, each moved a little by the stipe id
-fn ray_angles(rays: usize, id: i32) -> Vec<f32> {
-    let gap = TAU / rays as f32;
+/// The angles of `rays` rays evenly around the axis of the cap on stipe `id`, each moved a little
+/// by the stipe id
+pub fn ray_angles(rays: usize, id: i32) -> Vec<f32> {
+    let gap = TAU / rays.max(1) as f32;
     (0..rays).map(|k| k as f32 * gap + (path_random(0, id, ANGLE_SALT + k as i32) - 0.5) * ANGLE_JITTER * gap).collect()
 }
 
-/// The rays of one cap in the plane through the axis, the same for every angle
+/// A ray of one cap in the plane through the axis
 fn cap_ray(midline: &Midline, stipe_radius: f32, resolution: usize) -> Ray2 {
     let (line, half) = (&midline.points, &midline.half);
     // a ray starts on the far side of the axis and crosses it at the top of the cap, so every
@@ -138,10 +140,10 @@ fn cap_ray(midline: &Midline, stipe_radius: f32, resolution: usize) -> Ray2 {
 pub struct CapShape<'a> {
     /// The drawn outline from the shape editor
     pub profile: &'a [f32],
-    pub radius: f32,
+    /// The radius of every ray, one for each of the `ray_angles`
+    pub radii: &'a [f32],
     /// The flesh at each of the `cap_alphas`
     pub thickness: &'a [f32],
-    pub rays: usize,
     /// Points along a ray
     pub resolution: usize,
     pub creator: i32,
@@ -156,12 +158,18 @@ pub fn cap_alphas() -> impl Iterator<Item = f32> + Clone {
 /// The rays of the open cap in `frame`, children of its stipe at the place of the frame. The
 /// stipe is `depth` deep, the rays count on from `first`.
 pub fn grow_cap(frame: &CapFrame, depth: i32, first: i32, shape: &CapShape) -> Vec<Vec<i32>> {
-    let midline = Midline::new(&outline(shape.profile, shape.radius), shape.thickness);
-    let ray = cap_ray(&midline, frame.stipe_radius, shape.resolution.max(4));
-    ray_angles(shape.rays.max(1), frame.stipe_id)
+    let mut last: Option<(f32, Ray2)> = None;
+    ray_angles(shape.radii.len(), frame.stipe_id)
         .into_iter()
+        .zip(shape.radii)
         .enumerate()
-        .map(|(k, angle)| {
+        .map(|(k, (angle, &radius))| {
+            // a round cap makes its ray once
+            if last.as_ref().is_none_or(|(r, _)| *r != radius) {
+                let midline = Midline::new(&outline(shape.profile, radius), shape.thickness);
+                last = Some((radius, cap_ray(&midline, frame.stipe_radius, shape.resolution.max(4))));
+            }
+            let ray = &last.as_ref().unwrap().1;
             let out = frame.out(angle);
             let mut data = create_path(ray.points.len(), depth + 1);
             set_path_link(&mut data, PathLink::child(shape.creator, frame.stipe_id, frame.alpha, first + k as i32));

@@ -3,6 +3,7 @@ import { createLogger } from '@nodarium/utils';
 import { capAtPoints } from './cap-at-points';
 import { removeInputs, renameInputs, replaceNodes, wiredInputs } from './helpers';
 import { joinMeshes } from './join-meshes';
+import { lopsidedByRadius } from './lopsided-by-radius';
 import { outputMesh } from './output-mesh';
 import { setMeshColor } from './set-mesh-color';
 import { splitCap, wiredCapInputs } from './split-cap';
@@ -106,6 +107,12 @@ export const MIGRATIONS: Migration[] = [
     description:
       'the cap grows at points and gives its stipe with the rays, the pose nodes find the cap from the stipe and cap_margin gives the margin',
     migrate: capAtPoints
+  },
+  {
+    version: 9,
+    description:
+      'cap_lopsided is gone, a curve into the cap radius makes a cap lopsided, random nodes into the radius draw once per path',
+    migrate: lopsidedByRadius
   }
 ];
 

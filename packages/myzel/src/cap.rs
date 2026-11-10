@@ -11,9 +11,11 @@
 //! [`CapFrame::on`].
 //!
 //! A ray that leaves the stipe starts on the far side of the axis and crosses it at the top of
-//! the cap, from there on it measures the cap. A ray that starts further out (added by
-//! `fill_gaps`) starts between two neighbours that reach further in, and stays between them
-//! while they bend, so it bends as if it had been part of the cap from the axis on.
+//! the cap, from there on it measures the cap. Every ray bends by how far along its own length a
+//! step is, so on a cap that reaches further on one side the poses stretch with the rays. A ray
+//! that starts further out (added by `fill_gaps`) starts between two neighbours that reach
+//! further in, and stays between them while they bend, so it bends as if it had been part of the
+//! cap from the axis on.
 
 use glam::{Vec2, Vec3};
 use nodarium_utils::{
@@ -44,7 +46,8 @@ pub struct CapFrame {
 impl CapFrame {
     /// The frame of a cap `alpha` along the length of `stipe`: the place there, the direction
     /// of the stipe as the axis and its radius. Angles count from `orthogonal_to` the axis,
-    /// whatever made the cap, so every node finds the same frame from the stipe alone.
+    /// whatever made the cap, so every node finds the same frame from the stipe alone. A quarter
+    /// turn on is the side the stipe leans to, so a cap turns with its stipe.
     pub fn on(stipe: &[i32], alpha: f32) -> CapFrame {
         let path = wrap_path(stipe);
         let (hinge, axis, radius) = place_on(path.points, alpha);
@@ -110,7 +113,10 @@ pub struct CapRay {
     pub plane: Vec<Vec2>,
     /// Distance along the ray to its tip
     pub to_end: Vec<f32>,
-    /// How far along the cap every point is, 0 at the axis to 1 at the margin
+    /// Distance along the ray from the axis to the margin. A ray that starts out on the cap
+    /// takes it from its neighbours.
+    pub length: f32,
+    /// How far along the ray every point is, 0 at the axis to 1 at the margin
     alphas: Vec<f32>,
     /// Starts in the stipe and crosses the axis
     pub crosses: bool,
@@ -122,7 +128,7 @@ pub struct CapRay {
 /// A step of a ray, while it bends
 #[derive(Clone, Copy, Debug)]
 pub struct Step {
-    /// How far along the cap the step starts and ends, 0 at the axis to 1 at the margin
+    /// How far along its ray the step starts and ends, 0 at the axis to 1 at the margin
     pub from_alpha: f32,
     pub to_alpha: f32,
     /// Where the step starts and ends before it bends, in the plane of the ray
@@ -157,7 +163,7 @@ pub struct Cap {
     pub stipe: usize,
     /// Sorted by angle
     pub rays: Vec<CapRay>,
-    /// Distance along the rays from the axis to the margin
+    /// Distance along the rays from the axis to the margin, the middle of all rays
     pub length: f32,
     /// The neighbours of every ray that starts out on the cap, found once, a cap bends its
     /// rays many times
@@ -227,10 +233,11 @@ impl Cap {
                 to_end[i] = to_end[i + 1] + rel(i).distance(rel(i + 1));
             }
             let crossing = (1..n).find(|&k| plane[k - 1].x < 0.0 && plane[k].x >= 0.0);
-            if let Some(k) = crossing {
+            let length = crossing.map(|k| {
                 let t = -plane[k - 1].x / (plane[k].x - plane[k - 1].x);
-                lengths.push(to_end[k - 1] + (to_end[k] - to_end[k - 1]) * t);
-            }
+                to_end[k - 1] + (to_end[k] - to_end[k - 1]) * t
+            });
+            lengths.extend(length);
             let off = OFF_PLACE * frame.stipe_radius;
             in_stipe |= plane[0].y < -off || (crossing.is_some() && plane[0].x < -off);
             rays.push(CapRay {
@@ -238,6 +245,7 @@ impl Cap {
                 angle: frame.angle(frame.hinge + out),
                 plane,
                 to_end,
+                length: length.unwrap_or(-1.0),
                 alphas: Vec::new(),
                 crosses: crossing.is_some(),
                 out,
@@ -253,10 +261,15 @@ impl Cap {
             n => lengths[n / 2],
         };
         rays.sort_by(|a, b| a.angle.total_cmp(&b.angle));
-        let mut cap = Cap { frame, stipe, rays, length, carriers: Vec::new() };
-        for k in 0..cap.rays.len() {
-            cap.rays[k].alphas = cap.rays[k].to_end.iter().map(|&d| cap.alpha(d)).collect();
+        let own: Vec<(f32, f32)> = rays.iter().filter(|r| r.crosses).map(|r| (r.angle, r.length)).collect();
+        for ray in &mut rays {
+            if !ray.crosses {
+                ray.length = length_between(&own, ray.angle).unwrap_or(length);
+            }
+            let l = ray.length;
+            ray.alphas = ray.to_end.iter().map(|&d| if l > 0.0 { (1.0 - d / l).clamp(0.0, 1.0) } else { 0.0 }).collect();
         }
+        let mut cap = Cap { frame, stipe, rays, length, carriers: Vec::new() };
         cap.carriers = (0..cap.rays.len()).map(|k| cap.carrier(k)).collect();
         Some(cap)
     }
@@ -264,14 +277,6 @@ impl Cap {
     /// How far from the axis the furthest tip is
     pub fn reach(&self) -> f32 {
         self.rays.iter().map(|r| r.plane.last().unwrap().x).fold(0.0, f32::max)
-    }
-
-    fn alpha(&self, to_end: f32) -> f32 {
-        if self.length > 0.0 {
-            (1.0 - to_end / self.length).clamp(0.0, 1.0)
-        } else {
-            0.0
-        }
     }
 
     fn step(&self, ray: &CapRay, i: usize, share: f32) -> Step {
@@ -409,6 +414,20 @@ fn nearest_on(line: &[Vec2], p: Vec2) -> (usize, f32) {
     at
 }
 
+/// The length at `angle` between the two rays of `own` (angle and length, sorted by angle) on
+/// either side of it
+fn length_between(own: &[(f32, f32)], angle: f32) -> Option<f32> {
+    let (first, last) = (own.first()?, own.last()?);
+    let after = own.partition_point(|r| r.0 <= angle);
+    let (a, b) = match after {
+        0 => ((last.0 - TAU, last.1), *first),
+        i if i == own.len() => (*last, (first.0 + TAU, first.1)),
+        i => (own[i - 1], own[i]),
+    };
+    let t = if b.0 > a.0 { (angle - a.0) / (b.0 - a.0) } else { 0.0 };
+    Some(a.1 + (b.1 - a.1) * t)
+}
+
 /// The turn that closes a ray by `closing` radians, spread evenly from the axis to the margin
 pub fn closing_turn(step: &Step, closing: f32) -> f32 {
     closing * step.alpha()
@@ -471,13 +490,14 @@ pub fn margin_points(paths: &[&[i32]]) -> Vec<Point> {
 /// Caps on a stipe for the tests of the nodes that pose them
 #[doc(hidden)]
 pub mod testing {
-    use crate::{grow_cap, Cap, CapFrame, CapShape};
+    use crate::{grow_cap, ray_angles, Cap, CapFrame, CapShape};
     use glam::{Quat, Vec2, Vec3};
     use nodarium_utils::{
         concat_arg_vecs, curve,
         geometry::{create_multiple_paths, fill_gaps, path_link, wrap_multiple_paths, wrap_path},
         split_args, Point,
     };
+    use std::f32::consts::TAU;
 
     pub const STIPE_TOP: f32 = 0.05;
     pub const STIPE_RADIUS: f32 = 0.005;
@@ -508,6 +528,8 @@ pub mod testing {
     #[derive(Clone)]
     pub struct TestCap {
         pub radius: f32,
+        /// A curve of the share of the radius once around the axis, empty for a round cap
+        pub around: Vec<f32>,
         pub profile: Vec<f32>,
         pub thickness: f32,
         /// Share of the thickness from the centre to the margin
@@ -524,6 +546,7 @@ pub mod testing {
     pub fn cone() -> TestCap {
         TestCap {
             radius: 0.03,
+            around: Vec::new(),
             profile: vec![0.0, 60.0, 50.0, 20.0],
             thickness: 0.006,
             thickness_curve: vec![0.0, 1.0, 1.0, 0.0],
@@ -555,15 +578,13 @@ pub mod testing {
     /// The rays of the open cap `alpha` along `stipe`, as the `cap` node grows them
     pub fn grow_rays(c: &TestCap, stipe: &[i32], alpha: f32) -> Vec<Vec<i32>> {
         let thickness: Vec<f32> = crate::cap_alphas().map(|a| c.thickness * curve(&c.thickness_curve, a)).collect();
-        let shape = CapShape {
-            profile: &c.profile,
-            radius: c.radius,
-            thickness: &thickness,
-            rays: c.rays,
-            resolution: 24,
-            creator: 7,
-        };
-        grow_cap(&CapFrame::on(stipe, alpha), wrap_path(stipe).depth, 0, &shape)
+        let frame = CapFrame::on(stipe, alpha);
+        let radii: Vec<f32> = ray_angles(c.rays, frame.stipe_id)
+            .into_iter()
+            .map(|a| if c.around.is_empty() { c.radius } else { c.radius * curve(&c.around, a.rem_euclid(TAU) / TAU) })
+            .collect();
+        let shape = CapShape { profile: &c.profile, radii: &radii, thickness: &thickness, resolution: 24, creator: 7 };
+        grow_cap(&frame, wrap_path(stipe).depth, 0, &shape)
     }
 
     /// The paths that grow on another path, the rays without their stipe
@@ -653,8 +674,8 @@ mod tests {
         caps, cone, frame, grow, grow_on, grow_rays, leaning_stipe, margins, points, rays, ring, roughness, stipe, stipes,
         TestCap, STIPE_RADIUS, STIPE_TOP,
     };
-    use super::{curl_turn, pose_caps, CapFrame};
-    use glam::Vec3;
+    use super::{curl_turn, pose_caps, Cap, CapFrame, CapRay};
+    use glam::{Vec2, Vec3};
     use nodarium_utils::{
         geometry::{create_path, path_link, set_path_link, wrap_path, wrap_path_mut, PathLink},
         split_args,
@@ -680,6 +701,58 @@ mod tests {
 
     fn many_added() -> TestCap {
         TestCap { rays: 12, spacing: 0.25, ..cone() }
+    }
+
+    /// Twice as long at alpha 0 as halfway round
+    fn lopsided() -> TestCap {
+        TestCap { around: vec![0.0, 1.0, 0.5, 0.5, 1.0, 1.0], ..many_added() }
+    }
+
+    /// The rays that leave the stipe on either side of `angle`
+    fn neighbours(cap: &Cap, angle: f32) -> (&CapRay, &CapRay) {
+        let own: Vec<&CapRay> = cap.rays.iter().filter(|r| r.crosses).collect();
+        let after = own.iter().position(|r| r.angle > angle).unwrap_or(0);
+        (own[(after + own.len() - 1) % own.len()], own[after])
+    }
+
+    #[test]
+    fn rays_added_on_a_lopsided_cap_end_on_the_outline_between_their_neighbours() {
+        let paths = grow(&lopsided());
+        let cap = &caps(&paths)[0];
+        let tip = |r: &CapRay| super::testing::place(*points(&paths[r.path]).last().unwrap());
+        let added: Vec<&CapRay> = cap.rays.iter().filter(|r| !r.crosses).collect();
+        assert!(added.len() > 20, "only {} rays added", added.len());
+        for ray in added {
+            let (a, b) = neighbours(cap, ray.angle);
+            let (p, pa, pb) = (tip(ray), tip(a), tip(b));
+            let (lo, hi) = (pa.min(pb) - Vec2::splat(1e-5), pa.max(pb) + Vec2::splat(1e-5));
+            assert!(p.cmpge(lo).all() && p.cmple(hi).all(), "tip {p} between {pa} and {pb}");
+            assert!(ray.length >= a.length.min(b.length) - 1e-6 && ray.length <= a.length.max(b.length) + 1e-6);
+        }
+    }
+
+    #[test]
+    fn a_lopsided_cap_bends_every_ray_by_its_own_length() {
+        let paths = grow(&lopsided());
+        let cap = &caps(&paths)[0];
+        let lengths = || cap.rays.iter().map(|r| r.length);
+        let (long, short) = (lengths().fold(0.0, f32::max), lengths().fold(f32::MAX, f32::min));
+        assert!(long > 1.7 * short, "rays from {short} to {long}");
+        // the margin curls under the same share of every ray, so it drops by about the length of
+        // its ray. By the middle length of the cap the long side would drop half the share.
+        let refs: Vec<&[i32]> = paths.iter().map(|r| r.as_slice()).collect();
+        let curled = pose_caps(&refs, |cap, k| Some(cap.bend(k, |s| curl_turn(s, 0.5, 0.4))));
+        let drops: Vec<f32> = cap
+            .rays
+            .iter()
+            .filter(|r| r.crosses)
+            .map(|r| {
+                let (before, after) = (points(&paths[r.path]), points(&curled[r.path]));
+                (before.last().unwrap().y - after.last().unwrap().y) / r.length
+            })
+            .collect();
+        let (most, least) = (drops.iter().cloned().fold(0.0, f32::max), drops.iter().cloned().fold(f32::MAX, f32::min));
+        assert!(least > 0.0 && most < 1.3 * least, "the margin drops {least} to {most} of its ray");
     }
 
     #[test]

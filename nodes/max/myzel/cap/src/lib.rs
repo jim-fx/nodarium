@@ -1,10 +1,11 @@
-use myzel_core::{cap_alphas, grow_cap, CapFrame, CapShape};
+use myzel_core::{cap_alphas, grow_cap, ray_angles, CapFrame, CapShape};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs, decode_float, decode_points,
     geometry::{is_path, path_link, wrap_path},
     int, split_args, Ctx,
 };
+use std::f32::consts::TAU;
 
 nodarium_definition_file!("src/definition.json");
 
@@ -51,11 +52,18 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             }
         };
         ctx.alpha = point.alpha;
-        let radius = ctx.float(args[2]).max(0.0);
         let count = ctx.int(args[5]).max(1) as usize;
         // along the flesh from the centre to the margin, so a curve can thin it
         let thickness = ctx.float_along(args[4], cap_alphas());
-        let shape = CapShape { profile: &profile, radius, thickness: &thickness, rays: count, resolution, creator };
+        // once around the axis, so a curve can make the cap reach further on one side
+        let radii: Vec<f32> = ray_angles(count, frame.stipe_id)
+            .into_iter()
+            .map(|angle| {
+                ctx.alpha = angle.rem_euclid(TAU) / TAU;
+                ctx.float(args[2]).max(0.0)
+            })
+            .collect();
+        let shape = CapShape { profile: &profile, radii: &radii, thickness: &thickness, resolution, creator };
         let own = match rays.iter().position(|r| r.0 == point.parent_id) {
             Some(i) => &mut rays[i].1,
             None => {
@@ -90,10 +98,11 @@ mod tests {
     use glam::{Vec2, Vec3};
     use myzel_core::{margin_points, Cap, CapFrame};
     use nodarium_utils::{
-        concat_args, encode_float, encode_points,
+        concat_args, curve, encode_float, encode_points,
         geometry::{create_multiple_paths, interpolate_along_path, is_path, orthogonal_to, path_link, wrap_multiple_paths, wrap_path, PathLink},
         split_args, Point,
     };
+    use std::f32::consts::TAU;
 
     const CREATOR: i32 = 7;
     const STIPE_TOP: f32 = 0.05;
@@ -156,6 +165,8 @@ mod tests {
     #[derive(Clone)]
     struct Params {
         radius: f32,
+        /// A node connected to the radius instead of the value
+        radius_node: Option<Vec<i32>>,
         profile: Vec<f32>,
         thickness: Vec<i32>,
         rays: i32,
@@ -167,6 +178,7 @@ mod tests {
     fn cone() -> Params {
         Params {
             radius: 0.03,
+            radius_node: None,
             profile: vec![0.0, 60.0, 50.0, 20.0],
             thickness: curve_node(&[0.0, 1.0, 1.0, 0.0], 0.006),
             rays: 10,
@@ -177,7 +189,7 @@ mod tests {
         __nodarium_execute_inner(&[
             plant,
             &encode_points(points),
-            &[encode_float(p.radius)],
+            p.radius_node.as_deref().unwrap_or(&[encode_float(p.radius)]),
             profile,
             &p.thickness,
             &[p.rays],
@@ -239,6 +251,69 @@ mod tests {
         for m in margins(&with_stipe(&run(&Params { radius: 0.05, ..cone() }))) {
             assert!((place(m.position).x - 0.05).abs() < 1e-4);
         }
+    }
+
+    #[test]
+    fn a_plain_radius_gives_the_rays_of_a_flat_curve() {
+        let flat = Params { radius_node: Some(curve_node(&[0.0, 1.0, 1.0, 1.0], 0.03)), ..cone() };
+        assert_eq!(run(&flat), run(&cone()));
+    }
+
+    #[test]
+    fn a_curve_around_the_axis_makes_one_side_reach_twice_as_far() {
+        let around = [0.0, 1.0, 0.5, 0.5, 1.0, 1.0];
+        let p = Params { radius_node: Some(curve_node(&around, 0.03)), rays: 16, ..cone() };
+        let frame = CapFrame::on(split_args(&stipe())[0], 1.0);
+        let margin = margins(&with_stipe(&run(&p)));
+        let reach: Vec<f32> = margin.iter().map(|m| place(m.position).x).collect();
+        let (longest, shortest) = (reach.iter().cloned().fold(0.0, f32::max), reach.iter().cloned().fold(f32::MAX, f32::min));
+        assert!((longest / shortest - 2.0).abs() < 0.05, "{longest} and {shortest}");
+        // every ray is the profile at its own radius, alpha 0 is the side of the frame
+        for m in &margin {
+            let radius = 0.03 * curve(&around, frame.angle(m.position) / TAU);
+            let q = place(m.position);
+            assert!((q.x - radius).abs() < 1e-4, "margin {} from the axis, radius {radius}", q.x);
+            assert!((q.y - (0.006 - 0.8 * radius)).abs() < 1e-4, "margin {} over the stipe top", q.y);
+        }
+    }
+
+    #[test]
+    fn the_long_side_turns_with_the_lean_of_the_stipe() {
+        // a bump at alpha 0.25, the side the stipe leans to
+        let bump = curve_node(&[0.0, 0.5, 0.25, 1.0, 0.5, 0.5, 1.0, 0.5], 0.03);
+        let p = Params { radius_node: Some(bump), rays: 64, ..cone() };
+        for turn in [0.0f32, 1.0, 2.5, 4.0] {
+            // like rotate around y turns a stipe that trunk_kink leans
+            let lean = glam::Quat::from_rotation_y(turn) * glam::Quat::from_rotation_z(-0.3);
+            let mut plant = create_multiple_paths(1, 12, 1, 3);
+            for (i, q) in wrap_multiple_paths(&mut plant)[0].points.chunks_exact_mut(4).enumerate() {
+                let v = lean * Vec3::new(0.0, STIPE_TOP * i as f32 / 11.0, 0.0);
+                q.copy_from_slice(&[v.x, v.y, v.z, STIPE_RADIUS]);
+            }
+            let paths = grow_on(&plant, &points_at(&plant, 1.0), &p);
+            let frame = CapFrame::on(split_args(&plant)[0], 1.0);
+            let longest = margins(&paths)
+                .into_iter()
+                .map(|m| (m.position - frame.hinge).reject_from(frame.axis))
+                .max_by(|a, b| a.length().total_cmp(&b.length()))
+                .unwrap();
+            let leans_to = (lean * Vec3::Y).reject_from(Vec3::Y).normalize();
+            let towards = longest.reject_from(Vec3::Y).normalize();
+            assert!(towards.dot(leans_to) > 0.98, "turned by {turn}: longest towards {towards}, leans to {leans_to}");
+        }
+    }
+
+    #[test]
+    fn a_random_radius_is_ragged_and_once_per_path_round() {
+        let reach = |per_path: i32| {
+            let random =
+                concat_args(vec![&[1], &[encode_float(0.02)], &[encode_float(0.04)], &[5], &[1], &[per_path], &[9]]);
+            let rays = run(&Params { radius_node: Some(random), ..cone() });
+            margins(&with_stipe(&rays)).iter().map(|m| place(m.position).x).collect::<Vec<f32>>()
+        };
+        let spread = |r: Vec<f32>| r.iter().cloned().fold(0.0, f32::max) - r.iter().cloned().fold(f32::MAX, f32::min);
+        assert!(spread(reach(0)) > 0.005);
+        assert!(spread(reach(1)) < 1e-5);
     }
 
     #[test]
