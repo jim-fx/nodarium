@@ -35,7 +35,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     for (slot, arg) in args.iter().enumerate() {
         // an unconnected input is empty, a wrapped list is at least [0, n, 1, n]
-        if arg.len() < 4 {
+        // anything not framed as a list is no geometry, e.g. a mesh from an old graph
+        if arg.len() < 4 || arg[0] != 0 {
             continue;
         }
 
@@ -138,5 +139,22 @@ mod tests {
         let result = __nodarium_execute_inner(&[&a, &[0, 1, 1, 1], &b, &[0, 1, 1, 1]]);
 
         assert_eq!(split_args(&result), vec![a.as_slice(), b.as_slice()]);
+    }
+
+    #[test]
+    fn a_mesh_without_faces_is_left_out() {
+        // [tag, vertices, faces, flags, positions, normals, groups]. Read as a list, the words
+        // of its positions frame an item that looks like a path
+        let mut mesh = vec![14, 3, 0, 0];
+        mesh.extend(vec![0; 3 * 3 * 2 + 3]);
+        mesh[5] = 1;
+        mesh[7] = 15;
+        mesh[22] = 1;
+        mesh[23] = 1;
+        let paths = create_multiple_paths(2, 3, 1, 4);
+
+        let result = __nodarium_execute_inner(&[&mesh, &paths, &[], &[]]);
+
+        assert_eq!(result, __nodarium_execute_inner(&[&paths, &[], &[], &[]]));
     }
 }

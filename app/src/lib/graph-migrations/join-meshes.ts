@@ -4,6 +4,7 @@ import { idAllocator, removeInputs, renameInputs, type Scope, scopes } from './h
 const HYPHAE_TO_MESH = 'max/myzel/hyphae_to_mesh';
 const JOIN_MESHES = 'max/myzel/join_meshes';
 const JOIN = 'max/plantarium/join';
+const SET_COLOR = 'max/myzel/set_color';
 const SET_BLEND = 'max/myzel/set_blend';
 const SHEETS = ['max/myzel/lamellae', 'max/myzel/membrane'];
 
@@ -19,15 +20,18 @@ type Source = [nodeId: number, output: number];
  * of them from a join node, and its paths in two inputs, hyphae and loose. From version 5 on it
  * takes paths in one input, paths, and join_meshes joins its mesh with the others. lamellae and
  * membrane give their mesh as the only output, so the edges of their mesh output move up by
- * one and those of their path output are dropped, as are those into loose. set_blend is gone,
- * the paths pass through where it was.
+ * one and those of their path output are dropped, as are those into loose. A sheet whose path
+ * output went into hyphae_to_mesh, directly or through join nodes, gets its mesh joined instead,
+ * so the gills and the veil stay in the mesh. set_blend is gone, the paths pass through where
+ * it was.
  */
 export function joinMeshes(graph: Graph) {
   const nextId = idAllocator(graph);
   for (const scope of scopes(graph)) {
     skipSetBlend(scope);
+    const strays = straySheets(scope);
     moveSheetOutputs(scope);
-    joinHyphaeMeshes(scope, nextId);
+    joinHyphaeMeshes(scope, nextId, strays);
   }
   renameInputs(graph, HYPHAE_TO_MESH, { hyphae: 'paths' });
   removeInputs(graph, HYPHAE_TO_MESH, ['loose', 'meshes']);
@@ -56,6 +60,27 @@ function skipSetBlend(scope: Scope) {
   scope.nodes = scope.nodes.filter((n) => !blends.has(n.id));
 }
 
+/** The sheets whose path output went into hyphae_to_mesh, through join nodes or not, by hyphae_to_mesh */
+function straySheets(scope: Scope) {
+  const strays = new Map<number, Source[]>();
+  const sheets = new Set(scope.nodes.filter((n) => SHEETS.includes(n.type)).map((n) => n.id));
+  const typeOf = (id: number) => scope.nodes.find((n) => n.id === id)?.type;
+  const reach = (id: number, seen: Set<number>): number[] => {
+    if (seen.has(id)) return [];
+    seen.add(id);
+    if (typeOf(id) === HYPHAE_TO_MESH) return [id];
+    if (typeOf(id) !== JOIN) return [];
+    return scope.edges.filter((e) => e[0] === id).flatMap((e) => reach(e[2], seen));
+  };
+  for (const [from, output, to] of scope.edges) {
+    if (!sheets.has(from) || output !== 0) continue;
+    for (const hyphae of reach(to, new Set())) {
+      strays.set(hyphae, [...(strays.get(hyphae) ?? []), [from, 0]]);
+    }
+  }
+  return strays;
+}
+
 function moveSheetOutputs(scope: Scope) {
   const sheets = new Set(scope.nodes.filter((n) => SHEETS.includes(n.type)).map((n) => n.id));
   scope.edges = scope.edges
@@ -68,37 +93,71 @@ function sourcesOf(scope: Scope, node: SerializedNode, input: string): Source[] 
   return scope.edges.filter((e) => e[2] === node.id && e[3] === input).map((e) => [e[0], e[1]]);
 }
 
-/** The mesh sources of a join node that only gives them to hyphae_to_mesh, in its input order */
-function joinedMeshes(
-  scope: Scope,
-  join: SerializedNode,
-  target: SerializedNode
-): Source[] | undefined {
-  const outgoing = scope.edges.filter((e) => e[0] === join.id);
-  if (!outgoing.every((e) => e[2] === target.id && e[3] === 'meshes')) return undefined;
-  return JOIN_INPUTS.flatMap((input) => sourcesOf(scope, join, input));
+/** Whether a source gives a mesh, after the outputs of the sheets moved up */
+function isMesh(scope: Scope, [id, output]: Source) {
+  const type = scope.nodes.find((n) => n.id === id)?.type;
+  if (type === undefined) return false;
+  if (type === SET_COLOR) return output === 1;
+  return SHEETS.includes(type) || type === HYPHAE_TO_MESH || type === JOIN_MESHES;
 }
 
-function joinHyphaeMeshes(scope: Scope, nextId: () => number) {
+/**
+ * The mesh sources of a join node that gives them to the meshes input of `target`, in its input
+ * order, and the edges to leave out. A join that has other consumers stays and only loses the
+ * edges of its meshes, a join that has none goes with all its edges.
+ */
+function joinedMeshes(scope: Scope, join: SerializedNode, target: SerializedNode) {
+  const into = scope.edges.filter((e) => e[2] === join.id && JOIN_INPUTS.includes(e[3]));
+  const ordered = JOIN_INPUTS.flatMap((input) => into.filter((e) => e[3] === input));
+  const shared = scope.edges.some(
+    (e) => e[0] === join.id && !(e[2] === target.id && e[3] === 'meshes')
+  );
+  if (!shared) {
+    return { sources: ordered.map((e): Source => [e[0], e[1]]), drop: ordered, remove: true };
+  }
+  const meshes = ordered.filter((e) => isMesh(scope, [e[0], e[1]]));
+  for (const edge of ordered) {
+    if (!scope.nodes.some((n) => n.id === edge[0])) {
+      console.warn(
+        `join_meshes migration: the join ${join.id} also feeds other nodes and its input ${
+          edge[3]
+        } comes from outside this graph, it stays in the join`
+      );
+    }
+  }
+  return { sources: meshes.map((e): Source => [e[0], e[1]]), drop: meshes, remove: false };
+}
+
+function joinHyphaeMeshes(scope: Scope, nextId: () => number, strays: Map<number, Source[]>) {
   for (const hyphae of scope.nodes.filter((n) => n.type === HYPHAE_TO_MESH)) {
     const meshes = sourcesOf(scope, hyphae, 'meshes');
-    if (meshes.length === 0) continue;
+    const stray = strays.get(hyphae.id) ?? [];
+    if (meshes.length === 0 && stray.length === 0) continue;
 
     const sources: Source[] = [];
-    const joins = new Set<number>();
+    const dropped = new Set<SerializedEdge>();
+    const removed = new Set<number>();
     for (const source of meshes) {
       const node = scope.nodes.find((n) => n.id === source[0]);
-      const inner = node?.type === JOIN ? joinedMeshes(scope, node, hyphae) : undefined;
-      if (inner) {
-        sources.push(...inner);
-        joins.add(source[0]);
+      if (node?.type === JOIN) {
+        const inner = joinedMeshes(scope, node, hyphae);
+        sources.push(...inner.sources);
+        inner.drop.forEach((e) => dropped.add(e));
+        if (inner.remove) removed.add(node.id);
       } else {
         sources.push(source);
       }
     }
-    scope.nodes = scope.nodes.filter((n) => !joins.has(n.id));
+    for (const source of stray) {
+      if (!sources.some(([id, output]) => id === source[0] && output === source[1])) {
+        sources.push(source);
+      }
+    }
+    scope.nodes = scope.nodes.filter((n) => !removed.has(n.id));
     scope.edges = scope.edges.filter(
-      (e) => !joins.has(e[0]) && !joins.has(e[2]) && !(e[2] === hyphae.id && e[3] === 'meshes')
+      (e) =>
+        !dropped.has(e) && !removed.has(e[0]) && !removed.has(e[2])
+        && !(e[2] === hyphae.id && e[3] === 'meshes')
     );
 
     // what was wired to the mesh of hyphae_to_mesh gets the joined one

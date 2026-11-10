@@ -548,6 +548,90 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
     ]);
   });
 
+  it('joins the mesh of a sheet whose path output went into loose', () => {
+    const migrated = migrateGraph(
+      v4(
+        [
+          node(1, 'max/myzel/strands'),
+          node(2, HYPHAE),
+          node(3, 'max/myzel/lamellae'),
+          node(4, 'max/myzel/output')
+        ],
+        [[1, 0, 2, 'hyphae'], [3, 0, 2, 'loose'], [2, 0, 4, 'field']]
+      )
+    );
+    const [join] = byType(migrated, JOIN_MESHES);
+    expect(migrated.edges).toEqual([
+      [1, 0, 2, 'paths'],
+      [2, 0, join.id, 'a'],
+      [3, 0, join.id, 'b'],
+      [join.id, 0, 4, 'field']
+    ]);
+  });
+
+  it('joins the mesh of a sheet whose path output went through a join into loose or hyphae', () => {
+    const migrated = migrateGraph(
+      v4(
+        [
+          node(1, 'max/myzel/strands'),
+          node(2, HYPHAE),
+          node(3, 'max/myzel/lamellae'),
+          node(4, 'max/myzel/membrane'),
+          node(5, 'max/plantarium/join'),
+          node(6, 'max/myzel/output')
+        ],
+        [
+          [1, 0, 5, 'a'],
+          [3, 0, 5, 'b'],
+          [4, 0, 2, 'loose'],
+          [5, 0, 2, 'hyphae'],
+          [4, 1, 2, 'meshes'],
+          [2, 0, 6, 'field']
+        ]
+      )
+    );
+    const [join] = byType(migrated, JOIN_MESHES);
+    expect(migrated.edges).toEqual([
+      [1, 0, 5, 'a'],
+      [5, 0, 2, 'paths'],
+      [2, 0, join.id, 'a'],
+      [4, 0, join.id, 'b'],
+      [3, 0, join.id, 'c'],
+      [join.id, 0, 6, 'field']
+    ]);
+  });
+
+  it('expands a join that also feeds other nodes and keeps it for them', () => {
+    const migrated = migrateGraph(
+      v4(
+        [
+          node(1, HYPHAE),
+          node(2, 'max/plantarium/join'),
+          node(3, 'max/myzel/lamellae'),
+          node(4, 'max/myzel/strands'),
+          node(5, 'max/myzel/output'),
+          node(6, 'max/plantarium/output')
+        ],
+        [
+          [3, 1, 2, 'a'],
+          [4, 0, 2, 'b'],
+          [2, 0, 1, 'meshes'],
+          [2, 0, 6, 'input'],
+          [1, 0, 5, 'field']
+        ]
+      )
+    );
+    const [join] = byType(migrated, JOIN_MESHES);
+    expect(byType(migrated, 'max/plantarium/join')).toHaveLength(1);
+    expect(migrated.edges).toEqual([
+      [4, 0, 2, 'b'],
+      [2, 0, 6, 'input'],
+      [1, 0, join.id, 'a'],
+      [3, 0, join.id, 'b'],
+      [join.id, 0, 5, 'field']
+    ]);
+  });
+
   it('leaves hyphae_to_mesh without meshes alone but for the input names', () => {
     const migrated = migrateGraph(
       v4(

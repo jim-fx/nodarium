@@ -19,8 +19,7 @@
     "mesh": {
       "type": "mesh",
       "label": "Mesh",
-      "accepts": ["path"],
-      "description": "A mesh to color all over, like the plates of lamellae or the skin of membrane, or a list of meshes from a join node, for the meshes input of hyphae_to_mesh",
+      "description": "A mesh to color all over, like the plates of lamellae, the skin of membrane or the mesh of join_meshes",
       "external": true
     },
     "color": {
