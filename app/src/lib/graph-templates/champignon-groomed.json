@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 6,
+  "version": 7,
   "settings": {
     "time.t": 1,
     "resolution.field": 128,
@@ -1582,7 +1582,7 @@
       59,
       0,
       0,
-      "field"
+      "mesh"
     ]
   ]
 }

@@ -58,7 +58,7 @@ pub use color::{
 };
 pub use hyphae_mesh::{paths_mesh, HyphaeMeshParams};
 pub use paths::{
-    group_numbers, path_lines, path_segments, read_paths, retain_points, MeshPath, PathGroup,
+    group_numbers, path_lines, path_segments, read_paths, MeshPath, PathGroup,
     PathStyle, LINES_TAG,
 };
 pub use inputs::{read_float, read_floats, read_int, read_mesh};

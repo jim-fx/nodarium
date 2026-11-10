@@ -1,17 +1,10 @@
-use myzel_core::{
-    apply_settings, pack_rgba, path_lines, paths_mesh, read_float, read_int, read_paths, read_settings,
-    retain_points, HyphaeMeshParams, Mesh, PathStyle,
-    MESH_TAG,
-};
+use myzel_core::{pack_rgba, path_lines, read_paths, Mesh, PathStyle, MESH_TAG};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{geometry::orthogonal_to, Pattern, PATTERN_TAG};
 use std::f32::consts::TAU;
 
 nodarium_definition_file!("src/definition.json");
 
-const SHOW_SURFACE: i32 = 0;
-const SHOW_HYPHAE: i32 = 1;
-const CUT_OPEN: i32 = 1;
 /// A pattern is drawn with at most this many points around a ring
 const PATTERN_SEGMENTS: usize = 2048;
 
@@ -65,29 +58,15 @@ fn list(items: &[Vec<i32>]) -> Vec<i32> {
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
-    let resolution = read_int(args[1]).clamp(16, 256) as usize;
     match args[0].first() {
         Some(&MESH_TAG) => list(&[args[0].to_vec()]),
         Some(&PATTERN_TAG) => list(&Pattern::decode(args[0]).map(|p| vec![pattern_mesh(&p).encode()]).unwrap_or_default()),
         _ => {
-            let show = read_int(args[2]);
-            let mut paths = read_paths(args[0], PathStyle::BODY);
+            let paths = read_paths(args[0], PathStyle::BODY);
             if paths.is_empty() {
                 return list(&[]);
             }
-            apply_settings(&mut paths, &read_settings(args[0]));
-            if read_int(args[4]) == CUT_OPEN {
-                paths = retain_points(&paths, |p| p.z <= 0.0);
-            }
-            let mut items = Vec::new();
-            if show != SHOW_HYPHAE {
-                let params = HyphaeMeshParams { resolution, blend: read_float(args[3]), ..HyphaeMeshParams::default() };
-                items.push(paths_mesh(&paths, &params).encode());
-            }
-            if show != SHOW_SURFACE {
-                items.push(path_lines(&paths));
-            }
-            list(&items)
+            list(&[path_lines(&paths)])
         }
     }
 }
@@ -96,19 +75,15 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 mod tests {
     use super::__nodarium_execute_inner;
     use glam::Vec3;
-    use myzel_core::{Mesh, LINES_TAG, MESH_TAG};
+    use myzel_core::{Mesh, LINES_TAG};
     use nodarium_utils::{
-        encode_float,
+        concat_arg_vecs,
         geometry::{create_multiple_paths, wrap_multiple_paths},
         split_args,
     };
 
-    fn run(input: &[i32], show: i32) -> Vec<Vec<i32>> {
-        run_cut(input, show, 0)
-    }
-
-    fn run_cut(input: &[i32], show: i32, cut: i32) -> Vec<Vec<i32>> {
-        let output = __nodarium_execute_inner(&[input, &[32], &[show], &[encode_float(3.0)], &[cut]]);
+    fn run(input: &[i32]) -> Vec<Vec<i32>> {
+        let output = __nodarium_execute_inner(&[input]);
         split_args(&output).iter().map(|item| item[2..item.len() - 2].to_vec()).collect()
     }
 
@@ -123,21 +98,18 @@ mod tests {
     }
 
     #[test]
-    fn shows_paths_as_surface_lines_or_both() {
-        let input = paths();
-        let surface = run(&input, 0);
-        assert_eq!(surface.len(), 1);
-        let mesh = Mesh::decode(&surface[0]);
-        assert!(mesh.face_count() > 0 && mesh.groups.iter().all(|&g| g == 0));
+    fn shows_paths_as_lines_without_a_surface() {
+        let items = run(&paths());
+        assert_eq!(items.len(), 1);
+        assert_eq!(&items[0][..2], &[LINES_TAG, 4]);
+    }
 
-        let lines = run(&input, 1);
-        assert_eq!(lines.len(), 1);
-        assert_eq!(&lines[0][..2], &[LINES_TAG, 4]);
-
-        let both = run(&input, 2);
-        assert_eq!((both[0][0], both[1][0]), (MESH_TAG, LINES_TAG));
-        // cut open, only the first segment of every path is left
-        assert_eq!(&run_cut(&input, 1, 1)[0][..2], &[LINES_TAG, 2]);
+    #[test]
+    fn colors_the_lines_by_the_group_of_their_creator() {
+        let input = concat_arg_vecs(vec![paths(), create_multiple_paths(1, 2, 1, 4)]);
+        let lines = &run(&input)[0];
+        let groups: Vec<i32> = lines[2..].chunks_exact(7).map(|l| l[6]).collect();
+        assert_eq!(groups, [1, 1, 1, 1, 0]);
     }
 
     #[test]
@@ -150,7 +122,7 @@ mod tests {
             groups: vec![0; 3],
         }
         .encode();
-        assert_eq!(run(&mesh, 0), vec![mesh]);
+        assert_eq!(run(&mesh), vec![mesh]);
     }
 
     #[test]
@@ -161,7 +133,7 @@ mod tests {
             spacing: 0.005,
             rings: vec![vec![0.0, 1.0, 0.0, 1.0]; 3],
         };
-        let items = run(&pattern.encode(), 0);
+        let items = run(&pattern.encode());
         assert_eq!(items.len(), 1);
         let mesh = Mesh::decode(&items[0]);
         assert_eq!(mesh.colors.len(), mesh.vertex_count());
@@ -184,6 +156,6 @@ mod tests {
 
     #[test]
     fn nothing_connected_shows_nothing() {
-        assert!(run(&[], 0).is_empty());
+        assert!(run(&[]).is_empty());
     }
 }

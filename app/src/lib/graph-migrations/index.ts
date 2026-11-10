@@ -2,6 +2,7 @@ import type { Graph } from '@nodarium/types';
 import { createLogger } from '@nodarium/utils';
 import { removeInputs, renameInputs, replaceNodes, wiredInputs } from './helpers';
 import { joinMeshes } from './join-meshes';
+import { outputMesh } from './output-mesh';
 import { setMeshColor } from './set-mesh-color';
 import { splitCap, wiredCapInputs } from './split-cap';
 import { STRANDS, strandsThickness } from './strands-thickness';
@@ -92,6 +93,12 @@ export const MIGRATIONS: Migration[] = [
     description:
       'set_color takes paths only, its mesh moved to set_mesh_color and the input plant is called paths',
     migrate: setMeshColor
+  },
+  {
+    version: 7,
+    description:
+      'the Myzel output takes a mesh and shows paths as lines, hyphae_to_mesh makes the surface of paths',
+    migrate: outputMesh
   }
 ];
 

@@ -116,25 +116,6 @@ pub fn path_segments(points: &[f32]) -> Vec<Segment> {
         .collect()
 }
 
-/// The runs of a path whose points `keep` accepts, each run becomes a path of its own
-pub fn retain_points<'a>(paths: &[MeshPath<'a>], keep: impl Fn(Vec3) -> bool) -> Vec<MeshPath<'a>> {
-    let mut out = Vec::new();
-    for path in paths {
-        let mut run: Vec<f32> = Vec::new();
-        for i in 0..path.len() {
-            if keep(path.point(i)) {
-                run.extend_from_slice(&path.points[i * 4..i * 4 + 4]);
-            } else if !run.is_empty() {
-                out.push(MeshPath { points: Cow::Owned(std::mem::take(&mut run)), ..path.clone() });
-            }
-        }
-        if !run.is_empty() {
-            out.push(MeshPath { points: Cow::Owned(run), ..path.clone() });
-        }
-    }
-    out
-}
-
 /// The paths as line segments for the viewer `[12, n, ...n × (x0, y0, z0, x1, y1, z1, group)]`,
 /// in the groups a mesh of the same paths has
 pub fn path_lines(paths: &[MeshPath]) -> Vec<i32> {
@@ -198,18 +179,5 @@ mod tests {
         assert_eq!(words.len(), 2 + 4 * LINE_WORDS);
         assert_eq!(words[2 + LINE_WORDS - 1], 1);
         assert_eq!(words[2 + 3 * LINE_WORDS - 1], 0);
-    }
-
-    #[test]
-    fn retaining_points_splits_paths() {
-        let points = vec![0.0, 0.0, -1.0, 0.1, 0.0, 1.0, 1.0, 0.1, 0.0, 2.0, -1.0, 0.1, 0.0, 3.0, -1.0, 0.1];
-        let path = MeshPath {
-            points: Cow::Owned(points),
-            group: PathGroup::Creator(1),
-            style: PathStyle::BODY,
-            settings: PathSettings::default(),
-        };
-        let kept = retain_points(&[path], |p| p.z <= 0.0);
-        assert_eq!(kept.iter().map(|p| p.len()).collect::<Vec<_>>(), [1, 2]);
     }
 }

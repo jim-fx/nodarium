@@ -1,5 +1,5 @@
 import type { Graph, SerializedNode } from '@nodarium/types';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   CURRENT_GRAPH_VERSION,
   GraphVersionError,
@@ -486,7 +486,7 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
           node(3, 'max/myzel/lamellae'),
           node(4, 'max/myzel/output')
         ],
-        [[1, 0, 2, 'hyphae'], [3, 1, 2, 'meshes'], [2, 0, 4, 'field']]
+        [[1, 0, 2, 'hyphae'], [3, 1, 2, 'meshes'], [2, 0, 4, 'mesh']]
       )
     );
     const [join] = byType(migrated, JOIN_MESHES);
@@ -496,7 +496,7 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
       [1, 0, 2, 'paths'],
       [2, 0, join.id, 'a'],
       [3, 0, join.id, 'b'],
-      [join.id, 0, 4, 'field']
+      [join.id, 0, 4, 'mesh']
     ]);
   });
 
@@ -519,7 +519,7 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
       [1, 0, join.id, 'a'],
       [3, 0, join.id, 'b'],
       [4, 0, join.id, 'c'],
-      [join.id, 0, 5, 'field']
+      [join.id, 0, 5, 'mesh']
     ]);
     expect(byType(migrated, 'max/myzel/membrane')[0].props).toEqual({});
   });
@@ -544,7 +544,7 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
       [first.id, 0, second.id, 'a'],
       [6, 0, second.id, 'b'],
       [7, 0, second.id, 'c'],
-      [second.id, 0, 2, 'field']
+      [second.id, 0, 2, 'mesh']
     ]);
   });
 
@@ -557,7 +557,7 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
           node(3, 'max/myzel/lamellae'),
           node(4, 'max/myzel/output')
         ],
-        [[1, 0, 2, 'hyphae'], [3, 0, 2, 'loose'], [2, 0, 4, 'field']]
+        [[1, 0, 2, 'hyphae'], [3, 0, 2, 'loose'], [2, 0, 4, 'mesh']]
       )
     );
     const [join] = byType(migrated, JOIN_MESHES);
@@ -565,7 +565,7 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
       [1, 0, 2, 'paths'],
       [2, 0, join.id, 'a'],
       [3, 0, join.id, 'b'],
-      [join.id, 0, 4, 'field']
+      [join.id, 0, 4, 'mesh']
     ]);
   });
 
@@ -597,7 +597,7 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
       [2, 0, join.id, 'a'],
       [4, 0, join.id, 'b'],
       [3, 0, join.id, 'c'],
-      [join.id, 0, 6, 'field']
+      [join.id, 0, 6, 'mesh']
     ]);
   });
 
@@ -628,7 +628,7 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
       [2, 0, 6, 'input'],
       [1, 0, join.id, 'a'],
       [3, 0, join.id, 'b'],
-      [join.id, 0, 5, 'field']
+      [join.id, 0, 5, 'mesh']
     ]);
   });
 
@@ -651,7 +651,7 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
         [[1, 0, 3, 'field'], [2, 0, 3, 'field'], [2, 1, 3, 'field']]
       )
     );
-    expect(migrated.edges).toEqual([[2, 0, 3, 'field']]);
+    expect(migrated.edges).toEqual([[2, 0, 3, 'mesh']]);
   });
 
   it('lets the paths pass where set_blend was', () => {
@@ -813,5 +813,108 @@ describe('version 6: set_color takes paths only, set_mesh_color paints meshes', 
       [10, 0, 7, 'a'],
       [8, 0, 2, 'mesh']
     ]);
+  });
+});
+
+describe('version 7: the Myzel output takes a mesh and no longer meshes paths', () => {
+  const v6 = (nodes: SerializedNode[], edges: Graph['edges'] = []): Graph => ({
+    ...graph(nodes, edges),
+    version: 6
+  });
+  const OUTPUT = 'max/myzel/output';
+  const HYPHAE = 'max/myzel/hyphae_to_mesh';
+
+  it('renames field to mesh and drops the values it lost', () => {
+    const migrated = migrateGraph(
+      v6(
+        [
+          node(1, 'max/myzel/join_meshes'),
+          node(2, OUTPUT, { show: 1, blend: 5, resolution_field: 96, cut: 1 })
+        ],
+        [[1, 0, 2, 'field']]
+      )
+    );
+    expect(migrated.nodes.find((n) => n.id === 2)!.props).toEqual({});
+    expect(migrated.edges).toEqual([[1, 0, 2, 'mesh']]);
+  });
+
+  it('puts hyphae_to_mesh before an output that showed the surface of paths', () => {
+    const migrated = migrateGraph(
+      v6(
+        [node(1, 'max/myzel/strands'), node(2, OUTPUT, { blend: 5 })],
+        [[1, 0, 2, 'field']]
+      )
+    );
+    const mesh = migrated.nodes.find((n) => n.type === HYPHAE)!;
+    expect(mesh.props).toEqual({ blend: 5 });
+    expect(mesh.position).toEqual([0, 0]);
+    expect(migrated.nodes.find((n) => n.id === 2)!.position).toEqual([30, 0]);
+    expect(migrated.edges).toEqual([[1, 0, mesh.id, 'paths'], [mesh.id, 0, 2, 'mesh']]);
+  });
+
+  it('keeps only the last of several edges into field, the one the runtime used', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const migrated = migrateGraph(
+      v6(
+        [node(1, 'max/myzel/strands'), node(3, 'max/myzel/cap'), node(2, OUTPUT)],
+        [[1, 0, 2, 'field'], [3, 0, 2, 'field']]
+      )
+    );
+    const mesh = migrated.nodes.find((n) => n.type === HYPHAE)!;
+    expect(migrated.edges).toEqual([[3, 0, mesh.id, 'paths'], [mesh.id, 0, 2, 'mesh']]);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+
+  it('keeps the default blend out of the new node', () => {
+    const migrated = migrateGraph(
+      v6(
+        [node(1, 'max/myzel/set_color'), node(2, OUTPUT, { blend: 3, show: 2 })],
+        [[1, 0, 2, 'field']]
+      )
+    );
+    expect(migrated.nodes.find((n) => n.type === HYPHAE)!.props).toEqual({});
+  });
+
+  it('leaves paths wired straight into an output that showed them as lines', () => {
+    const migrated = migrateGraph(
+      v6([node(1, 'max/myzel/strands'), node(2, OUTPUT, { show: 1 })], [[1, 0, 2, 'field']])
+    );
+    expect(migrated.nodes.map((n) => n.type)).not.toContain(HYPHAE);
+    expect(migrated.edges).toEqual([[1, 0, 2, 'mesh']]);
+  });
+
+  it('leaves meshes, patterns and the points of path nodes alone', () => {
+    for (
+      const [type, output] of [
+        ['max/myzel/join_meshes', 0],
+        ['max/myzel/reaction_diffusion', 0],
+        ['max/myzel/cap', 1]
+      ] as const
+    ) {
+      const migrated = migrateGraph(
+        v6([node(1, type), node(2, OUTPUT)], [[1, output, 2, 'field']])
+      );
+      expect(migrated.nodes.map((n) => n.type), type).not.toContain(HYPHAE);
+      expect(migrated.edges).toEqual([[1, output, 2, 'mesh']]);
+    }
+  });
+
+  it('migrates inside groups with ids no other level uses', () => {
+    const old = v6([node(9, OUTPUT)]);
+    old.groups = [
+      {
+        id: 0,
+        nodes: [node(1, 'max/myzel/strands'), node(2, OUTPUT, { blend: 4 })],
+        edges: [[1, 0, 2, 'field']]
+      } as unknown as NonNullable<Graph['groups']>[number]
+    ];
+    const group = migrateGraph(old).groups![0];
+    expect(group.nodes.map((n) => [n.id, n.type])).toEqual([
+      [1, 'max/myzel/strands'],
+      [2, OUTPUT],
+      [10, HYPHAE]
+    ]);
+    expect(group.edges).toEqual([[1, 0, 10, 'paths'], [10, 0, 2, 'mesh']]);
   });
 });
