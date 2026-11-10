@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 7,
+  "version": 8,
   "settings": {
     "resolution.field": 160,
     "resolution.curve": 24
@@ -47,8 +47,8 @@
     },
     {
       "id": 19,
-      "type": "max/plantarium/random",
       "position": [-145, -31.5],
+      "type": "max/plantarium/random",
       "props": {
         "min": 0.00025,
         "max": 0.0005,
@@ -146,8 +146,8 @@
     },
     {
       "id": 20,
-      "type": "max/plantarium/random",
       "position": [-175, 61.5],
+      "type": "max/plantarium/random",
       "props": {
         "min": 0.00025,
         "max": 0.0005,
@@ -253,6 +253,22 @@
       "position": [0, 0],
       "type": "max/myzel/join_meshes",
       "props": {}
+    },
+    {
+      "id": 22,
+      "position": [-315, 81.5],
+      "type": "max/plantarium/points_on_path",
+      "props": {
+        "amount": 1,
+        "lowest_point": 1,
+        "highest_point": 1
+      }
+    },
+    {
+      "id": 23,
+      "position": [-165, 11.5],
+      "type": "max/plantarium/separate",
+      "props": {}
     }
   ],
   "edges": [
@@ -293,20 +309,8 @@
       "cap"
     ],
     [
-      5,
+      23,
       1,
-      7,
-      "hinge"
-    ],
-    [
-      5,
-      1,
-      8,
-      "hinge"
-    ],
-    [
-      8,
-      0,
       9,
       "plant"
     ],
@@ -321,12 +325,6 @@
       0,
       12,
       "cap"
-    ],
-    [
-      5,
-      1,
-      12,
-      "hinge"
     ],
     [
       11,
@@ -347,22 +345,10 @@
       "cap"
     ],
     [
-      5,
-      1,
-      15,
-      "hinge"
-    ],
-    [
       15,
       0,
       8,
       "cap"
-    ],
-    [
-      2,
-      0,
-      12,
-      "stipe"
     ],
     [
       3,
@@ -423,6 +409,30 @@
       0,
       0,
       "mesh"
+    ],
+    [
+      2,
+      0,
+      22,
+      "plant"
+    ],
+    [
+      22,
+      0,
+      5,
+      "points"
+    ],
+    [
+      8,
+      0,
+      23,
+      "plant"
+    ],
+    [
+      2,
+      0,
+      23,
+      "like"
     ]
   ]
 }

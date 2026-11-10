@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 7,
+  "version": 8,
   "settings": {
     "time.t": 1,
     "resolution.field": 128,
@@ -112,8 +112,8 @@
         },
         {
           "id": 57,
-          "type": "max/plantarium/random",
           "position": [-145, 35],
+          "type": "max/plantarium/random",
           "props": {
             "min": 0.00025,
             "max": 0.0005,
@@ -502,8 +502,8 @@
         },
         {
           "id": 58,
-          "type": "max/plantarium/random",
           "position": [-175, 23.75],
+          "type": "max/plantarium/random",
           "props": {
             "min": 0.00025,
             "max": 0.0005,
@@ -570,6 +570,28 @@
           "id": 51,
           "position": [-30, 0],
           "type": "max/myzel/set_color"
+        },
+        {
+          "id": 60,
+          "position": [-285, 16.25],
+          "type": "max/plantarium/points_on_path",
+          "props": {
+            "amount": 1,
+            "lowest_point": 1,
+            "highest_point": 1
+          }
+        },
+        {
+          "id": 61,
+          "position": [-165, 23.75],
+          "type": "max/plantarium/separate",
+          "props": {}
+        },
+        {
+          "id": 62,
+          "position": [-150, 30],
+          "type": "max/myzel/cap_margin",
+          "props": {}
         }
       ],
       "edges": [
@@ -658,12 +680,6 @@
           "cap"
         ],
         [
-          16,
-          1,
-          19,
-          "hinge"
-        ],
-        [
           18,
           0,
           19,
@@ -682,20 +698,14 @@
           "cap"
         ],
         [
-          16,
-          1,
-          21,
-          "hinge"
-        ],
-        [
           20,
           0,
           21,
           "opening"
         ],
         [
-          21,
-          0,
+          61,
+          1,
           22,
           "plant"
         ],
@@ -730,28 +740,22 @@
           "out_0"
         ],
         [
-          16,
-          1,
+          62,
+          0,
           12,
           "out_1"
-        ],
-        [
-          21,
-          1,
-          12,
-          "out_2"
         ],
         [
           51,
           0,
           12,
-          "out_3"
+          "out_2"
         ],
         [
           25,
           0,
           12,
-          "out_4"
+          "out_3"
         ],
         [
           11,
@@ -794,6 +798,36 @@
           0,
           22,
           "thickness"
+        ],
+        [
+          11,
+          0,
+          60,
+          "plant"
+        ],
+        [
+          60,
+          0,
+          16,
+          "points"
+        ],
+        [
+          21,
+          0,
+          61,
+          "plant"
+        ],
+        [
+          11,
+          0,
+          61,
+          "like"
+        ],
+        [
+          21,
+          0,
+          62,
+          "cap"
         ]
       ],
       "inputs": {
@@ -887,10 +921,6 @@
         {
           "type": "path",
           "label": "Rays"
-        },
-        {
-          "type": "points",
-          "label": "Hinge"
         },
         {
           "type": "points",
@@ -997,25 +1027,25 @@
       "edges": [
         [
           26,
-          2,
+          1,
           28,
           "radius"
         ],
         [
           26,
-          4,
+          3,
           28,
           "spacing"
         ],
         [
           26,
-          3,
+          2,
           29,
           "value"
         ],
         [
           26,
-          5,
+          4,
           29,
           "max"
         ],
@@ -1024,12 +1054,6 @@
           0,
           30,
           "cap"
-        ],
-        [
-          26,
-          1,
-          30,
-          "hinge"
         ],
         [
           28,
@@ -1051,19 +1075,19 @@
         ],
         [
           26,
-          3,
+          2,
           52,
           "value"
         ],
         [
           26,
-          6,
+          5,
           53,
           "a"
         ],
         [
           26,
-          7,
+          6,
           53,
           "b"
         ],
@@ -1090,11 +1114,6 @@
         "rays": {
           "type": "path",
           "label": "Rays",
-          "external": true
-        },
-        "hinge": {
-          "type": "points",
-          "label": "Hinge",
           "external": true
         },
         "reach": {
@@ -1520,19 +1539,13 @@
     ],
     [
       41,
-      1,
-      42,
-      "hinge"
-    ],
-    [
-      41,
-      4,
+      3,
       42,
       "reach"
     ],
     [
       41,
-      2,
+      1,
       43,
       "margin"
     ],
@@ -1550,7 +1563,7 @@
     ],
     [
       41,
-      3,
+      2,
       44,
       "b"
     ],

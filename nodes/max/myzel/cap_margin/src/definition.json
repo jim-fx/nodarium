@@ -1,0 +1,16 @@
+{
+  "id": "max/myzel/cap_margin",
+  "meta": {
+    "description": "Gives the margin of every cap as points: the tips of its rays, in a ring around the stipe. Put it after the nodes that pose the cap, membrane spans a veil from it."
+  },
+  "outputs": [
+    "points"
+  ],
+  "inputs": {
+    "cap": {
+      "type": "path",
+      "description": "The rays of the caps with their stipes",
+      "external": true
+    }
+  }
+}

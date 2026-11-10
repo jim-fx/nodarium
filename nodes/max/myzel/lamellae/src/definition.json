@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/lamellae",
   "meta": {
-    "description": "Hangs gills under a cap where a pattern has stripes: every stripe of reaction_diffusion becomes a gill that forks and starts between others where the stripes do. Thin plates like Agaricus, or with blunt the low rounded folds (false gills) of a chanterelle. Connect the stipe and set decurrent and the gills run on down it. Gives the gills as a mesh, which keeps plates thin and folds blunt at any mesh resolution."
+    "description": "Hangs gills under a cap where a pattern has stripes: every stripe of reaction_diffusion becomes a gill that forks and starts between others where the stripes do. Thin plates like Agaricus, or with blunt the low rounded folds (false gills) of a chanterelle. Set decurrent and the gills run on down the stipe. Gives the gills as a mesh, which keeps plates thin and folds blunt at any mesh resolution."
   },
   "outputs": [
     "mesh"
@@ -9,22 +9,12 @@
   "inputs": {
     "cap": {
       "type": "path",
-      "description": "The rays of a cap node, the gills hang from their underside and follow them when they move",
-      "external": true
-    },
-    "hinge": {
-      "type": "points",
-      "description": "The hinge of the cap node: where the cap sits and how thick the stipe is",
+      "description": "The paths of the cap node: the rays of the caps and their stipes. The gills hang from the underside of the rays and follow them when they move.",
       "external": true
     },
     "pattern": {
       "type": "pattern",
       "description": "Stripes around the axis, every stripe becomes a gill. Its radius is the distance along the cap underside from the axis.",
-      "external": true
-    },
-    "stipe": {
-      "type": "path",
-      "description": "The stipes the caps sit on, for gills that run down them (decurrent)",
       "external": true
     },
     "depth": {
@@ -64,7 +54,7 @@
     },
     "decurrent": {
       "type": "float",
-      "description": "How far the gills that reach the stipe run on down it, lower and lower until they are gone. Needs the stipe and a free distance of 0. Read for every stipe, so it can follow the size of each mushroom.",
+      "description": "How far the gills that reach the stipe run on down it, lower and lower until they are gone. Needs a free distance of 0. Read for every stipe, so it can follow the size of each mushroom.",
       "value": 0,
       "min": 0,
       "max": 0.05,

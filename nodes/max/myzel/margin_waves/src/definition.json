@@ -1,36 +1,27 @@
 {
   "id": "max/myzel/margin_waves",
   "meta": {
-    "description": "Lifts and lowers the margin of a cap in lobes around it, like the wavy margin of a chanterelle. Every ray bends in its own plane, so it keeps its length. Put it right after the cap and fill_gaps: it reads how far out a ray is on the open cap. Join caps that share a stipe (flesh and ridges) into one margin_waves and they wave alike. Gives the margin of the posed cap as points."
+    "description": "Lifts and lowers the margin of a cap in lobes around it, like the wavy margin of a chanterelle. Every ray bends in its own plane, so it keeps its length. The waves follow how far along its ray a place is, so the node can sit anywhere in the chain of a cap."
   },
   "outputs": [
-    "path",
-    {
-      "type": "points",
-      "label": "margin"
-    }
+    "path"
   ],
   "inputs": {
     "cap": {
       "type": "path",
-      "description": "The rays of a cap, or of several caps on the same stipes",
-      "external": true
-    },
-    "hinge": {
-      "type": "points",
-      "description": "The hinge of the cap node: where the cap sits",
+      "description": "The paths of the cap node: the rays of the caps and their stipes",
       "external": true
     },
     "waves": {
       "type": "integer",
-      "description": "Lobes around the margin. Real chanterelles have about 4 to 8, thinner flesh gives more. Read for every stipe, so a random node gives every cap its own count. Here path_info length reads how long the rays of the cap are, so a round node can give a larger cap more lobes.",
+      "description": "Lobes around the margin. Real chanterelles have about 4 to 8, thinner flesh gives more. Read for every cap, so a random node gives every cap its own count. Here path_info length reads how long the rays of the cap are, so a round node can give a larger cap more lobes.",
       "value": 6,
       "min": 0,
       "max": 24
     },
     "amplitude": {
       "type": "float",
-      "description": "How far the margin moves up and down, as a share of the radius: about 1 / waves for a wavy margin. A value alone waves the outer part of the cap. Connect a curve to set it from the centre (alpha 0) to the margin (alpha 1), the waves follow how it rises.",
+      "description": "How far the margin moves up and down, as a share of the length of a ray from the stipe to the margin: about 1 / waves for a wavy margin. A value alone waves the outer part of the cap. Connect a curve to set it from the centre (alpha 0) to the margin (alpha 1), the waves follow how it rises.",
       "value": 0.15,
       "min": 0,
       "max": 0.5,

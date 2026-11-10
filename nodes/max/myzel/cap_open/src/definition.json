@@ -1,24 +1,15 @@
 {
   "id": "max/myzel/cap_open",
   "meta": {
-    "description": "Opens and closes a cap: every ray bends down along its length until its margin meets the stipe. Connect time to watch a button open, or an age to open old caps further than young ones. Put it after margin_waves and margin_curl, so the closed margin still meets the stipe. Join the caps that share a stipe (flesh and ridges) into one cap_open: the one that reaches furthest closes until it meets the stipe, the others close with it and stay under it. Gives the margin of the posed cap as points."
+    "description": "Opens and closes a cap: every ray bends down along its length until its margin meets the stipe. Connect time to watch a button open, or an age to open old caps further than young ones. Put it after margin_waves and margin_curl, so the closed margin still meets the stipe."
   },
   "outputs": [
-    "path",
-    {
-      "type": "points",
-      "label": "margin"
-    }
+    "path"
   ],
   "inputs": {
     "cap": {
       "type": "path",
-      "description": "The rays of a cap, or of several caps on the same stipes",
-      "external": true
-    },
-    "hinge": {
-      "type": "points",
-      "description": "The hinge of the cap node: where the cap sits and how thick the stipe is",
+      "description": "The paths of the cap node: the rays of the caps and their stipes",
       "external": true
     },
     "opening": {

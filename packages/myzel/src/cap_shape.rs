@@ -1,11 +1,9 @@
 //! The shape of a cap as the `cap` node grows it: guide rays from a drawn profile, all alike,
 //! evenly around the stipe axis. Shared so the nodes that pose a cap can test with real caps.
 
-use glam::{Vec2, Vec3};
-use nodarium_utils::{
-    geometry::{create_path, orthogonal_to, path_random, set_path_link, wrap_path, wrap_path_mut, PathLink},
-    Point,
-};
+use crate::CapFrame;
+use glam::Vec2;
+use nodarium_utils::geometry::{create_path, path_random, set_path_link, wrap_path_mut, PathLink};
 use std::f32::consts::TAU;
 
 /// Points the drawn outline is resampled to before it is offset
@@ -19,6 +17,8 @@ const ROOT_OFFSET: f32 = 0.5;
 const ROOT_SAMPLES: usize = 8;
 /// How much a ray may turn away from its even place between its neighbours, as a share of the gap
 const ANGLE_JITTER: f32 = 0.3;
+/// Keeps the random numbers that move the rays apart from the other numbers of the stipe
+const ANGLE_SALT: i32 = 0x4341_0000;
 
 /// The drawn outline as (distance from the axis, height), with the top over the axis at 0.
 /// The shape editor draws the left half of a 100 x 100 box, mirrored at x = 50, with y going
@@ -103,10 +103,10 @@ struct Ray2 {
     radius: Vec<f32>,
 }
 
-/// The angles of `rays` rays evenly around the axis, each moved a little by the seed
-fn ray_angles(rays: usize, seed: i32, id: i32) -> Vec<f32> {
+/// The angles of `rays` rays evenly around the axis, each moved a little by the stipe id
+fn ray_angles(rays: usize, id: i32) -> Vec<f32> {
     let gap = TAU / rays as f32;
-    (0..rays).map(|k| k as f32 * gap + (path_random(seed, id, k as i32) - 0.5) * ANGLE_JITTER * gap).collect()
+    (0..rays).map(|k| k as f32 * gap + (path_random(0, id, ANGLE_SALT + k as i32) - 0.5) * ANGLE_JITTER * gap).collect()
 }
 
 /// The rays of one cap in the plane through the axis, the same for every angle
@@ -142,7 +142,6 @@ pub struct CapShape<'a> {
     /// The flesh at each of the `cap_alphas`
     pub thickness: &'a [f32],
     pub rays: usize,
-    pub seed: i32,
     /// Points along a ray
     pub resolution: usize,
     pub creator: i32,
@@ -154,44 +153,24 @@ pub fn cap_alphas() -> impl Iterator<Item = f32> + Clone {
     (0..OUTLINE_SAMPLES).map(|k| k as f32 / (OUTLINE_SAMPLES - 1) as f32)
 }
 
-/// The rays of the open cap at the tip of `stipe`, and its hinge: the stipe top, with the axis
-/// as tangent and the stipe radius as scale
-pub fn grow_cap(stipe: &[i32], shape: &CapShape) -> (Point, Vec<Vec<i32>>) {
-    let stipe = wrap_path(stipe);
-    let n = stipe.length;
-    let point = |i: usize| Vec3::from_slice(&stipe.points[i * 4..i * 4 + 3]);
-    let hinge = point(n - 1);
-    let axis = (hinge - point(n.saturating_sub(2))).try_normalize().unwrap_or(Vec3::Y);
-    let stipe_radius = stipe.points[(n - 1) * 4 + 3].abs();
-    let side = orthogonal_to(axis);
-    let around = axis.cross(side);
-
+/// The rays of the open cap in `frame`, children of its stipe at the place of the frame. The
+/// stipe is `depth` deep, the rays count on from `first`.
+pub fn grow_cap(frame: &CapFrame, depth: i32, first: i32, shape: &CapShape) -> Vec<Vec<i32>> {
     let midline = Midline::new(&outline(shape.profile, shape.radius), shape.thickness);
-    let ray = cap_ray(&midline, stipe_radius, shape.resolution.max(4));
-    let rays = ray_angles(shape.rays.max(1), shape.seed, stipe.link.id)
+    let ray = cap_ray(&midline, frame.stipe_radius, shape.resolution.max(4));
+    ray_angles(shape.rays.max(1), frame.stipe_id)
         .into_iter()
         .enumerate()
-        .map(|(index, angle)| {
-            let out = side * angle.cos() + around * angle.sin();
-            let mut data = create_path(ray.points.len(), stipe.depth + 1);
-            set_path_link(&mut data, PathLink::child(shape.creator, stipe.link.id, 1.0, index as i32));
+        .map(|(k, angle)| {
+            let out = frame.out(angle);
+            let mut data = create_path(ray.points.len(), depth + 1);
+            set_path_link(&mut data, PathLink::child(shape.creator, frame.stipe_id, frame.alpha, first + k as i32));
             let path = wrap_path_mut(&mut data);
             for (j, (p, r)) in ray.points.iter().zip(&ray.radius).enumerate() {
-                let q = hinge + out * p.x + axis * p.y;
+                let q = frame.hinge + out * p.x + frame.axis * p.y;
                 path.points[j * 4..j * 4 + 4].copy_from_slice(&[q.x, q.y, q.z, *r]);
             }
             data
         })
-        .collect();
-    let hinge = Point {
-        position: hinge,
-        direction: side,
-        tangent: axis,
-        scale: stipe_radius,
-        parent_id: stipe.link.id,
-        alpha: 1.0,
-        depth: stipe.depth,
-        index: 0,
-    };
-    (hinge, rays)
+        .collect()
 }
