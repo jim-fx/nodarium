@@ -1,8 +1,7 @@
 use glam::Vec2;
-use myzel_core::{margin_points, pose_caps, Cap};
+use myzel_core::{pose_caps_of, Cap};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
-use nodarium_utils::{concat_arg_vecs, decode_points, encode_points, geometry::path_random, int, split_args, Ctx};
-use std::collections::HashMap;
+use nodarium_utils::{concat_arg_vecs, geometry::path_random, int, split_args, Ctx};
 use std::f32::consts::TAU;
 
 nodarium_definition_file!("src/definition.json");
@@ -17,7 +16,7 @@ const MIN_REACH: f32 = 0.2;
 const TILT_RAMP: f32 = 0.1;
 const SAMPLES: usize = 256;
 
-/// How far a cap reaches around its axis, the same for every cap on one stipe
+/// How far a cap reaches around its axis
 struct Outline {
     phases: [f32; 3],
     weights: [f32; 3],
@@ -70,31 +69,37 @@ fn crossing(plane: &[Vec2]) -> Option<(usize, Vec2)> {
 }
 
 #[nodarium_execute]
-pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
     let items = split_args(args[0]);
-    let hinges = decode_points(args[1]);
-    let seed = int(args[5]);
-    let mut outlines: HashMap<i32, Outline> = HashMap::new();
-    for hinge in &hinges {
-        ctx.seed_path(hinge.parent_id);
-        let amount = ctx.float(args[2]).max(0.0);
-        let offset = ctx.float(args[3]);
-        let tilt = ctx.float(args[4]).to_radians();
-        outlines.insert(hinge.parent_id, Outline::new(seed, hinge.parent_id, amount, offset, tilt));
-    }
-
+    let seed = int(args[4]);
+    let caps = Cap::all(&items);
+    let outlines: Vec<Outline> = caps
+        .iter()
+        .map(|cap| {
+            let stipe = cap.frame.stipe_id;
+            ctx.seed_path(stipe);
+            let amount = ctx.float(args[1]).max(0.0);
+            let offset = ctx.float(args[2]);
+            let tilt = ctx.float(args[3]).to_radians();
+            Outline::new(seed, stipe, amount, offset, tilt)
+        })
+        .collect();
     // the top of every cap, for the rays that start out on the cap
-    let mut tops: HashMap<(i32, usize), Vec2> = HashMap::new();
-    let posed = pose_caps(&items, &hinges, |cap: &Cap, k| {
-        let outline = outlines.get(&cap.frame.stipe_id)?;
+    let tops: Vec<Vec2> = caps
+        .iter()
+        .map(|cap| {
+            let heights: Vec<f32> = cap.rays.iter().filter_map(|r| crossing(&r.plane)).map(|(_, c)| c.y).collect();
+            Vec2::new(0.0, heights.iter().sum::<f32>() / heights.len().max(1) as f32)
+        })
+        .collect();
+
+    let posed = pose_caps_of(&caps, &items, |cap: &Cap, k| {
+        let i = caps.iter().position(|c| std::ptr::eq(c, cap))?;
+        let (outline, top) = (&outlines[i], tops[i]);
         if outline.amount == 0.0 && outline.tilt == 0.0 {
             return None;
         }
-        let top = *tops.entry((cap.frame.stipe_id, cap.rays[0].path)).or_insert_with(|| {
-            let heights: Vec<f32> = cap.rays.iter().filter_map(|r| crossing(&r.plane)).map(|(_, c)| c.y).collect();
-            Vec2::new(0.0, heights.iter().sum::<f32>() / heights.len().max(1) as f32)
-        });
         let ray = &cap.rays[k];
         let mut plane = if outline.tilt != 0.0 { cap.bend(k, |s| outline.turn(ray.angle, s.alpha())) } else { ray.plane.clone() };
         let (from, pivot) = match crossing(&plane) {
@@ -107,19 +112,18 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
         }
         Some(plane)
     });
-    let paths: Vec<&[i32]> = posed.iter().map(|p| p.as_slice()).collect();
-    let margins = margin_points(&paths, &hinges);
-    (concat_arg_vecs(posed), encode_points(&margins))
+    concat_arg_vecs(posed)
 }
 
 #[cfg(test)]
 mod tests {
     use super::{Outline, __nodarium_execute_inner};
     use myzel_core::{
-        testing::{cone, grow, place, TestCap},
+        margin_points,
+        testing::{cone, grow, hinge, list, paths, place, TestCap},
         CapFrame,
     };
-    use nodarium_utils::{concat_arg_vecs, decode_points, encode_float, geometry::PathLink, split_args, Point};
+    use nodarium_utils::{concat_arg_vecs, encode_float, split_args, Point};
     use std::f32::consts::TAU;
 
     struct Params {
@@ -134,23 +138,26 @@ mod tests {
         Params { cap: TestCap { rays: 32, spacing: 0.0, ..cone() }, amount: 0.3, offset: 0.6, tilt: 0.0, seed: 3 }
     }
 
-    fn run_on(rays: Vec<Vec<i32>>, hinges: &[i32], p: &Params) -> (Vec<Vec<i32>>, Vec<Point>) {
-        let (paths, margins) = __nodarium_execute_inner(&[
-            &concat_arg_vecs(rays),
-            hinges,
+    fn execute(input: &[i32], p: &Params) -> Vec<i32> {
+        __nodarium_execute_inner(&[
+            input,
             &[encode_float(p.amount)],
             &[encode_float(p.offset)],
             &[encode_float(p.tilt)],
             &[p.seed],
-        ]);
-        (split_args(&paths).iter().map(|s| s.to_vec()).collect(), decode_points(&margins))
+        ])
+    }
+
+    fn run_on(rays: Vec<Vec<i32>>, item: &[i32], p: &Params) -> (Vec<Vec<i32>>, Vec<Point>) {
+        let output = execute(&list(&rays, item), p);
+        (paths(&output), margin_points(&split_args(&output)))
     }
 
     /// Angle, distance from the axis and height of every margin point
     fn margin(p: &Params) -> Vec<(f32, f32, f32)> {
-        let (rays, hinges) = grow(&p.cap);
-        let (_, margins) = run_on(rays, &hinges, p);
-        let frame = CapFrame::new(&decode_points(&hinges)[0]);
+        let (rays, item) = grow(&p.cap);
+        let (_, margins) = run_on(rays, &item, p);
+        let frame = CapFrame::new(&hinge(&item));
         margins.iter().map(|m| (frame.angle(m.position), place(m.position).x, place(m.position).y)).collect()
     }
 
@@ -187,28 +194,11 @@ mod tests {
     }
 
     #[test]
-    fn a_cap_joined_with_its_ridges_stretches_as_it_does_alone() {
+    fn paths_without_a_hinge_pass_unchanged() {
         let p = lopsided();
-        let (flesh, hinges) = grow(&p.cap);
-        let (mut ridges, _) = grow(&TestCap { radius: 0.025, profile: vec![0.0, 80.0, 50.0, 30.0], rays: 7, spacing: 1.0, ..cone() });
-        for ridge in &mut ridges {
-            let link = nodarium_utils::geometry::path_link(ridge);
-            nodarium_utils::geometry::set_path_link(ridge, PathLink::child(8, link.parent_id, 1.0, link.index));
-        }
-        let (alone, _) = run_on(flesh.clone(), &hinges, &p);
-        let (joined, _) = run_on(flesh.iter().chain(&ridges).cloned().collect(), &hinges, &p);
-        assert_eq!(&joined[..flesh.len()], alone.as_slice());
-
-        // every ridge tip moves out as far as the flesh does at its angle
-        let frame = CapFrame::new(&decode_points(&hinges)[0]);
-        let outline = Outline::new(p.seed, frame.stipe_id, p.amount, p.offset, 0.0);
-        let tip = |path: &[i32]| *myzel_core::testing::points(path).last().unwrap();
-        for (before, after) in ridges.iter().zip(&joined[flesh.len()..]) {
-            let (b, a) = (tip(before), tip(after));
-            let expected = outline.reach(frame.angle(b));
-            let ratio = place(a).x / place(b).x;
-            assert!((ratio - expected).abs() < 0.02, "{ratio} and {expected}");
-        }
+        let (rays, _) = grow(&p.cap);
+        let input = concat_arg_vecs(rays);
+        assert_eq!(execute(&input, &p), input);
     }
 
     #[test]
@@ -216,8 +206,8 @@ mod tests {
         let level = margin(&Params { tilt: 0.0, ..lopsided() });
         let tilted = margin(&Params { tilt: 15.0, ..lopsided() });
         let p = lopsided();
-        let (_, hinges) = grow(&p.cap);
-        let stipe = decode_points(&hinges)[0].parent_id;
+        let (_, item) = grow(&p.cap);
+        let stipe = hinge(&item).stipe;
         let outline = Outline::new(p.seed, stipe, p.amount, p.offset, 0.0);
         let near = |m: &[(f32, f32, f32)], theta: f32| {
             m.iter()

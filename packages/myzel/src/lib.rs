@@ -30,6 +30,17 @@
 //! [`with_setting`], and the mesh nodes give it to the paths, see [`apply_settings`]. A later
 //! setting replaces an earlier one, paths without one keep the value of the mesh node.
 //!
+//! # Hinges `[16, stipe, creator, depth, ...position, ...direction, ...tangent, scale, length, radius, ...rest]`
+//!
+//! Where a cap sits and how it looks open, see [`CapHinge`]. The `cap` node puts one into its
+//! list after the rays of every stipe: `stipe` and `creator` name the rays, `position`,
+//! `direction`, `tangent` and `scale` are the stipe top, its side, its axis and its radius.
+//! `length` is how far a ray of the open cap runs from the axis to its tip, `radius` how far
+//! the tip is from the axis, and `rest` how far from the axis a ray is at evenly spaced places
+//! along it, as a share of `radius`. The rays keep their step lengths in every pose, so a place
+//! on a ray knows how far out it was on the open cap. The nodes that pose a cap find it by its
+//! hinge, other nodes skip it like a setting.
+//!
 //! # Colors `[0, 4, r, g, b, 1, 1]`
 //!
 //! A color input holds the sRGB bytes, the way the host sends a color set on a node. Color nodes
@@ -41,6 +52,7 @@ mod cap;
 mod color;
 mod cap_shape;
 mod density;
+mod hinge;
 mod hyphae_mesh;
 mod inputs;
 mod mesh;
@@ -52,6 +64,7 @@ mod spatial;
 
 pub use cap::{closing_turn, curl_turn, margin_points, pose_caps, pose_caps_of, testing, Cap, CapFrame, CapRay, Step};
 pub use cap_shape::{cap_alphas, grow_cap, CapShape};
+pub use hinge::{hinges_of, read_hinges, CapHinge, HINGE_TAG, REST_SAMPLES};
 pub use density::{mesh_segments, surface, surface_in, Frame, Meshing, Segment, SegmentSurface, TissueField};
 pub use color::{
     encode_color, linear_rgba, mix_colors, opaque, pack_linear, paint_mesh, read_color, NO_COLOR,

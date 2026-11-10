@@ -274,20 +274,21 @@ if (wanted('cap')) {
       return out;
     };
     const stem = step('plantarium/stem', {}, STIPE)[0];
-    const [cap, hinge] = step('myzel/cap', { plant: stem }, { rays: 128, radius: 0.03 });
+    const [cap] = step('myzel/cap', { plant: stem }, { rays: 128, radius: 0.03 });
     const [filled] = step('plantarium/fill_gaps', { plant: cap }, { spacing: 0.1 });
     rays = pathCount(filled);
-    const [waved] = step('myzel/margin_waves', { cap: filled, hinge }, {});
-    const [lopsided] = step('myzel/cap_lopsided', { cap: waved, hinge }, {});
-    const [curled] = step('myzel/margin_curl', { cap: lopsided, hinge }, { amount: 0.2 });
-    const [opened, margin] = step('myzel/cap_open', { cap: curled, hinge }, { opening: 0.8 });
+    const [waved] = step('myzel/margin_waves', { cap: filled }, {});
+    const [lopsided] = step('myzel/cap_lopsided', { cap: waved }, {});
+    const [curled] = step('myzel/margin_curl', { cap: lopsided }, { amount: 0.2 });
+    const [opened] = step('myzel/cap_open', { cap: curled }, { opening: 0.8 });
+    const [margin] = step('myzel/cap_margin', { cap: opened }, {});
     step('myzel/membrane', { a: margin, b: stem }, { tear: 0.5 });
     const [pattern] = step('myzel/reaction_diffusion', {}, {
       radius: 0.03,
       inner_radius: 0.0065,
       spacing: 0.0005
     });
-    step('myzel/lamellae', { cap: opened, hinge, pattern }, {});
+    step('myzel/lamellae', { cap: opened, pattern }, {});
   }
   for (const [name, t] of steps) {
     rows.push([
@@ -324,7 +325,7 @@ if (wanted('chain')) {
       { strength: 0.5, clumps: 12 },
       'stipe: plantarium/clump'
     );
-    const [cap, hinge] = step('myzel/cap', { plant: stem }, { rays: 14 }, 'cap: myzel/cap');
+    const [cap] = step('myzel/cap', { plant: stem }, { rays: 14 }, 'cap: myzel/cap');
     const [filled] = step(
       'plantarium/fill_gaps',
       { plant: cap },
@@ -334,25 +335,25 @@ if (wanted('chain')) {
     guides = pathCount(filled);
     const [waved] = step(
       'myzel/margin_waves',
-      { cap: filled, hinge },
+      { cap: filled },
       {},
       'cap: myzel/margin_waves'
     );
     const [lopsided] = step(
       'myzel/cap_lopsided',
-      { cap: waved, hinge },
+      { cap: waved },
       {},
       'cap: myzel/cap_lopsided'
     );
     const [curled] = step(
       'myzel/margin_curl',
-      { cap: lopsided, hinge },
+      { cap: lopsided },
       { amount: 0.2 },
       'cap: myzel/margin_curl'
     );
-    const [opened, margin] = step(
+    const [opened] = step(
       'myzel/cap_open',
-      { cap: curled, hinge },
+      { cap: curled },
       { opening: 1 },
       'cap: myzel/cap_open'
     );
@@ -362,13 +363,14 @@ if (wanted('chain')) {
       capStrands(Math.round(2500 / guides)),
       'cap: myzel/strands'
     );
+    const [margin] = step('myzel/cap_margin', { cap: opened }, {}, 'veil: myzel/cap_margin');
     step('myzel/membrane', { a: margin, b: stem }, { tear: 0.5 }, 'veil: myzel/membrane');
     const [pattern] = step('myzel/reaction_diffusion', {}, {
       radius: 0.027,
       inner_radius: 0.00625,
       spacing: 0.001
     }, 'gills: myzel/reaction_diffusion');
-    step('myzel/lamellae', { cap: opened, hinge, pattern }, {}, 'gills: myzel/lamellae');
+    step('myzel/lamellae', { cap: opened, pattern }, {}, 'gills: myzel/lamellae');
     const [joined] = step(
       'plantarium/join',
       { a: clumped, b: capStrandList },

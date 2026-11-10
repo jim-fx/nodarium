@@ -1,56 +1,49 @@
-use myzel_core::{curl_turn, margin_points, pose_caps_of, Cap};
+use myzel_core::{curl_turn, pose_caps_of, Cap};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
-use nodarium_utils::{concat_arg_vecs, decode_points, encode_points, split_args, Ctx};
+use nodarium_utils::{concat_arg_vecs, geometry::is_path, split_args, Ctx};
 
 nodarium_definition_file!("src/definition.json");
 
 #[nodarium_execute]
-pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
     let items = split_args(args[0]);
-    let hinges = decode_points(args[1]);
-    let count = items.len();
-    let caps = Cap::all(&items, &hinges);
-    // read once for every stipe, from the cap that reaches furthest: a random node gives the
-    // whole cap one value, and caps on one stipe (the flesh and its ridges) curl alike
-    let mut curls: Vec<(i32, f32, f32)> = Vec::new();
-    for cap in &caps {
-        let stipe = cap.frame.stipe_id;
-        if curls.iter().any(|c| c.0 == stipe) {
-            continue;
-        }
-        let outer = caps.iter().filter(|c| c.frame.stipe_id == stipe).max_by(|a, b| a.reach().total_cmp(&b.reach())).unwrap();
-        let first = outer.rays.iter().find(|r| r.crosses).unwrap_or(&outer.rays[0]);
-        ctx.set_path(items[first.path], first.path, count);
-        ctx.seed_path(stipe);
-        let amount = ctx.float(args[2]).clamp(0.0, 1.0);
-        let reach = ctx.float(args[3]).clamp(0.0, 1.0);
-        curls.push((stipe, amount, reach));
-    }
+    let count = items.iter().filter(|item| is_path(item)).count();
+    let caps = Cap::all(&items);
+    // read once for every cap: a random node gives the whole cap one value
+    let curls: Vec<(f32, f32)> = caps
+        .iter()
+        .map(|cap| {
+            let first = cap.rays.iter().find(|r| r.crosses).unwrap_or(&cap.rays[0]);
+            ctx.set_path(items[first.path], first.path, count);
+            ctx.seed_path(cap.frame.stipe_id);
+            (ctx.float(args[1]).clamp(0.0, 1.0), ctx.float(args[2]).clamp(0.0, 1.0))
+        })
+        .collect();
     let posed = pose_caps_of(&caps, &items, |cap, k| {
-        let &(_, amount, reach) = curls.iter().find(|c| c.0 == cap.frame.stipe_id)?;
+        let (amount, reach) = curls[caps.iter().position(|c| std::ptr::eq(c, cap))?];
         if amount <= 0.0 || reach <= 0.0 {
             return None;
         }
         Some(cap.bend(k, |s| curl_turn(s, amount, reach)))
     });
-    let paths: Vec<&[i32]> = posed.iter().map(|p| p.as_slice()).collect();
-    let margins = margin_points(&paths, &hinges);
-    (concat_arg_vecs(posed), encode_points(&margins))
+    concat_arg_vecs(posed)
 }
 
 #[cfg(test)]
 mod tests {
     use super::__nodarium_execute_inner;
     use glam::Vec3;
-    use myzel_core::testing::{cone, grow, place, points, steps, TestCap};
-    use nodarium_utils::{concat_arg_vecs, decode_points, encode_float, split_args, Point};
+    use myzel_core::{
+        margin_points,
+        testing::{cone, grow, list, paths, place, points, steps, TestCap},
+    };
+    use nodarium_utils::{concat_arg_vecs, encode_float, split_args, Point};
 
     fn curl(cap: &TestCap, amount: f32, reach: f32) -> (Vec<Vec<i32>>, Vec<Point>) {
-        let (rays, hinges) = grow(cap);
-        let (paths, margins) =
-            __nodarium_execute_inner(&[&concat_arg_vecs(rays), &hinges, &[encode_float(amount)], &[encode_float(reach)]]);
-        (split_args(&paths).iter().map(|p| p.to_vec()).collect(), decode_points(&margins))
+        let (rays, item) = grow(cap);
+        let output = __nodarium_execute_inner(&[&list(&rays, &item), &[encode_float(amount)], &[encode_float(reach)]]);
+        (paths(&output), margin_points(&split_args(&output)))
     }
 
     #[test]
@@ -95,10 +88,10 @@ mod tests {
     #[test]
     fn a_random_amount_rolls_the_whole_cap_alike() {
         use nodarium_utils::concat_args;
-        let (rays, hinges) = grow(&cone());
+        let (rays, item) = grow(&cone());
         let amount = concat_args(vec![&[1], &[encode_float(0.2)], &[encode_float(1.0)], &[5]]);
-        let (_, margins) = __nodarium_execute_inner(&[&concat_arg_vecs(rays), &hinges, &amount, &[encode_float(0.35)]]);
-        let margins = decode_points(&margins);
+        let output = __nodarium_execute_inner(&[&list(&rays, &item), &amount, &[encode_float(0.35)]]);
+        let margins = margin_points(&split_args(&output));
         let (_, flat) = curl(&cone(), 0.0, 0.35);
         assert!(place(margins[0].position).x < place(flat[0].position).x);
         for m in &margins {
@@ -107,21 +100,9 @@ mod tests {
     }
 
     #[test]
-    fn ridges_joined_with_the_flesh_roll_under_with_it() {
-        let (flesh, hinges) = grow(&cone());
-        let ridges = myzel_core::testing::ridges();
-        let joined = concat_arg_vecs(flesh.iter().chain(&ridges).cloned().collect());
-        let (paths, _) = __nodarium_execute_inner(&[&joined, &hinges, &[encode_float(1.0)], &[encode_float(0.5)]]);
-        let posed: Vec<Vec<i32>> = split_args(&paths).iter().map(|p| p.to_vec()).collect();
-        let (posed_flesh, posed_ridges) = posed.split_at(flesh.len());
-        assert_eq!(posed_flesh, curl(&cone(), 1.0, 0.5).0.as_slice());
-        let gap = |ridge: &[i32], flesh: &[Vec<i32>]| {
-            let tip = *points(ridge).last().unwrap();
-            flesh.iter().flat_map(|f| points(f)).map(|p| p.distance(tip)).fold(f32::MAX, f32::min)
-        };
-        for (before, after) in ridges.iter().zip(posed_ridges) {
-            let (b, a) = (gap(before, &flesh), gap(after, posed_flesh));
-            assert!((a - b).abs() < 0.3 * b + 3e-4, "a ridge tip {b} under the flesh moves to {a}");
-        }
+    fn paths_without_a_hinge_pass_unchanged() {
+        let (rays, _) = grow(&cone());
+        let input = concat_arg_vecs(rays);
+        assert_eq!(__nodarium_execute_inner(&[&input, &[encode_float(1.0)], &[encode_float(0.5)]]), input);
     }
 }

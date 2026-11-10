@@ -9,12 +9,7 @@
   "inputs": {
     "cap": {
       "type": "path",
-      "description": "The rays of a cap node, the gills hang from their underside and follow them when they move",
-      "external": true
-    },
-    "hinge": {
-      "type": "points",
-      "description": "The hinge of the cap node: where the cap sits and how thick the stipe is",
+      "description": "The rays of a cap node, the gills hang from their underside and follow them when they move. The rays bring the hinge of their cap.",
       "external": true
     },
     "pattern": {

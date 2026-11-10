@@ -4,8 +4,9 @@
 use glam::{Vec2, Vec3};
 use nodarium_utils::{
     geometry::{create_path, orthogonal_to, path_random, set_path_link, wrap_path, wrap_path_mut, PathLink},
-    Point,
 };
+
+use crate::hinge::{CapHinge, REST_SAMPLES};
 use std::f32::consts::TAU;
 
 /// Points the drawn outline is resampled to before it is offset
@@ -19,6 +20,8 @@ const ROOT_OFFSET: f32 = 0.5;
 const ROOT_SAMPLES: usize = 8;
 /// How much a ray may turn away from its even place between its neighbours, as a share of the gap
 const ANGLE_JITTER: f32 = 0.3;
+/// Keeps the random numbers that move the rays apart from the other numbers of the stipe
+const ANGLE_SALT: i32 = 0x4341_0000;
 
 /// The drawn outline as (distance from the axis, height), with the top over the axis at 0.
 /// The shape editor draws the left half of a 100 x 100 box, mirrored at x = 50, with y going
@@ -103,10 +106,47 @@ struct Ray2 {
     radius: Vec<f32>,
 }
 
-/// The angles of `rays` rays evenly around the axis, each moved a little by the seed
-fn ray_angles(rays: usize, seed: i32, id: i32) -> Vec<f32> {
+impl Ray2 {
+    /// The open cap as a hinge keeps it: the distance along the ray from where it crosses the
+    /// axis to its tip, how far the tip is from the axis, and how far from the axis the ray is
+    /// at each of the [`REST_SAMPLES`] places from the axis to the tip, as a share of that
+    fn rest(&self) -> (f32, f32, Vec<f32>) {
+        let n = self.points.len();
+        let mut to_end = vec![0.0f32; n];
+        for i in (0..n - 1).rev() {
+            to_end[i] = to_end[i + 1] + self.points[i].distance(self.points[i + 1]);
+        }
+        let length = (1..n)
+            .find(|&k| self.points[k - 1].x < 0.0 && self.points[k].x >= 0.0)
+            .map(|k| {
+                let (a, b) = (self.points[k - 1], self.points[k]);
+                let t = -a.x / (b.x - a.x);
+                to_end[k - 1] + (to_end[k] - to_end[k - 1]) * t
+            })
+            .unwrap_or(to_end[0]);
+        let radius = self.points[n - 1].x;
+        let rest = (0..REST_SAMPLES)
+            .map(|s| {
+                let d = (1.0 - s as f32 / (REST_SAMPLES - 1) as f32) * length;
+                let i = (0..n - 1).rev().find(|&i| to_end[i] >= d).unwrap_or(0);
+                let span = to_end[i] - to_end[i + 1];
+                let t = if span > 0.0 { ((to_end[i] - d) / span).clamp(0.0, 1.0) } else { 0.0 };
+                let x = self.points[i].x + (self.points[i + 1].x - self.points[i].x) * t;
+                if radius > 0.0 {
+                    x.max(0.0) / radius
+                } else {
+                    0.0
+                }
+            })
+            .collect();
+        (length, radius, rest)
+    }
+}
+
+/// The angles of `rays` rays evenly around the axis, each moved a little by the stipe id
+fn ray_angles(rays: usize, id: i32) -> Vec<f32> {
     let gap = TAU / rays as f32;
-    (0..rays).map(|k| k as f32 * gap + (path_random(seed, id, k as i32) - 0.5) * ANGLE_JITTER * gap).collect()
+    (0..rays).map(|k| k as f32 * gap + (path_random(0, id, ANGLE_SALT + k as i32) - 0.5) * ANGLE_JITTER * gap).collect()
 }
 
 /// The rays of one cap in the plane through the axis, the same for every angle
@@ -142,7 +182,6 @@ pub struct CapShape<'a> {
     /// The flesh at each of the `cap_alphas`
     pub thickness: &'a [f32],
     pub rays: usize,
-    pub seed: i32,
     /// Points along a ray
     pub resolution: usize,
     pub creator: i32,
@@ -155,8 +194,8 @@ pub fn cap_alphas() -> impl Iterator<Item = f32> + Clone {
 }
 
 /// The rays of the open cap at the tip of `stipe`, and its hinge: the stipe top, with the axis
-/// as tangent and the stipe radius as scale
-pub fn grow_cap(stipe: &[i32], shape: &CapShape) -> (Point, Vec<Vec<i32>>) {
+/// as tangent and the stipe radius as scale, and how the open cap looks
+pub fn grow_cap(stipe: &[i32], shape: &CapShape) -> (CapHinge, Vec<Vec<i32>>) {
     let stipe = wrap_path(stipe);
     let n = stipe.length;
     let point = |i: usize| Vec3::from_slice(&stipe.points[i * 4..i * 4 + 3]);
@@ -168,7 +207,7 @@ pub fn grow_cap(stipe: &[i32], shape: &CapShape) -> (Point, Vec<Vec<i32>>) {
 
     let midline = Midline::new(&outline(shape.profile, shape.radius), shape.thickness);
     let ray = cap_ray(&midline, stipe_radius, shape.resolution.max(4));
-    let rays = ray_angles(shape.rays.max(1), shape.seed, stipe.link.id)
+    let rays = ray_angles(shape.rays.max(1), stipe.link.id)
         .into_iter()
         .enumerate()
         .map(|(index, angle)| {
@@ -183,15 +222,18 @@ pub fn grow_cap(stipe: &[i32], shape: &CapShape) -> (Point, Vec<Vec<i32>>) {
             data
         })
         .collect();
-    let hinge = Point {
+    let (length, radius, rest) = ray.rest();
+    let hinge = CapHinge {
+        stipe: stipe.link.id,
+        creator: shape.creator,
+        depth: stipe.depth,
         position: hinge,
         direction: side,
         tangent: axis,
         scale: stipe_radius,
-        parent_id: stipe.link.id,
-        alpha: 1.0,
-        depth: stipe.depth,
-        index: 0,
+        length,
+        radius,
+        rest,
     };
     (hinge, rays)
 }

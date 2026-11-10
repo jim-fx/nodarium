@@ -1,4 +1,4 @@
-use myzel_core::{cap_alphas, grow_cap, margin_points, CapShape};
+use myzel_core::{cap_alphas, grow_cap, CapShape};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs, decode_float, encode_points,
@@ -26,14 +26,13 @@ fn read_floats(arg: &[i32]) -> Vec<f32> {
 }
 
 #[nodarium_execute]
-pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>, Vec<i32>) {
+pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let mut ctx = Ctx::default();
     let plant = split_args(args[0]);
     let profile = read_floats(args[2]);
-    let seed = int(args[5]);
-    let resolution = int(args[6]).max(4) as usize;
+    let resolution = int(args[5]).max(4) as usize;
     // the graph node that makes the cap, it is the last input
-    let creator = int(args[7]);
+    let creator = int(args[6]);
 
     let stipes = DeepestPaths::new(&plant, 1);
     let selected = |p: &[i32]| stipes.contains(p) && wrap_path(p).length > 1;
@@ -48,21 +47,23 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>, Vec<i32>) {
         let rays = ctx.int(args[4]).max(1) as usize;
         // along the flesh from the centre to the margin, so a curve can thin it
         let thickness = ctx.float_along(args[3], cap_alphas());
-        let shape = CapShape { profile: &profile, radius, thickness: &thickness, rays, seed, resolution, creator };
+        let shape = CapShape { profile: &profile, radius, thickness: &thickness, rays, resolution, creator };
         let (hinge, rays) = grow_cap(item, &shape);
-        hinges.push(hinge);
         output.extend(rays);
+        hinges.push(hinge);
     }
 
-    let paths: Vec<&[i32]> = output.iter().map(|p| p.as_slice()).collect();
-    let margins = margin_points(&paths, &hinges);
-    (concat_arg_vecs(output), encode_points(&hinges), encode_points(&margins))
+    // after the rays, so a ray keeps its place in the list
+    output.extend(hinges.iter().map(|h| h.encode()));
+    let points: Vec<_> = hinges.iter().map(|h| h.point()).collect();
+    (concat_arg_vecs(output), encode_points(&points))
 }
 
 #[cfg(test)]
 mod tests {
     use super::__nodarium_execute_inner;
     use glam::{Vec2, Vec3};
+    use myzel_core::{margin_points, read_hinges, testing, CapHinge};
     use nodarium_utils::{
         concat_args, decode_points, encode_float,
         geometry::{create_multiple_paths, path_link, wrap_multiple_paths, wrap_path, PathLink},
@@ -75,10 +76,15 @@ mod tests {
 
     /// An upright stipe 5 cm tall, 5 mm in radius
     fn stipe() -> Vec<i32> {
-        let mut data = create_multiple_paths(1, 12, 1, 3);
-        for path in wrap_multiple_paths(&mut data).iter_mut() {
+        stipes(1)
+    }
+
+    /// `count` of them, 10 cm apart
+    fn stipes(count: usize) -> Vec<i32> {
+        let mut data = create_multiple_paths(count, 12, 1, 3);
+        for (s, path) in wrap_multiple_paths(&mut data).iter_mut().enumerate() {
             for i in 0..12 {
-                path.points[i * 4..i * 4 + 4].copy_from_slice(&[0.0, STIPE_TOP * i as f32 / 11.0, 0.0, STIPE_RADIUS]);
+                path.points[i * 4..i * 4 + 4].copy_from_slice(&[0.1 * s as f32, STIPE_TOP * i as f32 / 11.0, 0.0, STIPE_RADIUS]);
             }
         }
         data
@@ -105,7 +111,6 @@ mod tests {
         profile: Vec<f32>,
         thickness: Vec<i32>,
         rays: i32,
-        seed: i32,
     }
 
     /// A cone from the top at y = 20 down to the margin at y = 60 of the shape editor: the margin
@@ -117,35 +122,36 @@ mod tests {
             profile: vec![0.0, 60.0, 50.0, 20.0],
             thickness: curve_node(&[0.0, 1.0, 1.0, 0.0], 0.006),
             rays: 10,
-            seed: 3,
         }
     }
 
     struct Out {
         rays: Vec<Vec<i32>>,
         hinges: Vec<Point>,
+        /// The hinge items in the list of rays
+        items: Vec<CapHinge>,
         margins: Vec<Point>,
     }
 
-    fn execute(p: &Params, profile: &[i32]) -> (Vec<i32>, Vec<i32>, Vec<i32>) {
-        __nodarium_execute_inner(&[
-            &stipe(),
-            &[encode_float(p.radius)],
-            profile,
-            &p.thickness,
-            &[p.rays],
-            &[p.seed],
-            &[24],
-            &[CREATOR],
-        ])
+    fn execute(p: &Params, profile: &[i32]) -> (Vec<i32>, Vec<i32>) {
+        execute_on(&stipe(), p, profile)
+    }
+
+    fn execute_on(plant: &[i32], p: &Params, profile: &[i32]) -> (Vec<i32>, Vec<i32>) {
+        __nodarium_execute_inner(&[plant, &[encode_float(p.radius)], profile, &p.thickness, &[p.rays], &[24], &[CREATOR]])
     }
 
     fn run(p: &Params) -> Out {
-        let (paths, hinges, margins) = execute(p, &floats(&p.profile));
+        run_on(&stipe(), p)
+    }
+
+    fn run_on(plant: &[i32], p: &Params) -> Out {
+        let (paths, hinges) = execute_on(plant, p, &floats(&p.profile));
         Out {
-            rays: split_args(&paths).iter().map(|s| s.to_vec()).collect(),
+            rays: testing::paths(&paths),
             hinges: decode_points(&hinges),
-            margins: decode_points(&margins),
+            items: read_hinges(&paths),
+            margins: margin_points(&split_args(&paths)),
         }
     }
 
@@ -175,7 +181,7 @@ mod tests {
             assert!((q.y - height).abs() < 1e-4, "margin at {} over the stipe top, expected {}", q.y, height);
         }
         // in a ring around the axis, counted from the side of the hinge
-        let frame = myzel_core::CapFrame::new(&out.hinges[0]);
+        let frame = myzel_core::CapFrame::new(&out.items[0]);
         let angles: Vec<f32> = out.margins.iter().map(|m| frame.angle(m.position)).collect();
         assert!(angles.windows(2).all(|w| w[1] > w[0]));
 
@@ -241,8 +247,72 @@ mod tests {
         let (a, b) = (run(&p), run(&p));
         assert_eq!(a.rays, b.rays);
         assert_eq!(a.margins, b.margins);
-        let other = run(&Params { seed: 4, ..p });
-        assert_ne!(a.rays, other.rays);
+    }
+
+    /// Angle of every ray around the axis of its cap
+    fn angles(out: &Out, cap: usize) -> Vec<f32> {
+        let hinge = &out.items[cap];
+        let frame = myzel_core::CapFrame::new(hinge);
+        let own = out.rays.iter().filter(|r| path_link(r).parent_id == hinge.stipe);
+        own.map(|r| frame.angle(Vec3::from_slice(&points(r).last().unwrap()[..3]))).collect()
+    }
+
+    #[test]
+    fn every_stipe_moves_its_rays_its_own_way() {
+        let out = run_on(&stipes(2), &cone());
+        let gap = std::f32::consts::TAU / 10.0;
+        let (a, b) = (angles(&out, 0), angles(&out, 1));
+        assert_eq!((a.len(), b.len()), (10, 10));
+        for (k, angle) in a.iter().chain(&b).enumerate() {
+            // up to 15 % of the gap from its even place
+            let even = (k % 10) as f32 * gap;
+            let off = (angle - even + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
+            assert!(off.abs() <= 0.15 * gap + 1e-4, "ray {k} is {off} from its place");
+        }
+        assert!(a.iter().zip(&b).any(|(x, y)| (x - y).abs() > 1e-3));
+    }
+
+    #[test]
+    fn a_list_of_several_stipes_keeps_one_hinge_per_cap() {
+        let plant = stipes(3);
+        let out = run_on(&plant, &cone());
+        assert_eq!(out.rays.len(), 30);
+        assert_eq!(out.items.len(), 3);
+        assert_eq!(out.items.iter().map(|h| h.point()).collect::<Vec<_>>(), out.hinges);
+        for (stipe, hinge) in split_args(&plant).iter().zip(&out.items) {
+            assert_eq!(hinge.stipe, wrap_path(stipe).link.id);
+            assert_eq!(hinge.creator, CREATOR);
+            assert_eq!(out.rays.iter().filter(|r| path_link(r).parent_id == hinge.stipe).count(), 10);
+        }
+        // the hinges come after the rays, every ray keeps its place in the list
+        let (paths, _) = execute_on(&plant, &cone(), &floats(&cone().profile));
+        let items = split_args(&paths);
+        assert!(items[..30].iter().all(|i| nodarium_utils::geometry::is_path(i)));
+        assert!(items[30..].iter().all(|i| CapHinge::decode(i).is_some()));
+    }
+
+    #[test]
+    fn the_hinge_keeps_the_open_cap() {
+        let p = cone();
+        let out = run(&p);
+        let hinge = &out.items[0];
+        assert!((hinge.radius - p.radius).abs() < 1e-4, "radius {}", hinge.radius);
+        // along the cone from the axis to the margin, and the bend from the root into the flesh
+        let slant = Vec2::new(1.0, 0.8).length() * p.radius;
+        assert!(hinge.length > slant && hinge.length < 1.15 * slant, "length {} of {slant}", hinge.length);
+        assert_eq!(hinge.rest.len(), myzel_core::REST_SAMPLES);
+        assert!(hinge.rest[0].abs() < 1e-6 && (hinge.rest.last().unwrap() - 1.0).abs() < 1e-6);
+        // every point of a ray out on the cap is where the hinge says it was, up to the samples
+        // it keeps. Near the top the root of the cone loops back over the axis once.
+        let close = 0.01 * p.radius;
+        let cap = &myzel_core::Cap::all(&split_args(&execute(&p, &floats(&p.profile)).0))[0];
+        for ray in &cap.rays {
+            for (q, &alpha) in ray.plane.iter().zip(&ray.alphas) {
+                if alpha > 0.2 {
+                    assert!((q.x - hinge.rest_distance(alpha)).abs() < close, "{} and {} at {alpha}", q.x, hinge.rest_distance(alpha));
+                }
+            }
+        }
     }
 
     #[test]
@@ -251,7 +321,7 @@ mod tests {
         let profile = floats(&p.profile);
         let wrapped = concat_args(vec![&profile]);
         assert_eq!(super::read_floats(&wrapped), p.profile);
-        let (paths, _, _) = execute(&p, &wrapped);
+        let (paths, _) = execute(&p, &wrapped);
         assert_eq!(split_args(&paths), split_args(&execute(&p, &profile).0));
     }
 }
