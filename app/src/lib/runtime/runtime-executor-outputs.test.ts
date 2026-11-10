@@ -145,37 +145,48 @@ describe('nodes with several outputs', () => {
     });
   });
 
-  it('previews a debugged pattern with the Myzel output node', async () => {
-    const pattern = {
-      id: 'max/myzel/reaction_diffusion',
-      inputs: {},
-      outputs: ['pattern'],
-      execute: () => Int32Array.of(15, 0, 0)
-    } as unknown as NodeDefinition;
+  describe('debugging what the Myzel output shows', () => {
+    const maker = (id: string, type: string, words: number[]) =>
+      ({
+        id,
+        inputs: {},
+        outputs: [type],
+        execute: () => Int32Array.of(...words)
+      }) as unknown as NodeDefinition;
     const myzelOutput = {
       id: 'max/myzel/output',
-      inputs: {
-        field: { type: 'path', accepts: ['pattern'] },
-        resolution: { type: 'integer', value: 64 }
-      },
+      inputs: { mesh: { type: 'path', accepts: ['mesh', 'path', 'pattern'] } },
       outputs: [],
-      execute: vi.fn(([p, resolution]: Int32Array[]) => Int32Array.of(p[0], resolution[0]))
+      execute: vi.fn(([p]: Int32Array[]) => Int32Array.of(p[0], 99))
     } as unknown as NodeDefinition;
-    const registry = createMockNodeRegistry([pattern, myzelOutput, debug]);
-    const runtime = new MemoryRuntimeExecutor(registry);
 
-    await runtime.execute(
-      graph(
-        [node(0, pattern.id), node(1, debug.id), node(2, myzelOutput.id)],
-        [[0, 0, 1, 'input'], [0, 0, 2, 'field']]
-      ),
-      {}
-    );
+    async function debugged(source: NodeDefinition) {
+      const runtime = new MemoryRuntimeExecutor(
+        createMockNodeRegistry([source, myzelOutput, debug])
+      );
+      await runtime.execute(
+        graph(
+          [node(0, source.id), node(1, debug.id), node(2, myzelOutput.id)],
+          [[0, 0, 1, 'input'], [0, 0, 2, 'mesh']]
+        ),
+        {}
+      );
+      return runtime.getDebugData()[0];
+    }
 
-    expect(runtime.getDebugData()[0]).toEqual({
-      type: 'pattern',
-      output: 0,
-      data: Int32Array.of(15, 32)
+    it('previews a debugged pattern with the output node', async () => {
+      const entry = await debugged(maker('max/myzel/reaction_diffusion', 'pattern', [15, 0, 0]));
+      expect(entry).toEqual({ type: 'pattern', output: 0, data: Int32Array.of(15, 99) });
+    });
+
+    it('draws a debugged mesh as it is', async () => {
+      const entry = await debugged(maker('max/myzel/join_meshes', 'mesh', [14, 1, 2]));
+      expect(entry).toEqual({ type: 'mesh', output: 0, data: Int32Array.of(14, 1, 2) });
+    });
+
+    it('draws debugged paths as they are', async () => {
+      const entry = await debugged(maker('max/myzel/strands', 'path', [0, 5, 1, 1]));
+      expect(entry).toEqual({ type: 'path', output: 0, data: Int32Array.of(0, 5, 1, 1) });
     });
   });
 });

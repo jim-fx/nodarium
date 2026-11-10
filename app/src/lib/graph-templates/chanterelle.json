@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 6,
+  "version": 7,
   "settings": {
     "resolution.field": 256,
     "resolution.curve": 24
@@ -1385,7 +1385,7 @@
       317,
       0,
       0,
-      "field"
+      "mesh"
     ]
   ]
 }

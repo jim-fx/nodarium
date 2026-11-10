@@ -27,9 +27,9 @@ import { getErrorInfo, NodeExecutionError, type RuntimeErrorInfo } from './error
 import type { RuntimeNode } from './types';
 
 /** The node that turns a value of this socket type into something the debug view can draw */
-const DEBUG_PREVIEWS: Record<string, { node: string; args: Int32Array[] }> = {
-  // a flat disc colored by the pattern, args are the inputs after the pattern
-  pattern: { node: 'max/myzel/output', args: [Int32Array.of(32)] }
+const DEBUG_PREVIEWS: Record<string, { node: string }> = {
+  // a flat disc colored by the pattern
+  pattern: { node: 'max/myzel/output' }
 };
 const log = createLogger('runtime-executor');
 log.mute();
@@ -639,7 +639,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       const node = preview && this.definitionMap.get(preview.node);
       if (!node) continue;
       try {
-        const result = node.execute([entry.data, ...preview.args]);
+        const result = node.execute([entry.data]);
         entry.data = readNodeValue(Array.isArray(result) ? result[0] : result);
       } catch (e) {
         log.warn(`could not preview the ${entry.type} for debugging`, e);
