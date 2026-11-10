@@ -136,12 +136,11 @@ mod tests {
     }
 
     #[test]
-    fn parses_field_and_mesh_sockets() {
+    fn parses_mesh_sockets() {
         let def = definition(
-            r#"{"id":"max/myzel/to_mesh","inputs":{"field":{"type":"field"},"base":{"type":"mesh","accepts":["field"]}},"outputs":["mesh","field"]}"#,
+            r#"{"id":"max/myzel/to_mesh","inputs":{"base":{"type":"mesh","accepts":["pattern"]}},"outputs":["mesh"]}"#,
         );
         let inputs = def.inputs.unwrap();
-        assert!(matches!(inputs["field"], nodarium_types::NodeInput::field(_)));
         assert!(matches!(inputs["base"], nodarium_types::NodeInput::mesh(_)));
     }
 

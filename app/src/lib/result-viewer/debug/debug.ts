@@ -36,8 +36,7 @@ const RING_SEGMENTS = 12;
 // drawn on top of the result
 const RENDER_ORDER = 999;
 
-const DRAWN_TYPES = new Set(['path', 'geometry', 'points', 'mesh', 'field', 'hyphae', 'pattern']);
-const FIELD_TAG = 10;
+const DRAWN_TYPES = new Set(['path', 'geometry', 'points', 'mesh', 'hyphae', 'pattern']);
 // a 2D pattern, see nodarium_utils::pattern
 const PATTERN_TAG = 15;
 
@@ -314,13 +313,13 @@ export function updateDebugScene(
     // single values like floats and vectors have nothing to draw
     if (!DRAWN_TYPES.has(type) || !(value instanceof Int32Array)) continue;
 
-    // a mesh is a single item without brackets, a field or a pattern only arrives as its preview
+    // a mesh is a single item without brackets, a pattern only arrives as its preview
     // mesh, which the output node wraps in a list. One that could not be previewed is skipped.
     if (value[0] === RESULT_TAGS.mesh) {
       group.add(createGeometryDebug([value], 'mesh'));
       continue;
     }
-    if (value[0] === FIELD_TAG || value[0] === PATTERN_TAG) continue;
+    if (value[0] === PATTERN_TAG) continue;
     if (value[0] === RESULT_TAGS.hyphae) {
       group.add(createHyphaeDebug([value]));
       continue;

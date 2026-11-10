@@ -1075,4 +1075,21 @@ describe('getNodeDefinitions', () => {
     expect(ids).not.toContain('test/other/input');
     vi.unstubAllGlobals();
   });
+
+  it('fails to load a graph with a node type that does not exist any more, without throwing', async () => {
+    const registry = createMockNodeRegistry([mockFloatOutputNode]);
+    registry.load = async () => {
+      throw new Error('Failed to load nodes/max/myzel/sphere.wasm');
+    };
+    const manager = new GraphManager(registry);
+
+    await expect(manager.load({
+      id: 1,
+      nodes: [{ id: 0, type: 'max/myzel/sphere', position: [0, 0] }],
+      edges: [],
+      groups: []
+    })).resolves.toBeUndefined();
+    expect(manager.status).toBe('error');
+    expect(manager.loaded).toBe(false);
+  });
 });

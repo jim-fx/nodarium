@@ -170,7 +170,7 @@ describe('updateDebugScene', () => {
     expect(group.children).toHaveLength(0);
   });
 
-  it('draws a Myzel mesh and the preview of a field, but not a raw field', () => {
+  it('draws a Myzel mesh and the preview of a pattern, but not a raw pattern', () => {
     // [14, vertices, faces, flags, ...faces, ...positions, ...normals, ...groups] with one triangle
     const mesh = new Int32Array(4 + 3 + 21);
     mesh.set([14, 3, 1, 0, 0, 1, 2]);
@@ -183,11 +183,11 @@ describe('updateDebugScene', () => {
     expect(meshes(group)).toHaveLength(1);
     expect(meshes(group)[0].geometry.getAttribute('position').count).toBe(3);
 
-    // the runtime turns a field into the list of the output node
-    updateDebugScene(group, { 1: { type: 'field', data: wrap(mesh) } });
+    // the runtime turns a pattern into the list of the output node
+    updateDebugScene(group, { 1: { type: 'pattern', data: wrap(mesh) } });
     expect(meshes(group)).toHaveLength(1);
 
-    updateDebugScene(group, { 1: { type: 'field', data: Int32Array.of(10, 0, 0, 0, 0, 0, 0, 0) } });
+    updateDebugScene(group, { 1: { type: 'pattern', data: Int32Array.of(15, 0, 0) } });
     expect(group.children).toHaveLength(0);
   });
 

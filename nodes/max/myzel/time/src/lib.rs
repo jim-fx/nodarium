@@ -14,17 +14,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 #[cfg(test)]
 mod tests {
     use super::__nodarium_execute_inner;
-    #[allow(unused_imports)]
-    use glam::Vec3;
-    #[allow(unused_imports)]
-    use myzel_core::{eval, Field};
-    #[allow(unused_imports)]
-    use nodarium_utils::{decode_float, encode_float};
-
-    #[allow(dead_code)]
-    fn vec3(x: f32, y: f32, z: f32) -> Vec<i32> {
-        vec![0, 4, encode_float(x), encode_float(y), encode_float(z), 1, 1]
-    }
+    use nodarium_utils::encode_float;
 
     #[test]
     fn passes_the_time_on() {

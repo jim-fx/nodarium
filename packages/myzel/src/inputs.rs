@@ -1,7 +1,5 @@
-use glam::Vec3;
 use nodarium_utils::decode_float;
 
-use crate::field::Field;
 use crate::hyphae::Hyphae;
 use crate::mesh::Mesh;
 
@@ -41,16 +39,6 @@ pub fn read_floats(arg: &[i32]) -> Vec<f32> {
     frame[2..frame.len() - 2].iter().map(|&w| decode_float(w)).collect()
 }
 
-pub fn read_vec3(arg: &[i32]) -> Vec3 {
-    let values = read_floats(arg);
-    assert!(values.len() == 3, "expected a vec3, got {} values", values.len());
-    Vec3::new(values[0], values[1], values[2])
-}
-
-pub fn read_field(arg: &[i32]) -> Field {
-    Field::decode(arg)
-}
-
 pub fn read_mesh(arg: &[i32]) -> Mesh {
     Mesh::decode(arg)
 }
@@ -70,8 +58,6 @@ mod tests {
         assert_eq!(read_int(&[7]), 7);
         let curve = [0, 4, encode_float(0.0), encode_float(0.5), encode_float(1.0), 1, 1];
         assert_eq!(read_floats(&curve), vec![0.0, 0.5, 1.0]);
-        let v = [0, 4, encode_float(1.0), encode_float(2.0), encode_float(3.0), 1, 1];
-        assert_eq!(read_vec3(&v), Vec3::new(1.0, 2.0, 3.0));
     }
 
     #[test]

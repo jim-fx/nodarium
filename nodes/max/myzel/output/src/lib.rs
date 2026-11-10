@@ -1,6 +1,6 @@
 use myzel_core::{
-    apply_settings, hyphae_mesh, pack_rgba, path_lines, paths_mesh, polygonize, read_field, read_float, read_hyphae,
-    read_int, read_paths, read_settings, retain_points, HyphaeMeshParams, Mesh, PathStyle, FIELD_TAG, HYPHAE_TAG,
+    apply_settings, hyphae_mesh, pack_rgba, path_lines, paths_mesh, read_float, read_hyphae,
+    read_int, read_paths, read_settings, retain_points, HyphaeMeshParams, Mesh, PathStyle, HYPHAE_TAG,
     MESH_TAG,
 };
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
@@ -84,7 +84,6 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             }
             list(&items)
         }
-        Some(&FIELD_TAG) => list(&[polygonize(&read_field(args[0]), resolution).encode()]),
         Some(&MESH_TAG) => list(&[args[0].to_vec()]),
         Some(&PATTERN_TAG) => list(&Pattern::decode(args[0]).map(|p| vec![pattern_mesh(&p).encode()]).unwrap_or_default()),
         _ => {
@@ -114,7 +113,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 mod tests {
     use super::__nodarium_execute_inner;
     use glam::Vec3;
-    use myzel_core::{flags, Field, HyphaSegment, Hyphae, Mesh, Tissue, HYPHAE_TAG, LINES_TAG, MESH_TAG};
+    use myzel_core::{flags, HyphaSegment, Hyphae, Mesh, Tissue, HYPHAE_TAG, LINES_TAG, MESH_TAG};
     use nodarium_utils::{
         encode_float,
         geometry::{create_multiple_paths, wrap_multiple_paths},
@@ -149,14 +148,6 @@ mod tests {
             flags: flags::ACTIVE_TIP,
         });
         h.encode()
-    }
-
-    #[test]
-    fn wraps_the_mesh_of_a_field_in_a_list() {
-        let items = run(&Field::sphere(1.0).encode(), 0);
-        assert_eq!(items.len(), 1);
-        assert_eq!(items[0][0], MESH_TAG);
-        assert!(Mesh::decode(&items[0]).face_count() > 0);
     }
 
     #[test]
@@ -215,7 +206,15 @@ mod tests {
 
     #[test]
     fn passes_a_mesh_through() {
-        let mesh = myzel_core::polygonize(&Field::sphere(1.0), 16).encode();
+        let mesh = Mesh {
+            faces: vec![0, 1, 2],
+            positions: vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+            normals: vec![0.0, 0.0, 1.0].repeat(3),
+            colors: Vec::new(),
+            groups: vec![0; 3],
+            tissue_groups: false,
+        }
+        .encode();
         assert_eq!(run(&mesh, 0), vec![mesh]);
     }
 
