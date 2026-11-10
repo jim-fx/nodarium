@@ -54,7 +54,7 @@ pub use cap::{closing_turn, curl_turn, margin_points, pose_caps, pose_caps_of, t
 pub use cap_shape::{cap_alphas, grow_cap, CapShape};
 pub use density::{mesh_segments, surface, surface_in, Frame, Meshing, Segment, SegmentSurface, TissueField};
 pub use color::{
-    encode_color, linear_rgba, mix_colors, opaque, pack_linear, paint_mesh, paint_meshes, read_color, NO_COLOR,
+    encode_color, linear_rgba, mix_colors, opaque, pack_linear, paint_mesh, read_color, NO_COLOR,
 };
 pub use hyphae_mesh::{paths_mesh, HyphaeMeshParams};
 pub use paths::{

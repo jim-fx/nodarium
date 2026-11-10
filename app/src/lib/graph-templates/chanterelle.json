@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 5,
+  "version": 6,
   "settings": {
     "resolution.field": 256,
     "resolution.curve": 24
@@ -40,7 +40,7 @@
           1,
           1.0
         ],
-        "min": 0.0
+        "min": 0
       }
     },
     {
@@ -432,7 +432,7 @@
       "type": "max/plantarium/random",
       "props": {
         "min": 0.5,
-        "max": 1.0
+        "max": 1
       }
     },
     {
@@ -512,7 +512,7 @@
       "type": "max/plantarium/random",
       "props": {
         "min": 0.4,
-        "max": 1.0,
+        "max": 1,
         "uniform": 1
       }
     },
@@ -561,7 +561,7 @@
       "position": [-260, 208.7],
       "type": "max/plantarium/random",
       "props": {
-        "min": 3.0,
+        "min": 3,
         "max": 4.2,
         "uniform": 1
       }
@@ -814,6 +814,18 @@
       "position": [130, 100],
       "type": "max/myzel/join_meshes",
       "props": {}
+    },
+    {
+      "id": 318,
+      "type": "max/myzel/set_mesh_color",
+      "position": [100, 112.5],
+      "props": {
+        "color": [
+          232,
+          172,
+          48
+        ]
+      }
     }
   ],
   "edges": [
@@ -1331,12 +1343,12 @@
       8,
       0,
       63,
-      "plant"
+      "paths"
     ],
     [
       62,
       0,
-      63,
+      318,
       "mesh"
     ],
     [
@@ -1364,8 +1376,8 @@
       "a"
     ],
     [
-      63,
-      1,
+      318,
+      0,
       317,
       "b"
     ],

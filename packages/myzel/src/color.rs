@@ -1,5 +1,4 @@
-use crate::mesh::{pack_rgba, Mesh, MESH_TAG};
-use nodarium_utils::{concat_arg_vecs, split_args};
+use crate::mesh::{pack_rgba, Mesh};
 
 /// A vertex without a color of its own: the viewer shows its material there. White, so programs
 /// that multiply the vertex color with their material see the material.
@@ -66,43 +65,9 @@ pub fn paint_mesh(mesh: &mut Mesh, color: [u8; 3]) {
     mesh.colors = vec![opaque(color); mesh.vertex_count()];
 }
 
-fn is_wrapped_mesh(item: &[i32]) -> bool {
-    let n = item.len();
-    n >= 5 && item[0] == 0 && item[1] as usize == n - 3 && item[2] == MESH_TAG
-}
-
-/// A list inside a list starts with a group, its count then points at index 2
-fn is_list(item: &[i32]) -> bool {
-    item.len() >= 4 && item[0] == 0 && item[1] == 1
-}
-
-/// The meshes in a value, one mesh or a list of them from a join, all painted in `color`.
-/// Everything else in a list stays as it is.
-pub fn paint_meshes(arg: &[i32], color: [u8; 3]) -> Vec<i32> {
-    if arg.first() == Some(&MESH_TAG) {
-        // anything else that starts with the tag stays as it is
-        let Some(mut mesh) = Mesh::try_decode(arg) else { return arg.to_vec() };
-        paint_mesh(&mut mesh, color);
-        return mesh.encode();
-    }
-    if is_wrapped_mesh(arg) {
-        return nodarium_utils::wrap_arg(&paint_meshes(&arg[2..arg.len() - 2], color));
-    }
-    if !is_list(arg) || arg.len() == 4 {
-        return arg.to_vec();
-    }
-    concat_arg_vecs(
-        split_args(arg)
-            .into_iter()
-            .map(|item| if is_wrapped_mesh(item) || is_list(item) { paint_meshes(item, color) } else { item.to_vec() })
-            .collect(),
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nodarium_utils::wrap_arg;
 
     fn triangle() -> Mesh {
         Mesh {
@@ -135,20 +100,11 @@ mod tests {
     }
 
     #[test]
-    fn paints_a_mesh_and_the_meshes_of_a_list() {
+    fn paints_every_vertex_and_nothing_else() {
         let red = [200, 10, 10];
-        let one = Mesh::decode(&paint_meshes(&triangle().encode(), red));
-        assert_eq!(one.colors, vec![opaque(red); 3]);
-        assert_eq!(Mesh { colors: Vec::new(), ..one }, triangle());
-
-        let path = [0, 3, 7, 7, 1, 1];
-        let list = concat_arg_vecs(vec![wrap_arg(&triangle().encode()), path.to_vec(), wrap_arg(&triangle().encode())]);
-        let painted = paint_meshes(&list, red);
-        let items = split_args(&painted);
-        assert_eq!(items.len(), 3);
-        assert_eq!(Mesh::decode(&items[0][2..items[0].len() - 2]).colors, vec![opaque(red); 3]);
-        assert_eq!(items[1], path);
-        // nothing connected
-        assert_eq!(paint_meshes(&[0, 1, 1, 1], red), vec![0, 1, 1, 1]);
+        let mut mesh = triangle();
+        paint_mesh(&mut mesh, red);
+        assert_eq!(mesh.colors, vec![opaque(red); 3]);
+        assert_eq!(Mesh { colors: Vec::new(), ..mesh }, triangle());
     }
 }
