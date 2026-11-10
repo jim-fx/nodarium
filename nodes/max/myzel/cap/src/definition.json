@@ -61,9 +61,6 @@
       "min": 1,
       "max": 128
     },
-    "seed": {
-      "type": "seed"
-    },
     "resolution_curve": {
       "type": "integer",
       "description": "Points along a ray",

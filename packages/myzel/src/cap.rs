@@ -515,6 +515,7 @@ pub mod testing {
         pub rays: usize,
         /// How far apart `fill_gaps` keeps the rays, 0 adds none
         pub spacing: f32,
+        /// The seed of `fill_gaps`
         pub seed: i32,
     }
 
@@ -559,7 +560,6 @@ pub mod testing {
             radius: c.radius,
             thickness: &thickness,
             rays: c.rays,
-            seed: c.seed,
             resolution: 24,
             creator: 7,
         };
@@ -784,8 +784,7 @@ mod tests {
         let mut orphans = grow_rays(&cone(), split_args(&leaning_stipe(0.2))[0], 1.0);
         for ray in &mut orphans {
             let link = path_link(ray);
-            ray[5] = 77;
-            assert_eq!(path_link(ray).parent_id, 77, "{link:?}");
+            set_path_link(ray, PathLink::child(link.creator, 77, 1.0, link.index));
         }
         paths.extend(orphans);
         assert_eq!(caps(&paths).len(), 1);

@@ -31,10 +31,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let plant = split_args(args[0]);
     let points = decode_points(args[1]);
     let profile = read_floats(args[3]);
-    let seed = int(args[6]);
-    let resolution = int(args[7]).max(4) as usize;
+    let resolution = int(args[6]).max(4) as usize;
     // the graph node that makes the cap, it is the last input
-    let creator = int(args[8]);
+    let creator = int(args[7]);
 
     // the rays of every path, the ones of a point whose path is not in the plant last
     let mut rays: Vec<(i32, Vec<Vec<i32>>)> = Vec::new();
@@ -56,7 +55,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         let count = ctx.int(args[5]).max(1) as usize;
         // along the flesh from the centre to the margin, so a curve can thin it
         let thickness = ctx.float_along(args[4], cap_alphas());
-        let shape = CapShape { profile: &profile, radius, thickness: &thickness, rays: count, seed, resolution, creator };
+        let shape = CapShape { profile: &profile, radius, thickness: &thickness, rays: count, resolution, creator };
         let own = match rays.iter().position(|r| r.0 == point.parent_id) {
             Some(i) => &mut rays[i].1,
             None => {
@@ -160,7 +159,6 @@ mod tests {
         profile: Vec<f32>,
         thickness: Vec<i32>,
         rays: i32,
-        seed: i32,
     }
 
     /// A cone from the top at y = 20 down to the margin at y = 60 of the shape editor: the margin
@@ -172,7 +170,6 @@ mod tests {
             profile: vec![0.0, 60.0, 50.0, 20.0],
             thickness: curve_node(&[0.0, 1.0, 1.0, 0.0], 0.006),
             rays: 10,
-            seed: 3,
         }
     }
 
@@ -184,7 +181,6 @@ mod tests {
             profile,
             &p.thickness,
             &[p.rays],
-            &[p.seed],
             &[24],
             &[CREATOR],
         ])
@@ -357,7 +353,22 @@ mod tests {
     fn the_same_inputs_give_the_same_cap() {
         let p = cone();
         assert_eq!(run(&p), run(&p));
-        assert_ne!(run(&p), run(&Params { seed: 4, ..p }));
+    }
+
+    #[test]
+    fn every_stipe_moves_its_rays_its_own_way() {
+        let plant = stipes(2);
+        let paths = grow_on(&plant, &points_at(&plant, 1.0), &cone());
+        let caps = Cap::all(&paths.iter().map(|p| p.as_slice()).collect::<Vec<_>>());
+        let gap = std::f32::consts::TAU / 10.0;
+        let angles: Vec<Vec<f32>> = caps.iter().map(|c| c.rays.iter().map(|r| r.angle).collect()).collect();
+        for (k, angle) in angles.iter().flatten().enumerate() {
+            // up to 15 % of the gap from its even place
+            let even = (k % 10) as f32 * gap;
+            let off = (angle - even + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
+            assert!(off.abs() <= 0.15 * gap + 1e-4, "ray {k} is {off} from its place");
+        }
+        assert!(angles[0].iter().zip(&angles[1]).any(|(a, b)| (a - b).abs() > 1e-3));
     }
 
     #[test]

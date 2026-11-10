@@ -25,8 +25,7 @@ struct Waves {
 }
 
 /// How far a cap is lifted at `theta` around the axis, as a share of `amplitude`. It depends on
-/// nothing else of the cap, so the caps on one stipe with the same waves (a cap and its ridges)
-/// wave alike, whatever their rays.
+/// nothing else of the cap, so caps with other rays wave alike.
 fn wave_shape(waves: &Waves, seed: i32, id: i32, theta: f32) -> f32 {
     if waves.count == 0 {
         return 0.0;
@@ -50,7 +49,8 @@ fn wave_shape(waves: &Waves, seed: i32, id: i32, theta: f32) -> f32 {
     height * phase.cos()
 }
 
-/// The amplitude from the centre (alpha 0) to the margin (alpha 1), as a share of the radius
+/// The amplitude from the centre (alpha 0) to the margin (alpha 1), as a share of the length of
+/// the rays
 struct Amplitude(Vec<f32>);
 
 impl Amplitude {
@@ -92,16 +92,17 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         if waves.count == 0 || amplitude.0.iter().all(|&a| a == 0.0) {
             return None;
         }
-        let radius = cap.reach();
-        if radius <= 0.0 {
+        if cap.length <= 0.0 {
             return None;
         }
-        let lift = radius * wave_shape(waves, seed, cap.frame.stipe_id, cap.rays[k].angle);
-        let offset = |x: f32| lift * amplitude.at(x / radius);
+        let lift = cap.length * wave_shape(waves, seed, cap.frame.stipe_id, cap.rays[k].angle);
+        // by how far along its ray a place is, which no pose changes, so the waves look the same
+        // wherever the node sits in the chain of a cap
+        let offset = |alpha: f32| lift * amplitude.at(alpha);
         Some(cap.bend(k, |s| {
             let length = s.length();
             if length > 0.0 {
-                -((offset(s.to.x) - offset(s.from.x)) / length).atan()
+                -((offset(s.to_alpha) - offset(s.from_alpha)) / length).atan()
             } else {
                 0.0
             }
@@ -113,10 +114,14 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 #[cfg(test)]
 mod tests {
     use super::{__nodarium_execute_inner, wave_shape, Waves};
-    use myzel_core::testing::{
-        caps, cone, frame, grow, grow_on, list, margins, place, points, rays, steps, stipes, unlist, TestCap,
+    use myzel_core::{
+        curl_turn, pose_caps,
+        testing::{
+            caps, cone, frame, grow, grow_on, grow_rays, list, margins, place, points, rays, ring, ring_distance, steps, stipe,
+            stipes, unlist, TestCap,
+        },
     };
-    use nodarium_utils::{concat_args, encode_float};
+    use nodarium_utils::{concat_args, encode_float, geometry::fill_gaps, split_args};
     use glam::Vec3;
     use std::f32::consts::TAU;
 
@@ -276,6 +281,51 @@ mod tests {
         for (s, l) in small.iter().zip(&large) {
             assert!((*l - *s * 2.0).length() < 0.02 * l.length() + 1e-6, "{s} and {l}");
         }
+    }
+
+    /// Rolls the margin under like `margin_curl`
+    fn curl(paths: &[Vec<i32>]) -> Vec<Vec<i32>> {
+        let refs: Vec<&[i32]> = paths.iter().map(|p| p.as_slice()).collect();
+        pose_caps(&refs, |cap, k| Some(cap.bend(k, |s| curl_turn(s, 0.6, 0.4))))
+    }
+
+    #[test]
+    fn waves_work_before_and_after_the_curl() {
+        let p = Params { irregularity: 0.5, ..wavy() };
+        let input = grow(&p.cap);
+        // turns add up, and the waves read how far along its ray a place is, so they wave a
+        // curled cap as they wave an open one
+        let first = curl(&wave(&input, &p));
+        let after = wave(&curl(&input), &p);
+        assert_ne!(first, curl(&input));
+        let apart = first
+            .iter()
+            .zip(&after)
+            .flat_map(|(a, b)| points(a).into_iter().zip(points(b)).map(|(x, y)| x.distance(y)))
+            .fold(0.0, f32::max);
+        // up to rounding where a ray crosses the axis, which sets how far along it a place is
+        assert!(apart < 1e-3 * cone().radius, "the caps are {apart} apart");
+    }
+
+    #[test]
+    fn a_posed_cap_is_the_same_whether_fill_gaps_is_first_or_between_two_poses() {
+        let p = Params { waves: 3, amplitude: 0.1, ..wavy() };
+        let c = TestCap { rays: 24, spacing: 0.5, ..cone() };
+        let mut input = grow_rays(&c, split_args(&stipe())[0], 1.0);
+        input.push(split_args(&stipe())[0].to_vec());
+        let fill = |paths: &[Vec<i32>]| {
+            let refs: Vec<&[i32]> = paths.iter().map(|p| p.as_slice()).collect();
+            paths.iter().cloned().chain(fill_gaps(&refs, c.spacing, c.seed)).collect::<Vec<_>>()
+        };
+        let first = curl(&wave(&fill(&input), &p));
+        let between = curl(&fill(&wave(&input, &p)));
+        assert!(rays(&first).len() > 40 && rays(&between).len() > 40);
+        // a ray added after the waves sits between waved neighbours, one added before waves at
+        // its own angle, they only part by how much the wave bends between two rays
+        let f = frame(&input);
+        let distance = ring_distance(&ring(&margins(&first), &f), &ring(&margins(&between), &f))
+            .max(ring_distance(&ring(&margins(&between), &f), &ring(&margins(&first), &f)));
+        assert!(distance < 0.01 * c.radius, "the margins are {distance} apart");
     }
 
     #[test]

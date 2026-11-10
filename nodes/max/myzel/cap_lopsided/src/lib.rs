@@ -16,7 +16,7 @@ const MIN_REACH: f32 = 0.2;
 const TILT_RAMP: f32 = 0.1;
 const SAMPLES: usize = 256;
 
-/// How far a cap reaches around its axis, the same for every cap on one stipe
+/// How far a cap reaches around its axis
 struct Outline {
     phases: [f32; 3],
     weights: [f32; 3],

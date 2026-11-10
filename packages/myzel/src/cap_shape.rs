@@ -17,6 +17,8 @@ const ROOT_OFFSET: f32 = 0.5;
 const ROOT_SAMPLES: usize = 8;
 /// How much a ray may turn away from its even place between its neighbours, as a share of the gap
 const ANGLE_JITTER: f32 = 0.3;
+/// Keeps the random numbers that move the rays apart from the other numbers of the stipe
+const ANGLE_SALT: i32 = 0x4341_0000;
 
 /// The drawn outline as (distance from the axis, height), with the top over the axis at 0.
 /// The shape editor draws the left half of a 100 x 100 box, mirrored at x = 50, with y going
@@ -101,10 +103,10 @@ struct Ray2 {
     radius: Vec<f32>,
 }
 
-/// The angles of `rays` rays evenly around the axis, each moved a little by the seed
-fn ray_angles(rays: usize, seed: i32, id: i32) -> Vec<f32> {
+/// The angles of `rays` rays evenly around the axis, each moved a little by the stipe id
+fn ray_angles(rays: usize, id: i32) -> Vec<f32> {
     let gap = TAU / rays as f32;
-    (0..rays).map(|k| k as f32 * gap + (path_random(seed, id, k as i32) - 0.5) * ANGLE_JITTER * gap).collect()
+    (0..rays).map(|k| k as f32 * gap + (path_random(0, id, ANGLE_SALT + k as i32) - 0.5) * ANGLE_JITTER * gap).collect()
 }
 
 /// The rays of one cap in the plane through the axis, the same for every angle
@@ -140,7 +142,6 @@ pub struct CapShape<'a> {
     /// The flesh at each of the `cap_alphas`
     pub thickness: &'a [f32],
     pub rays: usize,
-    pub seed: i32,
     /// Points along a ray
     pub resolution: usize,
     pub creator: i32,
@@ -157,7 +158,7 @@ pub fn cap_alphas() -> impl Iterator<Item = f32> + Clone {
 pub fn grow_cap(frame: &CapFrame, depth: i32, first: i32, shape: &CapShape) -> Vec<Vec<i32>> {
     let midline = Midline::new(&outline(shape.profile, shape.radius), shape.thickness);
     let ray = cap_ray(&midline, frame.stipe_radius, shape.resolution.max(4));
-    ray_angles(shape.rays.max(1), shape.seed, frame.stipe_id)
+    ray_angles(shape.rays.max(1), frame.stipe_id)
         .into_iter()
         .enumerate()
         .map(|(k, angle)| {
