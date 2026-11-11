@@ -3,6 +3,7 @@ import {
   bamboo,
   champignonGroomed,
   chanterelle,
+  chestnut,
   daisy,
   defaultPlant,
   devilsBackbone,
@@ -69,6 +70,7 @@ export const projectTemplates: ProjectTemplate[] = [
   plant('Japanese Knotweed', toGraph(knotweed)),
   plant('Wild Carrot', toGraph(wildCarrot, 'cm')),
   mushroom('Champignon', toGraph(champignonGroomed, 'cm')),
+  mushroom('Chestnut mushroom', toGraph(chestnut, 'cm')),
   mushroom('Chanterelle', toGraph(chanterelle, 'cm')),
   mushroom('Oyster mushroom', toGraph(oyster, 'cm'))
 ];

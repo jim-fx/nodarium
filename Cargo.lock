@@ -56,12 +56,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "myzel_cap_pattern"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+ "serde_json",
+]
+
+[[package]]
 name = "myzel_core"
 version = "0.1.0"
 dependencies = [
  "glam",
  "nodarium_utils",
  "noise",
+]
+
+[[package]]
+name = "myzel_cracks"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+ "serde_json",
 ]
 
 [[package]]

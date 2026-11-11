@@ -1,6 +1,9 @@
 import { CURRENT_GRAPH_VERSION } from '#lib/graph-migrations/index.ts';
+import champignonGroomed from '#lib/graph-templates/champignon-groomed.json';
+import chestnutTemplate from '#lib/graph-templates/chestnut.json';
 import { grid } from '#lib/graph-templates/grid.ts';
 import { tree } from '#lib/graph-templates/tree.ts';
+import { projectTemplates } from '#lib/project-manager/project-templates.ts';
 import type { Graph, NodeDefinition } from '@nodarium/types';
 import { describe, expect, it } from 'vitest';
 
@@ -23,6 +26,33 @@ describe('graph-templates', () => {
   it('tree connects every node but the root once', () => {
     const result = tree(2);
     expect(result.edges.length).toBe(result.nodes.length - 1);
+  });
+});
+
+describe('mushroom templates', () => {
+  const groupsOf = (graph: Graph) => graph.groups.map((g) => g.name);
+
+  it('the Chestnut mushroom is the Champignon with a Cuticle group', () => {
+    const [champignon, chestnut] = [champignonGroomed, chestnutTemplate] as unknown as Graph[];
+    expect(groupsOf(chestnut)).toEqual([...groupsOf(champignon), 'Cuticle']);
+    const cuticle = chestnut.groups.find((g) => g.name === 'Cuticle')!;
+    const types = cuticle.nodes.map((n) => n.type);
+    expect(types.filter((t) => t === 'max/myzel/cracks')).toHaveLength(2);
+    expect(types.filter((t) => t === 'max/myzel/cap_pattern')).toHaveLength(2);
+    // between the body of hyphae_to_mesh and join_meshes
+    const instance = chestnut.nodes.find((n) => n.props?.groupId === cuticle.id)!;
+    const type = (id: number) => chestnut.nodes.find((n) => n.id === id)!.type;
+    expect(chestnut.edges.filter((e) => e[2] === instance.id).map((e) => type(e[0]))).toContain(
+      'max/myzel/hyphae_to_mesh'
+    );
+    expect(chestnut.edges.filter((e) => e[0] === instance.id).map((e) => type(e[2]))).toEqual([
+      'max/myzel/join_meshes'
+    ]);
+  });
+
+  it('lists the Chestnut mushroom with the mushrooms', () => {
+    const names = projectTemplates.filter((t) => t.category === 'Mushrooms').map((t) => t.name);
+    expect(names).toContain('Chestnut mushroom');
   });
 });
 

@@ -1,0 +1,48 @@
+{
+  "id": "max/myzel/cap_pattern",
+  "meta": {
+    "description": "Puts a pattern on the top of a cap, as a relief, as a color or both: the cracks of an old cap, scales, or the fibrils of reaction_diffusion. The pattern is measured along the rays of the cap from its axis, like the gills, so it stays on the same spot of the tissue as the cap opens. Only the top of the cap changes, its faces get as fine as the pattern, the rest of the mesh stays as it is."
+  },
+  "outputs": [
+    "mesh"
+  ],
+  "inputs": {
+    "mesh": {
+      "type": "mesh",
+      "description": "The mesh with the cap in it, usually the body from hyphae_to_mesh",
+      "external": true
+    },
+    "cap": {
+      "type": "path",
+      "description": "The paths of the cap node: the rays of the caps and their stipes. They tell where the top of every cap is and how far along it a place is.",
+      "external": true
+    },
+    "pattern": {
+      "type": "pattern",
+      "description": "A pattern on a disc, like cracks or reaction_diffusion. Its radius is the distance along the cap from the axis. Where its value is 1 the relief and the color are full, where it is 0 the cap stays as it is.",
+      "external": true
+    },
+    "relief": {
+      "type": "float",
+      "description": "How far the pattern raises the top of the cap, negative presses it in, like cracks. Read along the rays, alpha 0 at the axis to 1 at the margin, and for every stipe.",
+      "value": -0.0003,
+      "min": -0.005,
+      "max": 0.005,
+      "step": 0.0001,
+      "unit": "m"
+    },
+    "color": {
+      "type": "color",
+      "value": [245, 238, 222],
+      "description": "The color of the pattern, for cracks the pale flesh under the cuticle"
+    },
+    "opacity": {
+      "type": "float",
+      "description": "How much the color of the pattern covers the color of the cap, 0 = not at all. Read along the rays, alpha 0 at the axis to 1 at the margin, and for every stipe.",
+      "value": 1,
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    }
+  }
+}
