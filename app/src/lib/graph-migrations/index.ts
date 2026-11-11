@@ -5,6 +5,7 @@ import { removeInputs, renameInputs, replaceNodes, wiredInputs } from './helpers
 import { joinMeshes } from './join-meshes';
 import { lamellaeRidges } from './lamellae-ridges';
 import { lopsidedByRadius } from './lopsided-by-radius';
+import { marginCurveRandom } from './margin-curve-random';
 import { outputMesh } from './output-mesh';
 import { setMeshColor } from './set-mesh-color';
 import { splitCap, wiredCapInputs } from './split-cap';
@@ -127,6 +128,12 @@ export const MIGRATIONS: Migration[] = [
     description:
       'lamellae reads its depth along the gill and lost depth_curve and blunt, a curve node into the depth shapes it and ridges makes the blunt folds',
     migrate: lamellaeRidges
+  },
+  {
+    version: 12,
+    description:
+      'margin_curl lost reach and margin_waves lost irregularity and seed, the amount is read along the ray and the amplitude for every lobe, a curve and a random node shape them',
+    migrate: marginCurveRandom
   }
 ];
 

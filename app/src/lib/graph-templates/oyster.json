@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 11,
+  "version": 12,
   "settings": {
     "resolution.field": 160,
     "resolution.curve": 24
@@ -109,8 +109,32 @@
       "type": "max/myzel/margin_waves",
       "props": {
         "waves": 5,
-        "amplitude": 0.18,
-        "irregularity": 0.8
+        "uneven_spacing": 0.8
+      }
+    },
+    {
+      "id": 28,
+      "position": [-265, 71.5],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.108,
+        "max": 0.252
+      }
+    },
+    {
+      "id": 29,
+      "position": [-290, 71.5],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0,
+          0.5,
+          0.25,
+          1,
+          1
+        ],
+        "min": 0
       }
     },
     {
@@ -503,6 +527,18 @@
       0,
       12,
       "depth"
+    ],
+    [
+      28,
+      0,
+      29,
+      "max"
+    ],
+    [
+      29,
+      0,
+      7,
+      "amplitude"
     ]
   ]
 }
