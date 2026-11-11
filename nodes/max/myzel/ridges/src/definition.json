@@ -1,0 +1,62 @@
+{
+  "id": "max/myzel/ridges",
+  "meta": {
+    "description": "Hangs false gills under a cap where a pattern has stripes, like a chanterelle: every stripe of reaction_diffusion becomes a low fold with a round back, never deeper than wide, that forks and starts between others where the stripes do. With decurrent they run on down the stipe. For thin gills use lamellae. Gives the folds as a mesh, which keeps them blunt at any mesh resolution."
+  },
+  "outputs": [
+    "mesh"
+  ],
+  "inputs": {
+    "cap": {
+      "type": "path",
+      "description": "The paths of the cap node: the rays of the caps and their stipes. The folds grow out of the underside of the rays and follow them when they move.",
+      "external": true
+    },
+    "pattern": {
+      "type": "pattern",
+      "description": "Stripes around the axis, every stripe becomes a fold. Its radius is the distance along the cap underside from the axis.",
+      "external": true
+    },
+    "depth": {
+      "type": "float",
+      "description": "How far the folds reach down from the cap underside, at most as far as they are wide. Read along the fold, alpha 0 at the stipe to 1 at the margin, so a curve shapes it, and for every stipe, so it can follow the size of each mushroom.",
+      "value": 0.0012,
+      "min": 0,
+      "max": 0.05,
+      "step": 0.0005,
+      "unit": "m"
+    },
+    "decurrent": {
+      "type": "float",
+      "description": "How far the folds that reach the stipe run on down it, lower and lower until they are gone, at most to where the stipe starts. Read for every stipe.",
+      "value": 0.02,
+      "min": 0,
+      "max": 0.05,
+      "step": 0.0005,
+      "unit": "m"
+    },
+    "thickness": {
+      "type": "float",
+      "description": "Width of a fold where it leaves the cap. Read for every stipe.",
+      "value": 0.0011,
+      "min": 5e-05,
+      "max": 0.005,
+      "step": 5e-05,
+      "unit": "m"
+    },
+    "edge_wave": {
+      "type": "float",
+      "description": "How much the folds wave, sideways and up and down. 0 = straight folds, 1 = waves a third of the fold spacing wide",
+      "value": 0.3,
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    },
+    "seed": {
+      "type": "seed"
+    },
+    "creator": {
+      "type": "creator"
+    }
+  }
+}

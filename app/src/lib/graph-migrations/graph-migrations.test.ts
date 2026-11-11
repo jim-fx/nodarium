@@ -493,7 +493,8 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
   const JOIN_MESHES = 'max/myzel/join_meshes';
 
   it('joins the meshes of lamellae behind hyphae_to_mesh and moves the mesh output up', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v4(
         [
           node(1, 'max/myzel/strands'),
@@ -516,7 +517,8 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
   });
 
   it('takes the meshes of a join node in its order, after the paths', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v4(
         [
           node(1, HYPHAE),
@@ -541,7 +543,8 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
 
   it('chains join nodes when there are more than four meshes', () => {
     const lamellae = [3, 4, 5, 6, 7].map((id) => node(id, 'max/myzel/lamellae'));
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v4(
         [node(1, HYPHAE), node(2, 'max/myzel/output'), ...lamellae],
         [
@@ -564,7 +567,8 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
   });
 
   it('joins the mesh of a sheet whose path output went into loose', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v4(
         [
           node(1, 'max/myzel/strands'),
@@ -585,7 +589,8 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
   });
 
   it('joins the mesh of a sheet whose path output went through a join into loose or hyphae', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v4(
         [
           node(1, 'max/myzel/strands'),
@@ -617,7 +622,8 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
   });
 
   it('expands a join that also feeds other nodes and keeps it for them', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v4(
         [
           node(1, HYPHAE),
@@ -648,7 +654,8 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
   });
 
   it('leaves hyphae_to_mesh without meshes alone but for the input names', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v4(
         [node(1, 'max/myzel/strands'), node(2, HYPHAE, { loose: 1 }), node(3, 'max/myzel/strands')],
         [[1, 0, 2, 'hyphae'], [3, 0, 2, 'loose']]
@@ -660,7 +667,8 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
   });
 
   it('drops the paths of lamellae and membrane', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v4(
         [node(1, 'max/myzel/lamellae'), node(2, 'max/myzel/membrane'), node(3, 'max/myzel/output')],
         [[1, 0, 3, 'field'], [2, 0, 3, 'field'], [2, 1, 3, 'field']]
@@ -670,7 +678,8 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
   });
 
   it('lets the paths pass where set_blend was', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v4(
         [node(1, 'max/myzel/strands'), node(2, 'max/myzel/set_blend'), node(3, HYPHAE)],
         [[1, 0, 2, 'plant'], [2, 0, 3, 'hyphae']]
@@ -689,7 +698,7 @@ describe('version 5: hyphae_to_mesh takes paths only, join_meshes joins its mesh
         edges: [[2, 1, 1, 'meshes']]
       } as unknown as NonNullable<Graph['groups']>[number]
     ];
-    const migrated = migrateGraph(old);
+    const migrated = migrateTo(10, old);
     const group = migrated.groups![0];
     const join = group.nodes.find((n) => n.type === JOIN_MESHES)!;
     expect(join.id).toBe(10);
@@ -707,7 +716,8 @@ describe('version 6: set_color takes paths only, set_mesh_color paints meshes', 
   const pink = [217, 160, 150];
 
   it('renames the input of a set_color that only takes paths', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v5(
         [
           node(1, 'max/myzel/strands'),
@@ -723,7 +733,8 @@ describe('version 6: set_color takes paths only, set_mesh_color paints meshes', 
   });
 
   it('turns a set_color that only paints a mesh into set_mesh_color, its mesh is output 0', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v5(
         [
           node(1, 'max/myzel/lamellae'),
@@ -743,7 +754,8 @@ describe('version 6: set_color takes paths only, set_mesh_color paints meshes', 
   });
 
   it('keeps a color wired into a set_color that only paints a mesh', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v5(
         [node(1, 'max/myzel/mix_color'), node(2, SET_COLOR), node(3, 'max/myzel/join_meshes')],
         [[1, 0, 2, 'color'], [2, 1, 3, 'a']]
@@ -754,7 +766,8 @@ describe('version 6: set_color takes paths only, set_mesh_color paints meshes', 
   });
 
   it('splits a set_color with paths and a mesh into one of each with the same color', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v5(
         [
           node(1, 'max/myzel/strands'),
@@ -782,7 +795,8 @@ describe('version 6: set_color takes paths only, set_mesh_color paints meshes', 
   it('gives both nodes a color that comes from a node and the exposed inputs they have', () => {
     const old = node(3, SET_COLOR);
     old.exposed = ['color', 'plant', 'mesh'];
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v5(
         [
           node(1, 'max/myzel/mix_color'),
@@ -814,7 +828,7 @@ describe('version 6: set_color takes paths only, set_mesh_color paints meshes', 
         edges: [[5, 0, 1, 'plant'], [6, 0, 1, 'mesh'], [1, 1, 7, 'a'], [8, 0, 2, 'mesh']]
       } as unknown as NonNullable<Graph['groups']>[number]
     ];
-    const migrated = migrateGraph(old);
+    const migrated = migrateTo(10, old);
     const group = migrated.groups![0];
     expect(group.nodes.map((n) => [n.id, n.type])).toEqual([
       [1, SET_COLOR],
@@ -840,7 +854,8 @@ describe('version 7: the Myzel output takes a mesh and no longer meshes paths', 
   const HYPHAE = 'max/myzel/hyphae_to_mesh';
 
   it('renames field to mesh and drops the values it lost', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v6(
         [
           node(1, 'max/myzel/join_meshes'),
@@ -854,7 +869,8 @@ describe('version 7: the Myzel output takes a mesh and no longer meshes paths', 
   });
 
   it('puts hyphae_to_mesh before an output that showed the surface of paths', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v6(
         [node(1, 'max/myzel/strands'), node(2, OUTPUT, { blend: 5 })],
         [[1, 0, 2, 'field']]
@@ -869,7 +885,8 @@ describe('version 7: the Myzel output takes a mesh and no longer meshes paths', 
 
   it('keeps only the last of several edges into field, the one the runtime used', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v6(
         [node(1, 'max/myzel/strands'), node(3, 'max/myzel/cap'), node(2, OUTPUT)],
         [[1, 0, 2, 'field'], [3, 0, 2, 'field']]
@@ -882,7 +899,8 @@ describe('version 7: the Myzel output takes a mesh and no longer meshes paths', 
   });
 
   it('keeps the default blend out of the new node', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v6(
         [node(1, 'max/myzel/set_color'), node(2, OUTPUT, { blend: 3, show: 2 })],
         [[1, 0, 2, 'field']]
@@ -892,7 +910,8 @@ describe('version 7: the Myzel output takes a mesh and no longer meshes paths', 
   });
 
   it('leaves paths wired straight into an output that showed them as lines', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v6([node(1, 'max/myzel/strands'), node(2, OUTPUT, { show: 1 })], [[1, 0, 2, 'field']])
     );
     expect(migrated.nodes.map((n) => n.type)).not.toContain(HYPHAE);
@@ -925,7 +944,7 @@ describe('version 7: the Myzel output takes a mesh and no longer meshes paths', 
         edges: [[1, 0, 2, 'field']]
       } as unknown as NonNullable<Graph['groups']>[number]
     ];
-    const group = migrateGraph(old).groups![0];
+    const group = migrateTo(10, old).groups![0];
     expect(group.nodes.map((n) => [n.id, n.type])).toEqual([
       [1, 'max/myzel/strands'],
       [2, OUTPUT],
@@ -991,7 +1010,8 @@ describe('version 8: the cap grows at points, the stipe runs along with its rays
   });
 
   it('reads the hinge from the points and the margin from a cap_margin', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v7(
         [
           node(1, 'max/plantarium/stem'),
@@ -1032,7 +1052,8 @@ describe('version 8: the cap grows at points, the stipe runs along with its rays
   });
 
   it('leaves the stipe behind where the rays go on to other nodes', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v7(
         [
           node(1, 'max/plantarium/stem'),
@@ -1072,7 +1093,8 @@ describe('version 8: the cap grows at points, the stipe runs along with its rays
   it('drops an exposed hinge and gives an unwired cap no points', () => {
     const lamellae = node(3, 'max/myzel/lamellae');
     lamellae.exposed = ['hinge', 'stipe', 'depth'];
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v7(
         [node(2, CAP), node(4, 'max/plantarium/instance_from_points'), lamellae],
         [[2, 1, 4, 'points'], [2, 1, 3, 'hinge'], [2, 0, 3, 'cap']]
@@ -1124,7 +1146,7 @@ describe('version 8: the cap grows at points, the stipe runs along with its rays
         }
       }
     ] as unknown as NonNullable<Graph['groups']>;
-    const migrated = migrateGraph(old);
+    const migrated = migrateTo(10, old);
     const [cap, gills] = migrated.groups!;
     const [points] = ofType(cap.nodes, POINTS);
     const [margin] = ofType(cap.nodes, MARGIN);
@@ -1370,5 +1392,142 @@ describe('version 10: strands only fills the tube, twist and random_break come b
         [randomBreak.id, 0, 11, 'out_0']
       ])
     );
+  });
+});
+
+describe('version 11: a curve node shapes the depth of lamellae, ridges makes the blunt folds', () => {
+  const v10 = (nodes: SerializedNode[], edges: Graph['edges'] = []): Graph => ({
+    ...graph(nodes, edges),
+    version: 10
+  });
+  const LAMELLAE = 'max/myzel/lamellae';
+  const RIDGES = 'max/myzel/ridges';
+  const CURVE = 'max/plantarium/curve';
+  const OLD_CURVE = [0, 0.3, 0.2, 0.85, 0.45, 1, 0.8, 0.65, 1, 0.1];
+  const byType = (g: { nodes: SerializedNode[] }, type: string) =>
+    g.nodes.filter((n) => n.type === type);
+
+  it('draws the depth curve with a curve node up to the old depth', () => {
+    const migrated = migrateGraph(
+      v10(
+        [
+          node(1, 'max/myzel/cap_open'),
+          node(2, LAMELLAE, {
+            depth: 0.0035,
+            depth_curve: [0, 1, 1, 0.12],
+            free_distance: 0,
+            decurrent: 0.014,
+            blunt: 0
+          }),
+          node(3, 'max/myzel/join_meshes')
+        ],
+        [[1, 0, 2, 'cap'], [2, 0, 3, 'b']]
+      )
+    );
+    const [lamellae] = byType(migrated, LAMELLAE);
+    const [curve] = byType(migrated, CURVE);
+    expect(lamellae.props).toEqual({ free_distance: 0, decurrent: 0.014 });
+    expect(curve.props).toEqual({ curve: [0, 1, 1, 0.12], min: 0, max: 0.0035 });
+    expect(curve.exposed).toBeUndefined();
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([[1, 0, 2, 'cap'], [2, 0, 3, 'b'], [curve.id, 0, 2, 'depth']])
+    );
+    expect(migrated.edges).toHaveLength(3);
+  });
+
+  it('draws the old default curve and depth when none were saved', () => {
+    const migrated = migrateGraph(v10([node(1, LAMELLAE)]));
+    const [curve] = byType(migrated, CURVE);
+    expect(curve.props).toEqual({ curve: OLD_CURVE, min: 0, max: 0.004 });
+    expect(byType(migrated, LAMELLAE)[0].props).toEqual({});
+  });
+
+  it('multiplies a depth that comes from a node by the curve through its max', () => {
+    const migrated = migrateGraph(
+      v10(
+        [node(1, CURVE, { curve: [0, 0, 1, 1], min: 0.0005 }), node(2, LAMELLAE, { depth: 0.002 })],
+        [[1, 0, 2, 'depth']]
+      )
+    );
+    const added = byType(migrated, CURVE).find((n) => n.id !== 1)!;
+    expect(added.props).toEqual({ curve: OLD_CURVE, min: 0 });
+    expect(added.exposed).toEqual(['max']);
+    expect(migrated.edges).toEqual([[1, 0, added.id, 'max'], [added.id, 0, 2, 'depth']]);
+    expect(byType(migrated, LAMELLAE)[0].props).toEqual({});
+  });
+
+  it('adds no curve for a depth curve that is 1 all along', () => {
+    const migrated = migrateGraph(
+      v10(
+        [node(1, 'max/plantarium/float'), node(2, LAMELLAE, { depth_curve: [0, 1, 1, 1] })],
+        [[1, 0, 2, 'depth']]
+      )
+    );
+    expect(byType(migrated, CURVE)).toEqual([]);
+    expect(migrated.edges).toEqual([[1, 0, 2, 'depth']]);
+  });
+
+  it('turns a blunt lamellae into ridges with the values it had', () => {
+    const migrated = migrateGraph(
+      v10(
+        [
+          node(1, LAMELLAE, { depth: 0.0012, free_distance: 0, blunt: 1, edge_wave: 0.4 }),
+          node(2, 'max/plantarium/float')
+        ],
+        [[2, 0, 1, 'free_distance']]
+      )
+    );
+    expect(byType(migrated, LAMELLAE)).toEqual([]);
+    const [ridges] = byType(migrated, RIDGES);
+    expect(ridges.id).toBe(1);
+    expect(ridges.props).toEqual({ decurrent: 0, thickness: 0.0003, edge_wave: 0.4 });
+    const [curve] = byType(migrated, CURVE);
+    expect(curve.props).toMatchObject({ max: 0.0012 });
+    expect(migrated.edges).toEqual([[curve.id, 0, 1, 'depth']]);
+  });
+
+  it('keeps thin and half blunt gills as lamellae', () => {
+    const migrated = migrateGraph(
+      v10([node(1, LAMELLAE, { blunt: 0.5, free_distance: 0.002 })])
+    );
+    const [lamellae] = byType(migrated, LAMELLAE);
+    expect(lamellae.props).toEqual({ free_distance: 0.002 });
+    expect(byType(migrated, RIDGES)).toEqual([]);
+  });
+
+  it('drops the exposed inputs that are gone', () => {
+    const old = node(1, LAMELLAE, { blunt: 1 });
+    old.exposed = ['depth', 'depth_curve', 'blunt', 'free_distance', 'thickness'];
+    const [ridges] = byType(migrateGraph(v10([old])), RIDGES);
+    expect(ridges.exposed).toEqual(['depth', 'thickness']);
+  });
+
+  it('migrates inside groups, and the new nodes do not share ids with other levels', () => {
+    const old = v10([node(1, '__internal/group/instance', { groupId: 20 })]);
+    old.groups = [
+      {
+        id: 20,
+        nodes: [
+          node(10, '__internal/group/input'),
+          node(11, '__internal/group/output'),
+          node(12, LAMELLAE, { thickness: 0.0003 })
+        ],
+        edges: [[10, 0, 12, 'cap'], [10, 1, 12, 'depth'], [12, 0, 11, 'out_0']]
+      } as unknown as NonNullable<Graph['groups']>[number]
+    ];
+    const migrated = migrateGraph(old);
+    const [group] = migrated.groups!;
+    const [curve] = byType(group, CURVE);
+    const ids = [1, group.id, ...group.nodes.map((n) => n.id)];
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(group.edges).toEqual(
+      expect.arrayContaining([
+        [10, 0, 12, 'cap'],
+        [10, 1, curve.id, 'max'],
+        [curve.id, 0, 12, 'depth'],
+        [12, 0, 11, 'out_0']
+      ])
+    );
+    expect(group.edges).toHaveLength(4);
   });
 });

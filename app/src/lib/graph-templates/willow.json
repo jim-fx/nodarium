@@ -1,5 +1,5 @@
 {
-  "version": 10,
+  "version": 11,
   "groups": [],
   "settings": { "resolution.circle": 24, "resolution.curve": 40 },
   "nodes": [

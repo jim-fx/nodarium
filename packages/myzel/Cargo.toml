@@ -11,3 +11,4 @@ crate-type = ["rlib"]
 [dependencies]
 glam = "0.34.1"
 nodarium_utils = { version = "0.1.0", path = "../utils" }
+noise = "0.9.0"

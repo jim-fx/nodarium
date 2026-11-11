@@ -3,6 +3,7 @@ import { createLogger } from '@nodarium/utils';
 import { capAtPoints } from './cap-at-points';
 import { removeInputs, renameInputs, replaceNodes, wiredInputs } from './helpers';
 import { joinMeshes } from './join-meshes';
+import { lamellaeRidges } from './lamellae-ridges';
 import { lopsidedByRadius } from './lopsided-by-radius';
 import { outputMesh } from './output-mesh';
 import { setMeshColor } from './set-mesh-color';
@@ -120,6 +121,12 @@ export const MIGRATIONS: Migration[] = [
     description:
       'strands only fills the tube, a twist node turns the strands and a random_break behind it ends some of them short of the tip',
     migrate: strandsTubeOnly
+  },
+  {
+    version: 11,
+    description:
+      'lamellae reads its depth along the gill and lost depth_curve and blunt, a curve node into the depth shapes it and ridges makes the blunt folds',
+    migrate: lamellaeRidges
   }
 ];
 

@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 10,
+  "version": 11,
   "settings": {
     "time.t": 1,
     "resolution.field": 128,
@@ -1038,6 +1038,29 @@
           }
         },
         {
+          "id": 66,
+          "position": [-85, -36.25],
+          "type": "max/plantarium/curve",
+          "props": {
+            "curve": [
+              0,
+              0.3,
+              0.2,
+              0.85,
+              0.45,
+              1,
+              0.8,
+              0.65,
+              1,
+              0.1
+            ],
+            "min": 0
+          },
+          "exposed": [
+            "max"
+          ]
+        },
+        {
           "id": 52,
           "position": [-90, 86.25],
           "type": "max/plantarium/curve",
@@ -1107,8 +1130,8 @@
         [
           29,
           0,
-          30,
-          "depth"
+          66,
+          "max"
         ],
         [
           54,
@@ -1151,6 +1174,12 @@
           0,
           54,
           "color"
+        ],
+        [
+          66,
+          0,
+          30,
+          "depth"
         ]
       ],
       "inputs": {
