@@ -51,6 +51,12 @@ const PATH_MAKERS = new Set([
   ].map((name) => `max/plantarium/${name}`)
 ]);
 
+/** `separate` gives the rest of the paths from its second output */
+function givesPath(type: string | undefined, output: number) {
+  if (output === 0) return PATH_MAKERS.has(type ?? '');
+  return output === 1 && type === 'max/plantarium/separate';
+}
+
 const DIVIDE = 3;
 const PATH_LENGTH = 5;
 
@@ -271,10 +277,9 @@ export function membraneSkirts(graph: Graph) {
       // an input resolves to its last edge at runtime
       const feeds = scope.edges.filter((e) => e[2] === node.id && e[3] === 'b');
       const source = feeds[feeds.length - 1];
-      const type = source && source[1] === 0
-        ? scope.nodes.find((n) => n.id === source[0])?.type
-        : undefined;
-      if (PATH_MAKERS.has(type ?? '')) fedByPath.add(node);
+      if (source && givesPath(scope.nodes.find((n) => n.id === source[0])?.type, source[1])) {
+        fedByPath.add(node);
+      }
     }
   }
   return replaceNodes(
