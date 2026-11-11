@@ -1,0 +1,56 @@
+{
+  "id": "max/myzel/skirt",
+  "meta": {
+    "description": "A thin skin that hangs from one attachment with a ragged edge, like the ring a torn veil leaves on the stipe or the fringe it leaves on the cap margin. Around a point on a path it hangs from the path all around; from a ring of points, like a margin, it hangs on the inside. Gives the skin as a thin sheet mesh, which stays sharp at any mesh resolution."
+  },
+  "outputs": [
+    "mesh"
+  ],
+  "inputs": {
+    "attachment": {
+      "type": "points",
+      "external": true,
+      "description": "Where the skin hangs from. A point on a path, e.g. from points_on_path on the stipe: the skin goes around the path there, at its thickness and across its tangent. A ring of points, e.g. a cap margin: the skin hangs from the ring."
+    },
+    "length": {
+      "type": "float",
+      "description": "How long the skin hangs, from where it is attached to its torn edge. The seed makes the edge wander around it. 0 = no skin.",
+      "value": 0.006,
+      "min": 0,
+      "max": 0.05,
+      "step": 0.0005,
+      "unit": "m"
+    },
+    "flare": {
+      "type": "float",
+      "description": "How the skin hangs, read along it from where it is attached (alpha 0) to its edge (1): 0 = straight down, 1 = straight out, away from a path or in from a ring. A curve node into it shapes the skin.",
+      "value": 0.25,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    "thickness": {
+      "type": "float",
+      "description": "Thickness of the skin, it thins towards its edge",
+      "value": 0.001,
+      "min": 0,
+      "max": 0.01,
+      "step": 0.0001,
+      "unit": "m"
+    },
+    "seed": {
+      "type": "seed"
+    },
+    "resolution_curve": {
+      "type": "integer",
+      "description": "Points along a strand from where the skin is attached to its edge",
+      "value": 24,
+      "min": 4,
+      "max": 64,
+      "setting": "resolution.curve"
+    },
+    "creator": {
+      "type": "creator"
+    }
+  }
+}

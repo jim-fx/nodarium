@@ -6,6 +6,7 @@ import { joinMeshes } from './join-meshes';
 import { lamellaeRidges } from './lamellae-ridges';
 import { lopsidedByRadius } from './lopsided-by-radius';
 import { marginCurveRandom } from './margin-curve-random';
+import { membraneSkirts } from './membrane-skirts';
 import { outputMesh } from './output-mesh';
 import { setMeshColor } from './set-mesh-color';
 import { splitCap, wiredCapInputs } from './split-cap';
@@ -134,6 +135,12 @@ export const MIGRATIONS: Migration[] = [
     description:
       'margin_curl lost reach and margin_waves lost irregularity and seed, the amount is read along the ray and the amplitude for every lobe, a curve and a random node shape them',
     migrate: marginCurveRandom
+  },
+  {
+    version: 13,
+    description:
+      'membrane is the closed skin and wraps around a point in b, a points_on_path places it, and skirt nodes hang the ring and the fringe once it has torn',
+    migrate: membraneSkirts
   }
 ];
 

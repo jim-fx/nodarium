@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 12,
+  "version": 13,
   "settings": {
     "time.t": 1,
     "resolution.field": 128,
@@ -1294,7 +1294,7 @@
       "nodes": [
         {
           "id": 31,
-          "position": [-120, 51.25],
+          "position": [-175, 51.25],
           "type": "__internal/group/input",
           "props": {}
         },
@@ -1306,7 +1306,7 @@
         },
         {
           "id": 33,
-          "position": [-90, 85],
+          "position": [-150, 110],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -1325,7 +1325,7 @@
         },
         {
           "id": 34,
-          "position": [-90, 30],
+          "position": [-150, 30],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -1346,21 +1346,143 @@
         },
         {
           "id": 35,
-          "position": [-60, 5],
+          "position": [-75, 0],
           "type": "max/myzel/membrane",
           "props": {
-            "thickness": 0.0006,
-            "sag": 0.05,
-            "tear_position": 0.9,
-            "torn_length": 0.011
+            "sag": 0.05
+          }
+        },
+        {
+          "id": 68,
+          "position": [-100, 25],
+          "type": "max/plantarium/points_on_path",
+          "props": {
+            "amount": 1
           },
           "exposed": [
-            "torn_length"
+            "lowest_point",
+            "highest_point"
           ]
         },
         {
+          "id": 69,
+          "position": [-100, 105],
+          "type": "max/plantarium/curve",
+          "props": {
+            "curve": [
+              0,
+              0.45,
+              0.4,
+              0.25,
+              1,
+              0.12
+            ],
+            "min": 0,
+            "max": 1
+          },
+          "exposed": [
+            "min"
+          ]
+        },
+        {
+          "id": 70,
+          "position": [-75, 40],
+          "type": "max/myzel/skirt",
+          "props": {
+            "thickness": 0.0006
+          }
+        },
+        {
+          "id": 71,
+          "position": [-100, 55],
+          "type": "max/plantarium/curve",
+          "props": {
+            "curve": [
+              0,
+              0,
+              0.25,
+              0,
+              0.26,
+              1,
+              1,
+              1
+            ],
+            "min": 0,
+            "max": 0.00693
+          }
+        },
+        {
+          "id": 72,
+          "position": [-75, 75],
+          "type": "max/myzel/skirt",
+          "props": {
+            "thickness": 0.0006
+          }
+        },
+        {
+          "id": 73,
+          "position": [-100, 80],
+          "type": "max/plantarium/curve",
+          "props": {
+            "curve": [
+              0,
+              0,
+              0.25,
+              0,
+              0.26,
+              1,
+              1,
+              1
+            ],
+            "min": 0,
+            "max": 0.00077
+          }
+        },
+        {
+          "id": 74,
+          "position": [-125, 110],
+          "type": "max/plantarium/curve",
+          "props": {
+            "curve": [
+              0,
+              0.55,
+              0.25,
+              0.55,
+              0.8,
+              0,
+              1,
+              0
+            ]
+          }
+        },
+        {
+          "id": 75,
+          "position": [-100, -15],
+          "type": "max/plantarium/curve",
+          "props": {
+            "curve": [
+              0,
+              1,
+              0.25,
+              1,
+              0.26,
+              0,
+              1,
+              0
+            ],
+            "min": 0,
+            "max": 0.0006
+          }
+        },
+        {
+          "id": 76,
+          "position": [-50, 10],
+          "type": "max/myzel/join_meshes",
+          "props": {}
+        },
+        {
           "id": 55,
-          "position": [-30, 0],
+          "position": [-25, 0],
           "type": "max/myzel/set_mesh_color"
         }
       ],
@@ -1397,21 +1519,51 @@
         ],
         [
           31,
+          0,
+          72,
+          "attachment"
+        ],
+        [
+          31,
           1,
-          35,
-          "b"
+          68,
+          "plant"
         ],
         [
           33,
           0,
-          35,
-          "tear"
+          71,
+          "value"
+        ],
+        [
+          33,
+          0,
+          73,
+          "value"
+        ],
+        [
+          33,
+          0,
+          74,
+          "value"
+        ],
+        [
+          33,
+          0,
+          75,
+          "value"
         ],
         [
           34,
           0,
-          35,
-          "along"
+          68,
+          "lowest_point"
+        ],
+        [
+          34,
+          0,
+          68,
+          "highest_point"
         ],
         [
           55,
@@ -1420,7 +1572,7 @@
           "out_0"
         ],
         [
-          35,
+          76,
           0,
           55,
           "mesh"
@@ -1430,6 +1582,72 @@
           5,
           55,
           "color"
+        ],
+        [
+          68,
+          0,
+          35,
+          "b"
+        ],
+        [
+          69,
+          0,
+          70,
+          "flare"
+        ],
+        [
+          68,
+          0,
+          70,
+          "attachment"
+        ],
+        [
+          71,
+          0,
+          70,
+          "length"
+        ],
+        [
+          69,
+          0,
+          72,
+          "flare"
+        ],
+        [
+          73,
+          0,
+          72,
+          "length"
+        ],
+        [
+          74,
+          0,
+          69,
+          "min"
+        ],
+        [
+          75,
+          0,
+          35,
+          "thickness"
+        ],
+        [
+          35,
+          0,
+          76,
+          "a"
+        ],
+        [
+          70,
+          0,
+          76,
+          "b"
+        ],
+        [
+          72,
+          0,
+          76,
+          "c"
         ]
       ],
       "inputs": {

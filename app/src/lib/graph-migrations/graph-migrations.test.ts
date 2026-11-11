@@ -1716,3 +1716,250 @@ describe('version 12: a curve shapes the curl, a random the height of every lobe
     expect(group.edges).toHaveLength(7);
   });
 });
+
+describe('version 13: membrane wraps around a point, skirts hang the ring and the fringe', () => {
+  const v12 = (nodes: SerializedNode[], edges: Graph['edges'] = []): Graph => ({
+    ...graph(nodes, edges),
+    version: 12
+  });
+  const MEMBRANE = 'max/myzel/membrane';
+  const SKIRT = 'max/myzel/skirt';
+  const POINTS = 'max/plantarium/points_on_path';
+  const CURVE = 'max/plantarium/curve';
+  const MATH = 'max/plantarium/math';
+  const JOIN = 'max/myzel/join_meshes';
+  const OLD_FLARE = [0, 0.45, 0.4, 0.25, 1, 0.12];
+  const byType = (g: { nodes: SerializedNode[] }, type: string) =>
+    g.nodes.filter((n) => n.type === type);
+  // a stipe into b, a margin into a, the membrane into an output
+  const veil = (props: SerializedNode['props'], edges: Graph['edges'] = []) =>
+    v12(
+      [
+        node(1, 'max/plantarium/stem'),
+        node(2, 'max/myzel/cap_margin'),
+        node(3, MEMBRANE, props),
+        node(4, 'max/myzel/output'),
+        node(5, CURVE)
+      ],
+      [[1, 0, 3, 'b'], [2, 0, 3, 'a'], [3, 0, 4, 'mesh'], ...edges]
+    );
+
+  it('places the membrane with a points_on_path at along and drops the other inputs', () => {
+    const migrated = migrateGraph(
+      veil({ along: 0.7, attachment: 0.5, thickness: 0.002, sag: 0.1, flare: [0, 1, 1, 1] })
+    );
+    const [membrane] = byType(migrated, MEMBRANE);
+    const [points] = byType(migrated, POINTS);
+    expect(membrane.props).toEqual({ thickness: 0.002, sag: 0.1 });
+    expect(points.props).toEqual({ amount: 1, lowest_point: 0.7, highest_point: 0.7 });
+    expect(byType(migrated, SKIRT)).toHaveLength(0);
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([
+        [1, 0, points.id, 'plant'],
+        [points.id, 0, 3, 'b'],
+        [2, 0, 3, 'a'],
+        [3, 0, 4, 'mesh']
+      ])
+    );
+    expect(migrated.edges).toHaveLength(4);
+  });
+
+  it('wires an along from a node into the lowest and highest point', () => {
+    const migrated = migrateGraph(veil({}, [[5, 0, 3, 'along']]));
+    const [points] = byType(migrated, POINTS);
+    expect(points.props).toEqual({ amount: 1 });
+    expect(points.exposed).toEqual(['lowest_point', 'highest_point']);
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([
+        [5, 0, points.id, 'lowest_point'],
+        [5, 0, points.id, 'highest_point']
+      ])
+    );
+  });
+
+  it('holds an anchor by dividing it by the length of the path', () => {
+    const migrated = migrateGraph(veil({ anchor: 0.025 }));
+    const [points] = byType(migrated, POINTS);
+    const [share] = byType(migrated, MATH);
+    const [length] = byType(migrated, 'max/plantarium/path_info');
+    expect(share.props).toEqual({ op_type: 3, a: 0.025 });
+    expect(length.props).toEqual({ info: 5 });
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([
+        [length.id, 0, share.id, 'b'],
+        [share.id, 0, points.id, 'lowest_point'],
+        [share.id, 0, points.id, 'highest_point'],
+        [points.id, 0, 3, 'b']
+      ])
+    );
+  });
+
+  it('leaves a membrane alone whose b is a ring of points, along and anchor were no-ops there', () => {
+    const migrated = migrateGraph({
+      ...veil({ along: 0.7, anchor: 0.02, sag: 0.1 }),
+      nodes: [
+        node(1, 'max/plantarium/points_on_path'),
+        node(2, 'max/myzel/cap_margin'),
+        node(3, MEMBRANE, { along: 0.7, anchor: 0.02, sag: 0.1 }),
+        node(4, 'max/myzel/output')
+      ]
+    });
+    expect(byType(migrated, POINTS)).toHaveLength(1);
+    expect(byType(migrated, 'max/plantarium/path_info')).toHaveLength(0);
+    expect(byType(migrated, MATH)).toHaveLength(0);
+    expect(byType(migrated, MEMBRANE)[0].props).toEqual({ sag: 0.1 });
+    expect(migrated.edges).toEqual([[1, 0, 3, 'b'], [2, 0, 3, 'a'], [3, 0, 4, 'mesh']]);
+  });
+
+  it('hangs the ring of a torn membrane from the points in b instead of placing a spot', () => {
+    const migrated = migrateGraph({
+      ...veil({ tear: 0.5, torn_length: 0.01 }),
+      nodes: [
+        node(1, 'max/plantarium/points_on_path'),
+        node(2, 'max/myzel/cap_margin'),
+        node(3, MEMBRANE, { tear: 0.5, torn_length: 0.01 }),
+        node(4, 'max/myzel/output')
+      ]
+    });
+    expect(byType(migrated, POINTS)).toHaveLength(1);
+    const [ring, fringe] = byType(migrated, SKIRT);
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([[1, 0, ring.id, 'attachment'], [2, 0, fringe.id, 'attachment']])
+    );
+  });
+
+  it('leaves a membrane without along or anchor on its path, level with a', () => {
+    const migrated = migrateGraph(veil({ attachment: -0.5, sag: 0.2 }));
+    expect(byType(migrated, POINTS)).toHaveLength(0);
+    expect(byType(migrated, MEMBRANE)[0].props).toEqual({ sag: 0.2 });
+    expect(migrated.edges).toEqual([[1, 0, 3, 'b'], [2, 0, 3, 'a'], [3, 0, 4, 'mesh']]);
+  });
+
+  it('hangs a ring and a fringe from a tear that comes from a node, the membrane goes at the switch', () => {
+    const migrated = migrateGraph(
+      veil(
+        { along: 0.75, thickness: 0.0006, tear_position: 0.9, torn_length: 0.011, seed: 4 },
+        [[5, 0, 3, 'tear']]
+      )
+    );
+    const [membrane] = byType(migrated, MEMBRANE);
+    const [points] = byType(migrated, POINTS);
+    const [ring, fringe] = byType(migrated, SKIRT);
+    const [join] = byType(migrated, JOIN);
+    const curves = byType(migrated, CURVE).filter((n) => n.id !== 5);
+    const into = (id: number, input: string) =>
+      curves.find((c) =>
+        migrated.edges.some((e) => e[0] === c.id && e[2] === id && e[3] === input)
+      )!;
+    expect(membrane.props).toEqual({});
+    expect(ring.props).toEqual({ thickness: 0.0006, seed: 4 });
+    // the old parts less the recoil, they grow in at the switch
+    expect(into(ring.id, 'length').props).toEqual({
+      curve: [0, 0, 0.25, 0, 0.26, 1, 1, 1],
+      min: 0,
+      max: 0.00693
+    });
+    expect(into(fringe.id, 'length').props!.max).toBeCloseTo(0.00077);
+    expect(into(3, 'thickness').props).toEqual({
+      curve: [0, 1, 0.25, 1, 0.26, 0, 1, 0],
+      min: 0,
+      max: 0.0006
+    });
+    const flare = into(ring.id, 'flare');
+    expect(flare.props).toEqual({ curve: OLD_FLARE, min: 0, max: 1 });
+    expect(flare.exposed).toEqual(['min']);
+    expect(into(flare.id, 'min').props).toEqual({ curve: [0, 0.55, 0.25, 0.55, 0.8, 0, 1, 0] });
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([
+        [points.id, 0, 3, 'b'],
+        [points.id, 0, ring.id, 'attachment'],
+        [2, 0, fringe.id, 'attachment'],
+        [flare.id, 0, fringe.id, 'flare'],
+        [3, 0, join.id, 'a'],
+        [ring.id, 0, join.id, 'b'],
+        [fringe.id, 0, join.id, 'c'],
+        [join.id, 0, 4, 'mesh']
+      ])
+    );
+    // the tear drives the switches and the fall
+    expect(migrated.edges.filter((e) => e[0] === 5)).toHaveLength(4);
+  });
+
+  it('gives a membrane torn all round only its skirts, hanging at their flare', () => {
+    const migrated = migrateGraph(veil({ along: 0.75, tear: 1, tear_position: 0.5 }));
+    expect(byType(migrated, MEMBRANE)).toHaveLength(0);
+    const skirts = byType(migrated, SKIRT);
+    // as long as a span of 1 cm made them, without a torn length
+    expect(skirts.map((s) => s.props)).toEqual([
+      { length: 0.0035, thickness: 0.001 },
+      { length: 0.0035, thickness: 0.001 }
+    ]);
+    const [flare] = byType(migrated, CURVE).filter((n) => n.id !== 5);
+    expect(flare.props).toEqual({ curve: OLD_FLARE, min: 0, max: 1 });
+    const [join] = byType(migrated, JOIN);
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([[2, 0, skirts[1].id, 'attachment'], [join.id, 0, 4, 'mesh']])
+    );
+    expect(migrated.edges.some((e) => e[0] === 2 && e[2] === 3)).toBe(false);
+  });
+
+  it('leaves out a fringe the tear left too short, and places the ring when the membrane followed a', () => {
+    const migrated = migrateGraph(veil({ tear: 0.5, tear_position: 0.99 }));
+    const skirts = byType(migrated, SKIRT);
+    expect(skirts).toHaveLength(1);
+    const [points] = byType(migrated, POINTS);
+    expect(points.props).toEqual({ amount: 1, lowest_point: 0.75, highest_point: 0.75 });
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([
+        [1, 0, points.id, 'plant'],
+        [points.id, 0, skirts[0].id, 'attachment']
+      ])
+    );
+    // half way to fallen
+    const [flare] = byType(migrated, CURVE).filter((n) => n.id !== 5);
+    expect(flare.props!.min).toBeCloseTo(0.55 * (1 - 0.25 / 0.55), 5);
+  });
+
+  it('drops the exposed inputs that are gone', () => {
+    const membrane = node(1, MEMBRANE, { torn_length: 0.01 });
+    membrane.exposed = ['torn_length', 'sag'];
+    const migrated = migrateGraph(v12([membrane]));
+    expect(byType(migrated, MEMBRANE)[0].exposed).toEqual(['sag']);
+  });
+
+  it('migrates inside groups, and the new nodes do not share ids with other levels', () => {
+    const old = v12([node(1, '__internal/group/instance', { groupId: 20 })]);
+    old.groups = [
+      {
+        id: 20,
+        nodes: [
+          node(10, '__internal/group/input'),
+          node(11, '__internal/group/output'),
+          node(12, MEMBRANE, { tear_position: 0.9, torn_length: 0.011 }),
+          node(13, 'max/plantarium/stem')
+        ],
+        edges: [
+          [10, 0, 12, 'a'],
+          [13, 0, 12, 'b'],
+          [10, 2, 12, 'along'],
+          [10, 3, 12, 'tear'],
+          [12, 0, 11, 'out_0']
+        ]
+      } as unknown as NonNullable<Graph['groups']>[number]
+    ];
+    const migrated = migrateGraph(old);
+    const [group] = migrated.groups!;
+    const ids = [1, group.id, ...group.nodes.map((n) => n.id)];
+    expect(new Set(ids).size).toBe(ids.length);
+    const [points] = byType(group, POINTS);
+    const [join] = byType(group, JOIN);
+    expect(group.edges).toEqual(
+      expect.arrayContaining([
+        [13, 0, points.id, 'plant'],
+        [10, 2, points.id, 'lowest_point'],
+        [points.id, 0, 12, 'b'],
+        [join.id, 0, 11, 'out_0']
+      ])
+    );
+  });
+});
