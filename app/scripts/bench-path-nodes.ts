@@ -183,6 +183,8 @@ function check(label: string, result: Int32Array) {
 const STIPE = { length: 0.05, thickness: 0.007, taper: 0.25, resolution_curve: 24 };
 /** One point at the tip of every path, where the cap sits */
 const TIP = { amount: 1, lowest_point: 1, highest_point: 1 };
+// where the veil holds on the stipe, in its upper third
+const RING = { amount: 1, lowest_point: 0.75, highest_point: 0.75 };
 // as thick as in a groomed stipe, where 200 strands of 0.5 mm fill a 7 mm stipe, so
 // more strands get thinner and fill the guide about as densely
 const strands = (amount: number, guideThickness = STIPE.thickness) => ({
@@ -285,7 +287,9 @@ if (wanted('cap')) {
     const [curled] = step('myzel/margin_curl', { cap: waved }, { amount: 0.2 });
     const [opened] = step('myzel/cap_open', { cap: curled }, { opening: 0.8 });
     const [margin] = step('myzel/cap_margin', { cap: opened }, {});
-    step('myzel/membrane', { a: margin, b: stem }, { tear: 0.5 });
+    const [ring] = step('plantarium/points_on_path', { plant: stem }, RING);
+    step('myzel/membrane', { a: margin, b: ring }, {});
+    step('myzel/skirt', { attachment: ring }, { length: 0.007 });
     const [pattern] = step('myzel/reaction_diffusion', {}, {
       radius: 0.03,
       inner_radius: 0.0065,
@@ -386,7 +390,14 @@ if (wanted('chain')) {
       'cap: plantarium/random_break'
     );
     const [margin] = step('myzel/cap_margin', { cap: opened }, {}, 'veil: myzel/cap_margin');
-    step('myzel/membrane', { a: margin, b: stem }, { tear: 0.5 }, 'veil: myzel/membrane');
+    const [ring] = step(
+      'plantarium/points_on_path',
+      { plant: stem },
+      RING,
+      'veil: plantarium/points_on_path'
+    );
+    step('myzel/membrane', { a: margin, b: ring }, {}, 'veil: myzel/membrane');
+    step('myzel/skirt', { attachment: ring }, { length: 0.007 }, 'veil: myzel/skirt');
     const [pattern] = step('myzel/reaction_diffusion', {}, {
       radius: 0.027,
       inner_radius: 0.00625,

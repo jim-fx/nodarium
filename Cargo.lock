@@ -121,7 +121,6 @@ dependencies = [
  "myzel_core",
  "nodarium_macros",
  "nodarium_utils",
- "noise",
 ]
 
 [[package]]
@@ -200,6 +199,17 @@ dependencies = [
  "nodarium_macros",
  "nodarium_utils",
  "serde_json",
+]
+
+[[package]]
+name = "myzel_skirt"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "myzel_core",
+ "nodarium_macros",
+ "nodarium_utils",
+ "noise",
 ]
 
 [[package]]

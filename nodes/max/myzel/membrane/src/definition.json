@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/membrane",
   "meta": {
-    "description": "A thin skin between two attachments, like the veil between the cap margin and the stipe. It tears along a ragged line: the part on b falls into a skirt (the ring), the part on a stays as a fringe. Gives the skin as a thin sheet mesh, which stays sharp at any mesh resolution."
+    "description": "A thin closed skin between two attachments, like the veil between the cap margin and the stipe before it tears. Gives the skin as a thin sheet mesh, which stays sharp at any mesh resolution. Once it has torn, two skirt nodes hang the ring from the stipe and the fringe from the margin."
   },
   "outputs": [
     "mesh"
@@ -21,36 +21,11 @@
         "path"
       ],
       "external": true,
-      "description": "The second attachment, e.g. the stipe. A ring of points in a wraps around a path here, other attachments are joined as they are."
-    },
-    "attachment": {
-      "type": "float",
-      "description": "Where the membrane wraps around a path in b: 0 = level with a, 1 = the tip of the path, -1 = its base",
-      "value": 0,
-      "min": -1,
-      "max": 1,
-      "step": 0.01
-    },
-    "anchor": {
-      "type": "float",
-      "description": "Holds the membrane on a path in b this far from its base, measured along it, instead of following a with attachment. It stays put while b grows and a moves, like the ring of a mushroom whose stipe lengthens above it. 0 = attachment places it.",
-      "value": 0,
-      "min": 0,
-      "max": 0.5,
-      "step": 0.0005,
-      "unit": "m"
-    },
-    "along": {
-      "type": "float",
-      "description": "Holds the membrane on a path in b at this share of its length from its base, like a ring in the upper third of a stipe at 0.7. It keeps that share while b grows, so a longer stipe keeps its ring in the upper third. 0 = anchor or attachment places it.",
-      "value": 0,
-      "min": 0,
-      "max": 1,
-      "step": 0.01
+      "description": "The second attachment. A ring of points in a wraps around a point here, at the thickness of its path and across its tangent: a points_on_path on the stipe places the ring. Around a path it wraps level with a, a ring of points around the same axis is joined ring to ring, other attachments are joined as they are."
     },
     "thickness": {
       "type": "float",
-      "description": "Thickness of the skin",
+      "description": "Thickness of the skin, 0 = no skin",
       "value": 0.001,
       "min": 0,
       "max": 0.01,
@@ -65,51 +40,9 @@
       "max": 1,
       "step": 0.01
     },
-    "tear": {
-      "type": "float",
-      "description": "How far it has torn: 0 = intact, at 0.5 it has torn all the way round, at 1 the parts hang free",
-      "value": 0,
-      "min": 0,
-      "max": 1,
-      "step": 0.01
-    },
-    "tear_position": {
-      "type": "float",
-      "description": "Where it tears, 0 = at b (the stipe), 1 = at a (the margin)",
-      "value": 0.95,
-      "min": 0,
-      "max": 1,
-      "step": 0.01
-    },
-    "torn_length": {
-      "type": "float",
-      "hidden": true,
-      "description": "How long the skin was when it tore. The torn parts share this length by tear_position and keep it while a and b move further apart, so a ring stays short while the cap opens. 0 = the parts stretch with the distance between a and b.",
-      "value": 0,
-      "min": 0,
-      "max": 0.1,
-      "step": 0.0005,
-      "unit": "m"
-    },
-    "flare": {
-      "type": "curve",
-      "label": "Flare of the torn parts",
-      "description": "How a torn part hangs, from where it is attached (left) to its torn edge (right): 0 = straight down, 1 = straight out towards the other side",
-      "value": [
-        0,
-        0.45,
-        0.4,
-        0.25,
-        1,
-        0.12
-      ]
-    },
-    "seed": {
-      "type": "seed"
-    },
     "resolution_curve": {
       "type": "integer",
-      "description": "Points along a strand from one attachment to the other, torn parts get their share",
+      "description": "Points along a strand from one attachment to the other",
       "value": 24,
       "min": 4,
       "max": 64,

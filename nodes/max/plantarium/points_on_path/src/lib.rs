@@ -149,6 +149,31 @@ mod tests {
     }
 
     #[test]
+    fn a_distance_over_the_path_length_holds_a_point_while_the_path_grows() {
+        // math(divide, 1.5, path_info(length)) into lowest and highest point, like an anchor
+        // that stays 1.5 from the base of the stem
+        let length = nodarium_utils::concat_args(vec![&[5], &[5]]);
+        let share = nodarium_utils::concat_args(vec![&[0], &[3], &[encode_float(1.5)], &length]);
+        for height in [2.0, 3.0, 4.0] {
+            let mut stem = create_multiple_paths(1, 5, 1, 3);
+            for (i, p) in wrap_multiple_paths(&mut stem)[0].points.chunks_exact_mut(4).enumerate() {
+                p.copy_from_slice(&[0.0, height * i as f32 / 4.0, 0.0, 0.1]);
+            }
+            let points = decode_points(&__nodarium_execute_inner(&[
+                &stem,
+                &[1],
+                &share,
+                &share,
+                &[encode_float(0.0)],
+                &[encode_float(0.0)],
+                &[1],
+            ]));
+            assert_eq!(points.len(), 1);
+            assert!((points[0].position.y - 1.5).abs() < 1e-4, "at {} on a stem {height} tall", points[0].position.y);
+        }
+    }
+
+    #[test]
     fn no_paths_give_no_points() {
         let empty = nodarium_utils::concat_arg_vecs(vec![]);
         assert!(decode_points(&run(&empty, 3, 0.0)).is_empty());

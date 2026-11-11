@@ -118,8 +118,13 @@ describe.skipIf(!BUILT && !ON_CI)('the groomed Champignon matures with time', ()
       rays: [of('max/myzel/cap_open'), 0],
       capRays: [cap, 0]
     } as const;
+    // the closed veil of membrane and the ring and fringe of the skirts, joined
+    const veil = base.edges.find((e) =>
+      e[0] === of('max/myzel/membrane')
+      && base.nodes.find((n) => n.id === e[2])!.type === 'max/myzel/join_meshes'
+    )![2];
     const meshes = {
-      skin: [of('max/myzel/membrane'), 0],
+      skin: [veil, 0],
       gills: [of('max/myzel/lamellae'), 0]
     } as const;
     const run = async (t: number, debugged: Record<string, readonly [number, number]>) => {
@@ -223,6 +228,32 @@ describe.skipIf(!BUILT && !ON_CI)('the groomed Champignon matures with time', ()
       expect(widest, `t = ${s.t}`).toBeLessThan(reach);
       expect(highest, `t = ${s.t}`).toBeLessThan(top);
     }
+  });
+
+  it('closes the veil between the margin and the stipe on the button, a ring in the upper third when open', () => {
+    const radii = (s: Stage) => {
+      const r: number[] = [];
+      for (let i = 0; i < s.skin.positions.length; i += 3) {
+        r.push(plane(s, Array.from(s.skin.positions.subarray(i, i + 3)) as Vec)[0]);
+      }
+      return r;
+    };
+    // closed: from the stipe out to the margin
+    const button = at(0);
+    const margin = mean(button.capRays.map((r) => plane(button, r.points.at(-1)!.p)[0]));
+    expect(Math.min(...radii(button))).toBeLessThan(button.stipe.points.at(-1)!.r);
+    expect(Math.max(...radii(button))).toBeGreaterThan(0.95 * margin);
+    // open: the top of the ring, where the skin meets the stipe, is in the upper third of it
+    const open = at(1);
+    const stipeRadius = Math.max(...open.stipe.points.map((q) => q.r));
+    let ringTop = -Infinity;
+    for (let i = 0; i < open.skin.positions.length; i += 3) {
+      const [r, h] = plane(open, Array.from(open.skin.positions.subarray(i, i + 3)) as Vec);
+      if (r < stipeRadius) ringTop = Math.max(ringTop, h);
+    }
+    const fromBase = stipeLength(open) + ringTop;
+    expect(fromBase / stipeLength(open)).toBeGreaterThan(2 / 3);
+    expect(fromBase / stipeLength(open)).toBeLessThan(0.9);
   });
 
   it('gives the veil as a thin closed skin at every stage', () => {
