@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/skirt",
   "meta": {
-    "description": "A thin skin that hangs from one attachment with a ragged edge, like the ring a torn veil leaves on the stipe or the fringe it leaves on the cap margin. Around a point on a path it hangs from the path all around; from a ring of points, like a margin, it hangs on the inside. Gives the skin as a thin sheet mesh, which stays sharp at any mesh resolution."
+    "description": "A thin skin that hangs from one attachment with a ragged edge, like the ring a torn veil leaves on the stipe or the fringe it leaves on the cap margin. Around a point on a path it hangs from the path all around; from a ring of points, like a margin, it hangs on the inside, along the points and out of the flesh of the paths they sit on. Gives the skin as a thin sheet mesh, which stays sharp at any mesh resolution."
   },
   "outputs": [
     "mesh"
@@ -10,11 +10,11 @@
     "attachment": {
       "type": "points",
       "external": true,
-      "description": "Where the skin hangs from. A point on a path, e.g. from points_on_path on the stipe: the skin goes around the path there, at its thickness and across its tangent. A ring of points, e.g. a cap margin: the skin hangs from the ring."
+      "description": "Where the skin hangs from. A point on a path, e.g. from points_on_path on the stipe: the skin goes around the path there, at its thickness and across its tangent. A ring of points, e.g. a cap margin: the skin hangs from the ring, starting inside the round end of the paths the points sit on (as thick as their scale)."
     },
     "length": {
       "type": "float",
-      "description": "How long the skin hangs, from where it is attached to its torn edge. The seed makes the edge wander around it. 0 = no skin.",
+      "description": "How long the skin hangs, from where it is attached to its torn edge. The seed makes the edge wander around it. 0 = no skin. On a ring it is read at every point, alpha around the ring: a random gives flaps of different length, 0 leaves a gap.",
       "value": 0.006,
       "min": 0,
       "max": 0.05,
@@ -23,7 +23,7 @@
     },
     "flare": {
       "type": "float",
-      "description": "How the skin hangs, read along it from where it is attached (alpha 0) to its edge (1): 0 = straight down, 1 = straight out, away from a path or in from a ring. A curve node into it shapes the skin.",
+      "description": "How the skin hangs, read along it from where it is attached (alpha 0) to its edge (1): 0 = straight down, 1 = straight out, away from a path or in from a ring. A curve node into it shapes the skin. On a ring it is read at every point, a random into the curve lets every flap hang its own way.",
       "value": 0.25,
       "min": 0,
       "max": 1,
