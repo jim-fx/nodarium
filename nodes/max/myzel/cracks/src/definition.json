@@ -1,0 +1,57 @@
+{
+  "id": "max/myzel/cracks",
+  "meta": {
+    "description": "Cracks on a disc, like the cuticle of a cap that tears into patches as the cap grows: the value is 1 in a crack and 0 on a patch. Narrow cracks between large patches are a cracked old cap, wide cracks between small patches leave scales on a pale ground. cap_pattern puts it on a cap."
+  },
+  "outputs": [
+    "pattern"
+  ],
+  "inputs": {
+    "radius": {
+      "type": "float",
+      "description": "Outer radius of the disc, measured along the cap from its axis like the pattern of the gills",
+      "value": 0.035,
+      "min": 0.001,
+      "max": 0.2,
+      "step": 0.001,
+      "unit": "m"
+    },
+    "spacing": {
+      "type": "float",
+      "description": "How far apart the middles of neighbouring patches are",
+      "value": 0.003,
+      "min": 0.0005,
+      "max": 0.05,
+      "step": 0.0001,
+      "unit": "m"
+    },
+    "width": {
+      "type": "float",
+      "description": "How wide the cracks are, 0 = none, the spacing = only small islands of the patches are left. Read from the axis (alpha 0) to the edge of the disc (alpha 1), so a curve of alpha opens them towards the margin, and a curve of time lets them open as the cap grows.",
+      "value": 0.0006,
+      "min": 0,
+      "max": 0.05,
+      "step": 0.0001,
+      "unit": "m"
+    },
+    "stretch": {
+      "type": "float",
+      "description": "How much longer the patches are along the radius than around the axis: 1 = round, over 1 = long patches that run outward like fibrils, under 1 = patches in rings around the axis",
+      "value": 1,
+      "min": 0.25,
+      "max": 4,
+      "step": 0.05
+    },
+    "softness": {
+      "type": "float",
+      "description": "How softly a crack goes over into its patches: 0 = sharp edges like a dry crust, 1 = patches that round off from their middle like soft scales",
+      "value": 0.2,
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    },
+    "seed": {
+      "type": "seed"
+    }
+  }
+}

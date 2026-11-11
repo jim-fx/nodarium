@@ -28,6 +28,7 @@ Every mushroom template is built from the same groups:
 - **Cap**: a `cap` at a point at the top of the stipe (`points_on_path` with one point at 1), posed by `fill_gaps`, `margin_waves`, `margin_curl` and `cap_open`, filled with its own `strands`. Gives the rays (with the stipe they grow on) and their strands, colored.
 - **Gills**: a `reaction_diffusion` pattern under the rays, made into plates by `lamellae` or folds by `ridges`. Gives a mesh.
 - **Veil** (only where the species has one): a `membrane` from the cap margin to a point on the stipe, and `skirt`s for the parts it tears into. Gives a mesh.
+- **Cuticle** (only where the cap has a pattern): `cap_pattern` puts patterns from `cracks` or `reaction_diffusion` on the top of the cap of the body from `hyphae_to_mesh`, before `join_meshes`. Gives the body.
 
 A group takes outcome inputs, like lengths, radii, colors and the time or the age, and gives paths or a mesh. At the top level the strands of stipe and cap are joined and go through `hyphae_to_mesh`, `join_meshes` joins that body with the gills and the veil, and `output` shows the mesh.
 
@@ -35,6 +36,7 @@ A group takes outcome inputs, like lengths, radii, colors and the time or the ag
 | -------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------- |
 | `champignon-groomed` | `time`, the groups, `join`, `hyphae_to_mesh`, `join_meshes`, `output`                                        | time, lengths and radii of button and open stipe, color                                                      | stipe, time, radii and flesh of button and open cap, profile, colors | rays, reach, time, spacing, depth, young and old color | margin, stipe, time, ring height on button and open stipe, color |
 | `chanterelle`        | one age per mushroom (`random` once per path), the groups, `join`, `hyphae_to_mesh`, `join_meshes`, `output` | age, young length, shortest and longest old length, color. Also gives the cap radius the troop is spaced for | stipe, age, radius, color                                            | rays, reach, spacing, depth, color                     | -                                                                |
+| `chestnut`           | like `champignon-groomed`, the Cuticle group between `hyphae_to_mesh` and `join_meshes`                      | as `champignon-groomed`                                                                                      | as `champignon-groomed`, brown                                       | as `champignon-groomed`                                | as `champignon-groomed`                                          |
 | `oyster`             | the groups, `join`, `hyphae_to_mesh`, `join_meshes`, `output`                                                | length, radius, color                                                                                        | stipe, radius on the short and the long side, flesh, color           | rays, reach, spacing, depth, color                     | -                                                                |
 
 ## Nodes
@@ -56,6 +58,7 @@ Points:
 Pattern:
 
 - `reaction_diffusion`: → stripes on a disc, every stripe a gill. `radius`, `inner_radius`, `spacing`, `alignment`, `irregularity`, `forking`, `steps`.
+- `cracks`: → the cracks of a cuticle torn into patches on a disc, 1 in a crack. `radius`, `spacing`, `width`, `stretch`, `softness`. Narrow cracks are a cracked old cap, wide ones leave scales, patches stretched along the radius are fibrils.
 
 Meshes:
 
@@ -65,6 +68,7 @@ Meshes:
 - `membrane`: two attachments `a` and `b` (points or paths) → the closed skin between them. `thickness`, `sag`.
 - `skirt`: one attachment → a skin that hangs from it to a torn edge. `length`, `flare`, `thickness`.
 - `set_mesh_color`: mesh → the same mesh in one color.
+- `cap_pattern`: mesh, the rays of a cap and a pattern → the mesh with the pattern on the top of the cap, as a relief and a color. `relief`, `color`, `opacity`.
 - `join_meshes`: up to four meshes → one mesh, groups and colors kept.
 
 Values and output:
@@ -95,6 +99,8 @@ These came out of the milestone "Myzel cleanup" (#212 to #224).
 | per attachment                                                                                | `membrane.thickness` and `sag`; `skirt.length` and `thickness`                                                                                       |
 | along a skin, alpha 0 where it is attached to 1 at its edge                                   | `skirt.flare`                                                                                                                                        |
 | per strand, along it                                                                          | `strands.thickness`                                                                                                                                  |
+| along a ray and per stipe                                                                     | `cap_pattern.relief` and `opacity`                                                                                                                   |
+| along the radius of the disc, alpha 0 at the axis to 1 at its edge                            | `cracks.width`                                                                                                                                       |
 
 **One age per mushroom.** A `random` with `per_path` draws one value for every path, the same in every node that reads it. The chanterelle draws one age per stipe at the top level and gives it to every group, so its stipe, the size of its cap, how far the cap opens and how much its margin curls and waves all follow the same age. The Champignon has one specimen and reads `time` instead.
 
@@ -105,5 +111,7 @@ These came out of the milestone "Myzel cleanup" (#212 to #224).
 **`membrane` and `skirt`.** `membrane` is the closed skin between two attachments, for example the margin from `cap_margin` and a point on the stipe from `points_on_path`. `skirt` hangs a skin from one attachment: around a point on a path it hangs out all around like a ring, from a ring of points it hangs on the inside like the fringe on a margin. The Champignon switches from the membrane to two skirts when the veil tears, with curves of time into their thickness and length.
 
 **Colors.** Paths get a color with `set_color`, which `hyphae_to_mesh` blends over the surface around them, meshes with `set_mesh_color`. A `mix_color` with a curve of time or age as its factor lets a color follow it, like the gills of the Champignon that darken.
+
+**Patterns on the cap.** A pattern is a disc around the axis of the cap, its radius the distance along the rays, so `lamellae`, `ridges` and `cap_pattern` find a spot of it on the same spot of the tissue however the cap is posed. `cap_pattern` puts it on the top of the cap only: on the side of the flesh that faces away from the gills, in the material group most of that top is in, so a stipe, gills or a veil joined into the mesh stay as they are. It splits the faces there until they are as fine as the pattern. The Chestnut puts two on its cap: `cracks` stretched along the radius whose width grows with a curve of time and alpha, fine scales that break up towards the margin, and wide `cracks` that open late in time, the cracks of the old cap.
 
 **Groups.** A template groups its nodes into Stipe, Cap, Gills and Veil as above, so the top level reads as the workflow. Group inputs are the outcomes someone tunes, everything else stays inside.
