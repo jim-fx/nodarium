@@ -63,8 +63,8 @@ fn end_to_end(a: &Attachment, b: &Attachment, n: usize) -> Vec<Anchor> {
 }
 
 /// The attachment in b that `attachment` of a joins: the one closest to it. A ring in a goes
-/// around the point of a row in b closest to its centre, unless that row is a ring around the
-/// same axis.
+/// around the point of a row in b closest to its centre, unless that row is a ring, which it is
+/// joined to ring to ring.
 fn partner(attachment: &Attachment, b: &[Attachment]) -> Option<(usize, Option<usize>)> {
     let centre = attachment.centre();
     let mut best: Option<(f32, usize, Option<usize>)> = None;
@@ -74,7 +74,7 @@ fn partner(attachment: &Attachment, b: &[Attachment]) -> Option<(usize, Option<u
         }
     };
     for (j, other) in b.iter().enumerate() {
-        if attachment.closed && other.path.is_none() && !other.around_axis_of(attachment) {
+        if attachment.closed && other.path.is_none() && !other.is_ring() {
             for (i, p) in other.points.iter().enumerate() {
                 offer(p.distance(centre), j, Some(i));
             }
@@ -414,6 +414,20 @@ mod tests {
             // across, not twisted round the axis
             let turn = (start.z.atan2(start.x) - end.z.atan2(end.x)).abs();
             assert!(turn.min(TAU - turn) < 0.1, "strand {} turns {}", k, turn);
+        }
+    }
+
+    #[test]
+    fn a_ring_of_points_off_the_axis_is_joined_ring_to_ring() {
+        let outer = ring(0.0, MARGIN_RADIUS, MARGIN_HEIGHT, 96, 1);
+        let inner = ring(0.004, 0.008, 0.03, 48, 2);
+        let (strands, _) = run(&encode_points(&outer), &encode_points(&inner), Params { strands: 64, ..VEIL });
+        assert_eq!(strands.len(), 64);
+        let centre = Vec3::new(0.004, 0.03, 0.0);
+        for s in &strands {
+            let (start, end) = (s[0], s[s.len() - 1]);
+            assert!((start.distance(centre) - 0.008).abs() < 1e-4, "starts {} from the ring's centre", start.distance(centre));
+            assert!((end.y - MARGIN_HEIGHT).abs() < 1e-5 && (from_axis(end) - MARGIN_RADIUS).abs() < 1e-4);
         }
     }
 

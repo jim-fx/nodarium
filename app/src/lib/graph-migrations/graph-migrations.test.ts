@@ -1794,6 +1794,40 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
     );
   });
 
+  it('leaves a membrane alone whose b is a ring of points, along and anchor were no-ops there', () => {
+    const migrated = migrateGraph({
+      ...veil({ along: 0.7, anchor: 0.02, sag: 0.1 }),
+      nodes: [
+        node(1, 'max/plantarium/points_on_path'),
+        node(2, 'max/myzel/cap_margin'),
+        node(3, MEMBRANE, { along: 0.7, anchor: 0.02, sag: 0.1 }),
+        node(4, 'max/myzel/output')
+      ]
+    });
+    expect(byType(migrated, POINTS)).toHaveLength(1);
+    expect(byType(migrated, 'max/plantarium/path_info')).toHaveLength(0);
+    expect(byType(migrated, MATH)).toHaveLength(0);
+    expect(byType(migrated, MEMBRANE)[0].props).toEqual({ sag: 0.1 });
+    expect(migrated.edges).toEqual([[1, 0, 3, 'b'], [2, 0, 3, 'a'], [3, 0, 4, 'mesh']]);
+  });
+
+  it('hangs the ring of a torn membrane from the points in b instead of placing a spot', () => {
+    const migrated = migrateGraph({
+      ...veil({ tear: 0.5, torn_length: 0.01 }),
+      nodes: [
+        node(1, 'max/plantarium/points_on_path'),
+        node(2, 'max/myzel/cap_margin'),
+        node(3, MEMBRANE, { tear: 0.5, torn_length: 0.01 }),
+        node(4, 'max/myzel/output')
+      ]
+    });
+    expect(byType(migrated, POINTS)).toHaveLength(1);
+    const [ring, fringe] = byType(migrated, SKIRT);
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([[1, 0, ring.id, 'attachment'], [2, 0, fringe.id, 'attachment']])
+    );
+  });
+
   it('leaves a membrane without along or anchor on its path, level with a', () => {
     const migrated = migrateGraph(veil({ attachment: -0.5, sag: 0.2 }));
     expect(byType(migrated, POINTS)).toHaveLength(0);
@@ -1901,11 +1935,12 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
         nodes: [
           node(10, '__internal/group/input'),
           node(11, '__internal/group/output'),
-          node(12, MEMBRANE, { tear_position: 0.9, torn_length: 0.011 })
+          node(12, MEMBRANE, { tear_position: 0.9, torn_length: 0.011 }),
+          node(13, 'max/plantarium/stem')
         ],
         edges: [
           [10, 0, 12, 'a'],
-          [10, 1, 12, 'b'],
+          [13, 0, 12, 'b'],
           [10, 2, 12, 'along'],
           [10, 3, 12, 'tear'],
           [12, 0, 11, 'out_0']
@@ -1920,7 +1955,7 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
     const [join] = byType(group, JOIN);
     expect(group.edges).toEqual(
       expect.arrayContaining([
-        [10, 1, points.id, 'plant'],
+        [13, 0, points.id, 'plant'],
         [10, 2, points.id, 'lowest_point'],
         [points.id, 0, 12, 'b'],
         [join.id, 0, 11, 'out_0']

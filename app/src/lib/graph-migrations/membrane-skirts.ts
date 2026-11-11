@@ -4,6 +4,7 @@ import {
   type ReplaceContext,
   type Replacement,
   replaceNodes,
+  scopes,
   wiredInputs
 } from './helpers';
 
@@ -14,6 +15,38 @@ const POINTS = 'max/plantarium/points_on_path';
 const PATH_INFO = 'max/plantarium/path_info';
 const CURVE = 'max/plantarium/curve';
 const MATH = 'max/plantarium/math';
+
+/** The nodes whose first output is a path */
+const PATH_MAKERS = new Set([
+  'max/myzel/cap',
+  'max/myzel/cap_open',
+  'max/myzel/margin_curl',
+  'max/myzel/margin_waves',
+  'max/myzel/set_color',
+  'max/myzel/set_fibres',
+  'max/myzel/set_fill',
+  'max/myzel/strands',
+  ...[
+    'apply_force',
+    'avoid',
+    'branch',
+    'branch_from_points',
+    'clump',
+    'fill_gaps',
+    'gravity',
+    'instance',
+    'instance_from_points',
+    'join',
+    'keep_apart',
+    'neighbour_sensing',
+    'noise',
+    'random_break',
+    'rotate',
+    'snap',
+    'stem',
+    'twist'
+  ].map((name) => `max/plantarium/${name}`)
+]);
 
 const DIVIDE = 3;
 const PATH_LENGTH = 5;
@@ -62,7 +95,9 @@ const round = (x: number) => Math.round(x * 1e6) / 1e6;
  * flare curve. From version 13 on it is only the closed skin between a and b, and wraps around a
  * point in b. A skirt hangs a torn part from one attachment.
  *
- * - along becomes a points_on_path on b with lowest and highest point at along.
+ * - along becomes a points_on_path on b with lowest and highest point at along. Only a path in b
+ *   was placed on, a ring of points was joined as it is, so a b that doesn't come from a node known
+ *   to make paths (points, a group, nothing) is left alone, along and anchor are dropped.
  * - anchor becomes the same with anchor ÷ the length of the path, from a math and a path_info.
  * - Without either, the membrane keeps its path in b and still wraps level with a. attachment
  *   can't be drawn and is dropped.
@@ -76,7 +111,8 @@ const round = (x: number) => Math.round(x * 1e6) / 1e6;
 function replace(
   old: SerializedNode,
   { nextId }: ReplaceContext,
-  wired: Set<string> = new Set()
+  wired: Set<string> = new Set(),
+  pathInB = true
 ): Replacement {
   const props = old.props ?? {};
   const value = <K extends keyof typeof OLD_DEFAULTS>(key: K) =>
@@ -129,7 +165,9 @@ function replace(
   const spread = (from: number, points: number) =>
     edges.push([from, 0, points, 'lowest_point'], [from, 0, points, 'highest_point']);
   let spot: number | undefined;
-  if (wired.has('along')) {
+  if (!pathInB) {
+    // b stays as it is
+  } else if (wired.has('along')) {
     spot = placeAt(undefined);
     into('along', [spot, 'lowest_point'], [spot, 'highest_point']);
   } else if (Number(value('along')) > 0) {
@@ -157,7 +195,7 @@ function replace(
   }
 
   // the ring hangs from the spot on b, the fringe from a
-  const ringSpot = spot ?? placeAt(RING_ALONG);
+  const ringSpot = spot ?? (pathInB ? placeAt(RING_ALONG) : undefined);
   const tornLength = Number(value('torn_length')) > 0 ? Number(value('torn_length')) : SPAN;
   const cut = wired.has('tear_position')
     ? OLD_DEFAULTS.tear_position
@@ -174,8 +212,9 @@ function replace(
     const skirt = add(SKIRT, skirtProps);
     skirts.push(skirt);
     edges.push([flare, 0, skirt, 'flare']);
-    if (part === 'ring') edges.push([ringSpot, 0, skirt, 'attachment']);
-    else into('a', [skirt, 'attachment']);
+    if (part !== 'ring') into('a', [skirt, 'attachment']);
+    else if (ringSpot === undefined) into('b', [skirt, 'attachment']);
+    else edges.push([ringSpot, 0, skirt, 'attachment']);
     into('thickness', [skirt, 'thickness']);
     into('seed', [skirt, 'seed']);
     if (tearWired) {
@@ -223,5 +262,21 @@ function replace(
 
 export function membraneSkirts(graph: Graph) {
   const wired = wiredInputs(graph, MEMBRANE);
-  return replaceNodes(graph, MEMBRANE, (old, context) => replace(old, context, wired.get(old)));
+  const fedByPath = new Set<SerializedNode>();
+  for (const scope of scopes(graph)) {
+    for (const node of scope.nodes.filter((n) => n.type === MEMBRANE)) {
+      // an input resolves to its last edge at runtime
+      const feeds = scope.edges.filter((e) => e[2] === node.id && e[3] === 'b');
+      const source = feeds[feeds.length - 1];
+      const type = source && source[1] === 0
+        ? scope.nodes.find((n) => n.id === source[0])?.type
+        : undefined;
+      if (PATH_MAKERS.has(type ?? '')) fedByPath.add(node);
+    }
+  }
+  return replaceNodes(
+    graph,
+    MEMBRANE,
+    (old, context) => replace(old, context, wired.get(old), fedByPath.has(old))
+  );
 }

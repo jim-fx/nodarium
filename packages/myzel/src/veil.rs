@@ -16,9 +16,6 @@ pub const DOWN: Vec3 = Vec3::NEG_Y;
 const JUMP: f32 = 4.0;
 /// A row of points whose ends are this close, in its usual spacing, goes around: a ring
 const CLOSING: f32 = 2.5;
-/// A ring of points is around the same axis as another ring when its axis passes the centre of
-/// the other one closer than this share of its radius
-const CONCENTRIC: f32 = 0.5;
 /// A torn edge thins to this share of the thickness over the last `EDGE` of its skin
 pub const EDGE_THIN: f32 = 0.3;
 const EDGE: f32 = 0.25;
@@ -136,16 +133,6 @@ impl<'a> Attachment<'a> {
             tangent: self.tangents.get(i).and_then(|t| t.try_normalize()).unwrap_or(Vec3::Y),
             source: self.sources[i],
         }
-    }
-
-    /// Whether this is a ring of points whose axis runs about through the centre of `other`
-    pub fn around_axis_of(&self, other: &Attachment) -> bool {
-        if !self.is_ring() {
-            return false;
-        }
-        let axis = self.axis();
-        let radius = self.points.iter().map(|p| p.distance(axis.0)).sum::<f32>() / self.points.len() as f32;
-        from_axis(Some(axis), other.centre()) < CONCENTRIC * radius
     }
 
     /// The segments between neighbouring points, with the one back to the start of a ring
