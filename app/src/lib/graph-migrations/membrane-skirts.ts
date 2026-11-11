@@ -42,9 +42,12 @@ const PATH_MAKERS = new Set([
     'noise',
     'random_break',
     'rotate',
+    'separate',
     'snap',
     'stem',
-    'twist'
+    'trunk_kink',
+    'twist',
+    'umbel'
   ].map((name) => `max/plantarium/${name}`)
 ]);
 
