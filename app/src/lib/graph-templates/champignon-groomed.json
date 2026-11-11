@@ -1416,12 +1416,12 @@
           "position": [-75, 75],
           "type": "max/myzel/skirt",
           "props": {
-            "thickness": 0.0006
+            "thickness": 0.0004
           }
         },
         {
           "id": 73,
-          "position": [-100, 80],
+          "position": [-115, 80],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
@@ -1432,10 +1432,10 @@
               0.26,
               1,
               1,
-              1
+              0.6
             ],
             "min": 0,
-            "max": 0.00077
+            "max": 0.004
           }
         },
         {
@@ -1484,6 +1484,73 @@
           "id": 55,
           "position": [-25, 0],
           "type": "max/myzel/set_mesh_color"
+        },
+        {
+          "id": 77,
+          "position": [-90, 80],
+          "type": "max/plantarium/random",
+          "props": {
+            "uniform": 1
+          }
+        },
+        {
+          "id": 78,
+          "position": [-100, 130],
+          "type": "max/plantarium/curve",
+          "props": {
+            "curve": [
+              0,
+              0.45,
+              0.4,
+              0.25,
+              1,
+              0.12
+            ]
+          },
+          "exposed": [
+            "min",
+            "max"
+          ]
+        },
+        {
+          "id": 79,
+          "position": [-125, 135],
+          "type": "max/plantarium/random",
+          "props": {
+            "min": 0.2,
+            "max": 1.6,
+            "uniform": 1
+          }
+        },
+        {
+          "id": 80,
+          "position": [-140, 90],
+          "type": "max/plantarium/curve",
+          "props": {
+            "curve": [
+              0,
+              0,
+              0.25,
+              0,
+              0.26,
+              0.1,
+              0.7,
+              0.25,
+              1,
+              1
+            ],
+            "min": 0,
+            "max": 0.0016
+          }
+        },
+        {
+          "id": 81,
+          "position": [-115, 95],
+          "type": "max/plantarium/math",
+          "props": {
+            "op_type": 1,
+            "a": 0
+          }
         }
       ],
       "edges": [
@@ -1608,18 +1675,6 @@
           "length"
         ],
         [
-          69,
-          0,
-          72,
-          "flare"
-        ],
-        [
-          73,
-          0,
-          72,
-          "length"
-        ],
-        [
           74,
           0,
           69,
@@ -1648,6 +1703,54 @@
           0,
           76,
           "c"
+        ],
+        [
+          73,
+          0,
+          77,
+          "max"
+        ],
+        [
+          77,
+          0,
+          72,
+          "length"
+        ],
+        [
+          74,
+          0,
+          78,
+          "min"
+        ],
+        [
+          79,
+          0,
+          78,
+          "max"
+        ],
+        [
+          78,
+          0,
+          72,
+          "flare"
+        ],
+        [
+          33,
+          0,
+          80,
+          "value"
+        ],
+        [
+          80,
+          0,
+          81,
+          "b"
+        ],
+        [
+          81,
+          0,
+          77,
+          "min"
         ]
       ],
       "inputs": {

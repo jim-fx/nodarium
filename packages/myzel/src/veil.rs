@@ -53,6 +53,18 @@ pub struct Spot {
     pub source: Source,
 }
 
+/// A spot around a ring of points, see [`Attachment::around`]
+#[derive(Clone, Copy, Debug)]
+pub struct RingSpot {
+    pub position: Vec3,
+    /// How thick the paths the points sit on are there
+    pub radius: f32,
+    /// The direction of those paths, zero where the points have none
+    pub tangent: Vec3,
+    /// The two points it lies between and how far from the first to the second
+    pub between: (usize, usize, f32),
+}
+
 /// One attachment: a path, or points in a row that may go around
 pub struct Attachment<'a> {
     pub points: Vec<Vec3>,
@@ -184,6 +196,42 @@ impl<'a> Attachment<'a> {
             radius: self.radius[i] + (self.radius[i + 1] - self.radius[i]) * t,
             tangent: (b - a).try_normalize().unwrap_or(Vec3::Y),
             source,
+        }
+    }
+
+    /// Length once around a ring, with the way back from its last point to its first
+    pub fn perimeter(&self) -> f32 {
+        match (self.points.first(), self.points.last()) {
+            (Some(first), Some(last)) => self.length() + last.distance(*first),
+            _ => 0.0,
+        }
+    }
+
+    /// Where point `i` sits around a ring by length, from 0 at its first point towards 1
+    pub fn place(&self, i: usize) -> f32 {
+        let perimeter = self.perimeter();
+        if perimeter > 0.0 {
+            self.along[i] / perimeter
+        } else {
+            i as f32 / self.points.len().max(1) as f32
+        }
+    }
+
+    /// The spot `u` of the way around a ring by length, between the two points around it
+    pub fn around(&self, u: f32) -> RingSpot {
+        let n = self.points.len();
+        let perimeter = self.perimeter();
+        let s = u.rem_euclid(1.0) * perimeter;
+        let i = (0..n).rev().find(|&i| self.along[i] <= s).unwrap_or(0);
+        let j = (i + 1) % n;
+        let span = if j == 0 { perimeter - self.along[i] } else { self.along[j] - self.along[i] };
+        let t = if span > 0.0 { ((s - self.along[i]) / span).clamp(0.0, 1.0) } else { 0.0 };
+        let tangent = |k: usize| self.tangents.get(k).and_then(|t| t.try_normalize()).unwrap_or(Vec3::ZERO);
+        RingSpot {
+            position: self.points[i].lerp(self.points[j], t),
+            radius: self.radius[i] + (self.radius[j] - self.radius[i]) * t,
+            tangent: tangent(i).lerp(tangent(j), t).try_normalize().unwrap_or(Vec3::ZERO),
+            between: (i, j, t),
         }
     }
 

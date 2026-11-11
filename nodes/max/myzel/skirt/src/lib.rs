@@ -31,6 +31,7 @@ const FOLD_SCALE: f64 = 1.5;
 const FLARE_STEPS: usize = 32;
 
 /// The flare along the skin, from where it is attached (0) to its edge (1)
+#[derive(Clone)]
 enum Flare {
     Plain(f32),
     /// A connected input, read at even steps and linearly in between
@@ -57,38 +58,86 @@ impl Flare {
         };
         value.clamp(0.0, 1.0)
     }
+
+    /// The angle of the first step of a strand down from straight down
+    fn first(&self, resolution: usize) -> f32 {
+        self.at(0.5 / (resolution - 1) as f32) * FRAC_PI_2
+    }
+
+    /// Between `self` (t = 0) and `other` (t = 1)
+    fn mix(&self, other: &Flare, t: f32) -> Flare {
+        match (self, other) {
+            (Flare::Plain(a), Flare::Plain(b)) => Flare::Plain(a + (b - a) * t),
+            _ => Flare::Read(
+                (0..=FLARE_STEPS)
+                    .map(|i| {
+                        let alpha = i as f32 / FLARE_STEPS as f32;
+                        self.at(alpha) + (other.at(alpha) - self.at(alpha)) * t
+                    })
+                    .collect(),
+            ),
+        }
+    }
 }
 
-/// Where a strand of the skin is attached, and the way out from there: away from the path it
-/// goes around, or in from a ring
+/// Where a strand of the skin is attached, the way out from there: away from the path it goes
+/// around, or in from a ring, how long it hangs, how much more of it is inside the path and its
+/// flare
 struct Root {
     at: Vec3,
     out: Vec3,
+    length: f32,
+    hidden: f32,
+    flare: Flare,
 }
 
-/// A skin that goes around a path, hanging from its collar
-fn on_collar(collar: &Collar, n: usize) -> (Vec<Root>, Axis) {
+/// A skin `length` long that goes around a path, hanging from its collar
+fn on_collar(collar: &Collar, length: f32, flare: &Flare, n: usize) -> (Vec<Root>, Axis) {
     let roots = (0..n)
         .map(|k| {
             let angle = TAU * k as f32 / n as f32;
-            Root { at: collar.at(angle), out: collar.out(angle) }
+            Root { at: collar.at(angle), out: collar.out(angle), length, hidden: 0.0, flare: flare.clone() }
         })
         .collect();
     (roots, (collar.centre, collar.tangent))
 }
 
-/// A skin that hangs on the inside of a ring of points
-fn on_ring(ring: &Attachment, n: usize) -> (Vec<Root>, Axis) {
+/// How long a strand `t` of the way from point `i` (length `a`) to the next (`b`) hangs:
+/// linearly in between, nothing where the nearer point hangs nothing, and to a point halfway
+/// towards a point that hangs nothing, like a torn flap
+fn between(a: f32, b: f32, t: f32) -> f32 {
+    let (near, far, from_near) = if t < 0.5 { (a, b, t) } else { (b, a, 1.0 - t) };
+    if near <= 0.0 {
+        0.0
+    } else if far <= 0.0 {
+        near * (1.0 - 2.0 * from_near)
+    } else {
+        a + (b - a) * t
+    }
+}
+
+/// A skin that hangs on the inside of a ring of points, its strands evenly spaced along the
+/// ring. Every strand hangs as the two points around it, see `ring_reads` and `between`.
+///
+/// The points sit on paths, like the tips of the rays on a cap margin, whose tube ends a radius
+/// (the point's scale) further back in a half sphere. A strand starts on that half sphere where
+/// it hangs out of it at first, `inset` inside it, so the skin grows out of the flesh around the
+/// paths, and is as much longer.
+fn on_ring(ring: &Attachment, reads: &[(f32, Flare)], inset: f32, n: usize, resolution: usize) -> (Vec<Root>, Axis) {
     let axis = ring.axis();
     let e1 = orthogonal_to(axis.1);
-    let e2 = axis.1.cross(e1);
-    let sorted = ring.by_angle(axis.0, e1, e2);
     let roots = (0..n)
         .map(|k| {
-            let at = ring.at_angle(&sorted, TAU * k as f32 / n as f32).0;
-            let inwards = axis.0 - at;
+            let spot = ring.around(k as f32 / n as f32);
+            let (i, j, t) = spot.between;
+            let flare = reads[i].1.mix(&reads[j].1, t);
+            let inwards = axis.0 - spot.position;
             let out = (inwards - axis.1 * inwards.dot(axis.1)).try_normalize().unwrap_or(e1);
-            Root { at, out }
+            let first = flare.first(resolution);
+            let hangs = DOWN * first.cos() + horizontal(out) * first.sin();
+            let end = spot.position - spot.tangent * spot.radius;
+            let hidden = inset.min(spot.radius);
+            Root { at: end + hangs * (spot.radius - hidden), out, length: between(reads[i].0, reads[j].0, t), hidden, flare }
         })
         .collect();
     (roots, axis)
@@ -97,7 +146,8 @@ fn on_ring(ring: &Attachment, n: usize) -> (Vec<Root>, Axis) {
 /// One strand of the skin, `length` long: every step hangs down, flared out by the flare read
 /// along it. With every point how much longer the circle around the axis is that it would lie on
 /// spread straight out than the one it hangs on, see `add_skin`.
-fn hang(root: &Root, length: f32, flare: &Flare, axis: Axis, resolution: usize) -> Vec<(Vec3, f32)> {
+fn hang(root: &Root, length: f32, axis: Axis, resolution: usize) -> Vec<(Vec3, f32)> {
+    let flare = &root.flare;
     let side = horizontal(root.out);
     let step = length / (resolution - 1) as f32;
     let mut p = root.at;
@@ -109,6 +159,23 @@ fn hang(root: &Root, length: f32, flare: &Flare, axis: Axis, resolution: usize) 
         p += (DOWN * angle.cos() + side * angle.sin()) * step;
     }
     column
+}
+
+/// `length` and `flare` at every point of a ring. The point's path is set and seeded, so a
+/// `random` gives every point its own. For the length alpha is where the point sits around the
+/// ring, from 0 at its first point, so a `curve` of it draws the length around the ring; the
+/// flare is read along the skin as everywhere.
+fn ring_reads(ctx: &mut Ctx, ring: &Attachment, length: &[i32], flare: &[i32], creator: i32) -> Vec<(f32, Flare)> {
+    let count = ring.points.len();
+    (0..count)
+        .map(|i| {
+            let source = ring.sources[i];
+            ctx.set_path_info(PathInfo { index: i, rank: i, count, depth: source.depth, parent_position: source.alpha, length: 0.0 });
+            ctx.seed_path(path_id(creator, source.id, 0));
+            ctx.alpha = ring.place(i);
+            (ctx.float(length), Flare::read(ctx, flare))
+        })
+        .collect()
 }
 
 #[nodarium_execute]
@@ -153,17 +220,23 @@ fn build(args: &[&[i32]], strand_count: i32) -> (Vec<Vec<Vec3>>, Vec<i32>) {
         });
         let key = path_id(creator, source.id, 0);
         ctx.seed_path(key);
-        let length = ctx.float(args[1]).max(0.0);
-        let flare = Flare::read(&mut ctx, args[2]);
-        let thickness = ctx.float(args[3]).max(0.0);
-        if length <= 0.0 {
+        let (thickness, (roots, axis)) = match spot {
+            // grown out of the path, like a membrane
+            Some(spot) => {
+                let length = ctx.float(args[1]).max(0.0);
+                let flare = Flare::read(&mut ctx, args[2]);
+                let thickness = ctx.float(args[3]).max(0.0);
+                (thickness, on_collar(&Collar::new(spot, 0.5 * thickness), length, &flare, n))
+            }
+            None => {
+                let thickness = ctx.float(args[3]).max(0.0);
+                let reads = ring_reads(&mut ctx, attachment, args[1], args[2], creator);
+                (thickness, on_ring(attachment, &reads, thickness, n, resolution))
+            }
+        };
+        if roots.iter().all(|root| root.length <= 0.0) {
             continue;
         }
-        let (roots, axis) = match spot {
-            // grown out of the path, like a membrane
-            Some(spot) => on_collar(&Collar::new(spot, 0.5 * thickness), n),
-            None => on_ring(attachment, n),
-        };
 
         let noise = OpenSimplex::new((seed as u32) ^ (key as u32));
         // smooth around the skin, it closes on itself
@@ -179,7 +252,7 @@ fn build(args: &[&[i32]], strand_count: i32) -> (Vec<Vec<Vec3>>, Vec<i32>) {
             .map(|(k, root)| {
                 let jitter = 2.0 * path_random(seed, key, k as i32) - 1.0;
                 let ragged = (1.0 - JITTER) * wave(place[k], RAGGED_SCALE, 1.0) + JITTER * jitter;
-                Some(hang(root, length * (1.0 + RAGGED * ragged), &flare, axis, resolution))
+                (root.length > 0.0).then(|| hang(root, root.length * (1.0 + RAGGED * ragged) + root.hidden, axis, resolution))
             })
             .collect();
         let attached: Vec<Vec3> = roots.iter().map(|root| root.at).collect();
@@ -223,17 +296,22 @@ mod tests {
         }
     }
 
-    /// A margin like cap_margin gives it
-    fn margin() -> Vec<Point> {
+    /// How thick the rays are at the margin, as the scale of its points
+    const RAY_RADIUS: f32 = 0.002;
+    const THICKNESS: f32 = 0.001;
+
+    /// A margin like cap_margin gives it: the tips of rays that end in `tangent(out)`, as far
+    /// out as `radius(angle)` and as high as `height(angle)`
+    fn margin_of(radius: impl Fn(f32) -> f32, height: impl Fn(f32) -> f32, tangent: impl Fn(Vec3) -> Vec3) -> Vec<Point> {
         (0..96)
             .map(|i| {
                 let angle = TAU * i as f32 / 96.0;
                 let out = Vec3::new(angle.cos(), 0.0, angle.sin());
                 Point {
-                    position: Vec3::new(0.0, MARGIN_HEIGHT, 0.0) + out * MARGIN_RADIUS,
+                    position: Vec3::new(0.0, height(angle), 0.0) + out * radius(angle),
                     direction: Vec3::NEG_Y,
-                    tangent: out,
-                    scale: 0.001,
+                    tangent: tangent(out),
+                    scale: RAY_RADIUS,
                     parent_id: 100 + i,
                     alpha: 1.0,
                     depth: 2,
@@ -243,24 +321,41 @@ mod tests {
             .collect()
     }
 
-    fn run_with(attachment: &[Point], length: f32, flare: &[i32], seed: i32) -> (Vec<Vec<Vec3>>, Mesh) {
+    /// A round, flat margin of rays that end straight out
+    fn margin() -> Vec<Point> {
+        margin_of(|_| MARGIN_RADIUS, |_| MARGIN_HEIGHT, |out| out)
+    }
+
+    fn run_with(attachment: &[Point], length: &[i32], flare: &[i32], seed: i32) -> (Vec<Vec<Vec3>>, Mesh) {
         let (strands, mesh) = build(
-            &[
-                &encode_points(attachment),
-                &[encode_float(length)],
-                flare,
-                &[encode_float(0.001)],
-                &[seed],
-                &[RESOLUTION],
-                &[CREATOR],
-            ],
+            &[&encode_points(attachment), length, flare, &[encode_float(THICKNESS)], &[seed], &[RESOLUTION], &[CREATOR]],
             128,
         );
         (strands, Mesh::decode(&mesh))
     }
 
     fn run(attachment: &[Point], flare: f32) -> (Vec<Vec<Vec3>>, Mesh) {
-        run_with(attachment, LENGTH, &[encode_float(flare)], 3)
+        run_with(attachment, &[encode_float(LENGTH)], &[encode_float(flare)], 3)
+    }
+
+    /// What a random node sends, every value from min to max equally likely
+    fn random(min: f32, max: f32, seed: i32) -> Vec<i32> {
+        concat_args(vec![&[1], &[encode_float(min)], &[encode_float(max)], &[seed], &[1], &[0]])
+    }
+
+    /// What a curve node sends with nothing connected to its value: the curve read at alpha
+    fn curve_of_alpha(points: &[f32], max: f32) -> Vec<i32> {
+        let alpha = concat_args(vec![&[2], &[0]]);
+        let points: Vec<[i32; 1]> = points.iter().map(|&v| [encode_float(v)]).collect();
+        let (min, max) = ([encode_float(0.0)], [encode_float(max)]);
+        let mut parts: Vec<&[i32]> = vec![&[3], &alpha, &min, &max];
+        parts.extend(points.iter().map(|p| &p[..]));
+        concat_args(parts)
+    }
+
+    /// Where a point is around the upright axis, from 0 to 1
+    fn around(p: Vec3) -> f32 {
+        p.z.atan2(p.x).rem_euclid(TAU) / TAU
     }
 
     fn from_axis(p: Vec3) -> f32 {
@@ -289,18 +384,98 @@ mod tests {
 
     #[test]
     fn hangs_on_the_inside_of_a_ring() {
-        // flare 0 hangs straight down from the margin, 1 straight in towards the axis
+        // flare 0 hangs straight down from the margin, 1 straight in towards the axis. The rays
+        // end a radius further in in a half sphere, a strand starts a thickness inside it.
+        let inside = RAY_RADIUS - THICKNESS;
         for s in &run(&margin(), 0.0).0 {
-            assert!((from_axis(s[0]) - MARGIN_RADIUS).abs() < 1e-4);
+            assert!((from_axis(s[0]) - (MARGIN_RADIUS - RAY_RADIUS)).abs() < 3e-5);
+            assert!((s[0].y - (MARGIN_HEIGHT - inside)).abs() < 1e-5);
             let end = s[s.len() - 1];
             assert!((from_axis(end) - from_axis(s[0])).abs() < 1e-5);
             assert!((s[0].y - end.y - length(s)).abs() < 1e-5);
         }
         for s in &run(&margin(), 1.0).0 {
+            assert!((from_axis(s[0]) - (MARGIN_RADIUS - RAY_RADIUS - inside)).abs() < 3e-5);
             let end = s[s.len() - 1];
             assert!((end.y - MARGIN_HEIGHT).abs() < 1e-5);
             assert!((from_axis(s[0]) - from_axis(end) - length(s)).abs() < 1e-4);
         }
+    }
+
+    #[test]
+    fn grows_out_of_the_flesh_of_a_curled_margin() {
+        // the margin rolls in under the cap: its rays end pointing down and in
+        let tangent = Vec3::new(-0.5, -1.0, 0.0).normalize();
+        let curled = margin_of(|_| MARGIN_RADIUS, |_| MARGIN_HEIGHT, |out| (Vec3::NEG_Y - 0.5 * out).normalize());
+        let (strands, mesh) = run(&curled, 0.3);
+        assert_eq!(strands.len(), 128);
+        // the rays end in half spheres around a circle a radius back from the margin
+        let (ends, height) = (MARGIN_RADIUS - tangent.x * RAY_RADIUS, MARGIN_HEIGHT - tangent.y * RAY_RADIUS);
+        for s in &strands {
+            // inside them, a thickness in from their surface, where the strand leaves them
+            let from_ends = (from_axis(s[0]) - ends).hypot(s[0].y - height);
+            assert!(from_ends < RAY_RADIUS - 0.9 * THICKNESS, "{from_ends} from the ends of the rays");
+            assert!(s.iter().skip(1).all(|q| q.y < s[0].y));
+            // the part inside the ray comes on top of its length
+            assert!((length(s) - THICKNESS - LENGTH).abs() <= RAGGED * LENGTH + 1e-6);
+        }
+        assert_eq!(sheet_checks::open_edge(&mesh), None);
+    }
+
+    #[test]
+    fn follows_a_lopsided_wavy_margin() {
+        // reaching twice as far on one side as on the other, and waving up and down
+        let radius = |angle: f32| MARGIN_RADIUS * (1.0 + 0.35 * angle.cos());
+        let height = |angle: f32| MARGIN_HEIGHT + 0.002 * (5.0 * angle).sin();
+        let lopsided = margin_of(radius, height, |out| out);
+        let strands = run(&lopsided, 0.0).0;
+        assert_eq!(strands.len(), 128);
+        let roots: Vec<Vec3> = strands.iter().map(|s| s[0]).collect();
+        for root in &roots {
+            // a ray's radius in from the margin, under it
+            let angle = around(*root) * TAU;
+            let expected = radius(angle) - RAY_RADIUS;
+            assert!((from_axis(*root) - expected).abs() < 0.03 * MARGIN_RADIUS, "{} for {}", from_axis(*root), expected);
+            assert!((root.y - (height(angle) - (RAY_RADIUS - THICKNESS))).abs() < 0.0005);
+        }
+        // evenly spaced along it, not by the angle around its centre
+        let gaps: Vec<f32> = (0..roots.len()).map(|k| roots[k].distance(roots[(k + 1) % roots.len()])).collect();
+        let (lo, hi) = gaps.iter().fold((f32::INFINITY, 0.0f32), |(lo, hi), &g| (lo.min(g), hi.max(g)));
+        assert!(hi < 1.3 * lo, "the strands are {lo} to {hi} apart");
+    }
+
+    #[test]
+    fn a_random_length_differs_around_the_margin_and_none_leaves_a_gap() {
+        let edge = |seed: i32| run_with(&margin(), &random(-0.4 * LENGTH, LENGTH, seed), &[encode_float(0.3)], 3);
+        let (strands, mesh) = edge(5);
+        let lengths: Vec<f32> = strands.iter().map(|s| length(s)).collect();
+        let (lo, hi) = lengths.iter().fold((f32::INFINITY, 0.0f32), |(lo, hi), &l| (lo.min(l), hi.max(l)));
+        assert!(hi - lo > 0.5 * LENGTH, "the lengths only go from {lo} to {hi}");
+        // where a point draws less than nothing there is no skin
+        assert!(strands.len() < 120 && strands.len() > 60, "{} strands", strands.len());
+        assert_eq!(sheet_checks::open_edge(&mesh), None);
+        assert_ne!(lengths, edge(6).0.iter().map(|s| length(s)).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn a_random_flare_hangs_every_flap_its_own_way_around_the_margin() {
+        let strands = run_with(&margin(), &[encode_float(LENGTH)], &random(0.0, 1.0, 7), 3).0;
+        // how far in towards the axis a strand ends, against how far it hangs
+        let inwards: Vec<f32> = strands.iter().map(|s| (from_axis(s[0]) - from_axis(s[s.len() - 1])) / length(s)).collect();
+        let (lo, hi) = inwards.iter().fold((f32::INFINITY, 0.0f32), |(lo, hi), &i| (lo.min(i), hi.max(i)));
+        assert!(hi - lo > 0.5, "every strand hangs in by {lo} to {hi}");
+    }
+
+    #[test]
+    fn a_curve_around_the_margin_draws_the_length_and_0_leaves_a_gap() {
+        // alpha goes around the margin from its first point, nothing hangs over a fifth of it
+        let length = curve_of_alpha(&[0.0, 1.0, 0.4, 1.0, 0.41, 0.0, 0.6, 0.0, 0.61, 1.0, 1.0, 1.0], LENGTH);
+        let (strands, mesh) = run_with(&margin(), &length, &[encode_float(0.3)], 3);
+        let places: Vec<f32> = strands.iter().map(|s| around(s[0])).collect();
+        assert!(places.iter().all(|&p| !(0.42..0.59).contains(&p)), "a strand in the gap");
+        assert!(places.iter().any(|&p| p < 0.38) && places.iter().any(|&p| p > 0.63));
+        assert!(strands.len() > 90 && strands.len() < 110, "{} strands", strands.len());
+        assert_eq!(sheet_checks::open_edge(&mesh), None);
     }
 
     #[test]
@@ -312,7 +487,7 @@ mod tests {
         let mut parts: Vec<&[i32]> = vec![&[3], &alpha, &min, &max];
         parts.extend(points.iter().map(|p| &p[..]));
         let flare = concat_args(parts);
-        for s in &run_with(&[spot(0.0, RING_HEIGHT)], LENGTH, &flare, 3).0 {
+        for s in &run_with(&[spot(0.0, RING_HEIGHT)], &[encode_float(LENGTH)], &flare, 3).0 {
             let out = (s[0] * Vec3::new(1.0, 0.0, 1.0)).normalize();
             for (j, w) in s.windows(2).enumerate() {
                 // every step turns from straight down towards straight out by the old curve
@@ -327,7 +502,7 @@ mod tests {
     #[test]
     fn the_edge_is_ragged_and_the_seed_sets_it() {
         let edge = |seed: i32| -> Vec<f32> {
-            run_with(&[spot(0.0, RING_HEIGHT)], LENGTH, &[encode_float(0.25)], seed).0.iter().map(|s| length(s)).collect()
+            run_with(&[spot(0.0, RING_HEIGHT)], &[encode_float(LENGTH)], &[encode_float(0.25)], seed).0.iter().map(|s| length(s)).collect()
         };
         let (a, b) = (edge(3), edge(4));
         let mean = |v: &[f32]| v.iter().sum::<f32>() / v.len() as f32;
@@ -382,7 +557,8 @@ mod tests {
 
     #[test]
     fn no_length_or_nothing_to_hang_from_gives_nothing() {
-        assert_eq!(run_with(&[spot(0.0, RING_HEIGHT)], 0.0, &[encode_float(0.25)], 3).1.vertex_count(), 0);
+        assert_eq!(run_with(&[spot(0.0, RING_HEIGHT)], &[encode_float(0.0)], &[encode_float(0.25)], 3).1.vertex_count(), 0);
+        assert_eq!(run_with(&margin(), &[encode_float(0.0)], &[encode_float(0.25)], 3).1.vertex_count(), 0);
         assert_eq!(run(&[], 0.25).1.vertex_count(), 0);
     }
 }
