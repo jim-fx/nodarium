@@ -7,6 +7,7 @@ export { default as daisy } from './daisy.json';
 export { default as defaultPlant } from './default.json';
 export { default as devilsBackbone } from './devils-backbone.json';
 export { default as fern } from './fern.json';
+export { default as flyAgaric } from './fly-agaric.json';
 export { default as foxglove } from './foxglove.json';
 export { default as grass } from './grass.json';
 export { grid } from './grid';

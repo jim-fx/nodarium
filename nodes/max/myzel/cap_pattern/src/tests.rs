@@ -1,6 +1,6 @@
 use super::*;
 use myzel_core::{
-    closing_turn, encode_color, gills, paths_mesh, pose_caps, read_paths, testing, GillInputs, GillProfile,
+    closing_turn, curl_spread, encode_color, gills, paths_mesh, pose_caps, read_paths, testing, GillInputs, GillProfile,
     HyphaeMeshParams, PathStyle,
 };
 use nodarium_utils::{
@@ -192,6 +192,30 @@ fn the_pattern_follows_the_cap_as_it_opens() {
         places.push(found);
     }
     assert!(places[0].distance(places[1]) > 0.006, "the spot moved {} with the cap", places[0].distance(places[1]));
+}
+
+#[test]
+fn the_top_of_a_closed_cap_is_covered_between_the_rays() {
+    // a flat cap closed to a button with its margin rolled in: the rays fill_gaps adds start
+    // near the margin, which comes close to the axis under the cap, but they don't reach in to
+    // the top
+    let flat = testing::TestCap { profile: vec![0.0, 32.0, 25.0, 24.0, 50.0, 22.0], radius: 0.025, thickness: 0.016, ..testing::cone() };
+    let open = testing::grow(&flat);
+    let refs: Vec<&[i32]> = open.iter().map(|p| p.as_slice()).collect();
+    let closed = pose_caps(&refs, |cap, k| Some(cap.bend(k, |step| closing_turn(step, 1.2) + 2.5 * curl_spread(step.alpha()))));
+    assert!(testing::caps(&closed)[0].rays.iter().any(|r| !r.crosses));
+    let mesh = body(&closed);
+    let after = Mesh::decode(&run(&mesh, &closed, &disc(|_, _| 1.0), &value(0.0), &value(1.0)));
+    let frame = testing::frame(&closed);
+    let near_axis: Vec<usize> = (0..mesh.vertex_count())
+        .filter(|&v| mesh.groups[v] == 1 && mesh.normals[v * 3 + 1] > 0.8)
+        .filter(|&v| {
+            let p = Vec3::from_slice(&mesh.positions[v * 3..v * 3 + 3]) - frame.hinge;
+            p.dot(frame.axis) > 0.0 && p.reject_from(frame.axis).length() < 0.008
+        })
+        .collect();
+    let covered = near_axis.iter().filter(|&&v| after.colors[v] >> 24 > 200).count();
+    assert!(near_axis.len() > 20 && covered as f32 > 0.95 * near_axis.len() as f32, "{covered} of {} covered", near_axis.len());
 }
 
 #[test]

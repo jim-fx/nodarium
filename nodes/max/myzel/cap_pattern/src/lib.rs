@@ -69,8 +69,6 @@ struct Line {
     length: f32,
     /// The pattern is stretched to the length of every ray: the length of the cap over this one
     stretch: f32,
-    /// How far from the axis the ray starts
-    from: f32,
 }
 
 impl Line {
@@ -136,7 +134,6 @@ impl Top {
             .map(|ray| {
                 let path = wrap_path(items[ray.path]);
                 let s: Vec<f32> = ray.to_end.iter().map(|d| ray.length - d).collect();
-                let first = s.partition_point(|&s| s < 0.0).min(ray.plane.len() - 1);
                 Line {
                     angle: ray.angle,
                     plane: ray.plane.clone(),
@@ -144,7 +141,6 @@ impl Top {
                     radius: (0..ray.plane.len()).map(|i| path.points[i * 4 + 3]).collect(),
                     length: ray.length,
                     stretch: cap.length / ray.length,
-                    from: ray.plane[first].x,
                 }
             })
             .collect();
@@ -175,10 +171,18 @@ impl Top {
         let angle = f.angle(p);
         let n = self.lines.len();
         let k = self.lines.partition_point(|l| l.angle <= angle);
+        // how far out the vertex is on the cap, measured on the nearest ray that leaves the
+        // stipe. Measured across the plane, a ray that starts near the margin of a closed cap can
+        // pass close to its top.
+        let out = (1..=n)
+            .map(|j| &self.lines[(k + n - j) % n])
+            .find(|l| l.s[0] <= 0.0)
+            .and_then(|l| l.nearest(place))
+            .map_or(f32::INFINITY, |near| near.s);
         // the nearest rays on either side that reach this far in
         let reaching = |i: usize| {
             let line = &self.lines[i];
-            if line.from > place.x + self.shell {
+            if line.s[0] > out {
                 return None;
             }
             line.nearest(place).map(|near| (line, near))
