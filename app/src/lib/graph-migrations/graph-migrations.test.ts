@@ -1811,6 +1811,30 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
     expect(migrated.edges).toEqual([[1, 0, 3, 'b'], [2, 0, 3, 'a'], [3, 0, 4, 'mesh']]);
   });
 
+  it('places the membrane on the paths from the second output of separate, not on the kinks of trunk_kink', () => {
+    const fedBy = (type: string) =>
+      migrateGraph({
+        ...v12(
+          [
+            node(1, type),
+            node(2, 'max/myzel/cap_margin'),
+            node(3, MEMBRANE, { along: 0.7 }),
+            node(4, 'max/myzel/output')
+          ],
+          [[1, 1, 3, 'b'], [2, 0, 3, 'a'], [3, 0, 4, 'mesh']]
+        )
+      });
+    const separate = fedBy('max/plantarium/separate');
+    const [points] = byType(separate, POINTS);
+    expect(points.props).toEqual({ amount: 1, lowest_point: 0.7, highest_point: 0.7 });
+    expect(separate.edges).toEqual(
+      expect.arrayContaining([[1, 1, points.id, 'plant'], [points.id, 0, 3, 'b']])
+    );
+    const kinks = fedBy('max/plantarium/trunk_kink');
+    expect(byType(kinks, POINTS)).toHaveLength(0);
+    expect(kinks.edges).toEqual([[1, 1, 3, 'b'], [2, 0, 3, 'a'], [3, 0, 4, 'mesh']]);
+  });
+
   it('hangs the ring of a torn membrane from the points in b instead of placing a spot', () => {
     const migrated = migrateGraph({
       ...veil({ tear: 0.5, torn_length: 0.01 }),

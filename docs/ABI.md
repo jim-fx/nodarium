@@ -8,7 +8,7 @@ The host (the Nodarium runtime) does not know what a node computes. It only:
 - turns the values of input fields into numbers,
 - hands each node's result to the next node unchanged.
 
-What a result means (a number, a path, a mesh, ...) is decided by the **node system** the node belongs to, for example [Plantarium](./PLANTARIUM.md). Nodes of one system share its formats, usually through a shared library. A node never depends on the host to understand its data.
+What a result means (a number, a path, a mesh, ...) is decided by the **node system** the node belongs to, for example [Plantarium](./PLANTARIUM.md) or [Myzel](./MYZEL.md). Nodes of one system share its formats, usually through a shared library. A node never depends on the host to understand its data.
 
 ## Data
 
