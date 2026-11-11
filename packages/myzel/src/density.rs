@@ -6,7 +6,9 @@ const BLOCK: usize = 8;
 const BLOCK_SAMPLES: usize = BLOCK * BLOCK * BLOCK;
 const EMPTY: u32 = u32::MAX;
 
-/// Thinner segments would fall between the samples and vanish
+/// Thinner segments would fall between the samples and vanish. Only a blended segment that
+/// would vanish and a strand get this radius, see [`SparseGrid::floor`]: tissue and blended
+/// segments that join others keep their own, or they would swell as the cells grow.
 const MIN_RADIUS_IN_CELLS: f32 = 0.75;
 
 const CORNERS: [[usize; 3]; 8] =
@@ -21,7 +23,8 @@ const GUARD: f32 = 0.5;
 const SMOOTHING: f32 = 0.75;
 
 /// The surface of the blurred closing goes through samples that are this much
-/// inside, below a half so the blur doesn't shrink the tissue below its outer hyphae
+/// inside, below a half so the blur doesn't shrink the tissue below its outer hyphae.
+/// It lies as far out as the blur alone puts it, in world units, see [`ramp_shift`].
 const SURFACE_SHARE: f32 = 0.3;
 
 /// How much a closed segment counts for the owner of a sample past its kernel
@@ -32,8 +35,8 @@ const FILL_OWNER_WEIGHT: f32 = 1e-3;
 struct Closed {
     radius: f32,
     reach: f32,
-    /// The segment keeps its own tube where it leaves the tissue
-    strand: bool,
+    /// Radius of the tube the segment keeps where it leaves the tissue, if it is a strand
+    strand: Option<f32>,
     /// Radius of the closing where this segment is the nearest
     close: f32,
 }
@@ -210,6 +213,61 @@ impl SparseGrid {
         }
     }
 
+    /// Trilinear density at a point
+    fn density_at(&self, p: Vec3) -> f32 {
+        let u = (p - self.origin) / self.cell;
+        let base = [0, 1, 2].map(|a| u[a].floor().max(0.0) as usize);
+        let f = (u - Vec3::from(base.map(|v| v as f32))).clamp(Vec3::ZERO, Vec3::ONE);
+        CORNERS
+            .iter()
+            .map(|o| {
+                let w = [0, 1, 2].map(|a| if o[a] == 1 { f[a] } else { 1.0 - f[a] });
+                w[0] * w[1] * w[2] * self.get([base[0] + o[0], base[1] + o[1], base[2] + o[2]])
+            })
+            .sum()
+    }
+
+    /// Whether the surface at `threshold` encloses the axis of a segment, checked every half cell along it
+    fn encloses(&self, segment: &Segment, threshold: f32) -> bool {
+        let steps = ((segment.end - segment.start).length() / (0.5 * self.cell)).ceil().max(1.0) as usize;
+        (0..=steps).all(|k| self.density_at(segment.start.lerp(segment.end, k as f32 / steps as f32)) > threshold)
+    }
+
+    /// Raises the density to the kernel of a segment wherever the kernel is larger. A segment thinner than
+    /// a cell that no other segment joins gets a kernel wide enough for the samples, without swelling the
+    /// surface where it is inside other segments.
+    fn floor(&mut self, index: u32, meshing: &Meshing, segment: &Segment, kernel: Kernel) {
+        let reach = kernel.reach;
+        let lo_world = segment.start.min(segment.end) - Vec3::splat(reach);
+        let hi_world = segment.start.max(segment.end) + Vec3::splat(reach);
+        let to_sample = |v: Vec3, round: fn(f32) -> f32| {
+            [0, 1, 2].map(|a| (round((v[a] - self.origin[a]) / self.cell).max(0.0) as usize).min(self.samples[a] - 1))
+        };
+        let (lo, hi) = (to_sample(lo_world, f32::ceil), to_sample(hi_world, f32::floor));
+        self.allocate(lo.map(|v| v.saturating_sub(1)), hi);
+        let axis = segment.end - segment.start;
+        let length_sq = axis.length_squared().max(f32::EPSILON);
+        for z in lo[2]..=hi[2] {
+            for y in lo[1]..=hi[1] {
+                for x in lo[0]..=hi[0] {
+                    let p = self.position(Vec3::new(x as f32, y as f32, z as f32));
+                    let t = ((p - segment.start).dot(axis) / length_sq).clamp(0.0, 1.0);
+                    let falloff = (1.0 - (p - segment.start - axis * t).length_squared() / (reach * reach)).max(0.0);
+                    let k = kernel.weight * falloff * falloff * falloff;
+                    if k <= 0.0 {
+                        continue;
+                    }
+                    let i = self.slot([x, y, z]) as usize * BLOCK_SAMPLES + Self::local([x, y, z]);
+                    self.density[i] = self.density[i].max(k);
+                    if k * meshing.priority > self.owner_k[i] {
+                        self.owner_k[i] = k * meshing.priority;
+                        self.owner[i] = index;
+                    }
+                }
+            }
+        }
+    }
+
     /// Adds the kernel of one segment to every sample it reaches. Where the segment before it in
     /// the same path reached the sample too, only the larger of the two counts, see
     /// [`Meshing::joined`]. Summing them would count every joint twice and swell the path
@@ -223,7 +281,7 @@ impl SparseGrid {
     fn splat(&mut self, index: u32, meshing: &Meshing, segment: &Segment, kernel: Kernel, closed: Option<Closed>) {
         let priority = meshing.priority;
         let (kernel_reach, weight) = (kernel.reach, kernel.weight);
-        let reach = closed.map_or(kernel_reach, |c| c.reach);
+        let reach = closed.map_or(kernel_reach, |c| c.reach.max(kernel_reach));
         let lo_world = segment.start.min(segment.end) - Vec3::splat(reach);
         let hi_world = segment.start.max(segment.end) + Vec3::splat(reach);
         let to_sample = |v: Vec3, round: fn(f32) -> f32| {
@@ -258,8 +316,8 @@ impl SparseGrid {
                                 self.tube[i] = tube;
                                 self.tube_close[i] = c.close;
                             }
-                            if c.strand {
-                                self.strand[i] = self.strand[i].min(tube);
+                            if let Some(radius) = c.strand {
+                                self.strand[i] = self.strand[i].min(d_sq.sqrt() - radius);
                             }
                             if d_sq < kernel_reach * kernel_reach {
                                 weight * falloff(kernel_reach)
@@ -374,9 +432,13 @@ fn distance_transform(d: &mut [f32], feature: &mut [u32], samples: [usize; 3]) {
 /// from the axes of the other segments, and its blur is [`SMOOTHING`] times
 /// `rho`, see [`blur_by_radius`].
 ///
-/// The balls of different radii are a power diagram: every sample starts the
-/// distance transform at `rho_max² − rho²` (Felzenszwalb, Huttenlocher), 0 when
-/// all radii are the same.
+/// Every sample farther than its `rho` from the tubes is the centre of an empty
+/// ball as large as that distance, the balls of `rho` around the centres near
+/// it lie in it. Every other sample takes the ball that covers it most, by the
+/// power diagram of the balls: the distance transform starts at `−R²` at every
+/// centre (Felzenszwalb, Huttenlocher). Where the closing is just the tubes,
+/// the distance to that ball is the distance to the tubes at any cell size, the
+/// nearest centre by grid steps would lie up to half a cell off and swell it.
 fn closing(grid: &SparseGrid, frame: &Frame) -> Vec<f32> {
     let [nx, ny, nz] = grid.samples;
     let n = nx * ny * nz;
@@ -388,23 +450,27 @@ fn closing(grid: &SparseGrid, frame: &Frame) -> Vec<f32> {
     };
     // every tube reaches the largest radius and a little further, past that a ball of the largest radius is empty
     let rho_far = frame.close_max;
-    let rho_max_cells = rho_far / grid.cell;
+    // the radius in cells of the empty ball around a centre, where no tube reaches the sample it is at least as
+    // far as every tube reaches
+    let ball = |grid: &SparseGrid, i: usize| {
+        let (tube, rho) = tube_at(grid, i).unwrap_or((rho_far + 2.0 * grid.cell, rho_far));
+        (tube > rho).then_some(tube / grid.cell)
+    };
 
-    // the sample an empty ball fits around that covers each sample most, by squared distance in cells less the
-    // squared radius of its ball
+    // the centre of the empty ball that covers each sample most, by squared distance in cells less the squared
+    // radius of the ball
     let mut d = vec![f32::INFINITY; n];
     let mut feature = vec![EMPTY; n];
     for i in 0..n {
-        let (tube, rho) = tube_at(grid, i).unwrap_or((f32::INFINITY, rho_far));
-        if tube > rho {
-            let rho_cells = rho / grid.cell;
-            d[i] = rho_max_cells * rho_max_cells - rho_cells * rho_cells;
+        if let Some(r) = ball(grid, i) {
+            d[i] = -r * r;
             feature[i] = i as u32;
         }
     }
     distance_transform(&mut d, &mut feature, grid.samples);
 
     // share of every sample inside the closing, ramping from 0 to 1 over two cells across its surface
+    let mut shifts: Vec<(f32, f32)> = Vec::new();
     let position = |i: usize| Vec3::new((i % nx) as f32, (i / nx % ny) as f32, (i / (nx * ny)) as f32);
     let mut solid = d;
     for i in 0..n {
@@ -418,20 +484,25 @@ fn closing(grid: &SparseGrid, frame: &Frame) -> Vec<f32> {
             continue;
         }
         let rho = grid.tube_close[slot];
+        let shift = match shifts.iter().find(|(r, _)| *r == rho) {
+            Some(&(_, shift)) => shift,
+            None => {
+                let shift = ramp_shift(SMOOTHING * rho / grid.cell);
+                shifts.push((rho, shift));
+                shift
+            }
+        };
         // signed distance to the closed surface in cells, positive outside
         let outside = if tube > rho / grid.cell || feature[i] == EMPTY {
             tube
         } else {
             let f = feature[i] as usize;
-            let (tube_f, rho_f) = tube_at(grid, f).unwrap_or((f32::INFINITY, rho_far));
-            let rho_f_cells = rho_f / grid.cell;
-            // the seed lies this far inside the space the empty balls fit in, which places the surface between samples
-            let excess = if tube_f.is_finite() { tube_f / grid.cell - rho_f_cells } else { 0.0 };
-            rho_f_cells - (position(i).distance(position(f)) - excess).max(0.0)
+            // no point of the closed surface is farther than the tubes
+            (ball(grid, f).unwrap_or(0.0) - position(i).distance(position(f))).min(tube)
         };
         let allowed = grid.guard[slot] / grid.cell - GUARD * rho / grid.cell;
-        let closing = (0.5 - 0.5 * outside).min(0.5 + 0.5 * allowed);
-        solid[i] = closing.max(0.5 - 0.5 * tube).clamp(0.0, 1.0);
+        let closing = (0.5 - 0.5 * (outside + shift)).min(0.5 + 0.5 * (allowed - shift));
+        solid[i] = closing.max(0.5 - 0.5 * (tube + shift)).clamp(0.0, 1.0);
     }
     blur_by_radius(&mut solid, grid, frame);
     solid
@@ -547,8 +618,7 @@ impl TissueField {
         let mut grid = frame.grid();
         for (i, (s, m)) in segments.iter().zip(meshing).enumerate() {
             if frame.closes(m) {
-                let radius = s.radius.max(frame.min_radius);
-                grid.splat(i as u32, m, s, frame.kernel(m, radius), Some(frame.closed(m, radius, false)));
+                grid.splat(i as u32, m, s, frame.owner_kernel(m, s), Some(frame.closed(m, s, false)));
             }
         }
         frame.guard(&mut grid, segments, meshing);
@@ -574,15 +644,15 @@ impl TissueField {
     pub fn surface(self, segments: &[Segment], meshing: &[Meshing], strand: impl Fn(usize) -> bool) -> SegmentSurface {
         let TissueField { frame, mut grid, solid, .. } = self;
         for (i, (s, m)) in segments.iter().zip(meshing).enumerate() {
-            let radius = s.radius.max(frame.min_radius);
             if !frame.closes(m) {
-                grid.splat(i as u32, m, s, frame.kernel(m, radius), None);
+                grid.splat(i as u32, m, s, frame.kernel(m, s.radius), None);
             } else if strand(i) {
-                // the tube and the owners are there already, splatting them again changes nothing
-                grid.splat(i as u32, m, s, frame.kernel(m, radius), Some(frame.closed(m, radius, true)));
+                // the tube and the owners are there already, splatting them again only adds the strand
+                grid.splat(i as u32, m, s, frame.owner_kernel(m, s), Some(frame.closed(m, s, true)));
             }
         }
         add_tissue(&mut grid, &solid, frame.threshold);
+        frame.floor(&mut grid, segments, meshing);
         extract(&grid, &frame)
     }
 
@@ -656,15 +726,73 @@ impl TissueField {
     }
 }
 
-/// Separable gaussian blur of a dense grid, `sigma` in samples
-fn blur(values: &mut [f32], samples: [usize; 3], sigma: f32) {
+/// The weights of a gaussian of `sigma` samples from `-radius` to `radius`, none when it is too narrow to blur
+fn blur_weights(sigma: f32) -> Vec<f32> {
     if sigma < 0.25 {
-        return;
+        return Vec::new();
     }
     let radius = (3.0 * sigma).ceil() as isize;
     let weights: Vec<f32> = (-radius..=radius).map(|i| (-(i * i) as f32 / (2.0 * sigma * sigma)).exp()).collect();
     let total: f32 = weights.iter().sum();
-    let weights: Vec<f32> = weights.iter().map(|w| w / total).collect();
+    weights.iter().map(|w| w / total).collect()
+}
+
+/// How far, in cells, the ramp of the share in [`closing`] moves inwards so that after the blur of `sigma` cells
+/// the share reaches [`SURFACE_SHARE`] as far outside the closed surface as a blur of `sigma` alone puts it.
+///
+/// The ramp is a cell wide on either side of the surface, as if the surface lay anywhere in there, and the blur
+/// spreads it further: the share at `x` is the chance that a uniform `U(-1, 1)` plus the blur's normal `N(0, σ²)`
+/// lies beyond `x`. Without the shift the ramp alone put the surface 0.4 cells out where the blur is skipped, so it
+/// moved out as the cells grew.
+fn ramp_shift(sigma: f32) -> f32 {
+    let weights = blur_weights(sigma);
+    let radius = (weights.len() / 2) as f32;
+    let blurred: f32 = weights.iter().enumerate().map(|(k, w)| w * (k as f32 - radius).powi(2)).sum();
+    level(1.0, blurred.sqrt() as f64) - level(0.0, sigma as f64)
+}
+
+/// Where the share of a surface spread by `U(-ramp, ramp) + N(0, sigma²)` drops to [`SURFACE_SHARE`]
+fn level(ramp: f64, sigma: f64) -> f32 {
+    let normal = |z: f64| 0.5 * (1.0 + erf(z / std::f64::consts::SQRT_2));
+    let density = |z: f64| (-0.5 * z * z).exp() / (2.0 * std::f64::consts::PI).sqrt();
+    // the integral of the normal distribution
+    let integral = |z: f64| z * normal(z) + density(z);
+    let below = |x: f64| {
+        if sigma < 1e-6 {
+            if ramp < 1e-6 { (x >= 0.0) as u8 as f64 } else { ((x + ramp) / (2.0 * ramp)).clamp(0.0, 1.0) }
+        } else if ramp < 1e-6 {
+            normal(x / sigma)
+        } else {
+            sigma / (2.0 * ramp) * (integral((x + ramp) / sigma) - integral((x - ramp) / sigma))
+        }
+    };
+    let target = 1.0 - SURFACE_SHARE as f64;
+    let (mut lo, mut hi) = (-ramp - 8.0 * sigma - 1.0, ramp + 8.0 * sigma + 1.0);
+    for _ in 0..60 {
+        let mid = 0.5 * (lo + hi);
+        if below(mid) < target {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    (0.5 * (lo + hi)) as f32
+}
+
+/// The error function (Abramowitz, Stegun 7.1.26), to about 1.5e-7
+fn erf(x: f64) -> f64 {
+    let t = 1.0 / (1.0 + 0.327_591_1 * x.abs());
+    let poly = t * (0.254_829_592 + t * (-0.284_496_736 + t * (1.421_413_741 + t * (-1.453_152_027 + t * 1.061_405_429))));
+    (1.0 - poly * (-x * x).exp()).copysign(x)
+}
+
+/// Separable gaussian blur of a dense grid, `sigma` in samples
+fn blur(values: &mut [f32], samples: [usize; 3], sigma: f32) {
+    let weights = blur_weights(sigma);
+    if weights.is_empty() {
+        return;
+    }
+    let radius = (weights.len() / 2) as isize;
     let [nx, ny, nz] = samples;
     let mut line = Vec::new();
     for (len, stride) in [(nx, 1), (ny, nx), (nz, nx * ny)] {
@@ -802,9 +930,35 @@ impl Frame {
     }
 
     /// A closed segment reaches a little past the largest closing, so every sample near the closed surface knows its
-    /// distance and which closing radius it has
-    fn closed(&self, meshing: &Meshing, radius: f32, strand: bool) -> Closed {
-        Closed { radius, reach: radius + self.close_max + 2.0 * self.cell, strand, close: meshing.close }
+    /// distance and which closing radius it has. Its tube in the tissue has its own radius, the closing gives the
+    /// tissue a body larger than a cell, but a strand is a line of its own and has at least the smallest radius.
+    fn closed(&self, meshing: &Meshing, segment: &Segment, strand: bool) -> Closed {
+        let radius = segment.radius;
+        Closed {
+            radius,
+            reach: radius + self.close_max + 2.0 * self.cell,
+            strand: strand.then(|| radius.max(self.min_radius)),
+            close: meshing.close,
+        }
+    }
+
+    /// The kernel a closed segment claims samples with, it never adds to the density, so it may be wider than the
+    /// segment: thin ones still claim the samples around them
+    fn owner_kernel(&self, meshing: &Meshing, segment: &Segment) -> Kernel {
+        self.kernel(meshing, segment.radius.max(self.min_radius))
+    }
+
+    /// Every blended segment thinner than the smallest radius whose axis the surface doesn't enclose gets its
+    /// kernel at the smallest radius, see [`SparseGrid::floor`]. Which ones is decided before any of them is
+    /// raised, so a raised one doesn't spare its neighbours.
+    fn floor(&self, grid: &mut SparseGrid, segments: &[Segment], meshing: &[Meshing]) {
+        let thin: Vec<usize> = (0..segments.len())
+            .filter(|&i| !self.closes(&meshing[i]) && segments[i].radius < self.min_radius)
+            .filter(|&i| !grid.encloses(&segments[i], self.threshold))
+            .collect();
+        for i in thin {
+            grid.floor(i as u32, &meshing[i], &segments[i], self.kernel(&meshing[i], self.min_radius));
+        }
     }
 
     /// Keeps the closing out of the gaps between the segments that aren't closed
@@ -864,15 +1018,18 @@ pub fn surface_in(
     }
     let mut grid = frame.grid();
     for (i, (s, m)) in segments.iter().zip(meshing).enumerate() {
-        let radius = s.radius.max(frame.min_radius);
-        let closed = frame.closes(m).then(|| frame.closed(m, radius, strand(i)));
-        grid.splat(i as u32, m, s, frame.kernel(m, radius), closed);
+        if frame.closes(m) {
+            grid.splat(i as u32, m, s, frame.owner_kernel(m, s), Some(frame.closed(m, s, strand(i))));
+        } else {
+            grid.splat(i as u32, m, s, frame.kernel(m, s.radius), None);
+        }
     }
     if frame.closing {
         frame.guard(&mut grid, segments, meshing);
         let solid = closing(&grid, frame);
         add_tissue(&mut grid, &solid, frame.threshold);
     }
+    frame.floor(&mut grid, segments, meshing);
     extract(&grid, frame)
 }
 
@@ -1238,7 +1395,7 @@ mod tests {
         let inner_faces = |s: &SegmentSurface| {
             (0..s.mesh.vertex_count())
                 .map(|v| vertex(&s.mesh, v as u32))
-                .filter(|p| (0.7..0.85).contains(&p.y) && p.z.abs() < 0.08 && p.x.abs() < 0.08 - r + s.cell)
+                .filter(|p| (0.7..0.85).contains(&p.y) && p.z.abs() < 0.08 && p.x.abs() < 0.08 - r + 0.5 * s.cell)
                 .count()
         };
         let gills = closed_surface(&segments, 0.15, is_cap);

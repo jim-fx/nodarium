@@ -619,6 +619,63 @@ mod tests {
         (0..mesh.vertex_count()).map(|v| vertex(mesh, v).y).fold(f32::NEG_INFINITY, f32::max)
     }
 
+    /// Upright paths of radius `r` 40 mm long that fill a disc 5 mm wide, in rings about 0.9 mm apart
+    fn thin_bundle(r: f32) -> Vec<(Vec<f32>, i32)> {
+        let mut feet = vec![Vec3::ZERO];
+        for ring in 1..=5 {
+            let radius = ring as f32 * 0.001;
+            let around = (2.0 * PI * radius / 0.0009).round() as usize;
+            feet.extend((0..around).map(|i| {
+                let a = (i as f32 + 0.5 * ring as f32) / around as f32 * 2.0 * PI;
+                Vec3::new(a.cos(), 0.0, a.sin()) * radius
+            }));
+        }
+        feet.into_iter().map(|at| (line(at, at + Vec3::Y * 0.04, 11, r), 1)).collect()
+    }
+
+    /// Mean of the outermost distance from the axis per direction and height, in the middle of the length
+    fn outer_radius(mesh: &Mesh) -> f32 {
+        let mut outer = [[0.0f32; 48]; 8];
+        for v in 0..mesh.vertex_count() {
+            let p = vertex(mesh, v);
+            let along = (p.y - 0.012) / 0.016;
+            if (0.0..1.0).contains(&along) {
+                let around = ((p.z.atan2(p.x) / (2.0 * PI) + 0.5) * 48.0) as usize % 48;
+                let bin = &mut outer[(along * 8.0) as usize][around];
+                *bin = bin.max(Vec3::new(p.x, 0.0, p.z).length());
+            }
+        }
+        let all: Vec<f32> = outer.iter().flatten().copied().filter(|&r| r > 0.0).collect();
+        all.iter().sum::<f32>() / all.len() as f32
+    }
+
+    #[test]
+    fn a_bundle_of_thin_paths_keeps_its_size_at_any_resolution() {
+        // thinner than 0.75 cells below 128, as tissue and blended: the cells used to swell it by up to 2 mm at 20
+        for (r, fill) in [(0.0003, 1.5), (0.0005, 0.0)] {
+            let points = thin_bundle(r);
+            let radii: Vec<f32> = [256, 128, 64, 32, 20]
+                .into_iter()
+                .map(|resolution| outer_radius(&mesh_body(&points, &HyphaeMeshParams { resolution, fill, ..loose(0.2) })))
+                .collect();
+            for radius in &radii[1..] {
+                assert!((radius - radii[0]).abs() < 0.00015, "fill {}: {:?} from 256 down to 20", fill, radii);
+            }
+            let grows = radii.windows(2).all(|w| w[1] > w[0]) && radii[4] - radii[0] > 0.00005;
+            assert!(!grows, "fill {}: grows as the cells grow {:?}", fill, radii);
+        }
+    }
+
+    #[test]
+    fn a_thin_open_strand_stays_at_the_lowest_resolution() {
+        // a lone blended path of 0.2 mm, the cells are 2.6 mm
+        let points = [(line(Vec3::ZERO, Vec3::Y * 0.04, 11, 0.0002), 1)];
+        let mesh = paths_mesh(&open(mesh_paths(&points, PathStyle::BODY)), &HyphaeMeshParams { resolution: 16, ..smooth() });
+        assert_closed(&mesh);
+        assert_eq!(components(&mesh), 1);
+        assert!(highest(&mesh) > 0.04, "strand ends at {}", highest(&mesh));
+    }
+
     #[test]
     fn a_strand_leaving_the_tissue_is_gone_at_0_and_kept_at_1() {
         // the scene of `a_strand_keeps_its_tube_out_of_the_tissue`: the closing has radius 6 r = 0.18
