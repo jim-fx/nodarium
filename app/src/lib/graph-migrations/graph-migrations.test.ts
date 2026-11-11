@@ -1182,7 +1182,8 @@ describe('version 9: a curve into the cap radius makes it lopsided, cap_lopsided
   const RANDOM = 'max/plantarium/random';
 
   it('links the neighbours of cap_lopsided, the cap becomes round', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      9,
       v8(
         [
           node(1, CAP),
@@ -1201,7 +1202,7 @@ describe('version 9: a curve into the cap radius makes it lopsided, cap_lopsided
         ]
       )
     );
-    expect(migrated.version).toBe(CURRENT_GRAPH_VERSION);
+    expect(migrated.version).toBe(9);
     expect(migrated.nodes.map((n) => n.type)).not.toContain(LOPSIDED);
     expect(migrated.nodes.find((n) => n.id === 6)!.props).toEqual({ min: -10, max: 10 });
     expect(migrated.edges).toEqual([[1, 0, 2, 'cap'], [2, 0, 4, 'cap'], [2, 0, 5, 'plant']]);
@@ -1529,5 +1530,189 @@ describe('version 11: a curve node shapes the depth of lamellae, ridges makes th
       ])
     );
     expect(group.edges).toHaveLength(4);
+  });
+});
+
+describe('version 12: a curve shapes the curl, a random the height of every lobe', () => {
+  const v11 = (nodes: SerializedNode[], edges: Graph['edges'] = []): Graph => ({
+    ...graph(nodes, edges),
+    version: 11
+  });
+  const CURL = 'max/myzel/margin_curl';
+  const WAVES = 'max/myzel/margin_waves';
+  const CURVE = 'max/plantarium/curve';
+  const RANDOM = 'max/plantarium/random';
+  const MATH = 'max/plantarium/math';
+  const PLAIN_WAVES = [0, 0, 0.5, 0.25, 1, 1];
+  const byType = (g: { nodes: SerializedNode[] }, type: string) =>
+    g.nodes.filter((n) => n.type === type);
+  const smoothstep = (t: number) => t * t * (3 - 2 * t);
+
+  it('only drops reach where a plain amount spreads as before', () => {
+    const migrated = migrateGraph(
+      v11([node(1, CURL, { amount: 0.12, reach: 0.35 }), node(2, CURL)])
+    );
+    expect(migrated.nodes.map((n) => n.props)).toEqual([{ amount: 0.12 }, {}]);
+  });
+
+  it('draws another reach with a curve up to the amount', () => {
+    const migrated = migrateGraph(v11([node(1, CURL, { amount: 0.4, reach: 0.5 })]));
+    const [curl] = byType(migrated, CURL);
+    const [curve] = byType(migrated, CURVE);
+    expect(curl.props).toEqual({});
+    expect(curve.props).toMatchObject({ min: 0, max: 0.4 });
+    const points = curve.props!.curve as number[];
+    expect(points.slice(0, 4)).toEqual([0, 0, 0.5, 0]);
+    for (let i = 2; i < points.length; i += 2) {
+      expect(points[i + 1]).toBeCloseTo(smoothstep((points[i] - 0.5) / 0.5), 5);
+    }
+    expect(migrated.edges).toEqual([[curve.id, 0, 1, 'amount']]);
+  });
+
+  it('puts an amount from a node into the max of the curve', () => {
+    const migrated = migrateGraph(
+      v11(
+        [node(1, CURVE, { min: 0.1, max: 0.5 }), node(2, CURL), node(3, 'max/plantarium/float')],
+        [[1, 0, 2, 'amount'], [3, 0, 2, 'reach']]
+      )
+    );
+    const added = byType(migrated, CURVE).find((n) => n.id !== 1)!;
+    expect(added.props).toMatchObject({ min: 0 });
+    expect(added.props!.max).toBeUndefined();
+    expect(added.exposed).toEqual(['max']);
+    expect((added.props!.curve as number[]).slice(0, 4)).toEqual([0, 0, 0.65, 0]);
+    // a reach from a node can't be drawn, it goes
+    expect(migrated.edges).toEqual([[1, 0, added.id, 'max'], [added.id, 0, 2, 'amount']]);
+  });
+
+  it('turns a plain irregularity into uneven spacing and a random amplitude', () => {
+    const migrated = migrateGraph(
+      v11([node(1, WAVES, { waves: 5, amplitude: 0.18, irregularity: 0.8, seed: 3 })])
+    );
+    const [waves] = byType(migrated, WAVES);
+    const [curve] = byType(migrated, CURVE);
+    const [random] = byType(migrated, RANDOM);
+    expect(waves.props).toEqual({ waves: 5, uneven_spacing: 0.8 });
+    expect(curve.props).toEqual({ curve: PLAIN_WAVES, min: 0 });
+    expect(random.props!.min).toBeCloseTo(0.108);
+    expect(random.props!.max).toBeCloseTo(0.252);
+    expect(random.props!.per_path).toBeUndefined();
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([[random.id, 0, curve.id, 'max'], [curve.id, 0, 1, 'amplitude']])
+    );
+    expect(migrated.edges).toHaveLength(2);
+  });
+
+  it('gives the old default irregularity a random and leaves out an irregularity of 0', () => {
+    const migrated = migrateGraph(v11([node(1, WAVES), node(2, WAVES, { irregularity: 0 })]));
+    const [random] = byType(migrated, RANDOM);
+    expect(random.props!.min).toBeCloseTo(0.1275);
+    expect(random.props!.max).toBeCloseTo(0.1725);
+    expect(byType(migrated, WAVES).map((n) => n.props)).toEqual([{}, { uneven_spacing: 0 }]);
+    expect(byType(migrated, CURVE)).toHaveLength(1);
+  });
+
+  it('multiplies an amplitude from a node by a random share, its random nodes draw once per cap', () => {
+    const migrated = migrateGraph(
+      v11(
+        [
+          node(1, RANDOM, { min: 0.75, max: 1.15 }),
+          node(2, CURVE, { curve: [0, 0, 1, 1] }),
+          node(3, WAVES, { irregularity: 0.5 })
+        ],
+        [[1, 0, 2, 'max'], [2, 0, 3, 'amplitude']]
+      )
+    );
+    const old = migrated.nodes.find((n) => n.id === 1)!;
+    expect(old.props).toEqual({ min: 0.75, max: 1.15, per_path: 1 });
+    const share = byType(migrated, RANDOM).find((n) => n.id !== 1)!;
+    expect(share.props).toEqual({ min: 0.75, max: 1.25 });
+    const [product] = byType(migrated, MATH);
+    expect(product.props).toEqual({ op_type: 2 });
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([
+        [1, 0, 2, 'max'],
+        [2, 0, product.id, 'a'],
+        [share.id, 0, product.id, 'b'],
+        [product.id, 0, 3, 'amplitude']
+      ])
+    );
+    expect(migrated.edges).toHaveLength(4);
+  });
+
+  it('builds 1 + irregularity × random(-0.5, 0.5) for an irregularity from a node', () => {
+    const migrated = migrateGraph(
+      v11(
+        [node(1, RANDOM, { min: 0.5, max: 1 }), node(2, WAVES, { amplitude: 0.1 })],
+        [[1, 0, 2, 'irregularity']]
+      )
+    );
+    const random = byType(migrated, RANDOM).find((n) => n.id !== 1)!;
+    expect(random.props).toEqual({ min: -0.5, max: 0.5 });
+    const [spread, share, scaled] = byType(migrated, MATH);
+    expect(spread.props).toEqual({ op_type: 2 });
+    expect(share.props).toEqual({ op_type: 0, b: 1 });
+    expect(scaled.props).toEqual({ op_type: 2, a: 0.1 });
+    const [curve] = byType(migrated, CURVE);
+    expect(migrated.edges).toEqual(
+      expect.arrayContaining([
+        [1, 0, 2, 'uneven_spacing'],
+        [1, 0, spread.id, 'b'],
+        [random.id, 0, spread.id, 'a'],
+        [spread.id, 0, share.id, 'a'],
+        [share.id, 0, scaled.id, 'b'],
+        [scaled.id, 0, curve.id, 'max'],
+        [curve.id, 0, 2, 'amplitude']
+      ])
+    );
+    expect(migrated.edges).toHaveLength(7);
+    // drawn for every cap, it goes on into the uneven spacing too
+    expect(migrated.nodes.find((n) => n.id === 1)!.props).toEqual({ min: 0.5, max: 1 });
+  });
+
+  it('renames an exposed irregularity and drops exposed inputs that are gone', () => {
+    const waves = node(1, WAVES, { irregularity: 0 });
+    waves.exposed = ['irregularity', 'seed', 'waves'];
+    const curl = node(2, CURL);
+    curl.exposed = ['amount', 'reach'];
+    const migrated = migrateGraph(v11([waves, curl]));
+    expect(byType(migrated, WAVES)[0].exposed).toEqual(['uneven_spacing', 'waves']);
+    expect(byType(migrated, CURL)[0].exposed).toEqual(['amount']);
+  });
+
+  it('migrates inside groups, and the new nodes do not share ids with other levels', () => {
+    const old = v11([node(1, '__internal/group/instance', { groupId: 20 })]);
+    old.groups = [
+      {
+        id: 20,
+        nodes: [
+          node(10, '__internal/group/input'),
+          node(11, '__internal/group/output'),
+          node(12, CURL),
+          node(13, WAVES, { irregularity: 0.4 })
+        ],
+        edges: [[10, 0, 13, 'cap'], [10, 1, 12, 'amount'], [13, 0, 12, 'cap'], [
+          12,
+          0,
+          11,
+          'out_0'
+        ]]
+      } as unknown as NonNullable<Graph['groups']>[number]
+    ];
+    const migrated = migrateGraph(old);
+    const [group] = migrated.groups!;
+    const ids = [1, group.id, ...group.nodes.map((n) => n.id)];
+    expect(new Set(ids).size).toBe(ids.length);
+    const amount = byType(group, CURVE).find((n) => n.exposed?.includes('max'))!;
+    expect(group.edges).toEqual(
+      expect.arrayContaining([
+        [10, 0, 13, 'cap'],
+        [10, 1, amount.id, 'max'],
+        [amount.id, 0, 12, 'amount'],
+        [13, 0, 12, 'cap'],
+        [12, 0, 11, 'out_0']
+      ])
+    );
+    expect(group.edges).toHaveLength(7);
   });
 });

@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 11,
+  "version": 12,
   "settings": {
     "resolution.field": 256,
     "resolution.curve": 24
@@ -196,10 +196,60 @@
       "props": {}
     },
     {
+      "id": 409,
+      "position": [-195, 59.08],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.625,
+        "max": 1.375
+      }
+    },
+    {
+      "id": 412,
+      "position": [-165, 59.08],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      }
+    },
+    {
       "id": 58,
       "position": [-80, 134.25],
       "type": "max/myzel/margin_curl",
       "props": {}
+    },
+    {
+      "id": 408,
+      "position": [-105, 159.25],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0,
+          0.65,
+          0,
+          0.69375,
+          0.042969,
+          0.7375,
+          0.15625,
+          0.78125,
+          0.316406,
+          0.825,
+          0.5,
+          0.86875,
+          0.683594,
+          0.9125,
+          0.84375,
+          0.95625,
+          0.957031,
+          1,
+          1
+        ],
+        "min": 0
+      },
+      "exposed": [
+        "max"
+      ]
     },
     {
       "id": 100,
@@ -440,7 +490,8 @@
       "props": {
         "min": 0.75,
         "max": 1.15,
-        "uniform": 1
+        "uniform": 1,
+        "per_path": 1
       }
     },
     {
@@ -537,7 +588,8 @@
       "props": {
         "min": 3,
         "max": 4.2,
-        "uniform": 1
+        "uniform": 1,
+        "per_path": 1
       }
     },
     {
@@ -964,8 +1016,8 @@
     [
       55,
       0,
-      56,
-      "amplitude"
+      412,
+      "a"
     ],
     [
       100,
@@ -1085,7 +1137,7 @@
       126,
       0,
       56,
-      "irregularity"
+      "uneven_spacing"
     ],
     [
       406,
@@ -1276,8 +1328,8 @@
     [
       310,
       0,
-      58,
-      "amount"
+      408,
+      "max"
     ],
     [
       300,
@@ -1482,6 +1534,24 @@
       0,
       62,
       "depth"
+    ],
+    [
+      408,
+      0,
+      58,
+      "amount"
+    ],
+    [
+      412,
+      0,
+      56,
+      "amplitude"
+    ],
+    [
+      409,
+      0,
+      412,
+      "b"
     ]
   ]
 }

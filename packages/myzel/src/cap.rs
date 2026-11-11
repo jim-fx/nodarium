@@ -20,7 +20,7 @@
 use glam::{Vec2, Vec3};
 use nodarium_utils::{
     geometry::{is_path, orthogonal_to, path_link, wrap_path, wrap_path_mut},
-    Point,
+    decode_float, Ctx, Point,
 };
 use std::collections::HashMap;
 use std::f32::consts::{PI, TAU};
@@ -433,12 +433,60 @@ pub fn closing_turn(step: &Step, closing: f32) -> f32 {
     closing * step.alpha()
 }
 
-/// The turn that rolls the outer `reach` of a ray under by `curl` (1 = half a turn)
-pub fn curl_turn(step: &Step, curl: f32, reach: f32) -> f32 {
-    let a = step.alpha();
-    let edge = 1.0 - reach.clamp(1e-3, 1.0);
-    let t = ((a - edge) / (1.0 - edge)).clamp(0.0, 1.0);
-    curl * PI * t * t * (3.0 - 2.0 * t)
+/// How much of a ray a plain curl rolls in, as a share from the margin
+const CURL_REACH: f32 = 0.35;
+
+/// How a curl set as a plain value spreads from the axis (alpha 0) to the margin (1): it rises
+/// smoothly over the outer part of the ray
+pub fn curl_spread(alpha: f32) -> f32 {
+    let t = ((alpha - (1.0 - CURL_REACH)) / CURL_REACH).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
+/// The turn that rolls a ray under by `curl` (1 = half a turn), spread by [`curl_spread`]
+pub fn curl_turn(step: &Step, curl: f32) -> f32 {
+    curl * PI * curl_spread(step.alpha())
+}
+
+/// Steps from the axis to the margin at which [`AlongRay`] reads a connected input
+const ALONG_STEPS: usize = 64;
+
+/// An input of a pose node read along the rays of a cap, alpha 0 at the axis to 1 at the margin
+pub enum AlongRay {
+    /// A value set on the node, spread along the ray by the profile of the node
+    Plain(f32, fn(f32) -> f32),
+    /// A connected input, read at even steps and linearly in between
+    Read(Vec<f32>),
+}
+
+impl AlongRay {
+    /// Reads `arg`: a value set on the node spreads by `spread`, a connected node is read along
+    /// the ray, so a curve node into it shapes it. Random values are drawn once.
+    pub fn read(ctx: &mut Ctx, arg: &[i32], spread: fn(f32) -> f32) -> AlongRay {
+        if arg.len() == 1 {
+            AlongRay::Plain(decode_float(arg[0]), spread)
+        } else {
+            AlongRay::Read(ctx.float_along(arg, (0..=ALONG_STEPS).map(|i| i as f32 / ALONG_STEPS as f32)))
+        }
+    }
+
+    pub fn at(&self, alpha: f32) -> f32 {
+        match self {
+            AlongRay::Plain(value, spread) => value * spread(alpha.clamp(0.0, 1.0)),
+            AlongRay::Read(values) => {
+                let x = alpha.clamp(0.0, 1.0) * (values.len() - 1) as f32;
+                let i = (x as usize).min(values.len() - 2);
+                values[i] + (values[i + 1] - values[i]) * (x - i as f32)
+            }
+        }
+    }
+
+    pub fn is_zero(&self) -> bool {
+        match self {
+            AlongRay::Plain(value, _) => *value == 0.0,
+            AlongRay::Read(values) => values.iter().all(|&v| v == 0.0),
+        }
+    }
 }
 
 /// Poses the caps among `paths`. `pose` gives the new plane of ray `k` of a cap, or `None` to
@@ -696,7 +744,7 @@ mod tests {
             Some(cap.bend(k, |s| -((offset(s.to.x) - offset(s.from.x)) / s.length().max(1e-9)).atan()))
         });
         let refs: Vec<&[i32]> = waved.iter().map(|r| r.as_slice()).collect();
-        pose_caps(&refs, |cap, k| Some(cap.bend(k, |s| curl_turn(s, curl, 0.4))))
+        pose_caps(&refs, |cap, k| Some(cap.bend(k, |s| curl_turn(s, curl))))
     }
 
     fn many_added() -> TestCap {
@@ -741,7 +789,7 @@ mod tests {
         // the margin curls under the same share of every ray, so it drops by about the length of
         // its ray. By the middle length of the cap the long side would drop half the share.
         let refs: Vec<&[i32]> = paths.iter().map(|r| r.as_slice()).collect();
-        let curled = pose_caps(&refs, |cap, k| Some(cap.bend(k, |s| curl_turn(s, 0.5, 0.4))));
+        let curled = pose_caps(&refs, |cap, k| Some(cap.bend(k, |s| curl_turn(s, 0.5))));
         let drops: Vec<f32> = cap
             .rays
             .iter()

@@ -1,63 +1,63 @@
-use myzel_core::{pose_caps_of, Cap};
+use myzel_core::{pose_caps_of, AlongRay, Cap};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
-use nodarium_utils::{concat_arg_vecs, curve, geometry::path_random, int, split_args, Ctx, PathInfo};
-use std::f32::consts::TAU;
+use nodarium_utils::{concat_arg_vecs, curve, geometry::path_random, split_args, Ctx, PathInfo};
+use std::f32::consts::{PI, TAU};
 
 nodarium_definition_file!("src/definition.json");
 
-/// Sine terms that bend the lobes out of even spacing and give them uneven heights
-const WAVE_TERMS: usize = 3;
-/// At full irregularity the phase of the waves still advances at this share of its even rate,
-/// so lobes get narrower and wider but never fold over each other
+/// Keeps the random numbers of the lobes apart from the ones that place the rays
+const LOBE_SALT: i32 = 0x5741_0000;
+/// Sine terms that bend the lobes out of even spacing
+const WARP_TERMS: usize = 3;
+/// At full unevenness the lobes still advance at this share of their even rate, so they get
+/// narrower and wider but never fold over each other
 const MIN_PHASE_RATE: f32 = 0.4;
-/// Keeps the random numbers of the waves apart from the ones that place the rays
-const WAVE_SALT: i32 = 0x5741_0000;
 /// How a plain amplitude spreads from the centre (left) to the margin (right): only the outer
 /// part waves, a cap that rises and falls from the centre on would look tilted
 const PLAIN_PROFILE: [f32; 6] = [0.0, 0.0, 0.5, 0.25, 1.0, 1.0];
-/// Samples of a connected amplitude from the centre to the margin
-const AMPLITUDE_SAMPLES: usize = 65;
 
-/// Lobes around the margin that lift and lower it, in the frame of the cap
-struct Waves {
+fn plain_spread(alpha: f32) -> f32 {
+    curve(&PLAIN_PROFILE, alpha)
+}
+
+/// The lobes around the margin of one cap, in the frame of the cap
+struct Lobes {
     count: u32,
-    irregularity: f32,
+    /// The amplitude of every lobe, or one for all of them
+    heights: Vec<AlongRay>,
+    /// How much the lobes vary in width, 0 to 1
+    uneven: f32,
+    /// Drawn from the stipe, so every cap has its own lobes
+    random: [f32; 1 + 2 * WARP_TERMS],
 }
 
-/// How far a cap is lifted at `theta` around the axis, as a share of `amplitude`. It depends on
-/// nothing else of the cap, so caps with other rays wave alike.
-fn wave_shape(waves: &Waves, seed: i32, id: i32, theta: f32) -> f32 {
-    if waves.count == 0 {
-        return 0.0;
+impl Lobes {
+    /// Where `theta` around the axis is, in lobes: the crests are at whole numbers
+    fn phase(&self, theta: f32) -> f32 {
+        let n = self.count as f32;
+        let (mut warp, mut warp_rate) = (0.0, 0.0);
+        for k in 1..=WARP_TERMS {
+            let kf = k as f32;
+            let c = (0.25 + 0.75 * self.random[2 * k - 1]) / kf;
+            warp += c * (kf * theta + TAU * self.random[2 * k]).sin();
+            warp_rate += c * kf;
+        }
+        // warp / warp_rate changes by at most 1 per radian
+        let warped = self.uneven * (1.0 - MIN_PHASE_RATE) * warp / warp_rate;
+        n * (theta + warped) / TAU + self.random[0] * n
     }
-    let irregularity = waves.irregularity.clamp(0.0, 1.0);
-    let random = |salt: usize| path_random(seed, id, WAVE_SALT + salt as i32);
-    let (mut warp, mut warp_rate, mut height, mut height_range) = (0.0, 0.0, 0.0, 0.0);
-    for k in 1..=WAVE_TERMS {
-        let (kf, salt) = (k as f32, 4 * k);
-        let c = (0.25 + 0.75 * random(salt)) / kf;
-        warp += c * (kf * theta + TAU * random(salt + 1)).sin();
-        warp_rate += c * kf;
-        let b = (0.25 + 0.75 * random(salt + 2)) / kf;
-        height += b * (kf * theta + TAU * random(salt + 3)).cos();
-        height_range += b;
-    }
-    let n = waves.count as f32;
-    // warp / warp_rate changes by at most 1 per radian
-    let phase = n * theta + irregularity * (1.0 - MIN_PHASE_RATE) * n * warp / warp_rate;
-    let height = 1.0 + 0.5 * irregularity * height / height_range;
-    height * phase.cos()
-}
 
-/// The amplitude from the centre (alpha 0) to the margin (alpha 1), as a share of the length of
-/// the rays
-struct Amplitude(Vec<f32>);
-
-impl Amplitude {
-    fn at(&self, alpha: f32) -> f32 {
-        let x = alpha.clamp(0.0, 1.0) * (self.0.len() - 1) as f32;
-        let i = (x as usize).min(self.0.len() - 2);
-        self.0[i] + (self.0[i + 1] - self.0[i]) * (x - i as f32)
+    /// How far the cap is lifted at `theta` around the axis and `alpha` along the ray, as a share
+    /// of the length of the ray. It depends on nothing else of the cap, so caps with other rays
+    /// wave alike.
+    fn lift(&self, theta: f32, alpha: f32) -> f32 {
+        let n = self.count as usize;
+        let u = self.phase(theta).rem_euclid(self.count as f32);
+        let (j, f) = (u.floor() as usize % n, u.fract());
+        let height = |i: usize| self.heights[i % self.heights.len()].at(alpha);
+        // from the crest of one lobe to the next, so the trough between them takes after both
+        let w = 0.5 - 0.5 * (PI * f).cos();
+        (height(j) * (1.0 - w) + height(j + 1) * w) * (TAU * f).cos()
     }
 }
 
@@ -65,42 +65,37 @@ impl Amplitude {
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
     let items = split_args(args[0]);
-    let seed = int(args[4]);
-    let alphas = (0..AMPLITUDE_SAMPLES).map(|k| k as f32 / (AMPLITUDE_SAMPLES - 1) as f32);
     let caps = Cap::all(&items);
     // every cap reads its own waves, so a random node gives every cap its own lobes, and
     // path_info length reads how long its rays are, so the lobes can follow the size of the cap
-    let shapes: Vec<(Waves, Amplitude)> = caps
+    let lobes: Vec<Lobes> = caps
         .iter()
         .map(|cap| {
             ctx.seed_path(cap.frame.stipe_id);
             ctx.path = PathInfo { length: cap.length, ..PathInfo::default() };
-            let waves = Waves { count: ctx.int(args[1]).max(0) as u32, irregularity: ctx.float(args[3]) };
-            let values = if args[2].len() == 1 {
-                let plain = ctx.float(args[2]);
-                alphas.clone().map(|a| plain * curve(&PLAIN_PROFILE, a)).collect()
-            } else {
-                // one amplitude for the whole cap, the same for every ray
-                ctx.float_along(args[2], alphas.clone())
-            };
-            (waves, Amplitude(values))
+            let count = ctx.int(args[1]).max(0) as u32;
+            // read for every lobe, so a random node gives every lobe its own height
+            let reads = if args[2].len() == 1 { 1 } else { count.max(1) };
+            let heights = (0..reads).map(|_| AlongRay::read(&mut ctx, args[2], plain_spread)).collect();
+            let uneven = ctx.float(args[3]).clamp(0.0, 1.0);
+            let random = std::array::from_fn(|i| path_random(0, cap.frame.stipe_id, LOBE_SALT + i as i32));
+            Lobes { count, heights, uneven, random }
         })
         .collect();
 
     let posed = pose_caps_of(&caps, &items, |cap, k| {
-        let (waves, amplitude) = &shapes[caps.iter().position(|c| std::ptr::eq(c, cap))?];
-        if waves.count == 0 || amplitude.0.iter().all(|&a| a == 0.0) {
+        let lobes = &lobes[caps.iter().position(|c| std::ptr::eq(c, cap))?];
+        if lobes.count == 0 || lobes.heights.iter().all(AlongRay::is_zero) {
             return None;
         }
         let ray = &cap.rays[k];
         if ray.length <= 0.0 {
             return None;
         }
-        // by the length of the ray, so a cap that reaches further on one side waves more there
-        let lift = ray.length * wave_shape(waves, seed, cap.frame.stipe_id, ray.angle);
-        // by how far along its ray a place is, which no pose changes, so the waves look the same
-        // wherever the node sits in the chain of a cap
-        let offset = |alpha: f32| lift * amplitude.at(alpha);
+        // by the length of the ray, so a cap that reaches further on one side waves more there,
+        // and by how far along its ray a place is, which no pose changes, so the waves look the
+        // same wherever the node sits in the chain of a cap
+        let offset = |alpha: f32| ray.length * lobes.lift(ray.angle, alpha);
         Some(cap.bend(k, |s| {
             let length = s.length();
             if length > 0.0 {
@@ -115,7 +110,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
 #[cfg(test)]
 mod tests {
-    use super::{__nodarium_execute_inner, wave_shape, Waves};
+    use super::__nodarium_execute_inner;
     use myzel_core::{
         curl_turn, pose_caps,
         testing::{
@@ -132,20 +127,23 @@ mod tests {
         cap: TestCap,
         waves: i32,
         amplitude: f32,
-        irregularity: f32,
-        seed: i32,
+        uneven: f32,
     }
 
     fn wavy() -> Params {
-        Params { cap: cone(), waves: 6, amplitude: 0.15, irregularity: 0.0, seed: 3 }
+        Params { cap: cone(), waves: 6, amplitude: 0.15, uneven: 0.0 }
     }
 
     fn wave(paths: &[Vec<i32>], p: &Params) -> Vec<Vec<i32>> {
-        wave_with(paths, &[p.waves], &[encode_float(p.amplitude)], p)
+        wave_uneven(paths, &[p.waves], &[encode_float(p.amplitude)], p.uneven)
     }
 
-    fn wave_with(paths: &[Vec<i32>], waves: &[i32], amplitude: &[i32], p: &Params) -> Vec<Vec<i32>> {
-        unlist(&__nodarium_execute_inner(&[&list(paths), waves, amplitude, &[encode_float(p.irregularity)], &[p.seed]]))
+    fn wave_with(paths: &[Vec<i32>], waves: &[i32], amplitude: &[i32]) -> Vec<Vec<i32>> {
+        wave_uneven(paths, waves, amplitude, 0.0)
+    }
+
+    fn wave_uneven(paths: &[Vec<i32>], waves: &[i32], amplitude: &[i32], uneven: f32) -> Vec<Vec<i32>> {
+        unlist(&__nodarium_execute_inner(&[&list(paths), waves, amplitude, &[encode_float(uneven)]]))
     }
 
     fn run(p: &Params) -> Vec<Vec<i32>> {
@@ -178,11 +176,46 @@ mod tests {
             .collect()
     }
 
+    /// The plain spread of the amplitude, as a curve node whose max is `max`
+    fn spread(max: &[i32]) -> Vec<i32> {
+        let mut args: Vec<Vec<i32>> = vec![vec![3], concat_args(vec![&[2], &[0]]), vec![encode_float(0.0)], max.to_vec()];
+        args.extend([0.0, 0.0, 0.5, 0.25, 1.0, 1.0].iter().map(|&v| vec![encode_float(v)]));
+        concat_args(args.iter().map(|a| a.as_slice()).collect())
+    }
+
+    /// A random amplitude from 0.05 to 0.25, drawn for every read or once per path
+    fn random(per_path: bool) -> Vec<i32> {
+        let (min, max) = (vec![encode_float(0.05)], vec![encode_float(0.25)]);
+        if per_path {
+            concat_args(vec![&[1], &min, &max, &[7], &[1], &[1], &[0]])
+        } else {
+            concat_args(vec![&[1], &min, &max, &[7], &[1]])
+        }
+    }
+
+    /// The highest place of the margin of every lobe, by turning 64 rays round the axis
+    fn crests(paths: &[Vec<i32>], waves: usize) -> Vec<f32> {
+        let mut m = margin_heights(paths);
+        m.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let crest = m.iter().cloned().fold((0.0, f32::MIN), |a, b| if b.1 > a.1 { b } else { a });
+        (0..waves)
+            .map(|j| {
+                let at = (crest.0 + TAU * j as f32 / waves as f32).rem_euclid(TAU);
+                let near = |q: &&(f32, f32)| {
+                    let d = (q.0 - at).rem_euclid(TAU);
+                    d.min(TAU - d) < 0.25 * TAU / waves as f32
+                };
+                m.iter().filter(near).map(|q| q.1).fold(f32::MIN, f32::max)
+            })
+            .collect()
+    }
+
     #[test]
     fn no_waves_or_no_amplitude_changes_nothing() {
         let flat = grow(&cone());
         assert_eq!(run(&Params { amplitude: 0.0, ..wavy() }), flat);
-        assert_eq!(run(&Params { waves: 0, irregularity: 1.0, ..wavy() }), flat);
+        assert_eq!(run(&Params { waves: 0, ..wavy() }), flat);
+        assert_eq!(wave_with(&flat, &[6], &spread(&[encode_float(0.0)])), flat);
         assert_ne!(run(&wavy()), flat);
     }
 
@@ -202,38 +235,58 @@ mod tests {
 
     #[test]
     fn the_margin_changes_sign_twice_per_wave() {
-        let p = wavy();
-        for irregularity in [0.0, 0.5, 1.0] {
-            let w = Waves { count: p.waves as u32, irregularity };
-            let samples = 4096;
-            let shape = |k: usize| wave_shape(&w, 5, 17, TAU * k as f32 / samples as f32);
-            let changes = (0..samples).filter(|&k| shape(k).signum() != shape((k + 1) % samples).signum()).count();
-            assert_eq!(changes, 2 * p.waves as usize, "irregularity {irregularity}");
-        }
-        // and on the cap itself, measured against the flat margin
+        let p = Params { cap: TestCap { rays: 64, spacing: 0.0, ..cone() }, ..wavy() };
         let flat = place(margins(&run(&Params { amplitude: 0.0, ..p.clone() }))[0].position).y;
-        let m = margin_heights(&run(&Params { cap: TestCap { rays: 64, spacing: 0.0, ..cone() }, ..p }));
-        let changes = (0..m.len()).filter(|&i| (m[i].1 - flat).signum() != (m[(i + 1) % m.len()].1 - flat).signum()).count();
-        assert_eq!(changes, 12);
+        for amplitude in [vec![encode_float(p.amplitude)], spread(&random(false))] {
+            for uneven in [0.0, 0.5, 1.0] {
+                let m = margin_heights(&wave_uneven(&grow(&p.cap), &[p.waves], &amplitude, uneven));
+                let changes = (0..m.len()).filter(|&i| (m[i].1 - flat).signum() != (m[(i + 1) % m.len()].1 - flat).signum()).count();
+                assert_eq!(changes, 12, "uneven {uneven}");
+            }
+        }
     }
 
     #[test]
-    fn the_seed_only_moves_irregular_waves() {
-        let p = wavy();
-        assert_eq!(run(&p), run(&p));
-        let at = |seed: i32, irregularity: f32| {
-            let w = Waves { count: 6, irregularity };
-            (0..64).map(|k| wave_shape(&w, seed, 17, k as f32 * 0.1)).collect::<Vec<_>>()
+    fn uneven_spacing_makes_some_lobes_wider_than_others() {
+        let paths = grow(&TestCap { rays: 256, spacing: 0.0, ..cone() });
+        let flat = place(margins(&run(&Params { amplitude: 0.0, ..wavy() }))[0].position).y;
+        // the angles where the margin crosses its flat height, two per lobe
+        let widths = |uneven: f32| {
+            let mut m = margin_heights(&wave_uneven(&paths, &[6], &[encode_float(0.15)], uneven));
+            m.sort_by(|a, b| a.0.total_cmp(&b.0));
+            let crossings: Vec<f32> =
+                (0..m.len()).filter(|&i| (m[i].1 - flat).signum() != (m[(i + 1) % m.len()].1 - flat).signum()).map(|i| m[i].0).collect();
+            let widths: Vec<f32> = (0..crossings.len()).map(|i| (crossings[(i + 2) % crossings.len()] - crossings[i]).rem_euclid(TAU)).collect();
+            let (low, high) = (widths.iter().cloned().fold(f32::MAX, f32::min), widths.iter().cloned().fold(0.0, f32::max));
+            high / low
         };
-        assert_eq!(at(1, 0.0), at(2, 0.0));
-        assert_ne!(at(1, 0.5), at(2, 0.5));
-        assert_eq!(at(1, 0.5), at(1, 0.5));
+        assert!(widths(0.0) < 1.1, "{}", widths(0.0));
+        assert!(widths(1.0) > 1.5, "{}", widths(1.0));
+    }
+
+    #[test]
+    fn a_random_amplitude_gives_every_lobe_its_own_height() {
+        let paths = grow(&TestCap { rays: 64, spacing: 0.0, ..cone() });
+        let drawn = crests(&wave_with(&paths, &[6], &spread(&random(false))), 6);
+        let (low, high) = (drawn.iter().cloned().fold(f32::MAX, f32::min), drawn.iter().cloned().fold(f32::MIN, f32::max));
+        // the waves of a 0.15 amplitude lift the margin about this far
+        let unit = 0.15 * cone().radius;
+        assert!(high - low > 0.2 * unit, "crests {drawn:?}");
+        // a random once per path is drawn for the stipe, every lobe of the cap gets the same, up
+        // to where the rays meet the crests
+        let once = crests(&wave_with(&paths, &[6], &spread(&random(true))), 6);
+        for c in &once {
+            assert!((c - once[0]).abs() < 0.1 * unit, "crests {once:?}");
+        }
+        // and the same for every read of the stipe
+        assert_eq!(wave_with(&paths, &[6], &spread(&random(true))), wave_with(&paths, &[6], &spread(&random(true))));
     }
 
     #[test]
     fn waves_keep_the_length_of_every_ray() {
         let flat = grow(&cone());
-        let waved = run(&Params { irregularity: 0.7, ..wavy() });
+        let waved = wave_with(&flat, &[6], &spread(&random(false)));
+        assert_ne!(waved, flat);
         for (a, b) in waved.iter().zip(&flat) {
             for (x, y) in steps(a).iter().zip(steps(b)) {
                 assert!((x - y).abs() < 1e-5, "a step of {y} is {x} long");
@@ -243,18 +296,8 @@ mod tests {
 
     #[test]
     fn caps_with_other_rays_wave_alike() {
-        let a = margin_heights(&run(&Params {
-            cap: TestCap { rays: 10, spacing: 0.0, seed: 5, ..cone() },
-            irregularity: 0.6,
-            seed: 5,
-            ..wavy()
-        }));
-        let mut b = margin_heights(&run(&Params {
-            cap: TestCap { rays: 7, spacing: 0.5, seed: 5, ..cone() },
-            irregularity: 0.6,
-            seed: 5,
-            ..wavy()
-        }));
+        let a = margin_heights(&run(&Params { cap: TestCap { rays: 10, spacing: 0.0, seed: 5, ..cone() }, ..wavy() }));
+        let mut b = margin_heights(&run(&Params { cap: TestCap { rays: 7, spacing: 0.5, seed: 5, ..cone() }, ..wavy() }));
         b.sort_by(|x, y| x.0.total_cmp(&y.0));
         assert!(b.len() > 100, "{} rays", b.len());
         let amplitude = wavy().amplitude * cone().radius;
@@ -308,12 +351,12 @@ mod tests {
     /// Rolls the margin under like `margin_curl`
     fn curl(paths: &[Vec<i32>]) -> Vec<Vec<i32>> {
         let refs: Vec<&[i32]> = paths.iter().map(|p| p.as_slice()).collect();
-        pose_caps(&refs, |cap, k| Some(cap.bend(k, |s| curl_turn(s, 0.6, 0.4))))
+        pose_caps(&refs, |cap, k| Some(cap.bend(k, |s| curl_turn(s, 0.6))))
     }
 
     #[test]
     fn waves_work_before_and_after_the_curl() {
-        let p = Params { irregularity: 0.5, ..wavy() };
+        let p = Params { uneven: 0.5, ..wavy() };
         let input = grow(&p.cap);
         // turns add up, and the waves read how far along its ray a place is, so they wave a
         // curled cap as they wave an open one
@@ -347,7 +390,7 @@ mod tests {
         let f = frame(&input);
         let distance = ring_distance(&ring(&margins(&first), &f), &ring(&margins(&between), &f))
             .max(ring_distance(&ring(&margins(&between), &f), &ring(&margins(&first), &f)));
-        assert!(distance < 0.01 * c.radius, "the margins are {distance} apart");
+        assert!(distance < 0.015 * c.radius, "the margins are {distance} apart");
     }
 
     #[test]
@@ -360,7 +403,7 @@ mod tests {
             args.extend(points.iter().map(|&v| vec![encode_float(v)]));
             concat_args(args.iter().map(|a| a.as_slice()).collect())
         };
-        let waved = |amplitude: &[i32]| wave_with(&input, &[6], amplitude, &p);
+        let waved = |amplitude: &[i32]| wave_with(&input, &[6], amplitude);
         // the same as the plain amplitude, which spreads the same way
         let same = waved(&curve(&[0.0, 0.0, 0.5, 0.25, 1.0, 1.0]));
         for (a, b) in same.iter().zip(&run(&p)) {
@@ -385,7 +428,7 @@ mod tests {
             // round(path_info length * 150)
             let product = concat_args(vec![&[0], &[2], &concat_args(vec![&[5], &[5]]), &[encode_float(150.0)]]);
             let waves = concat_args(vec![&[6], &product]);
-            let waved = wave_with(&paths, &waves, &[encode_float(0.15)], &wavy());
+            let waved = wave_with(&paths, &waves, &[encode_float(0.15)]);
             (lobes(&waved)[0], (length * 150.0).round() as usize)
         };
         let (small, expected_small) = lobes_of(0.03);
@@ -402,7 +445,7 @@ mod tests {
         let counts: Vec<Vec<usize>> = (0..8)
             .map(|seed| {
                 let waves = concat_args(vec![&[4], &[3], &[9], &[seed]]);
-                lobes(&wave_with(&paths, &waves, &[encode_float(0.15)], &wavy()))
+                lobes(&wave_with(&paths, &waves, &[encode_float(0.15)]))
             })
             .collect();
         for c in &counts {

@@ -14,17 +14,9 @@
     },
     "amount": {
       "type": "float",
-      "description": "How far the margin rolls in under the cap. 0 = not at all, 1 = rolled under like a button",
+      "description": "How far a ray turns in under the cap, 0 = not at all, 1 = half a turn. A value alone rolls the outer third of the cap, like a button at 1. Connect a curve to set the turn from the centre (alpha 0) to the margin (alpha 1). Read once for every cap, so a random node gives every mushroom its own curl.",
       "value": 0.2,
       "min": 0,
-      "max": 1,
-      "step": 0.05
-    },
-    "reach": {
-      "type": "float",
-      "description": "How much of the cap rolls in, as a share of the way from the margin to the centre",
-      "value": 0.35,
-      "min": 0.05,
       "max": 1,
       "step": 0.05
     }
