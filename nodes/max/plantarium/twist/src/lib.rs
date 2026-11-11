@@ -128,8 +128,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut bundles: Vec<Vec<usize>> = Vec::new();
     let mut lookup: HashMap<(i32, i32), usize> = HashMap::new();
     for (index, path) in plants.iter().enumerate() {
+        if !selected.contains(path) {
+            continue;
+        }
         let link = path_link(path);
-        if !selected.contains(path) || !link.has_parent() {
+        if !link.has_parent() {
             continue;
         }
         let bundle = *lookup.entry((link.parent_id, link.creator)).or_insert_with(|| {

@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/lamellae",
   "meta": {
-    "description": "Hangs gills under a cap where a pattern has stripes: every stripe of reaction_diffusion becomes a gill that forks and starts between others where the stripes do. Thin plates like Agaricus, or with blunt the low rounded folds (false gills) of a chanterelle. Set decurrent and the gills run on down the stipe. Gives the gills as a mesh, which keeps plates thin and folds blunt at any mesh resolution."
+    "description": "Hangs thin gills under a cap where a pattern has stripes, like Agaricus: every stripe of reaction_diffusion becomes a plate that forks and starts between others where the stripes do. Free of the stipe, or with decurrent running on down it like Pleurotus. For the blunt false gills of a chanterelle use ridges. Gives the gills as a mesh, which keeps the plates thin at any mesh resolution."
   },
   "outputs": [
     "mesh"
@@ -19,29 +19,12 @@
     },
     "depth": {
       "type": "float",
-      "description": "How far the gills reach down from the cap underside where they are deepest. Read for every stipe, so it can follow the size of each mushroom.",
+      "description": "How far the gills reach down from the cap underside. Read along the gill, alpha 0 at the stipe to 1 at the margin, so a curve shapes it, and for every stipe, so it can follow the size of each mushroom.",
       "value": 0.004,
       "min": 0,
       "max": 0.05,
       "step": 0.0005,
       "unit": "m"
-    },
-    "depth_curve": {
-      "type": "curve",
-      "label": "Depth to the margin",
-      "description": "How deep the gills are from the stipe (left) to the margin (right), as a share of the depth",
-      "value": [
-        0,
-        0.3,
-        0.2,
-        0.85,
-        0.45,
-        1,
-        0.8,
-        0.65,
-        1,
-        0.1
-      ]
     },
     "free_distance": {
       "type": "float",
@@ -54,7 +37,7 @@
     },
     "decurrent": {
       "type": "float",
-      "description": "How far the gills that reach the stipe run on down it, lower and lower until they are gone. Needs a free distance of 0. Read for every stipe, so it can follow the size of each mushroom.",
+      "description": "How far the gills that reach the stipe run on down it, lower and lower until they are gone. Needs a free distance of 0. Read for every stipe.",
       "value": 0,
       "min": 0,
       "max": 0.05,
@@ -63,20 +46,12 @@
     },
     "thickness": {
       "type": "float",
-      "description": "Thickness of a gill where it leaves the cap, the width of a blunt fold. Read for every stipe, so it can follow the size of each mushroom.",
+      "description": "Thickness of a gill where it leaves the cap, it thins to half at the edge. Read for every stipe.",
       "value": 0.0003,
       "min": 5e-05,
       "max": 0.005,
       "step": 5e-05,
       "unit": "m"
-    },
-    "blunt": {
-      "type": "float",
-      "description": "0 = thin plates with a sharp edge (true gills), 1 = low folds with a round back, never deeper than the thickness (false gills of Cantharellus)",
-      "value": 0,
-      "min": 0,
-      "max": 1,
-      "step": 0.05
     },
     "edge_wave": {
       "type": "float",

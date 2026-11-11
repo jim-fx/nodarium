@@ -11,7 +11,8 @@
 //! material group it belongs to: for meshes made from paths the graph node that
 //! made the path, numbered by [`group_numbers`], 0 for meshes made from a pattern.
 //! Thin closed sheets like gill plates and veils, which stay
-//! sharp at any mesh resolution, are built with [`add_sheet`].
+//! sharp at any mesh resolution, are built with [`add_sheet`]. The gills of `lamellae` and
+//! `ridges` come from [`gills`].
 //!
 //! # Paths
 //!
@@ -41,6 +42,7 @@ mod cap;
 mod color;
 mod cap_shape;
 mod density;
+mod gills;
 mod hyphae_mesh;
 mod inputs;
 mod mesh;
@@ -56,6 +58,7 @@ pub use density::{mesh_segments, surface, surface_in, Frame, Meshing, Segment, S
 pub use color::{
     encode_color, linear_rgba, mix_colors, opaque, pack_linear, paint_mesh, read_color, NO_COLOR,
 };
+pub use gills::{gills, GillInputs, GillProfile, Gills};
 pub use hyphae_mesh::{paths_mesh, HyphaeMeshParams};
 pub use paths::{
     group_numbers, path_lines, path_segments, read_paths, MeshPath, PathGroup,

@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 10,
+  "version": 11,
   "settings": {
     "resolution.field": 256,
     "resolution.curve": 24
@@ -751,10 +751,19 @@
     {
       "id": 62,
       "position": [40, 132.5],
-      "type": "max/myzel/lamellae",
+      "type": "max/myzel/ridges",
       "props": {
-        "depth": 0.0012,
-        "depth_curve": [
+        "decurrent": 0.02,
+        "thickness": 0.0011,
+        "edge_wave": 0.3
+      }
+    },
+    {
+      "id": 407,
+      "position": [15, 147.5],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
           0,
           0.7,
           0.3,
@@ -764,11 +773,8 @@
           1,
           0.1
         ],
-        "free_distance": 0,
-        "decurrent": 0.02,
-        "thickness": 0.0011,
-        "blunt": 1,
-        "edge_wave": 0.3
+        "min": 0,
+        "max": 0.0012
       }
     },
     {
@@ -1470,6 +1476,12 @@
       0,
       406,
       "plant"
+    ],
+    [
+      407,
+      0,
+      62,
+      "depth"
     ]
   ]
 }
