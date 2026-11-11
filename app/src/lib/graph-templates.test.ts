@@ -1,6 +1,7 @@
 import { CURRENT_GRAPH_VERSION } from '#lib/graph-migrations/index.ts';
 import champignonGroomed from '#lib/graph-templates/champignon-groomed.json';
 import chestnutTemplate from '#lib/graph-templates/chestnut.json';
+import flyAgaricTemplate from '#lib/graph-templates/fly-agaric.json';
 import { grid } from '#lib/graph-templates/grid.ts';
 import { tree } from '#lib/graph-templates/tree.ts';
 import { projectTemplates } from '#lib/project-manager/project-templates.ts';
@@ -53,6 +54,40 @@ describe('mushroom templates', () => {
   it('lists the Chestnut mushroom with the mushrooms', () => {
     const names = projectTemplates.filter((t) => t.category === 'Mushrooms').map((t) => t.name);
     expect(names).toContain('Chestnut mushroom');
+  });
+
+  it('the Fly agaric has warts on the cuticle, a ring and a volva on its bulb', () => {
+    const flyAgaric = flyAgaricTemplate as unknown as Graph;
+    expect(groupsOf(flyAgaric)).toEqual(['Stipe', 'Cap', 'Gills', 'Veil', 'Cuticle', 'Volva']);
+    const group = (name: string) => flyAgaric.groups.find((g) => g.name === name)!;
+    const typesIn = (name: string) => group(name).nodes.map((n) => n.type);
+    const instance = (name: string) =>
+      flyAgaric.nodes.find((n) => n.props?.groupId === group(name).id)!;
+    const type = (id: number) => flyAgaric.nodes.find((n) => n.id === id)!.type;
+    const into = (name: string) =>
+      flyAgaric.edges.filter((e) => e[2] === instance(name).id).map((e) => [type(e[0]), e[3]]);
+    const from = (name: string) =>
+      flyAgaric.edges.filter((e) => e[0] === instance(name).id).map((e) => type(e[2]));
+
+    // the warts are the patches of the torn veil, the red cuticle shows in the cracks
+    expect(typesIn('Cuticle')).toContain('max/myzel/cracks');
+    expect(typesIn('Cuticle')).toContain('max/myzel/cap_pattern');
+    expect(into('Cuticle')).toContainEqual(['max/myzel/hyphae_to_mesh', 'mesh']);
+    // the pattern grows with the radius of the cap, so the warts stay on their spot of it
+    expect(into('Cuticle')).toContainEqual(['__internal/group/instance', 'radius']);
+    expect(from('Cuticle')).toEqual(['max/myzel/join_meshes']);
+    // a membrane on the button, the ring a skirt, no fringe on the margin
+    expect(typesIn('Veil').filter((t) => t === 'max/myzel/skirt')).toHaveLength(1);
+    expect(typesIn('Veil')).toContain('max/myzel/membrane');
+    // the rims of the volva hang from the top of the bulb
+    expect(typesIn('Volva')).toContain('max/myzel/skirt');
+    expect(into('Volva').map(([, input]) => input).sort()).toEqual(['bulb', 'stipe', 't']);
+    expect(from('Volva')).toEqual(['max/myzel/join_meshes']);
+  });
+
+  it('lists the Fly agaric with the mushrooms', () => {
+    const names = projectTemplates.filter((t) => t.category === 'Mushrooms').map((t) => t.name);
+    expect(names).toContain('Fly agaric');
   });
 });
 

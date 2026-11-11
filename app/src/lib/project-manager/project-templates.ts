@@ -8,6 +8,7 @@ import {
   defaultPlant,
   devilsBackbone,
   fern,
+  flyAgaric,
   foxglove,
   grass,
   horsetail,
@@ -71,6 +72,7 @@ export const projectTemplates: ProjectTemplate[] = [
   plant('Wild Carrot', toGraph(wildCarrot, 'cm')),
   mushroom('Champignon', toGraph(champignonGroomed, 'cm')),
   mushroom('Chestnut mushroom', toGraph(chestnut, 'cm')),
+  mushroom('Fly agaric', toGraph(flyAgaric, 'cm')),
   mushroom('Chanterelle', toGraph(chanterelle, 'cm')),
   mushroom('Oyster mushroom', toGraph(oyster, 'cm'))
 ];
