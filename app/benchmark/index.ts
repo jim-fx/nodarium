@@ -266,11 +266,6 @@ async function main() {
       await writeFile(resolve(outPath, name + '.json'), JSON.stringify(perfData));
 
       await new Promise(res => setTimeout(res, 200));
-
-      // the logger keeps every logged node input and result, and with them the wasm memories of
-      // the last registry, which would pile up over the templates towards the 2 GB of CI
-      (globalThis as { clearLogs?: () => void }).clearLogs?.();
-      globalThis.gc?.();
     }
   }
 }
