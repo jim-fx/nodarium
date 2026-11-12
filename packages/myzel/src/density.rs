@@ -28,6 +28,10 @@ const SMOOTHING: f32 = 0.75;
 /// It lies as far out as the blur alone puts it, in world units, see [`ramp_shift`].
 const SURFACE_SHARE: f32 = 0.3;
 
+/// How far from its tube a strand is written when its segment is on the grid already, in cells. The
+/// share of a strand in [`add_tissue`] is 0 from a cell on, the rest is a margin for rounding.
+const STRAND_REACH_IN_CELLS: f32 = 1.01;
+
 /// How much a closed segment counts for the owner of a sample past its kernel
 const FILL_OWNER_WEIGHT: f32 = 1e-3;
 
@@ -325,6 +329,38 @@ impl SparseGrid {
                         }
                     };
                     self.claim(i, index, k * priority);
+                }
+            }
+        }
+    }
+
+    /// The strand of a closed segment whose tube and owners are on the grid already, see
+    /// [`SparseGrid::close_sample`]. [`add_tissue`] reads a strand up to a cell away from its tube, it
+    /// is written a little further and no further: the rest of the reach of the segment is
+    /// splatted already.
+    fn splat_strand(&mut self, segment: &Segment, radius: f32) {
+        let reach = radius + STRAND_REACH_IN_CELLS * self.cell;
+        let lo_world = segment.start.min(segment.end) - Vec3::splat(reach);
+        let hi_world = segment.start.max(segment.end) + Vec3::splat(reach);
+        let to_sample = |v: Vec3, round: fn(f32) -> f32| {
+            [0, 1, 2].map(|a| (round((v[a] - self.origin[a]) / self.cell).max(0.0) as usize).min(self.samples[a] - 1))
+        };
+        let (lo, hi) = (to_sample(lo_world, f32::ceil), to_sample(hi_world, f32::floor));
+        let axis = segment.end - segment.start;
+        let length_sq = axis.length_squared().max(f32::EPSILON);
+        let reach_sq = reach * reach;
+        for z in lo[2]..=hi[2] {
+            for y in lo[1]..=hi[1] {
+                for x in lo[0]..=hi[0] {
+                    let p = self.position(Vec3::new(x as f32, y as f32, z as f32));
+                    let t = ((p - segment.start).dot(axis) / length_sq).clamp(0.0, 1.0);
+                    let d_sq = (p - segment.start - axis * t).length_squared();
+                    if d_sq >= reach_sq {
+                        continue;
+                    }
+                    if let Some(i) = self.index([x, y, z]) {
+                        self.strand[i] = self.strand[i].min(d_sq.sqrt() - radius);
+                    }
                 }
             }
         }
@@ -950,8 +986,10 @@ impl TissueField {
             if !frame.closes(m) {
                 grid.splat(i as u32, m, s, frame.kernel(m, s.radius), None);
             } else if strand(i) {
-                // the tube and the owners are there already, splatting them again only adds the strand
-                grid.splat(i as u32, m, s, frame.owner_kernel(m, s), Some(frame.closed(m, s, true)));
+                // the tube and the owners are there already, only the strand is added
+                if let Some(radius) = frame.closed(m, s, true).strand {
+                    grid.splat_strand(s, radius);
+                }
             }
         }
         add_tissue(&mut grid, &solid, frame.threshold);
@@ -2163,6 +2201,27 @@ mod tests {
         let fresh = surface_in(&frame, &segments, &meshing, strand);
         assert!(reused.mesh.face_count() > 0);
         assert_eq!(reused, fresh);
+    }
+
+    #[test]
+    fn a_field_writes_its_strands_only_as_far_as_they_show() {
+        // strands thinner and thicker than a cell, crossing the tissue and each other, at several cell sizes
+        let mut segments = body();
+        for k in 0..8u32 {
+            let from = Vec3::new(random(k) - 0.5, random(k + 10), random(k + 20) - 0.5) * 0.5;
+            let to = from + Vec3::new(random(k + 30) - 0.5, random(k + 40), random(k + 50) - 0.5) * 0.8;
+            segments.push(segment(from, to, 0.002 + 0.04 * random(k + 60)));
+        }
+        let strand = |i: usize| i >= 16;
+        let meshing = vec![Meshing::closed(3.0, 0.18); segments.len()];
+        for resolution in [40, 64, 97] {
+            let frame = Frame::new(&segments, &meshing, resolution).unwrap();
+            let field = TissueField::new(&frame, &segments, &meshing, 5.0).unwrap();
+            let reused = field.surface(&segments, &meshing, strand);
+            let fresh = surface_in(&frame, &segments, &meshing, strand);
+            assert!(reused.mesh.face_count() > 0);
+            assert_eq!(reused, fresh, "resolution {}", resolution);
+        }
     }
 
     #[test]
