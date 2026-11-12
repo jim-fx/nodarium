@@ -15,6 +15,9 @@
 //! cracks show up out of a closed cuticle. Where the width reaches the spacing only small
 //! islands of the patches stay, like the scales of an *Agaricus augustus*.
 
+mod lanes;
+mod near;
+
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{Ctx, Pattern};
 use std::f32::consts::TAU;
@@ -97,8 +100,12 @@ struct Patches {
     row_gap: f32,
     /// How far apart the middles of a row are around the axis
     around: f32,
+    root: f32,
     /// The angle, the place and a number of every middle
     rows: Vec<Vec<(f32, [f32; 2], u32)>>,
+    /// How near to the axis and how far from it the middles of each row are
+    low: Vec<f32>,
+    high: Vec<f32>,
 }
 
 impl Patches {
@@ -106,6 +113,7 @@ impl Patches {
         let root = p.stretch.sqrt();
         let (row_gap, around) = (p.spacing * root, p.spacing / root);
         let count = (p.radius / row_gap).ceil() as usize + 3;
+        let (mut low, mut high) = (vec![f32::INFINITY; count], vec![0.0f32; count]);
         let rows = (0..count)
             .map(|row| {
                 let r = row as f32 * row_gap;
@@ -114,6 +122,8 @@ impl Patches {
                     .map(|k| {
                         let jitter = |salt: u32| JITTER * (2.0 * hash(p.seed, row, k, salt) - 1.0);
                         let r = (r + jitter(0) * row_gap).max(0.0);
+                        low[row] = low[row].min(r);
+                        high[row] = high[row].max(r);
                         let angle = (TAU * (k as f32 + 0.5 + jitter(1)) / n as f32).rem_euclid(TAU);
                         (angle, [r * angle.cos(), r * angle.sin()], (row << 16 ^ k) as u32)
                     })
@@ -122,7 +132,7 @@ impl Patches {
                 middles
             })
             .collect();
-        Patches { row_gap, around, rows }
+        Patches { row_gap, around, root, rows, low, high }
     }
 
     /// How far a place is from the nearest edge between two patches, in a measure that is
@@ -192,6 +202,7 @@ pub fn cracks(p: &Params) -> Pattern {
         return Pattern { inner: 0.0, outer, spacing, rings };
     }
     let patches = Patches::new(&p);
+    let mut near = near::Near::new(&patches, spacing);
     let blur = (p.softness.clamp(0.0, 1.0) * 0.5 * spacing).max(cell);
     let wave_length = WAVE_LENGTH * spacing;
     let rings = (0..rings)
@@ -210,7 +221,7 @@ pub fn cracks(p: &Params) -> Pattern {
                     let angle = nodarium_utils::ring_angle(j, n);
                     let (x, y) = (r * angle.cos(), r * angle.sin());
                     let wave = |salt: u32| WAVE * spacing * noise(p.seed, x / wave_length, y / wave_length, salt);
-                    let (e, edge) = patches.edge_distance([x + wave(1), y + wave(2)], p.stretch);
+                    let (e, edge) = near.edge_distance(&patches, [x + wave(1), y + wave(2)], p.stretch);
                     let half = half * (1.0 + WIDTH_SPREAD * (2.0 * edge - 1.0));
                     fade * (1.0 - smoothstep(half, half + blur, e))
                 })
