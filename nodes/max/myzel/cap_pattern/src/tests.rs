@@ -68,7 +68,11 @@ fn body_and_gills(paths: &[Vec<i32>]) -> Mesh {
 }
 
 fn run(mesh: &Mesh, cap: &[Vec<i32>], pattern: &[i32], relief: &[i32], opacity: &[i32]) -> Vec<i32> {
-    __nodarium_execute_inner(&[&mesh.encode(), &testing::list(cap), pattern, relief, &encode_color(PALE), opacity])
+    run_sliding(mesh, cap, pattern, relief, &value(0.0), opacity)
+}
+
+fn run_sliding(mesh: &Mesh, cap: &[Vec<i32>], pattern: &[i32], relief: &[i32], slide: &[i32], opacity: &[i32]) -> Vec<i32> {
+    __nodarium_execute_inner(&[&mesh.encode(), &testing::list(cap), pattern, relief, slide, &encode_color(PALE), opacity])
 }
 
 fn value(v: f32) -> Vec<i32> {
@@ -90,7 +94,8 @@ fn at_zero_the_mesh_stays_as_it_is() {
     assert_eq!(run(&mesh, &cap, &disc(|_, _| 0.0), &value(0.001), &value(1.0)), words);
     assert_eq!(run(&mesh, &cap, &[0, 1, 1, 1], &value(0.001), &value(1.0)), words);
     assert_eq!(run(&mesh, &[], &disc(|_, _| 1.0), &value(0.001), &value(1.0)), words);
-    let empty = __nodarium_execute_inner(&[&[0, 1, 1, 1], &[0, 1, 1, 1], &[0, 1, 1, 1], &value(0.001), &encode_color(PALE), &value(1.0)]);
+    assert_eq!(run_sliding(&mesh, &cap, &disc(|_, _| 1.0), &value(0.0), &value(0.0), &value(0.0)), words);
+    let empty = __nodarium_execute_inner(&[&[0, 1, 1, 1], &[0, 1, 1, 1], &[0, 1, 1, 1], &value(0.001), &value(0.0), &encode_color(PALE), &value(1.0)]);
     assert_eq!(Mesh::decode(&empty), Mesh::default());
 }
 
@@ -279,6 +284,66 @@ fn the_top_gets_finer_faces_and_no_holes() {
     assert!(after.groups[mesh.vertex_count()..].iter().all(|&g| g == 1));
 }
 
+fn position(mesh: &Mesh, v: usize) -> Vec3 {
+    Vec3::from_slice(&mesh.positions[v * 3..v * 3 + 3])
+}
+
+#[test]
+fn the_slide_moves_the_top_along_it_away_from_the_axis() {
+    let cap = cap();
+    let mesh = body(&cap);
+    let after = Mesh::decode(&run_sliding(&mesh, &cap, &disc(|_, _| 1.0), &value(0.0), &value(0.001), &value(0.0)));
+    let frame = testing::frame(&cap);
+    let out = |p: Vec3| (p - frame.hinge).reject_from(frame.axis).length();
+    let top: Vec<usize> = (0..mesh.vertex_count())
+        .filter(|&v| mesh.groups[v] == 1 && mesh.normals[v * 3 + 1] > 0.5 && (0.008..0.022).contains(&out(position(&mesh, v))))
+        .collect();
+    let along = top
+        .iter()
+        .filter(|&&v| {
+            let (before, now) = (position(&mesh, v), position(&after, v));
+            let normal = Vec3::from_slice(&mesh.normals[v * 3..v * 3 + 3]);
+            let moved = now - before;
+            (moved.length() - 0.001).abs() < 1e-4 && moved.dot(normal).abs() < 1e-4 && out(now) > out(before)
+        })
+        .count();
+    assert!(top.len() > 100 && along as f32 > 0.95 * top.len() as f32, "{along} of {} slid outward along the top", top.len());
+}
+
+#[test]
+fn a_pressed_pattern_that_slides_towards_the_axis_tucks_in_under_the_top() {
+    // the outer part of the cone is pressed in, the cap falls away outward
+    let cap = cap();
+    let mesh = body(&cap);
+    let outer = disc(|_, s| if s > 0.018 { 1.0 } else { 0.0 });
+    let frame = testing::frame(&cap);
+    let tucked = |slide: f32| {
+        let after = Mesh::decode(&run_sliding(&mesh, &cap, &outer, &value(-0.0008), &value(slide), &value(0.0)));
+        let on_top = |v: usize| mesh.groups[v] == 1 && mesh.normals[v * 3 + 1] > 0.5;
+        let (mut pressed, mut kept) = (Vec::new(), Vec::new());
+        for v in (0..mesh.vertex_count()).filter(|&v| on_top(v)) {
+            let p = position(&after, v) - frame.hinge;
+            let place = (p.reject_from(frame.axis), p.dot(frame.axis));
+            if position(&after, v) == position(&mesh, v) {
+                kept.push(place);
+            } else {
+                pressed.push(place);
+            }
+        }
+        // pressed places further in than a place of the top at the same angle, and lower
+        pressed
+            .iter()
+            .filter(|(p, height)| {
+                kept.iter().any(|(k, top)| {
+                    p.normalize().dot(k.normalize()) > 0.998 && p.length() < k.length() - 0.0005 && height < top
+                })
+            })
+            .count()
+    };
+    assert_eq!(tucked(0.0), 0);
+    assert!(tucked(-0.0015) > 20, "only {} places tuck in under the top", tucked(-0.0015));
+}
+
 /// The stipe of `body`, alone
 fn bare_stipe(paths: &[Vec<i32>]) -> Vec<Vec<i32>> {
     let mut stipe = paths.iter().find(|p| !path_link(p).has_parent()).unwrap().clone();
@@ -370,6 +435,6 @@ fn the_inputs_are_few() {
     assert!(inputs.len() <= 8);
     let mut keys: Vec<&String> = inputs.keys().collect();
     keys.sort();
-    assert_eq!(keys, ["cap", "color", "mesh", "opacity", "pattern", "relief"]);
+    assert_eq!(keys, ["cap", "color", "mesh", "opacity", "pattern", "relief", "slide"]);
 }
 

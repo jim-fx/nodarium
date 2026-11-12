@@ -21,9 +21,16 @@
 //! Only the vertices around its side count, not past its ends.
 //!
 //! The relief moves a vertex along its normal by `relief` times the value of the pattern, the
-//! color goes over the color of the vertex by `opacity` times the value. On a cap both are read
+//! slide along the surface away from the middle of the pattern by `slide` times the value, the
+//! color goes over the color of the vertex by `opacity` times the value. On a cap they are read
 //! along the rays, alpha 0 at the axis to 1 at the margin, and for every stipe, around a path
 //! along it, alpha 0 at its base to 1 at its tip.
+//!
+//! A relief alone can't lift anything off the surface, it only moves every place of it in or
+//! out. Where the pattern rises steeply, a slide back towards the middle of the pattern carries
+//! the raised or pressed place past the one before it, so the surface folds over: a pattern
+//! pressed in and slid towards the axis tucks in under the surface above it, and the edge there
+//! stands free, like the upturned scales of a shaggy inkcap.
 
 use glam::{Vec2, Vec3};
 use myzel_core::{linear_rgba, opaque, pack_linear, read_color, AlongRay, Cap, CapFrame, Mesh, NO_COLOR};
@@ -65,6 +72,8 @@ struct Nearest {
     /// Distance along the ray from the axis
     s: f32,
     point: Vec2,
+    /// Along the ray towards the margin
+    tangent: Vec2,
     /// The side of the flesh that faces away from the gills
     normal: Vec2,
     radius: f32,
@@ -102,9 +111,10 @@ impl Line {
                 continue;
             }
             let lerp = |x: &[f32]| x[i] + (x[i + 1] - x[i]) * t;
-            let normal = ab.try_normalize().map_or(Vec2::Y, |t| t.perp());
+            let tangent = ab.try_normalize().unwrap_or(Vec2::X);
             let at_start = i == 0 && t == 0.0 && self.s[0] > 0.0;
-            best = Some((d, Nearest { s: lerp(&self.s).max(0.0), point, normal, radius: lerp(&self.radius).abs() }, at_start));
+            let near = Nearest { s: lerp(&self.s).max(0.0), point, tangent, normal: tangent.perp(), radius: lerp(&self.radius).abs() };
+            best = Some((d, near, at_start));
         }
         best.filter(|b| !b.2).map(|b| b.1)
     }
@@ -120,6 +130,8 @@ struct OnTop {
     alpha: f32,
     /// How much the vertex faces up, 1 on the top, 0 past the margin
     weight: f32,
+    /// Along the surface away from the middle of the pattern
+    along: Vec3,
     /// How far it is from the middle of the flesh
     distance: f32,
 }
@@ -134,12 +146,32 @@ struct Top {
     low: Vec2,
     high: Vec2,
     shell: f32,
+    reads: Reads,
+}
+
+/// The relief, the slide and the opacity read for one top or path
+struct Reads {
     relief: AlongRay,
+    slide: AlongRay,
     opacity: AlongRay,
 }
 
+impl Reads {
+    fn read(ctx: &mut Ctx, args: &[&[i32]]) -> Reads {
+        Reads {
+            relief: AlongRay::read(ctx, args[3], even),
+            slide: AlongRay::read(ctx, args[4], even),
+            opacity: AlongRay::read(ctx, args[6], even),
+        }
+    }
+
+    fn is_zero(&self) -> bool {
+        self.relief.is_zero() && self.slide.is_zero() && self.opacity.is_zero()
+    }
+}
+
 impl Top {
-    fn new(cap: &Cap, items: &[&[i32]], relief: AlongRay, opacity: AlongRay) -> Option<Top> {
+    fn new(cap: &Cap, items: &[&[i32]], reads: Reads) -> Option<Top> {
         let lines: Vec<Line> = cap
             .rays
             .iter()
@@ -170,7 +202,7 @@ impl Top {
             }
         }
         let shell = 2.0 * thickest + SHELL * cap.length;
-        Some(Top { frame: cap.frame, lines, low: low.max(Vec2::new(0.0, f32::NEG_INFINITY)), high, shell, relief, opacity })
+        Some(Top { frame: cap.frame, lines, low: low.max(Vec2::new(0.0, f32::NEG_INFINITY)), high, shell, reads })
     }
 
     fn locate(&self, p: Vec3) -> Option<OnTop> {
@@ -206,6 +238,7 @@ impl Top {
         let t = if span > 0.0 { (angle - a.angle).rem_euclid(TAU) / span } else { 0.0 };
         let point = na.point.lerp(nb.point, t);
         let normal = na.normal.lerp(nb.normal, t).try_normalize().unwrap_or(na.normal);
+        let tangent = na.tangent.lerp(nb.tangent, t).try_normalize().unwrap_or(na.tangent);
         let radius = na.radius + (nb.radius - na.radius) * t;
         let offset = place - point;
         let distance = offset.length();
@@ -223,6 +256,7 @@ impl Top {
             s: lerp(na.s * a.stretch, nb.s * b.stretch),
             alpha: lerp(na.s / a.length, nb.s / b.length).clamp(0.0, 1.0),
             weight,
+            along: f.out(angle) * tangent.x + f.axis * tangent.y,
             distance,
         })
     }
@@ -240,12 +274,11 @@ struct Sleeve {
     low: Vec3,
     high: Vec3,
     shell: f32,
-    relief: AlongRay,
-    opacity: AlongRay,
+    reads: Reads,
 }
 
 impl Sleeve {
-    fn new(path: &[i32], relief: AlongRay, opacity: AlongRay) -> Option<Sleeve> {
+    fn new(path: &[i32], reads: Reads) -> Option<Sleeve> {
         let path = wrap_path(path);
         let n = path.length;
         if n < 2 {
@@ -271,7 +304,7 @@ impl Sleeve {
         let reach = Vec3::splat(thickest + shell);
         let low = points.iter().fold(Vec3::INFINITY, |a, &b| a.min(b)) - reach;
         let high = points.iter().fold(Vec3::NEG_INFINITY, |a, &b| a.max(b)) + reach;
-        Some(Sleeve { points, radius, along, sides, low, high, shell, relief, opacity })
+        Some(Sleeve { points, radius, along, sides, low, high, shell, reads })
     }
 
     fn locate(&self, p: Vec3, normal: Vec3) -> Option<OnTop> {
@@ -318,6 +351,7 @@ impl Sleeve {
             s: length - along + *self.radius.last().unwrap(),
             alpha: along / length,
             weight,
+            along: -tangent,
             distance: (distance - radius).abs(),
         })
     }
@@ -337,17 +371,10 @@ impl Surface {
         }
     }
 
-    fn relief(&self) -> &AlongRay {
+    fn reads(&self) -> &Reads {
         match self {
-            Surface::Top(top) => &top.relief,
-            Surface::Sleeve(sleeve) => &sleeve.relief,
-        }
-    }
-
-    fn opacity(&self) -> &AlongRay {
-        match self {
-            Surface::Top(top) => &top.opacity,
-            Surface::Sleeve(sleeve) => &sleeve.opacity,
+            Surface::Top(top) => &top.reads,
+            Surface::Sleeve(sleeve) => &sleeve.reads,
         }
     }
 }
@@ -516,13 +543,15 @@ fn paint(mesh: &mut Mesh, tops: &[Surface], pattern: &Pattern, color: [u8; 3]) -
         if value <= 0.0 {
             continue;
         }
-        let lift = top.relief().at(on.alpha) * value;
-        if lift != 0.0 {
+        let reads = top.reads();
+        let (lift, slide) = (reads.relief.at(on.alpha) * value, reads.slide.at(on.alpha) * value);
+        if lift != 0.0 || slide != 0.0 {
             let normal = Vec3::from_slice(&mesh.normals[v * 3..v * 3 + 3]);
-            mesh.positions[v * 3..v * 3 + 3].copy_from_slice(&(p + normal * lift).to_array());
+            let along = (on.along - normal * on.along.dot(normal)).normalize_or_zero();
+            mesh.positions[v * 3..v * 3 + 3].copy_from_slice(&(p + normal * lift + along * slide).to_array());
             moved[v] = true;
         }
-        let cover = (top.opacity().at(on.alpha) * value).clamp(0.0, 1.0);
+        let cover = (reads.opacity.at(on.alpha) * value).clamp(0.0, 1.0);
         if cover > 0.0 {
             if mesh.colors.is_empty() {
                 mesh.colors = vec![NO_COLOR; n];
@@ -556,9 +585,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         .filter_map(|(rank, cap)| {
             ctx.set_path(items[cap.stipe], rank, caps.len());
             ctx.alpha = cap.frame.alpha;
-            let relief = AlongRay::read(&mut ctx, args[3], even);
-            let opacity = AlongRay::read(&mut ctx, args[5], even);
-            Top::new(cap, &items, relief, opacity).map(Surface::Top)
+            let reads = Reads::read(&mut ctx, args);
+            Top::new(cap, &items, reads).map(Surface::Top)
         })
         .collect();
     let in_caps: HashSet<usize> = caps.iter().flat_map(|c| c.rays.iter().map(|r| r.path).chain([c.stipe])).collect();
@@ -575,12 +603,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         .collect();
     for (rank, &i) in bare.iter().enumerate() {
         ctx.set_path(items[i], rank, bare.len());
-        let relief = AlongRay::read(&mut ctx, args[3], even);
-        let opacity = AlongRay::read(&mut ctx, args[5], even);
-        tops.extend(Sleeve::new(items[i], relief, opacity).map(Surface::Sleeve));
+        let reads = Reads::read(&mut ctx, args);
+        tops.extend(Sleeve::new(items[i], reads).map(Surface::Sleeve));
     }
-    tops.retain(|top| !(top.relief().is_zero() && top.opacity().is_zero()));
-    if tops.is_empty() || !paint(&mut mesh, &tops, &pattern, read_color(args[4])) {
+    tops.retain(|top| !top.reads().is_zero());
+    if tops.is_empty() || !paint(&mut mesh, &tops, &pattern, read_color(args[5])) {
         return args[0].to_vec();
     }
     mesh.encode()

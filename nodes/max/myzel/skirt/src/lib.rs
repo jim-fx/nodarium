@@ -383,6 +383,25 @@ mod tests {
     }
 
     #[test]
+    fn hangs_a_ring_around_every_stipe_of_a_cluster() {
+        // the stipes stand around in a circle, their points are no ring
+        let spots: Vec<Point> = (0..5)
+            .map(|k| {
+                let angle = TAU * k as f32 / 5.0;
+                let position = Vec3::new(0.03 * angle.cos(), RING_HEIGHT, 0.03 * angle.sin());
+                Point { position, parent_id: 40 + k, ..spot(0.0, RING_HEIGHT) }
+            })
+            .collect();
+        let (strands, mesh) = run(&spots, 0.25);
+        assert_eq!(strands.len(), 5 * 128);
+        for s in &strands {
+            let nearest = spots.iter().map(|p| p.position.distance(s[0])).fold(f32::INFINITY, f32::min);
+            assert!(nearest < STIPE_RADIUS, "a strand starts {nearest} from the stipes");
+        }
+        assert_eq!(sheet_checks::open_edge(&mesh), None);
+    }
+
+    #[test]
     fn hangs_on_the_inside_of_a_ring() {
         // flare 0 hangs straight down from the margin, 1 straight in towards the axis. The rays
         // end a radius further in in a half sphere, a strand starts a thickness inside it.
