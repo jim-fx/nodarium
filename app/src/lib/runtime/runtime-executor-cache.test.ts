@@ -33,7 +33,29 @@ const setting = sumNode('test/cache/setting', {
   value: { type: 'integer', setting: 'resolution' }
 });
 
-const registry = createMockNodeRegistry([output, add, left, right, seeded, creator, setting]);
+const BIG_BYTES = 4096;
+// a result of BIG_BYTES filled with the seed
+const bigSeeded = {
+  id: 'test/cache/big-seeded',
+  inputs: { seed: { type: 'seed' } },
+  outputs: ['float'],
+  execute: vi.fn((values: NodeValue[]) => {
+    calls['test/cache/big-seeded'] = (calls['test/cache/big-seeded'] ?? 0) + 1;
+    return new Int32Array(BIG_BYTES / 4).fill((values[0] as Int32Array)[0]);
+  }),
+  reset: vi.fn()
+} as NodeDefinition;
+
+const registry = createMockNodeRegistry([
+  output,
+  add,
+  left,
+  right,
+  seeded,
+  creator,
+  setting,
+  bigSeeded
+]);
 
 // output <- add <- (left, right)
 function graph(leftProps?: Record<string, number>): Graph {
@@ -256,5 +278,102 @@ describe('runtime node timings', () => {
     await executor.execute(singleNodeGraph(left.id), {});
 
     expect(Object.keys(executor.getNodeTimings()).map(Number).sort()).toEqual([0, 1]);
+  });
+});
+
+describe('MemoryRuntimeCache', () => {
+  const bytes = (n: number) => [new Int32Array(n / 4)];
+
+  it('removes the least recently used values once they hold more than maxBytes', () => {
+    const cache = new MemoryRuntimeCache(10, 100);
+    cache.set('a', bytes(40));
+    cache.set('b', bytes(40));
+    cache.get('a');
+    cache.set('c', bytes(40));
+
+    expect(cache.get('a')).toBeDefined();
+    expect(cache.get('b')).toBeUndefined();
+    expect(cache.get('c')).toBeDefined();
+    expect(cache.bytes).toBe(80);
+  });
+
+  it('counts a replaced value only once', () => {
+    const cache = new MemoryRuntimeCache(10, 100);
+    cache.set('a', bytes(40));
+    cache.set('a', bytes(60));
+
+    expect(cache.bytes).toBe(60);
+  });
+
+  it('removes values right away when its limits are lowered', () => {
+    const cache = new MemoryRuntimeCache();
+    cache.set('a', bytes(40));
+    cache.set('b', bytes(40));
+    cache.set('c', bytes(40));
+
+    cache.maxBytes = 80;
+    expect(cache.get('a')).toBeUndefined();
+    expect(cache.bytes).toBe(80);
+
+    cache.size = 1;
+    expect(cache.get('b')).toBeUndefined();
+    expect(cache.get('c')).toBeDefined();
+  });
+
+  it('forgets the bytes of cleared values', () => {
+    const cache = new MemoryRuntimeCache();
+    cache.set('a', bytes(40));
+    cache.clear();
+
+    expect(cache.bytes).toBe(0);
+  });
+});
+
+describe('runtime cache size', () => {
+  beforeEach(() => {
+    calls = {};
+  });
+
+  it('keeps the results of new seeds to twice those of one run', async () => {
+    const cache = new MemoryRuntimeCache();
+    const executor = new MemoryRuntimeExecutor(registry, cache);
+
+    for (let seed = 0; seed < 5; seed++) {
+      await executor.execute(singleNodeGraph(bigSeeded.id), { seed });
+      expect(cache.bytes).toBeLessThanOrEqual(2 * BIG_BYTES);
+    }
+    expect(cache.maxBytes).toBe(2 * BIG_BYTES);
+
+    // the seed before the last one is still cached, so going back runs nothing
+    calls = {};
+    await executor.execute(singleNodeGraph(bigSeeded.id), { seed: 3 });
+    expect(calls[bigSeeded.id]).toBeUndefined();
+  });
+
+  it('keeps every result of a bigger graph than the last one', async () => {
+    const cache = new MemoryRuntimeCache();
+    const executor = new MemoryRuntimeExecutor(registry, cache);
+    await executor.execute(singleNodeGraph(seeded.id), {});
+
+    // output <- add <- (big, big), both big results are over the limit of the last run
+    const bigGraph = {
+      id: 0,
+      nodes: [
+        { id: 0, type: output.id, position: [0, 0] },
+        { id: 1, type: add.id, position: [0, 0] },
+        { id: 2, type: bigSeeded.id, position: [0, 0] },
+        { id: 3, type: bigSeeded.id, position: [0, 0] }
+      ],
+      edges: [
+        [1, 0, 0, 'input'],
+        [2, 0, 1, 'a'],
+        [3, 0, 1, 'b']
+      ]
+    } as Graph;
+    await executor.execute(bigGraph, {});
+    calls = {};
+    await executor.execute(bigGraph, {});
+
+    expect(calls).toEqual({ [output.id]: 1 });
   });
 });
