@@ -1,4 +1,4 @@
-use crate::mesh::{pack_rgba, Mesh};
+use crate::mesh::pack_rgba;
 
 /// A vertex without a color of its own: the viewer shows its material there. White, so programs
 /// that multiply the vertex color with their material see the material.
@@ -60,24 +60,9 @@ pub fn mix_colors(a: [u8; 3], b: [u8; 3], factor: f32) -> [u8; 3] {
     [0, 8, 16].map(|s| (mixed >> s) as u8)
 }
 
-/// Gives every vertex of the mesh `color`
-pub fn paint_mesh(mesh: &mut Mesh, color: [u8; 3]) {
-    mesh.colors = vec![opaque(color); mesh.vertex_count()];
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn triangle() -> Mesh {
-        Mesh {
-            faces: vec![0, 1, 2],
-            positions: vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
-            normals: vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
-            colors: Vec::new(),
-            groups: vec![0, 0, 0],
-        }
-    }
 
     #[test]
     fn reads_a_color_set_on_the_node_or_connected() {
@@ -97,14 +82,5 @@ mod tests {
         for c in [0u8, 1, 50, 128, 200, 255] {
             assert_eq!(pack_linear(linear_rgba(opaque([c, c, c]))), opaque([c, c, c]));
         }
-    }
-
-    #[test]
-    fn paints_every_vertex_and_nothing_else() {
-        let red = [200, 10, 10];
-        let mut mesh = triangle();
-        paint_mesh(&mut mesh, red);
-        assert_eq!(mesh.colors, vec![opaque(red); 3]);
-        assert_eq!(Mesh { colors: Vec::new(), ..mesh }, triangle());
     }
 }

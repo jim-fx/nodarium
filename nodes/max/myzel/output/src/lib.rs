@@ -44,12 +44,12 @@ fn pattern_mesh(pattern: &Pattern) -> Mesh {
 }
 
 /// Wraps items in the list the viewer reads: [0, 1, [0, n + 1, ...item, 1, 1]..., 1, 1]
-fn list(items: &[Vec<i32>]) -> Vec<i32> {
+fn list(items: &[&[i32]]) -> Vec<i32> {
     let mut output = Vec::with_capacity(items.iter().map(|i| i.len() + 4).sum::<usize>() + 4);
     output.extend([0, 1]);
     for item in items {
         output.extend([0, item.len() as i32 + 1]);
-        output.extend(item);
+        output.extend_from_slice(item);
         output.extend([1, 1]);
     }
     output.extend([1, 1]);
@@ -59,14 +59,17 @@ fn list(items: &[Vec<i32>]) -> Vec<i32> {
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     match args[0].first() {
-        Some(&MESH_TAG) => list(&[args[0].to_vec()]),
-        Some(&PATTERN_TAG) => list(&Pattern::decode(args[0]).map(|p| vec![pattern_mesh(&p).encode()]).unwrap_or_default()),
+        Some(&MESH_TAG) => list(&[args[0]]),
+        Some(&PATTERN_TAG) => match Pattern::decode(args[0]) {
+            Some(pattern) => list(&[&pattern_mesh(&pattern).encode()]),
+            None => list(&[]),
+        },
         _ => {
             let paths = read_paths(args[0], PathStyle::BODY);
             if paths.is_empty() {
                 return list(&[]);
             }
-            list(&[path_lines(&paths)])
+            list(&[&path_lines(&paths)])
         }
     }
 }
