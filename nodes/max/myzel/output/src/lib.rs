@@ -1,5 +1,6 @@
 use myzel_core::{pack_rgba, path_lines, read_paths, Mesh, PathStyle, MESH_TAG};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
+use nodarium_utils::abi::{self, Output};
 use nodarium_utils::{geometry::orthogonal_to, Pattern, PATTERN_TAG};
 use std::f32::consts::TAU;
 
@@ -56,27 +57,37 @@ fn list(items: &[&[i32]]) -> Vec<i32> {
     output
 }
 
+/// The list of one mesh: framed in place when it is an input the host copied in, the largest
+/// result of a build would otherwise be in memory twice
+fn mesh_list(mesh: &[i32]) -> Output {
+    let prefix = [0, 1, 0, mesh.len() as i32 + 1];
+    match abi::frame_input(mesh, &prefix, &[1, 1, 1, 1]) {
+        Some(framed) => framed.into(),
+        None => list(&[mesh]).into(),
+    }
+}
+
 #[nodarium_execute]
-pub fn execute(args: &[&[i32]]) -> Vec<i32> {
+pub fn execute(args: &[&[i32]]) -> Output {
     match args[0].first() {
-        Some(&MESH_TAG) => list(&[args[0]]),
+        Some(&MESH_TAG) => mesh_list(args[0]),
         Some(&PATTERN_TAG) => match Pattern::decode(args[0]) {
-            Some(pattern) => list(&[&pattern_mesh(&pattern).encode()]),
-            None => list(&[]),
+            Some(pattern) => list(&[&pattern_mesh(&pattern).encode()]).into(),
+            None => list(&[]).into(),
         },
         _ => {
             let paths = read_paths(args[0], PathStyle::BODY);
             if paths.is_empty() {
-                return list(&[]);
+                return list(&[]).into();
             }
-            list(&[&path_lines(&paths)])
+            list(&[&path_lines(&paths)]).into()
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::__nodarium_execute_inner;
+    use super::{__nodarium_execute_inner, list, Output};
     use glam::Vec3;
     use myzel_core::{Mesh, LINES_TAG};
     use nodarium_utils::{
@@ -87,7 +98,7 @@ mod tests {
 
     fn run(input: &[i32]) -> Vec<Vec<i32>> {
         let output = __nodarium_execute_inner(&[input]);
-        split_args(&output).iter().map(|item| item[2..item.len() - 2].to_vec()).collect()
+        split_args(unsafe { output.words() }).iter().map(|item| item[2..item.len() - 2].to_vec()).collect()
     }
 
     fn paths() -> Vec<i32> {
@@ -125,7 +136,18 @@ mod tests {
             groups: vec![0; 3],
         }
         .encode();
-        assert_eq!(run(&mesh), vec![mesh]);
+        assert_eq!(run(&mesh), vec![mesh.clone()]);
+        // a mesh the host copied in is framed where it is, as the copy would be
+        nodarium_utils::abi::reset();
+        let ptr = nodarium_utils::abi::alloc(mesh.len() * 4);
+        let input = unsafe {
+            std::ptr::copy_nonoverlapping(mesh.as_ptr(), ptr, mesh.len());
+            std::slice::from_raw_parts(ptr, mesh.len())
+        };
+        let framed = __nodarium_execute_inner(&[input]);
+        assert!(matches!(framed, Output::Framed(_)));
+        assert_eq!(unsafe { framed.words() }, list(&[&mesh]));
+        nodarium_utils::abi::reset();
     }
 
     #[test]

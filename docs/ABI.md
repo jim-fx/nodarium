@@ -63,4 +63,6 @@ When it is connected, the node receives exactly what the other node returned.
 
 Results stay in wasm memory until the next reset. The host copies them out only when it has to keep them: the final output, the cache and debug views.
 
+A buffer from `nodarium_alloc` belongs to the module until the next reset. The node may change it and return it, or a part of it, as a result, so the host never reads an input buffer again after `nodarium_execute`. The Rust runtime leaves four words of room before and after every such buffer, a node can return an input with a few words around it without copying it (`abi::frame_input`). It does that only with whole buffers the host allocated for the current call, never with a result of the module, which other nodes may still read.
+
 Older modules that export `execute`, `__alloc` and `__free` instead still work, but are slower and only support a single output.
