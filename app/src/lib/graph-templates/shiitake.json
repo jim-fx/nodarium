@@ -153,7 +153,7 @@
             "amount": 2,
             "angle": 5,
             "rotation": 0,
-            "lowest_kink": 0.25,
+            "lowest_kink": 0.15,
             "highest_kink": 0.6
           }
         },
@@ -225,6 +225,55 @@
           "props": {
             "fibres": 1
           }
+        },
+        {
+          "id": 5015,
+          "position": [
+            -150,
+            30
+          ],
+          "type": "max/plantarium/random",
+          "props": {
+            "min": 0,
+            "max": 8
+          }
+        },
+        {
+          "id": 5016,
+          "position": [
+            -150,
+            45
+          ],
+          "type": "max/plantarium/random",
+          "props": {
+            "min": -90,
+            "max": 90
+          }
+        },
+        {
+          "id": 5017,
+          "position": [
+            -105,
+            -20
+          ],
+          "type": "max/plantarium/rotate",
+          "props": {
+            "axis": 1
+          }
+        },
+        {
+          "id": 5018,
+          "position": [
+            -135,
+            -35
+          ],
+          "type": "max/plantarium/random",
+          "props": {
+            "min": 0,
+            "max": 6.2832,
+            "uniform": 1,
+            "once": 1
+          }
         }
       ],
       "edges": [
@@ -289,7 +338,7 @@
           "plant"
         ],
         [
-          9,
+          5017,
           0,
           8,
           "plant"
@@ -301,7 +350,7 @@
           "plant"
         ],
         [
-          9,
+          5017,
           0,
           3,
           "out_0"
@@ -353,6 +402,30 @@
           0,
           56,
           "paths"
+        ],
+        [
+          5015,
+          0,
+          9,
+          "angle"
+        ],
+        [
+          5016,
+          0,
+          9,
+          "rotation"
+        ],
+        [
+          5018,
+          0,
+          5017,
+          "angle"
+        ],
+        [
+          9,
+          0,
+          5017,
+          "plant"
         ]
       ],
       "inputs": {
@@ -561,7 +634,10 @@
             ],
             "min": 0.15,
             "max": 0.5
-          }
+          },
+          "exposed": [
+            "min"
+          ]
         },
         {
           "id": 19,
@@ -634,7 +710,10 @@
             ],
             "min": 0.08,
             "max": 1
-          }
+          },
+          "exposed": [
+            "max"
+          ]
         },
         {
           "id": 21,
@@ -822,6 +901,32 @@
           "exposed": [
             "max"
           ]
+        },
+        {
+          "id": 5019,
+          "position": [
+            -150,
+            70
+          ],
+          "type": "max/plantarium/random",
+          "props": {
+            "min": 0.82,
+            "max": 1,
+            "once": 1
+          }
+        },
+        {
+          "id": 5020,
+          "position": [
+            -180,
+            60
+          ],
+          "type": "max/plantarium/random",
+          "props": {
+            "min": 0.08,
+            "max": 0.3,
+            "once": 1
+          }
         }
       ],
       "edges": [
@@ -1082,6 +1187,18 @@
           0,
           12,
           "out_4"
+        ],
+        [
+          5019,
+          0,
+          20,
+          "max"
+        ],
+        [
+          5020,
+          0,
+          18,
+          "min"
         ]
       ],
       "inputs": {
@@ -2095,6 +2212,208 @@
           234
         ]
       }
+    },
+    {
+      "id": 5000,
+      "position": [
+        -330,
+        60
+      ],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.85,
+        "max": 1.15,
+        "once": 1
+      }
+    },
+    {
+      "id": 5001,
+      "position": [
+        -330,
+        80
+      ],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.03,
+        "max": 0.046,
+        "once": 1
+      }
+    },
+    {
+      "id": 5002,
+      "position": [
+        -300,
+        80
+      ],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      }
+    },
+    {
+      "id": 5003,
+      "position": [
+        -330,
+        95
+      ],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.0055,
+        "max": 0.0078,
+        "once": 1
+      }
+    },
+    {
+      "id": 5004,
+      "position": [
+        -300,
+        95
+      ],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      }
+    },
+    {
+      "id": 5005,
+      "position": [
+        -330,
+        30
+      ],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.034,
+        "max": 0.046,
+        "once": 1
+      }
+    },
+    {
+      "id": 5006,
+      "position": [
+        -300,
+        30
+      ],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      }
+    },
+    {
+      "id": 5007,
+      "position": [
+        -300,
+        10
+      ],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [0, 0.4, 0.25, 1, 0.5, 0.4, 0.75, 0, 1, 0.4],
+        "min": 1
+      },
+      "exposed": [
+        "max"
+      ]
+    },
+    {
+      "id": 5008,
+      "position": [
+        -330,
+        10
+      ],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 1,
+        "max": 1.06,
+        "once": 1
+      }
+    },
+    {
+      "id": 5009,
+      "position": [
+        -270,
+        25
+      ],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      }
+    },
+    {
+      "id": 5010,
+      "position": [
+        -270,
+        45
+      ],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.0095,
+        "max": 0.0125,
+        "once": 1
+      }
+    },
+    {
+      "id": 5011,
+      "position": [
+        -300,
+        -10
+      ],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0,
+        "max": 1,
+        "uniform": 1,
+        "once": 1
+      }
+    },
+    {
+      "id": 5012,
+      "position": [
+        -270,
+        -10
+      ],
+      "type": "max/myzel/mix_color",
+      "props": {
+        "a": [122, 84, 58],
+        "b": [64, 40, 26]
+      }
+    },
+    {
+      "id": 5013,
+      "position": [
+        -180,
+        130
+      ],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.0008,
+        "max": 0.001,
+        "once": 1
+      }
+    },
+    {
+      "id": 5014,
+      "position": [
+        -180,
+        145
+      ],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.0045,
+        "max": 0.0062,
+        "once": 1
+      }
+    },
+    {
+      "id": 5021,
+      "position": [
+        -90,
+        -170
+      ],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.25,
+        "max": 0.7,
+        "once": 1
+      }
     }
   ],
   "edges": [
@@ -2193,6 +2512,114 @@
       4,
       87,
       "radius"
+    ],
+    [
+      5001,
+      0,
+      5002,
+      "a"
+    ],
+    [
+      5000,
+      0,
+      5002,
+      "b"
+    ],
+    [
+      5002,
+      0,
+      40,
+      "length_open"
+    ],
+    [
+      5003,
+      0,
+      5004,
+      "a"
+    ],
+    [
+      5000,
+      0,
+      5004,
+      "b"
+    ],
+    [
+      5004,
+      0,
+      40,
+      "radius_open"
+    ],
+    [
+      5005,
+      0,
+      5006,
+      "a"
+    ],
+    [
+      5000,
+      0,
+      5006,
+      "b"
+    ],
+    [
+      5008,
+      0,
+      5007,
+      "max"
+    ],
+    [
+      5006,
+      0,
+      5009,
+      "a"
+    ],
+    [
+      5007,
+      0,
+      5009,
+      "b"
+    ],
+    [
+      5009,
+      0,
+      41,
+      "radius_open"
+    ],
+    [
+      5010,
+      0,
+      41,
+      "flesh_open"
+    ],
+    [
+      5011,
+      0,
+      5012,
+      "factor"
+    ],
+    [
+      5012,
+      0,
+      41,
+      "color_open"
+    ],
+    [
+      5013,
+      0,
+      42,
+      "spacing"
+    ],
+    [
+      5014,
+      0,
+      42,
+      "depth"
+    ],
+    [
+      5021,
+      0,
+      87,
+      "scales"
     ]
   ]
 }
