@@ -772,9 +772,11 @@ fn blur_by_radius(solid: &mut Vec<f32>, grid: &SparseGrid, frame: &Frame) {
     for &rho in &radii {
         let mut weight: Vec<f32> = (0..sharp.len()).map(|i| if radius_at(i) == Some(rho) { 1.0 } else { 0.0 }).collect();
         blur(&mut weight, grid.samples, SMOOTHING * frame.close_max / grid.cell);
+        // the closing blurred by this radius only counts where its weight does, the rest of the grid isn't blurred
+        let wanted: Vec<bool> = weight.chunks_exact(nx).map(|row| row.iter().any(|&w| w != 0.0)).collect();
         let mut blurred = sharp.clone();
-        blur(&mut blurred, grid.samples, SMOOTHING * rho / grid.cell);
-        for i in 0..sharp.len() {
+        blur_rows(&mut blurred, grid.samples, SMOOTHING * rho / grid.cell, Some(&wanted));
+        for i in (0..sharp.len()).filter(|&i| weight[i] != 0.0) {
             sum[i] += weight[i] * blurred[i];
             total[i] += weight[i];
         }
@@ -1027,41 +1029,134 @@ fn erf(x: f64) -> f64 {
 
 /// Separable gaussian blur of a dense grid, `sigma` in samples
 fn blur(values: &mut [f32], samples: [usize; 3], sigma: f32) {
+    blur_rows(values, samples, sigma, None);
+}
+
+/// [`blur`] that only has to be right in the rows along x that `wanted` marks, one flag per row.
+/// The other rows keep finite values when `values` are finite, but no meaningful ones.
+///
+/// Most rows lie outside the tissue and are all zero. They add nothing to any sum, so they are left
+/// out as sources, and a row that is all zero stays so along x. Of the passes before the last only
+/// the rows that a wanted row reads are blurred. The sums of the rows that are blurred keep their
+/// terms and their order. On wasm the loops over whole rows run four samples at a time.
+#[cfg_attr(target_arch = "wasm32", target_feature(enable = "simd128"))]
+fn blur_rows(values: &mut [f32], samples: [usize; 3], sigma: f32, wanted: Option<&[bool]>) {
     let weights = blur_weights(sigma);
     if weights.is_empty() {
         return;
     }
     let radius = weights.len() / 2;
     let [nx, ny, nz] = samples;
+    let rows = ny * nz;
     // the taps of a sample `k` along a line of `len` that lie on the line
     let taps = |k: usize, len: usize| radius.saturating_sub(k)..weights.len().min(len + radius - k);
+    // the rows the pass along z writes, along y and along x: each pass reads its taps' rows of the one before
+    let along_z = wanted.map_or_else(|| vec![true; rows], <[bool]>::to_vec);
+    let widen = |wanted: &[bool], len: usize, rows_per_step: usize| -> Vec<bool> {
+        (0..rows)
+            .map(|r| {
+                let k = r / rows_per_step % len;
+                let first = r - k * rows_per_step;
+                taps(k, len).any(|o| wanted[first + (k + o - radius) * rows_per_step])
+            })
+            .collect()
+    };
+    let along_y = if wanted.is_some() { widen(&along_z, nz, ny) } else { along_z.clone() };
+    let along_x = if wanted.is_some() { widen(&along_y, ny, 1) } else { along_z.clone() };
+
     let mut line = vec![0.0; nx];
-    for row in values.chunks_exact_mut(nx) {
+    for (row, _) in values.chunks_exact_mut(nx).zip(&along_x).filter(|(_, w)| **w) {
+        if row.iter().all(|&v| v == 0.0) {
+            continue;
+        }
         line.copy_from_slice(row);
-        for (k, out) in row.iter_mut().enumerate() {
+        // at the ends of the row the taps that fall off it are left out
+        let inner = radius.min(nx)..nx.saturating_sub(radius).max(radius.min(nx));
+        for k in (0..inner.start).chain(inner.end..nx) {
             let mut sum = 0.0;
             for o in taps(k, nx) {
                 sum += weights[o] * line[k + o - radius];
             }
-            *out = sum;
+            row[k] = sum;
         }
+        convolve(&mut row[inner.clone()], &line[inner.start - radius..], &weights);
     }
     // along y and z whole rows at once, the samples of a row lie next to each other
     let mut source = values.to_vec();
-    for (len, stride) in [(ny, nx), (nz, nx * ny)] {
+    let mut filled = vec![false; rows];
+    for (len, rows_per_step, wanted) in [(ny, 1, &along_y), (nz, ny, &along_z)] {
         source.copy_from_slice(values);
-        for (outer, out) in values.chunks_exact_mut(len * stride).enumerate() {
-            let source = &source[outer * len * stride..(outer + 1) * len * stride];
-            for (k, row) in out.chunks_exact_mut(stride).enumerate() {
-                row.fill(0.0);
-                for o in taps(k, len) {
-                    let from = &source[(k + o - radius) * stride..(k + o - radius + 1) * stride];
-                    for (v, &s) in row.iter_mut().zip(from) {
-                        *v += weights[o] * s;
-                    }
+        for (filled, row) in filled.iter_mut().zip(source.chunks_exact(nx)) {
+            *filled = row.iter().any(|&v| v != 0.0);
+        }
+        for (r, row) in values.chunks_exact_mut(nx).enumerate().filter(|&(r, _)| wanted[r]) {
+            let k = r / rows_per_step % len;
+            let first = r - k * rows_per_step;
+            row.fill(0.0);
+            for o in taps(k, len) {
+                let from = first + (k + o - radius) * rows_per_step;
+                if !filled[from] {
+                    continue;
                 }
+                add_scaled(row, &source[from * nx..(from + 1) * nx], weights[o]);
             }
         }
+    }
+}
+
+/// `to[k] = Σ weights[o] · from[k + o]` over all taps `o` in order, four samples at a time on wasm
+#[cfg_attr(target_arch = "wasm32", target_feature(enable = "simd128"))]
+fn convolve(to: &mut [f32], from: &[f32], weights: &[f32]) {
+    #[cfg(not(target_arch = "wasm32"))]
+    let k = 0;
+    #[cfg(target_arch = "wasm32")]
+    let k = {
+        let mut k = 0;
+        use core::arch::wasm32::*;
+        while k + 4 <= to.len() {
+            let mut sum = f32x4_splat(0.0);
+            for (o, &w) in weights.iter().enumerate() {
+                let s = &from[k + o..k + o + 4];
+                // SAFETY: `s` and the four samples of `to` are 16 bytes each, v128 needs no alignment
+                sum = f32x4_add(sum, f32x4_mul(f32x4_splat(w), unsafe { v128_load(s.as_ptr().cast()) }));
+            }
+            unsafe { v128_store(to[k..k + 4].as_mut_ptr().cast(), sum) };
+            k += 4;
+        }
+        k
+    };
+    for k in k..to.len() {
+        let mut sum = 0.0;
+        for (o, &w) in weights.iter().enumerate() {
+            sum += w * from[k + o];
+        }
+        to[k] = sum;
+    }
+}
+
+/// `to[k] += w · from[k]`, four samples at a time on wasm
+#[cfg_attr(target_arch = "wasm32", target_feature(enable = "simd128"))]
+fn add_scaled(to: &mut [f32], from: &[f32], w: f32) {
+    #[cfg(not(target_arch = "wasm32"))]
+    let k = 0;
+    #[cfg(target_arch = "wasm32")]
+    let k = {
+        let mut k = 0;
+        use core::arch::wasm32::*;
+        let n = to.len().min(from.len());
+        let w4 = f32x4_splat(w);
+        while k + 4 <= n {
+            // SAFETY: four samples of each, 16 bytes, v128 needs no alignment
+            unsafe {
+                let sum = f32x4_add(v128_load(to[k..k + 4].as_ptr().cast()), f32x4_mul(w4, v128_load(from[k..k + 4].as_ptr().cast())));
+                v128_store(to[k..k + 4].as_mut_ptr().cast(), sum);
+            }
+            k += 4;
+        }
+        k
+    };
+    for (v, &s) in to[k..].iter_mut().zip(&from[k..]) {
+        *v += w * s;
     }
 }
 
@@ -1517,6 +1612,68 @@ mod tests {
                     assert!((got - expected).abs() < 1e-6, "{} vs {} at {} {} {}", got, expected, x, y, z);
                 }
             }
+        }
+    }
+
+    /// The blur as it was before it left out rows of zeros, every sum over all its taps
+    fn blur_every_row(values: &mut [f32], samples: [usize; 3], sigma: f32) {
+        let weights = blur_weights(sigma);
+        if weights.is_empty() {
+            return;
+        }
+        let radius = weights.len() / 2;
+        let [nx, ny, nz] = samples;
+        let taps = |k: usize, len: usize| radius.saturating_sub(k)..weights.len().min(len + radius - k);
+        let line_of = |values: &[f32], start: usize, len: usize, stride: usize| -> Vec<f32> {
+            (0..len).map(|k| values[start + k * stride]).collect()
+        };
+        for (len, stride) in [(nx, 1), (ny, nx), (nz, nx * ny)] {
+            let source = values.to_vec();
+            for outer in 0..values.len() / (len * stride) {
+                for inner in 0..stride {
+                    let start = outer * len * stride + inner;
+                    let line = line_of(&source, start, len, stride);
+                    for k in 0..len {
+                        let mut sum = 0.0;
+                        for o in taps(k, len) {
+                            sum += weights[o] * line[k + o - radius];
+                        }
+                        values[start + k * stride] = sum;
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn leaving_out_rows_of_zeros_changes_no_bit_of_the_blur() {
+        let samples = [37, 29, 31];
+        let n = samples[0] * samples[1] * samples[2];
+        for (round, sigma) in [0.8f32, 2.3, 4.6].into_iter().enumerate() {
+            // a few blobs in empty space, with negative zeros among the zeros
+            let mut values = vec![0.0f32; n];
+            for i in 0..n {
+                let p = Vec3::new((i % 37) as f32, (i / 37 % 29) as f32, (i / (37 * 29)) as f32);
+                let blob = (0..4).any(|b| {
+                    let c = Vec3::new(37.0, 29.0, 31.0) * Vec3::new(random(round as u32 * 40 + b), random(b + 7), random(b + 13));
+                    p.distance(c) < 3.0 + 3.0 * random(b + 21)
+                });
+                values[i] = if blob { random(i as u32 + 1000 * round as u32) } else if i % 7 == 0 { -0.0 } else { 0.0 };
+            }
+            assert!(values.chunks_exact(37).filter(|r| r.iter().all(|&v| v == 0.0)).count() > 100);
+            let mut expected = values.clone();
+            blur_every_row(&mut expected, samples, sigma);
+            let bits = |v: &[f32]| v.iter().map(|v| v.to_bits()).collect::<Vec<_>>();
+            // only some rows wanted, as a blob of the weight of one radius has them
+            let wanted: Vec<bool> = (0..29 * 31).map(|r| (r % 29 < 12) && (r / 29 > 8 && r / 29 < 20)).collect();
+            let mut some = values.clone();
+            blur_rows(&mut some, samples, sigma, Some(&wanted));
+            for (r, w) in wanted.iter().enumerate().filter(|(_, w)| **w) {
+                assert_eq!(bits(&some[r * 37..(r + 1) * 37]), bits(&expected[r * 37..(r + 1) * 37]), "row {} {}", r, w);
+            }
+            assert!(some.iter().all(|v| v.is_finite()));
+            blur(&mut values, samples, sigma);
+            assert_eq!(bits(&values), bits(&expected), "sigma {}", sigma);
         }
     }
 
