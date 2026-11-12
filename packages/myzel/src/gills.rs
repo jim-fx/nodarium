@@ -45,7 +45,7 @@ const STRAND_GAP: f32 = 0.75;
 const MAX_STRANDS: usize = 48;
 /// The top path of a plate sits this share of the flesh half thickness inside the cap, so the
 /// plate grows out of the flesh without a seam
-const EMBED: f32 = 0.5;
+pub(crate) const EMBED: f32 = 0.5;
 /// Length of one wave of the gill edge, in spacings
 const WAVE_LENGTH: f32 = 3.0;
 /// How far the edge sways sideways at edge_wave 1, in spacings
@@ -159,30 +159,30 @@ impl Ray {
 }
 
 /// A spot of the cap, in the middle of its flesh
-struct Spot {
-    position: Vec3,
+pub(crate) struct Spot {
+    pub position: Vec3,
     /// Points from the gills into the flesh
-    normal: Vec3,
-    radius: f32,
+    pub normal: Vec3,
+    pub radius: f32,
 }
 
 /// The cap underside, from its rays, found by angle around the axis and distance from the axis
-struct Underside {
-    frame: CapFrame,
+pub(crate) struct Underside {
+    pub frame: CapFrame,
     /// Sorted by angle
     rays: Vec<Ray>,
     /// Distance along the rays from the axis to the margin, the middle of all rays. The pattern
     /// is stretched to the length of every ray, so the gills of a cap that reaches further on
     /// one side (a radius that changes around the axis) reach the margin all round.
-    length: f32,
+    pub length: f32,
     /// Half the flesh thickness at the margin
-    margin_radius: f32,
+    pub margin_radius: f32,
     /// The stretch starts here, the gills next to the stipe stay next to it
-    anchor: f32,
+    pub anchor: f32,
 }
 
 impl Underside {
-    fn new(frame: CapFrame, paths: &[&[i32]]) -> Option<Underside> {
+    pub fn new(frame: CapFrame, paths: &[&[i32]]) -> Option<Underside> {
         // angle, sections, the length of a ray that crosses the axis, where it starts from the axis
         let mut rays: Vec<(f32, Vec<Section>, Option<f32>, f32)> = Vec::new();
         for path in paths {
@@ -273,7 +273,7 @@ impl Underside {
 
     /// The underside at an angle and a distance of the pattern from the axis, between the
     /// nearest rays on either side that reach that far in
-    fn at(&self, angle: f32, s: f32) -> Option<Spot> {
+    pub fn at(&self, angle: f32, s: f32) -> Option<Spot> {
         let n = self.rays.len();
         let first = self.rays.partition_point(|r| r.angle <= angle);
         let reaches = |i: usize| self.rays[i].reaches(self.on_ray(&self.rays[i], s));
@@ -442,14 +442,14 @@ fn resample(points: &[(f32, f32)], step: f32) -> Vec<(f32, f32)> {
 }
 
 /// The depth along a gill, read at even steps from the stipe (0) to the margin (1)
-struct DepthAlong(Vec<f32>);
+pub(crate) struct DepthAlong(pub Vec<f32>);
 
 impl DepthAlong {
-    fn read(ctx: &mut Ctx, arg: &[i32]) -> DepthAlong {
+    pub fn read(ctx: &mut Ctx, arg: &[i32]) -> DepthAlong {
         DepthAlong(ctx.float_along(arg, (0..=DEPTH_STEPS).map(|i| i as f32 / DEPTH_STEPS as f32)))
     }
 
-    fn at(&self, along: f32) -> f32 {
+    pub fn at(&self, along: f32) -> f32 {
         let x = along.clamp(0.0, 1.0) * (self.0.len() - 1) as f32;
         let k = (x as usize).min(self.0.len() - 2);
         let t = x - k as f32;
