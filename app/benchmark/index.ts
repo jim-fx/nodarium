@@ -108,7 +108,12 @@ async function run({ graph: g, runs: amount, warmups }: Benchmark, cached: boole
   await registry.load(g.nodes.map(n => n.type) as NodeId[]);
 
   const r = new MemoryRuntimeExecutor(registry, cached ? new MemoryRuntimeCache() : undefined);
-  const settings = () => ({ seed: cached ? 0 : Math.floor(Math.random() * 100000000) });
+  // the template's own settings, like the app passes them: without them every input with a
+  // setting falls back to its node's default, the mushrooms to a quarter of their resolution
+  const settings = () => ({
+    ...g.settings,
+    seed: cached ? 0 : Math.floor(Math.random() * 100000000)
+  });
 
   log.log('loaded ' + g.nodes.length + ' nodes');
 
