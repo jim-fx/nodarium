@@ -28,8 +28,8 @@
           "position": [-300, -72.04],
           "type": "max/plantarium/random_int",
           "props": {
-            "min": 3,
-            "max": 5
+            "min": 2,
+            "max": 6
           }
         },
         {
@@ -75,8 +75,8 @@
           "position": [-360, -93.54],
           "type": "max/plantarium/random",
           "props": {
-            "min": -0.014,
-            "max": 0.014
+            "min": -0.016,
+            "max": 0.016
           }
         },
         {
@@ -113,8 +113,8 @@
           "position": [-360, -20.54],
           "type": "max/plantarium/random",
           "props": {
-            "min": -0.014,
-            "max": 0.014
+            "min": -0.016,
+            "max": 0.016
           }
         },
         {
@@ -1745,6 +1745,56 @@
       "id": 317,
       "position": [-30, 0],
       "type": "max/myzel/join_meshes"
+    },
+    {
+      "id": 7000,
+      "position": [-210, 25],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.05,
+        "max": 0.4,
+        "once": 1
+      }
+    },
+    {
+      "id": 7001,
+      "position": [-240, -45],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0,
+        "max": 1,
+        "uniform": 1,
+        "once": 1
+      }
+    },
+    {
+      "id": 7002,
+      "position": [-210, -45],
+      "type": "max/myzel/mix_color",
+      "props": {
+        "a": [242, 200, 108],
+        "b": [224, 138, 20]
+      }
+    },
+    {
+      "id": 7003,
+      "position": [-210, -20],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.055,
+        "max": 0.07,
+        "once": 1
+      }
+    },
+    {
+      "id": 7004,
+      "position": [-210, -5],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.075,
+        "max": 0.095,
+        "once": 1
+      }
     }
   ],
   "edges": [
@@ -1813,6 +1863,48 @@
       0,
       0,
       "mesh"
+    ],
+    [
+      7000,
+      0,
+      300,
+      "min"
+    ],
+    [
+      7001,
+      0,
+      7002,
+      "factor"
+    ],
+    [
+      7002,
+      0,
+      640,
+      "color"
+    ],
+    [
+      7002,
+      0,
+      641,
+      "color"
+    ],
+    [
+      7002,
+      0,
+      642,
+      "color"
+    ],
+    [
+      7003,
+      0,
+      640,
+      "length_old_min"
+    ],
+    [
+      7004,
+      0,
+      640,
+      "length_old_max"
     ]
   ]
 }

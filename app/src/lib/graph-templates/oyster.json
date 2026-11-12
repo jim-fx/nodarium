@@ -75,6 +75,35 @@
           "id": 16,
           "position": [-30, 5],
           "type": "max/myzel/set_color"
+        },
+        {
+          "id": 6015,
+          "position": [-150, 30],
+          "type": "max/plantarium/random",
+          "props": {
+            "min": 22,
+            "max": 50,
+            "once": 1
+          }
+        },
+        {
+          "id": 6016,
+          "position": [-105, -25],
+          "type": "max/plantarium/rotate",
+          "props": {
+            "axis": 1
+          }
+        },
+        {
+          "id": 6017,
+          "position": [-135, -40],
+          "type": "max/plantarium/random",
+          "props": {
+            "min": 0,
+            "max": 6.2832,
+            "uniform": 1,
+            "once": 1
+          }
         }
       ],
       "edges": [
@@ -97,7 +126,7 @@
           "plant"
         ],
         [
-          2,
+          6016,
           0,
           3,
           "plant"
@@ -127,7 +156,7 @@
           "color"
         ],
         [
-          2,
+          6016,
           0,
           711,
           "out_0"
@@ -137,6 +166,24 @@
           0,
           711,
           "out_1"
+        ],
+        [
+          6015,
+          0,
+          2,
+          "angle"
+        ],
+        [
+          6017,
+          0,
+          6016,
+          "angle"
+        ],
+        [
+          2,
+          0,
+          6016,
+          "plant"
         ]
       ],
       "inputs": {
@@ -387,6 +434,25 @@
           "id": 17,
           "position": [-30, 5],
           "type": "max/myzel/set_color"
+        },
+        {
+          "id": 6018,
+          "position": [-120, 70],
+          "type": "max/plantarium/random_int",
+          "props": {
+            "min": 4,
+            "max": 7
+          }
+        },
+        {
+          "id": 6019,
+          "position": [-150, 55],
+          "type": "max/plantarium/random",
+          "props": {
+            "min": 0.14,
+            "max": 0.28,
+            "once": 1
+          }
         }
       ],
       "edges": [
@@ -527,6 +593,18 @@
           0,
           721,
           "out_1"
+        ],
+        [
+          6018,
+          0,
+          7,
+          "waves"
+        ],
+        [
+          6019,
+          0,
+          28,
+          "max"
         ]
       ],
       "inputs": {
@@ -827,6 +905,147 @@
       "id": 21,
       "position": [-30, 0],
       "type": "max/myzel/join_meshes"
+    },
+    {
+      "id": 6000,
+      "position": [-240, 60],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.8,
+        "max": 1.25,
+        "once": 1
+      }
+    },
+    {
+      "id": 6001,
+      "position": [-240, 80],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.016,
+        "max": 0.03,
+        "once": 1
+      }
+    },
+    {
+      "id": 6002,
+      "position": [-210, 80],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      }
+    },
+    {
+      "id": 6003,
+      "position": [-240, 95],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.0038,
+        "max": 0.0055,
+        "once": 1
+      }
+    },
+    {
+      "id": 6004,
+      "position": [-210, 95],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      }
+    },
+    {
+      "id": 6005,
+      "position": [-240, 30],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.054,
+        "max": 0.072,
+        "once": 1
+      }
+    },
+    {
+      "id": 6006,
+      "position": [-210, 30],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      }
+    },
+    {
+      "id": 6007,
+      "position": [-240, 15],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.012,
+        "max": 0.02,
+        "once": 1
+      }
+    },
+    {
+      "id": 6008,
+      "position": [-210, 15],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      }
+    },
+    {
+      "id": 6009,
+      "position": [-210, 45],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.006,
+        "max": 0.0085,
+        "once": 1
+      }
+    },
+    {
+      "id": 6010,
+      "position": [-180, 30],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2,
+        "b": 0.8125
+      }
+    },
+    {
+      "id": 6011,
+      "position": [-180, 130],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.0011,
+        "max": 0.0014,
+        "once": 1
+      }
+    },
+    {
+      "id": 6012,
+      "position": [-180, 145],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.003,
+        "max": 0.004,
+        "once": 1
+      }
+    },
+    {
+      "id": 6013,
+      "position": [-240, -10],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0,
+        "max": 1,
+        "uniform": 1,
+        "once": 1
+      }
+    },
+    {
+      "id": 6014,
+      "position": [-210, -10],
+      "type": "max/myzel/mix_color",
+      "props": {
+        "a": [156, 142, 128],
+        "b": [92, 82, 78]
+      }
     }
   ],
   "edges": [
@@ -877,6 +1096,120 @@
       0,
       0,
       "mesh"
+    ],
+    [
+      6001,
+      0,
+      6002,
+      "a"
+    ],
+    [
+      6000,
+      0,
+      6002,
+      "b"
+    ],
+    [
+      6002,
+      0,
+      740,
+      "length"
+    ],
+    [
+      6003,
+      0,
+      6004,
+      "a"
+    ],
+    [
+      6000,
+      0,
+      6004,
+      "b"
+    ],
+    [
+      6004,
+      0,
+      740,
+      "radius"
+    ],
+    [
+      6005,
+      0,
+      6006,
+      "a"
+    ],
+    [
+      6000,
+      0,
+      6006,
+      "b"
+    ],
+    [
+      6006,
+      0,
+      741,
+      "radius_long"
+    ],
+    [
+      6007,
+      0,
+      6008,
+      "a"
+    ],
+    [
+      6000,
+      0,
+      6008,
+      "b"
+    ],
+    [
+      6008,
+      0,
+      741,
+      "radius_short"
+    ],
+    [
+      6009,
+      0,
+      741,
+      "flesh"
+    ],
+    [
+      6006,
+      0,
+      6010,
+      "a"
+    ],
+    [
+      6010,
+      0,
+      742,
+      "reach"
+    ],
+    [
+      6011,
+      0,
+      742,
+      "spacing"
+    ],
+    [
+      6012,
+      0,
+      742,
+      "depth"
+    ],
+    [
+      6013,
+      0,
+      6014,
+      "factor"
+    ],
+    [
+      6014,
+      0,
+      741,
+      "color"
     ]
   ]
 }

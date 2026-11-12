@@ -30,6 +30,13 @@
     },
     "creator": {
       "type": "creator"
+    },
+    "once": {
+      "type": "boolean",
+      "value": false,
+      "hidden": true,
+      "label": "once for the graph",
+      "description": "One value for the whole graph, the same in every node and on every path that reads it, like the size of a single mushroom that its stipe, its cap and the pattern on its cap all read. Wins over once per path."
     }
   }
 }
