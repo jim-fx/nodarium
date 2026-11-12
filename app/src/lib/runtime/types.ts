@@ -1,5 +1,16 @@
 import type { SerializedNode } from '@nodarium/types';
 
+/** What a debug node shows of the output of the node it is connected to */
+export type DebugEntry = {
+  type: string;
+  output: number;
+  data: Int32Array;
+  /** the share of the items the viewer draws */
+  amount?: number;
+  /** the share of the length of each path the viewer draws */
+  clip?: number;
+};
+
 type RuntimeState = {
   depth: number;
   parents: RuntimeNode[];
@@ -17,6 +28,6 @@ export type WorkerExecution = {
   result: Int32Array;
   /** the timings of this run */
   performance?: Record<string, number[]>;
-  debugData: Record<number, { type: string; output: number; data: Int32Array }>;
+  debugData: Record<number, DebugEntry>;
   nodeTimings: Record<number, number>;
 };

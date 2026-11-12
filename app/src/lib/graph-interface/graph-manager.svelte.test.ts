@@ -905,6 +905,16 @@ describe('tryConnectToDebugNode', () => {
     manager.tryConnectToDebugNode(node.id);
     expect(outputs()).toEqual([[node.id, 0]]);
   });
+
+  it('places the debug node as one socket high, its hidden amount and clip are left out', () => {
+    const manager = new GraphManager(createMockNodeRegistry([mockFloatOutputNode, debugNode]));
+    const node = manager.createNode({ type: 'test/node/output', position: [0, 0], props: {} });
+    assert.isDefined(node);
+    const debug = manager.tryConnectToDebugNode(node.id)!;
+    const single = { ...debugNode, inputs: { input: debugNode.inputs.input } };
+    expect(debug.position).toEqual([25, -getNodeHeight(single as NodeDefinition) - 5]);
+    expect(manager.getEdgesToNode(debug).map(e => e[3])).toEqual(['input']);
+  });
 });
 
 describe('dropNodeOnEdge', () => {
