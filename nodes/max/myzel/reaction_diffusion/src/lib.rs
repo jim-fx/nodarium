@@ -27,6 +27,9 @@
 //! than its cells around the axis, with diffusion along the radius scaled to match, which only
 //! saves cells and doesn't orient anything.
 
+mod lanes;
+
+use lanes::{Cell, F4};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{Ctx, Pattern};
 use std::f32::consts::TAU;
@@ -95,36 +98,80 @@ pub struct Params {
     pub seed: i32,
 }
 
-/// Where a cell reads its neighbour on the next ring in or out: between two cells, `t` of the
-/// way from the first to the second
-#[derive(Clone, Copy)]
+struct Ring {
+    /// Radius in cells
+    radius: f32,
+    /// Where the ring's first cell is in the grid. Before it is a copy of the ring's last cell,
+    /// after its last one a copy of its first one and one more cell, so the neighbours around
+    /// the ring and between two cells of the next ring never wrap, and the cells can be
+    /// stepped two at a time.
+    start: usize,
+    count: usize,
+    /// Weights of the neighbours around the ring, out and in
+    around: f32,
+    out: f32,
+    inn: f32,
+}
+
+/// Where the cells read their neighbours on the next ring in or out: between cell `at` and the
+/// one after it, `t` of the way. `t` is there twice, once for u and once for v.
 struct Across {
-    a: u32,
-    b: u32,
-    t: f32,
+    at: Vec<u32>,
+    t: Vec<Cell>,
+}
+
+impl Across {
+    fn new(len: usize) -> Across {
+        Across { at: vec![0; len], t: vec![[0.0; 2]; len] }
+    }
+
+    /// Cell `c` reads `ring` at `angle`
+    fn set(&mut self, c: usize, ring: &Ring, angle: f32) {
+        let count = ring.count;
+        let x = angle / TAU * count as f32 - 0.5;
+        let x0 = x.floor();
+        let j = (x0 as i64).rem_euclid(count as i64) as usize;
+        self.at[c] = (ring.start + j) as u32;
+        self.t[c] = [x - x0; 2];
+    }
+
+    /// u and v at where cell `c` reads its neighbour
+    fn read(&self, x: &[Cell], c: usize) -> Cell {
+        let (a, t) = (self.at[c] as usize, self.t[c][0]);
+        let ([ua, va], [ub, vb]) = (x[a], x[a + 1]);
+        [ua + (ub - ua) * t, va + (vb - va) * t]
+    }
+
+    /// Where the cells `from..from + 2 * count` read, two at a time
+    fn pairs(&self, from: usize, count: usize) -> impl Iterator<Item = (&[u32; 2], &[Cell; 2])> {
+        pairs(&self.at, from, count).iter().zip(pairs(&self.t, from, count))
+    }
+}
+
+/// `x[from..from + 2 * count]` in pairs
+fn pairs<T>(x: &[T], from: usize, count: usize) -> &[[T; 2]] {
+    x[from..from + 2 * count].as_chunks().0
+}
+
+/// u and v at where two cells read their neighbours
+#[inline]
+#[cfg_attr(target_arch = "wasm32", target_feature(enable = "simd128"))]
+fn read_pair(x: &[Cell], (at, t): (&[u32; 2], &[Cell; 2])) -> F4 {
+    // every `at` is in the grid, the min only saves the bounds check
+    let cells = |at: u32| -> &[Cell; 2] {
+        let a = (at as usize).min(x.len() - 2);
+        x[a..a + 2].try_into().unwrap()
+    };
+    let (a, b) = (F4::load(cells(at[0])), F4::load(cells(at[1])));
+    let (first, second) = (F4::firsts(a, b), F4::seconds(a, b));
+    first.add(second.sub(first).mul(F4::load(t)))
 }
 
 struct Grid {
-    /// Radius of every ring, in cells
-    radius: Vec<f32>,
-    start: Vec<usize>,
-    count: Vec<usize>,
-    ring_of: Vec<u32>,
-    left: Vec<u32>,
-    right: Vec<u32>,
-    inward: Vec<Across>,
-    outward: Vec<Across>,
-    /// Weights of the neighbours around the ring, out and in
-    around: Vec<f32>,
-    out: Vec<f32>,
-    inn: Vec<f32>,
-}
-
-fn across(start: usize, count: usize, angle: f32) -> Across {
-    let x = angle / TAU * count as f32 - 0.5;
-    let x0 = x.floor();
-    let j = (x0 as i64).rem_euclid(count as i64) as usize;
-    Across { a: (start + j) as u32, b: (start + (j + 1) % count) as u32, t: x - x0 }
+    rings: Vec<Ring>,
+    inward: Across,
+    outward: Across,
+    len: usize,
 }
 
 impl Grid {
@@ -132,104 +179,117 @@ impl Grid {
     /// `stretch²` times as fast as around the axis
     fn new(inner: f32, outer: f32, rings: usize, stretch: f32) -> Grid {
         let gap = if rings > 1 { (outer - inner) / (rings - 1) as f32 } else { 1.0 };
-        let radius: Vec<f32> = (0..rings).map(|i| inner + gap * i as f32).collect();
-        let count: Vec<usize> = radius.iter().map(|r| ((TAU * r).round() as usize).max(3)).collect();
-        let mut start = Vec::with_capacity(rings);
-        let mut total = 0;
-        for &c in &count {
-            start.push(total);
-            total += c;
-        }
-        let mut grid = Grid {
-            radius,
-            start,
-            count,
-            ring_of: Vec::with_capacity(total),
-            left: Vec::with_capacity(total),
-            right: Vec::with_capacity(total),
-            inward: Vec::with_capacity(total),
-            outward: Vec::with_capacity(total),
-            around: Vec::with_capacity(total),
-            out: Vec::with_capacity(total),
-            inn: Vec::with_capacity(total),
-        };
         let radial = stretch * stretch / (gap * gap);
-        for i in 0..rings {
-            let (s, n, r) = (grid.start[i], grid.count[i], grid.radius[i]);
-            let width = TAU * r / n as f32;
-            // tiny rings near the axis have narrow cells, kept stable
-            let around = (1.0 / (width * width)).min(1.5);
-            let spread = if r > 0.0 { gap / (2.0 * r) } else { 1.0 };
-            for j in 0..n {
-                let angle = TAU * (j as f32 + 0.5) / n as f32;
-                let me = Across { a: (s + j) as u32, b: (s + j) as u32, t: 0.0 };
-                grid.ring_of.push(i as u32);
-                grid.left.push((s + (j + n - 1) % n) as u32);
-                grid.right.push((s + (j + 1) % n) as u32);
-                grid.inward.push(if i > 0 { across(grid.start[i - 1], grid.count[i - 1], angle) } else { me });
-                grid.outward.push(if i + 1 < rings { across(grid.start[i + 1], grid.count[i + 1], angle) } else { me });
-                grid.around.push(around);
-                grid.out.push(radial * (1.0 + spread).min(2.0));
-                grid.inn.push(if i > 0 { radial * (1.0 - spread).max(0.0) } else { 0.0 });
+        let mut len = 0;
+        let rings: Vec<Ring> = (0..rings)
+            .map(|i| {
+                let r = inner + gap * i as f32;
+                let count = ((TAU * r).round() as usize).max(3);
+                let width = TAU * r / count as f32;
+                let spread = if r > 0.0 { gap / (2.0 * r) } else { 1.0 };
+                let ring = Ring {
+                    radius: r,
+                    start: len + 1,
+                    count,
+                    // tiny rings near the axis have narrow cells, kept stable
+                    around: (1.0 / (width * width)).min(1.5),
+                    out: radial * (1.0 + spread).min(2.0),
+                    inn: if i > 0 { radial * (1.0 - spread).max(0.0) } else { 0.0 },
+                };
+                len += count + 3;
+                ring
+            })
+            .collect();
+        let (mut inward, mut outward) = (Across::new(len), Across::new(len));
+        for (i, ring) in rings.iter().enumerate() {
+            // and the cell after the last, which a ring with an odd count steps with it
+            for j in 0..=ring.count {
+                let angle = TAU * ((j % ring.count) as f32 + 0.5) / ring.count as f32;
+                let c = ring.start + j;
+                inward.set(c, &rings[i.saturating_sub(1)], angle);
+                outward.set(c, &rings[(i + 1).min(rings.len() - 1)], angle);
             }
         }
-        grid
+        Grid { rings, inward, outward, len }
     }
-
-    fn len(&self) -> usize {
-        self.ring_of.len()
-    }
-
-    fn rings(&self) -> usize {
-        self.count.len()
-    }
-}
-
-fn react(u: f32, v: f32, u_ceiling: f32) -> (f32, f32) {
-    let make_u = (DECAY + U_FROM_U * (u - 1.0) - U_FROM_V * (v - 1.0)).clamp(0.0, u_ceiling * DECAY);
-    let make_v = (DECAY + V_FROM_U * (u - 1.0) - V_FROM_V * (v - 1.0)).clamp(0.0, 2.0 * DECAY);
-    (make_u - DECAY * u, make_v - DECAY * v)
 }
 
 struct Sim {
     grid: Grid,
     /// Diffusion along the radius of u and v, as a share of the grid's
-    radial_u: f32,
-    radial_v: f32,
-    u_ceiling: f32,
-    u: Vec<f32>,
-    v: Vec<f32>,
-    next_u: Vec<f32>,
-    next_v: Vec<f32>,
+    radial: Cell,
+    /// The synthesis ceilings of u and v
+    ceiling: Cell,
+    /// u and v of every cell, and the next step's
+    uv: Vec<Cell>,
+    next: Vec<Cell>,
 }
 
 impl Sim {
-    /// One step of the rings `from..=to`. The rings inside stay as they are, the ones outside
-    /// don't exist yet: the outermost ring has no neighbour out.
-    fn step(&mut self, from: usize, to: usize) {
+    /// One step of ring `i`. With `INWARD` the ring reads the ring inside it, with `OUTWARD` the
+    /// one outside it. Steps the cells two at a time.
+    #[cfg_attr(target_arch = "wasm32", target_feature(enable = "simd128"))]
+    fn step_ring<const INWARD: bool, const OUTWARD: bool>(&mut self, i: usize) {
         let g = &self.grid;
-        let (u, v) = (&self.u, &self.v);
-        let lerp = |x: &[f32], c: Across| x[c.a as usize] + (x[c.b as usize] - x[c.a as usize]) * c.t;
-        let (lo, hi) = (g.start[from], g.start[to] + g.count[to]);
-        let outer = g.start[to];
-        for c in lo..hi {
-            let (uc, vc) = (u[c], v[c]);
-            let (l, r) = (g.left[c] as usize, g.right[c] as usize);
-            let inward = g.inward[c];
-            let (mut radial_u, mut radial_v) = (g.inn[c] * (lerp(u, inward) - uc), g.inn[c] * (lerp(v, inward) - vc));
-            if c < outer {
-                let outward = g.outward[c];
-                radial_u += g.out[c] * (lerp(u, outward) - uc);
-                radial_v += g.out[c] * (lerp(v, outward) - vc);
+        let ring = &g.rings[i];
+        let (s, n) = (ring.start, ring.count);
+        let both = |c: Cell| F4::pair(c, c);
+        let two = |x: f32| both([x; 2]);
+        let (around, out, inn) = (two(ring.around), two(ring.out), two(ring.inn));
+        let (radial, ceiling, rate) = (both(self.radial), both(self.ceiling), both([DU, DV]));
+        let (from_u, from_v) = (both([U_FROM_U, V_FROM_U]), both([U_FROM_V, V_FROM_V]));
+        let (zero, one, decay, dt) = (two(0.0), two(1.0), two(DECAY), two(DT));
+        let uv = &self.uv[..];
+        // a ring with an odd count steps the cell after its last one too, then pads it
+        let count = n.div_ceil(2);
+        let cells = pairs(uv, s, count).iter().zip(pairs(uv, s - 1, count)).zip(pairs(uv, s + 1, count));
+        let next = self.next[s..s + 2 * count].as_chunks_mut().0;
+        let across = g.inward.pairs(s, count).zip(g.outward.pairs(s, count));
+        for (((here, left), right), (next, (inward, outward))) in cells.zip(next.iter_mut().zip(across)) {
+            let (here, left, right) = (F4::load(here), F4::load(left), F4::load(right));
+            let mut across = zero;
+            if INWARD {
+                across = inn.mul(read_pair(uv, inward).sub(here));
             }
-            let lu = g.around[c] * (u[l] + u[r] - 2.0 * uc) + self.radial_u * radial_u;
-            let lv = g.around[c] * (v[l] + v[r] - 2.0 * vc) + self.radial_v * radial_v;
-            let (ru, rv) = react(uc, vc, self.u_ceiling);
-            self.next_u[c] = (uc + DT * (DU * lu + ru)).max(0.0);
-            self.next_v[c] = (vc + DT * (DV * lv + rv)).max(0.0);
+            if OUTWARD {
+                across = across.add(out.mul(read_pair(uv, outward).sub(here)));
+            }
+            let laplace = around.mul(left.add(right).sub(here.add(here))).add(radial.mul(across));
+            let less = here.sub(one);
+            let make = decay.add(from_u.mul(less.uu())).sub(from_v.mul(less.vv()));
+            let react = make.at_least(zero).at_most(ceiling).sub(decay.mul(here));
+            here.add(dt.mul(rate.mul(laplace).add(react))).positive().store(next);
         }
-        self.u[lo..hi].copy_from_slice(&self.next_u[lo..hi]);
-        self.v[lo..hi].copy_from_slice(&self.next_v[lo..hi]);
+        self.next[s - 1] = self.next[s + n - 1];
+        self.next[s + n] = self.next[s];
+    }
+
+    /// `steps` steps of the rings `from..=to`. The rings inside stay as they are, the ones
+    /// outside don't exist yet: the outermost ring has no neighbour out.
+    fn settle(&mut self, from: usize, to: usize, steps: usize) {
+        for _ in 0..steps {
+            for i in from..=to {
+                match (i > 0, i < to) {
+                    (false, false) => self.step_ring::<false, false>(i),
+                    (false, true) => self.step_ring::<false, true>(i),
+                    (true, false) => self.step_ring::<true, false>(i),
+                    (true, true) => self.step_ring::<true, true>(i),
+                }
+            }
+            std::mem::swap(&mut self.uv, &mut self.next);
+        }
+        // both buffers agree on the rings that are only read from now on
+        let rings = &self.grid.rings;
+        let (lo, hi) = (rings[from].start - 1, rings[to].start + rings[to].count + 2);
+        self.next[lo..hi].copy_from_slice(&self.uv[lo..hi]);
+    }
+
+    /// Copies the first and the last cell of ring `i` around it
+    fn pad(&mut self, i: usize) {
+        let ring = &self.grid.rings[i];
+        let (s, n) = (ring.start, ring.count);
+        self.uv[s - 1] = self.uv[s + n - 1];
+        self.uv[s + n] = self.uv[s];
     }
 }
 
@@ -254,22 +314,22 @@ pub fn reaction_diffusion(p: &Params) -> Pattern {
     let (inner_cells, outer_cells) = (inner / cell, outer / cell);
     let rings = (((outer_cells - inner_cells) / stretch).ceil() as usize + 1).max(2);
     let grid = Grid::new(inner_cells, outer_cells, rings, stretch);
-    let total = grid.len();
+    let len = grid.len;
     let mut sim = Sim {
         grid,
-        radial_u: 1.0 - RADIAL_SLOWDOWN * (1.0 - 2.0 * alignment).max(0.0),
-        radial_v: 1.0 - RADIAL_SLOWDOWN * (2.0 * alignment - 1.0).max(0.0),
-        u_ceiling: U_CEILING - FORKING_DROP * p.forking.clamp(0.0, 1.0),
-        u: vec![1.0; total],
-        v: vec![1.0; total],
-        next_u: vec![0.0; total],
-        next_v: vec![0.0; total],
+        radial: [
+            1.0 - RADIAL_SLOWDOWN * (1.0 - 2.0 * alignment).max(0.0),
+            1.0 - RADIAL_SLOWDOWN * (2.0 * alignment - 1.0).max(0.0),
+        ],
+        ceiling: [(U_CEILING - FORKING_DROP * p.forking.clamp(0.0, 1.0)) * DECAY, 2.0 * DECAY],
+        uv: vec![[1.0; 2]; len],
+        next: vec![[1.0; 2]; len],
     };
 
     // the inner ring: stripes at their closest, with gaps between 1 ± GAP_VARIATION *
     // irregularity times that, so they don't all fork at the same radius
-    let n = sim.grid.count[0];
-    let stripes = (TAU * sim.grid.radius[0] / (INNER_SPACING * CELLS_PER_SPACING)).round().max(1.0) as usize;
+    let (s, n) = (sim.grid.rings[0].start, sim.grid.rings[0].count);
+    let stripes = (TAU * sim.grid.rings[0].radius / (INNER_SPACING * CELLS_PER_SPACING)).round().max(1.0) as usize;
     let gaps: Vec<f32> =
         (0..stripes).map(|k| 1.0 + GAP_VARIATION * irregularity * (2.0 * hash(p.seed, 0, n + k) - 1.0)).collect();
     let total: f32 = gaps.iter().sum();
@@ -288,38 +348,32 @@ pub fn reaction_diffusion(p: &Params) -> Pattern {
         let k = edges.partition_point(|&e| e <= angle).clamp(1, stripes) - 1;
         let phase = TAU * (angle - edges[k]) / (edges[k + 1] - edges[k]);
         let wave = 0.5 + 0.5 * phase.cos() + irregularity * (hash(p.seed, 0, j) - 0.5);
-        sim.u[j] = 2.0 * wave.clamp(0.0, 1.0);
+        sim.uv[s + j][0] = 2.0 * wave.clamp(0.0, 1.0);
     }
-    for _ in 0..p.steps {
-        sim.step(0, 0);
-    }
+    sim.pad(0);
+    sim.settle(0, 0, p.steps);
     // grow outward: every ring starts as the one inside it, with some noise
     for k in 1..rings {
-        let s = sim.grid.start[k];
-        for j in 0..sim.grid.count[k] {
-            let c = s + j;
-            let inward = sim.grid.inward[c];
-            let lerp = |x: &[f32]| x[inward.a as usize] + (x[inward.b as usize] - x[inward.a as usize]) * inward.t;
-            sim.u[c] = (lerp(&sim.u) + irregularity * (hash(p.seed, k, j) - 0.5)).max(0.0);
-            sim.v[c] = lerp(&sim.v);
+        let s = sim.grid.rings[k].start;
+        for j in 0..sim.grid.rings[k].count {
+            let [u, v] = sim.grid.inward.read(&sim.uv, s + j);
+            sim.uv[s + j] = [(u + irregularity * (hash(p.seed, k, j) - 0.5)).max(0.0), v];
         }
-        let from = (k + 1).saturating_sub(BAND);
-        for _ in 0..p.steps {
-            sim.step(from, k);
-        }
+        sim.pad(k);
+        sim.settle((k + 1).saturating_sub(BAND), k, p.steps);
     }
     // the last rings settle as long as every other ring did
-    let from = rings.saturating_sub(BAND);
-    for _ in 0..p.steps * (BAND - 1) {
-        sim.step(from, rings - 1);
-    }
+    sim.settle(rings.saturating_sub(BAND), rings - 1, p.steps * (BAND - 1));
 
-    let g = &sim.grid;
-    let rings = (0..g.rings())
-        .map(|i| (g.start[i]..g.start[i] + g.count[i]).map(|c| (0.5 * sim.u[c]).clamp(0.0, 1.0)).collect())
+    let rings = sim
+        .grid
+        .rings
+        .iter()
+        .map(|r| sim.uv[r.start..r.start + r.count].iter().map(|c| (0.5 * c[0]).clamp(0.0, 1.0)).collect())
         .collect();
     Pattern { inner, outer, spacing, rings }
 }
+
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
