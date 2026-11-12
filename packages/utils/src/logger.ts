@@ -75,6 +75,15 @@ function summarize(value: unknown, depth = MAX_DEPTH): string {
   return '{' + parts.join(', ') + '}';
 }
 
+/** Like summarize, but a value whose getters or proxy traps throw only gets its type */
+function summarizeSafely(value: unknown): string {
+  try {
+    return summarize(value);
+  } catch {
+    return `[unloggable ${typeof value}]`;
+  }
+}
+
 function record(entry: LogEntry) {
   if (logBuffer.length < LOG_BUFFER_SIZE) {
     logBuffer.push(entry);
@@ -141,7 +150,7 @@ export const createLogger = (() => {
     // muted scopes such as the runtime log every node, they would flush the buffer on every run
     function add(level: string, args: unknown[]) {
       if (muted && level !== 'warn' && level !== 'error') return;
-      record({ time: formatTime(), scope, level, args: args.map(a => summarize(a)) });
+      record({ time: formatTime(), scope, level, args: args.map(summarizeSafely) });
     }
 
     return {

@@ -36,3 +36,32 @@ test('muted scopes record only warnings and errors', () => {
 
   expect(getLogEntries().map(e => e.level)).toEqual(['warn']);
 });
+
+test('values that throw when read are logged without throwing', () => {
+  const log = createLogger('throwing');
+  log.mute();
+  const getter = {
+    get value() {
+      throw new Error('getter');
+    }
+  };
+  const proxy = new Proxy({}, {
+    get() {
+      throw new Error('trap');
+    },
+    ownKeys() {
+      throw new Error('trap');
+    }
+  });
+  const revoked = Proxy.revocable({}, {});
+  revoked.revoke();
+
+  expect(() => log.warn('values', getter, proxy, revoked.proxy, 1)).not.toThrow();
+  expect(getLogEntries()[0].args).toEqual([
+    'values',
+    '[unloggable object]',
+    '[unloggable object]',
+    '[unloggable object]',
+    '1'
+  ]);
+});
