@@ -75,8 +75,8 @@
           "position": [-360, -93.54],
           "type": "max/plantarium/random",
           "props": {
-            "min": -0.022,
-            "max": 0.022
+            "min": -0.016,
+            "max": 0.016
           }
         },
         {
@@ -113,8 +113,8 @@
           "position": [-360, -20.54],
           "type": "max/plantarium/random",
           "props": {
-            "min": -0.022,
-            "max": 0.022
+            "min": -0.016,
+            "max": 0.016
           }
         },
         {
