@@ -16,6 +16,7 @@ import {
 } from '@nodarium/types';
 import {
   createLogger,
+  decodeFloat,
   encodeFloat,
   hashString53,
   type PerformanceStore,
@@ -25,7 +26,7 @@ import { areSocketsCompatible } from '../graph-interface/helpers/nodeHelpers';
 import { migrateGraph } from '../graph-migrations';
 import { getErrorInfo, NodeExecutionError, type RuntimeErrorInfo } from './errors';
 import { byteSize } from './runtime-executor-cache';
-import type { RuntimeNode } from './types';
+import type { DebugEntry, RuntimeNode } from './types';
 
 /** The node that turns a value of this socket type into something the debug view can draw */
 const DEBUG_PREVIEWS: Record<string, { node: string }> = {
@@ -260,7 +261,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   private usedDefinitions = new Map<string, NodeDefinition>();
 
   // keyed by the id of the node a debug node is connected to
-  private debugData: Record<number, { type: string; output: number; data: Int32Array }> = {};
+  private debugData: Record<number, DebugEntry> = {};
   // execution time in ms of every node of the last run, cached nodes keep
   // the time of the run that computed their result
   private nodeTimings: Record<number, number> = {};
@@ -411,9 +412,12 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       if (!node) continue;
       if (node.type.endsWith('/debug')) {
         node.state = node.state || {};
-        const parent = node.state.parents[0];
+        const parent = node.state.inputNodes['input'];
         if (parent) {
-          node.state.depth = parent.state.depth - 1;
+          // after the input it shows and the nodes an exposed amount or clip comes from
+          node.state.depth = Math.min(...node.state.parents.map((p) =>
+            p?.state.depth ?? parent.state.depth
+          )) - 1;
           parent.state.debugOutput = node.state.inputOutputs['input'] ?? 0;
         }
         nodes.set(node.id, node);
@@ -551,6 +555,8 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
       this.perf?.addPoint('collected-inputs', b - a);
 
+      if (node.type.endsWith('/debug')) this.storeDebugView(node, node_type, inputs);
+
       try {
         let inputHash: string | undefined;
         if (this.cache) {
@@ -637,6 +643,25 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       output,
       data: readNodeValue(value)
     };
+  }
+
+  /**
+   * The amount and clip of a debug node go along with the data it shows, the viewer applies
+   * them. So the output of the debugged node and every cache key stay as they are.
+   */
+  private storeDebugView(
+    node: NonNullable<RuntimeNode>,
+    type: NodeDefinition,
+    inputs: NodeValue[]
+  ) {
+    const source = node.state.inputNodes['input'];
+    const entry = source && this.debugData[source.id];
+    if (!entry) return;
+    const keys = Object.keys(type.inputs ?? {});
+    for (const key of ['amount', 'clip'] as const) {
+      const value = inputs[keys.indexOf(key)];
+      if (value !== undefined) entry[key] = decodeFloat(readNodeValue(value)[0]);
+    }
   }
 
   /**

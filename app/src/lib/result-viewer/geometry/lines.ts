@@ -13,7 +13,7 @@ const HEADER_LENGTH = 2;
 const LINE_WORDS = 7;
 
 /** lowbias32, the hash the Groups material colors its groups by */
-function hash(x: number) {
+export function hash(x: number) {
   x ^= x >>> 16;
   x = Math.imul(x, 0x7feb352d);
   x ^= x >>> 15;

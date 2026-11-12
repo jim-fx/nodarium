@@ -1,10 +1,10 @@
 <script lang="ts">
   import { T } from '@threlte/core';
   import type { Group } from 'three';
-  import { updateDebugScene } from './debug';
+  import { type DebugEntry, updateDebugScene } from './debug';
 
   type Props = {
-    debugData?: Record<number, { type: string; data: Int32Array }>;
+    debugData?: Record<number, DebugEntry>;
   };
 
   let group = $state<Group>(null!);

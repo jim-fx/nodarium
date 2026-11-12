@@ -1,7 +1,7 @@
 import { concatEncodedArrays } from '@nodarium/utils';
 import { ArrowHelper, Group, Line, LineSegments, type Mesh, Points, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { updateDebugScene } from './debug';
+import { clipPoints, isShown, selectLines, updateDebugScene } from './debug';
 
 function wrap(item: Int32Array) {
   const data = new Int32Array(item.length + 4);
@@ -188,5 +188,180 @@ describe('updateDebugScene', () => {
 
     updateDebugScene(group, { 1: { type: 'pattern', data: Int32Array.of(15, 0, 0) } });
     expect(group.children).toHaveLength(0);
+  });
+});
+
+// [12, n, ...n × (x0, y0, z0, x1, y1, z1, group)], one polyline per list of points
+function lines(polylines: { group: number; points: number[][] }[]) {
+  const words: number[] = [];
+  const f = new Float32Array(6);
+  for (const { group, points } of polylines) {
+    for (let i = 1; i < points.length; i++) {
+      f.set([...points[i - 1], ...points[i]]);
+      words.push(...new Int32Array(f.buffer), group);
+    }
+  }
+  return Int32Array.from([12, words.length / 7, ...words]);
+}
+
+function readSegments(data: Int32Array) {
+  const f = new Float32Array(data.buffer, data.byteOffset, data.length);
+  return Array.from({ length: data[1] }, (_, i) => [...f.subarray(2 + i * 7, 8 + i * 7)]);
+}
+
+const pathItems = (n: number) =>
+  Array.from({ length: n }, (_, i) => {
+    const p = path(1, [[i, 0, 0, 0.1], [i, 1, 0, 0.1]]);
+    p[2] = 1000 + i;
+    return wrap(p);
+  });
+
+const drawnStarts = (group: Group) =>
+  collect(group).lines.map((l) => l.geometry.getAttribute('position').getX(0));
+
+describe('the amount of the debug node', () => {
+  it('only adds items when it grows', () => {
+    const keys = Array.from({ length: 2000 }, (_, i) => i);
+    let previous = new Set<number>();
+    for (const amount of [0, 0.05, 0.2, 0.5, 0.8, 1]) {
+      const shown = new Set(keys.filter((k) => isShown(k, amount)));
+      for (const k of previous) expect(shown.has(k)).toBe(true);
+      expect(shown.size / keys.length).toBeCloseTo(amount, 1);
+      previous = shown;
+    }
+  });
+
+  it('draws the same paths every time, a share of them', () => {
+    const data = concatEncodedArrays(pathItems(200));
+    const draw = (amount: number) => {
+      const group = new Group();
+      updateDebugScene(group, { 1: { type: 'path', data, amount } });
+      return drawnStarts(group);
+    };
+    const few = draw(0.2);
+    expect(draw(0.2)).toEqual(few);
+    expect(few.length).toBeGreaterThan(20);
+    expect(few.length).toBeLessThan(60);
+    const more = draw(0.5);
+    expect(few.every((x) => more.includes(x))).toBe(true);
+    expect(draw(0)).toHaveLength(0);
+  });
+
+  it('applies to instances, points, meshes and lines', () => {
+    const group = new Group();
+    updateDebugScene(group, { 1: { type: 'path', data: wrap(instances(400)), amount: 0.1 } });
+    expect(collect(group).arrows.length).toBeGreaterThan(10);
+    expect(collect(group).arrows.length).toBeLessThan(80);
+
+    const pointData = concatEncodedArrays(
+      Array.from({ length: 200 }, (_, i) => {
+        const p = point([0, i, 0], [1, 0, 0]);
+        p[3] = i;
+        return wrap(p);
+      })
+    );
+    updateDebugScene(group, { 1: { type: 'points', data: pointData, amount: 0.1 } });
+    expect(collect(group).arrows.length).toBeLessThan(60);
+
+    const polylines = Array.from({ length: 200 }, (_, i) => ({
+      group: 1,
+      points: [[i, 0, 0], [i, 1, 0], [i, 2, 0]]
+    }));
+    const shown = readSegments(selectLines(lines(polylines), 0.2));
+    // both segments of a path stay together
+    expect(shown.length % 2).toBe(0);
+    expect(shown.length / 2).toBeGreaterThan(20);
+    expect(shown.length / 2).toBeLessThan(60);
+  });
+
+  it('draws a share of the faces of a mesh', () => {
+    const faces = 300;
+    const mesh = new Int32Array(4 + faces * 3 + 3 * 7);
+    mesh.set([14, 3, faces, 0]);
+    for (let f = 0; f < faces; f++) mesh.set([0, 1, 2], 4 + f * 3);
+    const drawn = (amount: number) => {
+      const group = new Group();
+      updateDebugScene(group, { 1: { type: 'mesh', data: mesh, amount } });
+      const [m] = group.children.flatMap((g) => g.children.flatMap((p) => p.children as Mesh[]));
+      return m.geometry.index!.count / 3;
+    };
+    expect(drawn(1)).toBe(faces);
+    expect(drawn(0.1)).toBeGreaterThan(10);
+    expect(drawn(0.1)).toBeLessThan(60);
+  });
+});
+
+describe('the clip of the debug node', () => {
+  it('cuts a path along its length', () => {
+    const points = [[0, 0, 0, 1], [0, 1, 0, 1], [0, 3, 0, 3]].map(
+      ([x, y, z, t]) => [new Vector3(x, y, z), t] as [Vector3, number]
+    );
+    const half = clipPoints(points, 0.5);
+    expect(half.map(([p]) => p.toArray())).toEqual([[0, 0, 0], [0, 1, 0], [0, 1.5, 0]]);
+    expect(half[2][1]).toBeCloseTo(1.5);
+    expect(clipPoints(points, 1)).toBe(points);
+    expect(clipPoints(points, 0)).toEqual([]);
+  });
+
+  it('ends the line, the dots and the rings at the cut', () => {
+    const data = wrap(path(1, [[0, 0, 0, 0.1], [0, 1, 0, 0.1], [0, 2, 0, 0.1], [0, 3, 0, 0.1]]));
+    const group = new Group();
+    updateDebugScene(group, { 1: { type: 'path', data, clip: 0.5 } });
+    const { lines: drawn, points, segments } = collect(group);
+    const line = drawn[0].geometry.getAttribute('position');
+    expect(line.count).toBe(3);
+    expect(line.getY(2)).toBeCloseTo(1.5);
+    const dots = points[0].geometry.getAttribute('position');
+    expect(dots.count).toBe(3);
+    expect(Math.max(...Array.from({ length: dots.count }, (_, i) => dots.getY(i)))).toBeCloseTo(
+      1.5
+    );
+    const rings = segments[0].geometry.getAttribute('position');
+    expect(rings.count).toBe(3 * 12 * 2);
+    for (let i = 0; i < rings.count; i++) expect(rings.getY(i)).toBeLessThan(1.5 + 1e-6);
+  });
+
+  it('cuts every path of Myzel lines', () => {
+    const data = lines([
+      { group: 1, points: [[0, 0, 0], [0, 1, 0], [0, 2, 0]] },
+      { group: 2, points: [[5, 0, 0], [5, 4, 0]] }
+    ]);
+    expect(readSegments(selectLines(data, 1, 0.25))).toEqual([
+      [0, 0, 0, 0, 0.5, 0],
+      [5, 0, 0, 5, 1, 0]
+    ]);
+    expect(readSegments(selectLines(data, 1, 0.75))).toEqual([
+      [0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 1.5, 0],
+      [5, 0, 0, 5, 3, 0]
+    ]);
+  });
+});
+
+describe('the defaults of the debug node', () => {
+  it('draw everything as it was', () => {
+    const data = concatEncodedArrays([
+      ...pathItems(30),
+      wrap(instances(5)),
+      wrap(point([0, 1, 0], [1, 0, 0])),
+      wrap(lines([{ group: 1, points: [[0, 0, 0], [0, 1, 0]] }]))
+    ]);
+    const positions = (group: Group) => {
+      const out: number[][] = [];
+      group.traverse((child) => {
+        const attribute = (child as Mesh).geometry?.getAttribute('position');
+        if (attribute) out.push([...attribute.array]);
+      });
+      return out;
+    };
+    const before = new Group();
+    updateDebugScene(before, { 1: { type: 'path', data } });
+    const after = new Group();
+    updateDebugScene(after, { 1: { type: 'path', data, amount: 1, clip: 1 } });
+    expect(positions(after)).toEqual(positions(before));
+    expect(positions(before).length).toBeGreaterThan(30);
+
+    const myzel = lines([{ group: 1, points: [[0, 0, 0], [0, 1, 0]] }]);
+    expect(selectLines(myzel, 1, 1)).toBe(myzel);
   });
 });

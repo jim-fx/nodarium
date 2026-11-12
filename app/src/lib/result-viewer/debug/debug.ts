@@ -16,7 +16,7 @@ import {
   Vector3
 } from 'three';
 import { createGeometryPool, RESULT_TAGS } from '../geometry/geometryPool';
-import { createPathLines } from '../geometry/lines';
+import { createPathLines, hash, LINES_TAG } from '../geometry/lines';
 import { PATH_HEADER_SIZE } from '../gizmos/gizmo-paths';
 
 // one color per stem depth, branches of branches get the next color
@@ -38,6 +38,123 @@ const RENDER_ORDER = 999;
 const DRAWN_TYPES = new Set(['path', 'geometry', 'points', 'mesh', 'pattern']);
 // a 2D pattern, see nodarium_utils::pattern
 const PATTERN_TAG = 15;
+
+export type DebugEntry = {
+  type: string;
+  data: Int32Array;
+  /** the share of the items that is drawn, 0–1 */
+  amount?: number;
+  /** the share of the length of each path that is drawn, 0–1 */
+  clip?: number;
+};
+
+/** A key made of several numbers, e.g. the index of an instance and the item it is in */
+function itemKey(...parts: number[]) {
+  return parts.reduce((key, part) => hash(key ^ part), 0x9e3779b9);
+}
+
+/**
+ * Whether the item with this key is drawn. Every key has a fixed threshold, so the same items
+ * stay while the graph runs again and a larger amount only adds items.
+ */
+export function isShown(key: number, amount = 1) {
+  return amount >= 1 || hash(key) / 2 ** 32 < amount;
+}
+
+/** Keys for items that carry an id, items with the same id are told apart by their order */
+function idKeys(items: Int32Array[], idOf: (item: Int32Array) => number) {
+  const seen = new Map<number, number>();
+  return items.map((item) => {
+    const id = idOf(item);
+    const n = seen.get(id) ?? 0;
+    seen.set(id, n + 1);
+    return itemKey(id, n);
+  });
+}
+
+function pick(items: Int32Array[], keys: number[], amount = 1) {
+  return amount >= 1 ? items : items.filter((_, i) => isShown(keys[i], amount));
+}
+
+/** The start of a path up to `clip` of its length, the last point lies on the cut */
+export function clipPoints(points: [Vector3, number][], clip = 1) {
+  if (clip >= 1) return points;
+  if (!(clip > 0) || !points.length) return [];
+  let total = 0;
+  for (let i = 1; i < points.length; i++) total += points[i][0].distanceTo(points[i - 1][0]);
+  const cut = total * clip;
+  const clipped: [Vector3, number][] = [points[0]];
+  let length = 0;
+  for (let i = 1; i < points.length; i++) {
+    const [a, ta] = points[i - 1];
+    const [b, tb] = points[i];
+    const step = a.distanceTo(b);
+    if (length + step >= cut) {
+      const t = step > 0 ? (cut - length) / step : 0;
+      clipped.push([a.clone().lerp(b, t), ta + (tb - ta) * t]);
+      break;
+    }
+    clipped.push(points[i]);
+    length += step;
+  }
+  return clipped;
+}
+
+const LINE_WORDS = 7;
+
+/**
+ * Myzel lines with `amount` of their paths, each cut at `clip` of its length. The segments of a
+ * path follow each other, a segment that does not start where the last one ended starts the next.
+ */
+export function selectLines(data: Int32Array, amount = 1, clip = 1) {
+  if (amount >= 1 && clip >= 1) return data;
+  const floats = new Float32Array(data.buffer, data.byteOffset, data.length);
+  const count = data[1];
+  const paths: { group: number; points: [Vector3, number][] }[] = [];
+  let last: { group: number; points: [Vector3, number][] } | undefined;
+  for (let i = 0; i < count; i++) {
+    const o = 2 + i * LINE_WORDS;
+    const group = data[o + 6];
+    const end = last?.points[last.points.length - 1][0];
+    const continues = last?.group === group && end?.x === floats[o] && end.y === floats[o + 1]
+      && end.z === floats[o + 2];
+    if (!continues) {
+      last = { group, points: [[new Vector3().fromArray(floats, o), 0]] };
+      paths.push(last);
+    }
+    last!.points.push([new Vector3().fromArray(floats, o + 3), 0]);
+  }
+
+  const words: number[] = [];
+  const out = new Float32Array(6);
+  const outWords = new Int32Array(out.buffer);
+  paths.forEach(({ group, points }, index) => {
+    if (!isShown(itemKey(index), amount)) return;
+    const clipped = clipPoints(points, clip);
+    for (let i = 1; i < clipped.length; i++) {
+      clipped[i - 1][0].toArray(out, 0);
+      clipped[i][0].toArray(out, 3);
+      words.push(...outWords, group);
+    }
+  });
+  return Int32Array.from([LINES_TAG, words.length / LINE_WORDS, ...words]);
+}
+
+/** A Myzel mesh with `amount` of its faces, its vertices stay as they are */
+function selectFaces(data: Int32Array, amount = 1) {
+  if (amount >= 1) return data;
+  const faces = data[2];
+  const kept: number[] = [];
+  for (let f = 0; f < faces; f++) {
+    if (isShown(itemKey(f), amount)) kept.push(...data.subarray(4 + f * 3, 7 + f * 3));
+  }
+  const result = new Int32Array(data.length - (faces * 3 - kept.length));
+  result.set(data.subarray(0, 4));
+  result[2] = kept.length / 3;
+  result.set(kept, 4);
+  result.set(data.subarray(4 + faces * 3), 4 + kept.length);
+  return result;
+}
 
 function depthColor(depth: number) {
   return depthColors[Math.max(depth - 1, 0) % depthColors.length];
@@ -63,7 +180,7 @@ function pathPoints(data: Int32Array) {
 }
 
 /** the path as a line, a dot for every point and a ring showing its thickness */
-function createPathDebug(paths: Int32Array[]) {
+function createPathDebug(paths: Int32Array[], clip = 1) {
   const group = new Group();
   const dots: number[] = [];
   const dotColors: number[] = [];
@@ -77,7 +194,7 @@ function createPathDebug(paths: Int32Array[]) {
   const b = new Vector3();
 
   for (const path of paths) {
-    const points = pathPoints(path);
+    const points = clipPoints(pathPoints(path), clip);
     if (!points.length) continue;
     const color = depthColor(path[1]);
 
@@ -170,13 +287,13 @@ function createGeometryDebug(geometries: Int32Array[], layout: 'geometry' | 'mes
  * grows along its -z axis. Instances are often tiny next to the plant, so the arrows are
  * scaled up by a fixed factor, they still grow and shrink with the size of the instances.
  */
-function createInstanceDebug(instances: Int32Array[]) {
+function createInstanceDebug(instances: Int32Array[], amount = 1) {
   const group = new Group();
   const matrix = new Matrix4();
   const origin = new Vector3();
   const direction = new Vector3();
 
-  for (const data of instances) {
+  for (const [index, data] of instances.entries()) {
     // 0: type, 1: vertices, 2: faces, 3: instances, 4: depth, followed by the faces,
     // the positions and normals of the geometry, then a matrix for every instance
     const vertices = data[1];
@@ -186,6 +303,7 @@ function createInstanceDebug(instances: Int32Array[]) {
     const f32 = new Float32Array(data.buffer, data.byteOffset, data.length);
 
     for (let i = 0; i < count; i++) {
+      if (!isShown(itemKey(index, i), amount)) continue;
       matrix.fromArray(f32, offset + i * 16);
       origin.setFromMatrixPosition(matrix);
       direction.setFromMatrixColumn(matrix, 2).negate();
@@ -296,19 +414,16 @@ function clearGroup(group: Group) {
   group.clear();
 }
 
-export function updateDebugScene(
-  group: Group,
-  data: Record<number, { type: string; data: Int32Array }>
-) {
+export function updateDebugScene(group: Group, data: Record<number, DebugEntry>) {
   clearGroup(group);
-  for (const { type, data: value } of Object.values(data || {})) {
+  for (const { type, data: value, amount, clip } of Object.values(data || {})) {
     // single values like floats and vectors have nothing to draw
     if (!DRAWN_TYPES.has(type) || !(value instanceof Int32Array)) continue;
 
     // a mesh is a single item without brackets, a pattern only arrives as its preview
     // mesh, which the output node wraps in a list. One that could not be previewed is skipped.
     if (value[0] === RESULT_TAGS.mesh) {
-      group.add(createGeometryDebug([value], 'mesh'));
+      group.add(createGeometryDebug([selectFaces(value, amount)], 'mesh'));
       continue;
     }
     if (value[0] === PATTERN_TAG) continue;
@@ -322,11 +437,17 @@ export function updateDebugScene(
     const meshes = items.filter((item) => item[0] === RESULT_TAGS.mesh);
     const lines = items.filter((item) => item[0] === RESULT_TAGS.lines);
 
-    if (paths.length) group.add(createPathDebug(paths));
-    if (geometries.length) group.add(createGeometryDebug(geometries));
-    if (instances.length) group.add(createInstanceDebug(instances));
-    if (points.length) group.add(createPointsDebug(points));
-    if (meshes.length) group.add(createGeometryDebug(meshes, 'mesh'));
-    if (lines.length) group.add(createLinesDebug(lines));
+    const shownPaths = pick(paths, idKeys(paths, (p) => p[2]), amount);
+    const shownGeometries = pick(geometries, idKeys(geometries, (g) => g[3]), amount);
+    const shownPoints = pick(points, points.map((p) => itemKey(p[1], p[3])), amount);
+
+    if (shownPaths.length) group.add(createPathDebug(shownPaths, clip));
+    if (shownGeometries.length) group.add(createGeometryDebug(shownGeometries));
+    if (instances.length) group.add(createInstanceDebug(instances, amount));
+    if (shownPoints.length) group.add(createPointsDebug(shownPoints));
+    if (meshes.length) {
+      group.add(createGeometryDebug(meshes.map((m) => selectFaces(m, amount)), 'mesh'));
+    }
+    if (lines.length) group.add(createLinesDebug(lines.map((l) => selectLines(l, amount, clip))));
   }
 }

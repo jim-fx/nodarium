@@ -1,6 +1,7 @@
 import type { Graph, NodeDefinition } from '@nodarium/types';
 import { describe, expect, it, vi } from 'vitest';
 import { createMockNodeRegistry } from '../graph-interface/test-utils';
+import { debugNode } from '../node-registry/debugNode';
 import { MemoryRuntimeExecutor } from './runtime-executor';
 import { MemoryRuntimeCache } from './runtime-executor-cache';
 
@@ -187,6 +188,50 @@ describe('nodes with several outputs', () => {
     it('draws debugged paths as they are', async () => {
       const entry = await debugged(maker('max/myzel/strands', 'path', [0, 5, 1, 1]));
       expect(entry).toEqual({ type: 'path', output: 0, data: Int32Array.of(0, 5, 1, 1) });
+    });
+  });
+
+  describe('the amount and clip of the debug node', () => {
+    function run(runtime: MemoryRuntimeExecutor, props?: Record<string, number>) {
+      return runtime.execute(
+        graph(
+          [node(0, split.id), node(1, debugNode.id, { props }), node(2, output.id)],
+          [[0, 1, 1, 'input'], [0, 0, 2, 'input']]
+        ),
+        {}
+      );
+    }
+    const registry = () => createMockNodeRegistry([split, output, debugNode]);
+
+    it('travel to the viewer with the debug data, which stays as it is', async () => {
+      const runtime = new MemoryRuntimeExecutor(registry());
+      await run(runtime, { amount: 0.2, clip: 0.5 });
+      const entry = runtime.getDebugData()[0];
+      expect(entry.data).toEqual(Int32Array.of(30));
+      expect(entry.amount).toBeCloseTo(0.2);
+      expect(entry.clip).toBe(0.5);
+    });
+
+    it('are 1 by default', async () => {
+      const runtime = new MemoryRuntimeExecutor(registry());
+      await run(runtime);
+      expect(runtime.getDebugData()[0]).toEqual({
+        type: 'integer',
+        output: 1,
+        data: Int32Array.of(30),
+        amount: 1,
+        clip: 1
+      });
+    });
+
+    it('do not run the debugged node again or change the result', async () => {
+      const runtime = new MemoryRuntimeExecutor(registry(), new MemoryRuntimeCache());
+      vi.mocked(split.execute).mockClear();
+      const before = await run(runtime);
+      const after = await run(runtime, { amount: 0.05, clip: 0.1 });
+      expect(split.execute).toHaveBeenCalledTimes(1);
+      expect([...after]).toEqual([...before]);
+      expect(runtime.getDebugData()[0].amount).toBeCloseTo(0.05);
     });
   });
 });
