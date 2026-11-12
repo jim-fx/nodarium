@@ -290,12 +290,18 @@ fn median(mut values: Vec<f32>) -> f32 {
     values[values.len() / 2]
 }
 
-/// The attachments of an input: every path, and the points split into rows where they jump
+/// The attachments of an input: every path, every point along a path, and the points at the
+/// tips of paths split into rows where they jump
 pub fn read_attachments(arg: &[i32]) -> Vec<Attachment<'_>> {
     let (mut paths, mut points) = (Vec::new(), Vec::new());
     collect(arg, &mut paths, &mut points);
     let mut attachments: Vec<Attachment> =
         paths.into_iter().filter(|p| wrap_path(p).length > 0).map(Attachment::from_path).collect();
+
+    // only the tips of paths, like the margin of a cap, line up into rows. A point along a path
+    // is a spot of its own, so the points on the stipes of a cluster don't make a ring.
+    let (points, spots): (Vec<Point>, Vec<Point>) = points.into_iter().partition(|p| p.alpha >= 1.0);
+    attachments.extend(spots.iter().map(|spot| Attachment::from_row(std::slice::from_ref(spot), false)));
 
     let gaps: Vec<f32> = points.windows(2).map(|w| w[0].position.distance(w[1].position)).collect();
     let limit = JUMP * median(gaps.clone());

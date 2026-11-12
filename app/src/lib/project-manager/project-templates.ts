@@ -21,6 +21,7 @@ import {
   porcini,
   sage,
   sapling,
+  shaggyInkcap,
   shiitake,
   wildCarrot,
   willow
@@ -77,6 +78,7 @@ export const projectTemplates: ProjectTemplate[] = [
   mushroom('Fly agaric', toGraph(flyAgaric, 'cm')),
   mushroom('Porcini', toGraph(porcini, 'cm')),
   mushroom('Shiitake', toGraph(shiitake, 'cm')),
+  mushroom('Shaggy inkcap', toGraph(shaggyInkcap, 'cm')),
   mushroom('Chanterelle', toGraph(chanterelle, 'cm')),
   mushroom('Oyster mushroom', toGraph(oyster, 'cm'))
 ];

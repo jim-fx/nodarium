@@ -13,7 +13,7 @@
         "path"
       ],
       "external": true,
-      "description": "The first attachment, e.g. the margin of a cap. Points in a row (a ring when they go around) or paths."
+      "description": "The first attachment, e.g. the margin of a cap. Points at the tips of paths in a row (a ring when they go around), points along paths one by one, or paths."
     },
     "b": {
       "type": "points",

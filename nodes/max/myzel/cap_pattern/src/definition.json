@@ -31,6 +31,15 @@
       "step": 0.0001,
       "unit": "m"
     },
+    "slide": {
+      "type": "float",
+      "description": "How far the pattern moves the top of the cap along it, away from the axis, negative towards it. A pattern pressed in and slid towards the axis tucks in under the surface above it, so the edge of the surface there lifts off, like the upturned scales of a shaggy inkcap. Read like the relief. Around a path away from its tip, along it.",
+      "value": 0,
+      "min": -0.005,
+      "max": 0.005,
+      "step": 0.0001,
+      "unit": "m"
+    },
     "color": {
       "type": "color",
       "value": [

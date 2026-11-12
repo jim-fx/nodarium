@@ -24,6 +24,7 @@ export { default as palm } from './palm.json';
 export { default as porcini } from './porcini.json';
 export { default as sage } from './sage.json';
 export { default as sapling } from './sapling.json';
+export { default as shaggyInkcap } from './shaggy-inkcap.json';
 export { default as shiitake } from './shiitake.json';
 export { default as stem } from './stem.json';
 export { tree } from './tree';

@@ -10,7 +10,7 @@
     "attachment": {
       "type": "points",
       "external": true,
-      "description": "Where the skin hangs from. A point on a path, e.g. from points_on_path on the stipe: the skin goes around the path there, at its thickness and across its tangent. A ring of points, e.g. a cap margin: the skin hangs from the ring, starting inside the round end of the paths the points sit on (as thick as their scale)."
+      "description": "Where the skin hangs from. A point on a path, e.g. from points_on_path on the stipe: the skin goes around the path there, at its thickness and across its tangent. A ring of points, e.g. a cap margin: the skin hangs from the ring, starting inside the round end of the paths the points sit on (as thick as their scale). Only points at the tips of their paths make a ring, so the points on the stipes of a cluster get a skin each."
     },
     "length": {
       "type": "float",
