@@ -321,7 +321,7 @@ fn a_curve_that_draws_the_old_depth_curve_gives_the_old_plates() {
         seed: p.seed,
         creator: CREATOR,
     };
-    let exact = gills_by(&inputs, GillProfile::Plate, |_| DepthAlong((0..=4096).map(|i| old(i as f32 / 4096.0)).collect()));
+    let exact = gills_by(&inputs, GillProfile::Plate, |_| DepthAlong((0..=4096).map(|i| old(i as f32 / 4096.0)).collect()), true);
     let from_curve = gills(&inputs, GillProfile::Plate);
     assert_eq!(from_curve.mesh.vertex_count(), exact.mesh.vertex_count());
     assert_eq!(from_curve.mesh.faces, exact.mesh.faces);

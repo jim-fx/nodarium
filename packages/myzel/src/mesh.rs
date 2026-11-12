@@ -41,6 +41,15 @@ impl Mesh {
         self.faces.len() / 3
     }
 
+    /// Room for exactly `vertices` and `faces` more, without colors. A mesh that grows by
+    /// doubling holds up to twice what it needs, and the old and the new buffer while it grows.
+    pub fn reserve_exact(&mut self, vertices: usize, faces: usize) {
+        self.positions.reserve_exact(vertices * 3);
+        self.normals.reserve_exact(vertices * 3);
+        self.groups.reserve_exact(vertices);
+        self.faces.reserve_exact(faces * 3);
+    }
+
     pub fn encode(&self) -> Vec<i32> {
         let (v, f) = (self.vertex_count(), self.face_count());
         assert!(self.colors.is_empty() || self.colors.len() == v, "{} colors for {} vertices", self.colors.len(), v);

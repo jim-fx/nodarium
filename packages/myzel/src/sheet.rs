@@ -88,6 +88,21 @@ pub fn add_sheet(
     }
 }
 
+/// The vertices and faces [`add_sheet`] adds for `grid`, with or without an edge
+pub fn sheet_size(grid: SheetGrid, edge: bool) -> (usize, usize) {
+    let SheetGrid { columns: m, rows, wrap } = grid;
+    if m < 2 || rows < 2 {
+        return (0, 0);
+    }
+    let vertices = 2 * m * rows + if edge { m } else { 0 };
+    let spans = if wrap { m } else { m - 1 };
+    // per span the quads of both faces, the first edge and the last edge, one quad or two
+    let quads = spans * (2 * (rows - 1) + 1 + if edge { 2 } else { 1 });
+    // the side walls of the first and the last column, and a triangle each at the edge
+    let walls = if wrap { 0 } else { 2 * 2 * (rows - 1) + if edge { 2 } else { 0 } };
+    (vertices, 2 * quads + walls)
+}
+
 /// Vertex normals from the faces around every vertex, weighted by their area. On a thin sheet
 /// the faces outweigh its narrow edges, so both faces keep their own side's normal.
 pub fn smooth_normals(mesh: &mut Mesh) {
@@ -183,6 +198,24 @@ mod tests {
         assert!(n(back).distance(Vec3::Y) < 1e-4);
         // and at the border too, the narrow edges don't tilt them much
         assert!(n(0).dot(Vec3::NEG_Y) > 0.9);
+    }
+
+    #[test]
+    fn the_size_of_a_sheet_is_known_before_it_is_added() {
+        for columns in 0..7 {
+            for rows in 0..6 {
+                for wrap in [false, true] {
+                    let grid = SheetGrid { columns, rows, wrap };
+                    let edge = |i: usize| Vec3::new(i as f32, -1.0, 0.0);
+                    for with_edge in [false, true] {
+                        let mut mesh = Mesh::default();
+                        let at = |i: usize, k: usize| Vec3::new(i as f32, k as f32, 0.0);
+                        add_sheet(&mut mesh, grid, at, at, with_edge.then_some(&edge as &dyn Fn(usize) -> Vec3));
+                        assert_eq!(sheet_size(grid, with_edge), (mesh.vertex_count(), mesh.face_count()), "{:?} {}", grid, with_edge);
+                    }
+                }
+            }
+        }
     }
 
     #[test]
