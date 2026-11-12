@@ -10,6 +10,7 @@
   import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
 
   import PerformanceViewer from '#lib/performance/PerformanceViewer.svelte';
+  import { createRepeatGuard } from '#lib/performance/run-values.ts';
   import { ProjectManager } from '#lib/project-manager/project-manager.svelte.ts';
   import ProjectBrowser from '#lib/project-manager/ProjectBrowser.svelte';
   import { type ProbePath, readPaths } from '#lib/result-viewer/gizmos/gizmo-paths.ts';
@@ -233,11 +234,19 @@
   });
 
   let timeout: ReturnType<typeof setTimeout>;
+  const runs = createRepeatGuard();
 
   async function update(
     g: Graph,
     s: Record<string, unknown> = $state.snapshot(graphSettings)
   ) {
+    const probed = addProbe(g, graphInterface?.state.activeNodeId ?? -1);
+    // loading a graph or pressing R asks for the same run twice, the second would only
+    // read the cache and push the time of the real build out of the performance viewer
+    const { nodes, edges, groups } = probed.graph;
+    const runKey = JSON.stringify([nodes, edges, groups, s]);
+    if (runs.isRepeat(runKey)) return;
+
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(() => {
       isExecuting = true;
@@ -245,7 +254,6 @@
     performanceStore.startRun();
     try {
       let a = performance.now();
-      const probed = addProbe(g, graphInterface?.state.activeNodeId ?? -1);
       const graphResult = await runtime.execute(probed.graph, s);
       let b = performance.now();
 
@@ -275,7 +283,9 @@
       errorNodeId = undefined;
       viewerComponent?.update(graphResult);
       pm.thumbnails.schedule(g, graphResult);
+      runs.succeeded(runKey);
     } catch (error) {
+      runs.failed();
       // the viewer would keep showing the geometry of the previous graph otherwise
       viewerComponent?.update(new Int32Array());
       // errors from the worker lose everything but their message on the way here

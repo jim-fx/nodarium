@@ -4,6 +4,7 @@
   import type { PerformanceData } from '@nodarium/utils';
   import BarSplit from './BarSplit.svelte';
   import Monitor from './Monitor.svelte';
+  import { runValue } from './run-values';
 
   const { data }: { data: PerformanceData } = $props();
 
@@ -40,15 +41,15 @@
 
   function getAverage(key: string) {
     const vals = data
-      .map((run) => run[key]?.[0])
-      .filter((v) => v !== undefined) as number[];
+      .map((run) => runValue(run, key))
+      .filter((v) => v !== undefined);
 
     if (vals.length === 0) return 0;
     return vals.reduce((acc, v) => acc + v, 0) / vals.length;
   }
 
   function getLast(key: string) {
-    return data.at(-1)?.[key]?.[0] || 0;
+    return runValue(data.at(-1), key) || 0;
   }
 
   const averages = $derived.by(() => {
@@ -60,7 +61,14 @@
     }, {});
   });
 
-  const lasts = $derived.by(() => data.at(-1) || {});
+  const lasts = $derived.by(() => {
+    const lr = data.at(-1);
+    if (!lr) return {} as Record<string, number>;
+    return Object.keys(lr).reduce((acc: Record<string, number>, key) => {
+      acc[key] = getLast(key);
+      return acc;
+    }, {});
+  });
 
   const totalPerformance = $derived.by(() => {
     const onlyLast = getLast('runtime')
@@ -126,40 +134,19 @@
     ];
   });
 
-  const totalPoints = $derived.by(() => {
-    if (showAverage) {
-      return data.map((run) => {
-        return (
-          (run['runtime']?.reduce((acc, v) => acc + v, 0) || 0)
-          + (run['update-geometries']?.reduce((acc, v) => acc + v, 0) || 0)
-          + (run['worker-transfer']?.reduce((acc, v) => acc + v, 0) || 0)
-        );
-      });
-    }
-
-    return data.map((run) => {
-      return (
-        (run['runtime']?.[0] || 0)
-        + (run['update-geometries']?.[0] || 0)
-        + (run['worker-transfer']?.[0] || 0)
-      );
-    });
-  });
+  const totalPoints = $derived.by(() =>
+    data.map((run) =>
+      (runValue(run, 'runtime') || 0)
+      + (runValue(run, 'update-geometries') || 0)
+      + (runValue(run, 'worker-transfer') || 0)
+    )
+  );
 
   function constructPoints(key: string) {
     if (key === 'total') {
       return totalPoints;
     }
-    return data.map((run) => {
-      if (key in run) {
-        if (showAverage) {
-          return run[key].reduce((acc, v) => acc + v, 0) / run[key].length;
-        } else {
-          return run[key][0];
-        }
-      }
-      return 0;
-    });
+    return data.map((run) => runValue(run, key) || 0);
   }
 
   function stats(values: number[]) {
@@ -179,7 +166,7 @@
   async function copyData() {
     const keys = new Set(data.flatMap((run) => Object.keys(run)));
     const entries = [...keys].map((key) => {
-      const values = data.map((run) => run[key]?.[0]).filter((v) => v !== undefined);
+      const values = data.map((run) => runValue(run, key)).filter((v) => v !== undefined);
       return [key, stats(values)];
     });
     const text = JSON.stringify(

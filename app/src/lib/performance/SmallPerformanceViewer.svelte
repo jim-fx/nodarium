@@ -2,6 +2,7 @@
   import { humanizeDuration, humanizeNumber } from '#lib/helpers/index.ts';
   import { localState } from '#lib/helpers/localState.svelte.ts';
   import type { PerformanceData, PerformanceStore } from '@nodarium/utils';
+  import { runValue } from './run-values';
   import SmallGraph from './SmallGraph.svelte';
 
   const { store, fps }: { store: PerformanceStore; fps: number[] } = $props();
@@ -13,10 +14,11 @@
 
   const vertices = $derived($store?.at(-1)?.['total-vertices']?.[0] || 0);
   const faces = $derived($store?.at(-1)?.['total-faces']?.[0] || 0);
-  const runtime = $derived($store?.at(-1)?.['runtime']?.[0] || 0);
+  const runtime = $derived(runValue($store?.at(-1), 'runtime') || 0);
+  const cacheHits = $derived(runValue($store?.at(-1), 'cache-hit') || 0);
 
   function getPoints(data: PerformanceData, key: string) {
-    return data?.map((run) => run[key]?.[0] || 0) || [];
+    return data?.map((run) => runValue(run, key) || 0) || [];
   }
 </script>
 
@@ -28,7 +30,12 @@
         onclick={() => (open.value.runtime = !open.value.runtime)}
       >
         <td>{open.value.runtime ? '-' : '+'} runtime</td>
-        <td>{humanizeDuration(runtime || 1000)}</td>
+        <td>
+          {humanizeDuration(runtime || 1000)}
+          {#if cacheHits > 0}
+            <span class="opacity-50">{Math.round(cacheHits * 100)}% cached</span>
+          {/if}
+        </td>
       </tr>
       {#if open.value.runtime}
         <tr>
