@@ -97,26 +97,30 @@ impl Line {
     /// The place nearest to `p`, `None` when that is where a ray that starts out on the cap
     /// starts: `p` lies further in than it reaches
     fn nearest(&self, p: Vec2) -> Option<Nearest> {
-        let mut best: Option<(f32, Nearest, bool)> = None;
+        // the segment and the place on it, the rest is worked out for the nearest one only
+        let mut best: Option<(f32, usize, f32)> = None;
         for i in 0..self.plane.len().saturating_sub(1) {
             if self.s[i + 1] <= 0.0 {
                 continue;
             }
             let (a, b) = (self.plane[i], self.plane[i + 1]);
             let ab = b - a;
-            let t = if ab.length_squared() > 0.0 { ((p - a).dot(ab) / ab.length_squared()).clamp(0.0, 1.0) } else { 0.0 };
-            let point = a + ab * t;
-            let d = p.distance_squared(point);
-            if best.as_ref().is_some_and(|(e, _, _)| *e <= d) {
+            let length_sq = ab.length_squared();
+            let t = if length_sq > 0.0 { ((p - a).dot(ab) / length_sq).clamp(0.0, 1.0) } else { 0.0 };
+            let d = p.distance_squared(a + ab * t);
+            if best.is_some_and(|(e, _, _)| e <= d) {
                 continue;
             }
-            let lerp = |x: &[f32]| x[i] + (x[i + 1] - x[i]) * t;
-            let tangent = ab.try_normalize().unwrap_or(Vec2::X);
-            let at_start = i == 0 && t == 0.0 && self.s[0] > 0.0;
-            let near = Nearest { s: lerp(&self.s).max(0.0), point, tangent, normal: tangent.perp(), radius: lerp(&self.radius).abs() };
-            best = Some((d, near, at_start));
+            best = Some((d, i, t));
         }
-        best.filter(|b| !b.2).map(|b| b.1)
+        let (_, i, t) = best?;
+        if i == 0 && t == 0.0 && self.s[0] > 0.0 {
+            return None;
+        }
+        let ab = self.plane[i + 1] - self.plane[i];
+        let lerp = |x: &[f32]| x[i] + (x[i + 1] - x[i]) * t;
+        let tangent = ab.try_normalize().unwrap_or(Vec2::X);
+        Some(Nearest { s: lerp(&self.s).max(0.0), point: self.plane[i] + ab * t, tangent, normal: tangent.perp(), radius: lerp(&self.radius).abs() })
     }
 
 }

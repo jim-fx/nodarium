@@ -23,7 +23,7 @@
 //! latest where the stipe starts. Where they turn from the cap onto the stipe the way they hang
 //! turns over about a depth, so their edge curves round the corner.
 
-use crate::{add_sheet, smooth_normals, Cap, CapFrame, Mesh, SheetGrid};
+use crate::{add_sheet, sheet_size, smooth_normals, Cap, CapFrame, Mesh, SheetGrid};
 use glam::{Vec2, Vec3};
 use nodarium_utils::{
     geometry::{create_path, set_path_link, wrap_path, wrap_path_mut, PathLink},
@@ -571,6 +571,11 @@ fn add_plate(mesh: &mut Mesh, plate: &[Slice], thickness: f32, profile: GillProf
     add_sheet(mesh, grid, |i, k| face(1.0, i, k), |i, k| face(-1.0, i, k), Some(&edge));
 }
 
+/// The vertices and faces [`add_plate`] adds for a plate of `slices`
+fn plate_size(slices: usize) -> (usize, usize) {
+    sheet_size(SheetGrid { columns: slices, rows: PLATE_ROWS, wrap: false }, true)
+}
+
 /// The stipe a cap sits on, as its path: the middle line and the radius along it
 struct Stipe {
     points: Vec<Vec3>,
@@ -688,7 +693,47 @@ fn round_corner(plate: &mut [Slice], corner: usize) {
 }
 
 /// The gills of one cap, added to `plates`, and as stacks of paths
-fn cap_gills(underside: &mut Underside, stipe: &[i32], pattern: &Pattern, p: &Params, plates: &mut Mesh) -> Vec<Vec<i32>> {
+/// A gill plate to mesh, with what keeps it free of its stipe, see [`add_plate`]
+struct Plate {
+    slices: Vec<Slice>,
+    angles: Vec<f32>,
+    keep: KeepFree,
+    thickness: f32,
+    profile: GillProfile,
+}
+
+/// Keeps a gill the free distance from the stipe, a gill that runs down it (from `corner` on) is on it
+#[derive(Clone, Copy)]
+struct KeepFree {
+    frame: CapFrame,
+    free: f32,
+    corner: usize,
+}
+
+impl KeepFree {
+    fn apply(&self, q: Vec3, angle: f32) -> Vec3 {
+        if self.corner > 0 {
+            return q;
+        }
+        let rel = q - self.frame.hinge;
+        let flat = rel - self.frame.axis * rel.dot(self.frame.axis);
+        let from_axis = flat.length();
+        if from_axis < self.free {
+            q + flat.try_normalize().unwrap_or_else(|| self.frame.out(angle)) * (self.free - from_axis)
+        } else {
+            q
+        }
+    }
+}
+
+fn cap_gills(
+    underside: &mut Underside,
+    stipe: &[i32],
+    pattern: &Pattern,
+    p: &Params,
+    plates: &mut Vec<Plate>,
+    with_paths: bool,
+) -> Vec<Vec<i32>> {
     let spacing = pattern.spacing.max(1e-5);
     let frame = underside.frame;
     let free = frame.stipe_radius + p.free_distance.max(0.0);
@@ -776,46 +821,45 @@ fn cap_gills(underside: &mut Underside, stipe: &[i32], pattern: &Pattern, p: &Pa
             plate.splice(0..0, down.into_iter().rev());
             round_corner(&mut plate, corner);
         }
-        // keep the free distance to the stipe, a gill that runs down it is on it
-        let keep_free = |q: Vec3, angle: f32| {
-            if corner > 0 {
-                return q;
-            }
-            let rel = q - frame.hinge;
-            let flat = rel - frame.axis * rel.dot(frame.axis);
-            let from_axis = flat.length();
-            if from_axis < free {
-                q + flat.try_normalize().unwrap_or_else(|| frame.out(angle)) * (free - from_axis)
-            } else {
-                q
-            }
-        };
-        add_plate(plates, &plate, thickness, p.profile, |q, i| keep_free(q, angles[i]));
-        for j in 0..strands {
+        let keep = KeepFree { frame, free, corner };
+        for j in (0..strands).filter(|_| with_paths) {
             let f = j as f32 / (strands - 1) as f32;
             let link = PathLink::child(p.creator, frame.stipe_id, frame.alpha, paths.len() as i32);
             let mut data = create_path(plate.len(), stipe[3] + 1);
             set_path_link(&mut data, link);
             let path = wrap_path_mut(&mut data);
             for (m, slice) in plate.iter().enumerate() {
-                let q = keep_free(slice.at(f), angles[m]);
+                let q = keep.apply(slice.at(f), angles[m]);
                 let r = 0.5 * thickness * half_share(f, slice.surface, p.profile) * (0.5 + 0.5 * slice.taper);
                 path.points[m * 4..m * 4 + 4].copy_from_slice(&[q.x, q.y, q.z, r]);
             }
             paths.push(data);
         }
+        plates.push(Plate { slices: plate, angles, keep, thickness, profile: p.profile });
     }
     paths
 }
 
 /// The gills under every cap of `inputs.cap`, see the module docs
 pub fn gills(inputs: &GillInputs, profile: GillProfile) -> Gills {
-    gills_by(inputs, profile, |ctx| DepthAlong::read(ctx, inputs.depth))
+    gills_by(inputs, profile, |ctx| DepthAlong::read(ctx, inputs.depth), true)
 }
 
-fn gills_by(inputs: &GillInputs, profile: GillProfile, mut read_depth: impl FnMut(&mut Ctx) -> DepthAlong) -> Gills {
+/// The mesh of [`gills`] alone. The paths are as large as the mesh, a node that only sends the mesh
+/// doesn't make them.
+pub fn gill_mesh(inputs: &GillInputs, profile: GillProfile) -> Mesh {
+    gills_by(inputs, profile, |ctx| DepthAlong::read(ctx, inputs.depth), false).mesh
+}
+
+fn gills_by(
+    inputs: &GillInputs,
+    profile: GillProfile,
+    mut read_depth: impl FnMut(&mut Ctx) -> DepthAlong,
+    with_paths: bool,
+) -> Gills {
     let mut mesh = Mesh::default();
     let mut paths = Vec::new();
+    let mut plates = Vec::new();
     let Some(pattern) = Pattern::decode(inputs.pattern) else {
         return Gills { mesh, paths };
     };
@@ -840,9 +884,17 @@ fn gills_by(inputs: &GillInputs, profile: GillProfile, mut read_depth: impl FnMu
         rays.sort_unstable();
         let rays: Vec<&[i32]> = rays.into_iter().map(|i| items[i]).collect();
         if let Some(mut underside) = Underside::new(cap.frame, &rays) {
-            paths.extend(cap_gills(&mut underside, stipe, &pattern, &params, &mut mesh));
+            paths.extend(cap_gills(&mut underside, stipe, &pattern, &params, &mut plates, with_paths));
         }
     }
+    // the size of every plate is known before the first one is meshed, the mesh doesn't grow by doubling
+    let (vertices, faces) =
+        plates.iter().map(|plate| plate_size(plate.slices.len())).fold((0, 0), |(v, f), (pv, pf)| (v + pv, f + pf));
+    mesh.reserve_exact(vertices, faces);
+    for plate in &plates {
+        add_plate(&mut mesh, &plate.slices, plate.thickness, plate.profile, |q, i| plate.keep.apply(q, plate.angles[i]));
+    }
+    debug_assert_eq!((mesh.vertex_count(), mesh.face_count()), (vertices, faces));
     smooth_normals(&mut mesh);
     Gills { mesh, paths }
 }

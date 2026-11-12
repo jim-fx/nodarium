@@ -28,6 +28,10 @@ const SMOOTHING: f32 = 0.75;
 /// It lies as far out as the blur alone puts it, in world units, see [`ramp_shift`].
 const SURFACE_SHARE: f32 = 0.3;
 
+/// How far from its tube a strand is written when its segment is on the grid already, in cells. The
+/// share of a strand in [`add_tissue`] is 0 from a cell on, the rest is a margin for rounding.
+const STRAND_REACH_IN_CELLS: f32 = 1.01;
+
 /// How much a closed segment counts for the owner of a sample past its kernel
 const FILL_OWNER_WEIGHT: f32 = 1e-3;
 
@@ -112,6 +116,9 @@ struct SparseGrid {
     /// joined segments it ends, see [`Meshing::joined`]
     run: Vec<u32>,
     run_k: Vec<f32>,
+    /// Whether `density`, `strand`, `run` and `run_k` are there. The closing of a [`TissueField`] reads none of
+    /// them, they stay empty until its surface is meshed, see [`SparseGrid::start_meshing`].
+    meshing: bool,
 }
 
 impl SparseGrid {
@@ -124,26 +131,84 @@ impl SparseGrid {
         p[0] % BLOCK + BLOCK * (p[1] % BLOCK + BLOCK * (p[2] % BLOCK))
     }
 
-    fn allocate(&mut self, lo: [usize; 3], hi: [usize; 3]) {
-        for bz in lo[2] / BLOCK..=hi[2] / BLOCK {
-            for by in lo[1] / BLOCK..=hi[1] / BLOCK {
-                for bx in lo[0] / BLOCK..=hi[0] / BLOCK {
-                    let i = bx + self.blocks[0] * (by + self.blocks[1] * bz);
-                    if self.block_slots[i] == EMPTY {
-                        self.block_slots[i] = (self.density.len() / BLOCK_SAMPLES) as u32;
-                        self.density.resize(self.density.len() + BLOCK_SAMPLES, 0.0);
-                        self.owner.resize(self.density.len(), EMPTY);
-                        self.owner_k.resize(self.density.len(), 0.0);
-                        self.tube.resize(self.density.len(), f32::INFINITY);
-                        self.tube_close.resize(self.density.len(), 0.0);
-                        self.strand.resize(self.density.len(), f32::INFINITY);
-                        self.guard.resize(self.density.len(), f32::INFINITY);
-                        self.run.resize(self.density.len(), EMPTY);
-                        self.run_k.resize(self.density.len(), 0.0);
-                    }
-                }
+    /// The samples `reach` around a segment, without those outside the grid
+    fn sample_box(&self, segment: &Segment, reach: f32) -> ([usize; 3], [usize; 3]) {
+        let lo_world = segment.start.min(segment.end) - Vec3::splat(reach);
+        let hi_world = segment.start.max(segment.end) + Vec3::splat(reach);
+        let to_sample = |v: Vec3, round: fn(f32) -> f32| {
+            [0, 1, 2].map(|a| (round((v[a] - self.origin[a]) / self.cell).max(0.0) as usize).min(self.samples[a] - 1))
+        };
+        (to_sample(lo_world, f32::ceil), to_sample(hi_world, f32::floor))
+    }
+
+    /// Every block the samples of a box reach, with one more block row below, so every cell next to an
+    /// inside sample has a vertex slot
+    fn box_blocks(&self, (lo, hi): ([usize; 3], [usize; 3])) -> impl Iterator<Item = usize> + '_ {
+        let lo = lo.map(|v| v.saturating_sub(1) / BLOCK);
+        let hi = hi.map(|v| v / BLOCK);
+        (lo[2]..=hi[2]).flat_map(move |bz| {
+            (lo[1]..=hi[1]).flat_map(move |by| (lo[0]..=hi[0]).map(move |bx| bx + self.blocks[0] * (by + self.blocks[1] * bz)))
+        })
+    }
+
+    fn block_count(&self) -> usize {
+        self.tube.len() / BLOCK_SAMPLES
+    }
+
+    /// Gives the blocks of a box that have none a slot, numbered in turn
+    fn allocate(&mut self, sample_box: ([usize; 3], [usize; 3])) {
+        self.allocate_all(&[sample_box]);
+    }
+
+    /// [`SparseGrid::allocate`] of every box in turn, with the arrays grown once to what they hold
+    fn allocate_all(&mut self, boxes: &[([usize; 3], [usize; 3])]) {
+        let mut count = self.block_count();
+        for &b in boxes {
+            let new: Vec<usize> = self.box_blocks(b).filter(|&i| self.block_slots[i] == EMPTY).collect();
+            for i in new {
+                self.block_slots[i] = count as u32;
+                count += 1;
             }
         }
+        self.grow(count * BLOCK_SAMPLES, boxes.len() > 1);
+    }
+
+    /// Grows the arrays to `len` samples. A grid that grows by many boxes at once knows what it needs, one
+    /// that grows box by box leaves room as a `Vec` does.
+    fn grow(&mut self, len: usize, exactly: bool) {
+        fn to<T: Clone>(v: &mut Vec<T>, len: usize, value: T, exactly: bool) {
+            if exactly {
+                v.reserve_exact(len - v.len());
+            }
+            v.resize(len, value);
+        }
+        if len == self.tube.len() {
+            return;
+        }
+        to(&mut self.owner, len, EMPTY, exactly);
+        to(&mut self.owner_k, len, 0.0, exactly);
+        to(&mut self.tube, len, f32::INFINITY, exactly);
+        to(&mut self.tube_close, len, 0.0, exactly);
+        to(&mut self.guard, len, f32::INFINITY, exactly);
+        if self.meshing {
+            to(&mut self.density, len, 0.0, exactly);
+            to(&mut self.strand, len, f32::INFINITY, exactly);
+            to(&mut self.run, len, EMPTY, exactly);
+            to(&mut self.run_k, len, 0.0, exactly);
+        }
+    }
+
+    /// Adds the arrays a mesh needs to a grid that was only closed
+    fn start_meshing(&mut self) {
+        if self.meshing {
+            return;
+        }
+        self.meshing = true;
+        let len = self.tube.len();
+        self.density = vec![0.0; len];
+        self.strand = vec![f32::INFINITY; len];
+        self.run = vec![EMPTY; len];
+        self.run_k = vec![0.0; len];
     }
 
     /// Density at a sample, zero outside the grid and in blocks that were never touched
@@ -239,13 +304,8 @@ impl SparseGrid {
     /// surface where it is inside other segments.
     fn floor(&mut self, index: u32, meshing: &Meshing, segment: &Segment, kernel: Kernel) {
         let reach = kernel.reach;
-        let lo_world = segment.start.min(segment.end) - Vec3::splat(reach);
-        let hi_world = segment.start.max(segment.end) + Vec3::splat(reach);
-        let to_sample = |v: Vec3, round: fn(f32) -> f32| {
-            [0, 1, 2].map(|a| (round((v[a] - self.origin[a]) / self.cell).max(0.0) as usize).min(self.samples[a] - 1))
-        };
-        let (lo, hi) = (to_sample(lo_world, f32::ceil), to_sample(hi_world, f32::floor));
-        self.allocate(lo.map(|v| v.saturating_sub(1)), hi);
+        let (lo, hi) = self.sample_box(segment, reach);
+        self.allocate((lo, hi));
         let axis = segment.end - segment.start;
         let length_sq = axis.length_squared().max(f32::EPSILON);
         for z in lo[2]..=hi[2] {
@@ -282,16 +342,9 @@ impl SparseGrid {
     fn splat(&mut self, index: u32, meshing: &Meshing, segment: &Segment, kernel: Kernel, closed: Option<Closed>) {
         let priority = meshing.priority;
         let weight = kernel.weight;
-        let reach = closed.map_or(kernel.reach, |c| c.reach.max(kernel.reach));
-        let lo_world = segment.start.min(segment.end) - Vec3::splat(reach);
-        let hi_world = segment.start.max(segment.end) + Vec3::splat(reach);
-        let to_sample = |v: Vec3, round: fn(f32) -> f32| {
-            [0, 1, 2].map(|a| (round((v[a] - self.origin[a]) / self.cell).max(0.0) as usize).min(self.samples[a] - 1))
-        };
-        let lo = to_sample(lo_world, f32::ceil);
-        let hi = to_sample(hi_world, f32::floor);
-        // one more block row below, so every cell next to an inside sample has a vertex slot
-        self.allocate(lo.map(|v| v.saturating_sub(1)), hi);
+        let reach = splat_reach(kernel, closed);
+        let (lo, hi) = self.sample_box(segment, reach);
+        self.allocate((lo, hi));
 
         let axis = segment.end - segment.start;
         let length_sq = axis.length_squared().max(f32::EPSILON);
@@ -330,6 +383,38 @@ impl SparseGrid {
         }
     }
 
+    /// The strand of a closed segment whose tube and owners are on the grid already, see
+    /// [`SparseGrid::close_sample`]. [`add_tissue`] reads a strand up to a cell away from its tube, it
+    /// is written a little further and no further: the rest of the reach of the segment is
+    /// splatted already.
+    fn splat_strand(&mut self, segment: &Segment, radius: f32) {
+        let reach = radius + STRAND_REACH_IN_CELLS * self.cell;
+        let lo_world = segment.start.min(segment.end) - Vec3::splat(reach);
+        let hi_world = segment.start.max(segment.end) + Vec3::splat(reach);
+        let to_sample = |v: Vec3, round: fn(f32) -> f32| {
+            [0, 1, 2].map(|a| (round((v[a] - self.origin[a]) / self.cell).max(0.0) as usize).min(self.samples[a] - 1))
+        };
+        let (lo, hi) = (to_sample(lo_world, f32::ceil), to_sample(hi_world, f32::floor));
+        let axis = segment.end - segment.start;
+        let length_sq = axis.length_squared().max(f32::EPSILON);
+        let reach_sq = reach * reach;
+        for z in lo[2]..=hi[2] {
+            for y in lo[1]..=hi[1] {
+                for x in lo[0]..=hi[0] {
+                    let p = self.position(Vec3::new(x as f32, y as f32, z as f32));
+                    let t = ((p - segment.start).dot(axis) / length_sq).clamp(0.0, 1.0);
+                    let d_sq = (p - segment.start - axis * t).length_squared();
+                    if d_sq >= reach_sq {
+                        continue;
+                    }
+                    if let Some(i) = self.index([x, y, z]) {
+                        self.strand[i] = self.strand[i].min(d_sq.sqrt() - radius);
+                    }
+                }
+            }
+        }
+    }
+
     fn claim(&mut self, i: usize, index: u32, k: f32) {
         if k > self.owner_k[i] {
             self.owner_k[i] = k;
@@ -361,20 +446,8 @@ impl SparseGrid {
     /// them from the nearest on, until the rest are too far to be nearer or to claim it by more.
     fn splat_closed(&mut self, splats: &[ClosedSplat]) {
         debug_assert!(splats.iter().all(|s| s.closed.strand.is_none()));
-        let to_sample = |v: Vec3, round: fn(f32) -> f32| {
-            [0, 1, 2].map(|a| (round((v[a] - self.origin[a]) / self.cell).max(0.0) as usize).min(self.samples[a] - 1))
-        };
-        let boxes: Vec<([usize; 3], [usize; 3])> = splats
-            .iter()
-            .map(|s| {
-                let reach = Vec3::splat(s.reach);
-                let (start, end) = (s.segment.start, s.segment.end);
-                (to_sample(start.min(end) - reach, f32::ceil), to_sample(start.max(end) + reach, f32::floor))
-            })
-            .collect();
-        for &(lo, hi) in &boxes {
-            self.allocate(lo.map(|v| v.saturating_sub(1)), hi);
-        }
+        let boxes: Vec<([usize; 3], [usize; 3])> = splats.iter().map(|s| self.sample_box(&s.segment, s.reach)).collect();
+        self.allocate_all(&boxes);
         let mut tree = TubeTree::new(
             splats.iter().enumerate().map(|(k, s)| (s.segment.start, s.segment.end, s.closed.radius, k as u32)).collect(),
         );
@@ -514,6 +587,11 @@ impl SparseGrid {
     }
 }
 
+/// How far [`SparseGrid::splat`] reaches around a segment
+fn splat_reach(kernel: Kernel, closed: Option<Closed>) -> f32 {
+    closed.map_or(kernel.reach, |c| c.reach.max(kernel.reach))
+}
+
 /// `(1 - d² / reach²)³`, the kernel of a segment at `d_sq` from it
 fn falloff(d_sq: f32, reach_sq: f32) -> f32 {
     let k = larger(1.0 - d_sq / reach_sq, 0.0);
@@ -588,7 +666,13 @@ impl ClosedSplat {
 
 /// Squared distance transform along one line (Felzenszwalb, Huttenlocher), every
 /// sample gets the squared distance to and the feature of the nearest seed
-fn transform_line(d: &mut [f32], feature: &mut [u32], v: &mut Vec<usize>, z: &mut Vec<f32>, out: &mut Vec<(f32, u32)>) {
+fn transform_line(
+    d: &mut [f32],
+    mut feature: Option<&mut [u32]>,
+    v: &mut Vec<usize>,
+    z: &mut Vec<f32>,
+    out: &mut Vec<(f32, u32)>,
+) {
     v.clear();
     z.clear();
     for q in 0..d.len() {
@@ -623,32 +707,89 @@ fn transform_line(d: &mut [f32], feature: &mut [u32], v: &mut Vec<usize>, z: &mu
             k += 1;
         }
         let offset = q as f32 - v[k] as f32;
-        out.push((offset * offset + d[v[k]], feature[v[k]]));
+        out.push((offset * offset + d[v[k]], feature.as_ref().map_or(0, |f| f[v[k]])));
     }
     for (q, &(dq, fq)) in out.iter().enumerate() {
         d[q] = dq;
-        feature[q] = fq;
+        if let Some(f) = feature.as_mut() {
+            f[q] = fq;
+        }
     }
 }
 
+/// Whether [`transform_line`] leaves a line as it is: without a seed, or with the same value at every
+/// sample, where every sample is its own nearest seed. Most lines of a transform over the bounding box are
+/// one of them. Neighbouring parabolas of a constant line cross half way between their seeds, a sample away
+/// from the next crossing, and the rounding of `d + i²` moves a crossing by far less than that while the
+/// line and the value are no longer than [`UNCHANGED_LONGEST`] and [`UNCHANGED_LARGEST`].
+fn unchanged_line(line: &[f32]) -> bool {
+    let first = line[0];
+    if first == f32::INFINITY {
+        return line.iter().all(|&v| v == f32::INFINITY);
+    }
+    line.len() <= UNCHANGED_LONGEST
+        && first.abs() <= UNCHANGED_LARGEST
+        && line.iter().all(|v| v.to_bits() == first.to_bits())
+}
+
+const UNCHANGED_LONGEST: usize = 1024;
+const UNCHANGED_LARGEST: f32 = 65536.0;
+
 /// Squared distance in samples from every sample to the nearest one with a
-/// finite `d`, plus `d` there, and the `feature` of that sample
-fn distance_transform(d: &mut [f32], feature: &mut [u32], samples: [usize; 3]) {
+/// finite `d`, plus `d` there, and the `feature` of that sample if given.
+///
+/// The lines along y and z are gathered a row at a time into a buffer and written back the same way,
+/// and lines that [`unchanged_line`] finds are left out. Every other line is transformed as a whole.
+fn distance_transform(d: &mut [f32], mut feature: Option<&mut [u32]>, samples: [usize; 3]) {
     let [nx, ny, nz] = samples;
-    let n = d.len();
     let (mut v, mut z, mut out) = (Vec::new(), Vec::new(), Vec::new());
-    let (mut line_d, mut line_f) = (Vec::new(), Vec::new());
-    for (len, stride) in [(nx, 1), (ny, nx), (nz, nx * ny)] {
-        let starts = (0..n / (len * stride)).flat_map(|outer| (0..stride).map(move |inner| outer * len * stride + inner));
-        for start in starts {
-            line_d.clear();
-            line_f.clear();
-            line_d.extend((0..len).map(|k| d[start + k * stride]));
-            line_f.extend((0..len).map(|k| feature[start + k * stride]));
-            transform_line(&mut line_d, &mut line_f, &mut v, &mut z, &mut out);
+    for (i, line) in d.chunks_exact_mut(nx).enumerate() {
+        if !unchanged_line(line) {
+            let f = feature.as_mut().map(|f| &mut f[i * nx..(i + 1) * nx]);
+            transform_line(line, f, &mut v, &mut z, &mut out);
+        }
+    }
+    let longest = ny.max(nz);
+    let mut buf_d = vec![0.0f32; nx * longest];
+    let mut buf_f = vec![0u32; if feature.is_some() { nx * longest } else { 0 }];
+    let mut changed = vec![false; nx];
+    // the lines of one plane, along y in a plane of one z or along z in a plane of one y: sample `k` of the
+    // line at `x` is at `first + k * stride + x`
+    for (len, stride, planes, plane_step) in [(ny, nx, nz, nx * ny), (nz, nx * ny, ny, nx)] {
+        for plane in 0..planes {
+            let first = plane * plane_step;
             for k in 0..len {
-                d[start + k * stride] = line_d[k];
-                feature[start + k * stride] = line_f[k];
+                let row = first + k * stride;
+                for x in 0..nx {
+                    buf_d[x * len + k] = d[row + x];
+                }
+                if let Some(f) = feature.as_ref() {
+                    for x in 0..nx {
+                        buf_f[x * len + k] = f[row + x];
+                    }
+                }
+            }
+            for x in 0..nx {
+                let line = &mut buf_d[x * len..(x + 1) * len];
+                changed[x] = !unchanged_line(line);
+                if changed[x] {
+                    let f = feature.is_some().then(|| &mut buf_f[x * len..(x + 1) * len]);
+                    transform_line(line, f, &mut v, &mut z, &mut out);
+                }
+            }
+            if !changed.iter().any(|&c| c) {
+                continue;
+            }
+            for k in 0..len {
+                let row = first + k * stride;
+                for x in (0..nx).filter(|&x| changed[x]) {
+                    d[row + x] = buf_d[x * len + k];
+                }
+                if let Some(f) = feature.as_mut() {
+                    for x in (0..nx).filter(|&x| changed[x]) {
+                        f[row + x] = buf_f[x * len + k];
+                    }
+                }
             }
         }
     }
@@ -703,7 +844,7 @@ fn closing(grid: &SparseGrid, frame: &Frame) -> Vec<f32> {
             feature[i] = i as u32;
         }
     }
-    distance_transform(&mut d, &mut feature, grid.samples);
+    distance_transform(&mut d, Some(&mut feature), grid.samples);
 
     // share of every sample inside the closing, ramping from 0 to 1 over two cells across its surface
     let mut shifts: Vec<(f32, f32)> = Vec::new();
@@ -740,6 +881,7 @@ fn closing(grid: &SparseGrid, frame: &Frame) -> Vec<f32> {
         let closing = (0.5 - 0.5 * (outside + shift)).min(0.5 + 0.5 * (allowed - shift));
         solid[i] = closing.max(0.5 - 0.5 * (tube + shift)).clamp(0.0, 1.0);
     }
+    drop(feature);
     blur_by_radius(&mut solid, grid, frame);
     solid
 }
@@ -767,19 +909,30 @@ fn blur_by_radius(solid: &mut Vec<f32>, grid: &SparseGrid, frame: &Frame) {
         return;
     }
     let sharp = std::mem::take(solid);
-    let mut sum = vec![0.0f32; sharp.len()];
-    let mut total = vec![0.0f32; sharp.len()];
+    let n = sharp.len();
+    let mut sum = vec![0.0f32; n];
+    let mut total = vec![0.0f32; n];
+    // the same buffers for every radius, and the copy each blur reads from
+    let (mut weight, mut blurred, mut source) = (vec![0.0f32; n], vec![0.0f32; n], Vec::new());
     for &rho in &radii {
-        let mut weight: Vec<f32> = (0..sharp.len()).map(|i| if radius_at(i) == Some(rho) { 1.0 } else { 0.0 }).collect();
-        blur(&mut weight, grid.samples, SMOOTHING * frame.close_max / grid.cell);
-        let mut blurred = sharp.clone();
-        blur(&mut blurred, grid.samples, SMOOTHING * rho / grid.cell);
-        for i in 0..sharp.len() {
+        for (i, w) in weight.iter_mut().enumerate() {
+            *w = if radius_at(i) == Some(rho) { 1.0 } else { 0.0 };
+        }
+        blur_rows(&mut weight, grid.samples, SMOOTHING * frame.close_max / grid.cell, None, &mut source);
+        // the closing blurred by this radius only counts where its weight does, the rest of the grid isn't blurred
+        let wanted: Vec<bool> = weight.chunks_exact(nx).map(|row| row.iter().any(|&w| w != 0.0)).collect();
+        blurred.copy_from_slice(&sharp);
+        blur_rows(&mut blurred, grid.samples, SMOOTHING * rho / grid.cell, Some(&wanted), &mut source);
+        for i in (0..n).filter(|&i| weight[i] != 0.0) {
             sum[i] += weight[i] * blurred[i];
             total[i] += weight[i];
         }
     }
-    *solid = sum.iter().zip(&total).map(|(&s, &t)| if t > 0.0 { s / t } else { 0.0 }).collect();
+    drop((sharp, weight, blurred, source));
+    for (s, &t) in sum.iter_mut().zip(&total) {
+        *s = if t > 0.0 { *s / t } else { 0.0 };
+    }
+    *solid = sum;
 }
 
 /// Adds the closed tissue to the density so that its surface lies at `threshold`.
@@ -815,7 +968,7 @@ fn grown_balls(radius: &[f32], samples: [usize; 3], scale: f32) -> (Vec<f32>, Ve
     let mut power: Vec<f32> =
         radius.iter().map(|&r| if r > 0.0 { -(scale * r) * (scale * r) } else { f32::INFINITY }).collect();
     let mut centre: Vec<u32> = (0..radius.len()).map(|i| if radius[i] > 0.0 { i as u32 } else { EMPTY }).collect();
-    distance_transform(&mut power, &mut centre, samples);
+    distance_transform(&mut power, Some(&mut centre), samples);
     (power, centre)
 }
 
@@ -851,7 +1004,7 @@ impl TissueField {
         if !frame.closing {
             return None;
         }
-        let mut grid = frame.grid();
+        let mut grid = frame.tissue_grid();
         let closed: Vec<ClosedSplat> = segments
             .iter()
             .zip(meshing)
@@ -864,9 +1017,8 @@ impl TissueField {
         let solid = closing(&grid, frame);
 
         // the surface lies between a tissue sample and the next one outside, so half a cell above the outer samples
-        let n = solid.len();
         let mut depth: Vec<f32> = solid.iter().map(|&v| if v < SURFACE_SHARE { 0.0 } else { f32::INFINITY }).collect();
-        distance_transform(&mut depth, &mut vec![EMPTY; n], grid.samples);
+        distance_transform(&mut depth, None, grid.samples);
         for d in &mut depth {
             *d = if *d > 0.0 && d.is_finite() { d.sqrt() - 0.5 } else { 0.0 };
         }
@@ -881,16 +1033,28 @@ impl TissueField {
     /// [`surface_in`] of the segments the field was made of, without closing them again.
     /// `meshing` must be the same as for the field.
     pub fn surface(self, segments: &[Segment], meshing: &[Meshing], strand: impl Fn(usize) -> bool) -> SegmentSurface {
-        let TissueField { frame, mut grid, solid, .. } = self;
+        let TissueField { frame, mut grid, solid, depth, centre, .. } = self;
+        drop((depth, centre));
+        grid.start_meshing();
+        let blended: Vec<_> = segments
+            .iter()
+            .zip(meshing)
+            .filter(|(_, m)| !frame.closes(m))
+            .map(|(s, m)| frame.splat_box(&grid, m, s, false))
+            .collect();
+        grid.allocate_all(&blended);
         for (i, (s, m)) in segments.iter().zip(meshing).enumerate() {
             if !frame.closes(m) {
                 grid.splat(i as u32, m, s, frame.kernel(m, s.radius), None);
             } else if strand(i) {
-                // the tube and the owners are there already, splatting them again only adds the strand
-                grid.splat(i as u32, m, s, frame.owner_kernel(m, s), Some(frame.closed(m, s, true)));
+                // the tube and the owners are there already, only the strand is added
+                if let Some(radius) = frame.closed(m, s, true).strand {
+                    grid.splat_strand(s, radius);
+                }
             }
         }
         add_tissue(&mut grid, &solid, frame.threshold);
+        drop(solid);
         frame.floor(&mut grid, segments, meshing);
         extract(&grid, &frame)
     }
@@ -1027,41 +1191,136 @@ fn erf(x: f64) -> f64 {
 
 /// Separable gaussian blur of a dense grid, `sigma` in samples
 fn blur(values: &mut [f32], samples: [usize; 3], sigma: f32) {
+    blur_rows(values, samples, sigma, None, &mut Vec::new());
+}
+
+/// [`blur`] that only has to be right in the rows along x that `wanted` marks, one flag per row.
+/// The other rows keep finite values when `values` are finite, but no meaningful ones. `source` is
+/// where the passes copy what they read, it can be reused for the next blur.
+///
+/// Most rows lie outside the tissue and are all zero. They add nothing to any sum, so they are left
+/// out as sources, and a row that is all zero stays so along x. Of the passes before the last only
+/// the rows that a wanted row reads are blurred. The sums of the rows that are blurred keep their
+/// terms and their order. On wasm the loops over whole rows run four samples at a time.
+#[cfg_attr(target_arch = "wasm32", target_feature(enable = "simd128"))]
+fn blur_rows(values: &mut [f32], samples: [usize; 3], sigma: f32, wanted: Option<&[bool]>, source: &mut Vec<f32>) {
     let weights = blur_weights(sigma);
     if weights.is_empty() {
         return;
     }
     let radius = weights.len() / 2;
     let [nx, ny, nz] = samples;
+    let rows = ny * nz;
     // the taps of a sample `k` along a line of `len` that lie on the line
     let taps = |k: usize, len: usize| radius.saturating_sub(k)..weights.len().min(len + radius - k);
+    // the rows the pass along z writes, along y and along x: each pass reads its taps' rows of the one before
+    let along_z = wanted.map_or_else(|| vec![true; rows], <[bool]>::to_vec);
+    let widen = |wanted: &[bool], len: usize, rows_per_step: usize| -> Vec<bool> {
+        (0..rows)
+            .map(|r| {
+                let k = r / rows_per_step % len;
+                let first = r - k * rows_per_step;
+                taps(k, len).any(|o| wanted[first + (k + o - radius) * rows_per_step])
+            })
+            .collect()
+    };
+    let along_y = if wanted.is_some() { widen(&along_z, nz, ny) } else { along_z.clone() };
+    let along_x = if wanted.is_some() { widen(&along_y, ny, 1) } else { along_z.clone() };
+
     let mut line = vec![0.0; nx];
-    for row in values.chunks_exact_mut(nx) {
+    for (row, _) in values.chunks_exact_mut(nx).zip(&along_x).filter(|(_, w)| **w) {
+        if row.iter().all(|&v| v == 0.0) {
+            continue;
+        }
         line.copy_from_slice(row);
-        for (k, out) in row.iter_mut().enumerate() {
+        // at the ends of the row the taps that fall off it are left out
+        let inner = radius.min(nx)..nx.saturating_sub(radius).max(radius.min(nx));
+        for k in (0..inner.start).chain(inner.end..nx) {
             let mut sum = 0.0;
             for o in taps(k, nx) {
                 sum += weights[o] * line[k + o - radius];
             }
-            *out = sum;
+            row[k] = sum;
         }
+        convolve(&mut row[inner.clone()], &line[inner.start - radius..], &weights);
     }
     // along y and z whole rows at once, the samples of a row lie next to each other
-    let mut source = values.to_vec();
-    for (len, stride) in [(ny, nx), (nz, nx * ny)] {
+    source.clear();
+    source.extend_from_slice(values);
+    let mut filled = vec![false; rows];
+    for (len, rows_per_step, wanted) in [(ny, 1, &along_y), (nz, ny, &along_z)] {
         source.copy_from_slice(values);
-        for (outer, out) in values.chunks_exact_mut(len * stride).enumerate() {
-            let source = &source[outer * len * stride..(outer + 1) * len * stride];
-            for (k, row) in out.chunks_exact_mut(stride).enumerate() {
-                row.fill(0.0);
-                for o in taps(k, len) {
-                    let from = &source[(k + o - radius) * stride..(k + o - radius + 1) * stride];
-                    for (v, &s) in row.iter_mut().zip(from) {
-                        *v += weights[o] * s;
-                    }
+        for (filled, row) in filled.iter_mut().zip(source.chunks_exact(nx)) {
+            *filled = row.iter().any(|&v| v != 0.0);
+        }
+        for (r, row) in values.chunks_exact_mut(nx).enumerate().filter(|&(r, _)| wanted[r]) {
+            let k = r / rows_per_step % len;
+            let first = r - k * rows_per_step;
+            row.fill(0.0);
+            for o in taps(k, len) {
+                let from = first + (k + o - radius) * rows_per_step;
+                if !filled[from] {
+                    continue;
                 }
+                add_scaled(row, &source[from * nx..(from + 1) * nx], weights[o]);
             }
         }
+    }
+}
+
+/// `to[k] = Σ weights[o] · from[k + o]` over all taps `o` in order, four samples at a time on wasm
+#[cfg_attr(target_arch = "wasm32", target_feature(enable = "simd128"))]
+fn convolve(to: &mut [f32], from: &[f32], weights: &[f32]) {
+    #[cfg(not(target_arch = "wasm32"))]
+    let k = 0;
+    #[cfg(target_arch = "wasm32")]
+    let k = {
+        let mut k = 0;
+        use core::arch::wasm32::*;
+        while k + 4 <= to.len() {
+            let mut sum = f32x4_splat(0.0);
+            for (o, &w) in weights.iter().enumerate() {
+                let s = &from[k + o..k + o + 4];
+                // SAFETY: `s` and the four samples of `to` are 16 bytes each, v128 needs no alignment
+                sum = f32x4_add(sum, f32x4_mul(f32x4_splat(w), unsafe { v128_load(s.as_ptr().cast()) }));
+            }
+            unsafe { v128_store(to[k..k + 4].as_mut_ptr().cast(), sum) };
+            k += 4;
+        }
+        k
+    };
+    for k in k..to.len() {
+        let mut sum = 0.0;
+        for (o, &w) in weights.iter().enumerate() {
+            sum += w * from[k + o];
+        }
+        to[k] = sum;
+    }
+}
+
+/// `to[k] += w · from[k]`, four samples at a time on wasm
+#[cfg_attr(target_arch = "wasm32", target_feature(enable = "simd128"))]
+fn add_scaled(to: &mut [f32], from: &[f32], w: f32) {
+    #[cfg(not(target_arch = "wasm32"))]
+    let k = 0;
+    #[cfg(target_arch = "wasm32")]
+    let k = {
+        let mut k = 0;
+        use core::arch::wasm32::*;
+        let n = to.len().min(from.len());
+        let w4 = f32x4_splat(w);
+        while k + 4 <= n {
+            // SAFETY: four samples of each, 16 bytes, v128 needs no alignment
+            unsafe {
+                let sum = f32x4_add(v128_load(to[k..k + 4].as_ptr().cast()), f32x4_mul(w4, v128_load(from[k..k + 4].as_ptr().cast())));
+                v128_store(to[k..k + 4].as_mut_ptr().cast(), sum);
+            }
+            k += 4;
+        }
+        k
+    };
+    for (v, &s) in to[k..].iter_mut().zip(&from[k..]) {
+        *v += w * s;
     }
 }
 
@@ -1159,7 +1418,23 @@ impl Frame {
             guard: Vec::new(),
             run: Vec::new(),
             run_k: Vec::new(),
+            meshing: true,
         }
+    }
+
+    /// The grid of a [`TissueField`], without what only its mesh needs, see [`SparseGrid::start_meshing`]
+    fn tissue_grid(&self) -> SparseGrid {
+        SparseGrid { meshing: false, ..self.grid() }
+    }
+
+    /// How far a segment is splatted, see [`SparseGrid::splat`]
+    fn splat_box(&self, grid: &SparseGrid, meshing: &Meshing, segment: &Segment, strand: bool) -> ([usize; 3], [usize; 3]) {
+        let reach = if self.closes(meshing) {
+            splat_reach(self.owner_kernel(meshing, segment), Some(self.closed(meshing, segment, strand)))
+        } else {
+            self.kernel(meshing, segment.radius).reach
+        };
+        grid.sample_box(segment, reach)
     }
 
     /// Whether a segment is closed into the tissue, a closed segment without a closing radius is blended
@@ -1205,6 +1480,9 @@ impl Frame {
             .filter(|&i| !self.closes(&meshing[i]) && segments[i].radius < self.min_radius)
             .filter(|&i| !grid.encloses(&segments[i], self.threshold))
             .collect();
+        let boxes: Vec<_> =
+            thin.iter().map(|&i| grid.sample_box(&segments[i], self.kernel(&meshing[i], self.min_radius).reach)).collect();
+        grid.allocate_all(&boxes);
         for i in thin {
             grid.floor(i as u32, &meshing[i], &segments[i], self.kernel(&meshing[i], self.min_radius));
         }
@@ -1266,6 +1544,8 @@ pub fn surface_in(
         return SegmentSurface::default();
     }
     let mut grid = frame.grid();
+    let boxes: Vec<_> = segments.iter().zip(meshing).enumerate().map(|(i, (s, m))| frame.splat_box(&grid, m, s, strand(i))).collect();
+    grid.allocate_all(&boxes);
     for (i, (s, m)) in segments.iter().zip(meshing).enumerate() {
         if frame.closes(m) {
             grid.splat(i as u32, m, s, frame.owner_kernel(m, s), Some(frame.closed(m, s, strand(i))));
@@ -1496,6 +1776,37 @@ mod tests {
     }
 
     #[test]
+    fn boxes_allocated_at_once_get_the_slots_of_one_after_another_and_no_more_room() {
+        let segments: Vec<Segment> = (0..40)
+            .map(|i| {
+                let from = Vec3::new(random(i), random(i + 100), random(i + 200)) * 2.0;
+                segment(from, from + Vec3::new(random(i + 300), random(i + 400), 0.1), 0.02 + 0.05 * random(i + 500))
+            })
+            .collect();
+        let meshing = vec![Meshing::blended(2.0); segments.len()];
+        let frame = Frame::new(&segments, &meshing, 80).unwrap();
+        let boxes: Vec<_> = segments.iter().zip(&meshing).map(|(s, m)| frame.splat_box(&frame.grid(), m, s, false)).collect();
+        let mut one_by_one = frame.grid();
+        for &b in &boxes {
+            one_by_one.allocate(b);
+        }
+        let mut at_once = frame.grid();
+        at_once.allocate_all(&boxes);
+        assert_eq!(at_once.block_slots, one_by_one.block_slots);
+        assert_eq!(at_once.density.len(), one_by_one.density.len());
+        for len in [at_once.density.capacity(), at_once.tube.capacity(), at_once.owner.capacity(), at_once.run_k.capacity()] {
+            assert_eq!(len, at_once.density.len());
+        }
+        // the grid of a tissue has no density and no strands until it is meshed
+        let mut tissue = frame.tissue_grid();
+        tissue.allocate_all(&boxes);
+        assert!(tissue.density.is_empty() && tissue.strand.is_empty() && tissue.run.is_empty() && tissue.run_k.is_empty());
+        assert_eq!(tissue.tube.len(), at_once.tube.len());
+        tissue.start_meshing();
+        assert_eq!((tissue.density.len(), tissue.strand.len(), tissue.run.len()), (at_once.density.len(), at_once.tube.len(), at_once.tube.len()));
+    }
+
+    #[test]
     fn the_blur_is_a_gaussian_along_every_axis() {
         let samples = [9, 11, 13];
         let n = samples[0] * samples[1] * samples[2];
@@ -1517,6 +1828,68 @@ mod tests {
                     assert!((got - expected).abs() < 1e-6, "{} vs {} at {} {} {}", got, expected, x, y, z);
                 }
             }
+        }
+    }
+
+    /// The blur as it was before it left out rows of zeros, every sum over all its taps
+    fn blur_every_row(values: &mut [f32], samples: [usize; 3], sigma: f32) {
+        let weights = blur_weights(sigma);
+        if weights.is_empty() {
+            return;
+        }
+        let radius = weights.len() / 2;
+        let [nx, ny, nz] = samples;
+        let taps = |k: usize, len: usize| radius.saturating_sub(k)..weights.len().min(len + radius - k);
+        let line_of = |values: &[f32], start: usize, len: usize, stride: usize| -> Vec<f32> {
+            (0..len).map(|k| values[start + k * stride]).collect()
+        };
+        for (len, stride) in [(nx, 1), (ny, nx), (nz, nx * ny)] {
+            let source = values.to_vec();
+            for outer in 0..values.len() / (len * stride) {
+                for inner in 0..stride {
+                    let start = outer * len * stride + inner;
+                    let line = line_of(&source, start, len, stride);
+                    for k in 0..len {
+                        let mut sum = 0.0;
+                        for o in taps(k, len) {
+                            sum += weights[o] * line[k + o - radius];
+                        }
+                        values[start + k * stride] = sum;
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn leaving_out_rows_of_zeros_changes_no_bit_of_the_blur() {
+        let samples = [37, 29, 31];
+        let n = samples[0] * samples[1] * samples[2];
+        for (round, sigma) in [0.8f32, 2.3, 4.6].into_iter().enumerate() {
+            // a few blobs in empty space, with negative zeros among the zeros
+            let mut values = vec![0.0f32; n];
+            for i in 0..n {
+                let p = Vec3::new((i % 37) as f32, (i / 37 % 29) as f32, (i / (37 * 29)) as f32);
+                let blob = (0..4).any(|b| {
+                    let c = Vec3::new(37.0, 29.0, 31.0) * Vec3::new(random(round as u32 * 40 + b), random(b + 7), random(b + 13));
+                    p.distance(c) < 3.0 + 3.0 * random(b + 21)
+                });
+                values[i] = if blob { random(i as u32 + 1000 * round as u32) } else if i % 7 == 0 { -0.0 } else { 0.0 };
+            }
+            assert!(values.chunks_exact(37).filter(|r| r.iter().all(|&v| v == 0.0)).count() > 100);
+            let mut expected = values.clone();
+            blur_every_row(&mut expected, samples, sigma);
+            let bits = |v: &[f32]| v.iter().map(|v| v.to_bits()).collect::<Vec<_>>();
+            // only some rows wanted, as a blob of the weight of one radius has them
+            let wanted: Vec<bool> = (0..29 * 31).map(|r| (r % 29 < 12) && (r / 29 > 8 && r / 29 < 20)).collect();
+            let mut some = values.clone();
+            blur_rows(&mut some, samples, sigma, Some(&wanted), &mut Vec::new());
+            for (r, w) in wanted.iter().enumerate().filter(|(_, w)| **w) {
+                assert_eq!(bits(&some[r * 37..(r + 1) * 37]), bits(&expected[r * 37..(r + 1) * 37]), "row {} {}", r, w);
+            }
+            assert!(some.iter().all(|v| v.is_finite()));
+            blur(&mut values, samples, sigma);
+            assert_eq!(bits(&values), bits(&expected), "sigma {}", sigma);
         }
     }
 
@@ -1788,6 +2161,84 @@ mod tests {
         (x & 0xFF_FFFF) as f32 / 0x100_0000 as f32
     }
 
+    /// The distance transform as it was before it left out lines, every line gathered one sample at a time
+    fn distance_transform_every_line(d: &mut [f32], feature: &mut [u32], samples: [usize; 3]) {
+        let [nx, ny, nz] = samples;
+        let n = d.len();
+        let (mut v, mut z, mut out) = (Vec::new(), Vec::new(), Vec::new());
+        for (len, stride) in [(nx, 1), (ny, nx), (nz, nx * ny)] {
+            for start in (0..n / (len * stride)).flat_map(|outer| (0..stride).map(move |inner| outer * len * stride + inner)) {
+                let mut line_d: Vec<f32> = (0..len).map(|k| d[start + k * stride]).collect();
+                let mut line_f: Vec<u32> = (0..len).map(|k| feature[start + k * stride]).collect();
+                transform_line(&mut line_d, Some(&mut line_f), &mut v, &mut z, &mut out);
+                for k in 0..len {
+                    d[start + k * stride] = line_d[k];
+                    feature[start + k * stride] = line_f[k];
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_constant_line_is_its_own_transform() {
+        let (mut v, mut z, mut out) = (Vec::new(), Vec::new(), Vec::new());
+        let values = [0.0, 1.0, 4.0, 0.3, -0.7, -17.389, -255.5 * 255.5, -UNCHANGED_LARGEST, UNCHANGED_LARGEST, 12345.678];
+        for c in values {
+            for len in (1..=300).chain([511, 512, 777, UNCHANGED_LONGEST]) {
+                let line = vec![c; len];
+                assert!(unchanged_line(&line));
+                let mut d = line.clone();
+                let mut feature: Vec<u32> = (0..len as u32).map(|i| i * 3 + 1).collect();
+                transform_line(&mut d, Some(&mut feature), &mut v, &mut z, &mut out);
+                assert!(d.iter().all(|x| x.to_bits() == c.to_bits()), "value {} length {}", c, len);
+                assert!(feature.iter().enumerate().all(|(i, &f)| f == i as u32 * 3 + 1), "value {} length {}", c, len);
+            }
+        }
+        assert!(!unchanged_line(&[1.0, 1.0, 2.0]) && !unchanged_line(&[f32::INFINITY, 0.0]));
+        assert!(!unchanged_line(&vec![0.0; UNCHANGED_LONGEST + 1]) && !unchanged_line(&[UNCHANGED_LARGEST * 2.0; 4]));
+    }
+
+    #[test]
+    fn leaving_out_unchanged_lines_changes_no_bit_of_the_distance_transform() {
+        let samples = [41, 23, 29];
+        let n = samples[0] * samples[1] * samples[2];
+        let at = |i: usize| Vec3::new((i % 41) as f32, (i / 41 % 23) as f32, (i / (41 * 23)) as f32);
+        let blob = |i: usize, round: u32| {
+            (0..3).any(|b| {
+                let c = Vec3::new(41.0, 23.0, 29.0) * Vec3::new(random(round * 40 + b), random(round * 40 + b + 7), random(b + 13));
+                at(i).distance(c) < 2.0 + 4.0 * random(b + 21)
+            })
+        };
+        for round in 0..3 {
+            // as the closing has them: balls of different sizes everywhere but near the tubes
+            // and far from them all of the largest radius
+            let balls: Vec<f32> = (0..n)
+                .map(|i| match (blob(i, round), at(i).z > 20.0) {
+                    (true, _) => f32::INFINITY,
+                    (false, true) => -7.5f32.powi(2),
+                    (false, false) => -(1.0 + 5.0 * random(i as u32)).powi(2),
+                })
+                .collect();
+            // as the depth has them: seeds at 0 everywhere but in the tissue
+            let depth: Vec<f32> = (0..n).map(|i| if blob(i, round) { f32::INFINITY } else { 0.0 }).collect();
+            // as the grown balls have them: balls in the tissue only
+            let grown: Vec<f32> = (0..n).map(|i| if blob(i, round) { -(3.0 * random(i as u32)).powi(2) } else { f32::INFINITY }).collect();
+            for d in [balls, depth, grown] {
+                let feature: Vec<u32> = (0..n as u32).map(|i| if d[i as usize].is_finite() { i } else { EMPTY }).collect();
+                let (mut expected_d, mut expected_f) = (d.clone(), feature.clone());
+                distance_transform_every_line(&mut expected_d, &mut expected_f, samples);
+                let (mut got_d, mut got_f) = (d.clone(), feature.clone());
+                distance_transform(&mut got_d, Some(&mut got_f), samples);
+                let bits = |v: &[f32]| v.iter().map(|v| v.to_bits()).collect::<Vec<_>>();
+                assert_eq!(bits(&got_d), bits(&expected_d));
+                assert_eq!(got_f, expected_f);
+                let mut without = d.clone();
+                distance_transform(&mut without, None, samples);
+                assert_eq!(bits(&without), bits(&expected_d));
+            }
+        }
+    }
+
     #[test]
     fn grown_balls_are_their_union() {
         let samples = [23, 17, 19];
@@ -1866,6 +2317,27 @@ mod tests {
         let fresh = surface_in(&frame, &segments, &meshing, strand);
         assert!(reused.mesh.face_count() > 0);
         assert_eq!(reused, fresh);
+    }
+
+    #[test]
+    fn a_field_writes_its_strands_only_as_far_as_they_show() {
+        // strands thinner and thicker than a cell, crossing the tissue and each other, at several cell sizes
+        let mut segments = body();
+        for k in 0..8u32 {
+            let from = Vec3::new(random(k) - 0.5, random(k + 10), random(k + 20) - 0.5) * 0.5;
+            let to = from + Vec3::new(random(k + 30) - 0.5, random(k + 40), random(k + 50) - 0.5) * 0.8;
+            segments.push(segment(from, to, 0.002 + 0.04 * random(k + 60)));
+        }
+        let strand = |i: usize| i >= 16;
+        let meshing = vec![Meshing::closed(3.0, 0.18); segments.len()];
+        for resolution in [40, 64, 97] {
+            let frame = Frame::new(&segments, &meshing, resolution).unwrap();
+            let field = TissueField::new(&frame, &segments, &meshing, 5.0).unwrap();
+            let reused = field.surface(&segments, &meshing, strand);
+            let fresh = surface_in(&frame, &segments, &meshing, strand);
+            assert!(reused.mesh.face_count() > 0);
+            assert_eq!(reused, fresh, "resolution {}", resolution);
+        }
     }
 
     #[test]

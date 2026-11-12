@@ -12,5 +12,8 @@ exclude = ["nodes/max/myzel/.template", "nodes/max/plantarium/.template"]
 
 [profile.release]
 lto = true
-# Tell `rustc` to optimize for small code size.
 opt-level = 3
+# One unit lets LLVM inline and vectorize across the whole node. Slower to build, a few percent
+# faster to run. `simd128` stays off globally, glam would switch to SIMD types and change the
+# plants' outputs, the loops that gain enable it with `#[target_feature]`.
+codegen-units = 1

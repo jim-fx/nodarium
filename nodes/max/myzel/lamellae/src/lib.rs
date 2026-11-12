@@ -1,6 +1,6 @@
 //! Thin gills under a cap, one plate for every stripe of a pattern, see `myzel_core::gills`.
 
-use myzel_core::{gills, GillInputs, GillProfile, Gills};
+use myzel_core::{gill_mesh, GillInputs, GillProfile};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::int;
 
@@ -8,12 +8,18 @@ nodarium_definition_file!("src/definition.json");
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
-    build(args).mesh.encode()
+    gill_mesh(&inputs(args), GillProfile::Plate).encode()
+}
+
+/// The gills with their paths, which only the tests look at
+#[cfg(test)]
+fn build(args: &[&[i32]]) -> myzel_core::Gills {
+    myzel_core::gills(&inputs(args), GillProfile::Plate)
 }
 
 /// args follow the key order of the inputs in definition.json
-fn build(args: &[&[i32]]) -> Gills {
-    let inputs = GillInputs {
+fn inputs<'a>(args: &[&'a [i32]]) -> GillInputs<'a> {
+    GillInputs {
         cap: args[0],
         pattern: args[1],
         depth: args[2],
@@ -23,14 +29,13 @@ fn build(args: &[&[i32]]) -> Gills {
         edge_wave: args[6],
         seed: int(args[7]),
         creator: int(args[8]),
-    };
-    gills(&inputs, GillProfile::Plate)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use myzel_core::testing;
+    use myzel_core::{testing, Gills};
     use nodarium_utils::{encode_float, geometry::wrap_path, Pattern};
     use std::f32::consts::TAU;
 
