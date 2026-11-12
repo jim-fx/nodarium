@@ -18,7 +18,7 @@
     "format:check": "dprint check -c '../.dprint.jsonc' .",
     "lint": "eslint .",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "bench": "tsx --expose-gc ./benchmark/index.ts",
+    "bench": "tsx ./benchmark/index.ts",
     "bench:paths": "tsx ./scripts/bench-path-nodes.ts",
     "render-graph": "tsx ./scripts/render-graph.ts",
     "format-graph": "tsx ./scripts/format-graph.ts"
