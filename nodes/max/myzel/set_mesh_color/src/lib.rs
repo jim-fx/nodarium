@@ -1,14 +1,16 @@
-use myzel_core::{paint_mesh, read_color, Mesh};
+use myzel_core::{opaque, read_color, MeshWords, MESH_TAG};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 
 nodarium_definition_file!("src/definition.json");
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
-    // an input nothing is connected to is not a mesh
-    let mut mesh = Mesh::try_decode(args[0]).unwrap_or_default();
-    paint_mesh(&mut mesh, read_color(args[1]));
-    mesh.encode()
+    let color = opaque(read_color(args[1]));
+    match MeshWords::read(args[0]) {
+        Some(mesh) => mesh.painted(color),
+        // an input nothing is connected to is not a mesh
+        None => vec![MESH_TAG, 0, 0, 0],
+    }
 }
 
 #[cfg(test)]

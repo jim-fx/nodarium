@@ -91,15 +91,24 @@ pub fn add_sheet(
 /// Vertex normals from the faces around every vertex, weighted by their area. On a thin sheet
 /// the faces outweigh its narrow edges, so both faces keep their own side's normal.
 pub fn smooth_normals(mesh: &mut Mesh) {
-    let p = |i: u32| Vec3::from_slice(&mesh.positions[i as usize * 3..i as usize * 3 + 3]);
-    let mut normals = vec![Vec3::ZERO; mesh.vertex_count()];
-    for f in mesh.faces.chunks_exact(3) {
+    let v = mesh.vertex_count();
+    let Mesh { positions, normals, faces, .. } = mesh;
+    let p = |i: u32| Vec3::from_slice(&positions[i as usize * 3..i as usize * 3 + 3]);
+    // summed in place, a second list of normals would be one more copy of them in memory
+    normals.clear();
+    normals.resize(v * 3, 0.0);
+    for f in faces.chunks_exact(3) {
         let n = (p(f[1]) - p(f[0])).cross(p(f[2]) - p(f[0]));
-        for &v in f {
-            normals[v as usize] += n;
+        for &i in f {
+            let sum = &mut normals[i as usize * 3..i as usize * 3 + 3];
+            sum[0] += n.x;
+            sum[1] += n.y;
+            sum[2] += n.z;
         }
     }
-    mesh.normals = normals.iter().flat_map(|n| n.try_normalize().unwrap_or(Vec3::Y).to_array()).collect();
+    for normal in normals.chunks_exact_mut(3) {
+        normal.copy_from_slice(&Vec3::from_slice(normal).try_normalize().unwrap_or(Vec3::Y).to_array());
+    }
 }
 
 /// Test helpers for meshes made of sheets

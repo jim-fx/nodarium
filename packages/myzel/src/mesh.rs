@@ -74,18 +74,6 @@ impl Mesh {
         self.groups.extend(other.groups.iter().map(|&g| g + first_group));
     }
 
-    /// The meshes one after the other, the groups of each numbered after those of the meshes
-    /// before it. Meshes without vertices are left out.
-    pub fn join(meshes: &[Mesh]) -> Mesh {
-        let mut joined = Mesh::default();
-        let mut next = 0;
-        for mesh in meshes.iter().filter(|m| m.vertex_count() > 0) {
-            joined.append(mesh, next);
-            next += mesh.groups.iter().max().map_or(0, |g| g + 1);
-        }
-        joined
-    }
-
     pub fn decode(words: &[i32]) -> Mesh {
         assert!(
             words.len() >= HEADER_LEN && words[0] == MESH_TAG,
@@ -107,25 +95,9 @@ impl Mesh {
         Self::decode_unchecked(words)
     }
 
-    /// The mesh when `words` are one, `None` for anything else: counts that don't match the
-    /// length, unknown flags or a face with a vertex that isn't there
+    /// The mesh when `words` are one, `None` for anything else, see [`MeshWords::read`]
     pub fn try_decode(words: &[i32]) -> Option<Mesh> {
-        if words.len() < HEADER_LEN || words[0] != MESH_TAG {
-            return None;
-        }
-        let (v, f, flags) = (usize::try_from(words[1]).ok()?, usize::try_from(words[2]).ok()?, words[3]);
-        if flags & !mesh_flags::COLORS != 0 {
-            return None;
-        }
-        // in u64, so counts up to i32::MAX can't overflow on wasm32
-        let per_vertex = 7 + u64::from(flags & mesh_flags::COLORS != 0);
-        if words.len() as u64 != HEADER_LEN as u64 + f as u64 * 3 + v as u64 * per_vertex {
-            return None;
-        }
-        if words[HEADER_LEN..HEADER_LEN + f * 3].iter().any(|&i| i < 0 || i as usize >= v) {
-            return None;
-        }
-        Some(Self::decode_unchecked(words))
+        MeshWords::read(words).map(|mesh| Self::decode_unchecked(mesh.words))
     }
 
     fn decode_unchecked(words: &[i32]) -> Mesh {
@@ -142,6 +114,117 @@ impl Mesh {
         let colors = if flags & mesh_flags::COLORS != 0 { take(v).iter().map(|&c| c as u32).collect() } else { Vec::new() };
         let groups = take(v).iter().map(|&g| g as u32).collect();
         Mesh { faces, positions, normals, colors, groups }
+    }
+}
+
+/// A mesh read in place from its words. Nodes that only pass meshes on build their output from
+/// these, a decoded [`Mesh`] would be one more copy of every mesh in the node's memory.
+#[derive(Clone, Copy, Debug)]
+pub struct MeshWords<'a> {
+    words: &'a [i32],
+    v: usize,
+    f: usize,
+}
+
+impl<'a> MeshWords<'a> {
+    /// The mesh when `words` are one, `None` for anything else: counts that don't match the
+    /// length, unknown flags or a face with a vertex that isn't there
+    pub fn read(words: &'a [i32]) -> Option<Self> {
+        if words.len() < HEADER_LEN || words[0] != MESH_TAG {
+            return None;
+        }
+        let (v, f, flags) = (usize::try_from(words[1]).ok()?, usize::try_from(words[2]).ok()?, words[3]);
+        if flags & !mesh_flags::COLORS != 0 {
+            return None;
+        }
+        // in u64, so counts up to i32::MAX can't overflow on wasm32
+        let per_vertex = 7 + u64::from(flags & mesh_flags::COLORS != 0);
+        if words.len() as u64 != HEADER_LEN as u64 + f as u64 * 3 + v as u64 * per_vertex {
+            return None;
+        }
+        if words[HEADER_LEN..HEADER_LEN + f * 3].iter().any(|&i| i < 0 || i as usize >= v) {
+            return None;
+        }
+        Some(MeshWords { words, v, f })
+    }
+
+    pub fn vertex_count(&self) -> usize {
+        self.v
+    }
+
+    fn section(&self, start: usize, len: usize) -> &'a [i32] {
+        &self.words[HEADER_LEN + start..HEADER_LEN + start + len]
+    }
+
+    fn faces(&self) -> &'a [i32] {
+        self.section(0, self.f * 3)
+    }
+
+    fn positions(&self) -> &'a [i32] {
+        self.section(self.f * 3, self.v * 3)
+    }
+
+    fn normals(&self) -> &'a [i32] {
+        self.section(self.f * 3 + self.v * 3, self.v * 3)
+    }
+
+    fn colors(&self) -> Option<&'a [i32]> {
+        (self.words[3] & mesh_flags::COLORS != 0).then(|| self.section(self.f * 3 + self.v * 6, self.v))
+    }
+
+    fn groups(&self) -> &'a [i32] {
+        &self.words[self.words.len() - self.v..]
+    }
+
+    /// The encoded mesh with every vertex in `color`
+    pub fn painted(&self, color: u32) -> Vec<i32> {
+        let flags = if self.v > 0 { mesh_flags::COLORS } else { 0 };
+        let mut words = Vec::with_capacity(encoded_len(self.v, self.f, flags));
+        words.extend([MESH_TAG, self.v as i32, self.f as i32, flags]);
+        words.extend_from_slice(self.faces());
+        words.extend_from_slice(self.positions());
+        words.extend_from_slice(self.normals());
+        words.resize(words.len() + self.v, color as i32);
+        words.extend_from_slice(self.groups());
+        words
+    }
+
+    /// The encoded meshes one after the other, the groups of each numbered after those of the
+    /// meshes before it. Meshes without vertices are left out. When only some of them have
+    /// colors, the vertices of the others get [`crate::NO_COLOR`].
+    pub fn join(meshes: &[MeshWords]) -> Vec<i32> {
+        let meshes: Vec<&MeshWords> = meshes.iter().filter(|m| m.v > 0).collect();
+        let v = meshes.iter().map(|m| m.v).sum();
+        let f = meshes.iter().map(|m| m.f).sum();
+        let colored = meshes.iter().any(|m| m.colors().is_some());
+        let flags = if colored { mesh_flags::COLORS } else { 0 };
+        let mut words = Vec::with_capacity(encoded_len(v, f, flags));
+        words.extend([MESH_TAG, v as i32, f as i32, flags]);
+        let mut offset = 0u32;
+        for mesh in &meshes {
+            words.extend(mesh.faces().iter().map(|&i| (i as u32 + offset) as i32));
+            offset += mesh.v as u32;
+        }
+        for mesh in &meshes {
+            words.extend_from_slice(mesh.positions());
+        }
+        for mesh in &meshes {
+            words.extend_from_slice(mesh.normals());
+        }
+        if colored {
+            for mesh in &meshes {
+                match mesh.colors() {
+                    Some(colors) => words.extend_from_slice(colors),
+                    None => words.resize(words.len() + mesh.v, crate::NO_COLOR as i32),
+                }
+            }
+        }
+        let mut next = 0u32;
+        for mesh in &meshes {
+            words.extend(mesh.groups().iter().map(|&g| (g as u32 + next) as i32));
+            next += mesh.groups().iter().map(|&g| g as u32).max().map_or(0, |g| g + 1);
+        }
+        words
     }
 }
 
@@ -220,6 +303,50 @@ mod tests {
         let mut missing_vertex = words.clone();
         missing_vertex[HEADER_LEN + 2] = 3;
         assert_eq!(Mesh::try_decode(&missing_vertex), None);
+    }
+
+    fn other(colored: bool) -> Mesh {
+        Mesh {
+            faces: vec![0, 1, 2, 2, 1, 3],
+            positions: vec![0.5, 0.0, 0.0, 1.5, 0.0, 0.0, 0.5, 1.0, 0.0, 1.5, 1.0, -0.0],
+            normals: vec![0.0, 0.0, -1.0, 0.0, f32::NAN, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
+            colors: if colored { vec![1, 2, 3, crate::NO_COLOR] } else { Vec::new() },
+            groups: vec![1, 0, 4, 1],
+        }
+    }
+
+    #[test]
+    fn joins_the_words_like_appending_the_meshes() {
+        let plain = Mesh { colors: Vec::new(), ..triangle() };
+        let cases = [
+            vec![],
+            vec![Mesh::default()],
+            vec![triangle()],
+            vec![plain.clone(), other(false)],
+            vec![other(true), Mesh::default(), plain.clone(), triangle()],
+            vec![plain, other(false), other(true)],
+        ];
+        for meshes in cases {
+            let mut appended = Mesh::default();
+            let mut next = 0;
+            for mesh in meshes.iter().filter(|m| m.vertex_count() > 0) {
+                appended.append(mesh, next);
+                next += mesh.groups.iter().max().map_or(0, |g| g + 1);
+            }
+            let encoded: Vec<Vec<i32>> = meshes.iter().map(Mesh::encode).collect();
+            let words: Vec<MeshWords> = encoded.iter().map(|w| MeshWords::read(w).unwrap()).collect();
+            assert_eq!(MeshWords::join(&words), appended.encode());
+        }
+    }
+
+    #[test]
+    fn paints_the_words_like_the_mesh() {
+        let color = pack_rgba(0.2, 0.4, 0.6, 1.0);
+        for mesh in [Mesh::default(), triangle(), other(false), other(true)] {
+            let words = mesh.encode();
+            let painted = Mesh { colors: vec![color; mesh.vertex_count()], ..mesh };
+            assert_eq!(MeshWords::read(&words).unwrap().painted(color), painted.encode());
+        }
     }
 
     #[test]

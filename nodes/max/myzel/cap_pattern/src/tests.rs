@@ -1,7 +1,7 @@
 use super::*;
 use myzel_core::{
     closing_turn, curl_spread, encode_color, gills, paths_mesh, pose_caps, read_paths, testing, GillInputs, GillProfile,
-    HyphaeMeshParams, PathStyle,
+    HyphaeMeshParams, MeshWords, PathStyle,
 };
 use nodarium_utils::{
     concat_args, encode_float,
@@ -64,7 +64,8 @@ fn body_and_gills(paths: &[Vec<i32>]) -> Mesh {
         seed: 1,
         creator: 20,
     };
-    Mesh::join(&[body(paths), gills(&inputs, GillProfile::Plate).mesh])
+    let (body, gills) = (body(paths).encode(), gills(&inputs, GillProfile::Plate).mesh.encode());
+    Mesh::decode(&MeshWords::join(&[MeshWords::read(&body).unwrap(), MeshWords::read(&gills).unwrap()]))
 }
 
 fn run(mesh: &Mesh, cap: &[Vec<i32>], pattern: &[i32], relief: &[i32], opacity: &[i32]) -> Vec<i32> {

@@ -1,4 +1,4 @@
-use myzel_core::Mesh;
+use myzel_core::MeshWords;
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 
 nodarium_definition_file!("src/definition.json");
@@ -6,8 +6,8 @@ nodarium_definition_file!("src/definition.json");
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     // an input nothing is connected to is not a mesh
-    let meshes: Vec<Mesh> = args.iter().filter_map(|arg| Mesh::try_decode(arg)).collect();
-    Mesh::join(&meshes).encode()
+    let meshes: Vec<MeshWords> = args.iter().filter_map(|arg| MeshWords::read(arg)).collect();
+    MeshWords::join(&meshes)
 }
 
 #[cfg(test)]

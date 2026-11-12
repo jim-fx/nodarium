@@ -61,7 +61,7 @@ pub use cap::{
 pub use cap_shape::{cap_alphas, grow_cap, ray_angles, CapShape};
 pub use density::{mesh_segments, surface, surface_in, Frame, Meshing, Segment, SegmentSurface, TissueField};
 pub use color::{
-    encode_color, linear_rgba, mix_colors, opaque, pack_linear, paint_mesh, read_color, NO_COLOR,
+    encode_color, linear_rgba, mix_colors, opaque, pack_linear, read_color, NO_COLOR,
 };
 pub use gills::{gills, GillInputs, GillProfile, Gills};
 pub use hyphae_mesh::{paths_mesh, HyphaeMeshParams};
@@ -71,7 +71,7 @@ pub use paths::{
     PathStyle, LINES_TAG,
 };
 pub use inputs::{read_float, read_floats, read_int, read_mesh};
-pub use mesh::{mesh_flags, pack_rgba, Mesh, MESH_TAG};
+pub use mesh::{mesh_flags, pack_rgba, Mesh, MeshWords, MESH_TAG};
 pub use noise::value_noise;
 pub use settings::{
     apply_settings, color_value, read_settings, with_setting, PathSettings, Setting, SettingItem, SETTING_TAG,

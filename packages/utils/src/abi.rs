@@ -4,7 +4,7 @@
 //! stays alive until the host calls `nodarium_reset`, so the host can pass a
 //! result pointer straight into the next node without copying it out first.
 
-use std::sync::Mutex;
+use std::sync::{Mutex, Once};
 
 static ALLOCATIONS: Mutex<Vec<Vec<i32>>> = Mutex::new(Vec::new());
 
@@ -16,8 +16,20 @@ extern "C" {
     fn nodarium_panic(ptr: *const u8, len: usize);
 }
 
+/// The lists of allocations and results outlive `reset`. Reserved before the first buffer, they
+/// sit below all buffers. Grown later, they would land between large buffers and split the
+/// memory freed by `reset`, so a later, larger run couldn't reuse it and would grow the memory.
+fn reserve_lists() {
+    static RESERVED: Once = Once::new();
+    RESERVED.call_once(|| {
+        ALLOCATIONS.lock().unwrap().reserve(1024);
+        RESULT.lock().unwrap().reserve(64);
+    });
+}
+
 /// Allocates `bytes` of 4-byte aligned memory that stays valid until `reset`.
 pub fn alloc(bytes: usize) -> *mut i32 {
+    reserve_lists();
     let mut buf: Vec<i32> = Vec::with_capacity(bytes.div_ceil(4));
     let ptr = buf.as_mut_ptr();
     ALLOCATIONS.lock().unwrap().push(buf);
@@ -102,6 +114,7 @@ impl_node_outputs_for_tuple!(A, B, C, D, E, F, G, H);
 /// Keeps every output alive until the next reset and returns a pointer to the
 /// `[ptr, len]` pairs describing them, one pair per output.
 pub fn store_result(result: impl NodeOutputs) -> *const u32 {
+    reserve_lists();
     let outputs = result.into_outputs();
     let mut descriptor = RESULT.lock().unwrap();
     descriptor.clear();
