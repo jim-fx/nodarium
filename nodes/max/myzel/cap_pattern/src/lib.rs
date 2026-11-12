@@ -13,15 +13,26 @@
 //! spot of the pattern stays on the same spot of the tissue while the cap opens, the rays bend
 //! but keep their length.
 //!
+//! A path of the list that bears no cap and grows on no other path of it, like a stipe on its
+//! own, gets the pattern around it, like a cloth laid over a post: the middle of the pattern is
+//! on the tip, its radius the distance over the surface from there, across the end and down the
+//! side, its angle the angle around the path. The side of a path only takes the outer part of
+//! the disc, so the pattern there is stretched along the path, the more the further down.
+//! Only the vertices around its side count, not past its ends.
+//!
 //! The relief moves a vertex along its normal by `relief` times the value of the pattern, the
-//! color goes over the color of the vertex by `opacity` times the value. Both are read along the
-//! rays, alpha 0 at the axis to 1 at the margin, and for every stipe.
+//! color goes over the color of the vertex by `opacity` times the value. On a cap both are read
+//! along the rays, alpha 0 at the axis to 1 at the margin, and for every stipe, around a path
+//! along it, alpha 0 at its base to 1 at its tip.
 
 use glam::{Vec2, Vec3};
 use myzel_core::{linear_rgba, opaque, pack_linear, read_color, AlongRay, Cap, CapFrame, Mesh, NO_COLOR};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
-use nodarium_utils::{geometry::wrap_path, split_args, Ctx, Pattern};
-use std::collections::HashMap;
+use nodarium_utils::{
+    geometry::{is_path, orthogonal_to, path_link, wrap_path},
+    split_args, Ctx, Pattern,
+};
+use std::collections::{HashMap, HashSet};
 use std::f32::consts::TAU;
 
 nodarium_definition_file!("src/definition.json");
@@ -29,6 +40,8 @@ nodarium_definition_file!("src/definition.json");
 /// A vertex further than this share of the cap length from the flesh around the rays is not on
 /// the cap. The strands of the cap spread around the rays, the surface follows them.
 const SHELL: f32 = 0.25;
+/// A vertex further than this share of the radius of a path from its surface is not around it
+const SLEEVE_SHELL: f32 = 0.5;
 /// Where the surface faces away from the top, the cosine of how far, the pattern fades out
 const SIDE_FROM: f32 = 0.1;
 const SIDE_TO: f32 = 0.5;
@@ -215,6 +228,130 @@ impl Top {
     }
 }
 
+/// The side of a path that bears no cap, and the relief and opacity read along it
+struct Sleeve {
+    points: Vec<Vec3>,
+    radius: Vec<f32>,
+    /// Distance along the path from its base
+    along: Vec<f32>,
+    /// The direction angles around the path count from at every point, carried down from the
+    /// tip so they don't turn with the path
+    sides: Vec<Vec3>,
+    low: Vec3,
+    high: Vec3,
+    shell: f32,
+    relief: AlongRay,
+    opacity: AlongRay,
+}
+
+impl Sleeve {
+    fn new(path: &[i32], relief: AlongRay, opacity: AlongRay) -> Option<Sleeve> {
+        let path = wrap_path(path);
+        let n = path.length;
+        if n < 2 {
+            return None;
+        }
+        let points: Vec<Vec3> = path.points.chunks_exact(4).map(|p| Vec3::new(p[0], p[1], p[2])).collect();
+        let radius: Vec<f32> = path.points.chunks_exact(4).map(|p| p[3].abs()).collect();
+        let mut along = vec![0.0f32; n];
+        for i in 1..n {
+            along[i] = along[i - 1] + points[i].distance(points[i - 1]);
+        }
+        if along[n - 1] <= 0.0 {
+            return None;
+        }
+        let tangent = |i: usize| (points[(i + 1).min(n - 1)] - points[i.saturating_sub(1)]).try_normalize().unwrap_or(Vec3::Y);
+        let mut sides = vec![orthogonal_to(tangent(n - 1)); n];
+        for i in (0..n - 1).rev() {
+            let t = tangent(i);
+            sides[i] = (sides[i + 1] - t * sides[i + 1].dot(t)).try_normalize().unwrap_or_else(|| orthogonal_to(t));
+        }
+        let thickest = radius.iter().fold(0.0f32, |a, &b| a.max(b));
+        let shell = SLEEVE_SHELL * thickest;
+        let reach = Vec3::splat(thickest + shell);
+        let low = points.iter().fold(Vec3::INFINITY, |a, &b| a.min(b)) - reach;
+        let high = points.iter().fold(Vec3::NEG_INFINITY, |a, &b| a.max(b)) + reach;
+        Some(Sleeve { points, radius, along, sides, low, high, shell, relief, opacity })
+    }
+
+    fn locate(&self, p: Vec3, normal: Vec3) -> Option<OnTop> {
+        if p.cmplt(self.low).any() || p.cmpgt(self.high).any() {
+            return None;
+        }
+        let last = self.points.len() - 2;
+        let mut best: Option<(f32, usize, f32)> = None;
+        for i in 0..=last {
+            let (a, b) = (self.points[i], self.points[i + 1]);
+            let ab = b - a;
+            let raw = if ab.length_squared() > 0.0 { (p - a).dot(ab) / ab.length_squared() } else { 0.0 };
+            if (i == 0 && raw < 0.0) || (i == last && raw > 1.0) {
+                continue;
+            }
+            let t = raw.clamp(0.0, 1.0);
+            let d = p.distance_squared(a + ab * t);
+            if best.is_none_or(|b| d < b.0) {
+                best = Some((d, i, t));
+            }
+        }
+        let (_, i, t) = best?;
+        let (a, b) = (self.points[i], self.points[i + 1]);
+        let middle = a.lerp(b, t);
+        let radius = self.radius[i] + (self.radius[i + 1] - self.radius[i]) * t;
+        let out = p - middle;
+        let distance = out.length();
+        if distance > radius + self.shell || distance <= 0.0 {
+            return None;
+        }
+        let facing = normal.dot(out / distance);
+        let weight = smoothstep(SIDE_FROM, SIDE_TO, facing);
+        if weight <= 0.0 {
+            return None;
+        }
+        let tangent = (b - a).try_normalize()?;
+        let side = self.sides[i].lerp(self.sides[i + 1], t);
+        let side = (side - tangent * side.dot(tangent)).try_normalize()?;
+        let around = tangent.cross(side);
+        let length = *self.along.last().unwrap();
+        let along = self.along[i] + (self.along[i + 1] - self.along[i]) * t;
+        Some(OnTop {
+            angle: out.dot(around).atan2(out.dot(side)).rem_euclid(TAU),
+            s: length - along + *self.radius.last().unwrap(),
+            alpha: along / length,
+            weight,
+            distance: (distance - radius).abs(),
+        })
+    }
+}
+
+/// Where a pattern goes: the top of a cap or around a path that bears none
+enum Surface {
+    Top(Top),
+    Sleeve(Sleeve),
+}
+
+impl Surface {
+    fn locate(&self, p: Vec3, normal: Vec3) -> Option<OnTop> {
+        match self {
+            Surface::Top(top) => top.locate(p),
+            Surface::Sleeve(sleeve) => sleeve.locate(p, normal),
+        }
+    }
+
+    fn relief(&self) -> &AlongRay {
+        match self {
+            Surface::Top(top) => &top.relief,
+            Surface::Sleeve(sleeve) => &sleeve.relief,
+        }
+    }
+
+    fn opacity(&self) -> &AlongRay {
+        match self {
+            Surface::Top(top) => &top.opacity,
+            Surface::Sleeve(sleeve) => &sleeve.opacity,
+        }
+    }
+}
+
 /// `color` over the color `under` of a vertex, covering `cover` of it, in linear light
 fn over(under: u32, color: [f32; 4], cover: f32) -> u32 {
     let [r, g, b, a] = linear_rgba(under);
@@ -253,13 +390,14 @@ fn renormal(mesh: &mut Mesh, moved: &[bool]) {
 }
 
 /// Where every vertex from `from` on is on a top, and on which
-fn locate_from(mesh: &Mesh, tops: &[Top], located: &mut Vec<Option<(usize, OnTop)>>) {
+fn locate_from(mesh: &Mesh, tops: &[Surface], located: &mut Vec<Option<(usize, OnTop)>>) {
     for v in located.len()..mesh.vertex_count() {
         let p = Vec3::from_slice(&mesh.positions[v * 3..v * 3 + 3]);
+        let normal = Vec3::from_slice(&mesh.normals[v * 3..v * 3 + 3]);
         located.push(
             tops.iter()
                 .enumerate()
-                .filter_map(|(k, t)| t.locate(p).map(|on| (k, on)))
+                .filter_map(|(k, t)| t.locate(p, normal).map(|on| (k, on)))
                 .min_by(|a, b| a.1.distance.total_cmp(&b.1.distance)),
         );
     }
@@ -333,7 +471,7 @@ fn refine(mesh: &mut Mesh, marked: &[bool]) {
 }
 
 /// Puts the pattern on the tops, returns whether anything changed
-fn paint(mesh: &mut Mesh, tops: &[Top], pattern: &Pattern, color: [u8; 3]) -> bool {
+fn paint(mesh: &mut Mesh, tops: &[Surface], pattern: &Pattern, color: [u8; 3]) -> bool {
     if !pattern.rings.iter().flatten().any(|&v| v > 0.0) {
         return false;
     }
@@ -378,13 +516,13 @@ fn paint(mesh: &mut Mesh, tops: &[Top], pattern: &Pattern, color: [u8; 3]) -> bo
         if value <= 0.0 {
             continue;
         }
-        let lift = top.relief.at(on.alpha) * value;
+        let lift = top.relief().at(on.alpha) * value;
         if lift != 0.0 {
             let normal = Vec3::from_slice(&mesh.normals[v * 3..v * 3 + 3]);
             mesh.positions[v * 3..v * 3 + 3].copy_from_slice(&(p + normal * lift).to_array());
             moved[v] = true;
         }
-        let cover = (top.opacity.at(on.alpha) * value).clamp(0.0, 1.0);
+        let cover = (top.opacity().at(on.alpha) * value).clamp(0.0, 1.0);
         if cover > 0.0 {
             if mesh.colors.is_empty() {
                 mesh.colors = vec![NO_COLOR; n];
@@ -412,7 +550,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let items = split_args(args[1]);
     let caps = Cap::all(&items);
     let mut ctx = Ctx::default();
-    let tops: Vec<Top> = caps
+    let mut tops: Vec<Surface> = caps
         .iter()
         .enumerate()
         .filter_map(|(rank, cap)| {
@@ -420,10 +558,28 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             ctx.alpha = cap.frame.alpha;
             let relief = AlongRay::read(&mut ctx, args[3], even);
             let opacity = AlongRay::read(&mut ctx, args[5], even);
-            Top::new(cap, &items, relief, opacity)
+            Top::new(cap, &items, relief, opacity).map(Surface::Top)
         })
-        .filter(|top| !(top.relief.is_zero() && top.opacity.is_zero()))
         .collect();
+    let in_caps: HashSet<usize> = caps.iter().flat_map(|c| c.rays.iter().map(|r| r.path).chain([c.stipe])).collect();
+    let ids: HashSet<i32> = items.iter().filter(|p| is_path(p)).map(|p| path_link(p).id).collect();
+    let bare: Vec<usize> = (0..items.len())
+        .filter(|&i| {
+            let path = items[i];
+            if !is_path(path) || in_caps.contains(&i) {
+                return false;
+            }
+            let link = path_link(path);
+            !(link.has_parent() && ids.contains(&link.parent_id))
+        })
+        .collect();
+    for (rank, &i) in bare.iter().enumerate() {
+        ctx.set_path(items[i], rank, bare.len());
+        let relief = AlongRay::read(&mut ctx, args[3], even);
+        let opacity = AlongRay::read(&mut ctx, args[5], even);
+        tops.extend(Sleeve::new(items[i], relief, opacity).map(Surface::Sleeve));
+    }
+    tops.retain(|top| !(top.relief().is_zero() && top.opacity().is_zero()));
     if tops.is_empty() || !paint(&mut mesh, &tops, &pattern, read_color(args[4])) {
         return args[0].to_vec();
     }

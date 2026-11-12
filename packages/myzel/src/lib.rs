@@ -12,7 +12,8 @@
 //! made the path, numbered by [`group_numbers`], 0 for meshes made from a pattern.
 //! Thin closed sheets like gill plates and veils, which stay
 //! sharp at any mesh resolution, are built with [`add_sheet`]. The gills of `lamellae` and
-//! `ridges` come from [`gills`], the veil of `membrane` and the skins of `skirt` from [`veil`].
+//! `ridges` come from [`gills`], the tubes of `pores` from [`pores`], the veil of `membrane`
+//! and the skins of `skirt` from [`veil`].
 //!
 //! # Paths
 //!
@@ -48,6 +49,7 @@ mod inputs;
 mod mesh;
 mod noise;
 mod paths;
+mod pores;
 mod settings;
 mod sheet;
 mod spatial;
@@ -63,6 +65,7 @@ pub use color::{
 };
 pub use gills::{gills, GillInputs, GillProfile, Gills};
 pub use hyphae_mesh::{paths_mesh, HyphaeMeshParams};
+pub use pores::{pores, PoreInputs};
 pub use paths::{
     group_numbers, path_lines, path_segments, read_paths, MeshPath, PathGroup,
     PathStyle, LINES_TAG,

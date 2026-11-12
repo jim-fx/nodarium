@@ -3,6 +3,7 @@ import champignonGroomed from '#lib/graph-templates/champignon-groomed.json';
 import chestnutTemplate from '#lib/graph-templates/chestnut.json';
 import flyAgaricTemplate from '#lib/graph-templates/fly-agaric.json';
 import { grid } from '#lib/graph-templates/grid.ts';
+import porciniTemplate from '#lib/graph-templates/porcini.json';
 import { tree } from '#lib/graph-templates/tree.ts';
 import { projectTemplates } from '#lib/project-manager/project-templates.ts';
 import type { Graph, NodeDefinition } from '@nodarium/types';
@@ -88,6 +89,50 @@ describe('mushroom templates', () => {
   it('lists the Fly agaric with the mushrooms', () => {
     const names = projectTemplates.filter((t) => t.category === 'Mushrooms').map((t) => t.name);
     expect(names).toContain('Fly agaric');
+  });
+  it('the Porcini has pores instead of gills and a net on its stipe', () => {
+    const porcini = porciniTemplate as unknown as Graph;
+    expect(groupsOf(porcini)).toEqual(['Stipe', 'Cap', 'Pores', 'Reticulation']);
+    const group = (name: string) => porcini.groups.find((g) => g.name === name)!;
+    const typesIn = (name: string) => group(name).nodes.map((n) => n.type);
+    const instance = (name: string) =>
+      porcini.nodes.find((n) => n.props?.groupId === group(name).id)!;
+    const type = (id: number) => porcini.nodes.find((n) => n.id === id)!.type;
+    const into = (name: string) =>
+      porcini.edges.filter((e) => e[2] === instance(name).id).map((e) => [type(e[0]), e[3]]);
+    const from = (name: string) =>
+      porcini.edges.filter((e) => e[0] === instance(name).id).map((e) => type(e[2]));
+
+    // a sponge of tubes from a net of cracks, colored by time
+    expect(typesIn('Pores')).toEqual(expect.arrayContaining([
+      'max/myzel/cracks',
+      'max/myzel/pores',
+      'max/myzel/mix_color',
+      'max/myzel/set_mesh_color'
+    ]));
+    expect(typesIn('Pores')).not.toContain('max/myzel/lamellae');
+    expect(into('Pores').map(([, input]) => input).sort()).toEqual(['rays', 'reach', 't']);
+    expect(from('Pores')).toEqual(['max/myzel/join_meshes']);
+    // the net is cap_pattern around the stipe alone, between hyphae_to_mesh and join_meshes
+    expect(typesIn('Reticulation')).toEqual(expect.arrayContaining([
+      'max/myzel/cracks',
+      'max/myzel/cap_pattern'
+    ]));
+    expect(into('Reticulation')).toEqual(expect.arrayContaining([
+      ['max/myzel/hyphae_to_mesh', 'mesh'],
+      ['__internal/group/instance', 'stipe']
+    ]));
+    const stipeOut = porcini.edges.find((e) =>
+      e[2] === instance('Reticulation').id && e[3] === 'stipe'
+    )!;
+    expect(stipeOut[0]).toBe(instance('Stipe').id);
+    expect(stipeOut[1]).toBe(0);
+    expect(from('Reticulation')).toEqual(['max/myzel/join_meshes']);
+  });
+
+  it('lists the Porcini with the mushrooms', () => {
+    const names = projectTemplates.filter((t) => t.category === 'Mushrooms').map((t) => t.name);
+    expect(names).toContain('Porcini');
   });
 });
 

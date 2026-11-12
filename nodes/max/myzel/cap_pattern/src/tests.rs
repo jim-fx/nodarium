@@ -8,6 +8,7 @@ use nodarium_utils::{
     geometry::{path_link, wrap_path_mut},
     ring_angle,
 };
+use std::f32::consts::PI;
 
 const PALE: [u8; 3] = [245, 238, 222];
 
@@ -276,6 +277,90 @@ fn the_top_gets_finer_faces_and_no_holes() {
     assert!((now - before).abs() < 1e-5, "open edges {now} m long, {before} m before");
     // the new vertices are on the top of the cap, in its group
     assert!(after.groups[mesh.vertex_count()..].iter().all(|&g| g == 1));
+}
+
+/// The stipe of `body`, alone
+fn bare_stipe(paths: &[Vec<i32>]) -> Vec<Vec<i32>> {
+    let mut stipe = paths.iter().find(|p| !path_link(p).has_parent()).unwrap().clone();
+    for point in wrap_path_mut(&mut stipe).points.chunks_exact_mut(4) {
+        point[1] *= 0.88;
+    }
+    vec![stipe]
+}
+
+fn side_of_stipe(mesh: &Mesh, v: usize) -> bool {
+    mesh.groups[v] == 0 && mesh.normals[v * 3 + 1].abs() < 0.3 && (0.004..0.04).contains(&mesh.positions[v * 3 + 1])
+}
+
+#[test]
+fn a_stipe_on_its_own_gets_the_pattern_around_its_side() {
+    let cap = cap();
+    let mesh = body(&cap);
+    let after = Mesh::decode(&run(&mesh, &bare_stipe(&cap), &disc(|_, _| 1.0), &value(0.0003), &value(1.0)));
+    let (mut side, mut side_changed) = (0, 0);
+    for v in 0..mesh.vertex_count() {
+        if mesh.groups[v] != 0 {
+            assert!(!changed(&mesh, &after, v), "a vertex of the cap changed");
+            continue;
+        }
+        if side_of_stipe(&mesh, v) {
+            side += 1;
+            side_changed += changed(&mesh, &after, v) as usize;
+            // raised out of the stipe
+            let out = |m: &Mesh| Vec2::new(m.positions[v * 3], m.positions[v * 3 + 2]).length();
+            assert!(out(&after) >= out(&mesh) - 1e-6);
+        }
+    }
+    assert!(side > 100 && side_changed as f32 > 0.95 * side as f32, "{side_changed} of {side} vertices on the side changed");
+    // faces of the cap next to the stipe are split with it, but stay as they were
+    for v in mesh.vertex_count()..after.vertex_count() {
+        assert!(after.groups[v] == 0 || after.colors[v] == NO_COLOR, "a new vertex of the cap is painted");
+    }
+}
+
+#[test]
+fn around_a_stipe_the_pattern_lies_like_a_cloth_over_its_tip() {
+    let cap = cap();
+    let mesh = body(&cap);
+    let stipe = bare_stipe(&cap);
+    // the tip is 4.4 cm up and 5 mm thick: 2 cm from the middle of the pattern are 1.5 cm down
+    // the side, and one half of the disc is on one side of the stipe
+    let pattern = disc(|angle, s| if s < 0.02 && angle < PI { 1.0 } else { 0.0 });
+    let after = Mesh::decode(&run(&mesh, &stipe, &pattern, &value(0.0), &value(1.0)));
+    let frame_side = orthogonal_to(Vec3::Y);
+    let around = Vec3::Y.cross(frame_side);
+    let (mut high, mut low) = (Vec::new(), Vec::new());
+    for v in (0..mesh.vertex_count()).filter(|&v| side_of_stipe(&mesh, v)) {
+        let p = Vec3::from_slice(&mesh.positions[v * 3..v * 3 + 3]);
+        let angle = p.dot(around).atan2(p.dot(frame_side)).rem_euclid(TAU);
+        let painted = after.colors[v] != NO_COLOR;
+        if p.y < 0.027 || (0.3..PI - 0.3).contains(&(angle - PI)) {
+            assert!(!painted, "painted at {p}, angle {angle}");
+        } else if p.y > 0.031 && (0.3..PI - 0.3).contains(&angle) {
+            high.push(painted);
+        }
+        if p.y < 0.027 {
+            low.push(painted);
+        }
+    }
+    assert!(high.len() > 20 && high.iter().filter(|&&p| p).count() as f32 > 0.9 * high.len() as f32);
+    assert!(!low.is_empty());
+}
+
+#[test]
+fn around_a_stipe_relief_and_opacity_are_read_along_it() {
+    let cap = cap();
+    let mesh = body(&cap);
+    // alpha: nothing at the base, everything at the tip
+    let alpha = concat_args(vec![&[2], &[0]]);
+    let after = Mesh::decode(&run(&mesh, &bare_stipe(&cap), &disc(|_, _| 1.0), &value(0.0), &alpha));
+    let cover = |from: f32, to: f32| {
+        let vertices: Vec<usize> =
+            (0..mesh.vertex_count()).filter(|&v| side_of_stipe(&mesh, v) && (from..to).contains(&mesh.positions[v * 3 + 1])).collect();
+        vertices.iter().map(|&v| (after.colors[v] >> 24) as f32 / 255.0).sum::<f32>() / vertices.len() as f32
+    };
+    let (low, high) = (cover(0.003, 0.01), cover(0.03, 0.038));
+    assert!(low < 0.25 && high > 0.6, "covers {low} near the base, {high} near the tip");
 }
 
 #[test]

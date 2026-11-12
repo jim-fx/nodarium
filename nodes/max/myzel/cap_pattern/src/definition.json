@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/cap_pattern",
   "meta": {
-    "description": "Puts a pattern on the top of a cap, as a relief, as a color or both: the cracks of an old cap, scales, or the fibrils of reaction_diffusion. The pattern is measured along the rays of the cap from its axis, like the gills, so it stays on the same spot of the tissue as the cap opens. Only the top of the cap changes, its faces get as fine as the pattern, the rest of the mesh stays as it is."
+    "description": "Puts a pattern on the top of a cap, as a relief, as a color or both: the cracks of an old cap, scales, or the fibrils of reaction_diffusion. The pattern is measured along the rays of the cap from its axis, like the gills, so it stays on the same spot of the tissue as the cap opens. A path that bears no cap, like a stipe on its own, gets the pattern around its side instead, like a cloth laid over its tip: the net on the stipe of a porcini. Only the top of the cap or the side of the path changes, its faces get as fine as the pattern, the rest of the mesh stays as it is."
   },
   "outputs": [
     "mesh"
@@ -14,7 +14,7 @@
     },
     "cap": {
       "type": "path",
-      "description": "The paths of the cap node: the rays of the caps and their stipes. They tell where the top of every cap is and how far along it a place is.",
+      "description": "The paths of the cap node: the rays of the caps and their stipes. They tell where the top of every cap is and how far along it a place is. A path in it that bears no cap and grows on no other path of it, like the stipe alone, gets the pattern around its side, the middle of the pattern on its tip.",
       "external": true
     },
     "pattern": {
@@ -24,7 +24,7 @@
     },
     "relief": {
       "type": "float",
-      "description": "How far the pattern raises the top of the cap, negative presses it in, like cracks. Read along the rays, alpha 0 at the axis to 1 at the margin, and for every stipe.",
+      "description": "How far the pattern raises the top of the cap, negative presses it in, like cracks. Read along the rays, alpha 0 at the axis to 1 at the margin, and for every stipe. Around a path read along it, alpha 0 at its base to 1 at its tip.",
       "value": -0.0003,
       "min": -0.005,
       "max": 0.005,
@@ -33,12 +33,16 @@
     },
     "color": {
       "type": "color",
-      "value": [245, 238, 222],
+      "value": [
+        245,
+        238,
+        222
+      ],
       "description": "The color of the pattern, for cracks the pale flesh under the cuticle"
     },
     "opacity": {
       "type": "float",
-      "description": "How much the color of the pattern covers the color of the cap, 0 = not at all. Read along the rays, alpha 0 at the axis to 1 at the margin, and for every stipe.",
+      "description": "How much the color of the pattern covers the color of the cap, 0 = not at all. Read along the rays, alpha 0 at the axis to 1 at the margin, and for every stipe. Around a path read along it, alpha 0 at its base to 1 at its tip.",
       "value": 1,
       "min": 0,
       "max": 1,

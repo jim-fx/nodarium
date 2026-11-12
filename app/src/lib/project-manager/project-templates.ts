@@ -18,6 +18,7 @@ import {
   maidenhair,
   oyster,
   palm,
+  porcini,
   sage,
   sapling,
   wildCarrot,
@@ -73,6 +74,7 @@ export const projectTemplates: ProjectTemplate[] = [
   mushroom('Champignon', toGraph(champignonGroomed, 'cm')),
   mushroom('Chestnut mushroom', toGraph(chestnut, 'cm')),
   mushroom('Fly agaric', toGraph(flyAgaric, 'cm')),
+  mushroom('Porcini', toGraph(porcini, 'cm')),
   mushroom('Chanterelle', toGraph(chanterelle, 'cm')),
   mushroom('Oyster mushroom', toGraph(oyster, 'cm'))
 ];
