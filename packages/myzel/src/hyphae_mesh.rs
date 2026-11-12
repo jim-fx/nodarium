@@ -5,7 +5,7 @@ use crate::density::{surface_in, Frame, Meshing, Segment, TissueField};
 use crate::mesh::Mesh;
 use crate::noise::value_noise;
 use crate::paths::{group_numbers, path_segments, MeshPath, PathStyle};
-use crate::spatial::{distance_sq_to_segment, SpatialHash};
+use crate::spatial::{distance_sq_to_segment, TubeTree};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct HyphaeMeshParams {
@@ -142,9 +142,12 @@ fn blend_colors(mesh: &Mesh, owners: &[u32], segments: &[Segment], colors: &[u32
         return vec![palette[0]; n];
     }
     let linear: Vec<[f32; 4]> = palette.iter().map(|&c| linear_rgba(c)).collect();
-    let widest = segments.iter().map(|s| s.radius).fold(0.0, f32::max);
     let reach = seam.iter().fold(0.0f32, |a, &w| a.max(w)) * SEAM_REACH;
-    let mut hash = SpatialHash::from_segments(reach + widest, segments.iter().map(|s| (s.start, s.end)));
+    let mut tubes = vec![Vec::new(); palette.len()];
+    for (i, s) in segments.iter().enumerate() {
+        tubes[slot[i]].push((s.start, s.end, s.radius, i as u32));
+    }
+    let trees: Vec<TubeTree> = tubes.into_iter().map(TubeTree::new).collect();
     let tube = |i: usize, p: Vec3| distance_sq_to_segment(p, segments[i].start, segments[i].end).sqrt() - segments[i].radius;
 
     let mut nearest = vec![(f32::INFINITY, 0usize); palette.len()];
@@ -153,18 +156,20 @@ fn blend_colors(mesh: &Mesh, owners: &[u32], segments: &[Segment], colors: &[u32
         let p = Vec3::from_slice(p);
         let own = own as usize;
         nearest.fill((f32::INFINITY, 0));
-        nearest[slot[own]] = (tube(own, p), own);
-        // a color counts up to 1.5 times the seams of both segments farther out, so the search
-        // reaches by the widest seam, not by this vertex's own, or a thin path cuts off the fade
-        // from a thick neighbour
-        let radius = nearest[slot[own]].0.max(0.0) + reach + widest;
-        hash.for_each_near(p, radius, |i, d| {
-            let i = i as usize;
-            let d = d - segments[i].radius;
-            if d < nearest[slot[i]].0 {
-                nearest[slot[i]] = (d, i);
+        let own_slot = slot[own];
+        nearest[own_slot] = (tube(own, p), own);
+        if let Some((d, i)) = trees[own_slot].nearest(p, nearest[own_slot].0) {
+            nearest[own_slot] = (d, i as usize);
+        }
+        // a color counts up to SEAM_REACH seams farther out than the nearest one, and the seam is
+        // at most the widest one, so a color farther than that doesn't count
+        let mut closest = nearest[own_slot].0;
+        for (k, tree) in trees.iter().enumerate().filter(|&(k, _)| k != own_slot) {
+            if let Some((d, i)) = tree.nearest(p, closest + reach) {
+                nearest[k] = (d, i as usize);
+                closest = closest.min(d);
             }
-        });
+        }
         let (closest, by) = nearest.iter().copied().fold((f32::INFINITY, own), |a, b| if b.0 < a.0 { b } else { a });
         let mut sum = [0.0f32; 4];
         let mut total = 0.0;
