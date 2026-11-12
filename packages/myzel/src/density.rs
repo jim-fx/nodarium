@@ -588,7 +588,13 @@ impl ClosedSplat {
 
 /// Squared distance transform along one line (Felzenszwalb, Huttenlocher), every
 /// sample gets the squared distance to and the feature of the nearest seed
-fn transform_line(d: &mut [f32], feature: &mut [u32], v: &mut Vec<usize>, z: &mut Vec<f32>, out: &mut Vec<(f32, u32)>) {
+fn transform_line(
+    d: &mut [f32],
+    mut feature: Option<&mut [u32]>,
+    v: &mut Vec<usize>,
+    z: &mut Vec<f32>,
+    out: &mut Vec<(f32, u32)>,
+) {
     v.clear();
     z.clear();
     for q in 0..d.len() {
@@ -623,32 +629,89 @@ fn transform_line(d: &mut [f32], feature: &mut [u32], v: &mut Vec<usize>, z: &mu
             k += 1;
         }
         let offset = q as f32 - v[k] as f32;
-        out.push((offset * offset + d[v[k]], feature[v[k]]));
+        out.push((offset * offset + d[v[k]], feature.as_ref().map_or(0, |f| f[v[k]])));
     }
     for (q, &(dq, fq)) in out.iter().enumerate() {
         d[q] = dq;
-        feature[q] = fq;
+        if let Some(f) = feature.as_mut() {
+            f[q] = fq;
+        }
     }
 }
 
+/// Whether [`transform_line`] leaves a line as it is: without a seed, or with the same value at every
+/// sample, where every sample is its own nearest seed. Most lines of a transform over the bounding box are
+/// one of them. Neighbouring parabolas of a constant line cross half way between their seeds, a sample away
+/// from the next crossing, and the rounding of `d + i²` moves a crossing by far less than that while the
+/// line and the value are no longer than [`UNCHANGED_LONGEST`] and [`UNCHANGED_LARGEST`].
+fn unchanged_line(line: &[f32]) -> bool {
+    let first = line[0];
+    if first == f32::INFINITY {
+        return line.iter().all(|&v| v == f32::INFINITY);
+    }
+    line.len() <= UNCHANGED_LONGEST
+        && first.abs() <= UNCHANGED_LARGEST
+        && line.iter().all(|v| v.to_bits() == first.to_bits())
+}
+
+const UNCHANGED_LONGEST: usize = 1024;
+const UNCHANGED_LARGEST: f32 = 65536.0;
+
 /// Squared distance in samples from every sample to the nearest one with a
-/// finite `d`, plus `d` there, and the `feature` of that sample
-fn distance_transform(d: &mut [f32], feature: &mut [u32], samples: [usize; 3]) {
+/// finite `d`, plus `d` there, and the `feature` of that sample if given.
+///
+/// The lines along y and z are gathered a row at a time into a buffer and written back the same way,
+/// and lines that [`unchanged_line`] finds are left out. Every other line is transformed as a whole.
+fn distance_transform(d: &mut [f32], mut feature: Option<&mut [u32]>, samples: [usize; 3]) {
     let [nx, ny, nz] = samples;
-    let n = d.len();
     let (mut v, mut z, mut out) = (Vec::new(), Vec::new(), Vec::new());
-    let (mut line_d, mut line_f) = (Vec::new(), Vec::new());
-    for (len, stride) in [(nx, 1), (ny, nx), (nz, nx * ny)] {
-        let starts = (0..n / (len * stride)).flat_map(|outer| (0..stride).map(move |inner| outer * len * stride + inner));
-        for start in starts {
-            line_d.clear();
-            line_f.clear();
-            line_d.extend((0..len).map(|k| d[start + k * stride]));
-            line_f.extend((0..len).map(|k| feature[start + k * stride]));
-            transform_line(&mut line_d, &mut line_f, &mut v, &mut z, &mut out);
+    for (i, line) in d.chunks_exact_mut(nx).enumerate() {
+        if !unchanged_line(line) {
+            let f = feature.as_mut().map(|f| &mut f[i * nx..(i + 1) * nx]);
+            transform_line(line, f, &mut v, &mut z, &mut out);
+        }
+    }
+    let longest = ny.max(nz);
+    let mut buf_d = vec![0.0f32; nx * longest];
+    let mut buf_f = vec![0u32; if feature.is_some() { nx * longest } else { 0 }];
+    let mut changed = vec![false; nx];
+    // the lines of one plane, along y in a plane of one z or along z in a plane of one y: sample `k` of the
+    // line at `x` is at `first + k * stride + x`
+    for (len, stride, planes, plane_step) in [(ny, nx, nz, nx * ny), (nz, nx * ny, ny, nx)] {
+        for plane in 0..planes {
+            let first = plane * plane_step;
             for k in 0..len {
-                d[start + k * stride] = line_d[k];
-                feature[start + k * stride] = line_f[k];
+                let row = first + k * stride;
+                for x in 0..nx {
+                    buf_d[x * len + k] = d[row + x];
+                }
+                if let Some(f) = feature.as_ref() {
+                    for x in 0..nx {
+                        buf_f[x * len + k] = f[row + x];
+                    }
+                }
+            }
+            for x in 0..nx {
+                let line = &mut buf_d[x * len..(x + 1) * len];
+                changed[x] = !unchanged_line(line);
+                if changed[x] {
+                    let f = feature.is_some().then(|| &mut buf_f[x * len..(x + 1) * len]);
+                    transform_line(line, f, &mut v, &mut z, &mut out);
+                }
+            }
+            if !changed.iter().any(|&c| c) {
+                continue;
+            }
+            for k in 0..len {
+                let row = first + k * stride;
+                for x in (0..nx).filter(|&x| changed[x]) {
+                    d[row + x] = buf_d[x * len + k];
+                }
+                if let Some(f) = feature.as_mut() {
+                    for x in (0..nx).filter(|&x| changed[x]) {
+                        f[row + x] = buf_f[x * len + k];
+                    }
+                }
             }
         }
     }
@@ -703,7 +766,7 @@ fn closing(grid: &SparseGrid, frame: &Frame) -> Vec<f32> {
             feature[i] = i as u32;
         }
     }
-    distance_transform(&mut d, &mut feature, grid.samples);
+    distance_transform(&mut d, Some(&mut feature), grid.samples);
 
     // share of every sample inside the closing, ramping from 0 to 1 over two cells across its surface
     let mut shifts: Vec<(f32, f32)> = Vec::new();
@@ -817,7 +880,7 @@ fn grown_balls(radius: &[f32], samples: [usize; 3], scale: f32) -> (Vec<f32>, Ve
     let mut power: Vec<f32> =
         radius.iter().map(|&r| if r > 0.0 { -(scale * r) * (scale * r) } else { f32::INFINITY }).collect();
     let mut centre: Vec<u32> = (0..radius.len()).map(|i| if radius[i] > 0.0 { i as u32 } else { EMPTY }).collect();
-    distance_transform(&mut power, &mut centre, samples);
+    distance_transform(&mut power, Some(&mut centre), samples);
     (power, centre)
 }
 
@@ -866,9 +929,8 @@ impl TissueField {
         let solid = closing(&grid, frame);
 
         // the surface lies between a tissue sample and the next one outside, so half a cell above the outer samples
-        let n = solid.len();
         let mut depth: Vec<f32> = solid.iter().map(|&v| if v < SURFACE_SHARE { 0.0 } else { f32::INFINITY }).collect();
-        distance_transform(&mut depth, &mut vec![EMPTY; n], grid.samples);
+        distance_transform(&mut depth, None, grid.samples);
         for d in &mut depth {
             *d = if *d > 0.0 && d.is_finite() { d.sqrt() - 0.5 } else { 0.0 };
         }
@@ -1943,6 +2005,84 @@ mod tests {
         x = x.wrapping_mul(0x2C1B_3C6D);
         x ^= x >> 12;
         (x & 0xFF_FFFF) as f32 / 0x100_0000 as f32
+    }
+
+    /// The distance transform as it was before it left out lines, every line gathered one sample at a time
+    fn distance_transform_every_line(d: &mut [f32], feature: &mut [u32], samples: [usize; 3]) {
+        let [nx, ny, nz] = samples;
+        let n = d.len();
+        let (mut v, mut z, mut out) = (Vec::new(), Vec::new(), Vec::new());
+        for (len, stride) in [(nx, 1), (ny, nx), (nz, nx * ny)] {
+            for start in (0..n / (len * stride)).flat_map(|outer| (0..stride).map(move |inner| outer * len * stride + inner)) {
+                let mut line_d: Vec<f32> = (0..len).map(|k| d[start + k * stride]).collect();
+                let mut line_f: Vec<u32> = (0..len).map(|k| feature[start + k * stride]).collect();
+                transform_line(&mut line_d, Some(&mut line_f), &mut v, &mut z, &mut out);
+                for k in 0..len {
+                    d[start + k * stride] = line_d[k];
+                    feature[start + k * stride] = line_f[k];
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_constant_line_is_its_own_transform() {
+        let (mut v, mut z, mut out) = (Vec::new(), Vec::new(), Vec::new());
+        let values = [0.0, 1.0, 4.0, 0.3, -0.7, -17.389, -255.5 * 255.5, -UNCHANGED_LARGEST, UNCHANGED_LARGEST, 12345.678];
+        for c in values {
+            for len in (1..=300).chain([511, 512, 777, UNCHANGED_LONGEST]) {
+                let line = vec![c; len];
+                assert!(unchanged_line(&line));
+                let mut d = line.clone();
+                let mut feature: Vec<u32> = (0..len as u32).map(|i| i * 3 + 1).collect();
+                transform_line(&mut d, Some(&mut feature), &mut v, &mut z, &mut out);
+                assert!(d.iter().all(|x| x.to_bits() == c.to_bits()), "value {} length {}", c, len);
+                assert!(feature.iter().enumerate().all(|(i, &f)| f == i as u32 * 3 + 1), "value {} length {}", c, len);
+            }
+        }
+        assert!(!unchanged_line(&[1.0, 1.0, 2.0]) && !unchanged_line(&[f32::INFINITY, 0.0]));
+        assert!(!unchanged_line(&vec![0.0; UNCHANGED_LONGEST + 1]) && !unchanged_line(&[UNCHANGED_LARGEST * 2.0; 4]));
+    }
+
+    #[test]
+    fn leaving_out_unchanged_lines_changes_no_bit_of_the_distance_transform() {
+        let samples = [41, 23, 29];
+        let n = samples[0] * samples[1] * samples[2];
+        let at = |i: usize| Vec3::new((i % 41) as f32, (i / 41 % 23) as f32, (i / (41 * 23)) as f32);
+        let blob = |i: usize, round: u32| {
+            (0..3).any(|b| {
+                let c = Vec3::new(41.0, 23.0, 29.0) * Vec3::new(random(round * 40 + b), random(round * 40 + b + 7), random(b + 13));
+                at(i).distance(c) < 2.0 + 4.0 * random(b + 21)
+            })
+        };
+        for round in 0..3 {
+            // as the closing has them: balls of different sizes everywhere but near the tubes
+            // and far from them all of the largest radius
+            let balls: Vec<f32> = (0..n)
+                .map(|i| match (blob(i, round), at(i).z > 20.0) {
+                    (true, _) => f32::INFINITY,
+                    (false, true) => -7.5f32.powi(2),
+                    (false, false) => -(1.0 + 5.0 * random(i as u32)).powi(2),
+                })
+                .collect();
+            // as the depth has them: seeds at 0 everywhere but in the tissue
+            let depth: Vec<f32> = (0..n).map(|i| if blob(i, round) { f32::INFINITY } else { 0.0 }).collect();
+            // as the grown balls have them: balls in the tissue only
+            let grown: Vec<f32> = (0..n).map(|i| if blob(i, round) { -(3.0 * random(i as u32)).powi(2) } else { f32::INFINITY }).collect();
+            for d in [balls, depth, grown] {
+                let feature: Vec<u32> = (0..n as u32).map(|i| if d[i as usize].is_finite() { i } else { EMPTY }).collect();
+                let (mut expected_d, mut expected_f) = (d.clone(), feature.clone());
+                distance_transform_every_line(&mut expected_d, &mut expected_f, samples);
+                let (mut got_d, mut got_f) = (d.clone(), feature.clone());
+                distance_transform(&mut got_d, Some(&mut got_f), samples);
+                let bits = |v: &[f32]| v.iter().map(|v| v.to_bits()).collect::<Vec<_>>();
+                assert_eq!(bits(&got_d), bits(&expected_d));
+                assert_eq!(got_f, expected_f);
+                let mut without = d.clone();
+                distance_transform(&mut without, None, samples);
+                assert_eq!(bits(&without), bits(&expected_d));
+            }
+        }
     }
 
     #[test]
