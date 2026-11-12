@@ -1146,10 +1146,18 @@
         },
         {
           "id": 59,
-          "position": [-60, 5],
+          "position": [-60, -7.5],
           "type": "max/myzel/set_fibres",
           "props": {
             "fibres": 0.15
+          }
+        },
+        {
+          "id": 60,
+          "position": [-60, 17.5],
+          "type": "max/myzel/set_fill",
+          "props": {
+            "fill": 4
           }
         },
         {
@@ -1425,6 +1433,12 @@
         ],
         [
           59,
+          0,
+          60,
+          "plant"
+        ],
+        [
+          60,
           0,
           501,
           "paths"
