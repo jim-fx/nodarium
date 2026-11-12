@@ -1,4 +1,9 @@
-import type { NodeDefinition, NodeId, NodeRegistry } from '@nodarium/types';
+import {
+  INTERNAL_PREFIX,
+  type NodeDefinition,
+  type NodeId,
+  type NodeRegistry
+} from '@nodarium/types';
 import { createWasmWrapper } from '@nodarium/utils';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -12,7 +17,8 @@ export class BenchmarkRegistry implements NodeRegistry {
     // The runtime calls load() on every execution, reuse the instances like
     // the app's registry does, a fresh wasm memory per execution adds up to
     // gigabytes before it is garbage collected
-    const nodes = await Promise.all([...new Set(nodeIds)].map(async id => {
+    const ids = [...new Set(nodeIds)].filter(id => !id.startsWith(INTERNAL_PREFIX));
+    const nodes = await Promise.all(ids.map(async id => {
       const loaded = this.nodes.get(id);
       if (loaded) return loaded;
       const p = resolve('static/nodes/' + id + '.wasm');

@@ -7,10 +7,7 @@ import { cpus, freemem, loadavg, totalmem } from 'node:os';
 import { resolve } from 'node:path';
 
 import { Group, MeshBasicMaterial } from 'three';
-import {
-  createGeometryPool,
-  createInstancedGeometryPool
-} from '../src/lib/result-viewer/geometry/geometryPool.ts';
+import { createResultPools } from '../src/lib/result-viewer/geometry/geometryPool.ts';
 import { MemoryRuntimeCache } from '../src/lib/runtime/runtime-executor-cache.ts';
 import { MemoryRuntimeExecutor } from '../src/lib/runtime/runtime-executor.ts';
 import { BenchmarkRegistry } from './benchmarkRegistry.ts';
@@ -23,18 +20,30 @@ import {
   readProcMemInfo,
   SystemSample
 } from './systemStats.ts';
+import champignonTemplate from './templates/champignon-groomed.json' assert { type: 'json' };
 import defaultPlantTemplate from './templates/default.json' assert { type: 'json' };
+import flyAgaricTemplate from './templates/fly-agaric.json' assert { type: 'json' };
 import lottaFacesTemplate from './templates/lotta-faces.json' assert { type: 'json' };
 import plantTemplate from './templates/plant.json' assert { type: 'json' };
+import porciniTemplate from './templates/porcini.json' assert { type: 'json' };
 
 const SAMPLE_INTERVAL_MS = 200;
 
 const log = createLogger('bench');
 
-const templates: Record<string, Graph> = {
-  plant: plantTemplate as unknown as GraphType,
-  'lotta-faces': lottaFacesTemplate as unknown as GraphType,
-  default: defaultPlantTemplate as unknown as GraphType
+type Benchmark = { graph: Graph; runs: number; warmups: number };
+
+const plantRuns = { runs: 100, warmups: 10 };
+// a mushroom build takes seconds, fewer runs keep the bench within a few minutes on CI
+const mushroomRuns = { runs: 8, warmups: 1 };
+
+const templates: Record<string, Benchmark> = {
+  plant: { graph: plantTemplate as unknown as GraphType, ...plantRuns },
+  'lotta-faces': { graph: lottaFacesTemplate as unknown as GraphType, ...plantRuns },
+  default: { graph: defaultPlantTemplate as unknown as GraphType, ...plantRuns },
+  'champignon-groomed': { graph: champignonTemplate as unknown as GraphType, ...mushroomRuns },
+  'fly-agaric': { graph: flyAgaricTemplate as unknown as GraphType, ...mushroomRuns },
+  porcini: { graph: porciniTemplate as unknown as GraphType, ...mushroomRuns }
 };
 
 function git(args: string) {
@@ -69,41 +78,6 @@ function average(values: number[]) {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
-function countGeometry(result: Int32Array): {
-  totalVertices: number;
-  totalFaces: number;
-} {
-  const parts = splitNestedArray(result);
-
-  let totalVertices = 0;
-  let totalFaces = 0;
-
-  for (const part of parts) {
-    // 0: path, 1: geometry, 2: instances, only the last two are rendered
-    const type = part[0];
-    if (type !== 1 && type !== 2) continue;
-
-    const vertexCount = part[1] >>> 0;
-    const faceCount = part[2] >>> 0;
-
-    if (type === 2) {
-      // instance header: [type, vertices, faces, instance amount, stem_depth]
-      const instanceCount = part[3] >>> 0;
-
-      totalVertices += vertexCount * instanceCount;
-      totalFaces += faceCount * instanceCount;
-    } else {
-      totalVertices += vertexCount;
-      totalFaces += faceCount;
-    }
-  }
-
-  return {
-    totalVertices,
-    totalFaces
-  };
-}
-
 /**
  * The main thread work of the viewer after a run, without the upload to the GPU. Uncached runs
  * use a random seed, so they measure changed geometry, cached runs measure unchanged geometry.
@@ -111,17 +85,15 @@ function countGeometry(result: Int32Array): {
 function createViewerBenchmark() {
   const scene = new Group();
   const material = new MeshBasicMaterial();
-  const geometryPool = createGeometryPool(scene, material);
-  const instancePool = createInstancedGeometryPool(scene, material);
+  const pools = createResultPools(scene, material);
 
   return (result: Int32Array) => {
     const a = performance.now();
     const parts = splitNestedArray(result);
     const b = performance.now();
-    geometryPool.update(parts.filter(p => p[0] === 1));
-    instancePool.update(parts.filter(p => p[0] === 2));
+    const { totalVertices, totalFaces } = pools.update(parts);
     const c = performance.now();
-    return { split: b - a, update: c - b };
+    return { split: b - a, update: c - b, totalVertices, totalFaces };
   };
 }
 
@@ -129,7 +101,7 @@ function createViewerBenchmark() {
  * @param cached - run with the runtime cache and a fixed seed, so every node
  * except the output node is served from the cache after the first run
  */
-async function run(g: GraphType, amount: number, cached: boolean) {
+async function run({ graph: g, runs: amount, warmups }: Benchmark, cached: boolean) {
   // a fresh registry per benchmark, wasm memories never shrink, so shared
   // instances would keep the memory of the largest graph for all benchmarks
   const registry = new BenchmarkRegistry();
@@ -144,7 +116,7 @@ async function run(g: GraphType, amount: number, cached: boolean) {
 
   log.log('warming up');
 
-  for (let index = 0; index < 10; index++) {
+  for (let index = 0; index < warmups; index++) {
     updateViewer(await r.execute(g, settings()));
   }
 
@@ -199,13 +171,11 @@ async function run(g: GraphType, amount: number, cached: boolean) {
 
     r.perf?.stopRun();
 
-    const { totalVertices, totalFaces } = countGeometry(res!);
-
-    r.perf?.addToLastRun('total-vertices', totalVertices);
-    r.perf?.addToLastRun('total-faces', totalFaces);
-
     // not part of the total, which stays the time of the runtime alone
     const viewer = updateViewer(res!);
+
+    r.perf?.addToLastRun('total-vertices', viewer.totalVertices);
+    r.perf?.addToLastRun('total-faces', viewer.totalFaces);
     r.perf?.addToLastRun('viewer/split-result', viewer.split);
     r.perf?.addToLastRun('viewer/update-geometries', viewer.update);
   }
@@ -235,6 +205,7 @@ async function run(g: GraphType, amount: number, cached: boolean) {
 
       benchmark: {
         iterations: amount,
+        warmups,
         cached
       },
 
@@ -290,11 +261,16 @@ async function main() {
       const name = cached ? key + '-cached' : key;
       log.log('executing ' + name);
 
-      const perfData = await run(templates[key], 100, cached);
+      const perfData = await run(templates[key], cached);
 
       await writeFile(resolve(outPath, name + '.json'), JSON.stringify(perfData));
 
       await new Promise(res => setTimeout(res, 200));
+
+      // the logger keeps every logged node input and result, and with them the wasm memories of
+      // the last registry, which would pile up over the templates towards the 2 GB of CI
+      (globalThis as { clearLogs?: () => void }).clearLogs?.();
+      globalThis.gc?.();
     }
   }
 }
