@@ -19,6 +19,8 @@ export interface RuntimeExecutor {
 export interface SyncCache<T = unknown> {
   /** When the cache grows beyond this, the oldest items are removed */
   size: number;
+  /** When the items hold more bytes than this, the oldest items are removed */
+  maxBytes?: number;
   get: (key: string) => T | undefined;
   set: (key: string, value: T) => void;
   clear: () => void;

@@ -24,6 +24,7 @@ import {
 import { areSocketsCompatible } from '../graph-interface/helpers/nodeHelpers';
 import { migrateGraph } from '../graph-migrations';
 import { getErrorInfo, NodeExecutionError, type RuntimeErrorInfo } from './errors';
+import { byteSize } from './runtime-executor-cache';
 import type { RuntimeNode } from './types';
 
 /** The node that turns a value of this socket type into something the debug view can draw */
@@ -472,6 +473,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     // values and the keys of its input nodes, so we never hash result data
     const cacheKeys: Record<string, number> = {};
     const nodeTimings: Record<number, number> = {};
+    let cachedBytes = 0;
 
     const seed = typeof settings['seed'] === 'number' && Number.isFinite(settings['seed'])
       ? Math.floor(settings['seed'])
@@ -563,6 +565,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
             log.log(`Using cached value for ${node_type.id || node.id}`);
             this.perf?.addPoint('cache-hit', 1);
             results[node.id] = cachedValue;
+            cachedBytes += byteSize(cachedValue);
             if (node.id in this.nodeTimings) {
               nodeTimings[node.id] = this.nodeTimings[node.id];
             }
@@ -582,7 +585,11 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         b = performance.now();
 
         if (this.cache && inputHash && node.id !== outputNode.id) {
-          this.cache.set(inputHash, results[node.id].map(readNodeValue));
+          const copies = results[node.id].map(readNodeValue);
+          cachedBytes += byteSize(copies);
+          // a bigger graph than the last one keeps all of its results
+          this.cache.maxBytes = Math.max(this.cache.maxBytes ?? 0, cachedBytes * 2);
+          this.cache.set(inputHash, copies);
         }
 
         nodeTimings[node.id] = b - a;
@@ -602,8 +609,11 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     // after the result is copied, a preview may run the output node once more
     this.previewDebugData();
 
+    // every change of a value or the seed adds new results, the cache keeps those of this run and
+    // as many older ones again, so a change can be undone without running the nodes again
     if (this.cache) {
       this.cache.size = sortedNodes.length * 2;
+      this.cache.maxBytes = cachedBytes * 2;
     }
 
     this.nodeTimings = nodeTimings;
