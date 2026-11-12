@@ -21,6 +21,7 @@ import {
   porcini,
   sage,
   sapling,
+  shiitake,
   wildCarrot,
   willow
 } from '#lib/graph-templates/index.ts';
@@ -75,6 +76,7 @@ export const projectTemplates: ProjectTemplate[] = [
   mushroom('Chestnut mushroom', toGraph(chestnut, 'cm')),
   mushroom('Fly agaric', toGraph(flyAgaric, 'cm')),
   mushroom('Porcini', toGraph(porcini, 'cm')),
+  mushroom('Shiitake', toGraph(shiitake, 'cm')),
   mushroom('Chanterelle', toGraph(chanterelle, 'cm')),
   mushroom('Oyster mushroom', toGraph(oyster, 'cm'))
 ];
