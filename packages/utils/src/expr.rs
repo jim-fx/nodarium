@@ -141,9 +141,12 @@ impl Ctx {
                 let (min, max) = (self.float(min), self.float(max));
                 let flag = |i: usize| options.get(i).is_some_and(|o| o.first() == Some(&1));
                 let uniform = flag(0);
-                if flag(1) {
+                let once = flag(3);
+                if flag(1) || once {
                     let salt = options.get(2).and_then(|o| o.first()).copied().unwrap_or(0);
-                    min + self.per_path(*seed, salt, uniform) * (max - min)
+                    // drawn for no path at all, so a node without a path reads the same value
+                    let path = if once { 0 } else { self.path_id };
+                    min + self.per_path(*seed, path, salt, uniform) * (max - min)
                 } else if uniform {
                     min + self.random_u32(*seed) as f32 / u32::MAX as f32 * (max - min)
                 } else {
@@ -252,8 +255,8 @@ impl Ctx {
     /// A number from 0 to 1 that only depends on the seed, the path and `salt` (the random
     /// node), so every node that reads it for the same path gets the same value. It draws
     /// nothing, the values after it stay as they were.
-    fn per_path(&self, seed: i32, salt: i32, uniform: bool) -> f32 {
-        let draw = |k: i32| crate::geometry::path_random(seed, self.path_id, salt.wrapping_mul(2).wrapping_add(k));
+    fn per_path(&self, seed: i32, path: i32, salt: i32, uniform: bool) -> f32 {
+        let draw = |k: i32| crate::geometry::path_random(seed, path, salt.wrapping_mul(2).wrapping_add(k));
         if uniform {
             draw(0)
         } else {
@@ -407,6 +410,31 @@ mod tests {
         let mut b = Ctx::default();
         b.seed_path(3);
         assert_eq!(a.float(&other), b.float(&other));
+    }
+
+    #[test]
+    fn a_random_once_is_the_same_for_every_path_and_without_one() {
+        let random = |seed: i32, salt: i32, per_path: i32| {
+            concat_args(vec![&[1], &[encode_float(0.0)], &[encode_float(10.0)], &[seed], &[0], &[per_path], &[salt], &[1]])
+        };
+        let read = |path: Option<i32>, expr: &[i32]| {
+            let mut ctx = Ctx::default();
+            if let Some(path) = path {
+                ctx.seed_path(path);
+            }
+            [ctx.float(expr), ctx.float(expr)]
+        };
+        let size = read(None, &random(7, 5, 0));
+        assert_eq!(size[0], size[1]);
+        assert!((0.0..=10.0).contains(&size[0]));
+        for path in [3, 4, 1234] {
+            assert_eq!(size, read(Some(path), &random(7, 5, 0)));
+            // it wins over once per path
+            assert_eq!(size, read(Some(path), &random(7, 5, 1)));
+        }
+        // every seed and every random node has its own
+        assert_ne!(size, read(None, &random(8, 5, 0)));
+        assert_ne!(size, read(None, &random(7, 6, 0)));
     }
 
     #[test]
