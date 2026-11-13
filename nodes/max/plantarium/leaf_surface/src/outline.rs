@@ -1,6 +1,9 @@
 use glam::Vec2;
 
-use crate::field::Field;
+use crate::field::{cut_at, Field};
+use crate::mesh::Density;
+use crate::polygon::{area2, cross, nearest, Polygon};
+use crate::veins::{closest, Vein};
 
 /// The margin of the leaf: the longest closed line of the field, and where every point of it sits
 /// between the base of the leaf (0) and its tip (1).
@@ -15,6 +18,164 @@ impl Margin {
         let alphas = alphas(&points);
         Margin { points, alphas }
     }
+}
+
+/// The line the mesh fills: the margin of the cut blade, counter-clockwise, with the thin ends of
+/// the veins the grid misses put back, simplified along its curvature.
+pub struct Outline {
+    pub points: Vec<Vec2>,
+    /// Where the end of every vein meets the margin, for the veins whose end was put back.
+    pub tips: Vec<Option<Vec2>>,
+}
+
+impl Outline {
+    pub fn of(field: &Field, veins: &[Vein], margin: &Margin, cuts: &[f32], density: &Density) -> Outline {
+        let mut points = longest(field.contour_loops());
+        if area2(&points) < 0.0 {
+            points.reverse();
+        }
+        let mut fixed = vec![false; points.len()];
+        let tips = veins
+            .iter()
+            .map(|vein| {
+                let cut = cut_at(&margin.points, cuts, vein.end());
+                put_back_tip(&mut points, &mut fixed, vein, cut, field.cell)
+            })
+            .collect();
+        let points = simplify(&points, &fixed, density.tolerance, density.margin);
+        Outline { points, tips }
+    }
+}
+
+/// A vein that tapers to nothing ends in a spike thinner than a cell, which the grid loses. The
+/// spike is rebuilt from the reach of the vein, less the cut there, from its tip back to where the
+/// margin of the grid takes it in, and put into the margin in place of the stump.
+fn put_back_tip(points: &mut Vec<Vec2>, fixed: &mut Vec<bool>, vein: &Vein, cut: f32, cell: f32) -> Option<Vec2> {
+    let step = 0.25 * cell;
+    let length = vein.length();
+    let count = ((length / step) as usize).min(200);
+    let sample = |i: usize| {
+        let (p, direction, reach) = vein.at(length - i as f32 * step);
+        (p, direction, reach - cut)
+    };
+    let first = (0..=count).find(|&i| sample(i).2 > 0.0)?;
+    let (p, direction, width) = sample(first);
+    let tip = if first == 0 {
+        p + direction * width
+    } else {
+        let (q, _, w) = sample(first - 1);
+        q.lerp(p, w / (w - width))
+    };
+    if points.len() < 3 {
+        return None;
+    }
+    let polygon = Polygon::new(points);
+    if polygon.contains(tip) || polygon.distance(tip) < 0.25 * cell {
+        return None;
+    }
+
+    let (mut left, mut right) = (Vec::new(), Vec::new());
+    let base = (first..=count).find(|&i| {
+        let (p, direction, width) = sample(i);
+        let side = direction.perp() * width.max(0.0);
+        left.push(p + side);
+        right.push(p - side);
+        polygon.contains(p) && polygon.contains(p + side) && polygon.contains(p - side)
+    });
+    base?;
+    let mut spike: Vec<Vec2> = right.into_iter().rev().collect();
+    spike.push(tip);
+    spike.extend(left);
+    splice(points, fixed, &spike).then_some(tip)
+}
+
+/// Puts `spike`, which leaves the margin and comes back to it, in place of the piece of the margin
+/// between the points closest to its ends. Refuses when that would cross the margin.
+fn splice(points: &mut Vec<Vec2>, fixed: &mut Vec<bool>, spike: &[Vec2]) -> bool {
+    let n = points.len();
+    let from = nearest(points, spike[0]);
+    let to = nearest(points, spike[spike.len() - 1]);
+    let stump = (to + n - from) % n;
+    if stump > n / 4 || (0..=stump).any(|k| fixed[(from + k) % n]) {
+        return false;
+    }
+    let kept: Vec<usize> = (1..n - stump).map(|k| (to + k) % n).collect();
+    let mut chain = vec![points[kept[kept.len() - 1]]];
+    chain.extend_from_slice(spike);
+    chain.push(points[kept[0]]);
+    for w in chain.windows(2) {
+        for k in 0..kept.len() - 1 {
+            let (a, b) = (points[kept[k]], points[kept[k + 1]]);
+            if cross(w[0], w[1], a, b) {
+                return false;
+            }
+        }
+    }
+    let tip = spike.len() / 2;
+    let mut new_points: Vec<Vec2> = kept.iter().map(|&i| points[i]).collect();
+    let mut new_fixed: Vec<bool> = kept.iter().map(|&i| fixed[i]).collect();
+    new_points.extend_from_slice(spike);
+    new_fixed.extend((0..spike.len()).map(|i| i == tip));
+    *points = new_points;
+    *fixed = new_fixed;
+    true
+}
+
+/// Drops the points of a closed line that lie within `tolerance` of the line through the others,
+/// keeping the `fixed` ones and no piece longer than `longest`. Sharp teeth keep their points.
+fn simplify(points: &[Vec2], fixed: &[bool], tolerance: f32, longest: f32) -> Vec<Vec2> {
+    let n = points.len();
+    if n < 4 {
+        return points.to_vec();
+    }
+    let mut keep = fixed.to_vec();
+    if !keep.iter().any(|&k| k) {
+        keep[0] = true;
+    }
+    let anchors: Vec<usize> = (0..n).filter(|&i| keep[i]).collect();
+    if anchors.len() == 1 {
+        keep[(0..n).max_by(|&a, &b| {
+            let o = points[anchors[0]];
+            points[a].distance_squared(o).total_cmp(&points[b].distance_squared(o))
+        }).unwrap()] = true;
+    }
+    let anchors: Vec<usize> = (0..n).filter(|&i| keep[i]).collect();
+    for k in 0..anchors.len() {
+        split(points, &mut keep, anchors[k], anchors[(k + 1) % anchors.len()], tolerance, longest);
+    }
+    (0..n).filter(|&i| keep[i]).map(|i| points[i]).collect()
+}
+
+fn split(points: &[Vec2], keep: &mut [bool], a: usize, b: usize, tolerance: f32, longest: f32) {
+    let n = points.len();
+    let count = (b + n - a) % n;
+    if count < 2 {
+        return;
+    }
+    let (pa, pb) = (points[a], points[b]);
+    let (mut worst, mut at, mut length) = (0.0, a, 0.0);
+    let mut lengths = Vec::with_capacity(count);
+    for k in 1..=count {
+        let (i, previous) = ((a + k) % n, (a + k - 1) % n);
+        length += (points[i] - points[previous]).length();
+        lengths.push(length);
+        if k < count {
+            let d = closest(pa, pb, points[i]).1;
+            if d > worst {
+                (worst, at) = (d, i);
+            }
+        }
+    }
+    if worst <= tolerance {
+        if length <= longest {
+            return;
+        }
+        let k = (lengths.iter().position(|&l| l >= 0.5 * length).unwrap() + 1).clamp(1, count - 1);
+        at = (a + k) % n;
+    }
+    keep[at] = true;
+    split(points, keep, a, at, tolerance, longest);
+    split(points, keep, at, b, tolerance, longest);
 }
 
 fn longest(loops: Vec<Vec<Vec2>>) -> Vec<Vec2> {

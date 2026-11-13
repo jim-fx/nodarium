@@ -3,13 +3,17 @@
 //! 1. `veins`: the vein paths in leaf space, with the frame found from the main veins.
 //! 2. `field`: the blade as a field on a grid, the smooth union of the veins, without holes.
 //! 3. `outline`: the margin, a closed line with alpha along it. The `margin` input moves the
-//!    field in along it.
-//! 4. `mesh`: triangles inside the margin, flat in leaf space.
+//!    field in along it. The outline of the cut field, with the thin tips of the veins put back
+//!    and simplified along its curvature, is what the mesh fills.
+//! 4. `mesh`: a constrained Delaunay triangulation of the outline with the veins as chains of
+//!    edges, refined until it is fine at the margin and coarse in the middle, flat in leaf space.
+//!    `polygon` helps it and `outline` find points in and near the outline.
 //! 5. `lift`: the heights of the veins bend the flat mesh, and it is placed like the leaf node.
 
 mod field;
 mod mesh;
 mod outline;
+mod polygon;
 mod veins;
 
 use glam::{Vec2, Vec3};
@@ -21,9 +25,9 @@ use nodarium_utils::{
 };
 
 use field::Field;
-use mesh::{marching_squares, FlatMesh};
-use outline::Margin;
-use veins::{leaf_space, Vein};
+use mesh::{vein_mesh, Density, FlatMesh};
+use outline::{Margin, Outline};
+use veins::{groove, leaf_space, Vein};
 
 nodarium_definition_file!("src/definition.json");
 
@@ -40,7 +44,7 @@ fn heights(veins: &[Vein], p: Vec2, cell: f32) -> (f32, f32) {
         let w = 1.0 / (d * d + eps).powi(2);
         sum += w * s.height(t);
         weights += w;
-        let width = (0.15 * s.reach(t)).max(1.5 * cell);
+        let width = groove(s.reach(t), cell);
         vein = vein.max(1.0 - (d / width).min(1.0).powi(2));
     }
     (if weights > 0.0 { sum / weights } else { 0.0 }, vein * vein)
@@ -107,7 +111,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let cuts = ctx.float_along(args[3], margin.alphas.iter().copied());
     field.cut(&margin.points, &cuts);
 
-    let mesh = marching_squares(&field);
+    let density = Density::new(field.cell);
+    let outline = Outline::of(&field, &veins, &margin, &cuts, &density);
+    let mesh = vein_mesh(&outline, &veins, &density);
     let positions = lift(&mesh, &veins, relief, field.cell, LEAF_LENGTH * size);
     encode(&positions, &mesh.faces)
 }
