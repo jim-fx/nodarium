@@ -1,0 +1,57 @@
+{
+  "name": "@nodarium/runtime",
+  "version": "0.0.9",
+  "description": "Runs Nodarium graphs and turns their results into vertices and faces, with the compiled nodes",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node.ts"
+  },
+  "publishConfig": {
+    "registry": "https://git.max-richter.dev/api/packages/max/npm/",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./node": {
+        "types": "./dist/node.d.ts",
+        "default": "./dist/node.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "nodes"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://git.max-richter.dev/max/nodarium",
+    "directory": "packages/runtime"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "sh scripts/copy-nodes.sh && tsdown",
+    "prepack": "pnpm build",
+    "check": "tsc --noEmit",
+    "test": "vitest",
+    "test:unit": "vitest run",
+    "format": "dprint fmt -c '../../.dprint.jsonc' .",
+    "format:check": "dprint check -c '../../.dprint.jsonc' ."
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@nodarium/types": "workspace:^",
+    "@nodarium/utils": "workspace:^",
+    "@types/node": "^26.6.5",
+    "dprint": "^0.64.1",
+    "tsdown": "^0.23.7",
+    "typescript": "^6.0.0",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}

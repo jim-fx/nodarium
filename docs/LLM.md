@@ -15,13 +15,14 @@ Nodarium is a **node-based visual programming editor**. Users wire together node
 │       ├── routes/+page.svelte # App entry point
 │       └── lib/
 │           ├── graph-interface/  # Canvas editor (UI + state)
-│           ├── runtime/          # WASM execution engine
+│           ├── runtime/          # Worker wrapper + error log of the runtime
 │           ├── node-registry/    # Fetch & cache node definitions
 │           ├── project-manager/  # IndexDB persistence
 │           ├── result-viewer/    # Three.js 3D output
 │           ├── sidebar/          # UI panels
 │           └── settings/         # App + graph settings
 ├── packages/
+│   ├── runtime/  # WASM execution engine, migrations, published as @nodarium/runtime
 │   ├── types/    # Shared TypeScript types + Zod schemas
 │   ├── utils/    # Logging, hashing, WASM wrapping, perf
 │   ├── ui/       # Reusable Svelte UI components
@@ -68,10 +69,10 @@ User Interaction
 | `app/src/lib/graph-interface/keymaps.ts`               | Keyboard shortcuts                                                    |
 | `app/src/lib/graph-interface/helpers/nodeHelpers.ts`   | Node height calculations                                              |
 | `app/src/lib/graph-interface/graph/colors.svelte.ts`   | Socket type → color mapping                                           |
-| `app/src/lib/runtime/runtime-executor.ts`              | Executes nodes in DAG order; expandGroups()                           |
+| `packages/runtime/src/runtime-executor.ts`             | Executes nodes in DAG order; expandGroups()                           |
 | `app/src/lib/node-registry/index.ts`                   | RemoteNodeRegistry entry                                              |
 | `app/src/lib/node-registry/groupNode.ts`               | Built-in group node definition                                        |
-| `app/src/lib/node-registry/debugNode.ts`               | Built-in debug node                                                   |
+| `packages/runtime/src/debug-node.ts`                   | Built-in debug node                                                   |
 | `app/src/lib/sidebar/panels/ActiveNodeSettings.svelte` | Per-node settings panel                                               |
 | `packages/types/src/types.ts`                          | Graph, NodeInstance, NodeDefinition, Edge, GroupDefinition            |
 | `packages/types/src/inputs.ts`                         | NodeInput union types (float, vec3, geometry, path, …)                |

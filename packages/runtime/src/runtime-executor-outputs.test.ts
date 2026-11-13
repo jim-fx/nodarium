@@ -1,9 +1,9 @@
 import type { Graph, NodeDefinition } from '@nodarium/types';
 import { describe, expect, it, vi } from 'vitest';
-import { createMockNodeRegistry } from '../graph-interface/test-utils';
-import { debugNode } from '../node-registry/debugNode';
+import { debugNode } from './debug-node';
 import { MemoryRuntimeExecutor } from './runtime-executor';
 import { MemoryRuntimeCache } from './runtime-executor-cache';
+import { createMockNodeRegistry } from './test-utils';
 
 type TestNode = Graph['nodes'][0];
 type TestEdge = Graph['edges'][0];

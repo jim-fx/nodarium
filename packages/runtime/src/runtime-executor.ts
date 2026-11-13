@@ -23,8 +23,8 @@ import {
   type PerformanceStore,
   readNodeValue
 } from '@nodarium/utils';
-import { migrateGraph } from '../graph-migrations';
 import { getErrorInfo, NodeExecutionError, type RuntimeErrorInfo } from './errors';
+import { migrateGraph } from './graph-migrations';
 import { byteSize } from './runtime-executor-cache';
 import type { DebugEntry, RuntimeNode } from './types';
 

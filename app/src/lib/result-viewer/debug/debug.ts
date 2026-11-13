@@ -1,3 +1,4 @@
+import { RESULT_TAGS } from '@nodarium/runtime';
 import { splitNestedArray } from '@nodarium/utils';
 import {
   ArrowHelper,
@@ -15,7 +16,7 @@ import {
   PointsMaterial,
   Vector3
 } from 'three';
-import { createGeometryPool, RESULT_TAGS } from '../geometry/geometryPool';
+import { createGeometryPool } from '../geometry/geometryPool';
 import { createPathLines, hash, LINES_TAG } from '../geometry/lines';
 import { PATH_HEADER_SIZE } from '../gizmos/gizmo-paths';
 

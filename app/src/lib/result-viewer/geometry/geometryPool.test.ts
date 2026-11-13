@@ -13,8 +13,6 @@ import { describe, expect, it } from 'vitest';
 import {
   createInstancedGeometryPool,
   createResultPools,
-  readMesh,
-  sortResultItems,
   takeVertexColors,
   withVertexColors
 } from './geometryPool';
@@ -137,45 +135,6 @@ function plantGeometry(pathId: number) {
 function shownMeshes(group: Group) {
   return group.children.flatMap((pool) => pool.children as Mesh[]).filter((m) => m.visible);
 }
-
-describe('sortResultItems', () => {
-  it('sorts items by tag and skips unknown ones', () => {
-    const geometry = Int32Array.of(1, 0, 0, 0);
-    const instance = Int32Array.of(2, 0, 0, 0, 0);
-    const mesh = myzelMesh();
-    const unknown = Int32Array.of(10, 0, 0, 0, 0, 0, 0, 0);
-    const path = Int32Array.of(0, 1, 2);
-    const sorted = sortResultItems([path, mesh, geometry, unknown, instance]);
-    expect(sorted.geometries).toEqual([geometry]);
-    expect(sorted.instances).toEqual([instance]);
-    expect(sorted.meshes).toEqual([mesh]);
-  });
-});
-
-describe('readMesh', () => {
-  it('reads faces, positions, normals, colors and groups', () => {
-    const mesh = readMesh(myzelMesh(0x1122_3344, 0, [0, 5, 5]));
-    expect(mesh.vertexCount).toBe(3);
-    expect(mesh.faceCount).toBe(1);
-    expect([...mesh.faces]).toEqual([0, 1, 2]);
-    expect([...mesh.positions]).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0]);
-    expect([...mesh.normals]).toEqual([0, 0, 1, 0, 0, 1, 0, 0, 1]);
-    // red is the lowest byte
-    expect([...mesh.colors!.subarray(0, 4)]).toEqual([0x44, 0x33, 0x22, 0x11]);
-    expect([...mesh.groups!]).toEqual([0, 5, 5]);
-  });
-
-  it('reads meshes without colors', () => {
-    const mesh = readMesh(myzelMesh(null, 0, [1, 2, 3]));
-    expect(mesh.colors).toBeUndefined();
-    expect([...mesh.groups!]).toEqual([1, 2, 3]);
-  });
-
-  it('rejects data of the wrong length', () => {
-    expect(() => readMesh(myzelMesh().subarray(0, 20))).toThrow(/needs 31 words/);
-    expect(() => readMesh(myzelMesh(null).subarray(0, 20))).toThrow(/needs 28 words/);
-  });
-});
 
 describe('createResultPools', () => {
   it('shows meshes with their colors next to plain geometry', () => {

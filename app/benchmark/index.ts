@@ -1,3 +1,8 @@
+import {
+  FileNodeRegistry,
+  MemoryRuntimeCache,
+  MemoryRuntimeExecutor
+} from '@nodarium/runtime/node';
 import type { Graph, Graph as GraphType, NodeId } from '@nodarium/types';
 import { createLogger, createPerformanceStore, splitNestedArray } from '@nodarium/utils';
 
@@ -8,9 +13,6 @@ import { resolve } from 'node:path';
 
 import { Group, MeshBasicMaterial } from 'three';
 import { createResultPools } from '../src/lib/result-viewer/geometry/geometryPool.ts';
-import { MemoryRuntimeCache } from '../src/lib/runtime/runtime-executor-cache.ts';
-import { MemoryRuntimeExecutor } from '../src/lib/runtime/runtime-executor.ts';
-import { BenchmarkRegistry } from './benchmarkRegistry.ts';
 
 import {
   getMachineInfo,
@@ -104,7 +106,7 @@ function createViewerBenchmark() {
 async function run({ graph: g, runs: amount, warmups }: Benchmark, cached: boolean) {
   // a fresh registry per benchmark, wasm memories never shrink, so shared
   // instances would keep the memory of the largest graph for all benchmarks
-  const registry = new BenchmarkRegistry();
+  const registry = new FileNodeRegistry(resolve('static/nodes'));
   await registry.load(g.nodes.map(n => n.type) as NodeId[]);
 
   const r = new MemoryRuntimeExecutor(registry, cached ? new MemoryRuntimeCache() : undefined);
