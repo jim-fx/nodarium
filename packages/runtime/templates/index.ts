@@ -57,7 +57,13 @@ export const templates: Template[] = [
   mushroom('shiitake', 'Shiitake', 'cm', () => import('./shiitake.json')),
   mushroom('shaggy-inkcap', 'Shaggy inkcap', 'cm', () => import('./shaggy-inkcap.json')),
   mushroom('chanterelle', 'Chanterelle', 'cm', () => import('./chanterelle.json')),
-  mushroom('oyster', 'Oyster mushroom', 'cm', () => import('./oyster.json'))
+  mushroom('oyster', 'Oyster mushroom', 'cm', () => import('./oyster.json')),
+  mushroom('honey-fungus', 'Honey fungus', 'cm', () => import('./honey-fungus.json'))
+  mushroom(
+    'False chanterelle',
+    'cm',
+    () => import('./false-chanterelle.json')
+  )
 ];
 
 export function loadTemplate(id: string): Promise<Graph> {
