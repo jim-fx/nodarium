@@ -1,0 +1,36 @@
+{
+  "id": "max/plantarium/wave",
+  "meta": {
+    "description": "A repeating profile, 0 on a crest and 1 in a trough, count times while the value goes from 0 to 1. Multiplied with a depth it cuts teeth into the margin of leaf_surface, into a thickness it makes rings. Uses alpha when no value is connected"
+  },
+  "outputs": [
+    "float"
+  ],
+  "inputs": {
+    "shape": {
+      "type": "select",
+      "options": [
+        "sine",
+        "tooth",
+        "saw",
+        "round"
+      ],
+      "value": 0,
+      "internal": true,
+      "description": "Sine undulates. Tooth has straight flanks and sharp crests (dentate). Saw climbs slowly to its crest and drops back at once, so its teeth lean toward higher values (serrate). Round has round crests and sharp troughs (crenate)."
+    },
+    "value": {
+      "type": "float",
+      "external": true,
+      "value": 0
+    },
+    "count": {
+      "type": "float",
+      "description": "How many times the profile repeats from value 0 to 1.",
+      "min": 0,
+      "max": 64,
+      "step": 1,
+      "value": 12
+    }
+  }
+}
