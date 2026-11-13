@@ -35,6 +35,13 @@ const STRAND_REACH_IN_CELLS: f32 = 1.01;
 /// How much a closed segment counts for the owner of a sample past its kernel
 const FILL_OWNER_WEIGHT: f32 = 1e-3;
 
+/// Points around a tube that [`TissueField::holds`] looks at
+const TUBE_RING: usize = 8;
+/// Where the sample nearest a point is deeper than this plus a radius, every sample that the ring of that
+/// radius around the point reads is inside: they lie within the radius, half a cell diagonal to the
+/// point and a cell diagonal across the cell of a point of the ring, and a depth leaves out half a cell
+const HELD_DEPTH_IN_CELLS: f32 = 2.1;
+
 
 #[derive(Clone, Copy)]
 struct Closed {
@@ -807,7 +814,9 @@ fn distance_transform(d: &mut [f32], mut feature: Option<&mut [u32]>, samples: [
 /// closing radius fill as if it were the only one. Where no tube is near, the
 /// balls take the largest radius. The closing stays [`GUARD`] times `rho` away
 /// from the axes of the other segments, and its blur is [`SMOOTHING`] times
-/// `rho`, see [`blur_by_radius`].
+/// `rho`, see [`blur_by_radius`]. The blur wears a tissue thinner than about
+/// itself down to a core or away, the paths in it are then strands, see
+/// [`TissueField::holds`].
 ///
 /// Every sample farther than its `rho` from the tubes is the centre of an empty
 /// ball as large as that distance, the balls of `rho` around the centres near
@@ -993,7 +1002,8 @@ pub struct TissueField {
     /// Per sample the centre of the grown ball that covers it best, `EMPTY` where no ball is
     centre: Vec<u32>,
     scale: f32,
-    any: bool,
+    /// The largest depth, 0 without any tissue
+    deepest: f32,
 }
 
 impl TissueField {
@@ -1022,12 +1032,13 @@ impl TissueField {
         for d in &mut depth {
             *d = if *d > 0.0 && d.is_finite() { d.sqrt() - 0.5 } else { 0.0 };
         }
-        let any = depth.iter().any(|&d| d > 0.0);
-        let centre = if any && scale.is_finite() { grown_balls(&depth, grid.samples, scale.max(1.0)).1 } else { Vec::new() };
+        let deepest = depth.iter().fold(0.0f32, |a, &d| a.max(d)) * grid.cell;
+        let centre =
+            if deepest > 0.0 && scale.is_finite() { grown_balls(&depth, grid.samples, scale.max(1.0)).1 } else { Vec::new() };
         for d in &mut depth {
             *d *= grid.cell;
         }
-        Some(TissueField { frame: frame.clone(), grid, solid, depth, centre, scale, any })
+        Some(TissueField { frame: frame.clone(), grid, solid, depth, centre, scale, deepest })
     }
 
     /// [`surface_in`] of the segments the field was made of, without closing them again.
@@ -1061,7 +1072,7 @@ impl TissueField {
 
     /// Whether there is any tissue at all
     pub fn has_tissue(&self) -> bool {
-        self.any
+        self.deepest > 0.0
     }
 
     fn index(&self, p: [usize; 3]) -> usize {
@@ -1091,6 +1102,30 @@ impl TissueField {
         self.share(p) >= SURFACE_SHARE
     }
 
+    /// Whether the tissue holds the tube of `radius` around `p` on a path along `direction`: its axis and
+    /// a ring around it lie inside. The blur wears a tissue thinner than about itself down to a core
+    /// around the axis, a path there sticks out of it.
+    pub fn holds(&self, p: Vec3, direction: Vec3, radius: f32) -> bool {
+        let u = (p - self.frame.origin) / self.frame.cell;
+        let nearest = [0, 1, 2].map(|a| (u[a].round().max(0.0) as usize).min(self.frame.samples[a] - 1));
+        if self.depth[self.index(nearest)] > radius + HELD_DEPTH_IN_CELLS * self.frame.cell {
+            return true;
+        }
+        if !self.inside(p) {
+            return false;
+        }
+        match direction.try_normalize() {
+            Some(d) => {
+                let (u, v) = d.any_orthonormal_pair();
+                (0..TUBE_RING).all(|k| {
+                    let (sin, cos) = (k as f32 * std::f32::consts::TAU / TUBE_RING as f32).sin_cos();
+                    self.inside(p + (u * cos + v * sin) * radius)
+                })
+            }
+            None => [Vec3::X, Vec3::Y, Vec3::Z].iter().all(|&a| self.inside(p + a * radius) && self.inside(p - a * radius)),
+        }
+    }
+
     /// Where the line from `inside` to `outside` crosses the surface, as a share of the way
     pub fn crossing(&self, inside: Vec3, outside: Vec3) -> f32 {
         let (mut lo, mut hi) = (0.0, 1.0);
@@ -1106,10 +1141,13 @@ impl TissueField {
     }
 
     /// Whether the grown tissue covers the ball of `radius` around `p`, grown as
-    /// well: a strand there is a small feature next to the tissue
+    /// well: a strand there is a small feature next to the tissue. Only a ball of
+    /// the tissue deeper than `radius` grows faster than the strand's, so at an
+    /// infinite scale one of them anywhere covers it, and a tissue thinner than
+    /// the strand never does.
     pub fn covers(&self, p: Vec3, radius: f32) -> bool {
         if !self.scale.is_finite() {
-            return self.any;
+            return self.deepest > radius;
         }
         if self.centre.is_empty() {
             return false;
@@ -2292,8 +2330,9 @@ mod tests {
         assert!(f.covers(at(0.2), 0.0) && f.covers(at(2.0 * top - 0.08), 0.0));
         assert!(!f.covers(at(2.0 * top + 0.08), 0.0));
         assert!(f.covers(at(2.0 * top - 0.3), 0.06) && !f.covers(at(2.0 * top - 0.1), 0.06));
-        // at infinity everything is covered
-        assert!(field(f32::INFINITY).covers(at(5.0), 1.0));
+        // at infinity everything is covered that is thinner than the slab
+        let f = field(f32::INFINITY);
+        assert!(f.covers(at(5.0), 0.1) && !f.covers(at(5.0), 0.5));
     }
 
     #[test]

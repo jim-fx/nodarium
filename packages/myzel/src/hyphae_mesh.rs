@@ -19,9 +19,9 @@ pub struct HyphaeMeshParams {
     /// Strength of the fibrous relief, 0 leaves the surface smooth
     pub fibres: f32,
     pub seed: u32,
-    /// Body paths that leave the tissue: 0 keeps none of them, the surface is closed
-    /// tissue, 1 keeps every one as a strand. In between a strand stays where the
-    /// tissue grown by `1 / loose_strands` doesn't cover it, see [`TissueField`].
+    /// Body paths that leave the tissue: 0 keeps none of them that a tissue thicker than
+    /// they are could absorb, 1 keeps every one as a strand. In between a strand stays
+    /// where the tissue grown by `1 / loose_strands` doesn't cover it, see [`TissueField`].
     pub loose_strands: f32,
 }
 
@@ -200,21 +200,25 @@ fn blend_colors(mesh: &Mesh, owners: &[u32], segments: &[Segment], colors: &[u32
 
 /// Per segment of the paths, in the order [`paths_mesh`] makes them, whether it is a strand that
 /// keeps its own tube where it leaves the tissue. Every body path is split into runs of points
-/// outside and inside the tissue:
+/// whose tube the tissue holds and runs of points whose tube sticks out of it, see
+/// [`TissueField::holds`]:
 ///
 /// - a run outside that the grown tissue covers completely is a small feature next to a large
 ///   one, the tissue absorbs it
 /// - any other run outside is a strand, from the last point inside to the next one, so it grows
 ///   out of the tissue
 ///
-/// A path outside the tissue all along, such as a bundle too thin for the blur, is one run.
+/// A path outside the tissue all along, such as a bundle too thin for the blur, is one run. So is
+/// a lone path a little thicker than the blur, which wears its tissue down to a core around its
+/// axis: it keeps its tube.
 fn strands(paths: &[MeshPath], field: &TissueField, count: usize) -> Vec<bool> {
     let mut strand = Vec::with_capacity(count);
     for path in paths.iter().filter(|p| !p.is_empty()) {
         let first = strand.len();
         let n = path.len();
         strand.extend(std::iter::repeat_n(false, path_segments(&path.points).len()));
-        let inside: Vec<bool> = (0..n).map(|i| field.inside(path.point(i))).collect();
+        let along = |i: usize| path.point((i + 1).min(n - 1)) - path.point(i.saturating_sub(1));
+        let inside: Vec<bool> = (0..n).map(|i| field.holds(path.point(i), along(i), path.points[i * 4 + 3].abs())).collect();
         let mut start = 0;
         for end in 1..=n {
             if end < n && inside[end] == inside[start] {
@@ -668,6 +672,40 @@ mod tests {
             }
             let grows = radii.windows(2).all(|w| w[1] > w[0]) && radii[4] - radii[0] > 0.00005;
             assert!(!grows, "fill {}: grows as the cells grow {:?}", fill, radii);
+        }
+    }
+
+    /// Mean distance from the y axis of the vertices in the middle 40 % of a path from 0 to 40 mm up
+    fn mean_radius(mesh: &Mesh) -> f32 {
+        let around: Vec<f32> = (0..mesh.vertex_count())
+            .map(|v| vertex(mesh, v))
+            .filter(|p| (0.012..0.028).contains(&p.y))
+            .map(|p| Vec3::new(p.x, 0.0, p.z).length())
+            .collect();
+        around.iter().sum::<f32>() / around.len() as f32
+    }
+
+    #[test]
+    fn a_lone_path_keeps_its_radius_at_any_fill() {
+        // the blur of fill 1.5 wore the tissue of the path down to a core of 1.6 mm around its axis
+        let r = 0.003;
+        let points = [(line(Vec3::ZERO, Vec3::Y * 0.04, 11, r), 1)];
+        for (fill, loose_strands) in [(0.1, 0.2), (0.5, 0.2), (1.5, 0.2), (1.5, 0.0), (6.0, 0.2)] {
+            let radii: Vec<f32> = [128, 64, 32]
+                .into_iter()
+                .map(|resolution| mean_radius(&mesh_body(&points, &HyphaeMeshParams { resolution, fill, ..loose(loose_strands) })))
+                .collect();
+            // the blur rounds a tissue out past its outer hyphae, a lone path by up to 0.14 r, and at 32 the path is
+            // little more than a cell thick
+            for (radius, least) in radii.iter().zip([0.95, 0.95, 0.85]) {
+                assert!(
+                    (least * r..1.15 * r).contains(radius),
+                    "fill {} loose_strands {}: {:?} at 128, 64 and 32",
+                    fill,
+                    loose_strands,
+                    radii
+                );
+            }
         }
     }
 
