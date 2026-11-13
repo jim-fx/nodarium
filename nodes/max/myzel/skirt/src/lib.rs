@@ -1,8 +1,6 @@
 use glam::Vec3;
-use myzel_core::{
-    smooth_normals,
-    veil::{add_skin, from_axis, horizontal, read_attachments, Attachment, Axis, Collar, Column, Skin, Source, Spot, DOWN},
-    Mesh,
+use myzel_core::veil::{
+    from_axis, horizontal, read_attachments, skins_mesh, Attachment, Axis, Collar, Column, Skin, Source, Spot, DOWN,
 };
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
@@ -180,14 +178,21 @@ fn ring_reads(ctx: &mut Ctx, ring: &Attachment, length: &[i32], flare: &[i32], c
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
-    build(args, STRANDS).1
+    skins_mesh(&skins(args, STRANDS)).encode()
 }
 
 /// The strands of every skin and the skins. Only the skins are an output, the strands are what
 /// the tests look at.
+#[cfg(test)]
 fn build(args: &[&[i32]], strand_count: i32) -> (Vec<Vec<Vec3>>, Vec<i32>) {
+    let skins = skins(args, strand_count);
+    let strands = skins.iter().flat_map(|skin| skin.columns.iter().flatten().map(|c| c.iter().map(|q| q.0).collect())).collect();
+    (strands, skins_mesh(&skins).encode())
+}
+
+/// The skin of every ring and of every other point
+fn skins(args: &[&[i32]], strand_count: i32) -> Vec<Skin> {
     let mut ctx = Ctx::default();
-    let mut mesh = Mesh::default();
     let attachments = read_attachments(args[0]);
     let seed = int(args[4]);
     let resolution = int(args[5]).max(4) as usize;
@@ -208,7 +213,7 @@ fn build(args: &[&[i32]], strand_count: i32) -> (Vec<Vec<Vec3>>, Vec<i32>) {
         }
     }
 
-    let mut strands = Vec::new();
+    let mut out = Vec::new();
     for (rank, (source, spot, attachment)) in skins.iter().enumerate() {
         ctx.set_path_info(PathInfo {
             index: rank,
@@ -256,19 +261,20 @@ fn build(args: &[&[i32]], strand_count: i32) -> (Vec<Vec<Vec3>>, Vec<i32>) {
             })
             .collect();
         let attached: Vec<Vec3> = roots.iter().map(|root| root.at).collect();
-        add_skin(&mut mesh, &Skin { columns: &columns, attached: &attached, axis: Some(axis), torn: Some((&place, &wobble)) }, thickness);
-        strands.extend(columns.into_iter().flatten().map(|c| c.into_iter().map(|q| q.0).collect()));
+        out.push(Skin { columns, attached, axis: Some(axis), torn: Some((place, wobble)), thickness });
     }
-    smooth_normals(&mut mesh);
-
-    (strands, mesh.encode())
+    out
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{build, RAGGED};
+    use super::{build, skins, RAGGED};
     use glam::Vec3;
-    use myzel_core::{sheet_checks, veil::EDGE_THIN, Mesh};
+    use myzel_core::{
+        sheet_checks,
+        veil::{add_skin, skin_size, EDGE_THIN},
+        Mesh,
+    };
     use nodarium_utils::{concat_args, curve, encode_float, encode_points, Point};
     use std::f32::consts::{FRAC_PI_2, TAU};
 
@@ -579,5 +585,26 @@ mod tests {
         assert_eq!(run_with(&[spot(0.0, RING_HEIGHT)], &[encode_float(0.0)], &[encode_float(0.25)], 3).1.vertex_count(), 0);
         assert_eq!(run_with(&margin(), &[encode_float(0.0)], &[encode_float(0.25)], 3).1.vertex_count(), 0);
         assert_eq!(run(&[], 0.25).1.vertex_count(), 0);
+    }
+
+    #[test]
+    fn the_size_of_every_skin_is_known_before_it_is_meshed() {
+        let mut attachment = margin();
+        attachment.extend([spot(0.0, RING_HEIGHT), spot(0.05, RING_HEIGHT)]);
+        let points = encode_points(&attachment);
+        let mut gaps = 0;
+        // a length that is below 0 in places leaves gaps
+        for length in [vec![encode_float(LENGTH)], random(-0.4 * LENGTH, LENGTH, 5), random(-LENGTH, LENGTH, 9)] {
+            let args: [&[i32]; 7] =
+                [&points, &length, &[encode_float(0.3)], &[encode_float(THICKNESS)], &[3], &[RESOLUTION], &[CREATOR]];
+            for skin in &skins(&args, 128) {
+                let mut mesh = Mesh::default();
+                add_skin(&mut mesh, skin);
+                assert!(mesh.vertex_count() > 0);
+                assert_eq!(skin_size(skin), (mesh.vertex_count(), mesh.face_count()));
+                gaps += skin.columns.iter().filter(|c| c.is_none()).count();
+            }
+        }
+        assert!(gaps > 0);
     }
 }

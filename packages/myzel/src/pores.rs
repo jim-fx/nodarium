@@ -12,7 +12,7 @@
 //! needs to show the pattern. The top inside the flesh is a coarser grid, and walls at the
 //! stipe and at the margin close the layer.
 
-use crate::gills::{DepthAlong, Underside, EMBED};
+use crate::gills::{DepthAlong, Spot, Underside, EMBED};
 use crate::{smooth_normals, Cap, Mesh};
 use glam::Vec3;
 use nodarium_utils::{split_args, Ctx, Pattern};
@@ -66,14 +66,28 @@ struct Params {
     pore_depth: f32,
 }
 
+/// Where along the cap every ring of a surface from `lo` to `hi` about `step` apart is, and how
+/// many vertices it has
+fn ring_sizes(lo: f32, hi: f32, step: f32) -> impl ExactSizeIterator<Item = (f32, usize)> {
+    let count = (((hi - lo) / step).ceil() as usize).max(1) + 1;
+    (0..count).map(move |i| {
+        let s = lo + (hi - lo) * i as f32 / (count - 1) as f32;
+        (s, ((TAU * s / step).ceil() as usize).max(8))
+    })
+}
+
+/// The faces [`zip`] closes between neighbouring rings of these sizes, one for every vertex of
+/// both rings of a band
+fn band_faces(sizes: &[usize]) -> usize {
+    sizes.windows(2).map(|w| w[0] + w[1]).sum()
+}
+
 /// The rings of a surface from `lo` to `hi` along the cap about `step` apart, every vertex
 /// placed by `place(angle, s)`. `None` when a spot has no underside.
 fn rings(mesh: &mut Mesh, lo: f32, hi: f32, step: f32, place: impl Fn(f32, f32) -> Option<Vec3>) -> Option<Vec<Ring>> {
-    let count = (((hi - lo) / step).ceil() as usize).max(1) + 1;
-    let mut rings = Vec::with_capacity(count);
-    for i in 0..count {
-        let s = lo + (hi - lo) * i as f32 / (count - 1) as f32;
-        let n = ((TAU * s / step).ceil() as usize).max(8);
+    let sizes = ring_sizes(lo, hi, step);
+    let mut rings = Vec::with_capacity(sizes.len());
+    for (s, n) in sizes {
         let mut ring = Vec::with_capacity(n);
         for j in 0..n {
             let angle = TAU * (j as f32 + 0.5) / n as f32;
@@ -88,43 +102,90 @@ fn rings(mesh: &mut Mesh, lo: f32, hi: f32, step: f32, place: impl Fn(f32, f32) 
     Some(rings)
 }
 
-/// The pore layer of one cap, `None` when it has none
-fn cap_pores(underside: &mut Underside, pattern: &Pattern, p: &Params) -> Option<Mesh> {
-    let deepest = p.depth.0.iter().fold(0.0f32, |a, &b| a.max(b));
-    if deepest <= 0.0 {
-        return None;
+/// The pore layer of one cap, worked out before any cap is meshed, so the mesh of all of them
+/// is reserved at its size
+struct Layer<'a> {
+    underside: Underside,
+    pattern: &'a Pattern,
+    depth: DepthAlong,
+    pore_depth: f32,
+    free: f32,
+    lo: f32,
+    hi: f32,
+    step: f32,
+}
+
+impl<'a> Layer<'a> {
+    /// `None` when the cap has no pore layer
+    fn new(mut underside: Underside, pattern: &'a Pattern, p: Params) -> Option<Layer<'a>> {
+        let deepest = p.depth.0.iter().fold(0.0f32, |a, &b| a.max(b));
+        if deepest <= 0.0 {
+            return None;
+        }
+        let free = underside.frame.stipe_radius + p.free_distance.max(0.0);
+        let hi = underside.length - underside.margin_radius;
+        if hi <= free {
+            return None;
+        }
+        underside.anchor = free;
+        let area = std::f32::consts::PI * (hi * hi - free * free);
+        let step = (pattern.spacing.max(1e-5) / POINTS_PER_SPACING).max((area / MAX_VERTICES).sqrt());
+        let mut layer =
+            Layer { underside, pattern, depth: p.depth, pore_depth: p.pore_depth.max(0.0), free, lo: free, hi, step };
+        // where the underside slopes down to the stipe, the layer starts where it is the free
+        // distance from the axis
+        let (mut lo, mut up) = (free, hi);
+        if !layer.clear(lo) {
+            for _ in 0..24 {
+                let mid = 0.5 * (lo + up);
+                if layer.clear(mid) {
+                    up = mid;
+                } else {
+                    lo = mid;
+                }
+            }
+            lo = up;
+        }
+        if hi - lo < step {
+            return None;
+        }
+        layer.lo = lo;
+        Some(layer)
     }
-    let frame = underside.frame;
-    let free = frame.stipe_radius + p.free_distance.max(0.0);
-    let hi = underside.length - underside.margin_radius;
-    if hi <= free {
-        return None;
+
+    fn spot(&self, angle: f32, s: f32) -> Option<Spot> {
+        (0..=LOOK_IN).find_map(|k| self.underside.at(angle, (s - k as f32 * self.step).max(self.free)))
     }
-    underside.anchor = free;
-    let underside = &*underside;
-    let area = std::f32::consts::PI * (hi * hi - free * free);
-    let step = (pattern.spacing.max(1e-5) / POINTS_PER_SPACING).max((area / MAX_VERTICES).sqrt());
-    let spot = |angle: f32, s: f32| (0..=LOOK_IN).find_map(|k| underside.at(angle, (s - k as f32 * step).max(free)));
-    let from_axis = |q: Vec3| {
+
+    fn from_axis(&self, q: Vec3) -> f32 {
+        let frame = &self.underside.frame;
         let rel = q - frame.hinge;
         (rel - frame.axis * rel.dot(frame.axis)).length()
-    };
-    let pore_depth = p.pore_depth.max(0.0);
-    // the tubes hang from the underside, between straight down from it and straight down the
-    // axis. Where they would reach in closer to the stipe than the free distance, like on a
-    // button whose cap closes around the stipe, they are shorter.
-    let bottom_at = |angle: f32, s: f32, start: f32, wall: f32| {
-        let spot = spot(angle, s)?;
-        let depth = p.depth.at((s - start) / (hi - start));
-        let opening = pore_depth.min(depth) * (1.0 - wall);
-        let down = (spot.normal + frame.axis).try_normalize().unwrap_or(spot.normal);
+    }
+
+    fn clear(&self, s: f32) -> bool {
+        (0..8).all(|k| {
+            let angle = TAU * k as f32 / 8.0;
+            self.spot(angle, s).is_none_or(|spot| self.from_axis(spot.position - spot.normal * spot.radius) >= self.free)
+        })
+    }
+
+    /// The tubes hang from the underside, between straight down from it and straight down the
+    /// axis. Where they would reach in closer to the stipe than the free distance, like on a
+    /// button whose cap closes around the stipe, they are shorter.
+    fn bottom_at(&self, angle: f32, s: f32, wall: f32) -> Option<Vec3> {
+        let (start, axis) = (self.lo, self.underside.frame.axis);
+        let spot = self.spot(angle, s)?;
+        let depth = self.depth.at((s - start) / (self.hi - start));
+        let opening = self.pore_depth.min(depth) * (1.0 - wall);
+        let down = (spot.normal + axis).try_normalize().unwrap_or(spot.normal);
         let base = spot.position - spot.normal * spot.radius;
         let mut length = depth - opening;
-        if from_axis(base - down * length) < free {
+        if self.from_axis(base - down * length) < self.free {
             let (mut short, mut long) = (0.0, length);
             for _ in 0..16 {
                 let mid = 0.5 * (short + long);
-                if from_axis(base - down * mid) < free {
+                if self.from_axis(base - down * mid) < self.free {
                     long = mid;
                 } else {
                     short = mid;
@@ -133,72 +194,72 @@ fn cap_pores(underside: &mut Underside, pattern: &Pattern, p: &Params) -> Option
             length = short;
         }
         Some(base - down * length)
-    };
-    // where the underside slopes down to the stipe, the layer starts where it is the free
-    // distance from the axis
-    let clear = |s: f32| {
-        (0..8).all(|k| {
-            let angle = TAU * k as f32 / 8.0;
-            spot(angle, s).is_none_or(|spot| from_axis(spot.position - spot.normal * spot.radius) >= free)
-        })
-    };
-    let (mut lo, mut up) = (free, hi);
-    if !clear(lo) {
-        for _ in 0..24 {
-            let mid = 0.5 * (lo + up);
-            if clear(mid) {
-                up = mid;
-            } else {
-                lo = mid;
-            }
-        }
-        lo = up;
     }
-    if hi - lo < step {
-        return None;
-    }
-    let keep_free = |q: Vec3, angle: f32| {
+
+    fn keep_free(&self, q: Vec3, angle: f32) -> Vec3 {
+        let frame = &self.underside.frame;
         let rel = q - frame.hinge;
         let flat = rel - frame.axis * rel.dot(frame.axis);
         let d = flat.length();
-        if d < free {
-            q + flat.try_normalize().unwrap_or_else(|| frame.out(angle)) * (free - d)
+        if d < self.free {
+            q + flat.try_normalize().unwrap_or_else(|| frame.out(angle)) * (self.free - d)
         } else {
             q
         }
-    };
+    }
 
-    let mut mesh = Mesh::default();
-    let bottom = rings(&mut mesh, lo, hi, step, |angle, s| {
-        let wall = pattern.sample(angle, s).unwrap_or(1.0).clamp(0.0, 1.0);
-        Some(keep_free(bottom_at(angle, s, lo, wall)?, angle))
-    })?;
-    let top = rings(&mut mesh, lo, hi, TOP_COARSER * step, |angle, s| {
-        let spot = spot(angle, s)?;
-        Some(keep_free(spot.position - spot.normal * ((1.0 - EMBED) * spot.radius), angle))
-    })?;
-    let mut faces = Vec::new();
-    for pair in bottom.windows(2) {
-        zip(&mut faces, &pair[0], &pair[1]);
+    /// The vertex counts of the rings of the pore surface and of the top inside the flesh
+    fn ring_counts(&self) -> (Vec<usize>, Vec<usize>) {
+        let counts = |step: f32| ring_sizes(self.lo, self.hi, step).map(|(_, n)| n).collect();
+        (counts(self.step), counts(TOP_COARSER * self.step))
     }
-    for pair in top.windows(2) {
-        zip(&mut faces, &pair[1], &pair[0]);
+
+    /// The vertices and faces [`Layer::add`] adds
+    fn size(&self) -> (usize, usize) {
+        let (bottom, top) = self.ring_counts();
+        let vertices = bottom.iter().sum::<usize>() + top.iter().sum::<usize>();
+        let walls = top[0] + bottom[0] + bottom[bottom.len() - 1] + top[top.len() - 1];
+        (vertices, band_faces(&bottom) + band_faces(&top) + walls)
     }
-    zip(&mut faces, &top[0], &bottom[0]);
-    zip(&mut faces, bottom.last().unwrap(), top.last().unwrap());
-    mesh.faces = faces;
-    Some(mesh)
+
+    /// Adds the layer to `mesh`, nothing when a spot of it has no underside
+    fn add(&self, mesh: &mut Mesh) {
+        let start = mesh.vertex_count();
+        let surfaces = rings(mesh, self.lo, self.hi, self.step, |angle, s| {
+            let wall = self.pattern.sample(angle, s).unwrap_or(1.0).clamp(0.0, 1.0);
+            Some(self.keep_free(self.bottom_at(angle, s, wall)?, angle))
+        })
+        .and_then(|bottom| {
+            let top = rings(mesh, self.lo, self.hi, TOP_COARSER * self.step, |angle, s| {
+                let spot = self.spot(angle, s)?;
+                Some(self.keep_free(spot.position - spot.normal * ((1.0 - EMBED) * spot.radius), angle))
+            })?;
+            Some((bottom, top))
+        });
+        let Some((bottom, top)) = surfaces else {
+            mesh.positions.truncate(start * 3);
+            mesh.normals.truncate(start * 3);
+            mesh.groups.truncate(start);
+            return;
+        };
+        let faces = &mut mesh.faces;
+        for pair in bottom.windows(2) {
+            zip(faces, &pair[0], &pair[1]);
+        }
+        for pair in top.windows(2) {
+            zip(faces, &pair[1], &pair[0]);
+        }
+        zip(faces, &top[0], &bottom[0]);
+        zip(faces, bottom.last().unwrap(), top.last().unwrap());
+    }
 }
 
-/// The pores under every cap of `inputs.cap`, see the module docs
-pub fn pores(inputs: &PoreInputs) -> Mesh {
-    let mut meshes = Vec::new();
-    let Some(pattern) = Pattern::decode(inputs.pattern) else {
-        return Mesh::default();
-    };
+/// The pore layers of every cap of `inputs.cap` that has one
+fn layers<'a>(inputs: &PoreInputs, pattern: &'a Pattern) -> Vec<Layer<'a>> {
     let mut ctx = Ctx::default();
     let items = split_args(inputs.cap);
     let caps = Cap::all(&items);
+    let mut layers = Vec::new();
     for (rank, cap) in caps.iter().enumerate() {
         ctx.set_path(items[cap.stipe], rank, caps.len());
         ctx.alpha = cap.frame.alpha;
@@ -210,13 +271,25 @@ pub fn pores(inputs: &PoreInputs) -> Mesh {
         let mut rays: Vec<usize> = cap.rays.iter().map(|r| r.path).collect();
         rays.sort_unstable();
         let rays: Vec<&[i32]> = rays.into_iter().map(|i| items[i]).collect();
-        if let Some(mut underside) = Underside::new(cap.frame, &rays) {
-            meshes.extend(cap_pores(&mut underside, &pattern, &params));
+        if let Some(underside) = Underside::new(cap.frame, &rays) {
+            layers.extend(Layer::new(underside, pattern, params));
         }
     }
+    layers
+}
+
+/// The pores under every cap of `inputs.cap`, see the module docs
+pub fn pores(inputs: &PoreInputs) -> Mesh {
     let mut mesh = Mesh::default();
-    for m in &meshes {
-        mesh.append(m, 0);
+    let Some(pattern) = Pattern::decode(inputs.pattern) else {
+        return mesh;
+    };
+    let layers = layers(inputs, &pattern);
+    // a mesh that grows by doubling holds up to twice its size, see `Mesh::reserve_exact`
+    let (vertices, faces) = layers.iter().map(Layer::size).fold((0, 0), |(v, f), (lv, lf)| (v + lv, f + lf));
+    mesh.reserve_exact(vertices, faces);
+    for layer in &layers {
+        layer.add(&mut mesh);
     }
     smooth_normals(&mut mesh);
     mesh

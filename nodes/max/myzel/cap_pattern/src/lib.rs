@@ -40,6 +40,7 @@ use nodarium_utils::{
     split_args, Ctx, Pattern,
 };
 use std::collections::{HashMap, HashSet};
+use std::hash::{BuildHasherDefault, Hasher};
 use std::f32::consts::TAU;
 
 nodarium_definition_file!("src/definition.json");
@@ -422,6 +423,8 @@ fn renormal(mesh: &mut Mesh, moved: &[bool]) {
 
 /// Where every vertex from `from` on is on a top, and on which
 fn locate_from(mesh: &Mesh, tops: &[Surface], located: &mut Vec<Option<(usize, OnTop)>>) {
+    // larger than a vertex of the mesh, it would hold up to twice that when it grows by doubling
+    located.reserve_exact(mesh.vertex_count() - located.len());
     for v in located.len()..mesh.vertex_count() {
         let p = Vec3::from_slice(&mesh.positions[v * 3..v * 3 + 3]);
         let normal = Vec3::from_slice(&mesh.normals[v * 3..v * 3 + 3]);
@@ -469,24 +472,58 @@ fn add_middle(mesh: &mut Mesh, a: u32, b: u32) -> u32 {
     (mesh.vertex_count() - 1) as u32
 }
 
+/// Hashes an edge with a multiplication per vertex. `refine` looks up every edge of the mesh twice,
+/// with the default hasher that is most of its time.
+#[derive(Default)]
+struct EdgeHasher(u64);
+
+impl Hasher for EdgeHasher {
+    fn write(&mut self, bytes: &[u8]) {
+        bytes.iter().for_each(|&b| self.write_u32(b.into()));
+    }
+
+    fn write_u32(&mut self, n: u32) {
+        self.0 = (self.0.rotate_left(5) ^ u64::from(n)).wrapping_mul(0x517c_c1b7_2722_0a95);
+    }
+
+    fn finish(&self) -> u64 {
+        self.0
+    }
+}
+
 /// Splits the marked faces into four, and their neighbours into two or three where they share a
 /// split edge, so the surface stays closed
 fn refine(mesh: &mut Mesh, marked: &[bool]) {
     let key = |a: u32, b: u32| (a.min(b), a.max(b));
     let faces = std::mem::take(&mut mesh.faces);
-    let mut middles: HashMap<(u32, u32), u32> = HashMap::new();
+    let first = mesh.vertex_count() as u32;
+    // every split edge once, in the order it is first met, which decides the order of its ends
+    let mut middles: HashMap<(u32, u32), u32, BuildHasherDefault<EdgeHasher>> = HashMap::default();
+    let mut split = Vec::new();
     for t in faces.chunks_exact(3).zip(marked).filter(|(_, &m)| m).map(|(t, _)| t) {
         for (a, b) in [(t[0], t[1]), (t[1], t[2]), (t[2], t[0])] {
-            if !middles.contains_key(&key(a, b)) {
-                let m = add_middle(mesh, a, b);
-                middles.insert(key(a, b), m);
-            }
+            middles.entry(key(a, b)).or_insert_with(|| {
+                split.push((a, b));
+                first + split.len() as u32 - 1
+            });
         }
     }
-    let mut out = Vec::with_capacity(faces.len() * 2);
+    // a mesh that grows by doubling holds up to twice its size
+    mesh.positions.reserve_exact(split.len() * 3);
+    mesh.normals.reserve_exact(split.len() * 3);
+    if !mesh.colors.is_empty() {
+        mesh.colors.reserve_exact(split.len());
+    }
+    mesh.groups.reserve_exact(split.len());
+    for &(a, b) in &split {
+        add_middle(mesh, a, b);
+    }
+    let m = |x: u32, y: u32| middles.get(&key(x, y)).copied();
+    // a face with k split edges becomes k + 1 faces
+    let count: usize = faces.chunks_exact(3).map(|t| 1 + [m(t[0], t[1]), m(t[1], t[2]), m(t[2], t[0])].iter().flatten().count()).sum();
+    let mut out = Vec::with_capacity(count * 3);
     for t in faces.chunks_exact(3) {
         let [a, b, c] = [t[0], t[1], t[2]];
-        let m = |x: u32, y: u32| middles.get(&key(x, y)).copied();
         match (m(a, b), m(b, c), m(c, a)) {
             (None, None, None) => out.extend([a, b, c]),
             (Some(ab), Some(bc), Some(ca)) => out.extend([a, ab, ca, ab, b, bc, ca, bc, c, ab, bc, ca]),

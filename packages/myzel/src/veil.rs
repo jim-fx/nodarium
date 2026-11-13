@@ -2,7 +2,7 @@
 //! and the skins that hang from one attachment once it has torn, the ring and the fringe
 //! (`skirt`). Both read their attachments the same way and give their skin as thin sheets.
 
-use crate::{add_sheet, Mesh, SheetGrid};
+use crate::{add_sheet, sheet_size, smooth_normals, Mesh, SheetGrid};
 use glam::Vec3;
 use nodarium_utils::{
     geometry::{is_path, orthogonal_to, wrap_path},
@@ -370,16 +370,50 @@ impl Collar {
 pub type Column = Option<Vec<(Vec3, f32)>>;
 
 /// A skin, strand by strand
-pub struct Skin<'s> {
-    pub columns: &'s [Column],
+pub struct Skin {
+    pub columns: Vec<Column>,
     /// Where every strand is attached
-    pub attached: &'s [Vec3],
+    pub attached: Vec<Vec3>,
     /// The axis of a skin that goes around, a torn one folds around it
     pub axis: Option<Axis>,
     /// A torn skin thins towards its edge and, around an axis, folds where it has more skin
     /// than the circle it hangs on: where every strand sits around it (0..1) and a smooth noise
     /// there that makes the folds uneven
-    pub torn: Option<(&'s [f32], &'s [f32])>,
+    pub torn: Option<(Vec<f32>, Vec<f32>)>,
+    pub thickness: f32,
+}
+
+/// The skins as one mesh with smooth normals. Every skin is worked out before the first one is
+/// meshed, so the mesh is reserved at its size and doesn't grow by doubling.
+pub fn skins_mesh(skins: &[Skin]) -> Mesh {
+    let (vertices, faces) = skins.iter().map(skin_size).fold((0, 0), |(v, f), (sv, sf)| (v + sv, f + sf));
+    let mut mesh = Mesh::default();
+    mesh.reserve_exact(vertices, faces);
+    for skin in skins {
+        add_skin(&mut mesh, skin);
+    }
+    smooth_normals(&mut mesh);
+    mesh
+}
+
+/// The vertices and faces [`add_skin`] adds for `skin`: a sheet for every run, a run that ends
+/// with a column more on either side that has a neighbour there
+pub fn skin_size(skin: &Skin) -> (usize, usize) {
+    let piece = &skin.columns;
+    let (n, closed) = (piece.len(), skin.axis.is_some());
+    let mut size = (0, 0);
+    for (run, wrap) in runs(piece, closed) {
+        let rows = piece[run[0]].as_ref().map_or(0, Vec::len);
+        let (first, last) = (run[0], run[run.len() - 1]);
+        let columns = if wrap {
+            run.len()
+        } else {
+            run.len() + usize::from(closed || first > 0) + usize::from(closed || last + 1 < n)
+        };
+        let (v, f) = sheet_size(SheetGrid { columns, rows, wrap }, false);
+        size = (size.0 + v, size.1 + f);
+    }
+    size
 }
 
 /// Adds a skin to `mesh` as thin closed sheets: one for every run of neighbouring strands that
@@ -390,11 +424,11 @@ pub struct Skin<'s> {
 /// A torn skin that hangs closer to the axis than it would lie spread out has more skin than the
 /// circle it hangs on, and a thin sheet bends rather than squeezes: it folds (Sharon et al.
 /// 2002), out and in across the sheet, see [`fold`].
-pub fn add_skin(mesh: &mut Mesh, skin: &Skin, thickness: f32) {
-    let piece = skin.columns;
+pub fn add_skin(mesh: &mut Mesh, skin: &Skin) {
+    let piece = &skin.columns;
     let n = piece.len();
     let closed = skin.axis.is_some();
-    let radius = 0.5 * thickness;
+    let radius = 0.5 * skin.thickness;
     let torn_edge = |u: f32| radius * (1.0 - EDGE_THIN * smoothstep(1.0 - EDGE, 1.0, u));
     // the spacing of the strands where they are attached, across the skin
     let spacing = |k: usize| {
@@ -443,7 +477,7 @@ pub fn add_skin(mesh: &mut Mesh, skin: &Skin, thickness: f32) {
                 continue;
             }
         }
-        if let (Some(axis), Some((place, wobble))) = (skin.axis, skin.torn) {
+        if let (Some(axis), Some((place, wobble))) = (skin.axis, &skin.torn) {
             let places: Vec<(f32, f32)> = run.iter().map(|&k| (place[k], wobble[k])).collect();
             fold(&mut grid, &excess, &places, wrap, axis);
         }

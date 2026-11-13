@@ -1,9 +1,5 @@
 use glam::Vec3;
-use myzel_core::{
-    smooth_normals,
-    veil::{add_skin, read_attachments, Attachment, Axis, Collar, Column, Skin, DOWN},
-    Mesh,
-};
+use myzel_core::veil::{read_attachments, skins_mesh, Attachment, Axis, Collar, Column, Skin, DOWN};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     geometry::{orthogonal_to, path_id},
@@ -103,14 +99,21 @@ fn columns(anchors: &[Anchor], sag: f32, resolution: usize) -> Vec<Column> {
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
-    build(args, STRANDS).1
+    skins_mesh(&skins(args, STRANDS)).encode()
 }
 
 /// The strands across the skin and the skin. Only the skin is an output, the strands are what the
 /// tests look at.
+#[cfg(test)]
 fn build(args: &[&[i32]], strand_count: i32) -> (Vec<Vec<Vec3>>, Vec<i32>) {
+    let skins = skins(args, strand_count);
+    let strands = skins.iter().flat_map(|skin| skin.columns.iter().flatten().map(|c| c.iter().map(|q| q.0).collect())).collect();
+    (strands, skins_mesh(&skins).encode())
+}
+
+/// The skin between every attachment of a and its partner in b
+fn skins(args: &[&[i32]], strand_count: i32) -> Vec<Skin> {
     let mut ctx = Ctx::default();
-    let mut mesh = Mesh::default();
     let a = read_attachments(args[0]);
     let b = read_attachments(args[1]);
     let resolution = int(args[4]).max(4) as usize;
@@ -120,7 +123,7 @@ fn build(args: &[&[i32]], strand_count: i32) -> (Vec<Vec<Vec3>>, Vec<i32>) {
     let pairs: Vec<(usize, usize, Option<usize>)> =
         a.iter().enumerate().filter_map(|(i, attachment)| partner(attachment, &b).map(|(j, spot)| (i, j, spot))).collect();
 
-    let mut strands = Vec::new();
+    let mut skins = Vec::new();
     for (rank, &(i, j, spot)) in pairs.iter().enumerate() {
         let (on_a, on_b) = (&a[i], &b[j]);
         match on_b.path {
@@ -163,19 +166,20 @@ fn build(args: &[&[i32]], strand_count: i32) -> (Vec<Vec<Vec3>>, Vec<i32>) {
         };
         let columns = columns(&anchors, sag, resolution);
         let attached: Vec<Vec3> = anchors.iter().map(|anchor| anchor.b).collect();
-        add_skin(&mut mesh, &Skin { columns: &columns, attached: &attached, axis, torn: None }, thickness);
-        strands.extend(columns.into_iter().flatten().map(|c| c.into_iter().map(|q| q.0).collect()));
+        skins.push(Skin { columns, attached, axis, torn: None, thickness });
     }
-    smooth_normals(&mut mesh);
-
-    (strands, mesh.encode())
+    skins
 }
 
 #[cfg(test)]
 mod tests {
-    use super::build;
+    use super::{build, skins};
     use glam::Vec3;
-    use myzel_core::{sheet_checks, Mesh};
+    use myzel_core::{
+        sheet_checks,
+        veil::{add_skin, skin_size},
+        Mesh,
+    };
     use nodarium_utils::{
         concat_arg_vecs, encode_float, encode_points,
         geometry::{create_multiple_paths, path_id, wrap_multiple_paths, wrap_path},
@@ -249,8 +253,14 @@ mod tests {
     const VEIL: Params = Params { thickness: 0.001, sag: 0.1, strands: 160 };
 
     fn run(a: &[i32], b: &[i32], p: Params) -> (Vec<Vec<Vec3>>, Mesh) {
-        let (strands, mesh) =
-            build(&[a, b, &[encode_float(p.thickness)], &[encode_float(p.sag)], &[RESOLUTION], &[CREATOR]], p.strands);
+        let args: [&[i32]; 6] = [a, b, &[encode_float(p.thickness)], &[encode_float(p.sag)], &[RESOLUTION], &[CREATOR]];
+        // the mesh is reserved at the size of every skin
+        for skin in &skins(&args, p.strands) {
+            let mut mesh = Mesh::default();
+            add_skin(&mut mesh, skin);
+            assert_eq!(skin_size(skin), (mesh.vertex_count(), mesh.face_count()));
+        }
+        let (strands, mesh) = build(&args, p.strands);
         (strands, Mesh::decode(&mesh))
     }
 
