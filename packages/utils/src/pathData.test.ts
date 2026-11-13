@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  COLORED_PATH,
+  isPath,
   NO_PARENT,
   NO_PATH,
   PATH_HEADER_SIZE,
   pathLineage,
+  pathPointCount,
   readGeometryPathId,
   readInstancePathIds,
+  readPathColors,
   readPathLink
 } from './pathData';
 
@@ -80,5 +84,20 @@ describe('pathLineage', () => {
     expect(pathLineage([link(2, 9)], 2)).toEqual([2]);
     expect(pathLineage([link(1, 2), link(2, 1)], 1)).toEqual([1, 2]);
     expect(pathLineage([], 1)).toEqual([]);
+  });
+});
+
+describe('paths with colors', () => {
+  it('has its colors after its points', () => {
+    const colored = new Int32Array(PATH_HEADER_SIZE + 2 * 5);
+    colored[0] = COLORED_PATH;
+    colored.set([0x11223344, 0x55667788], PATH_HEADER_SIZE + 8);
+    const plain = path({ id: 1, parentId: NO_PARENT, alpha: 0, creator: 1, index: 0 });
+
+    expect(isPath(colored)).toBe(true);
+    expect(pathPointCount(colored)).toBe(2);
+    expect(pathPointCount(plain)).toBe(2);
+    expect(readPathColors(plain)).toBeUndefined();
+    expect([...readPathColors(colored)!]).toEqual([0x44, 0x33, 0x22, 0x11, 0x88, 0x77, 0x66, 0x55]);
   });
 });

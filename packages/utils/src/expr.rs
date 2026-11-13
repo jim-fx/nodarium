@@ -1,5 +1,5 @@
 use crate::geometry::{path_link, wrap_path};
-use crate::{decode_float, log, split_args};
+use crate::{decode_float, log, mix_colors, plain_color, split_args, MIX_COLOR};
 use noise::{core::open_simplex::open_simplex_2d, permutationtable::PermutationTable, Vector2};
 
 /// What the `path_info` node can read about the path a node is working on.
@@ -76,6 +76,9 @@ pub struct Ctx {
     /// Where the branch or instance a node is placing sits on its parent path,
     /// from 0 at the base to 1 at the tip. The `alpha` node reads it.
     pub alpha: f32,
+    /// Where a vertex sits across a geometry, from 0 on its middle to 1 at its edge. Only
+    /// `set_color` sets it, the `alpha` node with `across` reads it.
+    pub across: f32,
     /// The path the node is working on. The `path_info` node reads it.
     pub path: PathInfo,
     calls: i32,
@@ -153,6 +156,7 @@ impl Ctx {
                     self.random(min, max, *seed)
                 }
             }
+            [[2], [1]] => self.across,
             [[2], ..] => self.alpha,
             [[5], [field]] => PathField::from_index(*field)
                 .map(|field| self.path.read(field))
@@ -194,6 +198,48 @@ impl Ctx {
         self.alpha = alpha;
         self.calls = end;
         values
+    }
+
+    /// Reads a color input: a color set on the node or the expression of `mix_color`, whose
+    /// factor reads alpha and the path like any float input.
+    pub fn color(&mut self, arg: &[i32]) -> [u8; 3] {
+        if let Some(color) = plain_color(arg) {
+            return color;
+        }
+        match split_args(arg).as_slice() {
+            [[r], [g], [b]] => [*r, *g, *b].map(|v| v.clamp(0, 255) as u8),
+            [inner] if inner.len() > 1 => self.color(inner),
+            [[MIX_COLOR], a, b, factor] => {
+                let (a, b) = (self.color(a), self.color(b));
+                mix_colors(a, b, self.float(factor))
+            }
+            _ => panic!("expected a color [0, 4, r, g, b, 1, 1] or a mix of two, got {} words: {:?}", arg.len(), arg),
+        }
+    }
+
+    /// Reads a color at every `(alpha, across)`, e.g. at every point of a path or vertex of a
+    /// geometry. Like `float_along`, random values are drawn once.
+    pub fn colors_at(&mut self, arg: &[i32], at: impl IntoIterator<Item = (f32, f32)>) -> Vec<[u8; 3]> {
+        let at = at.into_iter();
+        if let Some(color) = plain_color(arg) {
+            return at.map(|_| color).collect();
+        }
+        let (alpha, across, calls) = (self.alpha, self.across, self.calls);
+        let mut end = calls;
+        let colors = at
+            .map(|(a, c)| {
+                self.alpha = a;
+                self.across = c;
+                self.calls = calls;
+                let color = self.color(arg);
+                end = self.calls;
+                color
+            })
+            .collect();
+        self.alpha = alpha;
+        self.across = across;
+        self.calls = end;
+        colors
     }
 
     /// Reads an integer input, a plain value or the expression of a `random_int` or `round`
@@ -748,5 +794,40 @@ mod tests {
         ]);
 
         assert_eq!(Ctx::default().vec3(&input), [1.0, 2.0, 3.0]);
+    }
+
+    #[test]
+    fn a_color_is_plain_or_a_mix_read_with_alpha() {
+        use crate::{encode_color, mix_colors, MIX_COLOR};
+        let (a, b) = ([200, 40, 10], [20, 60, 220]);
+        let mut ctx = Ctx::default();
+        assert_eq!(ctx.color(&encode_color(a)), a);
+        assert_eq!(ctx.color(&concat_args(vec![&encode_color(a)])), a);
+
+        let along = concat_args(vec![&[MIX_COLOR], &encode_color(a), &encode_color(b), &concat_args(vec![&[2], &[0]])]);
+        let across = concat_args(vec![&[MIX_COLOR], &encode_color(a), &encode_color(b), &concat_args(vec![&[2], &[1]])]);
+        let colors = ctx.colors_at(&along, [(0.0, 1.0), (0.5, 1.0), (1.0, 0.0)]);
+        assert_eq!(colors, vec![a, mix_colors(a, b, 0.5), b]);
+        assert_eq!(ctx.colors_at(&across, [(0.0, 1.0), (1.0, 0.0)]), vec![b, a]);
+        // alpha and across are as they were
+        assert_eq!((ctx.alpha, ctx.across), (0.0, 0.0));
+
+        // a mix of a mix
+        let twice = concat_args(vec![&[MIX_COLOR], &along, &encode_color(a), &[encode_float(0.0)]]);
+        ctx.alpha = 1.0;
+        assert_eq!(ctx.color(&twice), b);
+    }
+
+    #[test]
+    fn a_random_color_is_the_same_along_the_path() {
+        use crate::{encode_color, MIX_COLOR};
+        let random = concat_args(vec![&[1], &[encode_float(0.0)], &[encode_float(1.0)], &[3]]);
+        let mix = concat_args(vec![&[MIX_COLOR], &encode_color([0, 0, 0]), &encode_color([255, 255, 255]), &random]);
+        let mut ctx = Ctx::default();
+        let colors = ctx.colors_at(&mix, (0..4).map(|i| (i as f32 / 3.0, 0.0)));
+        assert!(colors.iter().all(|&c| c == colors[0]));
+        // and the next read draws a new one
+        let next = ctx.colors_at(&mix, [(0.0, 0.0)]);
+        assert_ne!(next[0], colors[0]);
     }
 }

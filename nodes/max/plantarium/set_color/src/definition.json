@@ -1,0 +1,32 @@
+{
+  "id": "max/plantarium/set_color",
+  "meta": {
+    "description": "Gives paths and geometry a color: brown stems, green leaves, white petals. A path gets a color at every point, read with alpha from its base to its tip, so a mix_color with a curve of alpha makes a gradient. A geometry gets one at every vertex, alpha goes from its base to its tip and alpha across from its middle to its edge. Paths and geometry without a color keep the viewer's material."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "accepts": [
+        "geometry"
+      ],
+      "description": "The paths or geometry to color, a leaf or a list of them from a join node. Everything else passes through as it is.",
+      "external": true
+    },
+    "color": {
+      "type": "color",
+      "value": [92, 128, 58],
+      "description": "The color, set here or from mix_color. It is read for every path, with path_info and random per path, and along it, so a curve of alpha into the factor of mix_color shades a stem from its base to its tip."
+    },
+    "depth": {
+      "type": "integer",
+      "min": 1,
+      "max": 10,
+      "value": 1,
+      "hidden": true,
+      "description": "How many of the deepest levels of paths get the color, 1 colors only the deepest."
+    }
+  }
+}

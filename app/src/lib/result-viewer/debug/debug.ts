@@ -1,5 +1,5 @@
 import { RESULT_TAGS } from '@nodarium/runtime';
-import { splitNestedArray } from '@nodarium/utils';
+import { isPath, pathPointCount, splitNestedArray } from '@nodarium/utils';
 import {
   ArrowHelper,
   BufferGeometry,
@@ -173,8 +173,8 @@ function splitItems(data: Int32Array) {
 function pathPoints(data: Int32Array) {
   const f32 = new Float32Array(data.buffer, data.byteOffset, data.length);
   const points: [Vector3, number][] = [];
-  // the header is followed by x y z thickness per point
-  for (let i = PATH_HEADER_SIZE; i + 3 < f32.length; i += 4) {
+  // the header is followed by x y z thickness per point, and by the colors of a colored path
+  for (let i = PATH_HEADER_SIZE; i < PATH_HEADER_SIZE + pathPointCount(data) * 4; i += 4) {
     points.push([new Vector3(f32[i], f32[i + 1], f32[i + 2]), f32[i + 3]]);
   }
   return points;
@@ -431,7 +431,7 @@ export function updateDebugScene(group: Group, data: Record<number, DebugEntry>)
 
     // a path output can carry geometry and instances along, e.g. from the instance node
     const items = splitItems(value);
-    const paths = items.filter((item) => item[0] === 0);
+    const paths = items.filter((item) => isPath(item));
     const geometries = items.filter((item) => item[0] === 1);
     const instances = items.filter((item) => item[0] === 2);
     const points = items.filter((item) => item[0] === 4);

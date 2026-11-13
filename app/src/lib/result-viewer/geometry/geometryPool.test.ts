@@ -124,11 +124,23 @@ function myzelMesh(color: number | null = 0xff00_80ff, x = 0, groups = [0, 0, 0]
   return data;
 }
 
-// [1, vertices, faces, path id, ...faces, ...positions, ...normals] with a single triangle
-function plantGeometry(pathId: number) {
-  const data = new Int32Array(4 + 3 + 3 * 6);
+// [1, vertices, faces, path id, ...faces, ...positions, ...normals, ...colors?] with a single
+// triangle
+function plantGeometry(pathId: number, colors: number[] = []) {
+  const data = new Int32Array(4 + 3 + 3 * 6 + colors.length);
   data.set([1, 3, 1, pathId, 0, 1, 2]);
   new Float32Array(data.buffer).set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1], 7);
+  data.set(colors, 25);
+  return data;
+}
+
+// instances of a single triangle whose vertices have colors, after the path ids
+function coloredInstances(count: number, color: number) {
+  const plain = instances(count);
+  const data = new Int32Array(plain.length + count + 3);
+  data.set(plain);
+  data.fill(-1, plain.length, plain.length + count);
+  data.fill(color, plain.length + count);
   return data;
 }
 
@@ -261,5 +273,27 @@ describe('createResultPools', () => {
     expect([...shownMeshes(group)[0].geometry.getAttribute('group').array]).toEqual(
       [0x12_3456, 0x12_3456, 0x12_3456]
     );
+  });
+
+  it('shows plant geometry and instances with their colors', () => {
+    const group = new Group();
+    const material = takeVertexColors(new MeshBasicMaterial());
+    const pools = createResultPools(group, material);
+    pools.update([plantGeometry(5, [-1, -1, -1]), coloredInstances(2, 0xff00_00ff), instances(1)]);
+    const meshes = shownMeshes(group);
+    expect(meshes).toHaveLength(3);
+    const [geometry, colored, plain] = meshes;
+    expect(geometry.geometry.getAttribute('color').getX(0)).toBeCloseTo(1);
+    expect((geometry.material as Material).vertexColors).toBe(true);
+    expect(colored.geometry.getAttribute('color').getX(0)).toBeCloseTo(1);
+    expect(colored.geometry.getAttribute('color').getY(0)).toBeCloseTo(0);
+    expect((colored.material as Material).vertexColors).toBe(true);
+    expect(plain.geometry.getAttribute('color')).toBeUndefined();
+    expect(plain.material).toBe(material);
+
+    // without colors the same instances take the material as it is again
+    pools.update([plantGeometry(5), instances(2), instances(1)]);
+    expect(shownMeshes(group)[1].geometry.getAttribute('color')).toBeUndefined();
+    expect(shownMeshes(group)[1].material).toBe(material);
   });
 });

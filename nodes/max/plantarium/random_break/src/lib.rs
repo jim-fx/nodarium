@@ -2,7 +2,10 @@ use glam::{Vec4, Vec4Swizzles};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs,
-    geometry::{is_path, path_link, path_random, set_path_link, wrap_path, wrap_path_mut, DeepestPaths},
+    geometry::{
+        colors_at_lengths, is_path, path_link, path_random, set_path_link, wrap_path, wrap_path_mut,
+        DeepestPaths,
+    },
     split_args, Ctx,
 };
 use std::collections::{HashMap, HashSet};
@@ -106,9 +109,18 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
         let points: Vec<Vec4> = path.points.chunks_exact(4).map(Vec4::from_slice).collect();
         let broken = cut(&points, alpha);
-        let target = wrap_path_mut(&mut items[index]).points;
+        // the colors of the part that is left spread over the shorter path
+        let colors = (!path.colors.is_empty()).then(|| {
+            let n = broken.len();
+            let shares = (0..n).map(|i| alpha * i as f32 / (n - 1).max(1) as f32);
+            colors_at_lengths(path.points, path.colors, shares)
+        });
+        let target = wrap_path_mut(&mut items[index]);
         for (i, point) in broken.iter().enumerate() {
-            target[i * 4..i * 4 + 4].copy_from_slice(&point.to_array());
+            target.points[i * 4..i * 4 + 4].copy_from_slice(&point.to_array());
+        }
+        if let Some(colors) = colors {
+            target.colors.copy_from_slice(&colors);
         }
         breaks.insert(link.id, alpha);
     }
@@ -126,7 +138,10 @@ mod tests {
     use super::__nodarium_execute_inner;
     use nodarium_utils::{
         concat_arg_vecs, encode_float,
-        geometry::{create_path, path_link, set_path_link, wrap_path, wrap_path_mut, PathLink},
+        geometry::{
+            create_path, path_link, set_path_link, with_path_colors, wrap_path, wrap_path_mut,
+            PathLink,
+        },
         split_args,
     };
 
@@ -243,5 +258,21 @@ mod tests {
             }
         }
         assert!((2300..2700).contains(&shortened), "{} of 5000 strands were shortened", shortened);
+    }
+
+    #[test]
+    fn a_broken_path_keeps_the_colors_below_the_break() {
+        let stem = straight(PathLink::root(1, 0), 1, [0.0; 3], 10.0);
+        let colors: Vec<u32> = (0..9).map(|i| 0xff00_0000 | i * 16).collect();
+        let out = run(vec![with_path_colors(&stem, &colors)], 1.0, 0.5, 0.5, 1);
+        let path = wrap_path(&out[0]);
+        // the lower half spreads over the whole path, the colors between mix in linear light
+        for (i, &color) in path.colors.iter().enumerate() {
+            if i % 2 == 0 {
+                assert_eq!(color, colors[i / 2]);
+            } else {
+                assert!(color > colors[i / 2] && color < colors[i / 2 + 1], "{:x?}", path.colors);
+            }
+        }
     }
 }

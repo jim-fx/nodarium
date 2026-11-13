@@ -267,7 +267,66 @@
         "iterations": 18,
         "depth": 1
       }
-    }
+    },
+    {
+      "id": 33,
+      "position": [-150, -70],
+      "type": "max/plantarium/set_color",
+      "props": { "color": [44, 30, 32] }
+    },
+    {
+      "id": 34,
+      "position": [-90, -70],
+      "type": "max/plantarium/set_color",
+      "props": { "color": [52, 36, 36] }
+    },
+    {
+      "id": 35,
+      "position": [-30, -70],
+      "type": "max/plantarium/set_color",
+      "props": { "color": [62, 46, 42] }
+    },
+    {
+      "id": 36,
+      "position": [-120, 115],
+      "type": "max/plantarium/random",
+      "props": { "min": 0.0, "max": 1.0, "uniform": 1, "once": 1 }
+    },
+    {
+      "id": 37,
+      "position": [-100, 75],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [88, 130, 62], "b": [100, 136, 62] }
+    },
+    { "id": 38, "position": [-120, 95], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 39,
+      "position": [-90, 85],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 40,
+      "position": [-100, 75],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [76, 126, 50] }
+    },
+    { "id": 41, "position": [-120, 95], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 42,
+      "position": [-90, 85],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 43,
+      "position": [-100, 75],
+      "type": "max/myzel/mix_color",
+      "props": { "b": [118, 152, 84] }
+    },
+    { "id": 44, "position": [0, -45], "type": "max/plantarium/set_color", "props": {} },
+    { "id": 45, "position": [0, 15], "type": "max/plantarium/set_color", "props": {} },
+    { "id": 46, "position": [40, -45], "type": "max/plantarium/join", "props": {} }
   ],
   "edges": [
     [10, 0, 11, "length"],
@@ -278,12 +337,12 @@
     [15, 0, 16, "plant"],
     [19, 0, 20, "plant"],
     [21, 0, 22, "value"],
-    [20, 0, 23, "plant"],
+    [34, 0, 23, "plant"],
     [22, 0, 23, "length"],
     [23, 0, 24, "plant"],
     [25, 0, 26, "shape"],
-    [24, 0, 27, "plant"],
-    [26, 0, 27, "geometry"],
+    [35, 0, 27, "plant"],
+    [46, 0, 27, "geometry"],
     [27, 0, 28, "input"],
     [0, 0, 11, "origin"],
     [1, 0, 0, "z"],
@@ -302,6 +361,22 @@
     [5, 0, 30, "b"],
     [2, 0, 11, "amount"],
     [16, 0, 32, "plant"],
-    [32, 0, 19, "plant"]
+    [33, 0, 19, "plant"],
+    [32, 0, 33, "plant"],
+    [20, 0, 34, "plant"],
+    [24, 0, 35, "plant"],
+    [36, 0, 37, "factor"],
+    [38, 0, 39, "value"],
+    [37, 0, 40, "b"],
+    [39, 0, 40, "factor"],
+    [41, 0, 42, "value"],
+    [37, 0, 43, "a"],
+    [42, 0, 43, "factor"],
+    [26, 0, 44, "plant"],
+    [40, 0, 44, "color"],
+    [26, 0, 45, "plant"],
+    [43, 0, 45, "color"],
+    [44, 0, 46, "a"],
+    [45, 0, 46, "b"]
   ]
 }

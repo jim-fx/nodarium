@@ -152,6 +152,40 @@
       "position": [-30, 0],
       "type": "max/plantarium/gravity",
       "props": { "strength": 0.15, "elasticity": 0.5 }
+    },
+    { "id": 21, "position": [-210, 60], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 22,
+      "position": [-180, 50],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 0.2, 1, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 23,
+      "position": [-190, 40],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [110, 124, 74], "b": [80, 118, 52] }
+    },
+    { "id": 24, "position": [-120, -70], "type": "max/plantarium/set_color", "props": {} },
+    { "id": 25, "position": [-180, 115], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 26,
+      "position": [-150, 105],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 0.45, 0.1, 0.8, 1, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 27,
+      "position": [-160, 95],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [168, 174, 130], "b": [36, 28, 24] }
+    },
+    { "id": 28, "position": [-60, -25], "type": "max/plantarium/set_color", "props": {} },
+    {
+      "id": 29,
+      "position": [0, -70],
+      "type": "max/plantarium/set_color",
+      "props": { "color": [84, 116, 56] }
     }
   ],
   "edges": [
@@ -163,15 +197,24 @@
     [18, 0, 2, "origin"],
     [3, 0, 5, "plant"],
     [5, 0, 6, "plant"],
-    [6, 0, 7, "plant"],
+    [24, 0, 7, "plant"],
     [8, 0, 9, "shape"],
     [7, 0, 10, "plant"],
-    [9, 0, 10, "geometry"],
+    [28, 0, 10, "geometry"],
     [10, 0, 11, "plant"],
     [12, 0, 11, "amount"],
     [14, 0, 15, "value"],
     [15, 0, 11, "length"],
     [11, 0, 16, "plant"],
-    [16, 0, 1, "input"]
+    [29, 0, 1, "input"],
+    [21, 0, 22, "value"],
+    [22, 0, 23, "factor"],
+    [6, 0, 24, "plant"],
+    [23, 0, 24, "color"],
+    [25, 0, 26, "value"],
+    [26, 0, 27, "factor"],
+    [9, 0, 28, "plant"],
+    [27, 0, 28, "color"],
+    [16, 0, 29, "plant"]
   ]
 }

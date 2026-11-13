@@ -203,19 +203,93 @@
       "position": [-60, 60],
       "type": "max/plantarium/random",
       "props": { "min": 0.335556, "max": 0.482873 }
-    }
+    },
+    { "id": 59, "position": [-240, 60], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 60,
+      "position": [-210, 50],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 0.5, 0.2, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 61,
+      "position": [-220, 40],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [94, 116, 64], "b": [118, 92, 96] }
+    },
+    { "id": 62, "position": [-150, -70], "type": "max/plantarium/set_color", "props": {} },
+    {
+      "id": 63,
+      "position": [-30, -70],
+      "type": "max/plantarium/set_color",
+      "props": { "color": [104, 124, 66] }
+    },
+    { "id": 64, "position": [-240, 95], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 65,
+      "position": [-210, 85],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 66,
+      "position": [-220, 75],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [74, 104, 56], "b": [86, 116, 60] }
+    },
+    { "id": 67, "position": [-120, -45], "type": "max/plantarium/set_color", "props": {} },
+    { "id": 68, "position": [-210, 100], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 69,
+      "position": [-180, 90],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 70,
+      "position": [-190, 80],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [92, 126, 62], "b": [104, 136, 68] }
+    },
+    { "id": 71, "position": [-90, -40], "type": "max/plantarium/set_color", "props": {} },
+    {
+      "id": 72,
+      "position": [-120, 115],
+      "type": "max/plantarium/random",
+      "props": { "min": 0.0, "max": 0.55, "uniform": 1, "once": 1 }
+    },
+    {
+      "id": 73,
+      "position": [-100, 75],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [168, 88, 164], "b": [218, 160, 210] }
+    },
+    { "id": 74, "position": [-120, 95], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 75,
+      "position": [-90, 85],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 0.3, 0.9, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 76,
+      "position": [-100, 75],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [130, 60, 120] }
+    },
+    { "id": 77, "position": [0, -45], "type": "max/plantarium/set_color", "props": {} }
   ],
   "edges": [
     [50, 0, 2, "length"],
     [2, 0, 3, "plant"],
     [3, 0, 4, "plant"],
     [10, 0, 11, "shape"],
-    [4, 0, 12, "plant"],
-    [11, 0, 12, "geometry"],
+    [62, 0, 12, "plant"],
+    [67, 0, 12, "geometry"],
     [51, 0, 12, "size"],
     [13, 0, 14, "shape"],
     [12, 0, 15, "plant"],
-    [14, 0, 15, "geometry"],
+    [71, 0, 15, "geometry"],
     [16, 0, 17, "value"],
     [17, 0, 53, "a"],
     [52, 0, 53, "b"],
@@ -229,9 +303,28 @@
     [57, 0, 20, "rotation"],
     [20, 0, 29, "plant"],
     [30, 0, 31, "shape"],
-    [29, 0, 32, "plant"],
-    [31, 0, 32, "geometry"],
+    [63, 0, 32, "plant"],
+    [77, 0, 32, "geometry"],
     [58, 0, 32, "size"],
-    [32, 0, 1, "input"]
+    [32, 0, 1, "input"],
+    [59, 0, 60, "value"],
+    [60, 0, 61, "factor"],
+    [4, 0, 62, "plant"],
+    [61, 0, 62, "color"],
+    [29, 0, 63, "plant"],
+    [64, 0, 65, "value"],
+    [65, 0, 66, "factor"],
+    [11, 0, 67, "plant"],
+    [66, 0, 67, "color"],
+    [68, 0, 69, "value"],
+    [69, 0, 70, "factor"],
+    [14, 0, 71, "plant"],
+    [70, 0, 71, "color"],
+    [72, 0, 73, "factor"],
+    [74, 0, 75, "value"],
+    [73, 0, 76, "b"],
+    [75, 0, 76, "factor"],
+    [31, 0, 77, "plant"],
+    [76, 0, 77, "color"]
   ]
 }

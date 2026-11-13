@@ -1,5 +1,6 @@
 pub mod abi;
 mod box_grid;
+mod color;
 mod encoding;
 mod expr;
 mod force;
@@ -7,6 +8,7 @@ mod pattern;
 mod points;
 mod tree;
 pub use box_grid::BoxGrid;
+pub use color::*;
 pub use encoding::*;
 pub use expr::*;
 pub use force::*;

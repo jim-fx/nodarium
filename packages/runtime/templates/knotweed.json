@@ -368,6 +368,203 @@
         "min": 0,
         "max": 0.45
       }
+    },
+    {
+      "id": 34,
+      "position": [-240, 65],
+      "type": "max/plantarium/alpha",
+      "props": {}
+    },
+    {
+      "id": 35,
+      "position": [-210, 55],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          1,
+          0.25,
+          0.35,
+          1,
+          0.15
+        ],
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": 36,
+      "position": [-240, 85],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.6,
+        "max": 1.0,
+        "uniform": 1,
+        "per_path": 1
+      }
+    },
+    {
+      "id": 37,
+      "position": [-210, 55],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      }
+    },
+    {
+      "id": 38,
+      "position": [-220, 45],
+      "type": "max/myzel/mix_color",
+      "props": {
+        "a": [
+          110,
+          144,
+          72
+        ],
+        "b": [
+          130,
+          62,
+          70
+        ]
+      }
+    },
+    {
+      "id": 39,
+      "position": [-150, -65],
+      "type": "max/plantarium/set_color",
+      "props": {}
+    },
+    {
+      "id": 40,
+      "position": [-120, 60],
+      "type": "max/plantarium/alpha",
+      "props": {}
+    },
+    {
+      "id": 41,
+      "position": [-90, 50],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0,
+          1,
+          1
+        ],
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": 42,
+      "position": [-100, 40],
+      "type": "max/myzel/mix_color",
+      "props": {
+        "a": [
+          128,
+          92,
+          72
+        ],
+        "b": [
+          118,
+          140,
+          70
+        ]
+      }
+    },
+    {
+      "id": 43,
+      "position": [-30, -70],
+      "type": "max/plantarium/set_color",
+      "props": {}
+    },
+    {
+      "id": 44,
+      "position": [-240, 115],
+      "type": "max/plantarium/alpha",
+      "props": {}
+    },
+    {
+      "id": 45,
+      "position": [-210, 105],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0,
+          1,
+          1
+        ],
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": 46,
+      "position": [-220, 95],
+      "type": "max/myzel/mix_color",
+      "props": {
+        "a": [
+          70,
+          116,
+          46
+        ],
+        "b": [
+          80,
+          126,
+          50
+        ]
+      }
+    },
+    {
+      "id": 47,
+      "position": [-120, -25],
+      "type": "max/plantarium/set_color",
+      "props": {}
+    },
+    {
+      "id": 48,
+      "position": [-240, 115],
+      "type": "max/plantarium/alpha",
+      "props": {}
+    },
+    {
+      "id": 49,
+      "position": [-210, 105],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0,
+          1,
+          1
+        ],
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": 50,
+      "position": [-220, 95],
+      "type": "max/myzel/mix_color",
+      "props": {
+        "a": [
+          78,
+          120,
+          48
+        ],
+        "b": [
+          98,
+          138,
+          58
+        ]
+      }
+    },
+    {
+      "id": 51,
+      "position": [-120, -25],
+      "type": "max/plantarium/set_color",
+      "props": {}
     }
   ],
   "edges": [
@@ -444,7 +641,7 @@
       "shape"
     ],
     [
-      12,
+      39,
       0,
       14,
       "plant"
@@ -456,7 +653,7 @@
       "points"
     ],
     [
-      21,
+      47,
       0,
       14,
       "geometry"
@@ -516,7 +713,7 @@
       "amount"
     ],
     [
-      23,
+      43,
       0,
       25,
       "plant"
@@ -528,7 +725,7 @@
       "points"
     ],
     [
-      21,
+      51,
       0,
       25,
       "geometry"
@@ -586,6 +783,114 @@
       0,
       15,
       "thickness"
+    ],
+    [
+      34,
+      0,
+      35,
+      "value"
+    ],
+    [
+      35,
+      0,
+      37,
+      "a"
+    ],
+    [
+      36,
+      0,
+      37,
+      "b"
+    ],
+    [
+      37,
+      0,
+      38,
+      "factor"
+    ],
+    [
+      12,
+      0,
+      39,
+      "plant"
+    ],
+    [
+      38,
+      0,
+      39,
+      "color"
+    ],
+    [
+      40,
+      0,
+      41,
+      "value"
+    ],
+    [
+      41,
+      0,
+      42,
+      "factor"
+    ],
+    [
+      23,
+      0,
+      43,
+      "plant"
+    ],
+    [
+      42,
+      0,
+      43,
+      "color"
+    ],
+    [
+      44,
+      0,
+      45,
+      "value"
+    ],
+    [
+      45,
+      0,
+      46,
+      "factor"
+    ],
+    [
+      21,
+      0,
+      47,
+      "plant"
+    ],
+    [
+      46,
+      0,
+      47,
+      "color"
+    ],
+    [
+      48,
+      0,
+      49,
+      "value"
+    ],
+    [
+      49,
+      0,
+      50,
+      "factor"
+    ],
+    [
+      21,
+      0,
+      51,
+      "plant"
+    ],
+    [
+      50,
+      0,
+      51,
+      "color"
     ]
   ]
 }

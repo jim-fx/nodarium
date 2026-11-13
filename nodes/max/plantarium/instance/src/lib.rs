@@ -3,7 +3,7 @@ use nodarium_macros::{nodarium_execute, nodarium_definition_file};
 use nodarium_utils::{
     concat_args,
     geometry::{
-        create_instance_data, is_collapsed, is_geometry, path_id, split_items,
+        create_colored_instance_data, create_instance_data, is_collapsed, is_geometry, path_id, split_items,
         wrap_geometry_data, wrap_instance_data, wrap_path, DeepestPaths,
     },
     int, split_args, Ctx,
@@ -118,7 +118,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         .map(|(geometry, (transforms, path_ids))| {
             let mut geo_data = geometry.to_vec();
             let geo = wrap_geometry_data(&mut geo_data);
-            let mut data = create_instance_data(
+            let create = if geo.colors.is_empty() { create_instance_data } else { create_colored_instance_data };
+            let mut data = create(
                 geo.positions.len() / 3,
                 geo.faces.len() / 3,
                 transforms.len(),
@@ -159,8 +160,8 @@ mod tests {
     use nodarium_utils::{
         concat_args, encode_float,
         geometry::{
-            create_multiple_paths, path_id, path_link, wrap_instance_data, wrap_multiple_paths,
-            NO_PATH,
+            create_multiple_paths, has_instance_colors, path_id, path_link, with_geometry_colors,
+            wrap_instance_data, wrap_multiple_paths, NO_PATH,
         },
         split_args, wrap_arg,
     };
@@ -398,5 +399,18 @@ mod tests {
             counts(&run_with(&stems, &list, 9, 0, 1.0, &[&[1], unconnected])),
             [18, 0, 0]
         );
+    }
+
+    #[test]
+    fn instances_bring_the_colors_of_their_geometry() {
+        let stems = stems();
+        let colored = with_geometry_colors(&geometry(3), &[1, 2, 3]);
+        let result = run(&stems, &colored, 2, 0);
+        let mut item = split_args(&result).iter().find(|i| i[2] == 2).unwrap().to_vec();
+        assert_eq!(wrap_instance_data(&mut item).colors, &[1, 2, 3]);
+        assert_eq!(groups(&result), groups(&run(&stems, &geometry(3), 2, 0)));
+
+        let plain = run(&stems, &geometry(3), 2, 0);
+        assert!(split_args(&plain).iter().filter(|i| i[2] == 2).all(|i| !has_instance_colors(i)));
     }
 }
