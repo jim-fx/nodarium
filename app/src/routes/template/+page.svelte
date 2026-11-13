@@ -1,5 +1,4 @@
 <script lang="ts">
-  import * as templates from '#lib/graph-templates/index.ts';
   import { humanizeNumber } from '#lib/helpers/index.ts';
   import { groupNode } from '#lib/node-registry/groupNode.ts';
   import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
@@ -8,16 +7,10 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { debugNode, MemoryRuntimeExecutor } from '@nodarium/runtime';
-  import type { Graph } from '@nodarium/types';
+  import { templates } from '@nodarium/runtime/templates';
   import { Spinner, toast } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
   import type { Group } from 'three';
-
-  // the stress tests are not plants
-  const hidden = ['lottaFaces', 'lottaNodes', 'lottaNodesAndFaces', 'tutorial'];
-  const entries = Object.entries(templates)
-    .filter(([name, value]) => typeof value === 'object' && !hidden.includes(name))
-    .map(([name, graph]) => ({ name, graph: graph as unknown as Graph }));
 
   const nodeRegistry = new RemoteNodeRegistry('', new IndexDBCache('node-registry'), [
     debugNode,
@@ -28,27 +21,20 @@
 
   const vertices = $derived($perf?.at(-1)?.['total-vertices']?.[0] || 0);
   const faces = $derived($perf?.at(-1)?.['total-faces']?.[0] || 0);
-  const defaultTemplate = entries.find((e) => e.name === 'fern')?.name ?? entries[0].name;
   const requested = $derived(page.url.searchParams.get('template'));
-  const selected = $derived(
-    entries.find((entry) => entry.name === requested)?.name ?? defaultTemplate
-  );
+  const selected = $derived(templates.find((t) => t.id === requested)?.id ?? 'fern');
 
   let scene = $state<Group>(null!);
   let viewer = $state<ReturnType<typeof Viewer>>();
   let isExecuting = $state(false);
 
-  function label(name: string) {
-    return name.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
-  }
-
   async function generate(reroll: boolean, template = selected) {
-    const entry = entries.find((e) => e.name === template);
+    const entry = templates.find((t) => t.id === template);
     if (!entry || !viewer) return;
     isExecuting = true;
     perf.startRun();
     try {
-      const graph = structuredClone($state.snapshot(entry.graph)) as Graph;
+      const graph = structuredClone(await entry.load());
       await nodeRegistry.load(graph.nodes.map((n) => n.type));
       const settings = reroll
         ? { ...graph.settings, seed: Math.floor(Math.random() * 100000000) }
@@ -63,10 +49,10 @@
     }
   }
 
-  function select(name: string) {
-    if (name === selected) return;
+  function select(id: string) {
+    if (id === selected) return;
 
-    const url = resolve(`/template?template=${encodeURIComponent(name)}`);
+    const url = resolve(`/template?template=${encodeURIComponent(id)}`);
 
     void goto(url, { replace: true, reset: false });
   }
@@ -87,10 +73,10 @@
   <nav>
     <h1>Templates</h1>
     <ul>
-      {#each entries as entry (entry.name)}
+      {#each templates as template (template.id)}
         <li>
-          <button class:active={entry.name === selected} onclick={() => select(entry.name)}>
-            {label(entry.name)}
+          <button class:active={template.id === selected} onclick={() => select(template.id)}>
+            {template.name}
           </button>
         </li>
       {/each}

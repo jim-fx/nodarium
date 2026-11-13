@@ -2,6 +2,7 @@ import * as templates from '#lib/graph-templates/index.ts';
 import { localState } from '#lib/helpers/localState.svelte.ts';
 import { ThumbnailService } from '#lib/thumbnails/thumbnail-service.svelte.ts';
 import { parseProjectFile } from '@nodarium/runtime';
+import { loadTemplate } from '@nodarium/runtime/templates';
 import type { Graph, ProjectUnit } from '@nodarium/types';
 import FileSaver from 'file-saver';
 import * as db from './project-database.svelte';
@@ -71,7 +72,7 @@ export class ProjectManager {
     }
 
     if (!this.graph) {
-      this.handleCreateProject(templates.defaultPlant as unknown as Graph);
+      this.handleCreateProject(await loadTemplate('default-plant'));
     }
   }
 

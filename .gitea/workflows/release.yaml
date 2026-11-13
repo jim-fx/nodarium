@@ -76,6 +76,18 @@ jobs:
         env:
           NPM_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
 
+      # every push to main publishes a prerelease under the dist-tag dev, `latest` stays on the
+      # tags. A newer push cancels the run of the older one (same concurrency group), so dev ends
+      # on the newest commit. The release commit of nodarium-bot is pushed with the token of the
+      # run, Gitea starts no workflow for it.
+      - name: 📦 Publish @nodarium/runtime@dev
+        if: gitea.event_name == 'push' && gitea.ref == 'refs/heads/main'
+        run: |
+          echo "//git.max-richter.dev/api/packages/max/npm/:_authToken=${NPM_TOKEN}" >> ~/.npmrc
+          ./.gitea/scripts/publish-dev.sh
+        env:
+          NPM_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+
       - name: 🏷️ Create Gitea Release
         if: gitea.ref_type == 'tag'
         uses: akkuman/gitea-release-action@v1

@@ -461,7 +461,7 @@ if (wanted('templates')) {
   );
   const { INTERNAL_PREFIX } = await import('@nodarium/types');
   for (const template of options.templates.split(',')) {
-    const file = join(root, 'app', 'src', 'lib', 'graph-templates', `${template}.json`);
+    const file = join(root, 'packages', 'runtime', 'templates', `${template}.json`);
     const graph = parseProjectFile(JSON.parse(readFileSync(file, 'utf8'))).graph;
     const registry = new FileNodeRegistry(dirname(options.wasm));
     // types inside groups are loaded by the runtime when it expands them

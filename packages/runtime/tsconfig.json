@@ -13,5 +13,5 @@
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["src", "tsdown.config.ts", "vite.config.ts"]
+  "include": ["src", "templates", "tsdown.config.ts", "vite.config.ts"]
 }

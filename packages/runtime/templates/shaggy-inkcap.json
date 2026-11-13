@@ -1,6 +1,7 @@
 {
   "id": 0,
   "version": 13,
+  "meta": { "unit": "cm" },
   "settings": {
     "time.t": 0.6,
     "seed": 1,

@@ -4,8 +4,8 @@
 // Stems are brown, instanced geometry (leaves, flowers) is green, Myzel meshes show their colors.
 //
 // Usage: pnpm render-graph <target...> [--out dir] [--size px] [--seed n] [--time t] [--focus x,z,r] [--below]
-//   target   name of a template in src/lib/graph-templates (fern, palm, ...), `templates` for
-//            all json templates, or the path of a graph or an exported `.nodarium.json` project
+//   target   name of a template in packages/runtime/templates or src/lib/graph-templates (fern,
+//            palm, ...), `templates` for all json templates, or the path of a graph or an exported `.nodarium.json` project
 //   --out    directory for the screenshots, defaults to ./screenshots
 //   --size   size of a single view in pixels, defaults to 512
 //   --seed   seed of the random nodes, defaults to 1, the same seed gives the same plant
@@ -18,6 +18,7 @@
 import { FileNodeRegistry, MemoryRuntimeExecutor, parseProjectFile } from '@nodarium/runtime/node';
 import { type Graph, INTERNAL_PREFIX, type NodeId } from '@nodarium/types';
 import { splitNestedArray } from '@nodarium/utils';
+import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,7 +26,11 @@ import { parseArgs } from 'node:util';
 import { deflateSync } from 'node:zlib';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const TEMPLATE_DIR = join(root, 'src', 'lib', 'graph-templates');
+// the templates of the runtime package and the test graphs of the app
+const TEMPLATE_DIRS = [
+  join(root, '..', 'packages', 'runtime', 'templates'),
+  join(root, 'src', 'lib', 'graph-templates')
+];
 
 const { values: options, positionals: targets } = parseArgs({
   allowPositionals: true,
@@ -61,12 +66,15 @@ async function resolveTargets(names: string[]) {
   const files: string[] = [];
   for (const name of names) {
     if (name === 'templates') {
-      const templates = (await readdir(TEMPLATE_DIR)).filter((f) => f.endsWith('.json'));
-      files.push(...templates.map((f) => join(TEMPLATE_DIR, f)));
+      for (const dir of TEMPLATE_DIRS) {
+        const templates = (await readdir(dir)).filter((f) => f.endsWith('.json'));
+        files.push(...templates.map((f) => join(dir, f)));
+      }
     } else if (name.endsWith('.json')) {
       files.push(resolve(name));
     } else {
-      files.push(join(TEMPLATE_DIR, name + '.json'));
+      const paths = TEMPLATE_DIRS.map((dir) => join(dir, name + '.json'));
+      files.push(paths.find((path) => existsSync(path)) ?? paths[0]);
     }
   }
   return files;

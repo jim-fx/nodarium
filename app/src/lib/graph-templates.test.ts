@@ -29,6 +29,10 @@ describe('graph-templates', () => {
 describe('bundled graphs', () => {
   const graphs = {
     ...import.meta.glob<Graph>('./graph-templates/*.json', { eager: true, import: 'default' }),
+    ...import.meta.glob<Graph>('../../../packages/runtime/templates/*.json', {
+      eager: true,
+      import: 'default'
+    }),
     ...import.meta.glob<Graph>('../../benchmark/templates/*.json', {
       eager: true,
       import: 'default'
