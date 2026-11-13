@@ -1,0 +1,37 @@
+{
+  "id": "max/plantarium/wave",
+  "meta": {
+    "description": "A repeating profile from 0 on a crest to 1 in a trough, count times from value 0 to 1. Into the margin of leaf_surface it cuts teeth, into a thickness it makes rings."
+  },
+  "outputs": [
+    "float"
+  ],
+  "inputs": {
+    "value": {
+      "type": "float",
+      "description": "Where to read the wave, alpha when nothing is connected.",
+      "value": 0,
+      "external": true
+    },
+    "count": {
+      "type": "float",
+      "description": "How many crests from value 0 to 1.",
+      "min": 0,
+      "max": 64,
+      "step": 1,
+      "value": 12
+    },
+    "shape": {
+      "type": "select",
+      "options": [
+        "sine",
+        "tooth",
+        "saw",
+        "round"
+      ],
+      "value": 1,
+      "internal": true,
+      "description": "Sine undulates, tooth is a symmetric point (dentate), saw leans toward higher values (serrate), round has round crests and sharp troughs (crenate)."
+    }
+  }
+}

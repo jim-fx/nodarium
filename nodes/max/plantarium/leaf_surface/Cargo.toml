@@ -1,0 +1,14 @@
+[package]
+name = "plantarium_leaf_surface"
+version = "0.1.0"
+authors = ["Max Richter <jim-x@web.de>"]
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+glam = "0.34.1"
+nodarium_macros = { version = "0.1.0", path = "../../../../packages/macros" }
+nodarium_utils = { version = "0.1.0", path = "../../../../packages/utils" }

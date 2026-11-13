@@ -168,6 +168,10 @@ impl Ctx {
                 min + curve(&points, x) * (max - min)
             }
             [[6], value] => self.float(value).round(),
+            [[8], value, count, [shape]] => {
+                let x = self.float(value) * self.float(count);
+                wave(x - x.floor(), *shape)
+            }
             _ => 0.0,
         };
 
@@ -327,6 +331,18 @@ impl Ctx {
         self.calls = (self.calls + 512) % i32::MAX;
 
         x
+    }
+}
+
+/// One period of the `wave` node at `u` (0 to 1): 0 on a crest, 1 in a trough. Saw climbs slowly
+/// from a trough to the next crest and falls back at once, so its teeth lean toward higher values.
+pub fn wave(u: f32, shape: i32) -> f32 {
+    use std::f32::consts::PI;
+    match shape {
+        1 => 1.0 - (2.0 * u - 1.0).abs(),
+        2 => 1.0 - u,
+        3 => 1.0 - (PI * u).sin(),
+        _ => 0.5 - 0.5 * (2.0 * PI * u).cos(),
     }
 }
 
@@ -622,6 +638,17 @@ mod tests {
         parts.extend([&value[..], &min[..], &max[..]]);
         parts.extend(words.iter().map(|w| &w[..]));
         concat_args(parts)
+    }
+
+    #[test]
+    fn a_wave_repeats_count_times_along_alpha() {
+        let alpha = concat_args(vec![&[2], &[0]]);
+        let teeth = concat_args(vec![&[8], &alpha, &[encode_float(4.0)], &[1]]);
+        let mut ctx = Ctx::default();
+        let values = ctx.float_along(&teeth, [0.0, 0.125, 0.25, 0.375]);
+        for (v, expected) in values.iter().zip([0.0, 1.0, 0.0, 1.0]) {
+            assert!((v - expected).abs() < 1e-5, "{values:?}");
+        }
     }
 
     #[test]

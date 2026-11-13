@@ -1,0 +1,1076 @@
+{
+  "id": 0,
+  "version": 13,
+  "meta": {
+    "title": "Vein Leaves",
+    "unit": "cm"
+  },
+  "settings": {
+    "resolution.circle": 8,
+    "resolution.curve": 32
+  },
+  "nodes": [
+    {
+      "id": 1,
+      "position": [
+        0,
+        0
+      ],
+      "type": "max/plantarium/leaf",
+      "props": {
+        "size": 1
+      }
+    },
+    {
+      "id": 2,
+      "position": [
+        0,
+        200
+      ],
+      "type": "max/plantarium/stem",
+      "props": {
+        "amount": 1,
+        "length": 1.0,
+        "thickness": 0.045,
+        "taper": 0.7
+      }
+    },
+    {
+      "id": 3,
+      "position": [
+        30,
+        200
+      ],
+      "type": "max/plantarium/rotate",
+      "props": {
+        "axis": 0,
+        "angle": 1.5708
+      }
+    },
+    {
+      "id": 4,
+      "position": [
+        40,
+        160
+      ],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0.8,
+          0.15,
+          1,
+          0.55,
+          0.62,
+          1,
+          0.12
+        ],
+        "min": 0.0,
+        "max": 0.42
+      }
+    },
+    {
+      "id": 5,
+      "position": [
+        60,
+        120
+      ],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          1,
+          0.6,
+          0.9,
+          1,
+          0.45
+        ],
+        "min": 0.0,
+        "max": 2.2
+      }
+    },
+    {
+      "id": 6,
+      "position": [
+        90,
+        240
+      ],
+      "type": "max/plantarium/points_on_path",
+      "props": {
+        "amount": 14,
+        "lowest_point": 0.06,
+        "highest_point": 0.9,
+        "rotation": 180,
+        "offset_single": 0.35,
+        "depth": 1
+      }
+    },
+    {
+      "id": 7,
+      "position": [
+        120,
+        200
+      ],
+      "type": "max/plantarium/branch_from_points",
+      "props": {
+        "angle": 42,
+        "taper": 0.0
+      }
+    },
+    {
+      "id": 8,
+      "position": [
+        210,
+        200
+      ],
+      "type": "max/plantarium/leaf_surface",
+      "props": {
+        "size": 1.0,
+        "smooth": 0.12,
+        "relief": 0.006,
+        "method": 0,
+        "resolution": 96
+      }
+    },
+    {
+      "id": 9,
+      "position": [
+        0,
+        400
+      ],
+      "type": "max/plantarium/stem",
+      "props": {
+        "amount": 1,
+        "length": 1.0,
+        "thickness": 0.04,
+        "taper": 0.85
+      }
+    },
+    {
+      "id": 10,
+      "position": [
+        30,
+        400
+      ],
+      "type": "max/plantarium/rotate",
+      "props": {
+        "axis": 0,
+        "angle": 1.5708
+      }
+    },
+    {
+      "id": 11,
+      "position": [
+        40,
+        360
+      ],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          1,
+          0.2,
+          0.95,
+          0.6,
+          0.45,
+          1,
+          0.05
+        ],
+        "min": 0.0,
+        "max": 0.46
+      }
+    },
+    {
+      "id": 12,
+      "position": [
+        60,
+        320
+      ],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          1,
+          0.7,
+          0.85,
+          1,
+          0.3
+        ],
+        "min": 0.0,
+        "max": 2.4
+      }
+    },
+    {
+      "id": 13,
+      "position": [
+        90,
+        440
+      ],
+      "type": "max/plantarium/points_on_path",
+      "props": {
+        "amount": 14,
+        "lowest_point": 0.05,
+        "highest_point": 0.86,
+        "rotation": 180,
+        "offset_single": 0.3,
+        "depth": 1
+      }
+    },
+    {
+      "id": 14,
+      "position": [
+        120,
+        400
+      ],
+      "type": "max/plantarium/branch_from_points",
+      "props": {
+        "angle": 34,
+        "taper": 0.0
+      }
+    },
+    {
+      "id": 15,
+      "position": [
+        150,
+        460
+      ],
+      "type": "max/plantarium/wave",
+      "props": {
+        "count": 30,
+        "shape": 2
+      }
+    },
+    {
+      "id": 16,
+      "position": [
+        150,
+        500
+      ],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0,
+          0.15,
+          0,
+          0.3,
+          1,
+          1,
+          0.7
+        ],
+        "min": 0.0,
+        "max": 1.0
+      }
+    },
+    {
+      "id": 17,
+      "position": [
+        180,
+        460
+      ],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      }
+    },
+    {
+      "id": 18,
+      "position": [
+        210,
+        460
+      ],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2,
+        "b": 0.012
+      }
+    },
+    {
+      "id": 19,
+      "position": [
+        240,
+        400
+      ],
+      "type": "max/plantarium/leaf_surface",
+      "props": {
+        "size": 1.0,
+        "smooth": 0.05,
+        "relief": 0.006,
+        "method": 0,
+        "resolution": 128
+      }
+    },
+    {
+      "id": 20,
+      "position": [
+        0,
+        600
+      ],
+      "type": "max/plantarium/stem",
+      "props": {
+        "amount": 1,
+        "length": 1.0,
+        "thickness": 0.06,
+        "taper": 0.4
+      }
+    },
+    {
+      "id": 21,
+      "position": [
+        30,
+        600
+      ],
+      "type": "max/plantarium/rotate",
+      "props": {
+        "axis": 0,
+        "angle": 1.5708
+      }
+    },
+    {
+      "id": 22,
+      "position": [
+        40,
+        560
+      ],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0.3,
+          0.25,
+          0.55,
+          0.65,
+          1,
+          1,
+          0.5
+        ],
+        "min": 0.0,
+        "max": 0.26
+      }
+    },
+    {
+      "id": 23,
+      "position": [
+        60,
+        520
+      ],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0.8,
+          0.6,
+          1.4,
+          0.9,
+          1.7,
+          1,
+          1.4
+        ],
+        "min": 0.0,
+        "max": 1.0
+      }
+    },
+    {
+      "id": 24,
+      "position": [
+        90,
+        640
+      ],
+      "type": "max/plantarium/points_on_path",
+      "props": {
+        "amount": 10,
+        "lowest_point": 0.1,
+        "highest_point": 0.86,
+        "rotation": 180,
+        "offset_single": 0.15,
+        "depth": 1
+      }
+    },
+    {
+      "id": 25,
+      "position": [
+        120,
+        600
+      ],
+      "type": "max/plantarium/branch_from_points",
+      "props": {
+        "angle": 30,
+        "taper": 0.0
+      }
+    },
+    {
+      "id": 26,
+      "position": [
+        210,
+        600
+      ],
+      "type": "max/plantarium/leaf_surface",
+      "props": {
+        "size": 1.0,
+        "smooth": 0.035,
+        "relief": 0.006,
+        "method": 0,
+        "resolution": 96
+      }
+    },
+    {
+      "id": 27,
+      "position": [
+        -60,
+        800
+      ],
+      "type": "max/plantarium/path_info",
+      "props": {
+        "info": 0
+      }
+    },
+    {
+      "id": 28,
+      "position": [
+        -30,
+        800
+      ],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0.55,
+          0.25,
+          0.85,
+          0.5,
+          1,
+          0.75,
+          0.85,
+          1,
+          0.55
+        ],
+        "min": 0,
+        "max": 0.9
+      }
+    },
+    {
+      "id": 29,
+      "position": [
+        0,
+        800
+      ],
+      "type": "max/plantarium/stem",
+      "props": {
+        "amount": 5,
+        "length": 1,
+        "thickness": 0.11,
+        "taper": 0.9
+      }
+    },
+    {
+      "id": 30,
+      "position": [
+        30,
+        800
+      ],
+      "type": "max/plantarium/rotate",
+      "props": {
+        "axis": 0,
+        "angle": 1.5708
+      }
+    },
+    {
+      "id": 31,
+      "position": [
+        60,
+        800
+      ],
+      "type": "max/plantarium/rotate",
+      "props": {
+        "axis": 1,
+        "angle": 4.0,
+        "spread": 1
+      }
+    },
+    {
+      "id": 32,
+      "position": [
+        90,
+        800
+      ],
+      "type": "max/plantarium/rotate",
+      "props": {
+        "axis": 1,
+        "angle": -1.6
+      }
+    },
+    {
+      "id": 33,
+      "position": [
+        100,
+        760
+      ],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          1,
+          1,
+          0.6
+        ],
+        "min": 0.0,
+        "max": 0.2
+      }
+    },
+    {
+      "id": 34,
+      "position": [
+        120,
+        840
+      ],
+      "type": "max/plantarium/points_on_path",
+      "props": {
+        "amount": 4,
+        "lowest_point": 0.35,
+        "highest_point": 0.7,
+        "rotation": 180,
+        "offset_single": 1.0,
+        "depth": 1
+      }
+    },
+    {
+      "id": 35,
+      "position": [
+        150,
+        800
+      ],
+      "type": "max/plantarium/branch_from_points",
+      "props": {
+        "angle": 40,
+        "taper": 0.8,
+        "thickness": 0.45
+      }
+    },
+    {
+      "id": 36,
+      "position": [
+        180,
+        860
+      ],
+      "type": "max/plantarium/wave",
+      "props": {
+        "count": 4,
+        "shape": 1
+      }
+    },
+    {
+      "id": 37,
+      "position": [
+        180,
+        900
+      ],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0,
+          0.3,
+          0.2,
+          0.6,
+          1,
+          1,
+          1
+        ],
+        "min": 0.0,
+        "max": 1.0
+      }
+    },
+    {
+      "id": 38,
+      "position": [
+        210,
+        860
+      ],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      }
+    },
+    {
+      "id": 39,
+      "position": [
+        240,
+        860
+      ],
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2,
+        "b": 0.012
+      }
+    },
+    {
+      "id": 40,
+      "position": [
+        270,
+        800
+      ],
+      "type": "max/plantarium/leaf_surface",
+      "props": {
+        "size": 1.0,
+        "smooth": 0.08,
+        "relief": 0.006,
+        "method": 0,
+        "resolution": 96
+      }
+    },
+    {
+      "id": 41,
+      "position": [
+        500,
+        0
+      ],
+      "type": "max/plantarium/join",
+      "props": {}
+    },
+    {
+      "id": 42,
+      "position": [
+        500,
+        200
+      ],
+      "type": "max/plantarium/join",
+      "props": {}
+    },
+    {
+      "id": 43,
+      "position": [
+        530,
+        0
+      ],
+      "type": "max/plantarium/join",
+      "props": {}
+    },
+    {
+      "id": 44,
+      "position": [
+        560,
+        60
+      ],
+      "type": "max/plantarium/alpha",
+      "props": {
+        "direction": 1
+      }
+    },
+    {
+      "id": 45,
+      "position": [
+        590,
+        60
+      ],
+      "type": "max/myzel/mix_color",
+      "props": {
+        "a": [
+          44,
+          72,
+          30
+        ],
+        "b": [
+          78,
+          106,
+          44
+        ]
+      }
+    },
+    {
+      "id": 46,
+      "position": [
+        620,
+        0
+      ],
+      "type": "max/plantarium/set_color",
+      "props": {}
+    },
+    {
+      "id": 47,
+      "position": [
+        560,
+        -120
+      ],
+      "type": "max/plantarium/stem",
+      "props": {
+        "amount": 1,
+        "length": 1.8,
+        "thickness": 0.05,
+        "taper": 0
+      }
+    },
+    {
+      "id": 48,
+      "position": [
+        590,
+        -120
+      ],
+      "type": "max/plantarium/rotate",
+      "props": {
+        "axis": 2,
+        "angle": -1.5708
+      }
+    },
+    {
+      "id": 49,
+      "position": [
+        620,
+        80
+      ],
+      "type": "max/plantarium/alpha",
+      "props": {}
+    },
+    {
+      "id": 50,
+      "position": [
+        650,
+        0
+      ],
+      "type": "max/plantarium/instance",
+      "props": {
+        "amount": 5,
+        "lowest_instance": 0,
+        "highest_instance": 1,
+        "rotation": 0,
+        "size": 0.05,
+        "pick": 1
+      }
+    },
+    {
+      "id": 51,
+      "position": [
+        680,
+        0
+      ],
+      "type": "max/plantarium/output",
+      "props": {}
+    }
+  ],
+  "edges": [
+    [
+      2,
+      0,
+      3,
+      "plant"
+    ],
+    [
+      3,
+      0,
+      6,
+      "plant"
+    ],
+    [
+      3,
+      0,
+      7,
+      "plant"
+    ],
+    [
+      6,
+      0,
+      7,
+      "points"
+    ],
+    [
+      4,
+      0,
+      7,
+      "length"
+    ],
+    [
+      5,
+      0,
+      7,
+      "thickness"
+    ],
+    [
+      7,
+      0,
+      8,
+      "veins"
+    ],
+    [
+      9,
+      0,
+      10,
+      "plant"
+    ],
+    [
+      10,
+      0,
+      13,
+      "plant"
+    ],
+    [
+      10,
+      0,
+      14,
+      "plant"
+    ],
+    [
+      13,
+      0,
+      14,
+      "points"
+    ],
+    [
+      11,
+      0,
+      14,
+      "length"
+    ],
+    [
+      12,
+      0,
+      14,
+      "thickness"
+    ],
+    [
+      15,
+      0,
+      17,
+      "a"
+    ],
+    [
+      16,
+      0,
+      17,
+      "b"
+    ],
+    [
+      17,
+      0,
+      18,
+      "a"
+    ],
+    [
+      14,
+      0,
+      19,
+      "veins"
+    ],
+    [
+      18,
+      0,
+      19,
+      "margin"
+    ],
+    [
+      20,
+      0,
+      21,
+      "plant"
+    ],
+    [
+      21,
+      0,
+      24,
+      "plant"
+    ],
+    [
+      21,
+      0,
+      25,
+      "plant"
+    ],
+    [
+      24,
+      0,
+      25,
+      "points"
+    ],
+    [
+      22,
+      0,
+      25,
+      "length"
+    ],
+    [
+      23,
+      0,
+      25,
+      "thickness"
+    ],
+    [
+      25,
+      0,
+      26,
+      "veins"
+    ],
+    [
+      27,
+      0,
+      28,
+      "value"
+    ],
+    [
+      28,
+      0,
+      29,
+      "length"
+    ],
+    [
+      29,
+      0,
+      30,
+      "plant"
+    ],
+    [
+      30,
+      0,
+      31,
+      "plant"
+    ],
+    [
+      31,
+      0,
+      32,
+      "plant"
+    ],
+    [
+      32,
+      0,
+      34,
+      "plant"
+    ],
+    [
+      32,
+      0,
+      35,
+      "plant"
+    ],
+    [
+      34,
+      0,
+      35,
+      "points"
+    ],
+    [
+      33,
+      0,
+      35,
+      "length"
+    ],
+    [
+      36,
+      0,
+      38,
+      "a"
+    ],
+    [
+      37,
+      0,
+      38,
+      "b"
+    ],
+    [
+      38,
+      0,
+      39,
+      "a"
+    ],
+    [
+      35,
+      0,
+      40,
+      "veins"
+    ],
+    [
+      39,
+      0,
+      40,
+      "margin"
+    ],
+    [
+      1,
+      0,
+      41,
+      "a"
+    ],
+    [
+      8,
+      0,
+      41,
+      "b"
+    ],
+    [
+      19,
+      0,
+      41,
+      "c"
+    ],
+    [
+      26,
+      0,
+      41,
+      "d"
+    ],
+    [
+      40,
+      0,
+      42,
+      "a"
+    ],
+    [
+      41,
+      0,
+      43,
+      "a"
+    ],
+    [
+      42,
+      0,
+      43,
+      "b"
+    ],
+    [
+      44,
+      0,
+      45,
+      "factor"
+    ],
+    [
+      43,
+      0,
+      46,
+      "plant"
+    ],
+    [
+      45,
+      0,
+      46,
+      "color"
+    ],
+    [
+      47,
+      0,
+      48,
+      "plant"
+    ],
+    [
+      48,
+      0,
+      50,
+      "plant"
+    ],
+    [
+      46,
+      0,
+      50,
+      "geometry"
+    ],
+    [
+      49,
+      0,
+      50,
+      "index"
+    ],
+    [
+      50,
+      0,
+      51,
+      "input"
+    ]
+  ],
+  "groups": []
+}

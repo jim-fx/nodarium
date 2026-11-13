@@ -1,0 +1,63 @@
+{
+  "id": "max/plantarium/leaf_surface",
+  "meta": {
+    "description": "Spike (#72): pulls a leaf blade over a vein network. The veins lie in the horizontal plane, the thickness of a vein is how far the blade reaches around it, and their height bends the blade. The leaf is placed like the one of the leaf node: it grows along -z from its base and faces up."
+  },
+  "outputs": [
+    "geometry"
+  ],
+  "inputs": {
+    "veins": {
+      "type": "path",
+      "description": "The veins, made with stem, rotate, points_on_path and branch_from_points.",
+      "external": true
+    },
+    "size": {
+      "type": "float",
+      "description": "1 makes 1 m of vein as long as the leaf of the leaf node.",
+      "min": 0,
+      "max": 4,
+      "step": 0.05,
+      "value": 1
+    },
+    "smooth": {
+      "type": "float",
+      "description": "How far the blade fills in between the veins. 0 leaves a lobe or a tooth at every vein, more makes a smoother margin.",
+      "min": 0,
+      "max": 0.5,
+      "step": 0.005,
+      "value": 0.05
+    },
+    "margin": {
+      "type": "float",
+      "description": "How far the margin is cut in, read with alpha going along the margin from the base (0) to the tip (1) on both sides. A wave cuts teeth, a curve lobes.",
+      "min": -0.1,
+      "max": 0.1,
+      "step": 0.001,
+      "value": 0
+    },
+    "relief": {
+      "type": "float",
+      "description": "How deep the veins lie in the blade.",
+      "min": -0.02,
+      "max": 0.02,
+      "step": 0.0005,
+      "value": 0.003
+    },
+    "method": {
+      "type": "select",
+      "options": ["field", "hull"],
+      "value": 0,
+      "internal": true,
+      "description": "Field meshes the union of the veins, hull the outline around them seen from the middle of the leaf."
+    },
+    "resolution": {
+      "type": "integer",
+      "description": "Cells along the leaf.",
+      "min": 16,
+      "max": 256,
+      "value": 96,
+      "hidden": true
+    }
+  }
+}
