@@ -12,6 +12,52 @@
 /// counts, not by the words themselves.
 pub fn split_args(args: &[i32]) -> Vec<&[i32]> {
     let mut out_args: Vec<&[i32]> = Vec::new();
+    scan_args(args, |part| out_args.push(part));
+    out_args
+}
+
+const INLINE_PARTS: usize = 8;
+
+/// The parts of `split_args`, kept on the stack. Only a list with more than `INLINE_PARTS`
+/// parts, like a curve with many points, allocates.
+pub struct ArgParts<'a> {
+    inline: [&'a [i32]; INLINE_PARTS],
+    len: usize,
+    overflow: Vec<&'a [i32]>,
+}
+
+impl<'a> ArgParts<'a> {
+    pub fn as_slice(&self) -> &[&'a [i32]] {
+        if self.overflow.is_empty() {
+            &self.inline[..self.len]
+        } else {
+            &self.overflow
+        }
+    }
+}
+
+/// Like `split_args`, without allocating a list for the usual few parts.
+pub fn split_args_inline(args: &[i32]) -> ArgParts<'_> {
+    let mut parts = ArgParts {
+        inline: [&[]; INLINE_PARTS],
+        len: 0,
+        overflow: Vec::new(),
+    };
+    scan_args(args, |part| {
+        if parts.len < INLINE_PARTS {
+            parts.inline[parts.len] = part;
+            parts.len += 1;
+        } else {
+            if parts.overflow.is_empty() {
+                parts.overflow.extend_from_slice(&parts.inline);
+            }
+            parts.overflow.push(part);
+        }
+    });
+    parts
+}
+
+fn scan_args<'a>(args: &'a [i32], mut push: impl FnMut(&'a [i32])) {
     let mut depth = 0;
     let mut i = 0;
     let mut start_index = 0;
@@ -29,20 +75,18 @@ pub fn split_args(args: &[i32]) -> Vec<&[i32]> {
             } else {
                 depth -= 1;
                 if depth == 1 {
-                    out_args.push(&args[start_index..i + 2]);
+                    push(&args[start_index..i + 2]);
                     start_index = i + 2;
                 }
             }
             i += 2;
             continue;
         } else if depth == 1 {
-            out_args.push(&args[i..i + 1]);
+            push(&args[i..i + 1]);
             start_index = i + 1;
         }
         i += 1;
     }
-
-    out_args
 }
 
 pub fn concat_arg_vecs(data: Vec<Vec<i32>>) -> Vec<i32> {
@@ -154,6 +198,16 @@ mod tests {
         let args = split_args(&input);
 
         assert_eq!(args, vec![&path[..], &path]);
+    }
+
+    #[test]
+    fn the_inline_split_gives_the_same_parts_as_split_args() {
+        for count in [0, 1, 3, INLINE_PARTS, INLINE_PARTS + 1, 20] {
+            let values: Vec<[i32; 1]> = (0..count as i32).map(|v| [v + 1]).collect();
+            let input = concat_args(values.iter().map(|v| &v[..]).collect());
+
+            assert_eq!(split_args_inline(&input).as_slice(), split_args(&input), "{count} parts");
+        }
     }
 
     #[test]

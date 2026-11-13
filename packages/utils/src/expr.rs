@@ -1,5 +1,5 @@
 use crate::geometry::{path_link, wrap_path};
-use crate::{decode_float, log, mix_colors, plain_color, split_args, MIX_COLOR};
+use crate::{decode_float, log, mix_colors, plain_color, split_args_inline, MIX_COLOR};
 use noise::{core::open_simplex::open_simplex_2d, permutationtable::PermutationTable, Vector2};
 
 /// What the `path_info` node can read about the path a node is working on.
@@ -127,7 +127,7 @@ impl Ctx {
             return decode_float(arg[0]);
         }
 
-        let v = match split_args(arg).as_slice() {
+        let v = match split_args_inline(arg).as_slice() {
             // a single value wrapped in brackets, e.g. the output of the float node
             [v] => self.float(v),
             [[0], [op], a, b] => {
@@ -210,7 +210,7 @@ impl Ctx {
         if let Some(color) = plain_color(arg) {
             return color;
         }
-        match split_args(arg).as_slice() {
+        match split_args_inline(arg).as_slice() {
             [[r], [g], [b]] => [*r, *g, *b].map(|v| v.clamp(0, 255) as u8),
             [inner] if inner.len() > 1 => self.color(inner),
             [[MIX_COLOR], a, b, factor] => {
@@ -253,7 +253,7 @@ impl Ctx {
             return arg[0];
         }
 
-        match split_args(arg).as_slice() {
+        match split_args_inline(arg).as_slice() {
             [v] => self.int(v),
             [[4], min, max, [seed]] => {
                 let (min, max) = (self.int(min), self.int(max));
@@ -267,7 +267,8 @@ impl Ctx {
     }
 
     pub fn vec3(&mut self, arg: &[i32]) -> [f32; 3] {
-        let args = split_args(arg);
+        let args = split_args_inline(arg);
+        let args = args.as_slice();
 
         assert!(
             args.len() == 3,
@@ -285,9 +286,7 @@ impl Ctx {
 
     fn random(&mut self, min: f32, max: f32, seed: i32) -> f32 {
         let seed = (seed + self.calls) % 100_000;
-        let hasher = PermutationTable::new(seed as u32);
-
-        let value = open_simplex_2d(Vector2::new(seed as f64, 5.0), &hasher) as f32 + 0.5;
+        let value = noise_draw(seed);
 
         log!(
             "Random node: min: {}, max: {}, seed: {}, v: {}",
@@ -332,6 +331,38 @@ impl Ctx {
 
         x
     }
+}
+
+const DRAW_SEEDS: usize = 100_000;
+
+thread_local! {
+    /// The draw for every seed that came up so far. Building the permutation table is most
+    /// of the cost of a draw, and a draw only depends on its seed. It is a table of
+    /// 100 000 `f32` (400 KB) allocated on the first draw, NaN marks a seed not drawn yet.
+    static DRAWS: std::cell::RefCell<Vec<f32>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+fn noise_draw(seed: i32) -> f32 {
+    let compute = || {
+        let hasher = PermutationTable::new(seed as u32);
+        open_simplex_2d(Vector2::new(seed as f64, 5.0), &hasher) as f32 + 0.5
+    };
+    let Some(slot) = usize::try_from(seed).ok().filter(|s| *s < DRAW_SEEDS) else {
+        return compute();
+    };
+    DRAWS.with_borrow_mut(|draws| {
+        if draws.is_empty() {
+            draws.resize(DRAW_SEEDS, f32::NAN);
+        }
+        let cached = draws[slot];
+        if cached.is_nan() {
+            let value = compute();
+            draws[slot] = value;
+            value
+        } else {
+            cached
+        }
+    })
 }
 
 /// One period of the `wave` node at `u` (0 to 1), 0 on a crest and 1 in a trough. Sine, tooth and
@@ -407,6 +438,16 @@ pub fn int(arg: &[i32]) -> i32 {
 mod tests {
     use super::*;
     use crate::{concat_args, encode_float};
+
+    #[test]
+    fn a_remembered_draw_is_the_draw_of_the_noise() {
+        for seed in [0, 1, 4711, 99_999, 100_000, 250_000, -3] {
+            let table = PermutationTable::new(seed as u32);
+            let fresh = open_simplex_2d(Vector2::new(seed as f64, 5.0), &table) as f32 + 0.5;
+            assert_eq!(noise_draw(seed).to_bits(), fresh.to_bits(), "seed {seed}");
+            assert_eq!(noise_draw(seed).to_bits(), fresh.to_bits(), "seed {seed} again");
+        }
+    }
 
     #[test]
     fn test_recursive_evaluation() {
