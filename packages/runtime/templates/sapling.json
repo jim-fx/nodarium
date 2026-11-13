@@ -224,18 +224,133 @@
       "type": "max/plantarium/curve",
       "props": { "curve": [0, 1, 0.28, 1, 0.97, 0.42, 1, 0.38], "min": 0, "max": 1.3 }
     },
-    { "id": 35, "position": [180, 115], "type": "max/plantarium/math", "props": { "op_type": 2 } }
+    { "id": 35, "position": [180, 115], "type": "max/plantarium/math", "props": { "op_type": 2 } },
+    { "id": 36, "position": [30, 140], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 37,
+      "position": [60, 130],
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0,
+          0.2,
+          0,
+          0.23,
+          0.8,
+          0.26,
+          0,
+          0.41,
+          0,
+          0.44,
+          0.7,
+          0.47,
+          0,
+          0.62,
+          0,
+          0.65,
+          0.6,
+          0.68,
+          0,
+          1,
+          0
+        ],
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": 38,
+      "position": [50, 120],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [226, 222, 210], "b": [60, 52, 50] }
+    },
+    { "id": 39, "position": [30, 140], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 40,
+      "position": [60, 130],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 0.08, 0.4, 0.16, 1, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 41,
+      "position": [50, 120],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [72, 64, 58] }
+    },
+    { "id": 42, "position": [120, 10], "type": "max/plantarium/set_color", "props": {} },
+    { "id": 43, "position": [120, 140], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 44,
+      "position": [150, 130],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 0.35, 0.8, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 45,
+      "position": [140, 120],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [196, 190, 178], "b": [124, 84, 62] }
+    },
+    { "id": 46, "position": [210, 10], "type": "max/plantarium/set_color", "props": {} },
+    {
+      "id": 47,
+      "position": [270, 10],
+      "type": "max/plantarium/set_color",
+      "props": { "color": [104, 66, 50] }
+    },
+    {
+      "id": 48,
+      "position": [180, 195],
+      "type": "max/plantarium/random",
+      "props": { "min": 0.0, "max": 1.0, "uniform": 1, "once": 1 }
+    },
+    {
+      "id": 49,
+      "position": [200, 155],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [76, 112, 48], "b": [92, 120, 50] }
+    },
+    { "id": 50, "position": [180, 175], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 51,
+      "position": [210, 165],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 52,
+      "position": [200, 155],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [66, 108, 40] }
+    },
+    { "id": 53, "position": [180, 175], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 54,
+      "position": [210, 165],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 55,
+      "position": [200, 155],
+      "type": "max/myzel/mix_color",
+      "props": { "b": [106, 136, 62] }
+    },
+    { "id": 56, "position": [300, 35], "type": "max/plantarium/set_color", "props": {} },
+    { "id": 57, "position": [300, 95], "type": "max/plantarium/set_color", "props": {} },
+    { "id": 58, "position": [340, 35], "type": "max/plantarium/join", "props": {} }
   ],
   "edges": [
     [11, 0, 12, "plant"],
-    [12, 0, 13, "plant"],
+    [42, 0, 13, "plant"],
     [13, 0, 16, "plant"],
     [16, 0, 17, "plant"],
-    [17, 0, 18, "plant"],
+    [46, 0, 18, "plant"],
     [18, 0, 20, "plant"],
-    [20, 0, 23, "plant"],
+    [47, 0, 23, "plant"],
     [21, 0, 22, "shape"],
-    [22, 0, 23, "geometry"],
+    [58, 0, 23, "geometry"],
     [23, 0, 10, "input"],
     [14, 0, 24, "a"],
     [25, 0, 26, "value"],
@@ -251,6 +366,31 @@
     [33, 0, 34, "value"],
     [30, 0, 35, "a"],
     [34, 0, 35, "b"],
-    [35, 0, 18, "length"]
+    [35, 0, 18, "length"],
+    [36, 0, 37, "value"],
+    [37, 0, 38, "factor"],
+    [39, 0, 40, "value"],
+    [38, 0, 41, "b"],
+    [40, 0, 41, "factor"],
+    [12, 0, 42, "plant"],
+    [41, 0, 42, "color"],
+    [43, 0, 44, "value"],
+    [44, 0, 45, "factor"],
+    [17, 0, 46, "plant"],
+    [45, 0, 46, "color"],
+    [20, 0, 47, "plant"],
+    [48, 0, 49, "factor"],
+    [50, 0, 51, "value"],
+    [49, 0, 52, "b"],
+    [51, 0, 52, "factor"],
+    [53, 0, 54, "value"],
+    [49, 0, 55, "a"],
+    [54, 0, 55, "factor"],
+    [22, 0, 56, "plant"],
+    [52, 0, 56, "color"],
+    [22, 0, 57, "plant"],
+    [55, 0, 57, "color"],
+    [56, 0, 58, "a"],
+    [57, 0, 58, "b"]
   ]
 }

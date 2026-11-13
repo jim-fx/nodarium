@@ -15,13 +15,7 @@
       "id": 14,
       "position": [185, 85],
       "type": "max/plantarium/gravity",
-      "props": {
-        "strength": 0.38,
-        "depth": 1,
-        "plant": 0,
-        "elasticity": 0.3,
-        "mode": 1
-      }
+      "props": { "strength": 0.38, "depth": 1, "plant": 0, "elasticity": 0.3, "mode": 1 }
     },
     {
       "id": 15,
@@ -70,12 +64,7 @@
       "id": 19,
       "position": [125, 85],
       "type": "max/plantarium/gravity",
-      "props": {
-        "strength": 0.38,
-        "depth": 1,
-        "plant": 0,
-        "elasticity": 0.3
-      }
+      "props": { "strength": 0.38, "depth": 1, "plant": 0, "elasticity": 0.3 }
     },
     {
       "id": 20,
@@ -102,7 +91,8 @@
         "highest_instance": 1,
         "rotation": 3.14,
         "depth": 1,
-        "angle": 65
+        "angle": 65,
+        "pick": 1
       },
       "exposed": ["angle"]
     },
@@ -144,7 +134,54 @@
       "position": [125, 160],
       "type": "max/plantarium/math",
       "props": { "op_type": 2, "a": 2, "b": 84.411 }
-    }
+    },
+    { "id": 21, "position": [65, 145], "type": "max/plantarium/alpha", "props": {} },
+    {
+      "id": 22,
+      "position": [95, 135],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 0.35, 0.85, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 23,
+      "position": [85, 125],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [104, 86, 56], "b": [88, 120, 54] }
+    },
+    { "id": 24, "position": [155, 15], "type": "max/plantarium/set_color", "props": {} },
+    {
+      "id": 25,
+      "position": [215, 15],
+      "type": "max/plantarium/set_color",
+      "props": { "color": [88, 118, 56] }
+    },
+    {
+      "id": 26,
+      "position": [125, 200],
+      "type": "max/plantarium/random",
+      "props": { "min": 0.0, "max": 1.0, "uniform": 1, "once": 1 }
+    },
+    {
+      "id": 27,
+      "position": [145, 160],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [50, 78, 38], "b": [62, 86, 40] }
+    },
+    {
+      "id": 28,
+      "position": [145, 160],
+      "type": "max/myzel/mix_color",
+      "props": { "a": [100, 134, 60], "b": [102, 128, 52] }
+    },
+    { "id": 29, "position": [145, 160], "type": "max/myzel/mix_color", "props": { "factor": 0.5 } },
+    { "id": 30, "position": [125, 180], "type": "max/plantarium/alpha", "props": {} },
+    { "id": 31, "position": [145, 160], "type": "max/myzel/mix_color", "props": {} },
+    { "id": 32, "position": [125, 180], "type": "max/plantarium/alpha", "props": {} },
+    { "id": 33, "position": [145, 160], "type": "max/myzel/mix_color", "props": {} },
+    { "id": 34, "position": [245, 40], "type": "max/plantarium/set_color", "props": {} },
+    { "id": 35, "position": [245, 100], "type": "max/plantarium/set_color", "props": {} },
+    { "id": 36, "position": [285, 40], "type": "max/plantarium/join", "props": {} },
+    { "id": 37, "position": [155, 145], "type": "max/plantarium/alpha", "props": {} }
   ],
   "edges": [
     [10, 0, 15, "plant"],
@@ -154,10 +191,10 @@
     [18, 0, 14, "plant"],
     [15, 0, 19, "plant"],
     [20, 0, 10, "thickness"],
-    [14, 0, 2, "plant"],
+    [25, 0, 2, "plant"],
     [2, 0, 9, "input"],
-    [1, 0, 2, "geometry"],
-    [19, 0, 18, "plant"],
+    [36, 0, 2, "geometry"],
+    [24, 0, 18, "plant"],
     [3, 0, 0, "value"],
     [0, 0, 4, "a"],
     [4, 0, 2, "angle"],
@@ -166,6 +203,28 @@
     [6, 0, 18, "length"],
     [11, 0, 12, "value"],
     [12, 0, 8, "a"],
-    [8, 0, 18, "angle"]
+    [8, 0, 18, "angle"],
+    [21, 0, 22, "value"],
+    [22, 0, 23, "factor"],
+    [19, 0, 24, "plant"],
+    [23, 0, 24, "color"],
+    [14, 0, 25, "plant"],
+    [26, 0, 27, "factor"],
+    [26, 0, 28, "factor"],
+    [27, 0, 29, "a"],
+    [28, 0, 29, "b"],
+    [27, 0, 31, "a"],
+    [29, 0, 31, "b"],
+    [30, 0, 31, "factor"],
+    [29, 0, 33, "a"],
+    [28, 0, 33, "b"],
+    [32, 0, 33, "factor"],
+    [1, 0, 34, "plant"],
+    [31, 0, 34, "color"],
+    [1, 0, 35, "plant"],
+    [33, 0, 35, "color"],
+    [34, 0, 36, "a"],
+    [35, 0, 36, "b"],
+    [37, 0, 2, "index"]
   ]
 }
