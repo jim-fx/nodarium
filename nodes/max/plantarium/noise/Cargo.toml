@@ -3,6 +3,7 @@ name = "plantarium_noise"
 version = "0.1.0"
 authors = ["Max Richter <jim-x@web.de>"]
 edition = "2018"
+license = "MIT"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

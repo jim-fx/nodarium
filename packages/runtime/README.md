@@ -205,3 +205,7 @@ The matrices of `instances` fit `InstancedMesh.instanceMatrix` as they are. Thre
 `.gitea/workflows/release.yaml` publishes the package: a tag `vX.Y.Z` publishes `X.Y.Z` as `latest`, a push to `main` runs `.gitea/scripts/publish-dev.sh` once the tests pass and publishes a dev version. `DRY_RUN=1 .gitea/scripts/publish-dev.sh` packs the dev version without publishing it.
 
 The registry keeps every version it was given, also the dev versions. A cleanup rule of the owner removes the old ones (Settings → Packages → Cleanup rules on git.max-richter.dev): type npm, keep the versions matching `^\d+\.\d+\.\d+$`, remove the versions matching `-dev\.` that are older than 30 days. A single version is removed with `DELETE /api/v1/packages/max/npm/@nodarium%2Fruntime/<version>`.
+
+## License
+
+MIT, see [LICENSE](./LICENSE). This covers the runtime, the compiled nodes and the templates. The substrates of the `max/myzel/mesh` node are baked from CC0 scans of [Poly Haven](https://polyhaven.com).

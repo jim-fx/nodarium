@@ -3,6 +3,7 @@ name = "myzel_cap_margin"
 version = "0.1.0"
 authors = ["Max Richter <jim-x@web.de>"]
 edition = "2021"
+license = "MIT"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
