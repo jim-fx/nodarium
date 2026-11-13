@@ -2,8 +2,10 @@
 //! their border. They stay sharp at any mesh resolution, where paths need to be a few field
 //! cells thick to mesh at all.
 
+use crate::mesh::{sections, MeshBuild, MeshWriter};
 use crate::Mesh;
 use glam::Vec3;
+use nodarium_utils::abi::{self, Output};
 
 /// The grid of a sheet: `columns` across it, `rows` from its first edge (row 0, e.g. where it is
 /// attached) to its last (e.g. a gill or torn edge).
@@ -23,7 +25,7 @@ pub struct SheetGrid {
 /// The vertices are the front column by column, then the back, then the edge, and every vertex is
 /// in group 0 with a zero normal, see [`smooth_normals`].
 pub fn add_sheet(
-    mesh: &mut Mesh,
+    mesh: &mut impl MeshBuild,
     grid: SheetGrid,
     front: impl Fn(usize, usize) -> Vec3,
     back: impl Fn(usize, usize) -> Vec3,
@@ -34,28 +36,25 @@ pub fn add_sheet(
         return;
     }
     let base = mesh.vertex_count() as u32;
-    let mut push = |p: Vec3| {
-        mesh.positions.extend([p.x, p.y, p.z]);
-        mesh.normals.extend([0.0; 3]);
-        mesh.groups.push(0);
-    };
     for side in [&front as &dyn Fn(usize, usize) -> Vec3, &back] {
         for i in 0..m {
             for k in 0..rows {
-                push(side(i, k));
+                mesh.push_vertex(side(i, k), 0);
             }
         }
     }
     if let Some(edge) = edge {
         for i in 0..m {
-            push(edge(i));
+            mesh.push_vertex(edge(i), 0);
         }
     }
     let a = |i: usize, k: usize| base + (i * rows + k) as u32;
     let b = |i: usize, k: usize| base + ((m + i) * rows + k) as u32;
     let e = |i: usize| base + (2 * m * rows + i) as u32;
-    let faces = &mut mesh.faces;
-    let mut quad = |p: u32, q: u32, r: u32, t: u32| faces.extend([p, q, r, p, r, t]);
+    let mut quad = |p: u32, q: u32, r: u32, t: u32| {
+        mesh.push_face([p, q, r]);
+        mesh.push_face([p, r, t]);
+    };
     let last = rows - 1;
     let spans = if wrap { m } else { m - 1 };
     for i in 0..spans {
@@ -83,8 +82,8 @@ pub fn add_sheet(
         quad(a(m - 1, k), b(m - 1, k), b(m - 1, k + 1), a(m - 1, k + 1));
     }
     if edge.is_some() {
-        mesh.faces.extend([a(0, last), e(0), b(0, last)]);
-        mesh.faces.extend([a(m - 1, last), b(m - 1, last), e(m - 1)]);
+        mesh.push_face([a(0, last), e(0), b(0, last)]);
+        mesh.push_face([a(m - 1, last), b(m - 1, last), e(m - 1)]);
     }
 }
 
@@ -108,10 +107,36 @@ pub fn sheet_size(grid: SheetGrid, edge: bool) -> (usize, usize) {
 pub fn smooth_normals(mesh: &mut Mesh) {
     let v = mesh.vertex_count();
     let Mesh { positions, normals, faces, .. } = mesh;
-    let p = |i: u32| Vec3::from_slice(&positions[i as usize * 3..i as usize * 3 + 3]);
-    // summed in place, a second list of normals would be one more copy of them in memory
     normals.clear();
     normals.resize(v * 3, 0.0);
+    sum_normals(positions, faces, normals);
+}
+
+/// [`smooth_normals`] of an encoded mesh, in its words
+pub fn smooth_normals_in_words(words: &mut [i32]) {
+    let sections = sections(words);
+    sections.normals.fill(0.0);
+    sum_normals(sections.positions, sections.faces, sections.normals);
+}
+
+/// A mesh of up to `vertices` and `faces` as the result, written straight into the result buffer
+/// by `build` and given smooth normals, see [`MeshWriter`]
+pub fn write_mesh(vertices: usize, faces: usize, build: impl FnOnce(&mut MeshWriter)) -> Output {
+    abi::write_result(MeshWriter::len(vertices, faces), |words| {
+        let mut writer = MeshWriter::new(words, vertices, faces);
+        build(&mut writer);
+        let len = writer.finish();
+        smooth_normals_in_words(&mut words[..len]);
+        len
+    })
+    .into()
+}
+
+/// Sums the area-weighted normals of the faces around every vertex into `normals`, which are zero,
+/// and normalizes them
+fn sum_normals(positions: &[f32], faces: &[u32], normals: &mut [f32]) {
+    let p = |i: u32| Vec3::from_slice(&positions[i as usize * 3..i as usize * 3 + 3]);
+    // summed in place, a second list of normals would be one more copy of them in memory
     for f in faces.chunks_exact(3) {
         let n = (p(f[1]) - p(f[0])).cross(p(f[2]) - p(f[0]));
         for &i in f {

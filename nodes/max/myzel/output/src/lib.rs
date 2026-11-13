@@ -67,7 +67,7 @@ fn mesh_list(mesh: &[i32]) -> Output {
     }
 }
 
-#[nodarium_execute]
+#[nodarium_execute(arena)]
 pub fn execute(args: &[&[i32]]) -> Output {
     match args[0].first() {
         Some(&MESH_TAG) => mesh_list(args[0]),
@@ -145,7 +145,7 @@ mod tests {
             std::slice::from_raw_parts(ptr, mesh.len())
         };
         let framed = __nodarium_execute_inner(&[input]);
-        assert!(matches!(framed, Output::Framed(_)));
+        assert!(matches!(framed, Output::InPlace(_)));
         assert_eq!(unsafe { framed.words() }, list(&[&mesh]));
         nodarium_utils::abi::reset();
     }

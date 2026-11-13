@@ -1,0 +1,102 @@
+// The arena of `#[nodarium_execute(arena)]` lays its buffers in pages it grows itself, so the Rust
+// allocator grows the memory before and after them. It must never hand out the arena's pages:
+// the compiled `output` node takes a large list of paths into the arena and builds its lines and
+// their list with the allocator, which has to grow the memory past the arena. See docs/ABI.md.
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+type Exports = {
+  memory: WebAssembly.Memory;
+  nodarium_alloc: (bytes: number) => number;
+  nodarium_reset: () => void;
+  nodarium_execute: (argsPtr: number, argc: number) => number;
+};
+
+const ON_CI = !!(process.env.CI || process.env.GITEA_ACTIONS);
+const NODE = resolve('static/nodes/max/myzel/output.wasm');
+const BUILT = existsSync(NODE);
+
+const LINES_TAG = 12;
+const VICTIM_WORDS = 64 * 1024;
+
+function instantiate() {
+  let panic: [number, number] | undefined;
+  const env = {
+    nodarium_panic: (ptr: number, len: number) => (panic = [ptr, len]),
+    nodarium_log: () => {}
+  };
+  const instance = new WebAssembly.Instance(new WebAssembly.Module(readFileSync(NODE)), { env });
+  const exports = instance.exports as unknown as Exports;
+  const message = () =>
+    panic && new TextDecoder().decode(new Uint8Array(exports.memory.buffer, ...panic));
+  return { exports, panic: message };
+}
+
+/** One path of `points` points along x, as `[0, 1, path, 1, 1]` */
+function pathList(points: number) {
+  const words = new Int32Array(4 + 9 + points * 4 + 2);
+  words.set([0, 1, 0, points * 4 + 8, 0, 1, 7, -1, 0, 3, 0]);
+  const floats = new Float32Array(words.buffer, 11 * 4, points * 4);
+  for (let i = 0; i < points; i++) floats.set([i * 0.001, 1, 2, 0.1], i * 4);
+  words.set([1, 1, 1, 1], words.length - 4);
+  return words;
+}
+
+const marker = (i: number) => 0x5a5a0000 ^ i;
+
+/** The first word of `view` that isn't `word` of its index, -1 for none */
+const changed = (view: Int32Array, word: (i: number) => number) =>
+  view.findIndex((w, i) => w !== word(i));
+
+describe.skipIf(!BUILT && !ON_CI)('the arena of a node', () => {
+  it('is never handed out by the allocator when it grows the memory after it', () => {
+    const { exports, panic } = instantiate();
+    const memory = exports.memory;
+    const before = memory.buffer.byteLength;
+
+    // each run larger than the memory the allocator got back from the ones before
+    for (const [run, points] of [100_000, 250_000, 600_000].entries()) {
+      exports.nodarium_reset();
+      const input = pathList(points);
+      const inputPtr = exports.nodarium_alloc(input.byteLength);
+      new Int32Array(memory.buffer, inputPtr, input.length).set(input);
+      const tablePtr = exports.nodarium_alloc(8);
+      new Uint32Array(memory.buffer, tablePtr, 2).set([inputPtr, input.length]);
+      // the last buffer of the run, at the tail of the arena
+      const victimPtr = exports.nodarium_alloc(VICTIM_WORDS * 4);
+      new Int32Array(memory.buffer, victimPtr, VICTIM_WORDS).set(
+        Int32Array.from({ length: VICTIM_WORDS }, (_, i) => marker(i))
+      );
+      const arenaEnd = memory.buffer.byteLength;
+      if (run === 0) {
+        expect(inputPtr).toBeGreaterThanOrEqual(before);
+        expect(victimPtr + VICTIM_WORDS * 4).toBeLessThanOrEqual(arenaEnd);
+      }
+
+      let resultPtr: number;
+      try {
+        resultPtr = exports.nodarium_execute(tablePtr, 1);
+      } catch (error) {
+        throw new Error(`output panicked: ${panic()}`, { cause: error });
+      }
+
+      expect(memory.buffer.byteLength, 'the allocator grew the memory after the arena')
+        .toBeGreaterThan(arenaEnd);
+      const victim = new Int32Array(memory.buffer, victimPtr, VICTIM_WORDS);
+      expect(changed(victim, marker), `run ${run}: the arena's last buffer changed`).toBe(-1);
+      const kept = new Int32Array(memory.buffer, inputPtr, input.length);
+      expect(changed(kept, (i) => input[i]), `run ${run}: the input changed`).toBe(-1);
+
+      const [ptr, len] = new Uint32Array(memory.buffer, resultPtr, 2);
+      for (const [start, bytes] of [[inputPtr, input.byteLength], [victimPtr, VICTIM_WORDS * 4]]) {
+        expect(ptr + len * 4 <= start || ptr >= start + bytes, 'the result lies outside the arena')
+          .toBe(true);
+      }
+      const result = new Int32Array(memory.buffer, ptr, len);
+      expect([result[4], result[5]]).toEqual([LINES_TAG, points - 1]);
+      const last = new Float32Array(memory.buffer, ptr + (len - 4 - 7) * 4, 6);
+      expect(last[3]).toBeCloseTo((points - 1) * 0.001, 3);
+    }
+  });
+});

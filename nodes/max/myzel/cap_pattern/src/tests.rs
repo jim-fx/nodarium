@@ -73,7 +73,23 @@ fn run(mesh: &Mesh, cap: &[Vec<i32>], pattern: &[i32], relief: &[i32], opacity: 
 }
 
 fn run_sliding(mesh: &Mesh, cap: &[Vec<i32>], pattern: &[i32], relief: &[i32], slide: &[i32], opacity: &[i32]) -> Vec<i32> {
-    __nodarium_execute_inner(&[&mesh.encode(), &testing::list(cap), pattern, relief, slide, &encode_color(PALE), opacity])
+    run_as_host(&[&mesh.encode(), &testing::list(cap), pattern, relief, slide, &encode_color(PALE), opacity])
+}
+
+/// The node on `args` copied into buffers of its ABI like the host does it, so it can frame or
+/// shrink them. The tests never reset, every buffer stays.
+fn run_as_host(args: &[&[i32]]) -> Vec<i32> {
+    let inputs: Vec<&[i32]> = args
+        .iter()
+        .map(|arg| {
+            let ptr = abi::alloc(arg.len() * 4);
+            unsafe {
+                std::ptr::copy_nonoverlapping(arg.as_ptr(), ptr, arg.len());
+                std::slice::from_raw_parts(ptr, arg.len())
+            }
+        })
+        .collect();
+    unsafe { __nodarium_execute_inner(&inputs).words() }.to_vec()
 }
 
 fn value(v: f32) -> Vec<i32> {
@@ -96,8 +112,24 @@ fn at_zero_the_mesh_stays_as_it_is() {
     assert_eq!(run(&mesh, &cap, &[0, 1, 1, 1], &value(0.001), &value(1.0)), words);
     assert_eq!(run(&mesh, &[], &disc(|_, _| 1.0), &value(0.001), &value(1.0)), words);
     assert_eq!(run_sliding(&mesh, &cap, &disc(|_, _| 1.0), &value(0.0), &value(0.0), &value(0.0)), words);
-    let empty = __nodarium_execute_inner(&[&[0, 1, 1, 1], &[0, 1, 1, 1], &[0, 1, 1, 1], &value(0.001), &value(0.0), &encode_color(PALE), &value(1.0)]);
+    let empty = run_as_host(&[&[0, 1, 1, 1], &[0, 1, 1, 1], &[0, 1, 1, 1], &value(0.001), &value(0.0), &encode_color(PALE), &value(1.0)]);
     assert_eq!(Mesh::decode(&empty), Mesh::default());
+}
+
+#[test]
+fn a_mesh_that_is_split_finer_but_gets_nothing_comes_back_as_it_was() {
+    let cap = cap();
+    let mesh = body(&cap);
+    // the faces on the top are split, but only past the margin is there anything
+    let pattern = disc(|_, r| if r > 0.0447 { 1.0 } else { 0.0 });
+    let colored = Mesh { colors: vec![opaque([1, 2, 3]); mesh.vertex_count()], ..mesh.clone() };
+    for m in [mesh, colored] {
+        let words = m.encode();
+        assert_eq!(run(&m, &cap, &pattern, &value(0.001), &value(1.0)), words);
+        // the same when the input isn't a buffer of the call, which can't be shrunk
+        let direct = __nodarium_execute_inner(&[&words, &testing::list(&cap), &pattern, &value(0.001), &value(0.0), &encode_color(PALE), &value(1.0)]);
+        assert_eq!(unsafe { direct.words() }, &words[..]);
+    }
 }
 
 #[test]

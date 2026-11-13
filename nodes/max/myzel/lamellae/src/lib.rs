@@ -1,20 +1,23 @@
 //! Thin gills under a cap, one plate for every stripe of a pattern, see `myzel_core::gills`.
 
-use myzel_core::{gill_mesh, GillInputs, GillProfile};
+use myzel_core::{write_gills, GillInputs, GillProfile};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
-use nodarium_utils::int;
+use nodarium_utils::{abi::Output, int};
 
 nodarium_definition_file!("src/definition.json");
 
 #[nodarium_execute]
-pub fn execute(args: &[&[i32]]) -> Vec<i32> {
-    gill_mesh(&inputs(args), GillProfile::Plate).encode()
+pub fn execute(args: &[&[i32]]) -> Output {
+    write_gills(&inputs(args), GillProfile::Plate)
 }
 
 /// The gills with their paths, which only the tests look at
 #[cfg(test)]
 fn build(args: &[&[i32]]) -> myzel_core::Gills {
-    myzel_core::gills(&inputs(args), GillProfile::Plate)
+    let gills = myzel_core::gills(&inputs(args), GillProfile::Plate);
+    // the node writes the same mesh straight into its result
+    assert_eq!(unsafe { __nodarium_execute_inner(args).words() }, gills.mesh.encode());
+    gills
 }
 
 /// args follow the key order of the inputs in definition.json

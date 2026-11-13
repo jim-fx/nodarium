@@ -189,3 +189,20 @@ fn the_tubes_keep_the_free_distance_to_the_stipe() {
     }
 }
 
+#[test]
+fn the_size_of_a_layer_is_known_before_it_is_meshed() {
+    let r = run();
+    let (free, pore) = ([encode_float(r.free_distance)], [encode_float(r.pore_depth)]);
+    for (closing, pattern) in [(0.0, ring_pattern()), (0.9, ring_pattern()), (0.3, even_pattern(0.0))] {
+        let (paths, encoded) = (testing::list(&cap(closing)), pattern.encode());
+        let inputs = PoreInputs { cap: &paths, pattern: &encoded, depth: &r.depth, free_distance: &free, pore_depth: &pore };
+        let layers = layers(&inputs, &pattern);
+        assert!(!layers.is_empty());
+        for layer in &layers {
+            let mut mesh = Mesh::default();
+            layer.add(&mut mesh);
+            assert_eq!(layer.size(), (mesh.vertex_count(), mesh.face_count()), "closing {closing}");
+        }
+    }
+}
+
