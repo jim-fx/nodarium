@@ -1,6 +1,6 @@
 {
   "name": "@nodarium/runtime",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "Runs Nodarium graphs and turns their results into vertices and faces, with the compiled nodes",
   "type": "module",
   "exports": {
