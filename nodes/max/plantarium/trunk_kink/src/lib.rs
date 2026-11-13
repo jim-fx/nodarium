@@ -3,7 +3,8 @@ use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs, encode_points,
     geometry::{
-        create_path, follow_parents, orthogonal_to, rotate_vector_by_angle, set_path_link,
+        colors_at_lengths, create_path, follow_parents, length_shares, orthogonal_to,
+        rotate_vector_by_angle, set_path_link, with_path_colors,
         wrap_path, wrap_path_mut, DeepestPaths,
     },
     split_args, Ctx, Point,
@@ -173,6 +174,8 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
             .collect();
 
         let mut points: Vec<Vec4> = path.points.chunks_exact(4).map(Vec4::from_slice).collect();
+        // the colors stay where they were along the path, it keeps its length
+        let colored = (!path.colors.is_empty()).then(|| (path.points.to_vec(), path.colors.to_vec()));
         let link = path.link;
         let path_depth = path.depth;
         kink_points.extend(bend(&mut points, &mut kinks, (link.id, path_depth)));
@@ -183,6 +186,10 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
         let bent_path = wrap_path_mut(&mut bent);
         for (i, point) in points.iter().enumerate() {
             bent_path.points[i * 4..i * 4 + 4].copy_from_slice(&point.to_array());
+        }
+        if let Some((old_points, old_colors)) = colored {
+            let shares = length_shares(wrap_path(&bent).points);
+            bent = with_path_colors(&bent, &colors_at_lengths(&old_points, &old_colors, shares));
         }
         *item = bent;
     }
@@ -200,8 +207,8 @@ mod tests {
     use nodarium_utils::{
         concat_arg_vecs, decode_points, encode_float,
         geometry::{
-            create_multiple_paths, create_path, path_link, set_path_link, wrap_multiple_paths,
-            wrap_path, wrap_path_mut, PathLink,
+            create_multiple_paths, create_path, path_link, set_path_link, with_path_colors,
+            wrap_multiple_paths, wrap_path, wrap_path_mut, PathLink,
         },
         split_args, Point,
     };
@@ -385,5 +392,22 @@ mod tests {
 
         assert_eq!(bent, plant);
         assert!(decode_points(&points).is_empty());
+    }
+
+    #[test]
+    fn colors_stay_where_they_were_along_the_path() {
+        let plain = stem();
+        let colors = [0xff00_0000, 0xff00_0040, 0xff00_0080, 0xff00_00c0, 0xff00_00ff];
+        let colored = concat_arg_vecs(vec![with_path_colors(split_args(&plain)[0], &colors)]);
+        // one kink halfway between two points adds a point there
+        let (bent, _) = run(&colored, 1, (0.375, 0.375), 30.0, 180.0);
+        let (bent_plain, _) = run(&plain, 1, (0.375, 0.375), 30.0, 180.0);
+        let (path, path_plain) = (wrap_path(split_args(&bent)[0]), wrap_path(split_args(&bent_plain)[0]));
+        assert_eq!(path.points, path_plain.points);
+        assert_eq!(path.colors.len(), path.length);
+        assert_eq!(path.length, 6);
+        assert_eq!(path.colors[0], colors[0]);
+        assert_eq!(path.colors[5], colors[4]);
+        assert!(path.colors[2] > colors[1] && path.colors[2] < colors[2], "{:x?}", path.colors);
     }
 }

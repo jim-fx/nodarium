@@ -1,5 +1,6 @@
 use super::{
-    append_geometry_data, geometry_data_len, set_geometry_path_id, wrap_geometry_data, PathData,
+    append_colored_geometry_data, append_geometry_data, colored_geometry_data_len,
+    geometry_data_len, set_geometry_path_id, wrap_geometry_data, PathData,
 };
 use glam::{Quat, Vec3};
 
@@ -28,7 +29,11 @@ fn extruded_size(point_amount: usize, res_x: usize) -> (usize, usize) {
 /// Length of the encoded geometry `extrude_path` makes from `input_path`.
 pub fn extrude_path_len(input_path: &PathData, res_x: usize) -> usize {
     let (vertices, faces) = extruded_size(input_path.points.len() / 4, res_x);
-    geometry_data_len(vertices, faces)
+    if input_path.colors.is_empty() {
+        geometry_data_len(vertices, faces)
+    } else {
+        colored_geometry_data_len(vertices, faces)
+    }
 }
 
 pub fn extrude_path(input_path: PathData, res_x: usize) -> Vec<i32> {
@@ -41,7 +46,12 @@ pub fn extrude_path(input_path: PathData, res_x: usize) -> Vec<i32> {
 pub fn extrude_path_into(input_path: PathData, res_x: usize, out: &mut Vec<i32>) {
     let point_amount = input_path.points.len() / 4;
     let (vertices_amount, face_amount) = extruded_size(point_amount, res_x);
-    let range = append_geometry_data(out, vertices_amount, face_amount);
+    let colored = !input_path.colors.is_empty();
+    let range = if colored {
+        append_colored_geometry_data(out, vertices_amount, face_amount)
+    } else {
+        append_geometry_data(out, vertices_amount, face_amount)
+    };
     let geometry_data = &mut out[range];
     set_geometry_path_id(geometry_data, input_path.link.id);
 
@@ -61,6 +71,14 @@ pub fn extrude_path_into(input_path: PathData, res_x: usize, out: &mut Vec<i32>)
     let normals = geometry.normals;
     let positions = geometry.positions;
     let indices = geometry.faces;
+
+    // every ring takes the color of its point, the cap the color of the last one
+    if colored {
+        let last = input_path.colors[point_amount - 1];
+        for (ring, colors) in geometry.colors.chunks_mut(res_x).enumerate() {
+            colors.fill(input_path.colors.get(ring).copied().unwrap_or(last));
+        }
+    }
 
     let path: &[f32] = input_path.points;
 

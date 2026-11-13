@@ -1,4 +1,4 @@
-import { PATH_HEADER_SIZE, splitNestedArray } from '@nodarium/utils';
+import { isPath, PATH_HEADER_SIZE, pathPointCount, splitNestedArray } from '@nodarium/utils';
 import type { Vec3 } from './gizmos';
 
 export { PATH_HEADER_SIZE };
@@ -16,11 +16,11 @@ export function readPaths(data: Int32Array | undefined): ProbePath[] {
   }
 
   return items
-    .filter((item) => item[0] === 0 && item.length >= PATH_HEADER_SIZE)
+    .filter(isPath)
     .map((item) => {
       const f32 = new Float32Array(item.buffer, item.byteOffset, item.length);
       const points: Vec3[] = [];
-      for (let i = PATH_HEADER_SIZE; i + 3 < f32.length; i += 4) {
+      for (let i = PATH_HEADER_SIZE; i < PATH_HEADER_SIZE + pathPointCount(item) * 4; i += 4) {
         points.push([f32[i], f32[i + 1], f32[i + 2]]);
       }
       return { depth: item[1], points };

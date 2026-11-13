@@ -303,15 +303,17 @@ function setBounds(geometry: BufferGeometry, positions: Float32Array) {
   return geometry.boundingBox;
 }
 
+/** Geometry that brings no colors of its own is shown with the material as it is */
+function materialFor(geometry: BufferGeometry, material: Material) {
+  return geometry.getAttribute('color') ? withVertexColors(material) : material;
+}
+
 export function createGeometryPool(
   parentScene: Group,
   material: Material,
   layout: 'geometry' | 'mesh' = 'geometry'
 ) {
   const read = layout === 'mesh' ? readMesh : readGeometry;
-  // meshes that bring no colors of their own are shown with the material as it is
-  const materialFor = (geometry: BufferGeometry) =>
-    geometry.getAttribute('color') ? withVertexColors(material) : material;
 
   const pool = createSlotPool<Mesh>(parentScene, {
     // the id of the path the geometry was made from, meshes have none and keep their order
@@ -362,7 +364,7 @@ export function createGeometryPool(
           groups: groups.slice()
         };
       }
-      mesh.material = materialFor(geometry);
+      mesh.material = materialFor(geometry, material);
 
       stats.bounds.union(geometry.boundingBox!);
       return mesh;
@@ -372,7 +374,7 @@ export function createGeometryPool(
   return {
     setMaterial(newMaterial: Material) {
       material = newMaterial;
-      pool.forEach((mesh) => mesh.material = materialFor(mesh.geometry));
+      pool.forEach((mesh) => mesh.material = materialFor(mesh.geometry, material));
     },
     update: pool.update
   };
@@ -389,8 +391,16 @@ export function createInstancedGeometryPool(
     // instances of the same shape and depth share an object
     key: (data) => `${data[1]}:${data[2]}:${data[4]}`,
     fill: (existing, data, stats) => {
-      const { vertexCount, faceCount, instanceCount, faces, positions, normals, matrices } =
-        readInstances(data);
+      const {
+        vertexCount,
+        faceCount,
+        instanceCount,
+        faces,
+        positions,
+        normals,
+        matrices,
+        colors
+      } = readInstances(data);
       stats.totalVertices += vertexCount * instanceCount;
       stats.totalFaces += faceCount * instanceCount;
 
@@ -400,6 +410,9 @@ export function createInstancedGeometryPool(
       writeIndex(geometry, faces, vertexCount);
       writeAttribute(geometry, 'position', positions);
       writeAttribute(geometry, 'normal', normals);
+      // the colors of the shape, every instance shows the same
+      if (colors) writeAttribute(geometry, 'color', linearColors(colors), 4);
+      else geometry.deleteAttribute('color');
       const geometryBounds = setBounds(geometry, positions);
       geometry.userData = { vertexCount, faceCount };
 
@@ -409,6 +422,7 @@ export function createInstancedGeometryPool(
         mesh = null;
       }
       mesh ??= new InstancedMesh(geometry, material, instanceCount);
+      mesh.material = materialFor(geometry, material);
       mesh.count = instanceCount;
 
       mesh.instanceMatrix.array.set(matrices);
@@ -448,7 +462,7 @@ export function createInstancedGeometryPool(
   return {
     setMaterial(newMaterial: Material) {
       material = newMaterial;
-      pool.forEach((instance) => instance.material = material);
+      pool.forEach((instance) => instance.material = materialFor(instance.geometry, material));
     },
     update: pool.update
   };

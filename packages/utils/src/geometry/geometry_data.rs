@@ -7,6 +7,7 @@ static GEOMETRY_HEADER_SIZE: usize = 4;
 // 1: vertex amount
 // 2: face amount
 // 3: id of the path the geometry was made from, `NO_PATH` if it doesn't come from a path
+// followed by the faces, positions and normals, and optionally an RGBA8 color per vertex
 
 /// The path id of geometry that wasn't made from a path.
 pub const NO_PATH: i32 = NO_PARENT;
@@ -15,6 +16,8 @@ pub struct GeometryData<'a> {
     pub positions: &'a mut [f32],
     pub normals: &'a mut [f32],
     pub faces: &'a mut [i32],
+    /// An RGBA8 color per vertex, empty for a geometry without colors
+    pub colors: &'a mut [u32],
 }
 
 impl GeometryData<'_> {
@@ -50,6 +53,11 @@ pub fn geometry_data_len(vertex_amount: usize, face_amount: usize) -> usize {
       + face_amount * 3 // faces
 }
 
+/// Length of an encoded geometry with a color per vertex, brackets included.
+pub fn colored_geometry_data_len(vertex_amount: usize, face_amount: usize) -> usize {
+    geometry_data_len(vertex_amount, face_amount) + vertex_amount
+}
+
 pub fn create_geometry_data(vertex_amount: usize, face_amount: usize) -> Vec<i32> {
     let mut geo = Vec::new();
     append_geometry_data(&mut geo, vertex_amount, face_amount);
@@ -63,7 +71,29 @@ pub fn append_geometry_data(
     vertex_amount: usize,
     face_amount: usize,
 ) -> std::ops::Range<usize> {
-    let amount = geometry_data_len(vertex_amount, face_amount);
+    append_geometry(out, vertex_amount, face_amount, false)
+}
+
+/// Like `append_geometry_data`, with room for a color per vertex, all of them `NO_COLOR`.
+pub fn append_colored_geometry_data(
+    out: &mut Vec<i32>,
+    vertex_amount: usize,
+    face_amount: usize,
+) -> std::ops::Range<usize> {
+    append_geometry(out, vertex_amount, face_amount, true)
+}
+
+fn append_geometry(
+    out: &mut Vec<i32>,
+    vertex_amount: usize,
+    face_amount: usize,
+    colored: bool,
+) -> std::ops::Range<usize> {
+    let amount = if colored {
+        colored_geometry_data_len(vertex_amount, face_amount)
+    } else {
+        geometry_data_len(vertex_amount, face_amount)
+    };
     let start = out.len();
     out.resize(start + amount, 0);
 
@@ -80,10 +110,21 @@ pub fn append_geometry_data(
     geo[3] = vertex_amount as i32;
     geo[4] = face_amount as i32;
     geo[5] = NO_PATH;
+    if colored {
+        let colors = amount - 2 - vertex_amount;
+        geo[colors..amount - 2].fill(crate::NO_COLOR as i32);
+    }
     geo[amount - 2] = 1; // closing bracket
     geo[amount - 1] = 1; // closing bracket
 
     start..start + amount
+}
+
+/// Whether an encoded geometry (brackets included) has a color per vertex: it does when its
+/// colors follow the normals.
+pub fn has_geometry_colors(geometry: &[i32]) -> bool {
+    let (v, f) = (geometry[3] as usize, geometry[4] as usize);
+    geometry.len() == colored_geometry_data_len(v, f)
 }
 
 /// The id of the path an encoded geometry was made from, brackets included.
@@ -117,6 +158,7 @@ pub fn wrap_geometry_data(geometry: &mut [i32]) -> GeometryData<'_> {
         "Geometry vector does not contain enough data for a header."
     );
 
+    let colored = has_geometry_colors(geometry);
     let (header, rest) = geometry.split_at_mut(2 + GEOMETRY_HEADER_SIZE);
 
     let vertices_amount = header[3] as usize;
@@ -125,7 +167,8 @@ pub fn wrap_geometry_data(geometry: &mut [i32]) -> GeometryData<'_> {
 
     let (faces, rest) = rest.split_at_mut(face_amount * 3);
     let (positions_slice, rest) = rest.split_at_mut(vertices_amount * 3);
-    let (normals_slice, _) = rest.split_at_mut(vertices_amount * 3);
+    let (normals_slice, rest) = rest.split_at_mut(vertices_amount * 3);
+    let (colors_slice, _) = rest.split_at_mut(if colored { vertices_amount } else { 0 });
 
     assert!(
         positions_slice.len() + normals_slice.len() == total_floats,
@@ -141,12 +184,30 @@ pub fn wrap_geometry_data(geometry: &mut [i32]) -> GeometryData<'_> {
     let normals: &mut [f32] = unsafe {
         std::slice::from_raw_parts_mut(normals_slice.as_mut_ptr() as *mut f32, normals_slice.len())
     };
+    let colors: &mut [u32] = unsafe {
+        std::slice::from_raw_parts_mut(colors_slice.as_mut_ptr() as *mut u32, colors_slice.len())
+    };
 
     GeometryData {
         positions,
         normals,
         faces,
+        colors,
     }
+}
+
+/// A copy of an encoded geometry (brackets included) with the given color per vertex, colors it
+/// had are replaced.
+pub fn with_geometry_colors(geometry: &[i32], colors: &[u32]) -> Vec<i32> {
+    let (v, f) = (geometry[3] as usize, geometry[4] as usize);
+    assert_eq!(colors.len(), v, "one color per vertex");
+    let plain = 2 + GEOMETRY_HEADER_SIZE + f * 3 + v * 6;
+    let mut out = Vec::with_capacity(colored_geometry_data_len(v, f));
+    out.extend_from_slice(&geometry[..plain]);
+    out[1] = (colored_geometry_data_len(v, f) - 3) as i32;
+    out.extend(colors.iter().map(|&c| c as i32));
+    out.extend_from_slice(&[1, 1]);
+    out
 }
 
 #[cfg(test)]

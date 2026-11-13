@@ -3,7 +3,7 @@ use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_args, decode_points,
     geometry::{
-        create_instance_data, is_path, path_link, wrap_geometry_data, wrap_instance_data,
+        create_colored_instance_data, create_instance_data, is_path, path_link, wrap_geometry_data, wrap_instance_data,
     },
     group_points_by_parent, split_args, Ctx, Point,
 };
@@ -65,7 +65,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         }
     }
 
-    let mut instance_data = create_instance_data(
+    let create = if geo.colors.is_empty() { create_instance_data } else { create_colored_instance_data };
+    let mut instance_data = create(
         geo.positions.len() / 3,
         geo.faces.len() / 3,
         transforms.len(),

@@ -1,7 +1,8 @@
 // Renders graph templates or project files to PNG screenshots, without a browser.
 // It executes the graph with the compiled nodes in static/nodes (`pnpm build:nodes`) and
 // rasterizes the result in software: front, side and a view from above, next to each other.
-// Stems are brown, instanced geometry (leaves, flowers) is green, Myzel meshes show their colors.
+// Stems are brown, instanced geometry (leaves, flowers) is green, colors of plants and Myzel
+// meshes show as they are.
 //
 // Usage: pnpm render-graph <target...> [--out dir] [--size px] [--seed n] [--time t] [--focus x,z,r] [--below]
 //   target   name of a template in packages/runtime/templates or src/lib/graph-templates (fern,
@@ -99,6 +100,17 @@ function floats(data: Int32Array, offset: number, length: number) {
   return new Float32Array(data.buffer, data.byteOffset + offset * 4, length);
 }
 
+/** The mean sRGB color of the corners of a face, over `fallback` by their alpha */
+function blend(colors: Uint8Array | undefined, corners: number[], fallback: number[]) {
+  if (!colors) return undefined;
+  return [0, 1, 2].map((c) =>
+    corners.reduce((sum, v) => {
+      const alpha = colors[v * 4 + 3] / 255;
+      return sum + (colors[v * 4 + c] * alpha + fallback[c] * (1 - alpha)) / 3;
+    }, 0)
+  ) as Vec3;
+}
+
 /** Collects the triangles of the geometry and the instances in the result of the output node */
 function collectTriangles(result: Int32Array) {
   const triangles: Triangle[] = [];
@@ -119,15 +131,7 @@ function collectTriangles(result: Int32Array) {
       const colors = part[3] & 1
         ? new Uint8Array(part.buffer, part.byteOffset + colorStart * 4, vertexCount * 4)
         : undefined;
-      const color = (corners: number[]): Vec3 | undefined => {
-        if (!colors) return undefined;
-        return [0, 1, 2].map((c) =>
-          corners.reduce((sum, v) => {
-            const alpha = colors[v * 4 + 3] / 255;
-            return sum + (colors[v * 4 + c] * alpha + STEM_COLOR[c] * (1 - alpha)) / 3;
-          }, 0)
-        ) as Vec3;
-      };
+      const color = (corners: number[]) => blend(colors, corners, STEM_COLOR);
       for (let f = 0; f < faceCount; f++) {
         const corners = [faces[f * 3], faces[f * 3 + 1], faces[f * 3 + 2]];
         triangles.push({
@@ -156,6 +160,12 @@ function collectTriangles(result: Int32Array) {
     index += vertexCount * 6;
     const matrices = instanced ? floats(part, index, instanceCount * 16) : undefined;
     instances += instanced ? instanceCount : 0;
+    // the colors follow the normals of geometry and the path ids of instances
+    const colorStart = index + (instanced ? instanceCount * 17 : 0);
+    const colors = vertexCount > 0 && part.length === colorStart + vertexCount
+      ? new Uint8Array(part.buffer, part.byteOffset + colorStart * 4, vertexCount * 4)
+      : undefined;
+    const fallback = instanced ? INSTANCE_COLOR : STEM_COLOR;
 
     for (let i = 0; i < instanceCount; i++) {
       const m = matrices?.subarray(i * 16, i * 16 + 16);
@@ -169,11 +179,13 @@ function collectTriangles(result: Int32Array) {
         ];
       };
       for (let f = 0; f < faceCount; f++) {
+        const corners = [faces[f * 3], faces[f * 3 + 1], faces[f * 3 + 2]];
         triangles.push({
-          a: vertex(faces[f * 3]),
-          b: vertex(faces[f * 3 + 1]),
-          c: vertex(faces[f * 3 + 2]),
-          instanced
+          a: vertex(corners[0]),
+          b: vertex(corners[1]),
+          c: vertex(corners[2]),
+          instanced,
+          color: blend(colors, corners, fallback)
         });
       }
     }

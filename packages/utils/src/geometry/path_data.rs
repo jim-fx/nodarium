@@ -1,6 +1,6 @@
 use glam::{vec3, vec4, Vec3, Vec4, Vec4Swizzles};
 
-// 0: node-type, stem: 0
+// 0: node-type: 0, or `COLORED_PATH` for a path with a color at every point
 // 1: depth
 // 2: id, a hash of the creator, the parent and the index, so it is unique in a list of paths
 //    and stays the same when other paths come or go
@@ -13,9 +13,75 @@ static PATH_HEADER_SIZE: usize = 7;
 /// The parent id of a path that is not attached to another path.
 pub const NO_PARENT: i32 = -1;
 
+/// The type of a path that carries an RGBA8 color at every point: its points are followed by
+/// one color per point, see `with_path_colors`. A plain path has the type 0.
+pub const COLORED_PATH: i32 = 16;
+
 /// Whether a list item is an encoded path with at least one point, brackets included.
 pub fn is_path(item: &[i32]) -> bool {
-    item.len() >= 2 + PATH_HEADER_SIZE + 4 + 2 && item[2] == 0
+    item.len() >= 2 + PATH_HEADER_SIZE + 4 + 2 && (item[2] == 0 || item[2] == COLORED_PATH)
+}
+
+/// How many of the words after the header of a path are its points, the rest are its colors
+fn point_words(kind: i32, words: usize) -> usize {
+    if kind != COLORED_PATH {
+        return words;
+    }
+    assert!(words.is_multiple_of(5), "a colored path has 5 words per point, got {}", words);
+    words / 5 * 4
+}
+
+/// A copy of the path (brackets included) with a color at every point, `colors` holds one
+/// RGBA8 word per point. Colors the path had are replaced.
+pub fn with_path_colors(path: &[i32], colors: &[u32]) -> Vec<i32> {
+    let points = wrap_path(path).points;
+    assert_eq!(colors.len() * 4, points.len(), "one color per point");
+    let words = PATH_HEADER_SIZE + points.len() + colors.len();
+    let mut out = Vec::with_capacity(words + 4);
+    out.extend_from_slice(&[0, words as i32 + 1, COLORED_PATH]);
+    out.extend_from_slice(&path[3..2 + PATH_HEADER_SIZE]);
+    out.extend(points.iter().map(|p| p.to_bits() as i32));
+    out.extend(colors.iter().map(|&c| c as i32));
+    out.extend_from_slice(&[1, 1]);
+    out
+}
+
+/// How far along a path each of its points lies, as a share of its length from 0 to 1
+pub fn length_shares(points: &[f32]) -> Vec<f32> {
+    let mut lengths = vec![0.0f32];
+    for pair in points.chunks_exact(4).collect::<Vec<_>>().windows(2) {
+        let step = Vec3::from_slice(pair[0]).distance(Vec3::from_slice(pair[1]));
+        lengths.push(lengths[lengths.len() - 1] + step);
+    }
+    let total = lengths[lengths.len() - 1];
+    let last = (lengths.len() - 1).max(1) as f32;
+    lengths
+        .iter()
+        .enumerate()
+        .map(|(i, l)| if total > 0.0 { l / total } else { i as f32 / last })
+        .collect()
+}
+
+/// The colors of a path (`points` with a color each) at shares of its length, for a node that
+/// makes a path anew with other points. Between two points the colors mix.
+pub fn colors_at_lengths(
+    points: &[f32],
+    colors: &[u32],
+    shares: impl IntoIterator<Item = f32>,
+) -> Vec<u32> {
+    let at = length_shares(points);
+    shares
+        .into_iter()
+        .map(|share| {
+            let i = at.partition_point(|&a| a <= share).clamp(1, at.len().max(2) - 1);
+            if colors.len() < 2 {
+                return colors[0];
+            }
+            let span = at[i] - at[i - 1];
+            let t = if span > 0.0 { (share - at[i - 1]) / span } else { 0.0 };
+            crate::mix_words(colors[i - 1], colors[i], t.clamp(0.0, 1.0))
+        })
+        .collect()
 }
 
 /// The depth of the deepest path in a list, 0 when there is no path.
@@ -149,6 +215,8 @@ pub struct PathDataMut<'a> {
     pub depth: i32,
     pub link: PathLink,
     pub points: &'a mut [f32],
+    /// An RGBA8 color per point, empty for a path without colors
+    pub colors: &'a mut [u32],
 }
 
 impl PathDataMut<'_> {
@@ -177,6 +245,8 @@ pub struct PathData<'a> {
     pub link: PathLink,
     pub length: usize,
     pub points: &'a [f32],
+    /// An RGBA8 color per point, empty for a path without colors
+    pub colors: &'a [u32],
 }
 
 impl PathData<'_> {
@@ -292,7 +362,8 @@ pub fn wrap_path(input: &[i32]) -> PathData<'_> {
 
     let header = &rest[..PATH_HEADER_SIZE];
 
-    let points_slice = &rest[PATH_HEADER_SIZE..rest.len() - 2];
+    let words = &rest[PATH_HEADER_SIZE..rest.len() - 2];
+    let (points_slice, colors_slice) = words.split_at(point_words(header[0], words.len()));
 
     assert!(
         points_slice.len().is_multiple_of(4),
@@ -305,12 +376,16 @@ pub fn wrap_path(input: &[i32]) -> PathData<'_> {
     let points: &[f32] = unsafe {
         std::slice::from_raw_parts(points_slice.as_ptr() as *const f32, points_slice.len())
     };
+    let colors: &[u32] = unsafe {
+        std::slice::from_raw_parts(colors_slice.as_ptr() as *const u32, colors_slice.len())
+    };
 
     PathData {
         depth: header[1],
         link: read_link(header),
         length,
         points,
+        colors,
     }
 }
 
@@ -325,7 +400,9 @@ pub fn wrap_path_mut<'a>(geometry: &'a mut [i32]) -> PathDataMut<'a> {
     let (header, rest) = rest.split_at_mut(PATH_HEADER_SIZE);
 
     // split after points, excluding last two that encode closing bracket
-    let (points_slice, _closing_bracket) = rest.split_at_mut(rest.len() - 2);
+    let (words, _closing_bracket) = rest.split_at_mut(rest.len() - 2);
+    let point_words = point_words(header[0], words.len());
+    let (points_slice, colors_slice) = words.split_at_mut(point_words);
 
     assert!(
         points_slice.len() % 4 == 0,
@@ -338,12 +415,16 @@ pub fn wrap_path_mut<'a>(geometry: &'a mut [i32]) -> PathDataMut<'a> {
     let points: &'a mut [f32] = unsafe {
         std::slice::from_raw_parts_mut(points_slice.as_mut_ptr() as *mut f32, points_slice.len())
     };
+    let colors: &'a mut [u32] = unsafe {
+        std::slice::from_raw_parts_mut(colors_slice.as_mut_ptr() as *mut u32, colors_slice.len())
+    };
 
     PathDataMut {
         depth: header[1],
         link: read_link(header),
         length,
         points,
+        colors,
     }
 }
 
@@ -669,5 +750,52 @@ mod tests {
         assert_eq!(child.index, 2);
         assert!(child.has_parent());
         assert_eq!(child.id, path_id(8, parent.id, 2));
+    }
+
+    fn straight(points: usize) -> Vec<i32> {
+        let mut path = create_path(points, 2);
+        set_path_link(&mut path, PathLink::child(5, 8, 0.5, 2));
+        for (i, point) in wrap_path_mut(&mut path).points.chunks_exact_mut(4).enumerate() {
+            point.copy_from_slice(&[0.0, i as f32, 0.0, 0.1]);
+        }
+        path
+    }
+
+    #[test]
+    fn a_path_with_colors_reads_like_one_without() {
+        let plain = straight(3);
+        let colored = with_path_colors(&plain, &[1, 2, 3]);
+        assert!(is_path(&colored));
+        assert_eq!(colored[2], COLORED_PATH);
+        assert_eq!(colored.len(), plain.len() + 3);
+        assert_eq!(crate::split_args(&crate::concat_args(vec![&colored, &plain])).len(), 2);
+
+        let (a, b) = (wrap_path(&colored), wrap_path(&plain));
+        assert_eq!((a.points, a.link, a.depth, a.length), (b.points, b.link, b.depth, b.length));
+        assert_eq!(a.colors, &[1, 2, 3]);
+        assert!(b.colors.is_empty());
+        assert_eq!(max_path_depth(&[colored.clone()]), 2);
+
+        let mut copy = colored.clone();
+        let path = wrap_path_mut(&mut copy);
+        path.points[1] = 7.0;
+        path.colors[2] = 9;
+        assert_eq!(wrap_path(&copy).colors, &[1, 2, 9]);
+        assert_eq!(wrap_path(&copy).points[1], 7.0);
+        // new colors replace the old ones
+        assert_eq!(wrap_path(&with_path_colors(&copy, &[4, 5, 6])).colors, &[4, 5, 6]);
+    }
+
+    #[test]
+    fn colors_are_found_by_the_share_of_the_length() {
+        let path = straight(3);
+        let points = wrap_path(&path).points;
+        assert_eq!(length_shares(points), vec![0.0, 0.5, 1.0]);
+        let (black, white) = (0xff00_0000, 0xffff_ffff);
+        let colors = colors_at_lengths(points, &[black, white, white], [0.0, 0.25, 0.5, 1.0]);
+        assert_eq!(colors[0], black);
+        assert!(colors[1] != black && colors[1] != white);
+        assert_eq!(&colors[2..], &[white, white]);
+        assert_eq!(colors_at_lengths(&points[..4], &[black], [0.0, 1.0]), vec![black, black]);
     }
 }

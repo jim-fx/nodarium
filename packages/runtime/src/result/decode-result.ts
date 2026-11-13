@@ -55,9 +55,21 @@ function readLayout(data: Int32Array, headerLength: number): MeshData {
   };
 }
 
-/** Plantarium geometry: `[1, v, f, path id, ...faces, ...positions, ...normals]` */
+function colorsAt(data: Int32Array, start: number, vertexCount: number) {
+  return new Uint8Array(data.buffer, data.byteOffset + start * 4, vertexCount * 4);
+}
+
+/**
+ * Plantarium geometry: `[1, v, f, path id, ...faces, ...positions, ...normals, ...colors?]`, the
+ * colors are there when the length leaves room for one per vertex
+ */
 export function readGeometry(data: Int32Array) {
-  return readLayout(data, 4);
+  const geometry = readLayout(data, 4);
+  const colorsStart = 4 + geometry.faceCount * 3 + geometry.vertexCount * 6;
+  if (geometry.vertexCount > 0 && data.length === colorsStart + geometry.vertexCount) {
+    geometry.colors = colorsAt(data, colorsStart, geometry.vertexCount);
+  }
+  return geometry;
 }
 
 /** Set in the flags word of a Myzel mesh when it brings one color per vertex */
@@ -77,13 +89,7 @@ export function readMesh(data: Int32Array) {
       } needs ${expected} words, got ${data.length}`
     );
   }
-  if (withColors) {
-    mesh.colors = new Uint8Array(
-      data.buffer,
-      data.byteOffset + colorsStart * 4,
-      mesh.vertexCount * 4
-    );
-  }
+  if (withColors) mesh.colors = colorsAt(data, colorsStart, mesh.vertexCount);
   mesh.groups = data.subarray(groupsStart, expected);
   return mesh;
 }
@@ -100,12 +106,17 @@ export type InstancesData = MeshData & {
 
 /**
  * Plantarium instances: `[2, v, f, instances, depth, ...faces, ...positions, ...normals,
- * ...matrices, ...path ids]`, one shape drawn at every matrix
+ * ...matrices, ...path ids, ...colors?]`, one shape drawn at every matrix. The colors of the
+ * shape are there when the length leaves room for one per vertex after the path ids.
  */
 export function readInstances(data: Int32Array): InstancesData {
   const shape = readLayout(data, 5);
   const instanceCount = data[3];
   const matricesStart = 5 + shape.faceCount * 3 + shape.vertexCount * 6;
+  const colorsStart = matricesStart + instanceCount * 17;
+  if (shape.vertexCount > 0 && data.length === colorsStart + shape.vertexCount) {
+    shape.colors = colorsAt(data, colorsStart, shape.vertexCount);
+  }
   const matrices = new Float32Array(
     data.buffer,
     data.byteOffset + matricesStart * 4,

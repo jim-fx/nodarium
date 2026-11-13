@@ -1,6 +1,12 @@
 import { encodeNestedArray } from '@nodarium/utils';
 import { describe, expect, it } from 'vitest';
-import { decodeResult, readInstances, readMesh, sortResultItems } from './decode-result';
+import {
+  decodeResult,
+  readGeometry,
+  readInstances,
+  readMesh,
+  sortResultItems
+} from './decode-result';
 
 // [14, vertices, faces, flags, ...faces, ...positions, ...normals, ...colors?, ...groups] with a
 // single triangle, without colors when `color` is null
@@ -15,18 +21,20 @@ function myzelMesh(color: number | null = 0xff00_80ff, x = 0, groups = [0, 0, 0]
   return data;
 }
 
-// [1, vertices, faces, path id, ...faces, ...positions, ...normals] with a single triangle
-function plantGeometry(pathId: number) {
-  const data = new Int32Array(4 + 3 + 3 * 6);
+// [1, vertices, faces, path id, ...faces, ...positions, ...normals, ...colors?] with a single
+// triangle
+function plantGeometry(pathId: number, colors: number[] = []) {
+  const data = new Int32Array(4 + 3 + 3 * 6 + colors.length);
   data.set([1, 3, 1, pathId, 0, 1, 2]);
   new Float32Array(data.buffer).set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1], 7);
+  data.set(colors, 25);
   return data;
 }
 
 // [2, vertices, faces, instances, depth, ...faces, ...positions, ...normals, ...matrices,
-// ...path ids] with a single triangle, every instance moved along x by its index
-function instances(count: number, pathIds: number[] = []) {
-  const data = new Int32Array(5 + 3 + 3 * 6 + count * 16 + pathIds.length);
+// ...path ids, ...colors?] with a single triangle, every instance moved along x by its index
+function instances(count: number, pathIds: number[] = [], colors: number[] = []) {
+  const data = new Int32Array(5 + 3 + 3 * 6 + count * 16 + pathIds.length + colors.length);
   data.set([2, 3, 1, count, 1, 0, 1, 2]);
   const floats = new Float32Array(data.buffer);
   floats.set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1], 8);
@@ -34,6 +42,7 @@ function instances(count: number, pathIds: number[] = []) {
     floats.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, i, 0, 0, 1], 26 + i * 16);
   }
   data.set(pathIds, 26 + count * 16);
+  data.set(colors, 26 + count * 16 + pathIds.length);
   return data;
 }
 
@@ -90,6 +99,35 @@ describe('readInstances', () => {
 
   it('gives instances without a path id NO_PATH', () => {
     expect([...readInstances(instances(2)).pathIds]).toEqual([-1, -1]);
+  });
+
+  it('reads the colors of the shape after the path ids', () => {
+    expect(readInstances(instances(2, [7, 9])).colors).toBeUndefined();
+    const read = readInstances(instances(2, [7, 9], [0x11223344, -1, 0x00ffffff]));
+    expect([...read.pathIds]).toEqual([7, 9]);
+    expect([...read.colors!]).toEqual([
+      0x44,
+      0x33,
+      0x22,
+      0x11,
+      255,
+      255,
+      255,
+      255,
+      255,
+      255,
+      255,
+      0
+    ]);
+  });
+});
+
+describe('readGeometry', () => {
+  it('reads a color per vertex when there is one', () => {
+    expect(readGeometry(plantGeometry(5)).colors).toBeUndefined();
+    const read = readGeometry(plantGeometry(5, [0x11223344, 0x11223344, -1]));
+    expect([...read.colors!.subarray(0, 4)]).toEqual([0x44, 0x33, 0x22, 0x11]);
+    expect([...read.positions]).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0]);
   });
 });
 

@@ -3,10 +3,11 @@ use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_args, encode_float,
     geometry::{
-        extrude_path, geometry_path_id, is_collapsed, path_link, split_items, wrap_geometry_data,
-        wrap_instance_data, wrap_path, PathData, PathStructure, NO_PATH,
+        extrude_path, geometry_path_id, is_collapsed, path_link, colors_at_lengths, split_items,
+        wrap_geometry_data, wrap_instance_data, wrap_path, PathData, PathStructure, COLORED_PATH,
+        NO_PATH,
     },
-    int, wrap_arg,
+    int, wrap_arg, NO_COLOR,
 };
 use std::collections::HashMap;
 
@@ -18,18 +19,32 @@ struct Mesh {
     normals: Vec<f32>,
     faces: Vec<i32>,
     path_ids: Vec<i32>,
+    /// Empty, or an RGBA8 color per vertex once a part with colors was added
+    colors: Vec<u32>,
+}
+
+/// A part to bake: the vertices, faces and colors of a geometry
+struct Part<'a> {
+    positions: &'a [f32],
+    normals: &'a [f32],
+    faces: &'a [i32],
+    /// Empty for a part without colors
+    colors: &'a [u32],
 }
 
 impl Mesh {
-    fn add(
-        &mut self,
-        positions: &[f32],
-        normals: &[f32],
-        faces: &[i32],
-        transform: Mat4,
-        path_id: i32,
-    ) {
+    fn add(&mut self, part: &Part, transform: Mat4, path_id: i32) {
+        let Part { positions, normals, faces, colors } = *part;
         let offset = (self.positions.len() / 3) as i32;
+        // the vertices of a part without colors keep the material, as do those before the first
+        if !colors.is_empty() || !self.colors.is_empty() {
+            self.colors.resize(offset as usize, NO_COLOR);
+            if colors.is_empty() {
+                self.colors.extend(std::iter::repeat_n(NO_COLOR, positions.len() / 3));
+            } else {
+                self.colors.extend_from_slice(colors);
+            }
+        }
         let normal_matrix = Mat3::from_mat4(transform).inverse().transpose();
         for (position, normal) in positions.chunks_exact(3).zip(normals.chunks_exact(3)) {
             let position = transform.transform_point3(Vec3::from_slice(position));
@@ -57,6 +72,7 @@ impl Mesh {
         out.extend(self.faces);
         out.extend(self.positions.iter().map(|&f| encode_float(f)));
         out.extend(self.normals.iter().map(|&f| encode_float(f)));
+        out.extend(self.colors.iter().map(|&c| c as i32));
         wrap_arg(&out)
     }
 }
@@ -82,7 +98,7 @@ impl Variants {
     fn per_stem(items: &[&[i32]]) -> Self {
         let paths: Vec<Vec<i32>> = items
             .iter()
-            .filter(|item| item.get(2) == Some(&0))
+            .filter(|item| matches!(item.get(2), Some(&0) | Some(&COLORED_PATH)))
             .map(|item| item.to_vec())
             .collect();
         let structure = PathStructure::new(&paths);
@@ -115,19 +131,12 @@ impl Variants {
         }
     }
 
-    fn add(
-        &mut self,
-        positions: &[f32],
-        normals: &[f32],
-        faces: &[i32],
-        transform: Mat4,
-        path_id: i32,
-    ) {
+    fn add(&mut self, part: &Part, transform: Mat4, path_id: i32) {
         match self.mesh_of_path.get(&path_id) {
-            Some(&mesh) => self.meshes[mesh].add(positions, normals, faces, transform, path_id),
+            Some(&mesh) => self.meshes[mesh].add(part, transform, path_id),
             None => {
                 for mesh in &mut self.meshes {
-                    mesh.add(positions, normals, faces, transform, path_id);
+                    mesh.add(part, transform, path_id);
                 }
             }
         }
@@ -136,18 +145,24 @@ impl Variants {
     fn add_geometry(&mut self, item: &[i32]) {
         let mut data = item.to_vec();
         let geometry = wrap_geometry_data(&mut data);
-        self.add(
-            geometry.positions,
-            geometry.normals,
-            geometry.faces,
-            Mat4::IDENTITY,
-            geometry_path_id(item),
-        );
+        let part = Part {
+            positions: geometry.positions,
+            normals: geometry.normals,
+            faces: geometry.faces,
+            colors: geometry.colors,
+        };
+        self.add(&part, Mat4::IDENTITY, geometry_path_id(item));
     }
 
     fn add_instances(&mut self, item: &[i32]) {
         let mut data = item.to_vec();
         let instances = wrap_instance_data(&mut data);
+        let part = Part {
+            positions: instances.positions,
+            normals: instances.normals,
+            faces: instances.faces,
+            colors: instances.colors,
+        };
         for (matrix, path_id) in instances
             .instances
             .chunks_exact(16)
@@ -157,13 +172,7 @@ impl Variants {
             if is_collapsed(&transform) {
                 continue;
             }
-            self.add(
-                instances.positions,
-                instances.normals,
-                instances.faces,
-                transform,
-                *path_id,
-            );
+            self.add(&part, transform, *path_id);
         }
     }
 }
@@ -201,10 +210,17 @@ fn extrude(item: &[i32], circle_segments: usize, max_points: usize) -> Vec<i32> 
         return extrude_path(path, circle_segments);
     }
     let points = resample(path.points, max_points);
+    let colors = if path.colors.is_empty() {
+        Vec::new()
+    } else {
+        let shares = (0..max_points).map(|i| i as f32 / (max_points - 1) as f32);
+        colors_at_lengths(path.points, path.colors, shares)
+    };
     extrude_path(
         PathData {
             length: max_points,
             points: &points,
+            colors: &colors,
             ..path
         },
         circle_segments,
@@ -234,7 +250,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     for item in items {
         match item.get(2) {
-            Some(0) => variants.add_geometry(&extrude(item, circle_segments, max_points)),
+            Some(0) | Some(&COLORED_PATH) => {
+                variants.add_geometry(&extrude(item, circle_segments, max_points))
+            }
             Some(1) => variants.add_geometry(item),
             Some(2) => variants.add_instances(item),
             _ => {}
@@ -258,9 +276,9 @@ mod tests {
             create_instance_data, create_multiple_paths, create_path, extrude_path,
             geometry_path_id, is_geometry, path_link, set_path_link, split_items,
             wrap_geometry_data, wrap_instance_data, wrap_multiple_paths, wrap_path, wrap_path_mut,
-            PathLink, NO_PATH,
+            PathLink, NO_PATH, has_geometry_colors, with_geometry_colors, with_path_colors,
         },
-        split_args, wrap_arg,
+        split_args, wrap_arg, NO_COLOR,
     };
 
     /// A triangle along +x and +y, its normals look along +z.
@@ -534,5 +552,31 @@ mod tests {
         let geometry = wrap_geometry_data(&mut result);
         assert!(geometry.positions.is_empty());
         assert!(geometry.faces.is_empty());
+    }
+
+    #[test]
+    fn colors_are_baked_and_parts_without_them_keep_the_material() {
+        let colored = with_geometry_colors(&triangle(NO_PATH), &[1, 2, 3]);
+        let input = concat_args(vec![&triangle(NO_PATH), &colored]);
+        let mut result = __nodarium_execute_inner(&[&input, &[8], &[0], &[0], &[0]]);
+        assert_eq!(wrap_geometry_data(&mut result).colors, &[NO_COLOR, NO_COLOR, NO_COLOR, 1, 2, 3]);
+
+        let plain = concat_args(vec![&triangle(NO_PATH), &triangle(NO_PATH)]);
+        assert!(!has_geometry_colors(&__nodarium_execute_inner(&[&plain, &[8], &[0], &[0], &[0]])));
+    }
+
+    #[test]
+    fn a_resampled_path_keeps_its_colors() {
+        let mut stem = create_path(5, 1);
+        for (i, point) in wrap_path_mut(&mut stem).points.chunks_exact_mut(4).enumerate() {
+            point.copy_from_slice(&[0.0, i as f32, 0.0, 0.1]);
+        }
+        let colors = [0xff00_0000, 0xff00_0040, 0xff00_0080, 0xff00_00c0, 0xff00_00ff];
+        let stem = concat_args(vec![&with_path_colors(&stem, &colors)]);
+        let mut result = __nodarium_execute_inner(&[&stem, &[4], &[0], &[3], &[0]]);
+        let baked = wrap_geometry_data(&mut result).colors.to_vec();
+        assert_eq!(&baked[..4], &[colors[0]; 4]);
+        assert_eq!(&baked[4..8], &[colors[2]; 4]);
+        assert!(baked[8..].iter().all(|&c| c == colors[4]));
     }
 }

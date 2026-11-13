@@ -26,8 +26,25 @@ export type PathLink = {
   index: number;
 };
 
+/** The type of a path with an RGBA8 color at every point, its colors follow its points. */
+export const COLORED_PATH = 16;
+
 export function isPath(item: Int32Array) {
-  return item[0] === 0 && item.length >= PATH_HEADER_SIZE;
+  return (item[0] === 0 || item[0] === COLORED_PATH) && item.length >= PATH_HEADER_SIZE;
+}
+
+/** How many points a path has: 4 words each after the header, and a color each when it has colors */
+export function pathPointCount(path: Int32Array) {
+  const words = path.length - PATH_HEADER_SIZE;
+  return Math.floor(words / (path[0] === COLORED_PATH ? 5 : 4));
+}
+
+/** The RGBA8 colors of a path, sRGB with red first, four bytes per point, or undefined without */
+export function readPathColors(path: Int32Array) {
+  if (path[0] !== COLORED_PATH) return undefined;
+  const points = pathPointCount(path);
+  const start = PATH_HEADER_SIZE + points * 4;
+  return new Uint8Array(path.buffer, path.byteOffset + start * 4, points * 4);
 }
 
 export function readPathLink(path: Int32Array): PathLink {

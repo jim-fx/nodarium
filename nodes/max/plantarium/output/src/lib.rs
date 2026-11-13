@@ -1,7 +1,7 @@
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    geometry::{extrude_path_into, extrude_path_len, split_items, wrap_path},
+    geometry::{extrude_path_into, extrude_path_len, split_items, wrap_path, COLORED_PATH},
     int, log,
 };
 
@@ -19,7 +19,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     log!("inputs: {}, resolution: {}", inputs.len(), resolution);
 
     // a path is passed on and also extruded into geometry
-    let is_path = |arg: &[i32]| arg.get(2) == Some(&0);
+    let is_path = |arg: &[i32]| matches!(arg.get(2), Some(&0) | Some(&COLORED_PATH));
 
     // the geometry is the bulk of the result, it is extruded straight into it instead of being
     // copied over from a buffer of its own
@@ -53,7 +53,7 @@ mod tests {
     use super::__nodarium_execute_inner;
     use nodarium_utils::{
         concat_args,
-        geometry::{create_multiple_paths, is_geometry, NO_PATH},
+        geometry::{create_multiple_paths, is_geometry, with_path_colors, wrap_geometry_data, NO_PATH},
         split_args, wrap_arg,
     };
 
@@ -90,5 +90,18 @@ mod tests {
     fn an_unconnected_input_gives_an_empty_list() {
         let result = __nodarium_execute_inner(&[&[0, 1, 1, 1], &[8]]);
         assert!(split_args(&result).is_empty());
+    }
+
+    #[test]
+    fn a_path_with_colors_gives_geometry_with_colors() {
+        let paths = create_multiple_paths(1, 3, 1, 0);
+        let path = with_path_colors(split_args(&paths)[0], &[7, 8, 9]);
+        let result = __nodarium_execute_inner(&[&concat_args(vec![&path]), &[4]]);
+        let items = split_args(&result);
+        assert_eq!(items[0], path.as_slice());
+        let mut geometry = items[1].to_vec();
+        let colors = wrap_geometry_data(&mut geometry).colors.to_vec();
+        assert_eq!(colors.len(), 3 * 4 + 4 + 1);
+        assert_eq!(&colors[4..8], &[8; 4]);
     }
 }

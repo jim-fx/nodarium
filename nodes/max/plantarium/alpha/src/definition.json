@@ -1,10 +1,18 @@
 {
   "id": "max/plantarium/alpha",
   "meta": {
-    "description": "From 0 at the base to 1 at the tip: where a branch or instance sits on its parent path, and along the path for thickness"
+    "description": "From 0 at the base to 1 at the tip: where a branch or instance sits on its parent path, and along the path for thickness and color. Across goes from 0 on the middle of a geometry to 1 at its edge, set_color reads it at every vertex, everywhere else it is 0."
   },
   "outputs": [
     "float"
   ],
-  "inputs": {}
+  "inputs": {
+    "direction": {
+      "type": "select",
+      "options": ["along", "across"],
+      "value": 0,
+      "internal": true,
+      "description": "Along goes from the base to the tip, across from the middle of a geometry to its edge, like from the midrib of a leaf to its margin."
+    }
+  }
 }
