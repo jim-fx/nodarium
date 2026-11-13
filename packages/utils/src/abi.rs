@@ -155,6 +155,9 @@ impl Memory for ModuleMemory {
 /// over builds. The arena grows by the pages it misses: buffers are laid one after the other, and
 /// when they don't fit any more the last chunk grows where the memory ends. Only when the
 /// allocator grew the memory after it does the arena start another chunk there.
+///
+/// The allocator never hands out the arena's pages: it only extends its memory by pages that start
+/// where it ends, see `docs/ABI.md` and `app/src/lib/abi-arena.test.ts`.
 struct Arena {
     chunks: Vec<Chunk>,
 }
