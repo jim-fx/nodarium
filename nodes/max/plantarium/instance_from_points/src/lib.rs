@@ -88,7 +88,10 @@ mod tests {
     use glam::{Mat4, Vec3};
     use nodarium_utils::{
         concat_args, encode_float, encode_points,
-        geometry::{create_multiple_paths, path_link, wrap_instance_data, NO_PATH},
+        geometry::{
+            create_multiple_paths, has_instance_colors, path_link, with_geometry_colors,
+            wrap_instance_data, NO_PATH,
+        },
         split_args, Point,
     };
 
@@ -172,5 +175,35 @@ mod tests {
         // pointing straight up, its face turns away from the direction of the point
         let face = matrix.y_axis.truncate().normalize();
         assert!((face - Vec3::NEG_X).length() < 1e-5);
+    }
+
+    #[test]
+    fn the_instances_bring_the_colors_of_the_geometry() {
+        let plant = create_multiple_paths(1, 4, 1, 6);
+        let stem_id = path_link(split_args(&plant)[0]).id;
+        let point = Point {
+            position: Vec3::ZERO,
+            direction: Vec3::X,
+            tangent: Vec3::Y,
+            scale: 0.09,
+            parent_id: stem_id,
+            alpha: 0.5,
+            depth: 1,
+            index: 0,
+        };
+        let run = |geometry: &[i32]| {
+            let result = __nodarium_execute_inner(&[
+                &plant,
+                &encode_points(&[point]),
+                geometry,
+                &[encode_float(10.0)],
+                &[encode_float(0.0)],
+            ]);
+            split_args(&result)[1].to_vec()
+        };
+
+        let mut colored = run(&with_geometry_colors(&triangle(), &[4, 5, 6]));
+        assert_eq!(wrap_instance_data(&mut colored).colors, &[4, 5, 6]);
+        assert!(!has_instance_colors(&run(&triangle())));
     }
 }

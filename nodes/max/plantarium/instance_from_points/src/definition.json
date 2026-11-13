@@ -19,6 +19,7 @@
     },
     "geometry": {
       "type": "geometry",
+      "accepts": ["path"],
       "description": "The geometry to place on every point."
     },
     "size": {

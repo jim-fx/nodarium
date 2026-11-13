@@ -11,6 +11,7 @@ A `float` input is either a plain value or an **expression** produced by the `ma
 [1, min, max, seed, uniform, per_path, salt, once]
                      random value between min and max, the last four are optional
 [2, 0]               alpha: 0 at the base to 1 at the tip, see below
+[2, 1]               alpha across: 0 on the middle of a geometry to 1 at its edge, see Colors
 [3, value, min, max, x0, y0, x1, y1, ...]
                      curve: min + curve(value) * (max - min), value clamped to 0-1
 [5, field]           path_info: a value of the path the node works on, field is the option of the node:
@@ -28,13 +29,18 @@ An `integer` input that isn't set by a setting is a plain value or the expressio
 
 `branch` and `instance` set `ctx.alpha` before they evaluate the inputs of each branch or instance, for example its `length` or `size`: alpha is where it sits on its parent path. `stem` and `branch` read `thickness` with `ctx.float_along` at every point of the path they create, there alpha goes along that path. `float_along` draws random values once, so a `random` thickness stays the same along the path. The path is then multiplied by `1 - alpha * taper`: `taper` 1 (the default) makes a cone, 0 leaves the profile to the thickness input. Everywhere else alpha is 0. The second word of the alpha expression keeps it from being read as a plain value.
 
+A color input holds the sRGB bytes `[0, 4, r, g, b, 1, 1]`, or the expression of the `mix_color` node `[7, a, b, factor]`, where `a` and `b` are colors and `factor` a float. `ctx.color` reads it like a float input, the factor with alpha and the path, see Colors.
+
 Alpha is only one number that changes from place to place, so it can't tell a node about the path itself. `stem`, `branch`, `instance`, `gravity`, `rotate`, `noise`, `keep_apart` and `apply_force` also call `ctx.set_path` (or `ctx.set_path_info` for a stem that doesn't exist yet) before they read the inputs of each path. It sets `ctx.path`, what the `path_info` node reads: the `index` in the header of the path (the number among the paths its creator made on the same parent, it stays when other paths come or go), the place of the path among the paths the node works on (the `position`) and how many there are, its depth, where on its parent it grows (the `parent_alpha` of its link, 0 for a stem) and its length. `set_path` also sets alpha to the position of the path, from 0 at the first to 1 at the last, so `alpha` reads the same as `path_info` with position until a node sets it to something else. A `branch` or `instance` works on the path it places its branches or instances on, so a `branch` on the points of a whorl reads where the whorl sits on its stem. A `path_info` value doesn't change along a path or from one branch to the next, only from path to path.
 
 ## Path
 
 ```
 [0, stem_depth, id, parent_id, parent_alpha, creator, index, ...points]    each point: x, y, z, thickness
+[16, stem_depth, id, parent_id, parent_alpha, creator, index, ...points, ...colors]
 ```
+
+A path with the type 16 (`COLORED_PATH`) has an RGBA8 color for every point after its points, see Colors. `is_path` and `wrap_path` take both, `wrap_path` gives the points and the colors apart, so a node that moves the points of a path keeps its colors without knowing them.
 
 The header says where the path sits in the plant, so a node, the viewer or a material can pick any part of it:
 
@@ -98,18 +104,28 @@ With `variants` on, `to_geometry` bakes every stem into its own geometry and giv
 ## Geometry
 
 ```
-[1, vertex_amount, face_amount, path_id, ...faces, ...positions, ...normals]
+[1, vertex_amount, face_amount, path_id, ...faces, ...positions, ...normals, ...colors?]
 ```
 
-Faces are three vertex indices each, positions and normals three floats each. `path_id` is the `id` of the path an extruded geometry was made from (`output` extrudes every path), `-1` (`NO_PATH`) for geometry that doesn't come from a path, like a leaf or a box. The viewer finds the header of the path (creator, parent) with this id.
+Faces are three vertex indices each, positions and normals three floats each. A geometry with colors has an RGBA8 color for every vertex after its normals, its length tells whether it has them. `path_id` is the `id` of the path an extruded geometry was made from (`output` extrudes every path), `-1` (`NO_PATH`) for geometry that doesn't come from a path, like a leaf or a box. The viewer finds the header of the path (creator, parent) with this id.
 
 ## Instances
 
 ```
-[2, vertex_amount, face_amount, instance_amount, stem_depth, ...faces, ...positions, ...normals, ...matrices, ...path_ids]
+[2, vertex_amount, face_amount, instance_amount, stem_depth, ...faces, ...positions, ...normals, ...matrices, ...path_ids, ...colors?]
 ```
 
-One 4x4 matrix and one `path_id` per instance, the `id` of the path the instance sits on (`-1` if none). `instance` writes the path each leaf is placed on, so leaves can be picked by the part of the plant they sit on like the paths themselves. `readPathLink`, `readGeometryPathId` and `readInstancePathIds` in `@nodarium/utils` read these.
+The colors of the geometry, one per vertex, come last when it has them. One 4x4 matrix and one `path_id` per instance, the `id` of the path the instance sits on (`-1` if none). `instance` writes the path each leaf is placed on, so leaves can be picked by the part of the plant they sit on like the paths themselves. `readPathLink`, `readGeometryPathId` and `readInstancePathIds` in `@nodarium/utils` read these.
+
+## Colors
+
+A color on a path, a geometry or instances is an RGBA8 word, sRGB with red in the lowest byte, like the colors of a Myzel mesh. Paths and geometry without colors are encoded as they were, the viewer shows them in its material, and so are vertices whose alpha is 0 (`NO_COLOR`).
+
+`set_color` gives the paths of the `depth` deepest levels (1, the deepest, by default) a color at every point, and every geometry in its input a color at every vertex. It reads the `color` input for every path after `ctx.set_path`, with alpha going along the path from 0 at its base to 1 at its tip, so a `random` with `per_path` gives every path its own color, a `path_info` into the factor of a `mix_color` one by the age of the path, and a curve of alpha a gradient along it. A plain `random` is drawn once per path, like the thickness. On a geometry alpha goes from its base, where an instance places it, to the vertex farthest from it, measured without x, the width of a leaf, so a leaf that curls up or down still ends at its tip. Alpha `across` (the `alpha` node set to across) goes from the middle of the geometry, x = 0, to its edge at the same place along, like from the midrib of a leaf to its margin, everywhere else it is 0. A leaf therefore gets its own gradient, margin or spots, and several `set_color` nodes on the same leaf, joined, let an `instance` pick a color for every leaf, at random or by its `index`, for example by `alpha` or the age of the path it sits on.
+
+`output` and `to_geometry` give the extruded geometry of a path with colors the color of its point at every ring, the cap the color of its tip. `instance` and `instance_from_points` keep the colors of their geometry, `to_geometry` bakes them, and the vertices of parts without colors get `NO_COLOR` there. `trunk_kink`, `random_break` and the resampling of `to_geometry` keep the colors where they were along the length of the path. Other nodes that make paths, like `branch`, `umbel` or `fill_gaps`, make them without colors, so a `set_color` goes after the node that makes a level of paths and the nodes that shape it.
+
+`mix_color` of the Myzel nodes gives a plain color when both colors and the factor are plain, and the expression otherwise, so the node that reads the color evaluates it where it uses it. The Myzel nodes read it once, without a path and with alpha 0, as before.
 
 ## Lists
 

@@ -9,11 +9,15 @@ use nodarium_utils::{
 
 nodarium_definition_file!("src/definition.json");
 
-/// Where every vertex of a geometry sits: along from its base (z = 0, where an instance places
-/// it) to the vertex farthest along z, and across from its middle (x = 0) to its edge at the
-/// same height. A leaf grows along -z and its width lies along x.
+/// Where every vertex of a geometry sits: along from its base (the origin, where an instance
+/// places it) to the vertex farthest from it, and across from its middle (x = 0) to its edge at
+/// the same place along. A leaf grows along -z and its width lies along x, the distance along
+/// leaves x out, so it grows toward the tip however far the leaf curls up or down.
 fn vertex_places(positions: &[f32]) -> Vec<(f32, f32)> {
-    let point = |i: usize| (positions[i * 3].abs(), positions[i * 3 + 2].abs());
+    let point = |i: usize| {
+        let (x, y, z) = (positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+        (x.abs(), y.hypot(z))
+    };
     let n = positions.len() / 3;
     let reach = (0..n).map(|i| point(i).1).fold(0.0, f32::max);
     let along: Vec<f32> = (0..n)
@@ -179,6 +183,20 @@ mod tests {
         let mut out = run(&leaf(), &across);
         let colors = wrap_geometry_data(&mut out).colors.to_vec();
         assert_eq!(colors, vec![opaque(BROWN), opaque(GREEN), opaque(GREEN), opaque(BROWN)]);
+    }
+
+    #[test]
+    fn a_leaf_that_curls_far_up_still_ends_at_its_tip() {
+        // bends from -z up past +y, by 144 degrees
+        let positions: Vec<f32> = (0..5)
+            .flat_map(|i| {
+                let a = i as f32 / 4.0 * 2.5;
+                [0.0, 1.0 - a.cos(), -a.sin()]
+            })
+            .collect();
+        let along: Vec<f32> = super::vertex_places(&positions).iter().map(|p| p.0).collect();
+        assert!(along.windows(2).all(|w| w[1] > w[0]), "{:?}", along);
+        assert_eq!(along[4], 1.0);
     }
 
     #[test]

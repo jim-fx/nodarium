@@ -93,7 +93,7 @@ Substrates:
 Values and output:
 
 - `time`: → the `time.t` setting of the graph, 0 to 1.
-- `mix_color`: two colors and a `factor` → a color between them, for example from young to old.
+- `mix_color`: two colors and a `factor` → a color between them, for example from young to old. A factor that is an expression is read by the node that uses the color, Plantarium's `set_color` with alpha and the path, so a curve of alpha makes a gradient. Myzel nodes read it once, without a path.
 - `output`: a mesh → what the app shows. Paths show as lines in the colors of their groups, a pattern as a disc, for debugging.
 
 The Plantarium nodes the templates use besides `stem`: `trunk_kink`, `rotate` and `keep_apart` pose and space the stipes, `points_on_path` places the cap and the veil, `separate` takes the rays apart from the stipe so the cap gets its own `strands`, `twist`, `random_break`, `clump` and `neighbour_sensing` give the strands their grown look, and `curve`, `random`, `math`, `path_info`, `round`, `random_int` and `vec3` make the values.
