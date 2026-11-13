@@ -1,6 +1,7 @@
 <script lang="ts">
   import { formatRelativeTime } from '#lib/helpers/formatRelativeTime.ts';
   import { localState } from '#lib/helpers/localState.svelte.ts';
+  import { type Template, templateCategories, templates } from '@nodarium/runtime/templates';
   import type { Graph } from '@nodarium/types';
   import {
     Button,
@@ -14,7 +15,6 @@
   } from '@nodarium/ui';
   import { onMount, tick } from 'svelte';
   import type { ProjectManager } from './project-manager.svelte';
-  import { type ProjectTemplate, projectTemplates, templateCategories } from './project-templates';
 
   type Props = {
     projectManager: ProjectManager;
@@ -56,9 +56,9 @@
   function loadTemplatePreviews() {
     if (templatePreviewsRequested) return;
     templatePreviewsRequested = true;
-    for (const template of projectTemplates) {
-      pm.thumbnails.renderPreview(template.graph).then((url) => {
-        if (url) templatePreviews[template.name] = url;
+    for (const template of templates) {
+      template.load().then((graph) => pm.thumbnails.renderPreview(graph)).then((url) => {
+        if (url) templatePreviews[template.id] = url;
       });
     }
   }
@@ -74,9 +74,16 @@
     close();
   }
 
-  function createFromTemplate(template: ProjectTemplate) {
-    pm.handleCreateProject(template.graph, template.name);
-    close();
+  async function createFromTemplate(template: Template) {
+    try {
+      pm.handleCreateProject(await template.load(), template.name);
+      close();
+    } catch (error) {
+      toast(
+        `Could not load ${template.name}: ${error instanceof Error ? error.message : error}`,
+        'error'
+      );
+    }
   }
 
   let renamingId = $state<number>();
@@ -223,13 +230,13 @@
           >
             {category}
           </div>
-          {#each projectTemplates.filter((t) => t.category === category) as template (template.name)}
+          {#each templates.filter((t) => t.category === category) as template (template.id)}
             <button
               type="button"
               class="flex h-14 w-full cursor-pointer items-center gap-3 border-x-0 border-t-0 border-b border-outline bg-transparent px-5 text-left text-sm hover:bg-layer-2 font-(--font-family)"
               onclick={() => createFromTemplate(template)}
             >
-              {@render thumbnail(templatePreviews[template.name], 'h-[34px] w-[34px] border border-outline')}
+              {@render thumbnail(templatePreviews[template.id], 'h-[34px] w-[34px] border border-outline')}
               {template.name}
             </button>
           {/each}

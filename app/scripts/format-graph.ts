@@ -3,8 +3,8 @@
 // It needs the compiled nodes in static/nodes (`pnpm build:nodes`) to know how tall a node is.
 //
 // Usage: pnpm format-graph <target...> [--check]
-//   target   name of a template in src/lib/graph-templates (fern, palm, ...), `templates` for
-//            all json templates, or the path of a graph or an exported `.nodarium.json` project
+//   target   name of a template in packages/runtime/templates or src/lib/graph-templates (fern,
+//            palm, ...), `templates` for all json templates, or the path of a graph or an exported `.nodarium.json` project
 //   --check  only report the files whose layout would change, and exit with 1 if there are any
 import { FileNodeRegistry } from '@nodarium/runtime/node';
 import {
@@ -17,6 +17,7 @@ import {
   type SerializedEdge,
   type SerializedNode
 } from '@nodarium/types';
+import { existsSync } from 'node:fs';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,7 +26,11 @@ import { parseArgs } from 'node:util';
 import { layoutGraph } from '../src/lib/graph-interface/helpers/layoutGraph.ts';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const TEMPLATE_DIR = join(root, 'src', 'lib', 'graph-templates');
+// the templates of the runtime package and the test graphs of the app
+const TEMPLATE_DIRS = [
+  join(root, '..', 'packages', 'runtime', 'templates'),
+  join(root, 'src', 'lib', 'graph-templates')
+];
 
 const { values: options, positionals: targets } = parseArgs({
   allowPositionals: true,
@@ -43,12 +48,15 @@ async function resolveTargets(names: string[]) {
   const files: string[] = [];
   for (const name of names) {
     if (name === 'templates') {
-      const templates = (await readdir(TEMPLATE_DIR)).filter((f) => f.endsWith('.json'));
-      files.push(...templates.map((f) => join(TEMPLATE_DIR, f)));
+      for (const dir of TEMPLATE_DIRS) {
+        const templates = (await readdir(dir)).filter((f) => f.endsWith('.json'));
+        files.push(...templates.map((f) => join(dir, f)));
+      }
     } else if (name.endsWith('.json')) {
       files.push(resolve(name));
     } else {
-      files.push(join(TEMPLATE_DIR, name + '.json'));
+      const paths = TEMPLATE_DIRS.map((dir) => join(dir, name + '.json'));
+      files.push(paths.find((path) => existsSync(path)) ?? paths[0]);
     }
   }
   return files;

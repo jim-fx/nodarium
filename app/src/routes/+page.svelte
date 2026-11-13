@@ -48,6 +48,7 @@
     MemoryRuntimeCache,
     MemoryRuntimeExecutor
   } from '@nodarium/runtime';
+  import { loadTemplate } from '@nodarium/runtime/templates';
   import type { Edge, Graph } from '@nodarium/types';
   import { Spinner, Toast, toast, unitSettings } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
@@ -347,7 +348,7 @@
   autoStart
   actions={{
     'setup-default': async () => {
-      const graph = structuredClone(templates.defaultPlant) as unknown as Graph;
+      const graph = structuredClone(await loadTemplate('default-plant'));
       const existing = pm.projects.find((p) => p.id === tutorialProjectId.value);
       if (!existing) {
         tutorialProjectId.value = pm.handleCreateProject(graph, 'Tutorial Project');

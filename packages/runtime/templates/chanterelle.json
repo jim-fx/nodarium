@@ -1,6 +1,7 @@
 {
   "id": 0,
   "version": 13,
+  "meta": { "unit": "cm" },
   "settings": {
     "seed": 288,
     "resolution.field": 256,

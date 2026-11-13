@@ -2,7 +2,7 @@
 
 Runs a [Nodarium](https://nodes.max-richter.dev) graph without the app and turns its result into vertices and faces. The package brings the compiled nodes (Plantarium and Myzel) with it, so it generates the same plants and mushrooms as the app of the same version. It needs no three.js, the result is plain typed arrays.
 
-Templates are not part of the package: build or pick a graph in the app, export it and pass the file in.
+The templates of the app come with it as `@nodarium/runtime/templates`. Other graphs are exported from the app and passed in as a file.
 
 ## Install
 
@@ -15,6 +15,69 @@ The package is in the npm registry of git.max-richter.dev. Add the scope to the 
 ```sh
 npm install @nodarium/runtime
 ```
+
+`latest` is the last release (a tag `vX.Y.Z`). Every push to `main` publishes a prerelease under the dist-tag `dev`, as `<next patch>-dev.<UTC time>.<commit>`, like `0.0.11-dev.202611131200.ac7774d`:
+
+```sh
+npm install @nodarium/runtime@dev
+```
+
+The dev version in `package.json` stays where it is, `npm update` doesn't move it to a newer dev version or to a release, install `@dev` (or `@latest`) again for that. Right after a release, `dev` is a little older than `latest` until the next push to `main`.
+
+## Templates
+
+`@nodarium/runtime/templates` lists the templates of the project browser of the app, without their graphs. Every template is also a module of its own, `@nodarium/runtime/templates/<id>`, whose default export is the graph. Import one directly when you know which one you need, or `load()` it from the list. Bundlers like Vite put every template into a chunk of its own, the graphs you don't load are not part of your bundle.
+
+```ts
+import { createRuntime, decodeResult } from '@nodarium/runtime/node';
+import porcini from '@nodarium/runtime/templates/porcini';
+
+const runtime = createRuntime();
+const result = await runtime.execute(porcini, { ...porcini.settings, seed: 7 });
+const { meshes } = decodeResult(result);
+```
+
+```ts
+import { loadTemplate, templates } from '@nodarium/runtime/templates';
+
+const mushrooms = templates.filter((t) => t.category === 'Mushrooms');
+const graph = await mushrooms[0].load(); // or await loadTemplate('porcini')
+```
+
+Every template is a `Graph` of the current graph version, `parseProjectFile()` isn't needed. Its `settings` are the settings of the template in the app: resolutions like `resolution.curve` or `resolution.field`, the `time.t` of most mushrooms and, in a few, a seed. Pass them to `execute()` and put your own seed or settings on top, as above. Settings that are missing take the default of their node. The graphs are shared by everyone who imports them, `structuredClone()` one before you change it.
+
+`unit` is the unit the app shows lengths in. The graph stores meters either way, a unit of `cm` only means that the template is small.
+
+| id                   | name              | category  | unit |
+| -------------------- | ----------------- | --------- | ---- |
+| `default-plant`      | Default Plant     | Plants    | m    |
+| `fern`               | Fern              | Plants    | cm   |
+| `willow`             | Weeping Willow    | Plants    | m    |
+| `agave`              | Agave             | Plants    | m    |
+| `grass`              | Ornamental Grass  | Plants    | cm   |
+| `palm`               | Palm              | Plants    | m    |
+| `sapling`            | Sapling           | Plants    | m    |
+| `lavender`           | Lavender          | Plants    | cm   |
+| `sage`               | Sage              | Plants    | cm   |
+| `bamboo`             | Bamboo            | Plants    | m    |
+| `lady-fern`          | Lady Fern         | Plants    | cm   |
+| `maidenhair`         | Maidenhair Fern   | Plants    | cm   |
+| `daisy`              | Daisy             | Plants    | cm   |
+| `horsetail`          | Field Horsetail   | Plants    | cm   |
+| `foxglove`           | Foxglove          | Plants    | m    |
+| `devils-backbone`    | Devil's Backbone  | Plants    | cm   |
+| `knotweed`           | Japanese Knotweed | Plants    | m    |
+| `wild-carrot`        | Wild Carrot       | Plants    | cm   |
+| `champignon-groomed` | Champignon        | Mushrooms | cm   |
+| `chestnut`           | Chestnut mushroom | Mushrooms | cm   |
+| `fly-agaric`         | Fly agaric        | Mushrooms | cm   |
+| `porcini`            | Porcini           | Mushrooms | cm   |
+| `shiitake`           | Shiitake          | Mushrooms | cm   |
+| `shaggy-inkcap`      | Shaggy inkcap     | Mushrooms | cm   |
+| `chanterelle`        | Chanterelle       | Mushrooms | cm   |
+| `oyster`             | Oyster mushroom   | Mushrooms | cm   |
+
+The ids stay, a template that is improved keeps its id. To add a template in this repository, put its graph into `packages/runtime/templates/<id>.json`, add a line `plant(...)` or `mushroom(...)` to the list in `templates/index.ts` and a row to the table above. The app lists it in its project browser from there.
 
 ## Export a project from the app
 
@@ -132,3 +195,9 @@ The matrices of `instances` fit `InstancedMesh.instanceMatrix` as they are. Thre
 - When a node fails, `execute()` throws a `NodeExecutionError`, its `info` names the node, the inputs it was missing and where a Rust panic happened.
 - `MemoryRuntimeExecutor`, `MemoryRuntimeCache` and `WasmNodeRegistry` are the building blocks of `createRuntime()`. Subclass `WasmNodeRegistry` to load the nodes from somewhere else.
 - `migrateGraph()` and `CURRENT_GRAPH_VERSION` migrate graphs that don't come from a project file.
+
+## Publishing
+
+`.gitea/workflows/release.yaml` publishes the package: a tag `vX.Y.Z` publishes `X.Y.Z` as `latest`, a push to `main` runs `.gitea/scripts/publish-dev.sh` once the tests pass and publishes a dev version. `DRY_RUN=1 .gitea/scripts/publish-dev.sh` packs the dev version without publishing it.
+
+The registry keeps every version it was given, also the dev versions. A cleanup rule of the owner removes the old ones (Settings → Packages → Cleanup rules on git.max-richter.dev): type npm, keep the versions matching `^\d+\.\d+\.\d+$`, remove the versions matching `-dev\.` that are older than 30 days. A single version is removed with `DELETE /api/v1/packages/max/npm/@nodarium%2Fruntime/<version>`.

@@ -1,5 +1,7 @@
 {
+  "id": 0,
   "version": 13,
+  "meta": { "unit": "cm" },
   "groups": [],
   "settings": { "resolution.circle": 10, "resolution.curve": 32 },
   "nodes": [

@@ -5,7 +5,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./node": "./src/node.ts"
+    "./node": "./src/node.ts",
+    "./templates": "./templates/index.ts",
+    "./templates/*": "./templates/*.json"
   },
   "publishConfig": {
     "registry": "https://git.max-richter.dev/api/packages/max/npm/",
@@ -17,6 +19,14 @@
       "./node": {
         "types": "./dist/node.d.ts",
         "default": "./dist/node.js"
+      },
+      "./templates": {
+        "types": "./dist/templates/index.d.ts",
+        "default": "./dist/templates/index.js"
+      },
+      "./templates/*": {
+        "types": "./dist/templates/*.d.ts",
+        "default": "./dist/templates/*.js"
       }
     }
   },

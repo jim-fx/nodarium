@@ -1,6 +1,7 @@
 {
   "id": 0,
   "version": 13,
+  "meta": { "unit": "cm" },
   "settings": {
     "time.t": 1,
     "resolution.field": 160,
@@ -91,13 +92,19 @@
           "props": {
             "curve": [
               0,
+              0.4,
+              0.04,
               0.8,
-              0.3,
-              0.86,
-              0.7,
-              0.94,
+              0.12,
+              0.96,
+              0.28,
               1,
-              1
+              0.55,
+              0.86,
+              0.8,
+              0.68,
+              1,
+              0.58
             ],
             "min": 0
           },
@@ -124,7 +131,7 @@
           ],
           "type": "max/myzel/strands",
           "props": {
-            "amount": 260,
+            "amount": 420,
             "thickness": 0.0005,
             "wobble": 0.25
           }
@@ -137,8 +144,8 @@
           ],
           "type": "max/plantarium/random",
           "props": {
-            "min": 0.00025,
-            "max": 0.0005,
+            "min": 0.0007,
+            "max": 0.0014,
             "uniform": 1
           }
         },
@@ -151,10 +158,10 @@
           "type": "max/plantarium/trunk_kink",
           "props": {
             "amount": 2,
-            "angle": 5,
-            "rotation": 0,
-            "lowest_kink": 0.15,
-            "highest_kink": 0.6
+            "angle": 3,
+            "rotation": 120,
+            "lowest_kink": 0.2,
+            "highest_kink": 0.7
           }
         },
         {
@@ -178,9 +185,9 @@
           "type": "max/plantarium/neighbour_sensing",
           "props": {
             "strength": 1,
-            "range": 0.002,
+            "range": 0.005,
             "bundling": 0.7,
-            "max_offset": 0.0008
+            "max_offset": 0.002
           }
         },
         {
@@ -199,7 +206,7 @@
           ],
           "type": "max/plantarium/twist",
           "props": {
-            "turns": 0.2
+            "turns": 0.1
           }
         },
         {
@@ -216,18 +223,7 @@
           }
         },
         {
-          "id": 89,
-          "position": [
-            -60,
-            30
-          ],
-          "type": "max/myzel/set_fibres",
-          "props": {
-            "fibres": 1
-          }
-        },
-        {
-          "id": 5015,
+          "id": 3015,
           "position": [
             -150,
             30
@@ -235,11 +231,11 @@
           "type": "max/plantarium/random",
           "props": {
             "min": 0,
-            "max": 8
+            "max": 6
           }
         },
         {
-          "id": 5016,
+          "id": 3016,
           "position": [
             -150,
             45
@@ -251,7 +247,7 @@
           }
         },
         {
-          "id": 5017,
+          "id": 3017,
           "position": [
             -105,
             -20
@@ -262,7 +258,7 @@
           }
         },
         {
-          "id": 5018,
+          "id": 3018,
           "position": [
             -135,
             -35
@@ -338,7 +334,7 @@
           "plant"
         ],
         [
-          5017,
+          3017,
           0,
           8,
           "plant"
@@ -350,7 +346,7 @@
           "plant"
         ],
         [
-          5017,
+          3017,
           0,
           3,
           "out_0"
@@ -366,6 +362,12 @@
           0,
           3,
           "out_1"
+        ],
+        [
+          46,
+          0,
+          56,
+          "paths"
         ],
         [
           2,
@@ -392,39 +394,27 @@
           "plant"
         ],
         [
-          46,
-          0,
-          89,
-          "plant"
-        ],
-        [
-          89,
-          0,
-          56,
-          "paths"
-        ],
-        [
-          5015,
+          3015,
           0,
           9,
           "angle"
         ],
         [
-          5016,
+          3016,
           0,
           9,
           "rotation"
         ],
         [
-          5018,
+          3018,
           0,
-          5017,
+          3017,
           "angle"
         ],
         [
           9,
           0,
-          5017,
+          3017,
           "plant"
         ]
       ],
@@ -440,7 +430,7 @@
         "length_button": {
           "type": "float",
           "label": "Length, button",
-          "value": 0.01,
+          "value": 0.03,
           "min": 0,
           "max": 0.2,
           "step": 0.001,
@@ -449,7 +439,7 @@
         "length_open": {
           "type": "float",
           "label": "Length, open",
-          "value": 0.038,
+          "value": 0.11,
           "min": 0,
           "max": 0.2,
           "step": 0.001,
@@ -458,28 +448,30 @@
         "radius_button": {
           "type": "float",
           "label": "Radius, button",
-          "value": 0.005,
+          "value": 0.019,
           "min": 0,
           "max": 0.05,
           "step": 0.0005,
-          "unit": "m"
+          "unit": "m",
+          "description": "Radius of the stipe where it is widest, low down on the club, on the button"
         },
         "radius_open": {
           "type": "float",
           "label": "Radius, open",
-          "value": 0.0065,
+          "value": 0.026,
           "min": 0,
           "max": 0.05,
           "step": 0.0005,
-          "unit": "m"
+          "unit": "m",
+          "description": "Radius of the stipe where it is widest, low down on the club, on the open mushroom"
         },
         "color": {
           "type": "color",
           "label": "Color",
           "value": [
-            228,
-            214,
-            192
+            222,
+            206,
+            172
           ]
         }
       },
@@ -579,12 +571,12 @@
             "curve": [
               0,
               1,
-              0.45,
+              0.5,
+              0.82,
               0.8,
-              0.8,
-              0.45,
+              0.5,
               1,
-              0.18
+              0.22
             ],
             "min": 0
           },
@@ -600,7 +592,7 @@
           ],
           "type": "max/myzel/cap",
           "props": {
-            "rays": 16
+            "rays": 18
           }
         },
         {
@@ -632,7 +624,7 @@
               1,
               0
             ],
-            "min": 0.15,
+            "min": 0.1,
             "max": 0.5
           },
           "exposed": [
@@ -732,7 +724,7 @@
           ],
           "type": "max/myzel/strands",
           "props": {
-            "amount": 40,
+            "amount": 64,
             "thickness": 0.0005,
             "wobble": 0.25
           }
@@ -745,8 +737,8 @@
           ],
           "type": "max/plantarium/random",
           "props": {
-            "min": 0.00025,
-            "max": 0.0005,
+            "min": 0.0007,
+            "max": 0.0014,
             "uniform": 1
           }
         },
@@ -759,9 +751,9 @@
           "type": "max/plantarium/neighbour_sensing",
           "props": {
             "strength": 1,
-            "range": 0.005,
+            "range": 0.01,
             "bundling": 1,
-            "max_offset": 0.003
+            "max_offset": 0.006
           }
         },
         {
@@ -877,54 +869,28 @@
           }
         },
         {
-          "id": 90,
-          "position": [
-            -120,
-            -60
-          ],
-          "type": "max/plantarium/curve",
-          "props": {
-            "curve": [
-              0,
-              0.92,
-              0.25,
-              0.85,
-              0.5,
-              0.92,
-              0.75,
-              1,
-              1,
-              0.92
-            ],
-            "min": 0
-          },
-          "exposed": [
-            "max"
-          ]
-        },
-        {
-          "id": 5019,
+          "id": 3019,
           "position": [
             -150,
             70
           ],
           "type": "max/plantarium/random",
           "props": {
-            "min": 0.82,
+            "min": 0.8,
             "max": 1,
             "once": 1
           }
         },
         {
-          "id": 5020,
+          "id": 3020,
           "position": [
             -180,
             60
           ],
           "type": "max/plantarium/random",
           "props": {
-            "min": 0.08,
-            "max": 0.3,
+            "min": 0.05,
+            "max": 0.25,
             "once": 1
           }
         }
@@ -983,6 +949,12 @@
           4,
           16,
           "profile"
+        ],
+        [
+          13,
+          0,
+          16,
+          "radius"
         ],
         [
           15,
@@ -1171,31 +1143,13 @@
           "amount"
         ],
         [
-          13,
-          0,
-          90,
-          "max"
-        ],
-        [
-          90,
-          0,
-          16,
-          "radius"
-        ],
-        [
-          13,
-          0,
-          12,
-          "out_4"
-        ],
-        [
-          5019,
+          3019,
           0,
           20,
           "max"
         ],
         [
-          5020,
+          3020,
           0,
           18,
           "min"
@@ -1218,7 +1172,7 @@
         "radius_button": {
           "type": "float",
           "label": "Radius, button",
-          "value": 0.012,
+          "value": 0.017,
           "min": 0,
           "max": 0.1,
           "step": 0.0005,
@@ -1227,7 +1181,7 @@
         "radius_open": {
           "type": "float",
           "label": "Radius, open",
-          "value": 0.04,
+          "value": 0.065,
           "min": 0,
           "max": 0.1,
           "step": 0.0005,
@@ -1238,23 +1192,25 @@
           "label": "Profile, open",
           "value": [
             0,
-            38,
-            5,
-            33.5,
-            12,
-            30,
-            24,
-            26.5,
-            37,
+            40,
+            3,
+            33,
+            7,
+            28,
+            13,
             23.5,
+            22,
+            19.5,
+            35,
+            16.5,
             50,
-            20.5
+            15.5
           ]
         },
         "flesh_button": {
           "type": "float",
           "label": "Flesh, button",
-          "value": 0.012,
+          "value": 0.02,
           "min": 0,
           "max": 0.05,
           "step": 0.0005,
@@ -1263,7 +1219,7 @@
         "flesh_open": {
           "type": "float",
           "label": "Flesh, open",
-          "value": 0.011,
+          "value": 0.026,
           "min": 0,
           "max": 0.05,
           "step": 0.0005,
@@ -1273,18 +1229,18 @@
           "type": "color",
           "label": "Color, button",
           "value": [
-            62,
-            38,
-            24
+            196,
+            160,
+            112
           ]
         },
         "color_open": {
           "type": "color",
           "label": "Color, open",
           "value": [
-            100,
-            62,
-            38
+            138,
+            84,
+            46
           ]
         }
       },
@@ -1304,243 +1260,12 @@
         {
           "type": "float",
           "label": "Reach"
-        },
-        {
-          "type": "float",
-          "label": "Radius"
         }
       ]
     },
     {
-      "id": 38,
-      "name": "Gills",
-      "nodes": [
-        {
-          "id": 26,
-          "position": [
-            -120,
-            -10.25
-          ],
-          "type": "__internal/group/input",
-          "props": {}
-        },
-        {
-          "id": 27,
-          "position": [
-            0,
-            0
-          ],
-          "type": "__internal/group/output",
-          "props": {}
-        },
-        {
-          "id": 28,
-          "position": [
-            -90,
-            -70
-          ],
-          "type": "max/myzel/reaction_diffusion",
-          "props": {
-            "inner_radius": 0.008,
-            "alignment": 0.85,
-            "irregularity": 0.5,
-            "forking": 0
-          }
-        },
-        {
-          "id": 29,
-          "position": [
-            -90,
-            10
-          ],
-          "type": "max/plantarium/curve",
-          "props": {
-            "curve": [
-              0,
-              0,
-              0.3,
-              0.25,
-              0.6,
-              0.75,
-              1,
-              1
-            ],
-            "min": 0.0005
-          },
-          "exposed": [
-            "max"
-          ]
-        },
-        {
-          "id": 30,
-          "position": [
-            -60,
-            -51.25
-          ],
-          "type": "max/myzel/lamellae",
-          "props": {
-            "free_distance": 0.001,
-            "thickness": 0.0003,
-            "edge_wave": 1
-          }
-        },
-        {
-          "id": 66,
-          "position": [
-            -85,
-            -36.25
-          ],
-          "type": "max/plantarium/curve",
-          "props": {
-            "curve": [
-              0,
-              0.3,
-              0.2,
-              0.85,
-              0.45,
-              1,
-              0.8,
-              0.65,
-              1,
-              0.1
-            ],
-            "min": 0
-          },
-          "exposed": [
-            "max"
-          ]
-        },
-        {
-          "id": 52,
-          "position": [
-            -90,
-            86.25
-          ],
-          "type": "max/plantarium/curve",
-          "props": {
-            "curve": [
-              0,
-              0,
-              0.35,
-              0.05,
-              0.6,
-              0.35,
-              0.85,
-              0.8,
-              1,
-              1
-            ]
-          }
-        },
-        {
-          "id": 53,
-          "position": [
-            -60,
-            63.75
-          ],
-          "type": "max/myzel/mix_color"
-        },
-        {
-          "id": 54,
-          "position": [
-            -30,
-            -5
-          ],
-          "type": "max/myzel/set_mesh_color"
-        }
-      ],
-      "edges": [
-        [
-          26,
-          1,
-          28,
-          "radius"
-        ],
-        [
-          26,
-          3,
-          28,
-          "spacing"
-        ],
-        [
-          26,
-          2,
-          29,
-          "value"
-        ],
-        [
-          26,
-          4,
-          29,
-          "max"
-        ],
-        [
-          26,
-          0,
-          30,
-          "cap"
-        ],
-        [
-          28,
-          0,
-          30,
-          "pattern"
-        ],
-        [
-          29,
-          0,
-          66,
-          "max"
-        ],
-        [
-          54,
-          0,
-          27,
-          "out_0"
-        ],
-        [
-          26,
-          2,
-          52,
-          "value"
-        ],
-        [
-          26,
-          5,
-          53,
-          "a"
-        ],
-        [
-          26,
-          6,
-          53,
-          "b"
-        ],
-        [
-          52,
-          0,
-          53,
-          "factor"
-        ],
-        [
-          30,
-          0,
-          54,
-          "mesh"
-        ],
-        [
-          53,
-          0,
-          54,
-          "color"
-        ],
-        [
-          66,
-          0,
-          30,
-          "depth"
-        ]
-      ],
+      "id": 200,
+      "name": "Pores",
       "inputs": {
         "rays": {
           "type": "path",
@@ -1550,7 +1275,7 @@
         "reach": {
           "type": "float",
           "label": "Reach",
-          "value": 0.05,
+          "value": 0.08,
           "min": 0.001,
           "max": 0.2,
           "step": 0.001,
@@ -1566,63 +1291,61 @@
         },
         "spacing": {
           "type": "float",
-          "label": "Spacing",
-          "value": 0.0008,
-          "min": 0.0002,
-          "max": 0.02,
+          "label": "Pore spacing",
+          "value": 0.0013,
+          "min": 0.0003,
+          "max": 0.01,
           "step": 0.0001,
-          "unit": "m"
+          "unit": "m",
+          "description": "How far apart the pores are"
         },
         "depth": {
           "type": "float",
-          "label": "Depth, open",
-          "value": 0.0055,
+          "label": "Tubes, open",
+          "value": 0.016,
           "min": 0,
           "max": 0.05,
           "step": 0.0005,
-          "unit": "m"
+          "unit": "m",
+          "description": "How long the tubes are on the open mushroom, they are short on the button"
         },
         "color_young": {
           "type": "color",
           "label": "Color, young",
           "value": [
-            246,
-            243,
-            234
+            240,
+            236,
+            222
           ]
         },
         "color_old": {
           "type": "color",
           "label": "Color, old",
           "value": [
-            244,
-            240,
-            230
+            194,
+            184,
+            98
           ]
         }
       },
       "outputs": [
         {
           "type": "mesh",
-          "label": "Plates"
+          "label": "Tubes"
         }
-      ]
-    },
-    {
-      "id": 77,
-      "name": "Cuticle",
+      ],
       "nodes": [
         {
-          "id": 78,
+          "id": 201,
           "position": [
-            -240,
-            40
+            -270,
+            30
           ],
           "type": "__internal/group/input",
           "props": {}
         },
         {
-          "id": 79,
+          "id": 202,
           "position": [
             0,
             0
@@ -1631,424 +1354,308 @@
           "props": {}
         },
         {
-          "id": 100,
+          "id": 203,
+          "position": [
+            -180,
+            -40
+          ],
+          "type": "max/myzel/cracks",
+          "props": {
+            "stretch": 1,
+            "softness": 0.6
+          }
+        },
+        {
+          "id": 204,
           "position": [
             -210,
-            60
+            -10
           ],
           "type": "max/plantarium/math",
           "props": {
             "op_type": 2,
-            "b": 1.2
+            "b": 0.28
           }
         },
         {
-          "id": 101,
+          "id": 205,
           "position": [
             -210,
             30
           ],
-          "type": "max/plantarium/math",
-          "props": {
-            "op_type": 2,
-            "b": 0.16
-          }
-        },
-        {
-          "id": 112,
-          "position": [
-            -240,
-            0
-          ],
-          "type": "max/plantarium/math",
-          "props": {
-            "op_type": 2
-          }
-        },
-        {
-          "id": 102,
-          "position": [
-            -210,
-            0
-          ],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
               0,
-              0.6,
-              1,
-              1
-            ],
-            "min": 0
-          },
-          "exposed": [
-            "max"
-          ]
-        },
-        {
-          "id": 103,
-          "position": [
-            -180,
-            0
-          ],
-          "type": "max/plantarium/curve",
-          "props": {
-            "curve": [
               0,
-              0.3,
               0.35,
-              0.75,
+              0.3,
+              0.7,
+              0.8,
               1,
               1
             ],
-            "min": 0
-          },
-          "exposed": [
-            "max"
-          ]
+            "min": 0.003
+          }
         },
         {
-          "id": 104,
+          "id": 206,
           "position": [
             -150,
-            10
-          ],
-          "type": "max/myzel/cracks",
-          "props": {
-            "stretch": 1.15,
-            "softness": 0.1
-          }
-        },
-        {
-          "id": 105,
-          "position": [
-            -100,
             20
           ],
-          "type": "max/myzel/cap_pattern",
-          "props": {
-            "relief": -0.0008,
-            "opacity": 1
-          }
-        },
-        {
-          "id": 106,
-          "position": [
-            -210,
-            100
-          ],
-          "type": "max/plantarium/math",
-          "props": {
-            "op_type": 2,
-            "b": 0.05
-          }
-        },
-        {
-          "id": 107,
-          "position": [
-            -180,
-            110
-          ],
-          "type": "max/plantarium/math",
-          "props": {
-            "op_type": 2
-          }
-        },
-        {
-          "id": 108,
-          "position": [
-            -150,
-            110
-          ],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
               0,
+              0.35,
+              0.1,
+              0.7,
+              0.3,
+              0.95,
+              0.6,
               1,
-              0.5,
-              0.75,
+              0.85,
+              0.8,
+              0.96,
+              0.35,
               1,
-              0.35
+              0.05
             ],
             "min": 0
-          },
-          "exposed": [
-            "max"
-          ]
+          }
         },
         {
-          "id": 109,
+          "id": 207,
           "position": [
-            -120,
-            110
+            -150,
+            55
           ],
           "type": "max/plantarium/curve",
           "props": {
             "curve": [
               0,
               0,
-              0.62,
-              0,
-              0.76,
               0.3,
-              0.9,
-              1,
+              0.15,
+              0.7,
+              0.75,
               1,
               1
             ],
-            "min": 0
-          },
-          "exposed": [
-            "max"
-          ]
+            "min": 5e-05,
+            "max": 0.0007
+          }
         },
         {
-          "id": 110,
+          "id": 208,
+          "position": [
+            -120,
+            -10
+          ],
+          "type": "max/myzel/pores",
+          "props": {
+            "free_distance": 0.0005
+          }
+        },
+        {
+          "id": 209,
+          "position": [
+            -120,
+            70
+          ],
+          "type": "max/plantarium/curve",
+          "props": {
+            "curve": [
+              0,
+              0,
+              0.4,
+              0.12,
+              0.75,
+              0.55,
+              1,
+              1
+            ]
+          }
+        },
+        {
+          "id": 210,
           "position": [
             -90,
-            90
+            50
           ],
-          "type": "max/myzel/cracks",
-          "props": {
-            "stretch": 3.5,
-            "softness": 0.3
-          }
+          "type": "max/myzel/mix_color",
+          "props": {}
         },
         {
-          "id": 111,
+          "id": 211,
           "position": [
             -50,
-            40
+            0
           ],
-          "type": "max/myzel/cap_pattern",
-          "props": {
-            "relief": 0.00015,
-            "opacity": 1
-          }
+          "type": "max/myzel/set_mesh_color",
+          "props": {}
         }
       ],
       "edges": [
         [
-          78,
-          2,
-          100,
-          "a"
-        ],
-        [
-          78,
-          2,
-          101,
-          "a"
-        ],
-        [
-          78,
-          3,
-          102,
-          "value"
-        ],
-        [
-          101,
-          0,
-          112,
-          "a"
-        ],
-        [
-          78,
-          5,
-          112,
-          "b"
-        ],
-        [
-          112,
-          0,
-          102,
-          "max"
-        ],
-        [
-          102,
-          0,
-          103,
-          "max"
-        ],
-        [
-          100,
-          0,
-          104,
+          201,
+          1,
+          203,
           "radius"
         ],
         [
-          101,
-          0,
-          104,
+          201,
+          3,
+          203,
           "spacing"
         ],
         [
-          103,
+          201,
+          3,
+          204,
+          "a"
+        ],
+        [
+          204,
           0,
-          104,
+          203,
           "width"
         ],
         [
-          78,
-          0,
-          105,
-          "mesh"
-        ],
-        [
-          78,
-          1,
-          105,
-          "cap"
-        ],
-        [
-          104,
-          0,
-          105,
-          "pattern"
-        ],
-        [
-          78,
-          6,
-          105,
-          "color"
-        ],
-        [
-          78,
+          201,
           2,
-          106,
-          "a"
+          205,
+          "value"
         ],
         [
-          106,
-          0,
-          107,
-          "a"
-        ],
-        [
-          78,
+          201,
           4,
-          107,
-          "b"
+          205,
+          "max"
         ],
         [
-          78,
-          3,
-          108,
+          205,
+          0,
+          206,
+          "max"
+        ],
+        [
+          201,
+          2,
+          207,
           "value"
         ],
         [
-          107,
+          201,
           0,
-          108,
-          "max"
-        ],
-        [
-          108,
-          0,
-          109,
-          "max"
-        ],
-        [
-          100,
-          0,
-          110,
-          "radius"
-        ],
-        [
-          106,
-          0,
-          110,
-          "spacing"
-        ],
-        [
-          109,
-          0,
-          110,
-          "width"
-        ],
-        [
-          105,
-          0,
-          111,
-          "mesh"
-        ],
-        [
-          78,
-          1,
-          111,
+          208,
           "cap"
         ],
         [
-          110,
+          203,
           0,
-          111,
+          208,
           "pattern"
         ],
         [
-          78,
+          206,
+          0,
+          208,
+          "depth"
+        ],
+        [
+          207,
+          0,
+          208,
+          "pore_depth"
+        ],
+        [
+          201,
+          2,
+          209,
+          "value"
+        ],
+        [
+          201,
+          5,
+          210,
+          "a"
+        ],
+        [
+          201,
           6,
-          111,
+          210,
+          "b"
+        ],
+        [
+          209,
+          0,
+          210,
+          "factor"
+        ],
+        [
+          208,
+          0,
+          211,
+          "mesh"
+        ],
+        [
+          210,
+          0,
+          211,
           "color"
         ],
         [
-          111,
+          211,
           0,
-          79,
+          202,
           "out_0"
         ]
-      ],
+      ]
+    },
+    {
+      "id": 220,
+      "name": "Reticulation",
       "inputs": {
         "mesh": {
           "type": "mesh",
           "label": "Body",
           "external": true
         },
-        "cap": {
+        "stipe": {
           "type": "path",
-          "label": "Rays",
+          "label": "Stipe",
           "external": true
         },
-        "radius": {
+        "spacing": {
           "type": "float",
-          "label": "Cap radius",
-          "external": true,
-          "value": 0.04
+          "label": "Net spacing",
+          "value": 0.003,
+          "min": 0.0005,
+          "max": 0.02,
+          "step": 0.0001,
+          "unit": "m",
+          "description": "How wide the meshes of the net are around the stipe, they are longer down it"
         },
-        "t": {
+        "height": {
           "type": "float",
-          "label": "Time",
-          "value": 1,
+          "label": "Net height",
+          "value": 0.00035,
           "min": 0,
-          "max": 1,
-          "step": 0.01
-        },
-        "scales": {
-          "type": "float",
-          "label": "Scales",
-          "value": 0.45,
-          "min": 0,
-          "max": 1,
-          "step": 0.05,
-          "description": "How much of the margin of the young cap the white fibrous scales cover, 0 = none. They only grow near the margin and wear off as the cap grows."
-        },
-        "flower": {
-          "type": "float",
-          "label": "Flower cracks",
-          "value": 0,
-          "min": 0,
-          "max": 1,
-          "step": 0.05,
-          "description": "How wide the cracks of a dry \"flower\" shiitake (hua gu) are, as a share of the patches between them, the white flesh shows in them. 0 = a smooth cap, about 0.25 = a flower shiitake."
+          "max": 0.005,
+          "step": 5e-05,
+          "unit": "m",
+          "description": "How far the net stands out of the stipe at its top"
         },
         "color": {
           "type": "color",
-          "label": "Color, white",
+          "label": "Color",
           "value": [
-            246,
-            242,
-            234
-          ],
-          "description": "The flesh in the cracks and the scales"
+            250,
+            248,
+            240
+          ]
         }
       },
       "outputs": [
@@ -2056,6 +1663,175 @@
           "type": "mesh",
           "label": "Body"
         }
+      ],
+      "nodes": [
+        {
+          "id": 221,
+          "position": [
+            -210,
+            20
+          ],
+          "type": "__internal/group/input",
+          "props": {}
+        },
+        {
+          "id": 222,
+          "position": [
+            0,
+            0
+          ],
+          "type": "__internal/group/output",
+          "props": {}
+        },
+        {
+          "id": 223,
+          "position": [
+            -120,
+            -40
+          ],
+          "type": "max/myzel/cracks",
+          "props": {
+            "radius": 0.09,
+            "stretch": 1.8,
+            "softness": 0.2
+          }
+        },
+        {
+          "id": 224,
+          "position": [
+            -160,
+            -10
+          ],
+          "type": "max/plantarium/math",
+          "props": {
+            "op_type": 2,
+            "b": 0.24
+          }
+        },
+        {
+          "id": 225,
+          "position": [
+            -120,
+            20
+          ],
+          "type": "max/plantarium/curve",
+          "props": {
+            "curve": [
+              0,
+              0,
+              0.4,
+              0,
+              0.62,
+              0.55,
+              0.8,
+              0.9,
+              1,
+              1
+            ],
+            "min": 0
+          }
+        },
+        {
+          "id": 226,
+          "position": [
+            -120,
+            55
+          ],
+          "type": "max/plantarium/curve",
+          "props": {
+            "curve": [
+              0,
+              0,
+              0.4,
+              0,
+              0.62,
+              0.6,
+              0.8,
+              0.95,
+              1,
+              1
+            ],
+            "min": 0,
+            "max": 1
+          }
+        },
+        {
+          "id": 227,
+          "position": [
+            -60,
+            0
+          ],
+          "type": "max/myzel/cap_pattern",
+          "props": {}
+        }
+      ],
+      "edges": [
+        [
+          221,
+          2,
+          223,
+          "spacing"
+        ],
+        [
+          221,
+          2,
+          224,
+          "a"
+        ],
+        [
+          224,
+          0,
+          223,
+          "width"
+        ],
+        [
+          221,
+          3,
+          225,
+          "max"
+        ],
+        [
+          221,
+          0,
+          227,
+          "mesh"
+        ],
+        [
+          221,
+          1,
+          227,
+          "cap"
+        ],
+        [
+          223,
+          0,
+          227,
+          "pattern"
+        ],
+        [
+          225,
+          0,
+          227,
+          "relief"
+        ],
+        [
+          221,
+          4,
+          227,
+          "color"
+        ],
+        [
+          226,
+          0,
+          227,
+          "opacity"
+        ],
+        [
+          227,
+          0,
+          222,
+          "out_0"
+        ]
       ]
     }
   ],
@@ -2073,7 +1849,7 @@
       "id": 1,
       "position": [
         -180,
-        103.13
+        -58.75
       ],
       "type": "max/myzel/time",
       "props": {}
@@ -2082,20 +1858,19 @@
       "id": 40,
       "position": [
         -150,
-        85.63
+        -81.25
       ],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 36,
-        "t": 1,
-        "length_button": 0.01,
-        "length_open": 0.038,
-        "radius_button": 0.005,
-        "radius_open": 0.0065,
+        "length_button": 0.03,
+        "length_open": 0.11,
+        "radius_button": 0.019,
+        "radius_open": 0.026,
         "color": [
-          228,
-          214,
-          192
+          222,
+          206,
+          172
         ]
       }
     },
@@ -2103,72 +1878,71 @@
       "id": 41,
       "position": [
         -120,
-        55.63
+        -111.25
       ],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 37,
-        "t": 1,
-        "radius_button": 0.012,
-        "radius_open": 0.04,
+        "radius_button": 0.017,
+        "radius_open": 0.065,
         "profile": [
           0,
-          38,
-          5,
-          33.5,
-          12,
-          30,
-          24,
-          26.5,
-          37,
+          40,
+          3,
+          33,
+          7,
+          28,
+          13,
           23.5,
+          22,
+          19.5,
+          35,
+          16.5,
           50,
-          20.5
+          15.5
         ],
-        "flesh_button": 0.012,
-        "flesh_open": 0.011,
+        "flesh_button": 0.02,
+        "flesh_open": 0.026,
         "color_button": [
-          62,
-          38,
-          24
+          196,
+          160,
+          112
         ],
         "color_open": [
-          100,
-          62,
-          38
+          138,
+          84,
+          46
         ]
       }
     },
     {
       "id": 42,
       "position": [
-        -90,
-        67.5
+        -30,
+        -31.25
       ],
       "type": "__internal/group/instance",
       "props": {
-        "groupId": 38,
-        "reach": 0.05,
-        "t": 1,
-        "spacing": 0.0008,
-        "depth": 0.0055,
+        "groupId": 200,
+        "spacing": 0.0013,
+        "depth": 0.016,
         "color_young": [
-          246,
-          243,
-          234
+          240,
+          236,
+          222
         ],
         "color_old": [
-          244,
-          240,
-          230
+          194,
+          184,
+          98
         ]
       }
     },
     {
       "id": 44,
       "position": [
-        -60,
-        0
+        -90,
+        -106.25
       ],
       "type": "max/plantarium/join",
       "props": {}
@@ -2176,13 +1950,31 @@
     {
       "id": 45,
       "position": [
-        -30,
-        0
+        -60,
+        -106.25
       ],
       "type": "max/myzel/hyphae_to_mesh",
       "props": {
         "fill": 1.5,
         "fibres": 1.5
+      }
+    },
+    {
+      "id": 46,
+      "position": [
+        -30,
+        -106.25
+      ],
+      "type": "__internal/group/instance",
+      "props": {
+        "groupId": 220,
+        "spacing": 0.003,
+        "height": 0.00035,
+        "color": [
+          250,
+          248,
+          240
+        ]
       }
     },
     {
@@ -2195,26 +1987,7 @@
       "props": {}
     },
     {
-      "id": 87,
-      "position": [
-        -15,
-        30
-      ],
-      "type": "__internal/group/instance",
-      "props": {
-        "groupId": 77,
-        "t": 1,
-        "scales": 0.45,
-        "flower": 0,
-        "color": [
-          246,
-          242,
-          234
-        ]
-      }
-    },
-    {
-      "id": 5000,
+      "id": 3000,
       "position": [
         -330,
         60
@@ -2222,25 +1995,25 @@
       "type": "max/plantarium/random",
       "props": {
         "min": 0.85,
-        "max": 1.15,
+        "max": 1.18,
         "once": 1
       }
     },
     {
-      "id": 5001,
+      "id": 3001,
       "position": [
         -330,
         80
       ],
       "type": "max/plantarium/random",
       "props": {
-        "min": 0.03,
-        "max": 0.046,
+        "min": 0.085,
+        "max": 0.125,
         "once": 1
       }
     },
     {
-      "id": 5002,
+      "id": 3002,
       "position": [
         -300,
         80
@@ -2251,20 +2024,20 @@
       }
     },
     {
-      "id": 5003,
+      "id": 3003,
       "position": [
         -330,
         95
       ],
       "type": "max/plantarium/random",
       "props": {
-        "min": 0.0055,
-        "max": 0.0078,
+        "min": 0.021,
+        "max": 0.031,
         "once": 1
       }
     },
     {
-      "id": 5004,
+      "id": 3004,
       "position": [
         -300,
         95
@@ -2275,20 +2048,20 @@
       }
     },
     {
-      "id": 5005,
+      "id": 3005,
       "position": [
         -330,
         30
       ],
       "type": "max/plantarium/random",
       "props": {
-        "min": 0.034,
-        "max": 0.046,
+        "min": 0.054,
+        "max": 0.07,
         "once": 1
       }
     },
     {
-      "id": 5006,
+      "id": 3006,
       "position": [
         -300,
         30
@@ -2299,7 +2072,7 @@
       }
     },
     {
-      "id": 5007,
+      "id": 3007,
       "position": [
         -300,
         10
@@ -2314,7 +2087,7 @@
       ]
     },
     {
-      "id": 5008,
+      "id": 3008,
       "position": [
         -330,
         10
@@ -2327,7 +2100,7 @@
       }
     },
     {
-      "id": 5009,
+      "id": 3009,
       "position": [
         -270,
         25
@@ -2338,20 +2111,20 @@
       }
     },
     {
-      "id": 5010,
+      "id": 3010,
       "position": [
         -270,
         45
       ],
       "type": "max/plantarium/random",
       "props": {
-        "min": 0.0095,
-        "max": 0.0125,
+        "min": 0.021,
+        "max": 0.03,
         "once": 1
       }
     },
     {
-      "id": 5011,
+      "id": 3011,
       "position": [
         -300,
         -10
@@ -2365,53 +2138,66 @@
       }
     },
     {
-      "id": 5012,
+      "id": 3012,
       "position": [
         -270,
         -10
       ],
       "type": "max/myzel/mix_color",
       "props": {
-        "a": [122, 84, 58],
-        "b": [64, 40, 26]
+        "a": [182, 130, 80],
+        "b": [108, 62, 32]
       }
     },
     {
-      "id": 5013,
+      "id": 3013,
       "position": [
         -180,
         130
       ],
       "type": "max/plantarium/random",
       "props": {
-        "min": 0.0008,
-        "max": 0.001,
+        "min": 0.0011,
+        "max": 0.0016,
         "once": 1
       }
     },
     {
-      "id": 5014,
+      "id": 3014,
       "position": [
         -180,
         145
       ],
       "type": "max/plantarium/random",
       "props": {
-        "min": 0.0045,
-        "max": 0.0062,
+        "min": 0.013,
+        "max": 0.019,
         "once": 1
       }
     },
     {
-      "id": 5021,
+      "id": 3021,
       "position": [
-        -90,
-        -170
+        -180,
+        175
       ],
       "type": "max/plantarium/random",
       "props": {
-        "min": 0.25,
-        "max": 0.7,
+        "min": 0.0024,
+        "max": 0.0038,
+        "once": 1
+      }
+    },
+    {
+      "id": 3022,
+      "position": [
+        -180,
+        190
+      ],
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.00022,
+        "max": 0.00045,
         "once": 1
       }
     }
@@ -2472,6 +2258,24 @@
       "paths"
     ],
     [
+      45,
+      0,
+      46,
+      "mesh"
+    ],
+    [
+      40,
+      0,
+      46,
+      "stipe"
+    ],
+    [
+      46,
+      0,
+      59,
+      "a"
+    ],
+    [
       42,
       0,
       59,
@@ -2484,142 +2288,118 @@
       "mesh"
     ],
     [
-      45,
+      3001,
       0,
-      87,
-      "mesh"
-    ],
-    [
-      41,
-      0,
-      87,
-      "cap"
-    ],
-    [
-      1,
-      0,
-      87,
-      "t"
-    ],
-    [
-      87,
-      0,
-      59,
+      3002,
       "a"
     ],
     [
-      41,
-      4,
-      87,
-      "radius"
-    ],
-    [
-      5001,
+      3000,
       0,
-      5002,
-      "a"
-    ],
-    [
-      5000,
-      0,
-      5002,
+      3002,
       "b"
     ],
     [
-      5002,
+      3002,
       0,
       40,
       "length_open"
     ],
     [
-      5003,
+      3003,
       0,
-      5004,
+      3004,
       "a"
     ],
     [
-      5000,
+      3000,
       0,
-      5004,
+      3004,
       "b"
     ],
     [
-      5004,
+      3004,
       0,
       40,
       "radius_open"
     ],
     [
-      5005,
+      3005,
       0,
-      5006,
+      3006,
       "a"
     ],
     [
-      5000,
+      3000,
       0,
-      5006,
+      3006,
       "b"
     ],
     [
-      5008,
+      3008,
       0,
-      5007,
+      3007,
       "max"
     ],
     [
-      5006,
+      3006,
       0,
-      5009,
+      3009,
       "a"
     ],
     [
-      5007,
+      3007,
       0,
-      5009,
+      3009,
       "b"
     ],
     [
-      5009,
+      3009,
       0,
       41,
       "radius_open"
     ],
     [
-      5010,
+      3010,
       0,
       41,
       "flesh_open"
     ],
     [
-      5011,
+      3011,
       0,
-      5012,
+      3012,
       "factor"
     ],
     [
-      5012,
+      3012,
       0,
       41,
       "color_open"
     ],
     [
-      5013,
+      3013,
       0,
       42,
       "spacing"
     ],
     [
-      5014,
+      3014,
       0,
       42,
       "depth"
     ],
     [
-      5021,
+      3021,
       0,
-      87,
-      "scales"
+      46,
+      "spacing"
+    ],
+    [
+      3022,
+      0,
+      46,
+      "height"
     ]
   ]
 }
