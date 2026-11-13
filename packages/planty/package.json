@@ -1,6 +1,7 @@
 {
   "name": "@nodarium/planty",
   "version": "0.0.10",
+  "license": "MIT",
   "imports": {
     "#lib": "./src/lib/index.ts",
     "#lib/*": "./src/lib/*"

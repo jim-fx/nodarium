@@ -1,5 +1,6 @@
 {
   "version": "0.0.4",
+  "license": "MIT",
   "scripts": {
     "_postinstall": "pnpm run -r --filter 'ui' build && pnpm run -r --filter 'planty' build",
     "lint": "pnpm run -r --parallel lint",
