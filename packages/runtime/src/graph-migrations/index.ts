@@ -149,8 +149,8 @@ export const CURRENT_GRAPH_VERSION = MIGRATIONS.at(-1)?.version ?? 0;
 export class GraphVersionError extends Error {
   constructor(public readonly graphVersion: number) {
     super(
-      `This graph was saved by a newer version of Nodarium (graph version ${graphVersion}, `
-        + `this app knows up to ${CURRENT_GRAPH_VERSION}). Reload the page to update the app.`
+      `This graph has version ${graphVersion}, the highest version this runtime knows is `
+        + `${CURRENT_GRAPH_VERSION}. Update @nodarium/runtime to run it.`
     );
     this.name = 'GraphVersionError';
   }

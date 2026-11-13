@@ -70,6 +70,11 @@ describe('migrateGraph', () => {
   it('rejects a graph that is newer than the app', () => {
     const newer = { ...fixture(CURRENT_GRAPH_VERSION), version: CURRENT_GRAPH_VERSION + 1 };
     expect(() => migrateGraph(newer)).toThrow(GraphVersionError);
+    expect(() => migrateGraph(newer)).toThrow(
+      `This graph has version ${
+        CURRENT_GRAPH_VERSION + 1
+      }, the highest version this runtime knows is ${CURRENT_GRAPH_VERSION}. Update @nodarium/runtime to run it.`
+    );
   });
 });
 
