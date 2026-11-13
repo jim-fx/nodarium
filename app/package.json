@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@nodarium/planty": "workspace:*",
+    "@nodarium/runtime": "workspace:*",
     "@nodarium/ui": "workspace:*",
     "@nodarium/utils": "workspace:*",
     "@sveltejs/kit": "^3.1.0",

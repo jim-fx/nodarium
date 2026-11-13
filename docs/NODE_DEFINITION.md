@@ -42,7 +42,7 @@ The first output sits on the header of the node, every other output gets its own
 }
 ```
 
-Saved graphs refer to inputs by their name. When you rename or remove an input, add a migration in `app/src/lib/graph-migrations` so graphs that use the old name keep their values and links.
+Saved graphs refer to inputs by their name. When you rename or remove an input, add a migration in `packages/runtime/src/graph-migrations` so graphs that use the old name keep their values and links.
 
 ## meta (optional)
 

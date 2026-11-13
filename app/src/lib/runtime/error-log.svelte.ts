@@ -1,4 +1,4 @@
-import type { RuntimeErrorInfo } from './errors';
+import type { RuntimeErrorInfo } from '@nodarium/runtime';
 
 export type ErrorLogEntry = RuntimeErrorInfo & { id: number; time: number };
 

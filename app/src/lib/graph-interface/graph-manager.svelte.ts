@@ -1,6 +1,7 @@
-import { CURRENT_GRAPH_VERSION, migrateGraph } from '#lib/graph-migrations/index.ts';
 import { RemoteNodeRegistry } from '#lib/node-registry/index.ts';
+import { CURRENT_GRAPH_VERSION, migrateGraph } from '@nodarium/runtime';
 import {
+  areSocketsCompatible,
   DEBUG_NODE,
   getOutputType,
   GROUP_INPUT,
@@ -34,7 +35,6 @@ import { clone, debounce } from './helpers/index.ts';
 import { COLUMN_GAP, layoutGraph, NODE_WIDTH } from './helpers/layoutGraph';
 import {
   areEdgesEqual,
-  areSocketsCompatible,
   getNodeHeight,
   isInputConnectable,
   serializeEdge,

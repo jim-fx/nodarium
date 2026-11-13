@@ -1,8 +1,8 @@
 import type { Graph, NodeDefinition, NodeValue } from '@nodarium/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMockNodeRegistry } from '../graph-interface/test-utils';
 import { MemoryRuntimeExecutor, toCreatorId } from './runtime-executor';
 import { MemoryRuntimeCache } from './runtime-executor-cache';
+import { createMockNodeRegistry } from './test-utils';
 
 // Every node sums its inputs, so results depend on everything the cache key
 // has to cover. `calls` counts how often each node type really executed.

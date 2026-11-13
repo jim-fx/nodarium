@@ -6,6 +6,7 @@
 //   target   name of a template in src/lib/graph-templates (fern, palm, ...), `templates` for
 //            all json templates, or the path of a graph or an exported `.nodarium.json` project
 //   --check  only report the files whose layout would change, and exit with 1 if there are any
+import { FileNodeRegistry } from '@nodarium/runtime/node';
 import {
   GROUP_INPUT,
   GROUP_INSTANCE,
@@ -21,7 +22,6 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-import { BenchmarkRegistry } from '../benchmark/benchmarkRegistry.ts';
 import { layoutGraph } from '../src/lib/graph-interface/helpers/layoutGraph.ts';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -123,7 +123,7 @@ function definition(
   return { ...type, inputs: Object.fromEntries(inputs) };
 }
 
-const registry = new BenchmarkRegistry();
+const registry = new FileNodeRegistry(resolve('static/nodes'));
 let changed = 0;
 
 for (const file of await resolveTargets(targets)) {

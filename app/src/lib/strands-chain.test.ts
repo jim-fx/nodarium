@@ -1,14 +1,17 @@
 // The stipe of the groomed mushrooms: strands fill a guide, twist turns them around it,
 // random_break ends some of them short of the tip and clump bundles them by guide. Run with the
 // compiled nodes.
+import {
+  expandGroups,
+  FileNodeRegistry,
+  MemoryRuntimeCache,
+  MemoryRuntimeExecutor
+} from '@nodarium/runtime/node';
 import { DEBUG_NODE, type Graph, type NodeId } from '@nodarium/types';
 import { splitNestedArray } from '@nodarium/utils';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { BenchmarkRegistry } from '../../benchmark/benchmarkRegistry';
-import { expandGroups, MemoryRuntimeExecutor } from './runtime/runtime-executor';
-import { MemoryRuntimeCache } from './runtime/runtime-executor-cache';
 
 type Path = {
   id: number;
@@ -87,7 +90,7 @@ describe.skipIf(!BUILT && !ON_CI)('the strands of a stipe', () => {
   const read: Record<number, Path[]> = {};
 
   beforeAll(async () => {
-    const registry = new BenchmarkRegistry();
+    const registry = new FileNodeRegistry(resolve('static/nodes'));
     const runtime = new MemoryRuntimeExecutor(registry, new MemoryRuntimeCache());
     const base = expandGroups(graph(0.5));
     await registry.load(base.nodes.map((n) => n.type) as NodeId[]);

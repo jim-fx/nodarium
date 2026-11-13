@@ -1,10 +1,11 @@
 import * as templates from '#lib/graph-templates/index.ts';
 import { localState } from '#lib/helpers/localState.svelte.ts';
 import { ThumbnailService } from '#lib/thumbnails/thumbnail-service.svelte.ts';
+import { parseProjectFile } from '@nodarium/runtime';
 import type { Graph, ProjectUnit } from '@nodarium/types';
 import FileSaver from 'file-saver';
 import * as db from './project-database.svelte';
-import { createProjectFile, parseProjectFile, previewToBlob } from './project-file';
+import { createProjectFile, previewToBlob } from './project-file';
 
 export class ProjectManager {
   public graph = $state<Graph>();

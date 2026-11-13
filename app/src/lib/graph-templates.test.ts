@@ -1,6 +1,6 @@
-import { CURRENT_GRAPH_VERSION } from '#lib/graph-migrations/index.ts';
 import { grid } from '#lib/graph-templates/grid.ts';
 import { tree } from '#lib/graph-templates/tree.ts';
+import { CURRENT_GRAPH_VERSION } from '@nodarium/runtime';
 import type { Graph, NodeDefinition } from '@nodarium/types';
 import { describe, expect, it } from 'vitest';
 

@@ -456,16 +456,14 @@ if (wanted('chain')) {
 
 // The templates through the runtime, every node type summed, hyphae_to_mesh apart
 if (wanted('templates')) {
-  // the registry reads <cwd>/static/nodes/<collection>/<node>.wasm, the same nodes as --wasm
-  process.chdir(dirname(dirname(dirname(options.wasm))));
-  const { BenchmarkRegistry } = await import('../benchmark/benchmarkRegistry.ts');
-  const { parseProjectFile } = await import('../src/lib/project-manager/project-file.ts');
-  const { MemoryRuntimeExecutor } = await import('../src/lib/runtime/runtime-executor.ts');
+  const { FileNodeRegistry, MemoryRuntimeExecutor, parseProjectFile } = await import(
+    '@nodarium/runtime/node'
+  );
   const { INTERNAL_PREFIX } = await import('@nodarium/types');
   for (const template of options.templates.split(',')) {
     const file = join(root, 'app', 'src', 'lib', 'graph-templates', `${template}.json`);
     const graph = parseProjectFile(JSON.parse(readFileSync(file, 'utf8'))).graph;
-    const registry = new BenchmarkRegistry();
+    const registry = new FileNodeRegistry(dirname(options.wasm));
     // types inside groups are loaded by the runtime when it expands them
     await registry.load(
       graph.nodes.map((n) => n.type).filter((t) => !t.startsWith(INTERNAL_PREFIX))

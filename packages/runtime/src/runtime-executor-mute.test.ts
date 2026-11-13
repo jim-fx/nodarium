@@ -1,7 +1,7 @@
 import type { Graph, NodeDefinition } from '@nodarium/types';
 import { describe, expect, it } from 'vitest';
-import { createMockNodeRegistry } from '../graph-interface/test-utils';
 import { MemoryRuntimeExecutor } from './runtime-executor';
+import { createMockNodeRegistry } from './test-utils';
 
 type TestNode = Graph['nodes'][0];
 

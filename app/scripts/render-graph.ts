@@ -15,6 +15,7 @@
 //   --below  adds a fourth view from below, for the underside of caps and leaves
 //
 // Prints one line of JSON per target with the path of the screenshot and the size of the plant.
+import { FileNodeRegistry, MemoryRuntimeExecutor, parseProjectFile } from '@nodarium/runtime/node';
 import { type Graph, INTERNAL_PREFIX, type NodeId } from '@nodarium/types';
 import { splitNestedArray } from '@nodarium/utils';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
@@ -22,10 +23,6 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { deflateSync } from 'node:zlib';
-
-import { BenchmarkRegistry } from '../benchmark/benchmarkRegistry.ts';
-import { parseProjectFile } from '../src/lib/project-manager/project-file.ts';
-import { MemoryRuntimeExecutor } from '../src/lib/runtime/runtime-executor.ts';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const TEMPLATE_DIR = join(root, 'src', 'lib', 'graph-templates');
@@ -80,7 +77,7 @@ async function loadGraph(file: string): Promise<Graph> {
 }
 
 async function execute(graph: Graph, seed: number) {
-  const registry = new BenchmarkRegistry();
+  const registry = new FileNodeRegistry(resolve('static/nodes'));
   // group nodes have no wasm, the runtime loads the nodes inside them once it expands them
   const types = graph.nodes.map((n) => n.type).filter((t) => !t.startsWith(INTERNAL_PREFIX));
   await registry.load(types as NodeId[]);

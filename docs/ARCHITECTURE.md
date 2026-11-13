@@ -43,10 +43,10 @@ For a more in-depth explanation have a look at [./NODE_DEFINITION.md](NODE_DEFIN
 
 ## How are the nodes executed?
 
-The runtime runs the graph bottom up and hands each node's result to the next node. It doesn't know what the data means, that is up to the node system the nodes belong to (for example [Plantarium](./PLANTARIUM.md)). How nodes and the runtime talk to each other is described in [ABI.md](./ABI.md).
+The runtime runs the graph bottom up and hands each node's result to the next node. It doesn't know what the data means, that is up to the node system the nodes belong to (for example [Plantarium](./PLANTARIUM.md)). How nodes and the runtime talk to each other is described in [ABI.md](./ABI.md). The runtime lives in `packages/runtime` and is published with the compiled nodes as `@nodarium/runtime`, so other projects can generate models without the app (see its [README](../packages/runtime/README.md)).
 
 ## How are old graphs migrated?
 
-Every graph has a `version`. A graph without one is version 0. When the editor loads a graph, the runtime executes one, or a project is imported, `migrateGraph()` (`app/src/lib/graph-migrations`) runs every migration newer than the graph's version on a copy of it. The migrated graph is where the undo history starts, and the migration is only logged. A graph newer than the app fails to load with an error message.
+Every graph has a `version`. A graph without one is version 0. When the editor loads a graph, the runtime executes one, or a project is imported, `migrateGraph()` (`packages/runtime/src/graph-migrations`) runs every migration newer than the graph's version on a copy of it. The migrated graph is where the undo history starts, and the migration is only logged. A graph newer than the app fails to load with an error message.
 
 A change that breaks saved graphs, like renaming a node or an input, gets a migration at the end of `MIGRATIONS` with the next version. Released migrations never change. The helpers rename node types (`renameNodeType`), rename, convert or remove inputs (`renameInputs`, `mapInput`, `removeInputs`) and replace a node with several nodes or a group, with its edges moved onto them (`replaceNodes`). Each new version also gets a fixture in `graph-migrations/fixtures/v<version>.json`: the same plant as the other fixtures, saved in the new format. The tests check that every older fixture migrates to it. The bundled templates are kept at the current version.

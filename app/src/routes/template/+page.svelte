@@ -1,14 +1,13 @@
 <script lang="ts">
   import * as templates from '#lib/graph-templates/index.ts';
   import { humanizeNumber } from '#lib/helpers/index.ts';
-  import { debugNode } from '#lib/node-registry/debugNode.ts';
   import { groupNode } from '#lib/node-registry/groupNode.ts';
   import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
   import Viewer from '#lib/result-viewer/Viewer.svelte';
-  import { MemoryRuntimeExecutor } from '#lib/runtime/index.ts';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { debugNode, MemoryRuntimeExecutor } from '@nodarium/runtime';
   import type { Graph } from '@nodarium/types';
   import { Spinner, toast } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';

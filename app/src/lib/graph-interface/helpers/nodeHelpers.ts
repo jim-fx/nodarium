@@ -110,17 +110,6 @@ export function getOutputSocketOffset(nodeType: string, index: number) {
   return 2.5 + OUTPUT_ROW_HEIGHT * index;
 }
 
-export function areSocketsCompatible(
-  output: string | undefined,
-  inputs: string | (string | undefined)[] | undefined
-) {
-  if (output === '*') return true;
-  if (Array.isArray(inputs) && output) {
-    return inputs.includes('*') || inputs.includes(output);
-  }
-  return inputs === output;
-}
-
 // Whether an edge can be drawn into the input. Internal inputs are only set on the
 // node itself, hidden inputs only take edges while they are exposed on the node.
 export function isInputConnectable(input: { hidden?: boolean; internal?: boolean } | undefined) {

@@ -1,6 +1,7 @@
+import { sortResultItems } from '@nodarium/runtime';
 import { Group, LineSegments } from 'three';
 import { describe, expect, it } from 'vitest';
-import { createResultPools, sortResultItems } from './geometryPool';
+import { createResultPools } from './geometryPool';
 import { groupColor, LINES_TAG, readLines } from './lines';
 
 // two line segments, the first in group 0, the second in group 3

@@ -1,3 +1,4 @@
+import { readGeometry, readInstances, readMesh, sortResultItems } from '@nodarium/runtime';
 import { readGeometryPathId, readInstancePathIds } from '@nodarium/utils';
 import {
   Box3,
@@ -16,85 +17,6 @@ import {
   SRGBColorSpace
 } from 'three';
 import { createLinesPool } from './lines';
-
-/** The first word of every item in a result says what it holds */
-export const RESULT_TAGS = { geometry: 1, instances: 2, lines: 12, mesh: 14 } as const;
-
-/** Sorts the items of a result by their tag, items of other tags are left out */
-export function sortResultItems(items: Int32Array[]) {
-  const geometries: Int32Array[] = [];
-  const instances: Int32Array[] = [];
-  const meshes: Int32Array[] = [];
-  const lines: Int32Array[] = [];
-  for (const item of items) {
-    if (item[0] === RESULT_TAGS.geometry) geometries.push(item);
-    else if (item[0] === RESULT_TAGS.instances) instances.push(item);
-    else if (item[0] === RESULT_TAGS.mesh) meshes.push(item);
-    else if (item[0] === RESULT_TAGS.lines) lines.push(item);
-  }
-  return { geometries, instances, meshes, lines };
-}
-
-export type MeshData = {
-  vertexCount: number;
-  faceCount: number;
-  faces: Int32Array;
-  positions: Float32Array;
-  normals: Float32Array;
-  /** RGBA8 per vertex, red first */
-  colors?: Uint8Array;
-  /** material group per vertex */
-  groups?: Int32Array;
-};
-
-function readLayout(data: Int32Array, headerLength: number): MeshData {
-  const vertexCount = data[1];
-  const faceCount = data[2];
-  const positionsStart = headerLength + faceCount * 3;
-  const normalsStart = positionsStart + vertexCount * 3;
-  const floats = (start: number) =>
-    new Float32Array(data.buffer, data.byteOffset + start * 4, vertexCount * 3);
-  return {
-    vertexCount,
-    faceCount,
-    faces: data.subarray(headerLength, positionsStart),
-    positions: floats(positionsStart),
-    normals: floats(normalsStart)
-  };
-}
-
-/** Plantarium geometry: `[1, v, f, path id, ...faces, ...positions, ...normals]` */
-export function readGeometry(data: Int32Array) {
-  return readLayout(data, 4);
-}
-
-/** Set in the flags word of a Myzel mesh when it brings one color per vertex */
-export const MESH_HAS_COLORS = 1;
-
-/** Myzel mesh: `[14, v, f, flags, ...faces, ...positions, ...normals, ...colors?, ...groups]` */
-export function readMesh(data: Int32Array) {
-  const mesh = readLayout(data, 4);
-  const withColors = (data[3] & MESH_HAS_COLORS) !== 0;
-  const colorsStart = 4 + mesh.faceCount * 3 + mesh.vertexCount * 6;
-  const groupsStart = colorsStart + (withColors ? mesh.vertexCount : 0);
-  const expected = groupsStart + mesh.vertexCount;
-  if (data.length !== expected) {
-    throw new Error(
-      `A mesh with ${mesh.vertexCount} vertices, ${mesh.faceCount} faces and flags ${
-        data[3]
-      } needs ${expected} words, got ${data.length}`
-    );
-  }
-  if (withColors) {
-    mesh.colors = new Uint8Array(
-      data.buffer,
-      data.byteOffset + colorsStart * 4,
-      mesh.vertexCount * 4
-    );
-  }
-  mesh.groups = data.subarray(groupsStart, expected);
-  return mesh;
-}
 
 /**
  * Path ids are hashes that would lose bits as floats in the group attribute, any 24 of them still
@@ -467,28 +389,18 @@ export function createInstancedGeometryPool(
     // instances of the same shape and depth share an object
     key: (data) => `${data[1]}:${data[2]}:${data[4]}`,
     fill: (existing, data, stats) => {
-      // type, vertex, face and instance amount and the stem depth, then faces, positions, normals
-      // and a 4x4 matrix per instance
-      const vertexCount = data[1];
-      const faceCount = data[2];
-      const instanceCount = data[3];
+      const { vertexCount, faceCount, instanceCount, faces, positions, normals, matrices } =
+        readInstances(data);
       stats.totalVertices += vertexCount * instanceCount;
       stats.totalFaces += faceCount * instanceCount;
-
-      const facesStart = 5;
-      const positionsStart = facesStart + faceCount * 3;
-      const normalsStart = positionsStart + vertexCount * 3;
-      const matricesStart = normalsStart + vertexCount * 3;
-      const floats = (start: number, length: number) =>
-        new Float32Array(data.buffer, data.byteOffset + start * 4, length);
 
       let mesh = existing;
       const geometry = mesh?.geometry ?? new BufferGeometry();
 
-      writeIndex(geometry, data.subarray(facesStart, positionsStart), vertexCount);
-      writeAttribute(geometry, 'position', floats(positionsStart, vertexCount * 3));
-      writeAttribute(geometry, 'normal', floats(normalsStart, vertexCount * 3));
-      const geometryBounds = setBounds(geometry, floats(positionsStart, vertexCount * 3));
+      writeIndex(geometry, faces, vertexCount);
+      writeAttribute(geometry, 'position', positions);
+      writeAttribute(geometry, 'normal', normals);
+      const geometryBounds = setBounds(geometry, positions);
       geometry.userData = { vertexCount, faceCount };
 
       // the matrix buffer can't grow, so the mesh is replaced by a bigger one
@@ -499,11 +411,10 @@ export function createInstancedGeometryPool(
       mesh ??= new InstancedMesh(geometry, material, instanceCount);
       mesh.count = instanceCount;
 
-      const matrices = floats(matricesStart, instanceCount * 16);
       mesh.instanceMatrix.array.set(matrices);
       mesh.instanceMatrix.needsUpdate = true;
 
-      // which path each of the instances sits on
+      // which path each of the instances sits on, missing ids stay 0 here unlike in readInstances
       const pathIds = Int32Array.from(readInstancePathIds(data));
       mesh.userData.pathIds = pathIds;
       // one group per instance even when the ids are missing, a short buffer would fail the draw
