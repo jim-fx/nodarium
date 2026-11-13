@@ -18,6 +18,11 @@
       "external": true,
       "unit": "m"
     },
+    "points": {
+      "type": "points",
+      "description": "Where the stems start, for example the points of sample_mesh on a substrate. Every stem starts on a point and grows along its direction instead of from the origin straight up, the stems take the points in turn. Without points the origin is used",
+      "external": true
+    },
     "amount": {
       "type": "integer",
       "description": "The amount of stems to produce",

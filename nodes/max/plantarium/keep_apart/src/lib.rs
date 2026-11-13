@@ -1,8 +1,8 @@
-use glam::{Vec2, Vec3};
+use glam::{Quat, Vec2, Vec3};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs,
-    geometry::{follow_parents, interpolate_along_path, is_path, path_link, translate_path, wrap_path},
+    geometry::{follow_parents, interpolate_along_path, is_path, path_link, translate_path, wrap_path, wrap_path_mut},
     split_args, Ctx,
 };
 
@@ -50,12 +50,28 @@ fn relax(spots: &mut [Spot], iterations: usize) {
     }
 }
 
+/// Turns a path around its base, so its point at `at` moves towards that point moved by `shift`
+fn lean_path(path: &mut [i32], at: f32, shift: Vec3) {
+    let points = wrap_path_mut(path).points;
+    let base = Vec3::from_slice(&points[..3]);
+    let from = interpolate_along_path(points, at).0.truncate() - base;
+    let (Some(a), Some(b)) = (from.try_normalize(), (from + shift).try_normalize()) else {
+        return;
+    };
+    let turn = Quat::from_rotation_arc(a, b);
+    for p in points.chunks_exact_mut(4) {
+        let q = base + turn * (Vec3::from_slice(&p[..3]) - base);
+        p[..3].copy_from_slice(&q.to_array());
+    }
+}
+
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
     let original: Vec<Vec<i32>> = split_args(args[0]).iter().map(|p| p.to_vec()).collect();
     let at = ctx.float(args[2]).clamp(0.0, 1.0);
     let iterations = ctx.int(args[3]).clamp(1, 256) as usize;
+    let lean = ctx.int(args[4]) != 0;
 
     let stems: Vec<usize> = (0..original.len())
         .filter(|&i| is_path(&original[i]) && !path_link(&original[i]).has_parent() && wrap_path(&original[i]).length >= 2)
@@ -77,7 +93,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut current = original.clone();
     for spot in &spots {
         let shift = spot.at - spot.start;
-        translate_path(&mut current[spot.index], Vec3::new(shift.x, 0.0, shift.y));
+        let shift = Vec3::new(shift.x, 0.0, shift.y);
+        if lean {
+            lean_path(&mut current[spot.index], at, shift);
+        } else {
+            translate_path(&mut current[spot.index], shift);
+        }
     }
     follow_parents(&original, &mut current);
     concat_arg_vecs(current)
@@ -110,7 +131,11 @@ mod tests {
     }
 
     fn run(paths: Vec<Vec<i32>>, radius: &[i32], at: f32) -> Vec<Vec<Vec3>> {
-        let out = __nodarium_execute_inner(&[&concat_arg_vecs(paths), radius, &[encode_float(at)], &[24]]);
+        run_leaning(paths, radius, at, false)
+    }
+
+    fn run_leaning(paths: Vec<Vec<i32>>, radius: &[i32], at: f32, lean: bool) -> Vec<Vec<Vec3>> {
+        let out = __nodarium_execute_inner(&[&concat_arg_vecs(paths), radius, &[encode_float(at)], &[24], &[lean as i32]]);
         split_args(&out)
             .iter()
             .map(|p| wrap_path(p).points.chunks_exact(4).map(|q| Vec3::new(q[0], q[1], q[2])).collect())
@@ -176,5 +201,20 @@ mod tests {
         let shift = out[1][0] - Vec3::ZERO;
         assert!(shift.length() > 0.05);
         assert!((out[2][0] - (Vec3::new(0.0, 0.5, 0.0) + shift)).length() < 1e-5);
+    }
+
+    #[test]
+    fn leaning_stems_keep_their_base_and_their_length() {
+        let paths = vec![stem(0, 0.0, 1.0), stem(1, 0.1, 1.0)];
+        let moved = run(paths.clone(), &[encode_float(0.2)], 1.0);
+        let leaning = run_leaning(paths, &[encode_float(0.2)], 1.0, true);
+        for i in 0..2 {
+            assert_eq!(leaning[i][0], Vec3::new(0.1 * i as f32, 0.0, 0.0));
+            assert!(((leaning[i][4] - leaning[i][0]).length() - 1.0).abs() < 1e-5);
+            // the tip goes the way the moved stem goes
+            let (lean, move_) = (leaning[i][4].x - leaning[i][0].x, moved[i][4].x - 0.1 * i as f32);
+            assert!(lean * move_ > 0.0 && (lean - move_).abs() < 0.05, "{lean} and {move_}");
+        }
+        assert!(leaning[1][4].x - leaning[0][4].x > 0.35);
     }
 }
