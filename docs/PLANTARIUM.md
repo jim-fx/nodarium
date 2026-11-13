@@ -4,7 +4,7 @@ Plantarium is the node system in `nodes/max/plantarium`. Its nodes generate plan
 
 ## Numbers
 
-A `float` input is either a plain value or an **expression** produced by the `math`, `random`, `alpha` or `curve` node:
+A `float` input is either a plain value or an **expression** produced by the `math`, `random`, `alpha`, `curve`, `path_info` or `wave` node:
 
 ```
 [0, op, a, b]        math: a + b, a - b, a * b, a / b  (op 0-3)
@@ -16,6 +16,9 @@ A `float` input is either a plain value or an **expression** produced by the `ma
                      curve: min + curve(value) * (max - min), value clamped to 0-1
 [5, field]           path_info: a value of the path the node works on, field is the option of the node:
                      0 position, 1 index, 2 count, 3 depth, 4 parent position, 5 length
+[8, value, count, shape]
+                     wave: a profile repeated count times from value 0 to 1, 0 on a crest and 1 in a trough,
+                     shape 0 sine, 1 tooth, 2 saw, 3 round
 ```
 
 An `integer` input that isn't set by a setting is a plain value or the expression of the `random_int` or `round` node:
@@ -28,6 +31,8 @@ An `integer` input that isn't set by a setting is a plain value or the expressio
 `a`, `b`, `min`, `max` and `value` can be expressions themselves. The points of a curve are plain values, sorted by x from 0 to 1. Between them the curve is a monotone cubic, so it never overshoots a point. Nodes read these inputs with a `Ctx`, created once per execution: `ctx.float`, `ctx.vec3` and `ctx.int`. Calling them again gives a new random value, which is how a single `random` node gives every stem a different length, and a `random_int` node every branch a different number of leaves. A new `Ctx` starts the random values from the beginning, so a node gives the same result every time it runs. `set_path` (and `seed_path`, which `stem` calls for the stems it is about to make) restarts the random values from the `id` of the path, so a path draws the same values whether or not other paths come before it in the list. A `random` with `per_path` ("once per path") is the exception: its value only depends on the seed, the id of the path that was seeded last and the node that made it (`salt`, its creator id), and it draws nothing, so the values after it stay as they were. Every node that seeds the same path reads the same value from it, wherever it sits in an expression. The chanterelle template gives every specimen one age this way, read by the stipe, the cap and the nodes that pose it. A `random` with `once` ("once for the graph") draws its value for no path at all, so every node reads the same value, also the nodes that read it without a path, like `cracks` or `mix_color`. The single mushroom templates draw their size and shape this way, so the cap, the gills under it and the pattern on it agree. `select`, `boolean` and `seed` inputs and `integer` inputs set by a setting (the resolutions) are never expressions, `int` reads them.
 
 `branch` and `instance` set `ctx.alpha` before they evaluate the inputs of each branch or instance, for example its `length` or `size`: alpha is where it sits on its parent path. `stem` and `branch` read `thickness` with `ctx.float_along` at every point of the path they create, there alpha goes along that path. `float_along` draws random values once, so a `random` thickness stays the same along the path. The path is then multiplied by `1 - alpha * taper`: `taper` 1 (the default) makes a cone, 0 leaves the profile to the thickness input. Everywhere else alpha is 0. The second word of the alpha expression keeps it from being read as a plain value.
+
+`wave` shapes a value like `curve` does, alpha when nothing is connected, but repeats: the value is multiplied by `count`, and every whole step from one crest to the next goes through the same profile, 0 on the crest and 1 in the trough. `sine` undulates, `tooth` has straight flanks and sharp crests, and `round` has round crests and sharp troughs; these three start on a crest at value 0 and reach the trough halfway. `saw` starts in a trough, climbs slowly to the crest at the end of each step and drops back at once, so its teeth lean toward higher values. `count` is a float, so `math` or `random` can set it, and a count that isn't whole stops partway through a step at value 1. Multiplied with a depth and fed into the `margin` of `leaf_surface`, it cuts teeth into a leaf (`tooth` dentate, `saw` serrate, `round` crenate), a `curve` of alpha on top keeps the teeth off the base. Added to the thickness of a stem, it makes rings, like the nodes of bamboo or horsetail.
 
 A color input holds the sRGB bytes `[0, 4, r, g, b, 1, 1]`, or the expression of the `mix_color` node `[7, a, b, factor]`, where `a` and `b` are colors and `factor` a float. `ctx.color` reads it like a float input, the factor with alpha and the path, see Colors.
 

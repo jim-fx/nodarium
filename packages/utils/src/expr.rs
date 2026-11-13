@@ -168,6 +168,10 @@ impl Ctx {
                 min + curve(&points, x) * (max - min)
             }
             [[6], value] => self.float(value).round(),
+            [[8], value, count, [shape]] => {
+                let x = self.float(value) * self.float(count);
+                wave(x - x.floor(), *shape)
+            }
             _ => 0.0,
         };
 
@@ -327,6 +331,19 @@ impl Ctx {
         self.calls = (self.calls + 512) % i32::MAX;
 
         x
+    }
+}
+
+/// One period of the `wave` node at `u` (0 to 1), 0 on a crest and 1 in a trough. Sine, tooth and
+/// round start on a crest and reach the trough halfway. Saw starts in a trough and climbs to the
+/// crest at the end of the period, so along a margin its teeth lean toward higher values, the tip.
+fn wave(u: f32, shape: i32) -> f32 {
+    use std::f32::consts::PI;
+    match shape {
+        1 => 1.0 - (2.0 * u - 1.0).abs(),
+        2 => 1.0 - u,
+        3 => 1.0 - (PI * u).cos().abs(),
+        _ => 0.5 - 0.5 * (2.0 * PI * u).cos(),
     }
 }
 
@@ -622,6 +639,69 @@ mod tests {
         parts.extend([&value[..], &min[..], &max[..]]);
         parts.extend(words.iter().map(|w| &w[..]));
         concat_args(parts)
+    }
+
+    fn wave_expr(count: f32, shape: i32) -> Vec<i32> {
+        let alpha = concat_args(vec![&[2], &[0]]);
+        concat_args(vec![&[8], &alpha, &[encode_float(count)], &[shape]])
+    }
+
+    fn assert_close(values: &[f32], expected: &[f32]) {
+        for (v, e) in values.iter().zip(expected) {
+            assert!((v - e).abs() < 1e-5, "{values:?} != {expected:?}");
+        }
+    }
+
+    #[test]
+    fn a_sine_wave_rises_smoothly_from_a_crest_to_a_trough() {
+        let mut ctx = Ctx::default();
+        let values = ctx.float_along(&wave_expr(1.0, 0), [0.0, 0.25, 0.5, 0.75]);
+        assert_close(&values, &[0.0, 0.5, 1.0, 0.5]);
+    }
+
+    #[test]
+    fn a_tooth_wave_has_straight_flanks() {
+        let mut ctx = Ctx::default();
+        let values = ctx.float_along(&wave_expr(1.0, 1), [0.0, 0.25, 0.5, 0.75, 0.875]);
+        assert_close(&values, &[0.0, 0.5, 1.0, 0.5, 0.25]);
+    }
+
+    #[test]
+    fn a_saw_wave_climbs_to_its_crest_and_falls_back_at_once() {
+        let mut ctx = Ctx::default();
+        let values = ctx.float_along(&wave_expr(1.0, 2), [0.0, 0.25, 0.5, 0.999, 1.0]);
+        assert_close(&values, &[1.0, 0.75, 0.5, 0.001, 1.0]);
+    }
+
+    #[test]
+    fn a_round_wave_has_round_crests_and_sharp_troughs() {
+        let mut ctx = Ctx::default();
+        let values = ctx.float_along(&wave_expr(1.0, 3), [0.0, 0.5, 0.01, 0.48, 0.52]);
+        assert_close(&values[..2], &[0.0, 1.0]);
+        // flat next to the crest, steep on both sides of the trough
+        assert!(values[2] < 0.001, "{values:?}");
+        assert!(1.0 - values[3] > 0.05 && 1.0 - values[4] > 0.05, "{values:?}");
+    }
+
+    #[test]
+    fn a_wave_repeats_count_times_from_0_to_1() {
+        let mut ctx = Ctx::default();
+        let at = [0.0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0];
+        let values = ctx.float_along(&wave_expr(4.0, 1), at);
+        assert_close(&values, &[0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0]);
+        // no crests at all, the value stays on the first one
+        let flat = ctx.float_along(&wave_expr(0.0, 0), at);
+        assert_close(&flat, &[0.0; 9]);
+    }
+
+    #[test]
+    fn a_wave_reads_its_count_like_any_float() {
+        let alpha = concat_args(vec![&[2], &[0]]);
+        let count = concat_args(vec![&[0], &[2], &[encode_float(2.0)], &[encode_float(3.0)]]);
+        let teeth = concat_args(vec![&[8], &alpha, &count, &[1]]);
+        let mut ctx = Ctx::default();
+        let values = ctx.float_along(&teeth, [0.0, 1.0 / 12.0, 1.0 / 6.0]);
+        assert_close(&values, &[0.0, 1.0, 0.0]);
     }
 
     #[test]
