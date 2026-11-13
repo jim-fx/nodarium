@@ -14,6 +14,11 @@ pub fn closest(a: Vec2, b: Vec2, p: Vec2) -> (f32, f32) {
     (t, (a + ab * t - p).length())
 }
 
+/// How wide the groove `relief` sinks a vein into is, on each side of it.
+pub fn groove(reach: f32, cell: f32) -> f32 {
+    (0.15 * reach).max(1.5 * cell)
+}
+
 /// A piece of a vein in leaf space, between two points of its path.
 pub struct Segment {
     pub a: Vec2,
@@ -45,9 +50,48 @@ pub struct Vein {
     pub min: Vec2,
     pub max: Vec2,
     pub reach: f32,
+    /// The vein it branches from, an index into the veins.
+    pub parent: Option<usize>,
 }
 
 impl Vein {
+    pub fn end(&self) -> Vec2 {
+        self.segments[self.segments.len() - 1].b
+    }
+
+    pub fn length(&self) -> f32 {
+        self.segments.iter().map(|s| (s.b - s.a).length()).sum()
+    }
+
+    /// The point `s` along the vein by length, its direction and its reach.
+    pub fn at(&self, s: f32) -> (Vec2, Vec2, f32) {
+        let mut rest = s.max(0.0);
+        for (i, seg) in self.segments.iter().enumerate() {
+            let len = (seg.b - seg.a).length();
+            if rest <= len || i == self.segments.len() - 1 {
+                let t = if len > 0.0 { (rest / len).min(1.0) } else { 0.0 };
+                let direction = (seg.b - seg.a).try_normalize().unwrap_or(Vec2::Y);
+                return (seg.a.lerp(seg.b, t), direction, seg.reach(t));
+            }
+            rest -= len;
+        }
+        unreachable!("a vein has segments")
+    }
+
+    /// How far along the vein, by length, the point closest to `p` lies, and how far it is.
+    pub fn project(&self, p: Vec2) -> (f32, f32) {
+        let (mut walked, mut best) = (0.0, (0.0, f32::MAX));
+        for seg in &self.segments {
+            let len = (seg.b - seg.a).length();
+            let (t, d) = seg.closest(p);
+            if d < best.1 {
+                best = (walked + t * len, d);
+            }
+            walked += len;
+        }
+        best
+    }
+
     /// No point of the blade around this vein is closer to `p` than this.
     pub fn lower_bound(&self, p: Vec2) -> f32 {
         let d = (self.min - p).max(p - self.max).max(Vec2::ZERO);
@@ -79,7 +123,8 @@ pub fn leaf_space(paths: &[&[i32]]) -> Vec<Vein> {
         .unwrap_or(Vec3::NEG_Z);
     let across = along.cross(Vec3::Y);
 
-    paths
+    let mut kept = Vec::new();
+    let mut veins: Vec<Vein> = paths
         .iter()
         .filter_map(|p| {
             let path = wrap_path(p);
@@ -93,6 +138,7 @@ pub fn leaf_space(paths: &[&[i32]]) -> Vec<Vein> {
             if points.len() < 2 {
                 return None;
             }
+            kept.push(path_link(p));
             let segments = points
                 .windows(2)
                 .map(|w| Segment {
@@ -109,7 +155,12 @@ pub fn leaf_space(paths: &[&[i32]]) -> Vec<Vein> {
                 min: points.iter().fold(Vec2::MAX, |m, p| m.min(p.0)),
                 max: points.iter().fold(Vec2::MIN, |m, p| m.max(p.0)),
                 reach: points.iter().fold(0.0_f32, |m, p| m.max(p.2)),
+                parent: None,
             })
         })
-        .collect()
+        .collect();
+    for (vein, link) in veins.iter_mut().zip(&kept) {
+        vein.parent = kept.iter().position(|k| k.id == link.parent_id);
+    }
+    veins
 }

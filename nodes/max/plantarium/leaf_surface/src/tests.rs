@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::f32::consts::PI;
 
 use super::__nodarium_execute_inner;
@@ -28,12 +28,12 @@ fn line(from: Vec3, to: Vec3, reach: impl Fn(f32) -> f32, n: usize) -> Vec<(Vec3
 }
 
 /// A midrib 1 long along +z with `pairs` pairs of side veins, which reach `reach(t)` around them
-/// at `t` along their length. Returns the veins and the tips of the side veins.
-fn pinnate(pairs: usize, reach: impl Fn(f32) -> f32) -> (Vec<i32>, Vec<Vec3>) {
+/// at `t` along their length. Returns the veins and the side veins as their base and tip.
+fn pinnate(pairs: usize, reach: impl Fn(f32) -> f32) -> (Vec<i32>, Vec<[Vec3; 2]>) {
     let midrib = line(Vec3::ZERO, Vec3::Z, |t| 0.05 * (1.0 - t), 24);
     let root = PathLink::root(1, 0);
     let mut paths = vec![path(&midrib, root, 1)];
-    let mut tips = Vec::new();
+    let mut sides = Vec::new();
     for i in 0..pairs * 2 {
         let a = 0.1 + 0.75 * (i / 2) as f32 / (pairs - 1) as f32;
         let side = if i % 2 == 0 { 1.0 } else { -1.0 };
@@ -42,9 +42,9 @@ fn pinnate(pairs: usize, reach: impl Fn(f32) -> f32) -> (Vec<i32>, Vec<Vec3>) {
         let tip = base + Vec3::new(side * 0.64, 0.0, 0.77) * length;
         let link = PathLink::child(2, root.id, a, i as i32);
         paths.push(path(&line(base, tip, &reach, 12), link, 2));
-        tips.push(tip);
+        sides.push([base, tip]);
     }
-    (concat_arg_vecs(paths), tips)
+    (concat_arg_vecs(paths), sides)
 }
 
 fn beech() -> Vec<i32> {
@@ -52,13 +52,17 @@ fn beech() -> Vec<i32> {
 }
 
 fn run(veins: &[i32], smooth: f32, margin: &[i32], relief: f32) -> Vec<i32> {
+    run_at(veins, smooth, margin, relief, 64)
+}
+
+fn run_at(veins: &[i32], smooth: f32, margin: &[i32], relief: f32, resolution: i32) -> Vec<i32> {
     __nodarium_execute_inner(&[
         veins,
         &[encode_float(1.0)],
         &[encode_float(smooth)],
         margin,
         &[encode_float(relief)],
-        &[64],
+        &[resolution],
     ])
 }
 
@@ -93,15 +97,72 @@ impl Mesh {
         count.into_iter().filter(|&(_, c)| c == 1).map(|(e, _)| e).collect()
     }
 
-    fn edges(&self) -> usize {
-        let mut edges: Vec<(usize, usize)> = self
-            .faces
+    fn edges(&self) -> HashSet<(usize, usize)> {
+        self.faces
             .iter()
             .flat_map(|f| (0..3).map(move |k| (f[k].min(f[(k + 1) % 3]), f[k].max(f[(k + 1) % 3]))))
-            .collect();
-        edges.sort();
-        edges.dedup();
-        edges.len()
+            .collect()
+    }
+
+    /// A disc: one piece, no holes, every edge in at most two faces, a single margin, facing up
+    /// while it is flat.
+    fn assert_disc(&self) {
+        let euler = self.positions.len() as i64 - self.edges().len() as i64 + self.faces.len() as i64;
+        assert_eq!(euler, 1);
+
+        let boundary = self.boundary();
+        let mut next: HashMap<usize, Vec<usize>> = HashMap::new();
+        for &(a, b) in &boundary {
+            next.entry(a).or_default().push(b);
+            next.entry(b).or_default().push(a);
+        }
+        assert!(next.values().all(|n| n.len() == 2), "the margin branches");
+        let (start, mut previous, mut at, mut walked) = (boundary[0].0, boundary[0].0, boundary[0].1, 1);
+        while at != start {
+            let n = &next[&at];
+            let step = if n[0] == previous { n[1] } else { n[0] };
+            (previous, at) = (at, step);
+            walked += 1;
+        }
+        assert_eq!(walked, boundary.len(), "the margin is more than one line");
+
+        if self.positions.iter().all(|p| p.y.abs() < 1e-4) {
+            assert!(self.normals.iter().all(|n| n.y > 0.99), "a flat leaf faces up");
+        }
+    }
+
+    /// The vertices on the line through `points` (x, z), by how far along it they lie.
+    fn on_line(&self, points: &[Vec2]) -> Vec<(f32, usize)> {
+        let mut on = Vec::new();
+        for (i, p) in self.positions.iter().enumerate() {
+            let p = Vec2::new(p.x, p.z);
+            let mut walked = 0.0;
+            for w in points.windows(2) {
+                let (a, b) = (w[0], w[1]);
+                let t = ((p - a).dot(b - a) / (b - a).length_squared()).clamp(0.0, 1.0);
+                if (a.lerp(b, t) - p).length() < 1e-3 {
+                    on.push((walked + t * (b - a).length(), i));
+                    break;
+                }
+                walked += (b - a).length();
+            }
+        }
+        on.sort_by(|a, b| a.0.total_cmp(&b.0));
+        on
+    }
+
+    /// Whether the mesh has a chain of edges along the line through `points` (x, z), from its
+    /// start to `reach` along it.
+    fn assert_chain(&self, points: &[Vec2], reach: f32) {
+        let on = self.on_line(points);
+        assert!(on.len() >= 2, "no vertices on the vein from {}", points[0]);
+        assert!(on[0].0 < 1e-3, "the chain starts {} along the vein", on[0].0);
+        assert!(on[on.len() - 1].0 >= reach, "the chain ends {} along the vein", on[on.len() - 1].0);
+        let edges = self.edges();
+        for w in on.windows(2) {
+            let (a, b) = (w[0].1, w[1].1);
+            assert!(edges.contains(&(a.min(b), a.max(b))), "a gap in the chain {} along the vein", w[0].0);
+        }
     }
 
     /// Whether the blade, seen from above, covers `p` (x, z).
@@ -145,29 +206,43 @@ fn plain(v: f32) -> Vec<i32> {
 #[test]
 fn an_ovate_leaf_is_closed_and_has_no_holes() {
     let leaf = read(&run(&beech(), 0.1, &plain(0.0), 0.0));
-    assert!(leaf.faces.len() > 500, "{} faces", leaf.faces.len());
-
-    // a disc: one piece with one boundary
-    let euler = leaf.positions.len() as i64 - leaf.edges() as i64 + leaf.faces.len() as i64;
-    assert_eq!(euler, 1);
-
-    let boundary = leaf.boundary();
-    let mut next: HashMap<usize, Vec<usize>> = HashMap::new();
-    for &(a, b) in &boundary {
-        next.entry(a).or_default().push(b);
-        next.entry(b).or_default().push(a);
-    }
-    assert!(next.values().all(|n| n.len() == 2), "the margin branches");
-    let (start, mut previous, mut at, mut walked) = (boundary[0].0, boundary[0].0, boundary[0].1, 1);
-    while at != start {
-        let n = &next[&at];
-        let step = if n[0] == previous { n[1] } else { n[0] };
-        (previous, at) = (at, step);
-        walked += 1;
-    }
-    assert_eq!(walked, boundary.len(), "the margin is more than one line");
-
+    assert!(leaf.faces.len() > 200, "{} faces", leaf.faces.len());
+    leaf.assert_disc();
     assert!(leaf.normals.iter().all(|n| n.y > 0.99), "a flat leaf faces up");
+}
+
+#[test]
+fn a_beech_has_500_to_1000_triangles() {
+    let leaf = read(&run_at(&beech(), 0.1, &plain(0.0), 0.003, 96));
+    assert!((500..=1000).contains(&leaf.faces.len()), "{} faces", leaf.faces.len());
+    leaf.assert_disc();
+}
+
+#[test]
+fn the_midrib_and_the_side_veins_are_chains_of_edges() {
+    let (veins, sides) = pinnate(7, |t| 0.08 * (1.0 - 0.5 * t));
+    for resolution in [64, 96] {
+        let leaf = read(&run_at(&veins, 0.1, &plain(0.0), 0.0, resolution));
+        // the midrib ends where the blade tapers into the margin, short of its last cell
+        let cell = 116.0 / resolution as f32;
+        leaf.assert_chain(&[placed(Vec3::ZERO), placed(Vec3::Z)], 100.0 - 2.0 * cell);
+        for &[base, tip] in &sides {
+            let line = [placed(base), placed(tip)];
+            leaf.assert_chain(&line, (line[1] - line[0]).length() - 1e-3);
+        }
+    }
+}
+
+#[test]
+fn a_midrib_that_tapers_to_nothing_reaches_its_tip() {
+    // the grid of the field is coarser than the end of the midrib
+    let midrib = line(Vec3::ZERO, Vec3::Z, |t| 0.06 * (1.0 - t), 24);
+    let veins = concat_arg_vecs(vec![path(&midrib, PathLink::root(1, 0), 1)]);
+    let leaf = read(&run(&veins, 0.0, &plain(0.0), 0.0));
+    let (min, _) = leaf.bounds();
+    assert!((min.z + 100.0).abs() < 0.1, "tip at {}", min.z);
+    leaf.assert_disc();
+    leaf.assert_chain(&[placed(Vec3::ZERO), placed(Vec3::Z)], 100.0 - 1e-3);
 }
 
 #[test]
@@ -183,16 +258,18 @@ fn the_gaps_the_veins_close_in_are_filled() {
     let leaf = read(&run(&concat_arg_vecs(paths), 0.0, &plain(0.0), 0.0));
 
     assert!(leaf.covers(placed(Vec3::new(0.0, 0.0, 0.35))), "the middle of the ring is open");
-    let euler = leaf.positions.len() as i64 - leaf.edges() as i64 + leaf.faces.len() as i64;
-    assert_eq!(euler, 1);
+    leaf.assert_disc();
 }
 
 #[test]
 fn lobes_follow_the_side_veins() {
     // the blade is widest near the end of every side vein, like an oak
-    let (veins, tips) = pinnate(4, |t| 0.01 + 0.04 * t * t);
+    let (veins, sides) = pinnate(4, |t| 0.01 + 0.04 * t * t);
+    let tips: Vec<Vec3> = sides.iter().map(|[_, tip]| *tip).collect();
     let lobed = read(&run(&veins, 0.01, &plain(0.0), 0.0));
     let entire = read(&run(&veins, 0.5, &plain(0.0), 0.0));
+    lobed.assert_disc();
+    entire.assert_disc();
 
     for pair in tips.chunks(2).collect::<Vec<_>>().windows(2) {
         for side in 0..2 {
@@ -218,6 +295,7 @@ fn a_margin_of_0_leaves_the_outline_unchanged() {
 
     let toothed = read(&run(&veins, 0.1, &times(0.02), 0.003));
     let entire = read(&plain_leaf);
+    toothed.assert_disc();
     assert!(toothed.area() < entire.area() * 0.97, "the teeth cut into the blade");
     assert!(toothed.area() > entire.area() * 0.8, "the teeth only cut the margin");
 }
@@ -275,6 +353,19 @@ fn the_heights_of_the_veins_bend_the_blade() {
     let base = leaf.positions.iter().min_by(|a, b| a.length().total_cmp(&b.length())).unwrap();
     assert!(tip.y < -25.0, "tip at {tip}");
     assert!(base.y.abs() < 1.0, "base at {base}");
+
+    // the midrib is a chain of edges that follows the arch without a zig-zag
+    let along = leaf.on_line(&[placed(Vec3::ZERO), placed(Vec3::Z)]);
+    assert!(along.len() > 10);
+    for w in along.windows(2) {
+        let (a, b) = (leaf.positions[w[0].1], leaf.positions[w[1].1]);
+        assert!(b.y < a.y, "the midrib climbs from {a} to {b}");
+    }
+    for (s, i) in along {
+        let t = s / 100.0;
+        let y = leaf.positions[i].y;
+        assert!((y + 30.0 * t * t).abs() < 0.5, "the midrib is at {y} at {t}");
+    }
 }
 
 #[test]

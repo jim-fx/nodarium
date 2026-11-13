@@ -12,3 +12,4 @@ crate-type = ["cdylib", "rlib"]
 glam = "0.34.1"
 nodarium_macros = { version = "0.1.0", path = "../../../../packages/macros" }
 nodarium_utils = { version = "0.1.0", path = "../../../../packages/utils" }
+spade = "2.15.1"

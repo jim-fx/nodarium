@@ -33,6 +33,19 @@ fn blade(veins: &[Vein], p: Vec2, smooth: f32) -> f32 {
     f
 }
 
+/// The cut of the piece of the closed line `margin` closest to `p`, with `cuts` given at its points.
+pub fn cut_at(margin: &[Vec2], cuts: &[f32], p: Vec2) -> f32 {
+    let n = margin.len();
+    let mut best = (f32::MAX, 0.0);
+    for k in 0..n {
+        let (t, d) = closest(margin[k], margin[(k + 1) % n], p);
+        if d < best.0 {
+            best = (d, cuts[k] + (cuts[(k + 1) % n] - cuts[k]) * t);
+        }
+    }
+    best.1
+}
+
 /// The blade sampled on a square grid in leaf space, negative inside. Its zero line is the margin.
 pub struct Field {
     pub nx: usize,
@@ -93,13 +106,9 @@ impl Field {
         self.nx * (self.ny + 1)
     }
 
-    pub fn edge_count(&self) -> usize {
-        self.horizontal_edges() + (self.nx + 1) * self.ny
-    }
-
     /// The corners and edges of a cell, counter-clockwise from its lower left corner. Edge k goes
     /// from corner k to corner k + 1.
-    pub fn cell(&self, i: usize, j: usize) -> ([Corner; 4], [usize; 4]) {
+    fn cell(&self, i: usize, j: usize) -> ([Corner; 4], [usize; 4]) {
         let h = self.horizontal_edges();
         (
             [(i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1)],
@@ -125,7 +134,7 @@ impl Field {
     }
 
     /// Where the margin crosses an edge.
-    pub fn crossing(&self, edge: usize) -> Vec2 {
+    fn crossing(&self, edge: usize) -> Vec2 {
         let (a, b) = self.edge_ends(edge);
         let (fa, fb) = (self.values[self.index(a)], self.values[self.index(b)]);
         let t = if fa != fb { fa / (fa - fb) } else { 0.5 };
@@ -133,7 +142,7 @@ impl Field {
     }
 
     /// Whether the middle of a cell whose corners are inside and outside in turn is inside.
-    pub fn center_inside(&self, corners: &[Corner; 4]) -> bool {
+    fn center_inside(&self, corners: &[Corner; 4]) -> bool {
         corners.iter().map(|&c| self.values[self.index(c)]).sum::<f32>() < 0.0
     }
 
@@ -184,22 +193,13 @@ impl Field {
             return;
         }
         let band = deepest + 2.0 * self.cell;
-        let n = margin.len();
         for j in 0..=self.ny {
             for i in 0..=self.nx {
                 let index = self.index((i, j));
                 if self.values[index].abs() >= band {
                     continue;
                 }
-                let p = self.point((i, j));
-                let mut best = (f32::MAX, 0.0);
-                for k in 0..n {
-                    let (t, d) = closest(margin[k], margin[(k + 1) % n], p);
-                    if d < best.0 {
-                        best = (d, cuts[k] + (cuts[(k + 1) % n] - cuts[k]) * t);
-                    }
-                }
-                self.values[index] += best.1;
+                self.values[index] += cut_at(margin, cuts, self.point((i, j)));
             }
         }
         self.fill_holes();

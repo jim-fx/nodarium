@@ -47,7 +47,7 @@
     },
     "resolution": {
       "type": "integer",
-      "description": "Cells across the longer side of the leaf.",
+      "description": "Cells across the longer side of the leaf, for the grid that finds the margin. The mesh follows it: its edges are about 2.5 cells long along the margin and at the ends of the veins and grow to 8 cells in the middle of the blade.",
       "min": 16,
       "max": 256,
       "value": 96,
