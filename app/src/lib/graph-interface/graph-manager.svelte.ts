@@ -1,5 +1,5 @@
 import { RemoteNodeRegistry } from '#lib/node-registry/index.ts';
-import { CURRENT_GRAPH_VERSION, migrateGraph } from '@nodarium/runtime';
+import { CURRENT_GRAPH_VERSION, GraphVersionError, migrateGraph } from '@nodarium/runtime';
 import {
   areSocketsCompatible,
   DEBUG_NODE,
@@ -408,7 +408,15 @@ export class GraphManager extends EventEmitter<{
       graph = migrateGraph(graph);
     } catch (error) {
       log.error('failed to migrate graph', error);
-      toast(error instanceof Error ? error.message : String(error), 'error');
+      toast(
+        error instanceof GraphVersionError
+          ? `This graph was saved by a newer version of Nodarium (graph version ${error.graphVersion}, `
+            + `this app knows up to ${CURRENT_GRAPH_VERSION}). Reload the page to update the app.`
+          : error instanceof Error
+          ? error.message
+          : String(error),
+        'error'
+      );
       this.status = 'error';
       return;
     }

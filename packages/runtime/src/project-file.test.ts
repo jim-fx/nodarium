@@ -45,7 +45,7 @@ describe('parseProjectFile', () => {
 
   it('rejects graphs from a newer version of the app', () => {
     expect(() => parseProjectFile({ ...graph, version: CURRENT_GRAPH_VERSION + 1 })).toThrow(
-      /newer version/
+      /Update @nodarium\/runtime/
     );
   });
 
