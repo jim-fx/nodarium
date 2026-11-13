@@ -1,13 +1,18 @@
 use myzel_core::MeshWords;
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
+use nodarium_utils::abi::{self, Output};
 
 nodarium_definition_file!("src/definition.json");
 
-#[nodarium_execute]
-pub fn execute(args: &[&[i32]]) -> Vec<i32> {
+#[nodarium_execute(arena)]
+pub fn execute(args: &[&[i32]]) -> Output {
     // an input nothing is connected to is not a mesh
     let meshes: Vec<MeshWords> = args.iter().filter_map(|arg| MeshWords::read(arg)).collect();
-    MeshWords::join(&meshes)
+    abi::write_result(MeshWords::join_len(&meshes), |words| {
+        MeshWords::join_into(&meshes, words);
+        words.len()
+    })
+    .into()
 }
 
 #[cfg(test)]
@@ -27,7 +32,7 @@ mod tests {
 
     fn run_words(inputs: [Vec<i32>; 4]) -> Mesh {
         let refs: Vec<&[i32]> = inputs.iter().map(|w| w.as_slice()).collect();
-        Mesh::decode(&__nodarium_execute_inner(&refs))
+        Mesh::decode(unsafe { __nodarium_execute_inner(&refs).words() })
     }
 
     fn run(inputs: &[&Mesh]) -> Mesh {

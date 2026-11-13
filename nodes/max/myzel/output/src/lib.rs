@@ -67,7 +67,7 @@ fn mesh_list(mesh: &[i32]) -> Output {
     }
 }
 
-#[nodarium_execute]
+#[nodarium_execute(arena)]
 pub fn execute(args: &[&[i32]]) -> Output {
     match args[0].first() {
         Some(&MESH_TAG) => mesh_list(args[0]),

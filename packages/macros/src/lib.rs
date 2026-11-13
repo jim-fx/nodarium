@@ -30,11 +30,20 @@ fn names_not_in_snake_case(definition: &NodeDefinition) -> Vec<String> {
     names
 }
 
+/// `#[nodarium_execute]`, or `#[nodarium_execute(arena)]` for a node that only passes large
+/// buffers on: it keeps the inputs the host allocates and its results written in place in an
+/// arena, see `nodarium_utils::abi::use_arena`
 #[proc_macro_attribute]
-pub fn nodarium_execute(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn nodarium_execute(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let arena = match attr.to_string().as_str() {
+        "" => false,
+        "arena" => true,
+        other => panic!("#[nodarium_execute] takes nothing or `arena`, not `{}`", other),
+    };
     let mut inner_fn = parse_macro_input!(item as syn::ItemFn);
     let inner_ident = syn::Ident::new("__nodarium_execute_inner", inner_fn.sig.ident.span());
     inner_fn.sig.ident = inner_ident.clone();
+    let use_arena = arena.then(|| quote! { nodarium_utils::abi::use_arena(); });
 
     // Exports the Nodarium ABI v1 (see docs/ABI.md) around the user function,
     // which receives one slice per input: fn execute(args: &[&[i32]]) -> impl NodeOutputs
@@ -43,6 +52,7 @@ pub fn nodarium_execute(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
         #[no_mangle]
         pub extern "C" fn nodarium_alloc(bytes: usize) -> *mut i32 {
+            #use_arena
             nodarium_utils::abi::alloc(bytes)
         }
 
@@ -53,6 +63,7 @@ pub fn nodarium_execute(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
         #[no_mangle]
         pub extern "C" fn nodarium_execute(args_ptr: *const u32, argc: usize) -> *const u32 {
+            #use_arena
             nodarium_utils::abi::setup_panic_hook();
             let args = unsafe { nodarium_utils::abi::read_args(args_ptr, argc) };
             nodarium_utils::abi::store_result(#inner_ident(&args))

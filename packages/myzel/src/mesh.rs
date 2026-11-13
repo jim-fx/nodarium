@@ -251,6 +251,40 @@ pub(crate) fn sections(words: &mut [i32]) -> Sections<'_> {
     }
 }
 
+/// Writes words one after the other into a buffer that is exactly as long as all of them
+struct Words<'a> {
+    words: &'a mut [i32],
+    at: usize,
+}
+
+impl<'a> Words<'a> {
+    fn new(words: &'a mut [i32]) -> Self {
+        Words { words, at: 0 }
+    }
+
+    fn put(&mut self, words: &[i32]) {
+        self.words[self.at..self.at + words.len()].copy_from_slice(words);
+        self.at += words.len();
+    }
+
+    fn fill(&mut self, n: usize, word: i32) {
+        self.words[self.at..self.at + n].fill(word);
+        self.at += n;
+    }
+
+    fn extend(&mut self, words: impl ExactSizeIterator<Item = i32>) {
+        let n = words.len();
+        for (to, word) in self.words[self.at..self.at + n].iter_mut().zip(words) {
+            *to = word;
+        }
+        self.at += n;
+    }
+
+    fn done(self) {
+        assert_eq!(self.at, self.words.len(), "{} words written into {}", self.at, self.words.len());
+    }
+}
+
 /// A mesh read in place from its words. Nodes that only pass meshes on build their output from
 /// these, a decoded [`Mesh`] would be one more copy of every mesh in the node's memory.
 #[derive(Clone, Copy, Debug)]
@@ -315,55 +349,82 @@ impl<'a> MeshWords<'a> {
         &self.words[self.words.len() - self.v..]
     }
 
+    /// The words of [`MeshWords::painted`]
+    pub fn painted_len(&self) -> usize {
+        encoded_len(self.v, self.f, if self.v > 0 { mesh_flags::COLORS } else { 0 })
+    }
+
     /// The encoded mesh with every vertex in `color`
     pub fn painted(&self, color: u32) -> Vec<i32> {
-        let flags = if self.v > 0 { mesh_flags::COLORS } else { 0 };
-        let mut words = Vec::with_capacity(encoded_len(self.v, self.f, flags));
-        words.extend([MESH_TAG, self.v as i32, self.f as i32, flags]);
-        words.extend_from_slice(self.faces());
-        words.extend_from_slice(self.positions());
-        words.extend_from_slice(self.normals());
-        words.resize(words.len() + self.v, color as i32);
-        words.extend_from_slice(self.groups());
+        let mut words = vec![0; self.painted_len()];
+        self.paint_into(color, &mut words);
         words
+    }
+
+    /// Writes [`MeshWords::painted`] into `words`, which are [`MeshWords::painted_len`] long
+    pub fn paint_into(&self, color: u32, words: &mut [i32]) {
+        let flags = if self.v > 0 { mesh_flags::COLORS } else { 0 };
+        let mut out = Words::new(words);
+        out.put(&[MESH_TAG, self.v as i32, self.f as i32, flags]);
+        out.put(self.faces());
+        out.put(self.positions());
+        out.put(self.normals());
+        out.fill(self.v, color as i32);
+        out.put(self.groups());
+        out.done();
+    }
+
+    /// The words of [`MeshWords::join`]
+    pub fn join_len(meshes: &[MeshWords]) -> usize {
+        let meshes = meshes.iter().filter(|m| m.v > 0);
+        let (v, f, colored) =
+            meshes.fold((0, 0, false), |(v, f, colored), m| (v + m.v, f + m.f, colored || m.colors().is_some()));
+        encoded_len(v, f, if colored { mesh_flags::COLORS } else { 0 })
     }
 
     /// The encoded meshes one after the other, the groups of each numbered after those of the
     /// meshes before it. Meshes without vertices are left out. When only some of them have
     /// colors, the vertices of the others get [`crate::NO_COLOR`].
     pub fn join(meshes: &[MeshWords]) -> Vec<i32> {
+        let mut words = vec![0; Self::join_len(meshes)];
+        Self::join_into(meshes, &mut words);
+        words
+    }
+
+    /// Writes [`MeshWords::join`] into `words`, which are [`MeshWords::join_len`] long
+    pub fn join_into(meshes: &[MeshWords], words: &mut [i32]) {
         let meshes: Vec<&MeshWords> = meshes.iter().filter(|m| m.v > 0).collect();
-        let v = meshes.iter().map(|m| m.v).sum();
-        let f = meshes.iter().map(|m| m.f).sum();
+        let v = meshes.iter().map(|m| m.v).sum::<usize>();
+        let f = meshes.iter().map(|m| m.f).sum::<usize>();
         let colored = meshes.iter().any(|m| m.colors().is_some());
         let flags = if colored { mesh_flags::COLORS } else { 0 };
-        let mut words = Vec::with_capacity(encoded_len(v, f, flags));
-        words.extend([MESH_TAG, v as i32, f as i32, flags]);
+        let mut out = Words::new(words);
+        out.put(&[MESH_TAG, v as i32, f as i32, flags]);
         let mut offset = 0u32;
         for mesh in &meshes {
-            words.extend(mesh.faces().iter().map(|&i| (i as u32 + offset) as i32));
+            out.extend(mesh.faces().iter().map(|&i| (i as u32 + offset) as i32));
             offset += mesh.v as u32;
         }
         for mesh in &meshes {
-            words.extend_from_slice(mesh.positions());
+            out.put(mesh.positions());
         }
         for mesh in &meshes {
-            words.extend_from_slice(mesh.normals());
+            out.put(mesh.normals());
         }
         if colored {
             for mesh in &meshes {
                 match mesh.colors() {
-                    Some(colors) => words.extend_from_slice(colors),
-                    None => words.resize(words.len() + mesh.v, crate::NO_COLOR as i32),
+                    Some(colors) => out.put(colors),
+                    None => out.fill(mesh.v, crate::NO_COLOR as i32),
                 }
             }
         }
         let mut next = 0u32;
         for mesh in &meshes {
-            words.extend(mesh.groups().iter().map(|&g| (g as u32 + next) as i32));
+            out.extend(mesh.groups().iter().map(|&g| (g as u32 + next) as i32));
             next += mesh.groups().iter().map(|&g| g as u32).max().map_or(0, |g| g + 1);
         }
-        words
+        out.done();
     }
 }
 
