@@ -130,6 +130,27 @@ pub fn write_result(words: usize, write: impl FnOnce(&mut [i32]) -> usize) -> In
     InPlace { ptr, len }
 }
 
+/// Gives back the memory of `input` after its first `keep` words, for a node that copied the
+/// rest out and only reads those words again: a decoded input would otherwise stay in memory next
+/// to its copy until the reset. Returns the words that are kept, which may have moved, and `None`
+/// when `input` isn't a whole buffer the host allocated for the current call, see [`frame_input`];
+/// then nothing changes. A shrunk input can't be framed.
+///
+/// # Safety
+/// When it returns the kept words, `input` must not be read again.
+pub unsafe fn shrink_input<'a>(input: &'a [i32], keep: usize) -> Option<&'a [i32]> {
+    let mut allocations = ALLOCATIONS.lock().unwrap();
+    let allocation = allocations.iter_mut().find(|a| {
+        // SAFETY: inside the capacity, see `alloc`
+        let start = unsafe { a.buffer.as_ptr().add(HEADROOM) };
+        a.input == Some(input.len()) && start == input.as_ptr()
+    })?;
+    allocation.input = None;
+    let keep = keep.min(input.len());
+    allocation.buffer.shrink_to(HEADROOM + keep);
+    Some(std::slice::from_raw_parts(allocation.buffer.as_ptr().add(HEADROOM), keep))
+}
+
 /// Reads the argument table `[ptr0, len0, ptr1, len1, ...]` written by the host.
 ///
 /// # Safety
@@ -376,6 +397,34 @@ mod tests {
         assert_eq!(unsafe { result.words() }, &[4, 5, 6]);
         assert_eq!(frame_input(next, &[0], &[]), None);
         assert_eq!(frame_input(input, &[], &[]), None);
+        reset();
+    }
+
+    #[test]
+    fn an_input_of_the_call_is_shrunk_to_what_is_kept() {
+        let _turn = STATE.lock().unwrap_or_else(|e| e.into_inner());
+        reset();
+        let input = host_input(&[1, 2, 3, 4, 5]);
+        let other = host_input(&[6, 7]);
+        // nor a part of it, or words that aren't an input
+        assert_eq!(unsafe { shrink_input(&input[1..], 2) }, None);
+        assert_eq!(unsafe { shrink_input(&[1, 2, 3, 4, 5], 2) }, None);
+        let kept = unsafe { shrink_input(input, 2) }.unwrap();
+        assert_eq!(kept, &[1, 2]);
+        let capacity = {
+            let allocations = ALLOCATIONS.lock().unwrap();
+            allocations.iter().map(|a| a.buffer.capacity()).collect::<Vec<_>>()
+        };
+        assert_eq!(capacity, vec![HEADROOM + 2, 2 + 2 * HEADROOM]);
+        // once only, and it can't be framed any more, the other input still can
+        assert_eq!(unsafe { shrink_input(kept, 1) }, None);
+        assert_eq!(frame_input(kept, &[], &[]), None);
+        assert!(frame_input(other, &[0], &[]).is_some());
+        store_result(vec![0]);
+        let next = host_input(&[8, 9]);
+        store_result(vec![0]);
+        // nor an input of a call that is over
+        assert_eq!(unsafe { shrink_input(next, 1) }, None);
         reset();
     }
 

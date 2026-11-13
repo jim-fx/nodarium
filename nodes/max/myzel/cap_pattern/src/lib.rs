@@ -33,9 +33,13 @@
 //! stands free, like the upturned scales of a shaggy inkcap.
 
 use glam::{Vec2, Vec3};
-use myzel_core::{linear_rgba, opaque, pack_linear, read_color, AlongRay, Cap, CapFrame, Mesh, NO_COLOR};
+use myzel_core::{
+    linear_rgba, mesh_flags, opaque, pack_linear, read_color, AlongRay, Cap, CapFrame, Mesh, MeshWords, NO_COLOR,
+};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
+    abi::{self, Output},
+    encode_float,
     geometry::{is_path, orthogonal_to, path_link, wrap_path},
     split_args, Ctx, Pattern,
 };
@@ -608,14 +612,34 @@ fn paint(mesh: &mut Mesh, tops: &[Surface], pattern: &Pattern, color: [u8; 3]) -
     any_moved || painted
 }
 
+/// The input mesh as it is: in place when it is an input the host copied in
+fn unchanged(input: &[i32]) -> Output {
+    abi::frame_input(input, &[], &[]).map_or_else(|| input.to_vec().into(), Output::from)
+}
+
+/// The input mesh again, from its header and faces and the vertices of the mesh it was decoded
+/// into, which are the first ones of the mesh and unchanged
+fn unchanged_from(head: &[i32], mesh: &Mesh) -> Vec<i32> {
+    let (v, colors) = (head[1] as usize, head[3] & mesh_flags::COLORS != 0);
+    let mut words = Vec::with_capacity(head.len() + v * if colors { 8 } else { 7 });
+    words.extend_from_slice(head);
+    words.extend(mesh.positions[..v * 3].iter().map(|&p| encode_float(p)));
+    words.extend(mesh.normals[..v * 3].iter().map(|&n| encode_float(n)));
+    if colors {
+        words.extend(mesh.colors[..v].iter().map(|&c| c as i32));
+    }
+    words.extend(mesh.groups[..v].iter().map(|&g| g as i32));
+    words
+}
+
 #[nodarium_execute]
-pub fn execute(args: &[&[i32]]) -> Vec<i32> {
+pub fn execute(args: &[&[i32]]) -> Output {
     // an input nothing is connected to is not a mesh
-    let Some(mut mesh) = Mesh::try_decode(args[0]) else {
-        return Mesh::default().encode();
+    let Some(faces_end) = MeshWords::read(args[0]).map(|mesh| mesh.faces_end()) else {
+        return Mesh::default().encode().into();
     };
     let Some(pattern) = Pattern::decode(args[2]) else {
-        return args[0].to_vec();
+        return unchanged(args[0]);
     };
     let items = split_args(args[1]);
     let caps = Cap::all(&items);
@@ -648,10 +672,18 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         tops.extend(Sleeve::new(items[i], reads).map(Surface::Sleeve));
     }
     tops.retain(|top| !top.reads().is_zero());
-    if tops.is_empty() || !paint(&mut mesh, &tops, &pattern, read_color(args[5])) {
-        return args[0].to_vec();
+    if tops.is_empty() {
+        return unchanged(args[0]);
     }
-    mesh.encode()
+    let mut mesh = Mesh::decode(args[0]);
+    // the vertices are decoded, of the input only its header and faces are read again, when
+    // nothing changes. The rest of it would be in memory next to the mesh while it is refined.
+    // SAFETY: `args[0]` isn't read again
+    let head = unsafe { abi::shrink_input(args[0], faces_end) }.unwrap_or(&args[0][..faces_end]);
+    if !paint(&mut mesh, &tops, &pattern, read_color(args[5])) {
+        return unchanged_from(head, &mesh).into();
+    }
+    mesh.encode().into()
 }
 
 #[cfg(test)]

@@ -286,6 +286,11 @@ impl<'a> MeshWords<'a> {
         self.v
     }
 
+    /// The words of the header and the faces, the vertices follow them
+    pub fn faces_end(&self) -> usize {
+        HEADER_LEN + self.f * 3
+    }
+
     fn section(&self, start: usize, len: usize) -> &'a [i32] {
         &self.words[HEADER_LEN + start..HEADER_LEN + start + len]
     }
