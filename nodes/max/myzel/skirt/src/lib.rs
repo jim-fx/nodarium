@@ -1,9 +1,10 @@
 use glam::Vec3;
 use myzel_core::veil::{
-    from_axis, horizontal, read_attachments, skins_mesh, Attachment, Axis, Collar, Column, Skin, Source, Spot, DOWN,
+    from_axis, horizontal, read_attachments, write_skins, Attachment, Axis, Collar, Column, Skin, Source, Spot, DOWN,
 };
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
+    abi::Output,
     decode_float,
     geometry::{orthogonal_to, path_id, path_random},
     int, Ctx, PathInfo,
@@ -177,8 +178,8 @@ fn ring_reads(ctx: &mut Ctx, ring: &Attachment, length: &[i32], flare: &[i32], c
 }
 
 #[nodarium_execute]
-pub fn execute(args: &[&[i32]]) -> Vec<i32> {
-    skins_mesh(&skins(args, STRANDS)).encode()
+pub fn execute(args: &[&[i32]]) -> Output {
+    write_skins(&skins(args, STRANDS))
 }
 
 /// The strands of every skin and the skins. Only the skins are an output, the strands are what
@@ -187,7 +188,10 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 fn build(args: &[&[i32]], strand_count: i32) -> (Vec<Vec<Vec3>>, Vec<i32>) {
     let skins = skins(args, strand_count);
     let strands = skins.iter().flat_map(|skin| skin.columns.iter().flatten().map(|c| c.iter().map(|q| q.0).collect())).collect();
-    (strands, skins_mesh(&skins).encode())
+    let mesh = myzel_core::veil::skins_mesh(&skins).encode();
+    // the node writes the same mesh straight into its result
+    assert_eq!(unsafe { write_skins(&skins).words() }, mesh);
+    (strands, mesh)
 }
 
 /// The skin of every ring and of every other point

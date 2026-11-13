@@ -2,9 +2,10 @@
 //! and the skins that hang from one attachment once it has torn, the ring and the fringe
 //! (`skirt`). Both read their attachments the same way and give their skin as thin sheets.
 
-use crate::{add_sheet, sheet_size, smooth_normals, Mesh, SheetGrid};
+use crate::{add_sheet, sheet_size, smooth_normals, write_mesh, Mesh, MeshBuild, SheetGrid};
 use glam::Vec3;
 use nodarium_utils::{
+    abi::Output,
     geometry::{is_path, orthogonal_to, wrap_path},
     split_args, Point,
 };
@@ -386,7 +387,7 @@ pub struct Skin {
 /// The skins as one mesh with smooth normals. Every skin is worked out before the first one is
 /// meshed, so the mesh is reserved at its size and doesn't grow by doubling.
 pub fn skins_mesh(skins: &[Skin]) -> Mesh {
-    let (vertices, faces) = skins.iter().map(skin_size).fold((0, 0), |(v, f), (sv, sf)| (v + sv, f + sf));
+    let (vertices, faces) = skins_size(skins);
     let mut mesh = Mesh::default();
     mesh.reserve_exact(vertices, faces);
     for skin in skins {
@@ -394,6 +395,20 @@ pub fn skins_mesh(skins: &[Skin]) -> Mesh {
     }
     smooth_normals(&mut mesh);
     mesh
+}
+
+/// [`skins_mesh`] written straight into the result
+pub fn write_skins(skins: &[Skin]) -> Output {
+    let (vertices, faces) = skins_size(skins);
+    write_mesh(vertices, faces, |mesh| {
+        for skin in skins {
+            add_skin(mesh, skin);
+        }
+    })
+}
+
+fn skins_size(skins: &[Skin]) -> (usize, usize) {
+    skins.iter().map(skin_size).fold((0, 0), |(v, f), (sv, sf)| (v + sv, f + sf))
 }
 
 /// The vertices and faces [`add_skin`] adds for `skin`: a sheet for every run, a run that ends
@@ -424,7 +439,7 @@ pub fn skin_size(skin: &Skin) -> (usize, usize) {
 /// A torn skin that hangs closer to the axis than it would lie spread out has more skin than the
 /// circle it hangs on, and a thin sheet bends rather than squeezes: it folds (Sharon et al.
 /// 2002), out and in across the sheet, see [`fold`].
-pub fn add_skin(mesh: &mut Mesh, skin: &Skin) {
+pub fn add_skin(mesh: &mut impl MeshBuild, skin: &Skin) {
     let piece = &skin.columns;
     let n = piece.len();
     let closed = skin.axis.is_some();

@@ -13,9 +13,9 @@
 //! stipe and at the margin close the layer.
 
 use crate::gills::{DepthAlong, Spot, Underside, EMBED};
-use crate::{smooth_normals, Cap, Mesh};
+use crate::{smooth_normals, write_mesh, Cap, Mesh, MeshBuild};
 use glam::Vec3;
-use nodarium_utils::{split_args, Ctx, Pattern};
+use nodarium_utils::{abi::Output, split_args, Ctx, Pattern};
 use std::f32::consts::TAU;
 
 /// Vertices of the pore surface along one spacing of the pattern
@@ -44,16 +44,16 @@ type Ring = Vec<(u32, f32)>;
 
 /// Closes the band between rings `a` and `b` with triangles. Seen with the angle growing to
 /// the right and `b` above `a`, the faces look at the viewer.
-fn zip(faces: &mut Vec<u32>, a: &Ring, b: &Ring) {
+fn zip(mesh: &mut impl MeshBuild, a: &Ring, b: &Ring) {
     let (n, m) = (a.len(), b.len());
     let angle = |ring: &Ring, k: usize| ring[k % ring.len()].1 + TAU * (k / ring.len()) as f32;
     let (mut j, mut k) = (0, 0);
     while j < n || k < m {
         if k == m || (j < n && angle(a, j + 1) <= angle(b, k + 1)) {
-            faces.extend([a[j % n].0, a[(j + 1) % n].0, b[k % m].0]);
+            mesh.push_face([a[j % n].0, a[(j + 1) % n].0, b[k % m].0]);
             j += 1;
         } else {
-            faces.extend([a[j % n].0, b[(k + 1) % m].0, b[k % m].0]);
+            mesh.push_face([a[j % n].0, b[(k + 1) % m].0, b[k % m].0]);
             k += 1;
         }
     }
@@ -84,7 +84,7 @@ fn band_faces(sizes: &[usize]) -> usize {
 
 /// The rings of a surface from `lo` to `hi` along the cap about `step` apart, every vertex
 /// placed by `place(angle, s)`. `None` when a spot has no underside.
-fn rings(mesh: &mut Mesh, lo: f32, hi: f32, step: f32, place: impl Fn(f32, f32) -> Option<Vec3>) -> Option<Vec<Ring>> {
+fn rings(mesh: &mut impl MeshBuild, lo: f32, hi: f32, step: f32, place: impl Fn(f32, f32) -> Option<Vec3>) -> Option<Vec<Ring>> {
     let sizes = ring_sizes(lo, hi, step);
     let mut rings = Vec::with_capacity(sizes.len());
     for (s, n) in sizes {
@@ -93,9 +93,7 @@ fn rings(mesh: &mut Mesh, lo: f32, hi: f32, step: f32, place: impl Fn(f32, f32) 
             let angle = TAU * (j as f32 + 0.5) / n as f32;
             let p = place(angle, s)?;
             ring.push((mesh.vertex_count() as u32, angle));
-            mesh.positions.extend(p.to_array());
-            mesh.normals.extend([0.0; 3]);
-            mesh.groups.push(0);
+            mesh.push_vertex(p, 0);
         }
         rings.push(ring);
     }
@@ -223,7 +221,7 @@ impl<'a> Layer<'a> {
     }
 
     /// Adds the layer to `mesh`, nothing when a spot of it has no underside
-    fn add(&self, mesh: &mut Mesh) {
+    fn add(&self, mesh: &mut impl MeshBuild) {
         let start = mesh.vertex_count();
         let surfaces = rings(mesh, self.lo, self.hi, self.step, |angle, s| {
             let wall = self.pattern.sample(angle, s).unwrap_or(1.0).clamp(0.0, 1.0);
@@ -237,20 +235,17 @@ impl<'a> Layer<'a> {
             Some((bottom, top))
         });
         let Some((bottom, top)) = surfaces else {
-            mesh.positions.truncate(start * 3);
-            mesh.normals.truncate(start * 3);
-            mesh.groups.truncate(start);
+            mesh.truncate_vertices(start);
             return;
         };
-        let faces = &mut mesh.faces;
         for pair in bottom.windows(2) {
-            zip(faces, &pair[0], &pair[1]);
+            zip(mesh, &pair[0], &pair[1]);
         }
         for pair in top.windows(2) {
-            zip(faces, &pair[1], &pair[0]);
+            zip(mesh, &pair[1], &pair[0]);
         }
-        zip(faces, &top[0], &bottom[0]);
-        zip(faces, bottom.last().unwrap(), top.last().unwrap());
+        zip(mesh, &top[0], &bottom[0]);
+        zip(mesh, bottom.last().unwrap(), top.last().unwrap());
     }
 }
 
@@ -278,6 +273,12 @@ fn layers<'a>(inputs: &PoreInputs, pattern: &'a Pattern) -> Vec<Layer<'a>> {
     layers
 }
 
+/// The vertices and faces of the mesh of `layers`, a layer that has a spot without underside has
+/// fewer
+fn layers_size(layers: &[Layer]) -> (usize, usize) {
+    layers.iter().map(Layer::size).fold((0, 0), |(v, f), (lv, lf)| (v + lv, f + lf))
+}
+
 /// The pores under every cap of `inputs.cap`, see the module docs
 pub fn pores(inputs: &PoreInputs) -> Mesh {
     let mut mesh = Mesh::default();
@@ -286,13 +287,25 @@ pub fn pores(inputs: &PoreInputs) -> Mesh {
     };
     let layers = layers(inputs, &pattern);
     // a mesh that grows by doubling holds up to twice its size, see `Mesh::reserve_exact`
-    let (vertices, faces) = layers.iter().map(Layer::size).fold((0, 0), |(v, f), (lv, lf)| (v + lv, f + lf));
+    let (vertices, faces) = layers_size(&layers);
     mesh.reserve_exact(vertices, faces);
     for layer in &layers {
         layer.add(&mut mesh);
     }
     smooth_normals(&mut mesh);
     mesh
+}
+
+/// [`pores`] written straight into the result
+pub fn write_pores(inputs: &PoreInputs) -> Output {
+    let pattern = Pattern::decode(inputs.pattern);
+    let layers = pattern.as_ref().map_or_else(Vec::new, |pattern| layers(inputs, pattern));
+    let (vertices, faces) = layers_size(&layers);
+    write_mesh(vertices, faces, |mesh| {
+        for layer in &layers {
+            layer.add(mesh);
+        }
+    })
 }
 
 #[cfg(test)]

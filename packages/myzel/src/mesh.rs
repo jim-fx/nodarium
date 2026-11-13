@@ -1,3 +1,4 @@
+use glam::Vec3;
 use nodarium_utils::{decode_float, encode_float};
 
 pub const MESH_TAG: i32 = 14;
@@ -123,6 +124,130 @@ impl Mesh {
         let colors = if flags & mesh_flags::COLORS != 0 { take(v).iter().map(|&c| c as u32).collect() } else { Vec::new() };
         let groups = take(v).iter().map(|&g| g as u32).collect();
         Mesh { faces, positions, normals, colors, groups }
+    }
+}
+
+/// Where a builder adds its vertices and faces: a [`Mesh`], or a [`MeshWriter`] that writes them
+/// straight into the encoded words
+pub trait MeshBuild {
+    fn vertex_count(&self) -> usize;
+    /// Adds a vertex with a zero normal, see [`crate::smooth_normals`]
+    fn push_vertex(&mut self, position: Vec3, group: u32);
+    fn push_face(&mut self, face: [u32; 3]);
+    /// Drops the vertices from `vertices` on, before a face uses them
+    fn truncate_vertices(&mut self, vertices: usize);
+}
+
+impl MeshBuild for Mesh {
+    fn vertex_count(&self) -> usize {
+        Mesh::vertex_count(self)
+    }
+
+    fn push_vertex(&mut self, position: Vec3, group: u32) {
+        self.positions.extend(position.to_array());
+        self.normals.extend([0.0; 3]);
+        self.groups.push(group);
+    }
+
+    fn push_face(&mut self, face: [u32; 3]) {
+        self.faces.extend(face);
+    }
+
+    fn truncate_vertices(&mut self, vertices: usize) {
+        self.positions.truncate(vertices * 3);
+        self.normals.truncate(vertices * 3);
+        self.groups.truncate(vertices);
+    }
+}
+
+/// A mesh without colors written straight into its encoded words, by a builder that counts its
+/// vertices and faces before it adds them. A [`Mesh`] that is encoded is in memory twice, as the
+/// mesh and as its words.
+///
+/// The writer has room for the counted vertices and faces, a builder that adds more panics. One
+/// that adds fewer leaves a gap after the faces and after the vertices, which [`MeshWriter::finish`]
+/// closes.
+pub struct MeshWriter<'a> {
+    words: &'a mut [i32],
+    /// What there is room for
+    vertices: usize,
+    faces: usize,
+    /// What was added
+    v: usize,
+    f: usize,
+}
+
+impl<'a> MeshWriter<'a> {
+    /// The words of a mesh of `vertices` and `faces` without colors
+    pub fn len(vertices: usize, faces: usize) -> usize {
+        encoded_len(vertices, faces, 0)
+    }
+
+    /// A writer for up to `vertices` and `faces` into `words`, which are zero and at least
+    /// [`MeshWriter::len`] long
+    pub fn new(words: &'a mut [i32], vertices: usize, faces: usize) -> Self {
+        assert!(words.len() >= Self::len(vertices, faces), "{} words for {} vertices and {} faces", words.len(), vertices, faces);
+        MeshWriter { words, vertices, faces, v: 0, f: 0 }
+    }
+
+    /// Closes the gaps of what wasn't added and writes the header, returns the words of the mesh.
+    /// The normals are zero.
+    pub fn finish(self) -> usize {
+        let MeshWriter { words, vertices, faces, v, f } = self;
+        let (positions, groups) = (HEADER_LEN + faces * 3, HEADER_LEN + faces * 3 + vertices * 6);
+        // every section only moves towards the front, past the end of the one before it
+        words.copy_within(positions..positions + v * 3, HEADER_LEN + f * 3);
+        words[HEADER_LEN + f * 3 + v * 3..HEADER_LEN + f * 3 + v * 6].fill(0);
+        words.copy_within(groups..groups + v, HEADER_LEN + f * 3 + v * 6);
+        words[..HEADER_LEN].copy_from_slice(&[MESH_TAG, v as i32, f as i32, 0]);
+        Self::len(v, f)
+    }
+}
+
+impl MeshBuild for MeshWriter<'_> {
+    fn vertex_count(&self) -> usize {
+        self.v
+    }
+
+    fn push_vertex(&mut self, position: Vec3, group: u32) {
+        assert!(self.v < self.vertices, "more than the {} vertices counted", self.vertices);
+        let at = HEADER_LEN + self.faces * 3 + self.v * 3;
+        self.words[at..at + 3].copy_from_slice(&position.to_array().map(encode_float));
+        self.words[HEADER_LEN + self.faces * 3 + self.vertices * 6 + self.v] = group as i32;
+        self.v += 1;
+    }
+
+    fn push_face(&mut self, face: [u32; 3]) {
+        assert!(self.f < self.faces, "more than the {} faces counted", self.faces);
+        let at = HEADER_LEN + self.f * 3;
+        self.words[at..at + 3].copy_from_slice(&face.map(|i| i as i32));
+        self.f += 1;
+    }
+
+    fn truncate_vertices(&mut self, vertices: usize) {
+        self.v = self.v.min(vertices);
+    }
+}
+
+/// The faces, positions and normals of an encoded mesh, the normals to change
+pub(crate) struct Sections<'a> {
+    pub faces: &'a [u32],
+    pub positions: &'a [f32],
+    pub normals: &'a mut [f32],
+}
+
+/// The sections of the words of a mesh, see [`MeshWords::read`] for what they must be
+pub(crate) fn sections(words: &mut [i32]) -> Sections<'_> {
+    let (v, f) = (words[1] as usize, words[2] as usize);
+    let (faces, rest) = words[HEADER_LEN..].split_at_mut(f * 3);
+    let (positions, rest) = rest.split_at_mut(v * 3);
+    // SAFETY: u32 and f32 are as large and aligned as i32, and any of their bits are a value
+    unsafe {
+        Sections {
+            faces: std::slice::from_raw_parts(faces.as_ptr().cast(), faces.len()),
+            positions: std::slice::from_raw_parts(positions.as_ptr().cast(), positions.len()),
+            normals: std::slice::from_raw_parts_mut(rest.as_mut_ptr().cast(), v * 3),
+        }
     }
 }
 
@@ -356,6 +481,41 @@ mod tests {
             let painted = Mesh { colors: vec![color; mesh.vertex_count()], ..mesh };
             assert_eq!(MeshWords::read(&words).unwrap().painted(color), painted.encode());
         }
+    }
+
+    /// What a builder adds: two triangles, and two vertices it takes back
+    fn build(mesh: &mut impl MeshBuild) {
+        for (i, x) in [0.0, 1.0, 0.0, 1.0].into_iter().enumerate() {
+            mesh.push_vertex(Vec3::new(x, (i / 2) as f32, -0.0), i as u32 % 2);
+        }
+        mesh.push_vertex(Vec3::splat(9.0), 7);
+        mesh.push_vertex(Vec3::splat(8.0), 7);
+        mesh.truncate_vertices(4);
+        mesh.push_face([0, 1, 2]);
+        mesh.push_face([2, 1, 3]);
+    }
+
+    #[test]
+    fn writes_the_words_of_the_mesh_it_builds() {
+        let mut mesh = Mesh::default();
+        build(&mut mesh);
+        let encoded = mesh.encode();
+        // as many as it adds, or room for more
+        for (vertices, faces) in [(6, 2), (6, 5), (9, 2), (11, 3)] {
+            let mut words = vec![0; MeshWriter::len(vertices, faces) + 2];
+            let mut writer = MeshWriter::new(&mut words, vertices, faces);
+            build(&mut writer);
+            assert_eq!(writer.vertex_count(), 4);
+            let len = writer.finish();
+            assert_eq!(&words[..len], &encoded[..], "room for {vertices} vertices and {faces} faces");
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "more than the 1 faces counted")]
+    fn a_writer_takes_no_more_than_it_counted() {
+        let mut words = vec![0; MeshWriter::len(6, 1)];
+        build(&mut MeshWriter::new(&mut words, 6, 1));
     }
 
     #[test]

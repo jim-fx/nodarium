@@ -23,9 +23,10 @@
 //! latest where the stipe starts. Where they turn from the cap onto the stipe the way they hang
 //! turns over about a depth, so their edge curves round the corner.
 
-use crate::{add_sheet, sheet_size, smooth_normals, Cap, CapFrame, Mesh, SheetGrid};
+use crate::{add_sheet, sheet_size, smooth_normals, write_mesh, Cap, CapFrame, Mesh, MeshBuild, SheetGrid};
 use glam::{Vec2, Vec3};
 use nodarium_utils::{
+    abi::Output,
     geometry::{create_path, set_path_link, wrap_path, wrap_path_mut, PathLink},
     split_args, Ctx, Pattern,
 };
@@ -548,7 +549,7 @@ fn row(k: usize, surface: f32, profile: GillProfile) -> f32 {
 
 /// Adds one gill as a closed plate: two faces, the top, the edge and both ends. A plate gets a
 /// rounded edge, a fold its round back. `place` moves a vertex of slice `i` where it may be.
-fn add_plate(mesh: &mut Mesh, plate: &[Slice], thickness: f32, profile: GillProfile, place: impl Fn(Vec3, usize) -> Vec3) {
+fn add_plate(mesh: &mut impl MeshBuild, plate: &[Slice], thickness: f32, profile: GillProfile, place: impl Fn(Vec3, usize) -> Vec3) {
     let m = plate.len();
     let along = |i: usize| (plate[(i + 1).min(m - 1)].top - plate[i.saturating_sub(1)].top).try_normalize().unwrap_or(Vec3::X);
     // both faces row by row from the top to the gill edge, then the gill edge between them
@@ -842,26 +843,52 @@ fn cap_gills(
 
 /// The gills under every cap of `inputs.cap`, see the module docs
 pub fn gills(inputs: &GillInputs, profile: GillProfile) -> Gills {
-    gills_by(inputs, profile, |ctx| DepthAlong::read(ctx, inputs.depth), true)
+    gills_by(inputs, profile, |ctx| DepthAlong::read(ctx, inputs.depth))
 }
 
-/// The mesh of [`gills`] alone. The paths are as large as the mesh, a node that only sends the mesh
-/// doesn't make them.
-pub fn gill_mesh(inputs: &GillInputs, profile: GillProfile) -> Mesh {
-    gills_by(inputs, profile, |ctx| DepthAlong::read(ctx, inputs.depth), false).mesh
+/// The mesh of [`gills`] alone, written straight into the result. The paths are as large as the
+/// mesh, a node that only sends the mesh doesn't make them.
+pub fn write_gills(inputs: &GillInputs, profile: GillProfile) -> Output {
+    let (plates, _) = plates_by(inputs, profile, |ctx| DepthAlong::read(ctx, inputs.depth), false);
+    let (vertices, faces) = plates_size(&plates);
+    write_mesh(vertices, faces, |mesh| add_plates(mesh, &plates))
 }
 
-fn gills_by(
+fn gills_by(inputs: &GillInputs, profile: GillProfile, read_depth: impl FnMut(&mut Ctx) -> DepthAlong) -> Gills {
+    let (plates, paths) = plates_by(inputs, profile, read_depth, true);
+    // the size of every plate is known before the first one is meshed, the mesh doesn't grow by doubling
+    let (vertices, faces) = plates_size(&plates);
+    let mut mesh = Mesh::default();
+    mesh.reserve_exact(vertices, faces);
+    add_plates(&mut mesh, &plates);
+    debug_assert_eq!((mesh.vertex_count(), mesh.face_count()), (vertices, faces));
+    smooth_normals(&mut mesh);
+    Gills { mesh, paths }
+}
+
+/// The vertices and faces of the mesh of `plates`
+fn plates_size(plates: &[Plate]) -> (usize, usize) {
+    plates.iter().map(|plate| plate_size(plate.slices.len())).fold((0, 0), |(v, f), (pv, pf)| (v + pv, f + pf))
+}
+
+fn add_plates(mesh: &mut impl MeshBuild, plates: &[Plate]) {
+    for plate in plates {
+        add_plate(mesh, &plate.slices, plate.thickness, plate.profile, |q, i| plate.keep.apply(q, plate.angles[i]));
+    }
+}
+
+/// The plate of every gill under every cap of `inputs.cap`, and with `with_paths` every plate as a
+/// stack of paths
+fn plates_by(
     inputs: &GillInputs,
     profile: GillProfile,
     mut read_depth: impl FnMut(&mut Ctx) -> DepthAlong,
     with_paths: bool,
-) -> Gills {
-    let mut mesh = Mesh::default();
+) -> (Vec<Plate>, Vec<Vec<i32>>) {
     let mut paths = Vec::new();
     let mut plates = Vec::new();
     let Some(pattern) = Pattern::decode(inputs.pattern) else {
-        return Gills { mesh, paths };
+        return (plates, paths);
     };
     let mut ctx = Ctx::default();
     let items = split_args(inputs.cap);
@@ -887,16 +914,7 @@ fn gills_by(
             paths.extend(cap_gills(&mut underside, stipe, &pattern, &params, &mut plates, with_paths));
         }
     }
-    // the size of every plate is known before the first one is meshed, the mesh doesn't grow by doubling
-    let (vertices, faces) =
-        plates.iter().map(|plate| plate_size(plate.slices.len())).fold((0, 0), |(v, f), (pv, pf)| (v + pv, f + pf));
-    mesh.reserve_exact(vertices, faces);
-    for plate in &plates {
-        add_plate(&mut mesh, &plate.slices, plate.thickness, plate.profile, |q, i| plate.keep.apply(q, plate.angles[i]));
-    }
-    debug_assert_eq!((mesh.vertex_count(), mesh.face_count()), (vertices, faces));
-    smooth_normals(&mut mesh);
-    Gills { mesh, paths }
+    (plates, paths)
 }
 
 #[cfg(test)]

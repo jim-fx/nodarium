@@ -65,4 +65,6 @@ Results stay in wasm memory until the next reset. The host copies them out only 
 
 A buffer from `nodarium_alloc` belongs to the module until the next reset. The node may change it and return it, or a part of it, as a result, so the host never reads an input buffer again after `nodarium_execute`. The Rust runtime leaves four words of room before and after every such buffer, a node can return an input with a few words around it without copying it (`abi::frame_input`). It does that only with whole buffers the host allocated for the current call, never with a result of the module, which other nodes may still read.
 
+A result is a buffer of the module as well, it belongs to the module until the next reset. A node that knows how large a result will be before it makes it writes it straight into such a buffer (`abi::write_result`) and returns it, or its first words, instead of building it somewhere else and copying it over. The Myzel nodes that build a mesh count its vertices and faces first and write it with `write_mesh`, so the mesh is in memory once and not a second time as its encoded words. The host sees no difference, a result is a `[ptr, len]` pair either way.
+
 Older modules that export `execute`, `__alloc` and `__free` instead still work, but are slower and only support a single output.

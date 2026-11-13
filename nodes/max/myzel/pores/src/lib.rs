@@ -1,24 +1,25 @@
 //! Tubes under a cap that open in pores, see `myzel_core::pores`.
 
-use myzel_core::{pores, Mesh, PoreInputs};
+use myzel_core::{write_pores, PoreInputs};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
+use nodarium_utils::abi::Output;
 
 nodarium_definition_file!("src/definition.json");
 
 #[nodarium_execute]
-pub fn execute(args: &[&[i32]]) -> Vec<i32> {
-    build(args).encode()
+pub fn execute(args: &[&[i32]]) -> Output {
+    write_pores(&inputs(args))
 }
 
 /// args follow the key order of the inputs in definition.json
-fn build(args: &[&[i32]]) -> Mesh {
-    pores(&PoreInputs { cap: args[0], pattern: args[1], depth: args[2], free_distance: args[3], pore_depth: args[4] })
+fn inputs<'a>(args: &[&'a [i32]]) -> PoreInputs<'a> {
+    PoreInputs { cap: args[0], pattern: args[1], depth: args[2], free_distance: args[3], pore_depth: args[4] }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use myzel_core::testing;
+    use myzel_core::{pores, testing, Mesh};
     use nodarium_utils::{encode_float, Pattern};
 
     /// Walls in rings 2 mm apart around the axis
@@ -30,7 +31,12 @@ mod tests {
     fn run(depth: f32, free_distance: f32, pore_depth: f32) -> Mesh {
         let cap = testing::list(&testing::grow(&testing::cone()));
         let pattern = pattern();
-        build(&[&cap, &pattern, &[encode_float(depth)], &[encode_float(free_distance)], &[encode_float(pore_depth)]])
+        let args: [&[i32]; 5] =
+            [&cap, &pattern, &[encode_float(depth)], &[encode_float(free_distance)], &[encode_float(pore_depth)]];
+        let words = unsafe { __nodarium_execute_inner(&args).words() }.to_vec();
+        // written straight into the result like the mesh is encoded
+        assert_eq!(words, pores(&inputs(&args)).encode());
+        Mesh::decode(&words)
     }
 
     fn lowest(mesh: &Mesh) -> f32 {

@@ -6,7 +6,9 @@
 //!
 //! A buffer the host allocates has [`HEADROOM`] spare words before and after it. A node may
 //! return an input of the current call as its result with a few words written into that room,
-//! see [`frame_input`], instead of copying it.
+//! see [`frame_input`], instead of copying it. A node that knows the size of a result before it
+//! makes it writes it straight into a buffer of the ABI, see [`write_result`], instead of building
+//! it elsewhere and copying it.
 
 use std::sync::{Mutex, Once};
 
@@ -14,7 +16,7 @@ use std::sync::{Mutex, Once};
 pub const HEADROOM: usize = 4;
 
 /// A buffer that lives until the next reset. `input` is the number of words the host asked for,
-/// for the buffers it allocated since the last call.
+/// for the buffers it allocated for the current call that weren't framed yet.
 struct Allocation {
     buffer: Vec<i32>,
     input: Option<usize>,
@@ -58,14 +60,16 @@ pub fn reset() {
     ALLOCATIONS.lock().unwrap().clear();
 }
 
-/// An input returned as a result, with words around it, see [`frame_input`]
+/// Words of a buffer the ABI owns until the next reset, returned as a result without copying
+/// them: an input framed in place, see [`frame_input`], or a result written in place, see
+/// [`write_result`]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Framed {
+pub struct InPlace {
     ptr: *const i32,
     len: usize,
 }
 
-impl Framed {
+impl InPlace {
     pub fn len(&self) -> usize {
         self.len
     }
@@ -74,7 +78,7 @@ impl Framed {
         self.len == 0
     }
 
-    /// The framed words
+    /// The words
     ///
     /// # Safety
     /// Only until the next `reset`, which frees them.
@@ -90,12 +94,12 @@ impl Framed {
 ///
 /// The host never reads an input again once the node ran, see `docs/ABI.md`, so the node may write
 /// around it. Every input can be framed once.
-pub fn frame_input(input: &[i32], prefix: &[i32], suffix: &[i32]) -> Option<Framed> {
+pub fn frame_input(input: &[i32], prefix: &[i32], suffix: &[i32]) -> Option<InPlace> {
     if input.is_empty() || prefix.len() > HEADROOM || suffix.len() > HEADROOM {
         return None;
     }
     let mut allocations = ALLOCATIONS.lock().unwrap();
-    let allocation = allocations.iter_mut().rev().map_while(|a| a.input.map(|words| (words, a))).find_map(|(words, a)| {
+    let allocation = allocations.iter_mut().rev().filter_map(|a| a.input.map(|words| (words, a))).find_map(|(words, a)| {
         // SAFETY: inside the capacity, see `alloc`
         let start = unsafe { a.buffer.as_mut_ptr().add(HEADROOM) };
         (start as *const i32 == input.as_ptr() && words == input.len()).then_some(a)
@@ -109,7 +113,21 @@ pub fn frame_input(input: &[i32], prefix: &[i32], suffix: &[i32]) -> Option<Fram
         std::ptr::copy_nonoverlapping(prefix.as_ptr(), base.add(first), prefix.len());
         std::ptr::copy_nonoverlapping(suffix.as_ptr(), base.add(HEADROOM + input.len()), suffix.len());
     }
-    Some(Framed { ptr: unsafe { base.add(first) }, len: prefix.len() + input.len() + suffix.len() })
+    Some(InPlace { ptr: unsafe { base.add(first) }, len: prefix.len() + input.len() + suffix.len() })
+}
+
+/// A result written straight into a buffer of `words` that the ABI owns until the next reset.
+/// `write` gets the buffer zeroed and returns how many of its first words are the result, so a
+/// node that knows only an upper bound of its size returns fewer. The rest stays unused until the
+/// reset.
+pub fn write_result(words: usize, write: impl FnOnce(&mut [i32]) -> usize) -> InPlace {
+    reserve_lists();
+    let mut buffer = vec![0; words];
+    let len = write(&mut buffer);
+    assert!(len <= words, "a result of {len} words in a buffer of {words}");
+    let ptr = buffer.as_ptr();
+    ALLOCATIONS.lock().unwrap().push(Allocation { buffer, input: None });
+    InPlace { ptr, len }
 }
 
 /// Reads the argument table `[ptr0, len0, ptr1, len1, ...]` written by the host.
@@ -134,22 +152,22 @@ pub unsafe fn read_args<'a>(args_ptr: *const u32, argc: usize) -> Vec<&'a [i32]>
         .collect()
 }
 
-/// One output of a node: words of its own, or an input framed in place, see [`frame_input`]
+/// One output of a node: words of its own, or words the ABI already owns, see [`InPlace`]
 #[derive(Debug, PartialEq, Eq)]
 pub enum Output {
     Words(Vec<i32>),
-    Framed(Framed),
+    InPlace(InPlace),
 }
 
 impl Output {
     /// The words of the output
     ///
     /// # Safety
-    /// A framed output only until the next `reset`, see [`Framed::words`].
+    /// An output in place only until the next `reset`, see [`InPlace::words`].
     pub unsafe fn words(&self) -> &[i32] {
         match self {
             Output::Words(words) => words,
-            Output::Framed(framed) => framed.words(),
+            Output::InPlace(in_place) => in_place.words(),
         }
     }
 }
@@ -160,9 +178,9 @@ impl From<Vec<i32>> for Output {
     }
 }
 
-impl From<Framed> for Output {
-    fn from(framed: Framed) -> Output {
-        Output::Framed(framed)
+impl From<InPlace> for Output {
+    fn from(in_place: InPlace) -> Output {
+        Output::InPlace(in_place)
     }
 }
 
@@ -229,7 +247,8 @@ pub fn store_result(result: impl NodeOutputs) -> *const u32 {
     let mut descriptor = RESULT.lock().unwrap();
     descriptor.clear();
     let mut allocations = ALLOCATIONS.lock().unwrap();
-    for allocation in allocations.iter_mut().rev().take_while(|a| a.input.is_some()) {
+    // results written in place lie between the inputs of a call, so every allocation is looked at
+    for allocation in allocations.iter_mut() {
         allocation.input = None;
     }
     for output in outputs {
@@ -240,9 +259,9 @@ pub fn store_result(result: impl NodeOutputs) -> *const u32 {
                 allocations.push(Allocation { buffer, input: None });
             }
             // the buffer is one of the allocations already
-            Output::Framed(framed) => {
-                descriptor.push(framed.ptr as u32);
-                descriptor.push(framed.len as u32);
+            Output::InPlace(in_place) => {
+                descriptor.push(in_place.ptr as u32);
+                descriptor.push(in_place.len as u32);
             }
         }
     }
@@ -329,6 +348,41 @@ mod tests {
         assert!(frame_input(next, &[0], &[9]).is_some());
         reset();
         assert_eq!(frame_input(next, &[0], &[9]), None);
+    }
+
+    #[test]
+    fn a_result_is_written_in_place() {
+        let _turn = STATE.lock().unwrap_or_else(|e| e.into_inner());
+        reset();
+        let input = host_input(&[1, 2, 3]);
+        let result = write_result(5, |words| {
+            assert_eq!(words, &[0; 5]);
+            words[..3].copy_from_slice(&[4, 5, 6]);
+            // the inputs of the call can still be framed while a result is written
+            assert!(frame_input(input, &[0], &[]).is_some());
+            3
+        });
+        assert_eq!(unsafe { result.words() }, &[4, 5, 6]);
+        let descriptor = store_result(Output::from(result));
+        let pair = unsafe { std::slice::from_raw_parts(descriptor, 2) };
+        assert_eq!(pair, &[result.ptr as u32, 3]);
+        // the result stays until the reset, and after the call no input can be framed
+        let next = host_input(&[7, 8]);
+        let other = write_result(1, |words| {
+            words[0] = 9;
+            1
+        });
+        store_result(Output::from(other));
+        assert_eq!(unsafe { result.words() }, &[4, 5, 6]);
+        assert_eq!(frame_input(next, &[0], &[]), None);
+        assert_eq!(frame_input(input, &[], &[]), None);
+        reset();
+    }
+
+    #[test]
+    #[should_panic(expected = "a result of 3 words in a buffer of 2")]
+    fn a_result_fits_its_buffer() {
+        write_result(2, |_| 3);
     }
 
     #[test]

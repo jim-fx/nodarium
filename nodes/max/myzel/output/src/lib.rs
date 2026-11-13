@@ -145,7 +145,7 @@ mod tests {
             std::slice::from_raw_parts(ptr, mesh.len())
         };
         let framed = __nodarium_execute_inner(&[input]);
-        assert!(matches!(framed, Output::Framed(_)));
+        assert!(matches!(framed, Output::InPlace(_)));
         assert_eq!(unsafe { framed.words() }, list(&[&mesh]));
         nodarium_utils::abi::reset();
     }

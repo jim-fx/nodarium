@@ -63,18 +63,18 @@ pub use density::{mesh_segments, surface, surface_in, Frame, Meshing, Segment, S
 pub use color::{
     encode_color, linear_rgba, mix_colors, opaque, pack_linear, read_color, NO_COLOR,
 };
-pub use gills::{gill_mesh, gills, GillInputs, GillProfile, Gills};
+pub use gills::{gills, write_gills, GillInputs, GillProfile, Gills};
 pub use hyphae_mesh::{paths_mesh, HyphaeMeshParams};
-pub use pores::{pores, PoreInputs};
+pub use pores::{pores, write_pores, PoreInputs};
 pub use paths::{
     group_numbers, path_lines, path_segments, read_paths, MeshPath, PathGroup,
     PathStyle, LINES_TAG,
 };
 pub use inputs::{read_float, read_floats, read_int, read_mesh};
-pub use mesh::{mesh_flags, pack_rgba, Mesh, MeshWords, MESH_TAG};
+pub use mesh::{mesh_flags, pack_rgba, Mesh, MeshBuild, MeshWords, MeshWriter, MESH_TAG};
 pub use noise::value_noise;
 pub use settings::{
     apply_settings, color_value, read_settings, with_setting, PathSettings, Setting, SettingItem, SETTING_TAG,
 };
-pub use sheet::{add_sheet, sheet_checks, sheet_size, smooth_normals, SheetGrid};
+pub use sheet::{add_sheet, sheet_checks, sheet_size, smooth_normals, smooth_normals_in_words, write_mesh, SheetGrid};
 pub use spatial::{distance_sq_to_segment, SpatialHash};
