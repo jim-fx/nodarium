@@ -1,0 +1,46 @@
+{
+  "id": "max/myzel/sample_mesh",
+  "meta": {
+    "description": "Spreads points over the surface of a mesh, like a substrate from the mesh node, for the stipes of a troop or a cluster to start at. Every point lies on the surface and points along its normal, out of the wood or the ground. The points only depend on the mesh and the seed, a larger amount adds points and keeps the ones before."
+  },
+  "outputs": [
+    "points"
+  ],
+  "inputs": {
+    "mesh": {
+      "type": "mesh",
+      "label": "Mesh",
+      "external": true
+    },
+    "amount": {
+      "type": "integer",
+      "label": "Amount",
+      "value": 8,
+      "min": 0,
+      "max": 1000,
+      "description": "How many points. Fewer when the surface has no room for more at the spacing"
+    },
+    "spacing": {
+      "type": "float",
+      "label": "Spacing",
+      "value": 0.03,
+      "min": 0,
+      "max": 0.5,
+      "step": 0.005,
+      "unit": "m",
+      "description": "How far apart the points keep at least, about the width of a cap"
+    },
+    "facing_up": {
+      "type": "float",
+      "label": "Facing up",
+      "value": 0.6,
+      "min": -1,
+      "max": 1,
+      "step": 0.05,
+      "description": "Only where the surface faces up at least this much: 1 only level ground, 0 everything up to the vertical sides, -1 everywhere. The y of the normal of a face"
+    },
+    "seed": {
+      "type": "seed"
+    }
+  }
+}

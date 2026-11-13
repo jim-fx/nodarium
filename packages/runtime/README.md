@@ -76,6 +76,10 @@ Every template is a `Graph` of the current graph version, `parseProjectFile()` i
 | `shaggy-inkcap`      | Shaggy inkcap     | Mushrooms | cm   |
 | `chanterelle`        | Chanterelle       | Mushrooms | cm   |
 | `oyster`             | Oyster mushroom   | Mushrooms | cm   |
+| `honey-fungus`       | Honey fungus      | Mushrooms | cm   |
+| `sulphur-tuft`       | Sulphur tuft      | Mushrooms | cm   |
+| `false-chanterelle`  | False chanterelle | Mushrooms | cm   |
+| `bitter-bolete`      | Bitter bolete     | Mushrooms | cm   |
 
 The ids stay, a template that is improved keeps its id. To add a template in this repository, put its graph into `packages/runtime/templates/<id>.json`, add a line `plant(...)` or `mushroom(...)` to the list in `templates/index.ts` and a row to the table above. The app lists it in its project browser from there.
 

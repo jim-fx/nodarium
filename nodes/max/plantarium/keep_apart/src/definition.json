@@ -34,6 +34,12 @@
       "value": 24,
       "hidden": true,
       "description": "How often the stems are moved. More iterations settle a dense group."
+    },
+    "lean": {
+      "type": "boolean",
+      "value": false,
+      "hidden": true,
+      "description": "The base of every stem stays where it is and the stem leans aside instead, so its place at `at` moves as far as the whole stem would. For stems that start on a substrate, which a move would lift off it."
     }
   }
 }
