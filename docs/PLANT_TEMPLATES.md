@@ -1,6 +1,6 @@
 # Plant Templates
 
-The plant templates in `app/src/lib/graph-templates` each model a real species. This file describes the structure of each plant and how its template builds it, so a template can be tuned against the real plant. Render a template with `npm run render-graph <name>` in `app/`.
+The plant templates in `packages/runtime/templates` each model a real species. This file describes the structure of each plant and how its template builds it, so a template can be tuned against the real plant. Render a template with `npm run render-graph <name>` in `app/`.
 
 Proportions are relative. The garden scales every plant to the same height, so only the ratios matter: leaf length to plant height, width to height, and so on.
 
