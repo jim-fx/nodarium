@@ -106,6 +106,23 @@ A `points` output is a list of these: spots on paths where a later node can grow
 
 With `variants` on, `to_geometry` bakes every stem into its own geometry and gives them as a list, like `join` does, so `instance` picks one of them for every instance. A stem is a path of the input whose parent is not in the input. The paths that grow on it (found through `parent_id`), the instances whose path id is one of these paths and the geometry made from them go into its geometry, a part that belongs to no stem goes into every geometry. Every stem draws its own random values, so a `stem` with `amount` 5 and random inputs gives five different parts. With a single stem, or none, the result is one geometry as without `variants`.
 
+## Leaves
+
+`leaf` draws a leaf from a `shape`. `leaf_surface` grows one from its veins instead, so lobes, sinuses and teeth come from where the veins go. The veins are an ordinary path tree, made with the nodes that make branches:
+
+`stem` (the midrib) → `rotate` x 90° → `points_on_path` (`rotation` 180, `offset_single` for pairs) → `branch_from_points` (the side veins) → `leaf_surface`
+
+The leaf lies in the horizontal plane: `points_on_path` turns its points from the direction `tangent × y`, which only lies in the leaf plane for a path that lies flat, so the midrib is turned flat before the side veins grow on it. `alpha` into a `curve` into the `length` of `branch_from_points` makes the outline (long side veins in the middle, short ones at the base and tip), and its `thickness` is how far the blade reaches around a vein. A palmate leaf starts from several stems turned out from one base (`stem` with `amount` 5, a `rotate` around y with `spread`). `gravity` and `noise` on the veins bend the leaf: `gravity` on the midrib arches it, on the side veins it lets the margins droop, `noise` in y makes them wavy. Only the paths go into `leaf_surface`, the veins are never extruded.
+
+`leaf_surface` finds the frame of the leaf from the main veins, the paths whose parent is not among the veins: the base is where they start, on average, and the leaf points the way they go, seen from above. It then builds the leaf in stages, each one its own module, so a stage can be swapped without touching the others:
+
+1. **Blade:** every vein is a round cone as wide as its thickness, and the blade is their smooth union on a grid, `resolution` cells (the `resolution.leaf` setting) across the longer side of the leaf. `smooth` is the fillet between the veins: 0 leaves a lobe or a tooth at every vein, more fills the sinuses until the margin is entire. Gaps the veins close in on every side are filled.
+2. **Margin:** the outline of the blade, with alpha going along it from the base (0) to the tip (1) on both sides, by arc length. The `margin` input is read there and moves the margin in by that much, negative values push it out. Plain 0 leaves the outline as the veins make it. `wave` times a depth cuts teeth, a `curve` of alpha on top keeps them off the base.
+3. **Mesh:** triangles inside the margin. Marching squares on the grid of the blade, the vertices of the margin sit on it.
+4. **Lift:** the heights of the veins above the leaf plane, blended by distance, bend the flat mesh, and `relief` (hidden) sinks the veins into the blade, negative values raise them.
+
+The geometry is placed like the one of `leaf`: it grows along -z from its base at the origin and faces +y, and at `size` 1 a vein 1 m long makes a leaf as long as the one of `leaf` at size 1 (100 units). It goes into `instance` and `instance_from_points` like `leaf` does, and `set_color` reads alpha across from the midrib at x = 0. Without veins the result is an empty list, so `instance` places nothing.
+
 ## Geometry
 
 ```
