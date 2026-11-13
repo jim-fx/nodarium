@@ -8,6 +8,7 @@ import type {
   SyncCache
 } from '@nodarium/types';
 import {
+  areSocketsCompatible,
   getOutputType,
   GROUP_INPUT,
   GROUP_INSTANCE,
@@ -22,7 +23,6 @@ import {
   type PerformanceStore,
   readNodeValue
 } from '@nodarium/utils';
-import { areSocketsCompatible } from '../graph-interface/helpers/nodeHelpers';
 import { migrateGraph } from '../graph-migrations';
 import { getErrorInfo, NodeExecutionError, type RuntimeErrorInfo } from './errors';
 import { byteSize } from './runtime-executor-cache';

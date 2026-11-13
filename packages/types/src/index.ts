@@ -8,6 +8,7 @@ export {
   groupIdOf,
   INTERNAL_PREFIX
 } from './internal-nodes';
+export { areSocketsCompatible } from './sockets';
 export type {
   Box,
   Edge,

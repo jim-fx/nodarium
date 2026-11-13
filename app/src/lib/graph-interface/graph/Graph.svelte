@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Edge, NodeInstance } from '@nodarium/types';
+  import { areSocketsCompatible } from '@nodarium/types';
   import { Canvas } from '@threlte/core';
   import { HTML } from '@threlte/extras';
   import { createKeyMap } from '../../helpers/createKeyMap';
@@ -13,7 +14,6 @@
   import Debug from '../debug/Debug.svelte';
   import EdgeEl from '../edges/Edge.svelte';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
-  import { areSocketsCompatible } from '../helpers/nodeHelpers';
   import NodeEl from '../node/Node.svelte';
   import { maxZoom, minZoom } from './constants';
   import { FileDropEventManager } from './drop.events';
