@@ -66,6 +66,16 @@ jobs:
         if: gitea.ref_type == 'tag'
         run: ./.gitea/scripts/build.sh
 
+      # a version can only be published once, so only tags publish; prepack copies the nodes
+      # the rebuild made into the package
+      - name: 📦 Publish @nodarium/runtime
+        if: gitea.ref_type == 'tag'
+        run: |
+          echo "//git.max-richter.dev/api/packages/max/npm/:_authToken=${NPM_TOKEN}" >> ~/.npmrc
+          pnpm --filter @nodarium/runtime publish --no-git-checks
+        env:
+          NPM_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+
       - name: 🏷️ Create Gitea Release
         if: gitea.ref_type == 'tag'
         uses: akkuman/gitea-release-action@v1
