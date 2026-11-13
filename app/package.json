@@ -2,6 +2,7 @@
   "name": "@nodarium/app",
   "private": true,
   "version": "0.0.10",
+  "license": "MIT",
   "type": "module",
   "imports": {
     "#lib/*": "./src/lib/*"

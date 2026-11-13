@@ -76,3 +76,7 @@ git push origin v1.0.0
 - Tag must be pushed from `main` branch
 
 # Roadmap
+
+# License
+
+Nodarium is licensed under the [MIT License](./LICENSE), including the plant and mushroom templates and the compiled nodes published as `@nodarium/runtime`. The substrate meshes in `nodes/max/myzel/mesh` are baked from [Poly Haven](https://polyhaven.com) scans under CC0, see [their sources](./nodes/max/myzel/mesh/bake/SOURCES.md).
