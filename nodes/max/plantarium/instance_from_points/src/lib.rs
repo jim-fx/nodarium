@@ -3,7 +3,8 @@ use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_args, decode_points,
     geometry::{
-        create_colored_instance_data, create_instance_data, is_path, path_link, wrap_geometry_data, wrap_instance_data,
+        create_colored_instance_data, create_instance_data, is_geometry, is_path, path_link,
+        split_items, wrap_geometry_data, wrap_instance_data,
     },
     group_points_by_parent, split_args, Ctx, Point,
 };
@@ -39,7 +40,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut plant = split_args(args[0]);
     let points = decode_points(args[1]);
 
-    let mut geo_data = args[2].to_vec();
+    // like instance, a link that brings no geometry places nothing, of a list the first one
+    let Some(geometry) = split_items(args[2]).into_iter().find(|item| is_geometry(item)) else {
+        return concat_args(plant);
+    };
+    let mut geo_data = geometry.to_vec();
     let geo = wrap_geometry_data(&mut geo_data);
 
     let mut transforms: Vec<Mat4> = Vec::new();
@@ -92,7 +97,7 @@ mod tests {
             create_multiple_paths, has_instance_colors, path_link, with_geometry_colors,
             wrap_instance_data, NO_PATH,
         },
-        split_args, Point,
+        split_args, wrap_arg, Point,
     };
 
     fn triangle() -> Vec<i32> {
@@ -205,5 +210,38 @@ mod tests {
         let mut colored = run(&with_geometry_colors(&triangle(), &[4, 5, 6]));
         assert_eq!(wrap_instance_data(&mut colored).colors, &[4, 5, 6]);
         assert!(!has_instance_colors(&run(&triangle())));
+    }
+
+    #[test]
+    fn a_link_without_geometry_places_nothing() {
+        let plant = create_multiple_paths(1, 4, 1, 6);
+        let stem_id = path_link(split_args(&plant)[0]).id;
+        let point = Point {
+            position: Vec3::ZERO,
+            direction: Vec3::X,
+            tangent: Vec3::Y,
+            scale: 0.09,
+            parent_id: stem_id,
+            alpha: 0.5,
+            depth: 1,
+            index: 0,
+        };
+        let run = |geometry: &[i32]| {
+            __nodarium_execute_inner(&[
+                &plant,
+                &encode_points(&[point]),
+                geometry,
+                &[encode_float(10.0)],
+                &[encode_float(0.0)],
+            ])
+        };
+        // a path, a list of paths and nothing connected pass the plant on as it is
+        for geometry in [plant.clone(), split_args(&plant)[0].to_vec(), vec![0, 1, 1, 1]] {
+            assert_eq!(split_args(&run(&geometry)), split_args(&plant));
+        }
+        // a list of geometries places the first
+        let framed = wrap_arg(&triangle()[2..triangle().len() - 2]);
+        let list = concat_args(vec![&framed, &framed]);
+        assert_eq!(run(&list), run(&triangle()));
     }
 }

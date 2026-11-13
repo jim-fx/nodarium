@@ -20,7 +20,7 @@
     "geometry": {
       "type": "geometry",
       "accepts": ["path"],
-      "description": "The geometry to place on every point."
+      "description": "The geometry to place on every point, of a list the first. A link without geometry places nothing."
     },
     "size": {
       "type": "float",
