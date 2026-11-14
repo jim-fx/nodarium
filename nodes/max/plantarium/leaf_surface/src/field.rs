@@ -32,28 +32,45 @@ fn gap(s: &Segment, lo: Vec2, hi: Vec2) -> f32 {
     (min - hi).max(lo - max).max(Vec2::ZERO).length()
 }
 
-/// The cuts given at the points of the closed line `margin`, read at the piece of it closest to a
-/// point.
+/// The cuts at the points of the closed line `margin`, each a share of how far the blade reaches
+/// there, read at the piece of it closest to a point.
 pub struct Cuts<'a> {
-    cuts: &'a [f32],
+    cuts: Vec<f32>,
+    shares: &'a [f32],
+    /// No cut is deeper anywhere, as `at` blends between the cuts of two points.
     deepest: f32,
     pieces: Pieces<'a>,
 }
 
 impl<'a> Cuts<'a> {
-    pub fn new(margin: &'a [Vec2], cuts: &'a [f32], cell: f32) -> Cuts<'a> {
+    pub fn new(margin: &'a [Vec2], shares: &'a [f32], reaches: &[f32], cell: f32) -> Cuts<'a> {
+        let cuts: Vec<f32> = shares.iter().zip(reaches).map(|(s, r)| s * r).collect();
         let deepest = cuts.iter().fold(0.0_f32, |m, c| m.max(c.abs()));
         // as wide as the band of the grid that is cut, so a point there meets few cells
         let pieces = Pieces::new(margin, deepest + 2.0 * cell);
-        Cuts { cuts, deepest, pieces }
+        Cuts {
+            cuts,
+            shares,
+            deepest,
+            pieces,
+        }
+    }
+
+    fn read(&self, values: &[f32], p: Vec2) -> f32 {
+        let n = values.len();
+        self.pieces
+            .closest(p, f32::MAX)
+            .map_or(0.0, |(k, t, _)| values[k] + (values[(k + 1) % n] - values[k]) * t)
     }
 
     /// The cut of the piece closest to `p`, the first of them where several are as close.
     pub fn at(&self, p: Vec2) -> f32 {
-        let n = self.cuts.len();
-        self.pieces
-            .closest(p, f32::MAX)
-            .map_or(0.0, |(k, t, _)| self.cuts[k] + (self.cuts[(k + 1) % n] - self.cuts[k]) * t)
+        self.read(&self.cuts, p)
+    }
+
+    /// The share of the reach cut at the piece closest to `p`.
+    pub fn share(&self, p: Vec2) -> f32 {
+        self.read(self.shares, p)
     }
 }
 
@@ -257,6 +274,54 @@ impl<'a> Field<'a> {
         }
         near.truncate(first);
         segments.truncate(from);
+    }
+
+    /// How far the blade reaches around the veins at every point of `points`: the reach of the
+    /// closest point of every vein, by the blade, blended over a fillet and a cell between the
+    /// veins so it does not jump in a sinus.
+    pub fn reaches(&self, points: &[Vec2]) -> Vec<f32> {
+        let blend = self.smooth + self.cell;
+        let mut near: Vec<(f32, f32)> = Vec::new();
+        // the closest vein of the point before, likely the closest of this one, met first so the
+        // other veins are passed over sooner
+        let mut previous = 0;
+        points
+            .iter()
+            .map(|&p| {
+                near.clear();
+                let mut lowest = f32::MAX;
+                let (n, start) = (self.veins.len(), previous);
+                for v in (0..n).map(|k| (start + k) % n) {
+                    let vein = &self.veins[v];
+                    if vein.lower_bound(p) >= lowest + blend {
+                        continue;
+                    }
+                    let (mut excess, mut reach) = (f32::MAX, 0.0);
+                    for s in &vein.segments {
+                        let (t, d) = s.closest(p);
+                        let r = s.reach(t);
+                        if d - r < excess {
+                            (excess, reach) = (d - r, r);
+                        }
+                    }
+                    if excess < lowest {
+                        (lowest, previous) = (excess, v);
+                    }
+                    near.push((excess, reach));
+                }
+                let (mut sum, mut weights) = (0.0, 0.0);
+                for &(excess, reach) in &near {
+                    let w = (1.0 - (excess - lowest) / blend).max(0.0).powi(2);
+                    sum += w * reach;
+                    weights += w;
+                }
+                if weights > 0.0 {
+                    sum / weights
+                } else {
+                    0.0
+                }
+            })
+            .collect()
     }
 
     pub fn index(&self, (i, j): Corner) -> usize {
@@ -563,13 +628,15 @@ mod tests {
             let mut field = Field::blade(&veins, smooth, resolution).unwrap();
             let margin = Margin::of(&field);
             let mut ctx = Ctx::default();
-            let along = ctx.float_along(&teeth(0.015), margin.alphas.iter().copied());
+            let along = ctx.float_along(&teeth(0.3), margin.alphas.iter().copied());
             let reference = dense(&veins, smooth, resolution, None);
             assert!(field.contour_loops() == reference.contour_loops(), "the margin moved at {resolution}");
 
-            let cuts = Cuts::new(&margin.points, &along, field.cell);
+            let reaches = field.reaches(&margin.points);
+            let scaled: Vec<f32> = along.iter().zip(&reaches).map(|(s, r)| s * r).collect();
+            let cuts = Cuts::new(&margin.points, &along, &reaches, field.cell);
             field.cut(&cuts);
-            let reference = dense(&veins, smooth, resolution, Some((&margin.points, &along)));
+            let reference = dense(&veins, smooth, resolution, Some((&margin.points, &scaled)));
             assert!(field.contour_loops() == reference.contour_loops(), "the cut margin moved at {resolution}");
             for k in 0..field.values.len() {
                 assert_eq!(field.values[k] < 0.0, reference.values[k] < 0.0, "a point changed sides");

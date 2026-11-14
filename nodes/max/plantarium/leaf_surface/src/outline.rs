@@ -40,8 +40,7 @@ impl Outline {
         let tips = veins
             .iter()
             .map(|vein| {
-                let cut = cuts.at(vein.end());
-                let tip = put_back_tip(&mut points, &mut fixed, &mut bands, vein, cut, field.cell);
+                let tip = put_back_tip(&mut points, &mut fixed, &mut bands, vein, cuts, field.cell);
                 if tip.is_some() {
                     bands = None;
                 }
@@ -54,14 +53,15 @@ impl Outline {
 }
 
 /// A vein that tapers to nothing ends in a spike thinner than a cell, which the grid loses. The
-/// spike is rebuilt from the reach of the vein, less the cut there, from its tip back to where the
-/// margin of the grid takes it in, and put into the margin in place of the stump.
+/// spike is rebuilt from the reach of the vein, less the share of it the margin cuts there, from
+/// its tip back to where the margin of the grid takes it in, and put into the margin in place of
+/// the stump.
 fn put_back_tip(
     points: &mut Vec<Vec2>,
     fixed: &mut Vec<bool>,
     bands: &mut Option<Bands>,
     vein: &Vein,
-    cut: f32,
+    cuts: &Cuts,
     cell: f32,
 ) -> Option<Vec2> {
     let step = 0.25 * cell;
@@ -69,7 +69,7 @@ fn put_back_tip(
     let count = ((length / step) as usize).min(200);
     let sample = |i: usize| {
         let (p, direction, reach) = vein.at(length - i as f32 * step);
-        (p, direction, reach - cut)
+        (p, direction, reach * (1.0 - cuts.share(p)))
     };
     let first = (0..=count).find(|&i| sample(i).2 > 0.0)?;
     let (p, direction, width) = sample(first);
