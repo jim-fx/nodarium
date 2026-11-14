@@ -106,29 +106,37 @@ describe('serialize', () => {
     expect(manager.serialize().nodes[0].props!.value).toBe(1);
   });
 
-  it('walks the graph once for the undo step and the build of one change', () => {
-    vi.useFakeTimers();
-    const manager = new GraphManager(createMockNodeRegistry([mockFloatInputNode]));
-    const node = manager.createNode({
-      type: 'test/node/input',
-      position: [0, 0],
-      props: { value: 1 }
-    });
-    assert.isDefined(node);
-    manager.loaded = true;
-    vi.runAllTimers();
-    const walk = vi.spyOn(manager as unknown as { serializeState: () => Graph }, 'serializeState');
-    const results: Graph[] = [];
-    manager.on('result', (g) => results.push(g as Graph));
+  // The server build of Svelte, which `vitest --browser=false` compiles this file with, has no
+  // reactivity, so its $derived can't know that nothing changed and runs on every read
+  it.skipIf(import.meta.env.SSR)(
+    'walks the graph once for the undo step and the build of one change',
+    () => {
+      vi.useFakeTimers();
+      const manager = new GraphManager(createMockNodeRegistry([mockFloatInputNode]));
+      const node = manager.createNode({
+        type: 'test/node/input',
+        position: [0, 0],
+        props: { value: 1 }
+      });
+      assert.isDefined(node);
+      manager.loaded = true;
+      vi.runAllTimers();
+      const walk = vi.spyOn(
+        manager as unknown as { serializeState: () => Graph },
+        'serializeState'
+      );
+      const results: Graph[] = [];
+      manager.on('result', (g) => results.push(g as Graph));
 
-    node.props = { value: 2 };
-    manager.save();
-    manager.execute();
+      node.props = { value: 2 };
+      manager.save();
+      manager.execute();
 
-    expect(walk).toHaveBeenCalledTimes(1);
-    expect(results.at(-1)?.nodes[0].props).toEqual({ value: 2 });
-    vi.useRealTimers();
-  });
+      expect(walk).toHaveBeenCalledTimes(1);
+      expect(results.at(-1)?.nodes[0].props).toEqual({ value: 2 });
+      vi.useRealTimers();
+    }
+  );
 });
 
 describe('a value dragged in an input', () => {
