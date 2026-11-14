@@ -30,6 +30,14 @@
       "max": 1000,
       "value": 1
     },
+    "fan": {
+      "type": "float",
+      "description": "Spreads the stems out in a fan, the angle between the first and the last, in degrees. Without points they fan out in the plane of x and y, a rotate around x by 90 degrees lays the fan flat for the veins of a palmate leaf. On points the stems of every point make their own fan, in the plane of its direction and tangent. 0 lets them all grow the same way",
+      "min": 0,
+      "max": 360,
+      "step": 1,
+      "value": 0
+    },
     "length": {
       "type": "float",
       "description": "How long the stem should be",
