@@ -57,6 +57,13 @@
       "type": "color",
       "description": "The color of the blade, from mix_color, read at every vertex like set_color reads it on a leaf: alpha from the base to the tip, alpha across from the midrib to the margin, and alpha vein from 0 on the nearest vein to 1 at the edge of its groove, with path_info of that vein. A curve of alpha vein into the factor of a mix_color draws the veins, path_info depth tells the midrib from the side veins. Unconnected, the blade keeps the viewer's material.",
       "external": true
+    },
+    "variants": {
+      "type": "integer",
+      "description": "How many leaves to make from the veins, for instance to pick among. The main veins, the paths without a parent among the veins, are dealt out to the leaves in turn: a stem with amount 3 makes three leaves of one midrib each, amount 15 three palmate leaves of five. Every leaf reads the inputs here and those of its veins for its own paths, so a random or alpha makes them differ.",
+      "min": 1,
+      "max": 16,
+      "value": 1
     }
   }
 }

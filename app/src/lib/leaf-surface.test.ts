@@ -147,3 +147,68 @@ describe.skipIf(!BUILT && !ON_CI)('a leaf grown from its veins', () => {
     }
   });
 });
+
+describe.skipIf(!BUILT && !ON_CI)('leaf variants from one vein graph', () => {
+  const RANDOM = 8;
+  const PLANT = 9;
+  const INSTANCE = 10;
+  let leaves: Int32Array[] = [];
+  let placed: Int32Array[] = [];
+
+  beforeAll(async () => {
+    const variants = structuredClone(graph);
+    const node = (id: number) => variants.nodes.find((n) => n.id === id)!;
+    node(STEM).props = { ...node(STEM).props, amount: 3 };
+    node(SURFACE).props = { ...node(SURFACE).props, variants: 3 };
+    variants.nodes.push(
+      {
+        id: RANDOM,
+        type: 'max/plantarium/random',
+        position: [0, 0],
+        props: { min: 0.6, max: 1.4 }
+      },
+      {
+        id: PLANT,
+        type: 'max/plantarium/stem',
+        position: [0, 0],
+        props: { amount: 1, length: 2, thickness: 0.05 }
+      },
+      {
+        id: INSTANCE,
+        type: 'max/plantarium/instance',
+        position: [0, 0],
+        props: { amount: 60, lowest_instance: 0, highest_instance: 1 }
+      } as Graph['nodes'][number]
+    );
+    variants.edges = variants.edges.filter((e) => e[2] !== JOIN && e[0] !== JOIN);
+    variants.nodes = variants.nodes.filter((n) => n.id !== JOIN && n.id !== LEAF);
+    variants.edges.push(
+      [RANDOM, 0, STEM, 'length'],
+      [PLANT, 0, INSTANCE, 'plant'],
+      [SURFACE, 0, INSTANCE, 'geometry'],
+      [INSTANCE, 0, OUTPUT, 'input']
+    );
+
+    const registry = new FileNodeRegistry(resolve('static/nodes'));
+    const runtime = new MemoryRuntimeExecutor(registry, new MemoryRuntimeCache());
+    await registry.load(variants.nodes.map((n) => n.type) as NodeId[]);
+    variants.nodes.push({ id: 1e9, type: DEBUG_NODE as NodeId, position: [0, 0] });
+    variants.edges.push([SURFACE, 0, 1e9, 'input']);
+    const result = await runtime.execute(variants, { seed: 1 });
+    leaves = splitNestedArray(runtime.getDebugData()[SURFACE].data);
+    placed = splitNestedArray(result).filter((i) => i[0] === 2);
+  }, 120_000);
+
+  it('makes a leaf of every midrib, each its own', () => {
+    expect(leaves).toHaveLength(3);
+    expect(leaves.every((l) => l[0] === 1)).toBe(true);
+    const lengths = leaves.map((l) => readLeaf(Int32Array.from([0, l.length + 1, ...l, 1, 1])))
+      .map((leaf) => Math.min(...leaf.positions.map((p) => p[2])));
+    expect(new Set(lengths.map((l) => l.toFixed(1))).size).toBe(3);
+  });
+
+  it('lets instance pick among them', () => {
+    expect(placed).toHaveLength(3);
+    expect(placed.reduce((sum, i) => sum + i[3], 0)).toBe(60);
+  });
+});
