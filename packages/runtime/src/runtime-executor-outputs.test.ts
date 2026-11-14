@@ -146,6 +146,21 @@ describe('nodes with several outputs', () => {
     });
   });
 
+  it('shows the output a debug node is connected to when the nodes below it come from the cache', async () => {
+    const runtime = setup(true);
+    const g = graph(
+      [node(0, split.id), node(1, debug.id), node(2, combine.id), node(3, output.id)],
+      [[0, 1, 1, 'input'], [0, 0, 2, 'a'], [2, 0, 3, 'input']]
+    );
+    await runtime.execute(g, {});
+    await runtime.execute(g, {});
+    expect(runtime.getDebugData()[0]).toEqual({
+      type: 'integer',
+      output: 1,
+      data: Int32Array.of(30)
+    });
+  });
+
   describe('debugging what the Myzel output shows', () => {
     const maker = (id: string, type: string, words: number[]) =>
       ({

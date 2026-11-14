@@ -322,6 +322,8 @@ describe('runtime node timings', () => {
   });
 });
 
+const MB = 2 ** 20;
+
 describe('MemoryRuntimeCache', () => {
   const bytes = (n: number) => [new Int32Array(n / 4)];
 
@@ -367,6 +369,209 @@ describe('MemoryRuntimeCache', () => {
     cache.clear();
 
     expect(cache.bytes).toBe(0);
+  });
+
+  it('keeps small values, and big ones only when they took at least 1 ms per MB', () => {
+    const cache = new MemoryRuntimeCache();
+    cache.set('small', bytes(MB), 0);
+    cache.set('cheap', bytes(64 * MB), 32);
+    cache.set('slow', bytes(64 * MB), 128);
+
+    expect(cache.keeps(64 * MB, 32)).toBe(false);
+    expect(cache.get('small')).toBeDefined();
+    expect(cache.get('cheap')).toBeUndefined();
+    expect(cache.get('slow')).toBeDefined();
+    expect(cache.bytes).toBe(65 * MB);
+  });
+
+  it('keeps the values of the current run over older ones', () => {
+    const cache = new MemoryRuntimeCache();
+    cache.startRun();
+    cache.set('old', bytes(40), 1000);
+    cache.startRun();
+    cache.set('new', bytes(40), 1);
+
+    cache.maxBytes = 40;
+    expect(cache.get('old')).toBeUndefined();
+    expect(cache.get('new')).toBeDefined();
+  });
+
+  it('counts a value read in this run as part of it', () => {
+    const cache = new MemoryRuntimeCache();
+    cache.startRun();
+    cache.set('read', bytes(40), 1);
+    cache.set('unread', bytes(40), 1000);
+    cache.startRun();
+    cache.get('read');
+
+    cache.maxBytes = 40;
+    expect(cache.get('unread')).toBeUndefined();
+    expect(cache.get('read')).toBeDefined();
+  });
+
+  it('removes the older value that saves the least time per byte first', () => {
+    const cache = new MemoryRuntimeCache();
+    cache.startRun();
+    cache.set('big', bytes(80), 10);
+    cache.set('small', bytes(40), 10);
+    cache.startRun();
+
+    cache.maxBytes = 80;
+    expect(cache.get('big')).toBeUndefined();
+    expect(cache.get('small')).toBeDefined();
+  });
+
+  it('lets a value that saves much go once it was not used for a few runs', () => {
+    const cache = new MemoryRuntimeCache();
+    cache.startRun();
+    cache.set('slow', bytes(40), 10);
+    cache.startRun();
+    cache.set('fast', bytes(40), 3);
+    cache.startRun();
+
+    cache.maxBytes = 40;
+    // `slow` saves 10 for 2 runs, `fast` 3 for 1
+    expect(cache.get('fast')).toBeUndefined();
+
+    cache.clear();
+    cache.maxBytes = Infinity;
+    cache.startRun();
+    cache.set('slow', bytes(40), 10);
+    cache.startRun();
+    cache.set('fast', bytes(40), 6);
+    cache.startRun();
+
+    cache.maxBytes = 40;
+    expect(cache.get('slow')).toBeUndefined();
+  });
+
+  it('removes the least recently used of older runs when it holds too many values', () => {
+    const cache = new MemoryRuntimeCache(2);
+    cache.startRun();
+    cache.set('a', bytes(4), 1);
+    cache.set('b', bytes(4), 1);
+    cache.startRun();
+    cache.get('a');
+    cache.set('c', bytes(4), 1);
+
+    expect(cache.get('b')).toBeUndefined();
+    expect(cache.get('a')).toBeDefined();
+    expect(cache.get('c')).toBeDefined();
+  });
+});
+
+describe('runtime cache by cost', () => {
+  const MB_INTS = 2 ** 18;
+  // a mesh that is passed on: 4 MB, made at once
+  const bigCheap = {
+    id: 'test/cache/big-cheap',
+    inputs: { value: { type: 'integer', value: 1 } },
+    outputs: ['float'],
+    execute: vi.fn((values: NodeValue[]) => {
+      calls['test/cache/big-cheap'] = (calls['test/cache/big-cheap'] ?? 0) + 1;
+      return new Int32Array(4 * MB_INTS).fill((values[0] as Int32Array)[0]);
+    })
+  } as NodeDefinition;
+  const first = sumNode('test/cache/first', { input: { type: 'float' } });
+  const costRegistry = createMockNodeRegistry([output, add, right, first, bigCheap]);
+
+  beforeEach(() => {
+    calls = {};
+  });
+
+  function costGraph(rightProps?: Record<string, number>): Graph {
+    // output <- add <- (first <- big cheap, right)
+    return {
+      id: 0,
+      nodes: [
+        { id: 0, type: output.id, position: [0, 0] },
+        { id: 1, type: add.id, position: [0, 0] },
+        { id: 2, type: first.id, position: [0, 0] },
+        { id: 3, type: bigCheap.id, position: [0, 0] },
+        { id: 4, type: right.id, position: [0, 0], ...(rightProps ? { props: rightProps } : {}) }
+      ],
+      edges: [
+        [1, 0, 0, 'input'],
+        [2, 0, 1, 'a'],
+        [3, 0, 2, 'input'],
+        [4, 0, 1, 'b']
+      ]
+    } as Graph;
+  }
+
+  it('does not store a big result that is quick to make', async () => {
+    const cache = new MemoryRuntimeCache();
+    const executor = new MemoryRuntimeExecutor(
+      createMockNodeRegistry([output, bigCheap]),
+      cache
+    );
+    await executor.execute(singleNodeGraph(bigCheap.id), {});
+    calls = {};
+    await executor.execute(singleNodeGraph(bigCheap.id), {});
+
+    expect(calls).toEqual({ [bigCheap.id]: 1, [output.id]: 1 });
+    expect(cache.bytes).toBe(0);
+  });
+
+  it('does not run a node when the cache has the results of the nodes it feeds', async () => {
+    const executor = new MemoryRuntimeExecutor(costRegistry, new MemoryRuntimeCache());
+    await executor.execute(costGraph(), {});
+    calls = {};
+
+    const result = await executor.execute(costGraph({ value: 5 }), {});
+
+    expect(result).toEqual(Int32Array.of(6));
+    expect(calls).toEqual({ [right.id]: 1, [add.id]: 1, [output.id]: 1 });
+    expect(executor.getRunTimings()).not.toHaveProperty('3');
+    expect(executor.getNodeTimings()).toHaveProperty('3');
+  });
+
+  it('counts the warm time of a node that had to be instantiated again', async () => {
+    vi.useFakeTimers({ toFake: ['performance'] });
+    try {
+      let memory = 0;
+      const coldOrWarm = {
+        ...bigCheap,
+        id: 'test/cache/cold-or-warm',
+        execute: vi.fn((values: NodeValue[]) => {
+          calls['test/cache/cold-or-warm'] = (calls['test/cache/cold-or-warm'] ?? 0) + 1;
+          // 4 MB in 1 ms warm, in 40 ms with the instance to set up first
+          vi.advanceTimersByTime(memory ? 1 : 40);
+          memory = 1;
+          return new Int32Array(4 * MB_INTS).fill((values[0] as Int32Array)[0]);
+        }),
+        memoryBytes: () => memory,
+        release: () => {
+          memory = 0;
+        }
+      } as NodeDefinition;
+      const executor = new MemoryRuntimeExecutor(
+        createMockNodeRegistry([output, coldOrWarm]),
+        new MemoryRuntimeCache()
+      );
+      const run = (value: number) =>
+        executor.execute(
+          {
+            ...singleNodeGraph(coldOrWarm.id),
+            nodes: [
+              { id: 0, type: output.id, position: [0, 0] },
+              { id: 1, type: coldOrWarm.id, position: [0, 0], props: { value } }
+            ]
+          } as Graph,
+          {}
+        );
+
+      await run(1);
+      await run(2);
+      executor.releaseInstances();
+      await run(3);
+      calls = {};
+      await run(3);
+
+      expect(calls[coldOrWarm.id]).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
