@@ -113,6 +113,10 @@ export type NodeDefinition = z.infer<typeof NodeDefinitionSchema> & {
   execute(inputs: NodeValue[]): NodeValue | NodeValue[];
   /** Frees all results of previous executions, invalidating their WasmSlices */
   reset?(): void;
+  /** Frees the memory of the node, the next execute starts with a fresh one */
+  release?(): void;
+  /** Bytes of memory the node holds right now */
+  memoryBytes?(): number;
 };
 
 export type Socket = {

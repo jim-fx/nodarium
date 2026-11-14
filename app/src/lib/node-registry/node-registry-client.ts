@@ -176,7 +176,9 @@ export class RemoteNodeRegistry implements NodeRegistry {
     const node = {
       ...definition.data,
       execute: wrapper.execute,
-      reset: wrapper.reset
+      reset: wrapper.reset,
+      release: wrapper.release,
+      memoryBytes: wrapper.memoryBytes
     };
 
     this.nodes.set(definition.data.id, node);

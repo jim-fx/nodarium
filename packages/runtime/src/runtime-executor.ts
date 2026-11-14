@@ -254,11 +254,26 @@ function getValue(input: NodeInput, value?: unknown) {
   throw new Error(`Unknown input type ${input.type}`);
 }
 
+/**
+ * A wasm memory never shrinks, it keeps the size of the biggest run its node ever had, and a
+ * process only has room for about 125 of them. So after every run the executor releases the
+ * instances of the nodes that are not in the graph any more, and those with more memory than
+ * this. A released node instantiates its compiled module again the next time it runs.
+ */
+export const RELEASE_INSTANCES_OVER = 32 * 2 ** 20;
+
 export class MemoryRuntimeExecutor implements RuntimeExecutor {
   private definitionMap: Map<string, NodeDefinition> = new Map();
-  // every definition this executor has run, their modules keep results in
-  // memory until they are reset, even after they left the graph
+  // every definition that may hold results in its memory, they stay there until it is reset
   private usedDefinitions = new Map<string, NodeDefinition>();
+
+  /** Bytes of memory a node may keep after a run, see {@link RELEASE_INSTANCES_OVER} */
+  releaseInstancesOver = RELEASE_INSTANCES_OVER;
+  // runs can overlap while they load their nodes, only the last one to finish releases
+  private activeRuns = 0;
+  // the types of every run since the last release
+  private typesInUse = new Set<string>();
+  private releaseAllWhenIdle = false;
 
   // keyed by the id of the node a debug node is connected to
   private debugData: Record<number, DebugEntry> = {};
@@ -289,10 +304,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     for (const node of graph.nodes) {
       if (!typeMap.has(node.type)) {
         const type = this.registry.getNode(node.type);
-        if (type) {
-          typeMap.set(node.type, type);
-          this.usedDefinitions.set(node.type, type);
-        }
+        if (type) typeMap.set(node.type, type);
       }
     }
     return typeMap;
@@ -431,11 +443,42 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
   async execute(graph: Graph, settings: Record<string, unknown>) {
     this.lastError = undefined;
+    this.activeRuns++;
     try {
       return await this.executeGraph(graph, settings);
     } catch (error) {
       this.lastError = getErrorInfo(error);
       throw error;
+    } finally {
+      this.activeRuns--;
+      if (this.activeRuns === 0) this.releaseAfterRuns();
+    }
+  }
+
+  // the results, the cache entries and the debug data are copies, nothing points into a memory
+  private releaseAfterRuns() {
+    const all = this.releaseAllWhenIdle;
+    const inUse = this.typesInUse;
+    this.releaseAllWhenIdle = false;
+    this.typesInUse = new Set();
+    this.release((type, definition) =>
+      all
+      || !inUse.has(type)
+      || (definition.memoryBytes?.() ?? 0) > this.releaseInstancesOver
+    );
+  }
+
+  /** Releases the instances of all nodes that ran, once no run is going any more */
+  releaseInstances() {
+    if (this.activeRuns > 0) this.releaseAllWhenIdle = true;
+    else this.release();
+  }
+
+  private release(filter?: (type: string, definition: NodeDefinition) => boolean) {
+    for (const [type, definition] of this.usedDefinitions) {
+      if (!definition.release || (filter && !filter(type, definition))) continue;
+      definition.release();
+      this.usedDefinitions.delete(type);
     }
   }
 
@@ -484,6 +527,10 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       : 0;
 
     // free all results of the previous run, nothing below this may await
+    for (const [type, definition] of this.definitionMap) {
+      this.usedDefinitions.set(type, definition);
+      this.typesInUse.add(type);
+    }
     for (const definition of this.usedDefinitions.values()) {
       definition.reset?.();
     }
