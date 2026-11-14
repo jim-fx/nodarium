@@ -178,5 +178,18 @@ export function createWasmWrapper(buffer: ArrayBuffer) {
     }
   }
 
-  return { execute, reset, get_definition };
+  /**
+   * Drops the instance, a wasm memory never shrinks and is only freed with its instance. The
+   * compiled module stays, the next execute instantiates it again.
+   */
+  function release() {
+    instance = undefined;
+    memory = undefined;
+  }
+
+  function memoryBytes() {
+    return memory?.buffer.byteLength ?? 0;
+  }
+
+  return { execute, reset, release, memoryBytes, get_definition };
 }

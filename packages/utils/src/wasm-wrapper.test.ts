@@ -47,6 +47,24 @@ describe('createWasmWrapper with the ABI v1', () => {
     expect(readNodeValue(result)).toEqual(Int32Array.of(3, 7, 1, 2, 3));
   });
 
+  it('releases its memory and instantiates the module again on the next execute', () => {
+    const node = load('v1');
+    expect(node.memoryBytes()).toBe(0);
+
+    const before = node.execute([Int32Array.of(7)]);
+    expect(node.memoryBytes()).toBeGreaterThan(0);
+    const memory = isWasmSlice(before) ? before.memory : undefined;
+
+    node.release();
+    expect(node.memoryBytes()).toBe(0);
+    // nothing to reset without an instance
+    node.reset();
+
+    const after = node.execute([Int32Array.of(7)]);
+    expect(isWasmSlice(after) && after.memory).not.toBe(memory);
+    expect(readNodeValue(after)).toEqual(Int32Array.of(1, 7));
+  });
+
   it('copies results of other modules directly', () => {
     const producer = load('v1');
     const consumer = load('v1');

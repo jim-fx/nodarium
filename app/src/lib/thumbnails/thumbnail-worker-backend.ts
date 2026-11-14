@@ -21,6 +21,9 @@ export async function renderResult(result: Int32Array, size: number) {
 
 export async function renderGraph(graph: Graph, size: number) {
   await nodeRegistry.load(graph.nodes.map((n) => n.type));
-  const result = await executor.execute(graph, graph.settings ?? {});
+  // a thumbnail is built once, its nodes don't need to keep their memory
+  const result = await executor.execute(graph, graph.settings ?? {}).finally(() =>
+    executor.releaseInstances()
+  );
   return renderResult(result, size);
 }

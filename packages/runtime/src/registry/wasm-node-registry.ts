@@ -9,9 +9,8 @@ import { createWasmWrapper } from '@nodarium/utils';
 import { debugNode } from '../debug-node';
 
 /**
- * Loads every node from its wasm file once and keeps the instance: the runtime calls load() on
- * every execution, and a fresh wasm memory per execution adds up to gigabytes before it is
- * garbage collected.
+ * Loads every node from its wasm file once and keeps its compiled module: the runtime calls
+ * load() on every execution. The executor decides when an instance is released.
  */
 export abstract class WasmNodeRegistry implements NodeRegistry {
   status: 'loading' | 'ready' | 'error' = 'ready';
@@ -49,7 +48,13 @@ export abstract class WasmNodeRegistry implements NodeRegistry {
     if (!definition.success) {
       throw new Error(`The definition of the node ${id} is invalid: ${definition.error.message}`);
     }
-    const node = { ...definition.data, execute: wasm.execute, reset: wasm.reset };
+    const node = {
+      ...definition.data,
+      execute: wasm.execute,
+      reset: wasm.reset,
+      release: wasm.release,
+      memoryBytes: wasm.memoryBytes
+    };
     this.nodes.set(id, node);
     return node;
   }

@@ -9,7 +9,10 @@ const executor = new MemoryRuntimeExecutor(nodeRegistry);
 /** Executes a project and returns the encoded geometry it produces */
 export async function executeGraph(graph: Graph) {
   await nodeRegistry.load(graph.nodes.map((n) => n.type));
-  const result = await executor.execute(graph, graph.settings ?? {});
+  // a project of the garden is built once, its nodes don't need to keep their memory
+  const result = await executor.execute(graph, graph.settings ?? {}).finally(() =>
+    executor.releaseInstances()
+  );
   // the executor keeps using its memory, so a copy is handed out
   const copy = result.slice();
   return Comlink.transfer(copy, [copy.buffer]);
