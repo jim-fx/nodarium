@@ -89,4 +89,12 @@
   });
 </script>
 
+<!-- the last change is saved only once the changes rest, which a closed page never gets to -->
+<svelte:window onbeforeunload={() => manager.flush()} />
+<svelte:document
+  onvisibilitychange={() => {
+    if (document.visibilityState === 'hidden') manager.flush();
+  }}
+/>
+
 <GraphEl {keymap} {safePadding} />

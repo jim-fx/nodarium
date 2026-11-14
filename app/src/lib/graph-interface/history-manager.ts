@@ -42,7 +42,8 @@ export class HistoryManager {
       this.initialState = this.state;
       log.log('initial state saved');
     } else {
-      const newState = state;
+      // patch() and unpatch() change the state in place, the caller may still hold `state`
+      const newState = clone(state);
       const delta = diff.diff(this.state, newState);
       if (delta) {
         log.log('saving state');

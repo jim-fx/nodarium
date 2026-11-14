@@ -80,6 +80,31 @@ export const debounce = (fn: () => void, ms = 300) => {
 // Not structuredClone: it throws a DataCloneError on Svelte $state proxies.
 export const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 
+const isDropped = (v: unknown) =>
+  v === undefined || typeof v === 'function' || typeof v === 'symbol';
+
+/**
+ * The same as `clone` for JSON data, without building the string: walking $state proxies once
+ * is what costs, a JSON round trip on top of it doubles that.
+ */
+export function toPlain<T>(v: T): T {
+  if (typeof v === 'number') return (Number.isFinite(v) ? v === 0 ? 0 : v : null) as T;
+  if (v === null || typeof v !== 'object') return v;
+  if (Array.isArray(v)) {
+    const out = new Array(v.length);
+    for (let i = 0; i < v.length; i++) {
+      out[i] = isDropped(v[i]) ? null : toPlain(v[i]);
+    }
+    return out as T;
+  }
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(v)) {
+    const value = (v as Record<string, unknown>)[key];
+    if (!isDropped(value)) out[key] = toPlain(value);
+  }
+  return out as T;
+}
+
 export function distanceFromPointToSegment(
   x1: number,
   y1: number,

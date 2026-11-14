@@ -63,7 +63,7 @@
       if (value !== undefined && isDiff) {
         node.props = { ...node.props, [id]: a };
         if (graph) {
-          graph.save();
+          graph.save({ coalesce: true });
           graph.execute();
         }
       }

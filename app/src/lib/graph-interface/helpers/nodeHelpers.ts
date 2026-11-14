@@ -6,6 +6,7 @@ import type {
   SerializedNode
 } from '@nodarium/types';
 import { GROUP_INPUT } from '@nodarium/types';
+import { toPlain } from './index.ts';
 
 // values that only come in through a connection, so their parameter shows no input field
 const SOCKET_ONLY_TYPES = new Set([
@@ -43,14 +44,15 @@ export function getParameterHeight(node: NodeDefinition, inputKey: string) {
 
 export function serializeNode(node: SerializedNode | NodeInstance): SerializedNode {
   const muted = 'state' in node ? node.state.muted : node.muted;
-  return {
+  const serialized: SerializedNode = {
     id: node.id,
-    position: [...node.position],
-    type: node.type,
-    props: node.props ? JSON.parse(JSON.stringify(node.props)) : undefined,
-    ...(node.exposed?.length ? { exposed: [...node.exposed] } : {}),
-    ...(muted ? { muted: true } : {})
+    position: toPlain(node.position),
+    type: node.type
   };
+  if (node.props) serialized.props = toPlain(node.props);
+  if (node.exposed?.length) serialized.exposed = toPlain(node.exposed);
+  if (muted) serialized.muted = true;
+  return serialized;
 }
 
 export function serializeEdge(edge: SerializedEdge | Edge): SerializedEdge {

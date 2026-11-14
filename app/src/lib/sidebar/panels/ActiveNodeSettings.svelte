@@ -88,7 +88,7 @@
     lastPropsHash = propsHash;
 
     if (needsUpdate) {
-      manager.save();
+      manager.save({ coalesce: true });
       manager.execute();
     }
   }
