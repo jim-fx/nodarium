@@ -22,6 +22,7 @@
     "bench": "tsx ./benchmark/index.ts",
     "bench:paths": "tsx ./scripts/bench-path-nodes.ts",
     "render-graph": "tsx ./scripts/render-graph.ts",
+    "render-template-previews": "tsx ./scripts/render-template-previews.ts",
     "format-graph": "tsx ./scripts/format-graph.ts"
   },
   "dependencies": {
