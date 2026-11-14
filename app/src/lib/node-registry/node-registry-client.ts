@@ -3,6 +3,7 @@ import {
   INTERNAL_PREFIX,
   type NodeDefinition,
   NodeDefinitionSchema,
+  type NodeId,
   type NodeRegistry
 } from '@nodarium/types';
 import { createLogger, createWasmWrapper } from '@nodarium/utils';
@@ -10,10 +11,30 @@ import { createLogger, createWasmWrapper } from '@nodarium/utils';
 const log = createLogger('node-registry');
 log.mute();
 
+type CollectionListing = {
+  id: string;
+  nodes: { id: NodeId }[];
+  /** Missing on registries built before the definitions were part of the listing */
+  definitions?: unknown[];
+};
+
+function sameBytes(a: ArrayBuffer, b: ArrayBuffer) {
+  if (a.byteLength !== b.byteLength) return false;
+  const x = new Uint8Array(a);
+  const y = new Uint8Array(b);
+  for (let i = 0; i < x.length; i++) {
+    if (x[i] !== y[i]) return false;
+  }
+  return true;
+}
+
 export class RemoteNodeRegistry implements NodeRegistry {
   status: 'loading' | 'ready' | 'error' = 'loading';
   private nodes: Map<string, NodeDefinition> = new Map();
+  /** Nodes known from the collection listing, without their code */
+  private definitions: Map<string, NodeDefinition> = new Map();
   private pending: Map<string, Promise<NodeDefinition | undefined>> = new Map();
+  private collections: Map<string, Promise<CollectionListing>> = new Map();
 
   constructor(
     private url: string,
@@ -30,10 +51,11 @@ export class RemoteNodeRegistry implements NodeRegistry {
   async fetchJson(url: string, skipCache = false) {
     const finalUrl = `${this.url}/${url}`;
 
-    if (!skipCache && this.cache) {
-      const cachedValue = await this.cache?.get<string>(finalUrl);
-      if (cachedValue) {
-        this.fetchJson(url, true);
+    let cachedValue: string | undefined;
+    if (this.cache) {
+      cachedValue = await this.cache.get<string>(finalUrl);
+      if (cachedValue && !skipCache) {
+        this.fetchJson(url, true).catch(() => {});
         return JSON.parse(cachedValue);
       }
     }
@@ -45,20 +67,20 @@ export class RemoteNodeRegistry implements NodeRegistry {
       throw new Error(`Failed to load ${url}`);
     }
 
-    const result = await response.json();
+    const text = await response.text();
+    if (text !== cachedValue) this.cache?.set(finalUrl, text);
 
-    this.cache?.set(finalUrl, JSON.stringify(result));
-
-    return result;
+    return JSON.parse(text);
   }
 
   async fetchArrayBuffer(url: string, skipCache = false) {
     const finalUrl = `${this.url}/${url}`;
 
-    if (!skipCache && this.cache) {
-      const cachedNode = await this.cache?.get<ArrayBuffer>(finalUrl);
-      if (cachedNode) {
-        this.fetchArrayBuffer(url, true);
+    let cachedNode: ArrayBuffer | undefined;
+    if (this.cache) {
+      cachedNode = await this.cache.get<ArrayBuffer>(finalUrl);
+      if (cachedNode && !skipCache) {
+        this.fetchArrayBuffer(url, true).catch(() => {});
         return cachedNode;
       }
     }
@@ -70,7 +92,7 @@ export class RemoteNodeRegistry implements NodeRegistry {
     }
 
     const buffer = await response.arrayBuffer();
-    this.cache?.set(finalUrl, buffer);
+    if (!cachedNode || !sameBytes(cachedNode, buffer)) this.cache?.set(finalUrl, buffer);
     return buffer;
   }
 
@@ -82,9 +104,14 @@ export class RemoteNodeRegistry implements NodeRegistry {
     return this.fetchJson(`nodes/${userId}.json`);
   }
 
-  async fetchCollection(userCollectionId: `${string}/${string}`) {
-    const col = await this.fetchJson(`nodes/${userCollectionId}.json`);
-    return col;
+  async fetchCollection(userCollectionId: `${string}/${string}`): Promise<CollectionListing> {
+    let collection = this.collections.get(userCollectionId);
+    if (!collection) {
+      collection = this.fetchJson(`nodes/${userCollectionId}.json`) as Promise<CollectionListing>;
+      collection.catch(() => this.collections.delete(userCollectionId));
+      this.collections.set(userCollectionId, collection);
+    }
+    return collection;
   }
 
   async fetchNodeDefinition(nodeId: `${string}/${string}/${string}`) {
@@ -101,14 +128,16 @@ export class RemoteNodeRegistry implements NodeRegistry {
     return node;
   }
 
-  async load(nodeIds: `${string}/${string}/${string}`[]) {
+  /** Older collection listings name the nodes after their files, `<node>.wasm` */
+  private normalizeIds(nodeIds: NodeId[]) {
+    return [...new Set(nodeIds.map((id) => id.replace(/\.wasm$/, '') as NodeId))];
+  }
+
+  async load(nodeIds: NodeId[]) {
     const a = performance.now();
 
-    // older collection listings name the nodes after their files, `<node>.wasm`
-    const ids = nodeIds.map((id) => id.replace(/\.wasm$/, '') as typeof id);
-
     const nodes = (await Promise.all(
-      [...new Set(ids).values()].map((id) => {
+      this.normalizeIds(nodeIds).map((id) => {
         if (this.nodes.has(id)) {
           return this.nodes.get(id)!;
         }
@@ -134,6 +163,57 @@ export class RemoteNodeRegistry implements NodeRegistry {
     this.status = 'ready';
 
     return nodes;
+  }
+
+  /**
+   * The definitions from the listings of their collections, no wasm is loaded. Nodes that a
+   * listing has no definition for (a registry built before they were added) are loaded from
+   * their wasm files.
+   */
+  async loadDefinitions(nodeIds: NodeId[]) {
+    const ids = this.normalizeIds(nodeIds).filter((id) => !id.startsWith(INTERNAL_PREFIX));
+
+    const byCollection = new Map<`${string}/${string}`, NodeId[]>();
+    for (const id of ids) {
+      if (this.getNode(id)) continue;
+      const [user, collection] = id.split('/');
+      const key = `${user}/${collection}` as const;
+      byCollection.set(key, [...(byCollection.get(key) ?? []), id]);
+    }
+
+    await Promise.all(
+      [...byCollection.keys()].map((collection) =>
+        this.fetchCollection(collection)
+          .then((listing) => this.addDefinitions(listing))
+          .catch((error) => log.warn(`No listing for ${collection}`, error))
+      )
+    );
+
+    const withoutDefinition = ids.filter((id) => !this.getNode(id));
+    if (withoutDefinition.length) await this.load(withoutDefinition);
+
+    this.status = 'ready';
+    return ids.map((id) => this.getNode(id)).filter(Boolean) as NodeDefinition[];
+  }
+
+  async loadCollection(collectionId: `${string}/${string}`) {
+    const listing = await this.fetchCollection(collectionId);
+    return this.loadDefinitions(listing.nodes.map((n) => n.id));
+  }
+
+  private addDefinitions(listing: CollectionListing) {
+    if (!Array.isArray(listing.definitions)) return;
+    for (const raw of listing.definitions) {
+      const definition = NodeDefinitionSchema.safeParse(raw);
+      if (!definition.success) {
+        log.warn('Invalid definition in the listing', raw, definition.error);
+        continue;
+      }
+      if (!this.nodes.has(definition.data.id)) {
+        // it has no execute until load() replaces it, which the runtime calls before running it
+        this.definitions.set(definition.data.id, definition.data as NodeDefinition);
+      }
+    }
   }
 
   private async fetchAndRegister(id: `${string}/${string}/${string}`) {
@@ -169,10 +249,6 @@ export class RemoteNodeRegistry implements NodeRegistry {
       );
     }
 
-    if (this.cache) {
-      this.cache.set(definition.data.id, wasmBuffer);
-    }
-
     const node = {
       ...definition.data,
       execute: wrapper.execute,
@@ -182,15 +258,16 @@ export class RemoteNodeRegistry implements NodeRegistry {
     };
 
     this.nodes.set(definition.data.id, node);
+    this.definitions.delete(definition.data.id);
 
     return node;
   }
 
   getNode(id: string) {
-    return this.nodes.get(id);
+    return this.nodes.get(id) ?? this.definitions.get(id);
   }
 
   getAllNodes() {
-    return [...this.nodes.values()];
+    return [...this.nodes.values(), ...this.definitions.values()];
   }
 }

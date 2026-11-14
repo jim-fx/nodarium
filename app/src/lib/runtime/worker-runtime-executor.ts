@@ -1,5 +1,5 @@
 /// <reference types="vite-plugin-comlink/client" />
-import type { Graph, RuntimeExecutor } from '@nodarium/types';
+import type { Graph, NodeId, RuntimeExecutor } from '@nodarium/types';
 import type { WorkerExecution } from './types';
 
 export class WorkerRuntimeExecutor implements RuntimeExecutor {
@@ -15,6 +15,10 @@ export class WorkerRuntimeExecutor implements RuntimeExecutor {
     const { result, ...details } = await this.worker.executeGraph(graph, settings);
     this.last = details;
     return result;
+  }
+  /** The worker fetches and compiles the nodes now instead of on the first run */
+  loadNodes(nodeIds: NodeId[]) {
+    return this.worker.loadNodes(nodeIds);
   }
   /** The timings of the last run */
   getPerformanceData() {

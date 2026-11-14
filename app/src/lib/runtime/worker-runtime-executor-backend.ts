@@ -1,6 +1,6 @@
 import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
 import { debugNode, MemoryRuntimeCache, MemoryRuntimeExecutor } from '@nodarium/runtime';
-import type { Graph } from '@nodarium/types';
+import type { Graph, NodeId } from '@nodarium/types';
 import { createPerformanceStore } from '@nodarium/utils';
 import * as Comlink from 'comlink';
 import type { WorkerExecution } from './types';
@@ -28,6 +28,11 @@ export async function setUseRuntimeCache(useCache: boolean) {
   } else {
     executor.cache = undefined;
   }
+}
+
+/** Starts loading the nodes of a graph while the editor is still reading their definitions */
+export async function loadNodes(nodeIds: NodeId[]) {
+  await nodeRegistry.load(nodeIds).catch(() => {});
 }
 
 /**

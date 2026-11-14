@@ -4,6 +4,13 @@ export interface NodeRegistry {
   status: 'loading' | 'ready' | 'error';
   /** Has to be called before getNode or getAllNodes */
   load: (nodeIds: NodeId[]) => Promise<NodeDefinition[]>;
+  /**
+   * Like load, but a node may come without its code: enough for an editor, not for running it.
+   * A later load() of the same ids loads the code.
+   */
+  loadDefinitions?: (nodeIds: NodeId[]) => Promise<NodeDefinition[]>;
+  /** The definitions of every node of a collection, like `max/plantarium`, without their code */
+  loadCollection?: (collectionId: `${string}/${string}`) => Promise<NodeDefinition[]>;
   getNode: (id: NodeId | string) => NodeDefinition | undefined;
   getAllNodes: () => NodeDefinition[];
   register: (id: string, wasmBuffer: ArrayBuffer) => Promise<NodeDefinition>;
