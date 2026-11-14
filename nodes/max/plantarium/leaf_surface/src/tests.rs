@@ -4,8 +4,9 @@ use std::f32::consts::PI;
 use super::__nodarium_execute_inner;
 use glam::{Quat, Vec2, Vec3};
 use nodarium_utils::{
-    concat_arg_vecs, concat_args, encode_float,
+    concat_arg_vecs, concat_args, encode_color, encode_float,
     geometry::{create_path, set_path_link, wrap_geometry_data, wrap_path_mut, PathLink},
+    opaque, MIX_COLOR,
 };
 
 fn path(points: &[(Vec3, f32)], link: PathLink, depth: i32) -> Vec<i32> {
@@ -86,10 +87,30 @@ fn run_at(veins: &[i32], smooth: f32, margin: &[i32], relief: f32, resolution: i
     ])
 }
 
+fn run_colored(veins: &[i32], color: &[i32]) -> Vec<i32> {
+    __nodarium_execute_inner(&[
+        veins,
+        &[encode_float(1.0)],
+        &[encode_float(0.1)],
+        &plain(0.0),
+        &[encode_float(0.003)],
+        &[64],
+        color,
+    ])
+}
+
+const PALE: [u8; 3] = [190, 200, 130];
+const GREEN: [u8; 3] = [50, 90, 40];
+
+fn mix(a: [u8; 3], b: [u8; 3], factor: &[i32]) -> Vec<i32> {
+    concat_args(vec![&[MIX_COLOR], &encode_color(a), &encode_color(b), factor])
+}
+
 struct Mesh {
     positions: Vec<Vec3>,
     normals: Vec<Vec3>,
     faces: Vec<[usize; 3]>,
+    colors: Vec<u32>,
 }
 
 fn read(geometry: &[i32]) -> Mesh {
@@ -100,6 +121,7 @@ fn read(geometry: &[i32]) -> Mesh {
         positions: vec3s(g.positions),
         normals: vec3s(g.normals),
         faces: g.faces.chunks(3).map(|f| [f[0] as usize, f[1] as usize, f[2] as usize]).collect(),
+        colors: g.colors.to_vec(),
     }
 }
 
@@ -196,6 +218,10 @@ impl Mesh {
         })
     }
 
+    fn neighbours(&self, i: usize) -> HashSet<usize> {
+        self.faces.iter().filter(|f| f.contains(&i)).flatten().copied().filter(|&j| j != i).collect()
+    }
+
     fn area(&self) -> f32 {
         self.faces
             .iter()
@@ -232,9 +258,9 @@ fn an_ovate_leaf_is_closed_and_has_no_holes() {
 }
 
 #[test]
-fn a_beech_has_500_to_1000_triangles() {
+fn a_beech_has_800_to_1300_triangles() {
     let leaf = read(&run_at(&beech(), 0.1, &plain(0.0), 0.003, 96));
-    assert!((500..=1000).contains(&leaf.faces.len()), "{} faces", leaf.faces.len());
+    assert!((800..=1300).contains(&leaf.faces.len()), "{} faces", leaf.faces.len());
     leaf.assert_disc();
 }
 
@@ -429,4 +455,81 @@ fn relief_sinks_the_veins() {
 #[test]
 fn no_veins_give_no_leaf() {
     assert_eq!(run(&concat_arg_vecs(vec![]), 0.1, &plain(0.0), 0.0), concat_arg_vecs(vec![]));
+}
+
+#[test]
+fn every_point_of_a_vein_has_a_bank_on_both_sides() {
+    // the groove and the colour of the vein end a row beside it, also beside the points of the
+    // chain, not only beside the middle of its edges
+    let midrib = line(Vec3::ZERO, Vec3::Z, |_| 0.1, 24);
+    let veins = concat_arg_vecs(vec![path(&midrib, PathLink::root(1, 0), 1)]);
+    let leaf = read(&run(&veins, 0.0, &plain(0.0), 0.0));
+    let on = leaf.on_line(&[placed(Vec3::ZERO), placed(Vec3::Z)]);
+    assert!(on.len() > 10);
+    for &(s, i) in on.iter().filter(|(s, _)| *s > 5.0 && *s < 95.0) {
+        let p = leaf.positions[i];
+        for side in [1.0, -1.0] {
+            let bank = leaf.neighbours(i).into_iter().map(|j| leaf.positions[j] - p).find(|d| {
+                d.x * side > 0.5 && d.length() < 5.0
+            });
+            assert!(bank.is_some(), "no bank beside the midrib {s} along it on the side {side}");
+        }
+    }
+}
+
+#[test]
+fn an_unconnected_color_leaves_the_blade_without_colors() {
+    let veins = beech();
+    let leaf = run_colored(&veins, &[0, 1, 1, 1]);
+    assert_eq!(leaf, run_at(&veins, 0.1, &plain(0.0), 0.003, 64));
+    assert!(read(&leaf).colors.is_empty());
+}
+
+#[test]
+fn a_color_of_alpha_vein_draws_the_veins() {
+    let (veins, sides) = pinnate(7, |t| 0.08 * (1.0 - 0.5 * t));
+    let vein = concat_args(vec![&[2], &[2]]);
+    let leaf = read(&run_colored(&veins, &mix(PALE, GREEN, &vein)));
+    let plain_leaf = read(&run_at(&veins, 0.1, &plain(0.0), 0.003, 64));
+    assert_eq!(leaf.positions, plain_leaf.positions);
+    assert_eq!(leaf.faces, plain_leaf.faces);
+    assert_eq!(leaf.colors.len(), leaf.positions.len());
+
+    let mut lines = vec![[placed(Vec3::ZERO), placed(Vec3::Z)]];
+    lines.extend(sides.iter().map(|&[base, tip]| [placed(base), placed(tip)]));
+    let mut on_veins = HashSet::new();
+    for line in &lines {
+        for (_, i) in leaf.on_line(line) {
+            assert_eq!(leaf.colors[i], opaque(PALE), "a vertex on a vein at {}", leaf.positions[i]);
+            on_veins.insert(i);
+        }
+    }
+    assert!(on_veins.len() > 50);
+    // the blade between the veins, farther from them than their grooves are wide
+    let far = (0..leaf.positions.len()).filter(|&i| {
+        let p = Vec2::new(leaf.positions[i].x, leaf.positions[i].z);
+        lines.iter().all(|l| crate::veins::closest(l[0], l[1], p).1 > 4.0)
+    });
+    let far: Vec<usize> = far.collect();
+    assert!(far.len() > 50);
+    assert!(far.iter().all(|&i| leaf.colors[i] == opaque(GREEN)));
+}
+
+#[test]
+fn path_info_tells_the_midrib_from_the_side_veins() {
+    let (veins, sides) = pinnate(7, |t| 0.08 * (1.0 - 0.5 * t));
+    // the midrib has depth 1, the side veins 2
+    let depth = concat_args(vec![&[5], &[3]]);
+    let side = concat_args(vec![&[0], &[1], &depth, &[encode_float(1.0)]]);
+    let leaf = read(&run_colored(&veins, &mix(PALE, GREEN, &side)));
+    for (_, i) in leaf.on_line(&[placed(Vec3::ZERO), placed(Vec3::Z)]) {
+        assert_eq!(leaf.colors[i], opaque(PALE), "the midrib at {}", leaf.positions[i]);
+    }
+    for &[base, tip] in &sides {
+        for (s, i) in leaf.on_line(&[placed(base), placed(tip)]) {
+            if s > 1.0 {
+                assert_eq!(leaf.colors[i], opaque(GREEN), "a side vein at {}", leaf.positions[i]);
+            }
+        }
+    }
 }

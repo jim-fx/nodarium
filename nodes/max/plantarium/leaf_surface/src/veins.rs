@@ -52,6 +52,8 @@ pub struct Vein {
     pub reach: f32,
     /// The vein it branches from, an index into the veins.
     pub parent: Option<usize>,
+    /// The path it was made from, an index into the paths.
+    pub path: usize,
 }
 
 impl Vein {
@@ -126,7 +128,8 @@ pub fn leaf_space(paths: &[&[i32]]) -> Vec<Vein> {
     let mut kept = Vec::new();
     let mut veins: Vec<Vein> = paths
         .iter()
-        .filter_map(|p| {
+        .enumerate()
+        .filter_map(|(k, p)| {
             let path = wrap_path(p);
             let points: Vec<(Vec2, f32, f32)> = (0..path.length)
                 .map(|i| {
@@ -156,6 +159,7 @@ pub fn leaf_space(paths: &[&[i32]]) -> Vec<Vein> {
                 max: points.iter().fold(Vec2::MIN, |m, p| m.max(p.0)),
                 reach: points.iter().fold(0.0_f32, |m, p| m.max(p.2)),
                 parent: None,
+                path: k,
             })
         })
         .collect();

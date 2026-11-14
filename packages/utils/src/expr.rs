@@ -79,6 +79,9 @@ pub struct Ctx {
     /// Where a vertex sits across a geometry, from 0 on its middle to 1 at its edge. Only
     /// `set_color` sets it, the `alpha` node with `across` reads it.
     pub across: f32,
+    /// How far a vertex of a leaf lies from the nearest vein, from 0 on it to 1 at the edge of
+    /// its groove and beyond. Only `leaf_surface` sets it, the `alpha` node with `vein` reads it.
+    pub vein: f32,
     /// The path the node is working on. The `path_info` node reads it.
     pub path: PathInfo,
     calls: i32,
@@ -157,6 +160,7 @@ impl Ctx {
                 }
             }
             [[2], [1]] => self.across,
+            [[2], [2]] => self.vein,
             [[2], ..] => self.alpha,
             [[5], [field]] => PathField::from_index(*field)
                 .map(|field| self.path.read(field))
@@ -224,16 +228,23 @@ impl Ctx {
     /// Reads a color at every `(alpha, across)`, e.g. at every point of a path or vertex of a
     /// geometry. Like `float_along`, random values are drawn once.
     pub fn colors_at(&mut self, arg: &[i32], at: impl IntoIterator<Item = (f32, f32)>) -> Vec<[u8; 3]> {
+        let vein = self.vein;
+        self.colors_at_veins(arg, at.into_iter().map(|(a, c)| (a, c, vein)))
+    }
+
+    /// Like `colors_at`, at every `(alpha, across, vein)`, e.g. at every vertex of a leaf.
+    pub fn colors_at_veins(&mut self, arg: &[i32], at: impl IntoIterator<Item = (f32, f32, f32)>) -> Vec<[u8; 3]> {
         let at = at.into_iter();
         if let Some(color) = plain_color(arg) {
             return at.map(|_| color).collect();
         }
-        let (alpha, across, calls) = (self.alpha, self.across, self.calls);
+        let (alpha, across, vein, calls) = (self.alpha, self.across, self.vein, self.calls);
         let mut end = calls;
         let colors = at
-            .map(|(a, c)| {
+            .map(|(a, c, v)| {
                 self.alpha = a;
                 self.across = c;
+                self.vein = v;
                 self.calls = calls;
                 let color = self.color(arg);
                 end = self.calls;
@@ -242,6 +253,7 @@ impl Ctx {
             .collect();
         self.alpha = alpha;
         self.across = across;
+        self.vein = vein;
         self.calls = end;
         colors
     }
@@ -932,6 +944,10 @@ mod tests {
         assert_eq!(ctx.colors_at(&across, [(0.0, 1.0), (1.0, 0.0)]), vec![b, a]);
         // alpha and across are as they were
         assert_eq!((ctx.alpha, ctx.across), (0.0, 0.0));
+
+        let vein = concat_args(vec![&[MIX_COLOR], &encode_color(a), &encode_color(b), &concat_args(vec![&[2], &[2]])]);
+        assert_eq!(ctx.colors_at_veins(&vein, [(1.0, 1.0, 0.0), (0.0, 0.0, 1.0)]), vec![a, b]);
+        assert_eq!(ctx.vein, 0.0);
 
         // a mix of a mix
         let twice = concat_args(vec![&[MIX_COLOR], &along, &encode_color(a), &[encode_float(0.0)]]);

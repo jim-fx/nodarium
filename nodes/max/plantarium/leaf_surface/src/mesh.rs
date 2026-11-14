@@ -169,10 +169,10 @@ fn chains(
     chains
 }
 
-/// Points beside the middle of every edge of the chains, where the groove `relief` sinks the vein
-/// into ends, or a third of the edge away for a long edge. They keep the groove narrow in the
-/// middle of the blade, where the edges are long, while the triangles between a chain and its
-/// banks stay wide enough for refinement to leave them be.
+/// Points on both sides of the chains, beside every point and the middle of every edge, where the
+/// groove `relief` sinks the vein into ends, or a third of the edge away for a long edge. They
+/// keep the groove and the colour of the vein one row wide along the whole chain, while the
+/// triangles between a chain and its banks stay wide enough for refinement to leave them be.
 fn banks(chains: &[(usize, Vec<Vec2>)], veins: &[Vein], margin: &Polygon, density: &Density) -> Vec<Vec2> {
     let near_other = |p: Vec2, own: usize, width: f32| {
         chains.iter().filter(|(v, _)| *v != own).any(|(_, chain)| {
@@ -180,23 +180,30 @@ fn banks(chains: &[(usize, Vec<Vec2>)], veins: &[Vein], margin: &Polygon, densit
         })
     };
     let mut banks = Vec::new();
-    for (vein, chain) in chains {
-        for w in chain.windows(2) {
-            let (a, b) = (w[0], w[1]);
-            let middle = (a + b) * 0.5;
-            let length = (b - a).length();
-            let width = groove(veins[*vein].at(veins[*vein].project(middle).0).2, density.cell).max(0.3 * length);
-            if length < width {
-                continue;
+    let mut add = |vein: usize, at: Vec2, direction: Vec2, width: f32| {
+        let side = direction.normalize().perp() * width;
+        for bank in [at + side, at - side] {
+            if margin.contains(bank) && margin.distance_within(bank, width) >= width && !near_other(bank, vein, width) {
+                banks.push(bank);
             }
-            let side = (b - a).normalize().perp() * width;
-            for bank in [middle + side, middle - side] {
-                if margin.contains(bank)
-                    && margin.distance_within(bank, width) >= width
-                    && !near_other(bank, *vein, width)
-                {
-                    banks.push(bank);
-                }
+        }
+    };
+    for (vein, chain) in chains {
+        let width = |a: Vec2, b: Vec2| {
+            let middle = (a + b) * 0.5;
+            let reach = veins[*vein].at(veins[*vein].project(middle).0).2;
+            groove(reach, density.cell).max(0.3 * (b - a).length())
+        };
+        let widths: Vec<f32> = chain.windows(2).map(|w| width(w[0], w[1])).collect();
+        for (k, &p) in chain.iter().enumerate() {
+            let (before, after) = (chain[k.saturating_sub(1)], chain[(k + 1).min(chain.len() - 1)]);
+            let around = widths[k.saturating_sub(1)].max(widths[k.min(widths.len() - 1)]);
+            add(*vein, p, after - before, around);
+        }
+        for (w, &width) in chain.windows(2).zip(&widths) {
+            let (a, b) = (w[0], w[1]);
+            if (b - a).length() >= width {
+                add(*vein, (a + b) * 0.5, b - a, width);
             }
         }
     }
