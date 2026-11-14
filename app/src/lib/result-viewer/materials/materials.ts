@@ -2,6 +2,7 @@ import {
   type Box3,
   Color,
   DoubleSide,
+  LinearSRGBColorSpace,
   type Material,
   MeshBasicMaterial,
   MeshMatcapMaterial,
@@ -9,10 +10,10 @@ import {
   ShaderMaterial,
   type Texture,
   TextureLoader,
-  Vector2,
-  Vector3
+  Vector2
 } from 'three';
 import { takeGroups, takeVertexColors } from '../geometry/geometryPool';
+import { shaderLights } from './lighting';
 
 const loader = new TextureLoader();
 let matcapTexture: Texture | undefined;
@@ -202,6 +203,11 @@ const groupsFragmentShader = /* glsl */ `
   }
 `;
 
+/** The debug materials keep the look they had before the viewer converted colors to linear */
+function unlit(hex: string) {
+  return new Color().setStyle(hex, LinearSRGBColorSpace);
+}
+
 type LitOptions = {
   base: string;
   tip: string;
@@ -211,6 +217,7 @@ type LitOptions = {
 };
 
 function createLitMaterial(options: LitOptions) {
+  const lights = shaderLights();
   return new ShaderMaterial({
     vertexShader,
     fragmentShader: litFragmentShader,
@@ -222,10 +229,10 @@ function createLitMaterial(options: LitOptions) {
       uTranslucent: { value: new Color(options.translucent) },
       uTranslucency: { value: options.translucency },
       uVariation: { value: options.variation },
-      uSky: { value: new Color('#cfe6ff').multiplyScalar(0.45) },
-      uGround: { value: new Color('#5a4a30').multiplyScalar(0.3) },
-      uLightDirection: { value: new Vector3(0.5, 1, 0.3) },
-      uLightColor: { value: new Color('#fff1d6').multiplyScalar(0.8) }
+      uSky: { value: lights.sky },
+      uGround: { value: lights.ground },
+      uLightDirection: { value: lights.direction },
+      uLightColor: { value: lights.color }
     }
   });
 }
@@ -316,8 +323,8 @@ export const materials = [
     name: 'Clay',
     create: () =>
       createLitMaterial({
-        base: '#8a8580',
-        tip: '#c9c4bd',
+        base: '#6e6963',
+        tip: '#a19b93',
         translucent: '#000000',
         translucency: 0,
         variation: 0
@@ -327,12 +334,18 @@ export const materials = [
     id: 'matcap',
     name: 'Matcap',
     create: () =>
-      new MeshMatcapMaterial({ color: 0xffffff, matcap: matcapTexture, side: DoubleSide })
+      new MeshMatcapMaterial({
+        color: 0xffffff,
+        matcap: matcapTexture,
+        side: DoubleSide,
+        toneMapped: false
+      })
   },
   {
     id: 'wireframe',
     name: 'Wireframe',
-    create: () => new MeshBasicMaterial({ color: 0x8cc63f, wireframe: true, side: DoubleSide })
+    create: () =>
+      new MeshBasicMaterial({ color: unlit('#8cc63f'), wireframe: true, side: DoubleSide })
   },
   {
     id: 'normals',
@@ -355,8 +368,8 @@ export const materials = [
         side: DoubleSide,
         uniforms: {
           uHeightRange: { value: new Vector2(-1, 1) },
-          uFront: { value: new Color('#3b82f6') },
-          uBack: { value: new Color('#ef4444') }
+          uFront: { value: unlit('#3b82f6') },
+          uBack: { value: unlit('#ef4444') }
         }
       })
   },

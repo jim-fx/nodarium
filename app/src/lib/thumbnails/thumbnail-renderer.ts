@@ -107,7 +107,7 @@ export class ThumbnailRenderer {
     this.renderer.setClearColor(0x000000, 0);
     // thumbnails show the colors of a mesh like the plant material of the viewer
     this.material = takeVertexColors(
-      new MeshMatcapMaterial({ color: 0xffffff, matcap, side: DoubleSide })
+      new MeshMatcapMaterial({ color: 0xffffff, matcap, side: DoubleSide, toneMapped: false })
     );
   }
 

@@ -11,12 +11,16 @@
   import Debug from './debug/Debug.svelte';
   import type { Gizmo, GizmoChange, GizmoMode } from './gizmos/gizmos';
   import Gizmos from './gizmos/Gizmos.svelte';
+  import { createLights, lighting } from './materials/lighting';
   import { usesEnvironment } from './materials/materials';
   import ScaleModel from './scale/ScaleModel.svelte';
   import ScaleViewer from './scale/ScaleViewer.svelte';
   import { updateViewScale } from './scale/view-scale.svelte';
 
-  const { renderStage, invalidate: _invalidate, size } = useThrelte();
+  const { renderStage, invalidate: _invalidate, size, scene: threeScene } = useThrelte();
+
+  const lights = createLights();
+  threeScene.environmentIntensity = lighting.environment.intensity;
 
   type Props = {
     fps: number[];
@@ -96,11 +100,12 @@
 </script>
 
 {#if usesEnvironment(appSettings.value.material.id)}
-  <Environment url="/environments/meadow_1k.exr" />
+  <Environment url={lighting.environment.url} />
 {/if}
 
-<T.DirectionalLight intensity={0.5} position={[0, 0, 1]} />
-<T.AmbientLight intensity={1} />
+{#each lights as light (light.id)}
+  <T is={light} />
+{/each}
 
 {#if appSettings.value.showScaleModel}
   <ScaleModel {bounds} />
