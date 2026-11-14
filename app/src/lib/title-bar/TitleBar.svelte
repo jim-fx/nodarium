@@ -201,13 +201,13 @@
   </div>
   <MenuBar {menus} />
 
-  <div class="absolute left-1/2 top-0 flex h-full -translate-x-1/2 items-center gap-3.5">
+  <div class="flex h-full min-w-0 flex-1 items-center justify-center gap-3.5 px-2 md:absolute md:top-0 md:left-1/2 md:flex-none md:-translate-x-1/2 md:px-0">
     {#if renaming}
       <input
         bind:this={renameInput}
         bind:value={renameValue}
         aria-label="Project name"
-        class="h-6 w-64 rounded-[3px] border border-outline bg-layer-0 px-2 text-center text-sm outline-none focus:border-selected"
+        class="h-6 w-64 min-w-0 rounded-[3px] border border-outline bg-layer-0 px-2 text-center text-sm outline-none focus:border-selected"
         onkeydown={(e) => {
           if (e.key === 'Enter') finishRename(true);
           if (e.key === 'Escape') finishRename(false);
@@ -218,13 +218,15 @@
       <button
         type="button"
         title="Rename (F2)"
-        class="max-w-80 cursor-pointer truncate border-none bg-transparent px-1 text-sm font-(--font-family)"
+        class="max-w-80 min-w-0 cursor-pointer truncate border-none bg-transparent px-1 text-sm font-(--font-family)"
         onclick={startRename}
       >
         {title}
       </button>
     {/if}
-    <span class="text-xs opacity-50" aria-live="polite">{saving ? 'saving…' : 'saved'}</span>
+    <span class="shrink-0 text-xs opacity-50" aria-live="polite">{
+      saving ? 'saving…' : 'saved'
+    }</span>
   </div>
 
   <div class="ml-auto flex items-stretch">
