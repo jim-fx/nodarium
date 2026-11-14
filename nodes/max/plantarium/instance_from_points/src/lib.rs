@@ -2,11 +2,8 @@ use glam::{Mat4, Vec3};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_args, decode_points,
-    geometry::{
-        create_colored_instance_data, create_instance_data, is_geometry, is_path, path_link,
-        split_items, wrap_geometry_data, wrap_instance_data,
-    },
-    group_points_by_parent, split_args, Ctx, Point,
+    geometry::{encode_instances, is_geometry, is_path, path_id, path_link, pick_geometry, split_items},
+    group_points_by_parent, int, split_args, Ctx, Point,
 };
 
 nodarium_definition_file!("src/definition.json");
@@ -40,16 +37,17 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut plant = split_args(args[0]);
     let points = decode_points(args[1]);
 
-    // like instance, a link that brings no geometry places nothing, of a list the first one
-    let Some(geometry) = split_items(args[2]).into_iter().find(|item| is_geometry(item)) else {
+    // like instance, a link that brings no geometry places nothing
+    let geometries: Vec<&[i32]> = split_items(args[2]).into_iter().filter(|item| is_geometry(item)).collect();
+    if geometries.is_empty() {
         return concat_args(plant);
-    };
-    let mut geo_data = geometry.to_vec();
-    let geo = wrap_geometry_data(&mut geo_data);
+    }
+    let seed = args.get(5).map_or(0, |s| s[0]);
+    let by_index = args.get(6).is_some_and(|p| int(p) == 1);
+    let pick_input = if by_index { args.get(7) } else { args.get(8) };
 
-    let mut transforms: Vec<Mat4> = Vec::new();
-    // the path each of the instances sits on
-    let mut path_ids: Vec<i32> = Vec::new();
+    // the transforms of the instances of each geometry and the paths they sit on
+    let mut placed: Vec<(Vec<[f32; 16]>, Vec<i32>)> = vec![Default::default(); geometries.len()];
 
     let groups = group_points_by_parent(&points);
     for (rank, (parent_id, group)) in groups.iter().enumerate() {
@@ -65,25 +63,21 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             ctx.alpha = point.alpha;
             let size = (point.scale + 0.01) * ctx.float(args[3]);
             let angle = ctx.float(args[4]).to_radians();
-            transforms.push(transform(point, size, angle));
-            path_ids.push(point.parent_id);
+            let pick = pick_input.map_or(0.0, |p| ctx.float(p));
+            let hash = path_id(seed, point.parent_id, point.index);
+            let choice = pick_geometry(by_index, pick, hash, geometries.len());
+            placed[choice].0.push(transform(point, size, angle).to_cols_array());
+            placed[choice].1.push(point.parent_id);
         }
     }
 
-    let create = if geo.colors.is_empty() { create_instance_data } else { create_colored_instance_data };
-    let mut instance_data = create(
-        geo.positions.len() / 3,
-        geo.faces.len() / 3,
-        transforms.len(),
-    );
-    let mut instances = wrap_instance_data(&mut instance_data);
-    instances.set_geometry(geo);
-    for (i, transform) in transforms.iter().enumerate() {
-        instances.set_transformation_matrix(i, &transform.to_cols_array());
-        instances.set_path_id(i, path_ids[i]);
-    }
-
-    plant.push(&instance_data);
+    let instance_data: Vec<Vec<i32>> = geometries
+        .iter()
+        .zip(&placed)
+        .filter(|(_, (transforms, _))| !transforms.is_empty())
+        .map(|(geometry, (transforms, path_ids))| encode_instances(geometry, transforms, path_ids))
+        .collect();
+    plant.extend(instance_data.iter().map(Vec::as_slice));
     concat_args(plant)
 }
 
@@ -239,9 +233,72 @@ mod tests {
         for geometry in [plant.clone(), split_args(&plant)[0].to_vec(), vec![0, 1, 1, 1]] {
             assert_eq!(split_args(&run(&geometry)), split_args(&plant));
         }
-        // a list of geometries places the first
+        // of a list of the same geometry, whichever is picked places it
         let framed = wrap_arg(&triangle()[2..triangle().len() - 2]);
         let list = concat_args(vec![&framed, &framed]);
         assert_eq!(run(&list), run(&triangle()));
+    }
+
+    /// A geometry of `vertices` points at the origin and a single face.
+    fn geometry(vertices: i32) -> Vec<i32> {
+        let mut data = vec![1, vertices, 1, NO_PATH, 0, 1, 2];
+        data.extend(vec![0; vertices as usize * 6]);
+        wrap_arg(&data)
+    }
+
+    /// `amount` points along a stem, and how many instances of the geometries with 3, 4 and 5
+    /// vertices sit on them.
+    fn picked(amount: i32, seed: i32, pick: &[&[i32]]) -> [usize; 3] {
+        let plant = create_multiple_paths(1, 4, 1, 6);
+        let stem_id = path_link(split_args(&plant)[0]).id;
+        let points: Vec<Point> = (0..amount)
+            .map(|i| Point {
+                position: Vec3::new(0.0, i as f32, 0.0),
+                direction: Vec3::X,
+                tangent: Vec3::Y,
+                scale: 0.09,
+                parent_id: stem_id,
+                alpha: i as f32 / (amount - 1).max(1) as f32,
+                depth: 1,
+                index: i,
+            })
+            .collect();
+        let list = concat_args(vec![&geometry(3), &geometry(4), &geometry(5)]);
+        let points = encode_points(&points);
+        let (size, angle, seed) = ([encode_float(10.0)], [encode_float(0.0)], [seed]);
+        let mut args: Vec<&[i32]> = vec![&plant, &points, &list, &size, &angle, &seed];
+        args.extend(pick);
+        let result = __nodarium_execute_inner(&args);
+        let mut counts = [0; 3];
+        for item in split_args(&result).iter().skip(1) {
+            let mut data = item.to_vec();
+            let instances = wrap_instance_data(&mut data);
+            counts[instances.positions.len() / 3 - 3] += instances.instance_amount;
+        }
+        counts
+    }
+
+    #[test]
+    fn every_instance_picks_a_geometry_of_a_list_at_random() {
+        let counts = picked(300, 1, &[]);
+        assert_eq!(counts.iter().sum::<usize>(), 300);
+        assert!(counts.iter().all(|&c| c > 60), "{counts:?}");
+        assert_ne!(counts, picked(300, 2, &[]), "another seed picks others");
+        assert_eq!(counts, picked(300, 1, &[]));
+    }
+
+    #[test]
+    fn the_bias_favours_the_later_geometries() {
+        let (zero, bias) = ([encode_float(0.0)], [encode_float(1.0)]);
+        let counts = picked(300, 1, &[&[0], &zero, &bias]);
+        assert!(counts[2] > 200 && counts[0] < 20, "{counts:?}");
+    }
+
+    #[test]
+    fn by_index_alpha_goes_through_the_list_along_the_path() {
+        let alpha = concat_args(vec![&[2], &[0]]);
+        let (zero, one) = ([encode_float(0.0)], [encode_float(1.0)]);
+        assert_eq!(picked(9, 1, &[&[1], &alpha, &zero]), [3, 3, 3]);
+        assert_eq!(picked(9, 1, &[&[1], &one, &zero]), [0, 0, 9]);
     }
 }

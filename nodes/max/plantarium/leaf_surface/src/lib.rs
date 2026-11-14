@@ -18,11 +18,15 @@ mod outline;
 mod polygon;
 mod veins;
 
+use std::collections::HashMap;
+
 use glam::{Vec2, Vec3};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs,
-    geometry::{create_geometry_data, is_path, vertex_places, with_geometry_colors, wrap_geometry_data},
+    geometry::{
+        create_geometry_data, is_path, path_link, vertex_places, with_geometry_colors, wrap_geometry_data,
+    },
     int, opaque, split_args, Ctx,
 };
 
@@ -36,6 +40,8 @@ nodarium_definition_file!("src/definition.json");
 
 /// The leaf node is 100 units long at size 1.
 const LEAF_LENGTH: f32 = 100.0;
+
+const MAX_VARIANTS: i32 = 16;
 
 /// The height of the blade over `p`, blended from the veins close to it, and how far `p` lies
 /// inside the nearest vein (1 on its middle, 0 at its edge and beyond).
@@ -215,19 +221,48 @@ fn encode(positions: &[Vec3], faces: &[[u32; 3]]) -> Vec<i32> {
     out
 }
 
-#[nodarium_execute]
-pub fn execute(args: &[&[i32]]) -> Vec<i32> {
-    let mut ctx = Ctx::default();
-    let paths: Vec<&[i32]> = split_args(args[0]).into_iter().filter(|p| is_path(p)).collect();
+/// The veins of every leaf. The main veins, the paths whose parent is not among the veins, are
+/// dealt out to `variants` leaves in turn, every other vein goes with the main vein it grows from.
+/// Dealt in turn, a fan of main veins spread by its position (`rotate` with spread, `path_info`)
+/// gives every leaf veins from all over the fan, not one side of it.
+fn leaves<'a>(paths: &[&'a [i32]], variants: usize) -> Vec<Vec<&'a [i32]>> {
+    if variants <= 1 {
+        return if paths.is_empty() { vec![] } else { vec![paths.to_vec()] };
+    }
+    let parents: HashMap<i32, i32> = paths
+        .iter()
+        .map(|p| path_link(p))
+        .map(|link| (link.id, link.parent_id))
+        .collect();
+    let mut main_veins = HashMap::new();
+    let main_vein = |mut id: i32| {
+        for _ in 0..paths.len() {
+            match parents.get(&id) {
+                Some(&parent) if parents.contains_key(&parent) => id = parent,
+                _ => break,
+            }
+        }
+        id
+    };
+    let mut leaves: Vec<Vec<&[i32]>> = vec![vec![]; variants];
+    for path in paths {
+        let main = main_vein(path_link(path).id);
+        let next = main_veins.len();
+        let rank = *main_veins.entry(main).or_insert(next);
+        leaves[rank % variants].push(path);
+    }
+    leaves.retain(|veins| !veins.is_empty());
+    leaves
+}
+
+/// The blade of one leaf, `None` for veins that make none.
+fn leaf(ctx: &mut Ctx, args: &[&[i32]], paths: &[&[i32]], resolution: usize) -> Option<Vec<i32>> {
     let size = ctx.float(args[1]);
     let smooth = ctx.float(args[2]).max(0.0);
     let relief = ctx.float(args[4]);
-    let resolution = int(args[5]).clamp(8, 512) as usize;
 
-    let veins = leaf_space(&paths);
-    let Some(mut field) = Field::blade(&veins, smooth, resolution) else {
-        return concat_arg_vecs(vec![]);
-    };
+    let veins = leaf_space(paths);
+    let mut field = Field::blade(&veins, smooth, resolution)?;
 
     let margin = Margin::of(&field);
     let along = ctx.float_along(args[3], margin.alphas.iter().copied());
@@ -245,12 +280,38 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let positions = lift(&mesh, &veins, relief, field.cell, LEAF_LENGTH * size);
     let geometry = encode(&positions, &mesh.faces);
     // an unconnected color, the blade keeps the viewer's material
-    match args.get(6).filter(|c| **c != [0, 1, 1, 1]) {
+    Some(match args.get(6).filter(|c| **c != [0, 1, 1, 1]) {
         Some(color) => {
             let nearest = nearest_veins(&mesh, &veins, field.cell);
-            with_geometry_colors(&geometry, &colors(&mut ctx, color, &paths, &veins, &nearest, &positions))
+            with_geometry_colors(&geometry, &colors(ctx, color, paths, &veins, &nearest, &positions))
         }
         None => geometry,
+    })
+}
+
+#[nodarium_execute]
+pub fn execute(args: &[&[i32]]) -> Vec<i32> {
+    let mut ctx = Ctx::default();
+    let paths: Vec<&[i32]> = split_args(args[0]).into_iter().filter(|p| is_path(p)).collect();
+    let resolution = int(args[5]).clamp(8, 512) as usize;
+    let variants = args.get(7).map_or(1, |v| ctx.int(v).clamp(1, MAX_VARIANTS) as usize);
+
+    let leaves = leaves(&paths, variants);
+    let mut geometries: Vec<Vec<i32>> = leaves
+        .iter()
+        .enumerate()
+        .filter_map(|(k, veins)| {
+            // every leaf reads its inputs for its first main vein, so a random per path, path_info
+            // or alpha (the place of the leaf among the leaves) makes the leaves differ
+            let ids: Vec<i32> = veins.iter().map(|p| path_link(p).id).collect();
+            let main = veins.iter().find(|p| !ids.contains(&path_link(p).parent_id)).unwrap_or(&veins[0]);
+            ctx.set_path(main, k, leaves.len());
+            leaf(&mut ctx, args, veins, resolution)
+        })
+        .collect();
+    match geometries.len() {
+        1 => geometries.remove(0),
+        _ => concat_arg_vecs(geometries),
     }
 }
 

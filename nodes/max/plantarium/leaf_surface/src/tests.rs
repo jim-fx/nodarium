@@ -5,8 +5,8 @@ use super::__nodarium_execute_inner;
 use glam::{Quat, Vec2, Vec3};
 use nodarium_utils::{
     concat_arg_vecs, concat_args, encode_color, encode_float,
-    geometry::{create_path, set_path_link, wrap_geometry_data, wrap_path_mut, PathLink},
-    opaque, MIX_COLOR,
+    geometry::{create_path, is_geometry, set_path_link, wrap_geometry_data, wrap_path_mut, PathLink},
+    opaque, split_args, MIX_COLOR,
 };
 
 fn path(points: &[(Vec3, f32)], link: PathLink, depth: i32) -> Vec<i32> {
@@ -31,8 +31,13 @@ fn line(from: Vec3, to: Vec3, reach: impl Fn(f32) -> f32, n: usize) -> Vec<(Vec3
 /// A midrib 1 long along +z with `pairs` pairs of side veins, which reach `reach(t)` around them
 /// at `t` along their length. Returns the veins and the side veins as their base and tip.
 pub fn pinnate(pairs: usize, reach: impl Fn(f32) -> f32) -> (Vec<i32>, Vec<[Vec3; 2]>) {
+    let (paths, sides) = pinnate_paths(PathLink::root(1, 0), pairs, reach);
+    (concat_arg_vecs(paths), sides)
+}
+
+/// The paths of `pinnate`, with the midrib on `root`.
+fn pinnate_paths(root: PathLink, pairs: usize, reach: impl Fn(f32) -> f32) -> (Vec<Vec<i32>>, Vec<[Vec3; 2]>) {
     let midrib = line(Vec3::ZERO, Vec3::Z, |t| 0.05 * (1.0 - t), 24);
-    let root = PathLink::root(1, 0);
     let mut paths = vec![path(&midrib, root, 1)];
     let mut sides = Vec::new();
     for i in 0..pairs * 2 {
@@ -45,7 +50,7 @@ pub fn pinnate(pairs: usize, reach: impl Fn(f32) -> f32) -> (Vec<i32>, Vec<[Vec3
         paths.push(path(&line(base, tip, &reach, 12), link, 2));
         sides.push([base, tip]);
     }
-    (concat_arg_vecs(paths), sides)
+    (paths, sides)
 }
 
 pub fn beech() -> Vec<i32> {
@@ -85,6 +90,31 @@ fn run_at(veins: &[i32], smooth: f32, margin: &[i32], relief: f32, resolution: i
         &[encode_float(relief)],
         &[resolution],
     ])
+}
+
+fn run_variants(veins: &[i32], size: &[i32], variants: i32) -> Vec<i32> {
+    __nodarium_execute_inner(&[
+        veins,
+        size,
+        &[encode_float(0.1)],
+        &plain(0.0),
+        &[encode_float(0.003)],
+        &[64],
+        &[0, 1, 1, 1],
+        &[variants],
+    ])
+}
+
+/// Midribs along +z from the origin, turned around y by `angles` in degrees, without side veins.
+fn fan(angles: &[f32]) -> Vec<Vec<i32>> {
+    angles
+        .iter()
+        .enumerate()
+        .map(|(i, a)| {
+            let tip = Quat::from_rotation_y(a.to_radians()) * Vec3::Z;
+            path(&line(Vec3::ZERO, tip, |t| 0.12 * (1.0 - 0.7 * t), 16), PathLink::root(1, i as i32), 1)
+        })
+        .collect()
 }
 
 fn run_colored(veins: &[i32], color: &[i32]) -> Vec<i32> {
@@ -531,5 +561,61 @@ fn path_info_tells_the_midrib_from_the_side_veins() {
                 assert_eq!(leaf.colors[i], opaque(GREEN), "a side vein at {}", leaf.positions[i]);
             }
         }
+    }
+}
+
+#[test]
+fn variants_make_a_leaf_of_every_main_vein_and_the_veins_on_it() {
+    let leaves: Vec<Vec<Vec<i32>>> = (0..3)
+        .map(|i| pinnate_paths(PathLink::root(1, i), 4 + i as usize, |t| 0.08 * (1.0 - 0.5 * t)).0)
+        .collect();
+    let all = concat_arg_vecs(leaves.concat());
+    let list = run_variants(&all, &plain(1.0), 3);
+    let geometries = split_args(&list);
+    assert_eq!(geometries.len(), 3);
+    for (geometry, veins) in geometries.iter().zip(&leaves) {
+        // with plain inputs, a leaf is the leaf its veins make alone
+        assert_eq!(geometry.to_vec(), run_variants(&concat_arg_vecs(veins.clone()), &plain(1.0), 1));
+        read(geometry).assert_disc();
+    }
+}
+
+#[test]
+fn one_variant_is_one_leaf_of_all_veins() {
+    let veins = beech();
+    let leaf = run_variants(&veins, &plain(1.0), 1);
+    assert!(is_geometry(&leaf));
+    assert_eq!(leaf, run_at(&veins, 0.1, &plain(0.0), 0.003, 64));
+}
+
+#[test]
+fn a_fan_of_main_veins_is_dealt_out_in_turn() {
+    let veins = fan(&[-60.0, -30.0, 0.0, 30.0, 60.0, 90.0]);
+    let list = run_variants(&concat_arg_vecs(veins.clone()), &plain(1.0), 2);
+    let geometries = split_args(&list);
+    assert_eq!(geometries.len(), 2);
+    let first = concat_arg_vecs(vec![veins[0].clone(), veins[2].clone(), veins[4].clone()]);
+    assert_eq!(geometries[0].to_vec(), run_variants(&first, &plain(1.0), 1));
+    let second = concat_arg_vecs(vec![veins[1].clone(), veins[3].clone(), veins[5].clone()]);
+    assert_eq!(geometries[1].to_vec(), run_variants(&second, &plain(1.0), 1));
+}
+
+#[test]
+fn fewer_main_veins_than_variants_make_fewer_leaves() {
+    let veins = concat_arg_vecs(fan(&[0.0, 20.0]));
+    assert_eq!(split_args(&run_variants(&veins, &plain(1.0), 5)).len(), 2);
+    assert_eq!(run_variants(&concat_arg_vecs(vec![]), &plain(1.0), 5), concat_arg_vecs(vec![]));
+}
+
+#[test]
+fn every_leaf_reads_its_inputs_with_its_place_among_the_leaves() {
+    // alpha + 1: the first leaf at size 1, the last at size 2
+    let alpha = concat_args(vec![&[2], &[0]]);
+    let size = concat_args(vec![&[0], &[0], &alpha, &[encode_float(1.0)]]);
+    let veins = concat_arg_vecs(fan(&[0.0, 0.0, 0.0]));
+    let list = run_variants(&veins, &size, 3);
+    let lengths: Vec<f32> = split_args(&list).iter().map(|g| -read(g).bounds().0.z).collect();
+    for (length, share) in lengths.iter().zip([1.0, 1.5, 2.0]) {
+        assert!((length / lengths[0] - share).abs() < 1e-3, "{lengths:?}");
     }
 }

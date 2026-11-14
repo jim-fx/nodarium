@@ -3,8 +3,8 @@ use nodarium_macros::{nodarium_execute, nodarium_definition_file};
 use nodarium_utils::{
     concat_args,
     geometry::{
-        create_colored_instance_data, create_instance_data, is_collapsed, is_geometry, path_id, split_items,
-        wrap_geometry_data, wrap_instance_data, wrap_path, DeepestPaths,
+        encode_instances, is_collapsed, is_geometry, path_id, pick_geometry, split_items, wrap_path,
+        DeepestPaths,
     },
     int, split_args, Ctx,
 };
@@ -27,7 +27,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let by_index = int(args[10]) == 1;
 
     // the transforms of the instances of each geometry and the paths they sit on
-    let mut groups: Vec<(Vec<Mat4>, Vec<i32>)> = vec![Default::default(); geometries.len()];
+    let mut groups: Vec<(Vec<[f32; 16]>, Vec<i32>)> = vec![Default::default(); geometries.len()];
 
     let depth = ctx.int(args[6]);
     let selected = DeepestPaths::new(&inputs, depth);
@@ -101,12 +101,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             }
 
             let hash = path_id(seed, path.link.id, i);
-            let choice = if by_index {
-                pick_index(pick, geometries.len())
-            } else {
-                pick_random(hash, pick, geometries.len())
-            };
-            groups[choice].0.push(transform);
+            let choice = pick_geometry(by_index, pick, hash, geometries.len());
+            groups[choice].0.push(transform.to_cols_array());
             groups[choice].1.push(path.link.id);
         }
     }
@@ -115,43 +111,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         .iter()
         .zip(&groups)
         .filter(|(_, (transforms, _))| !transforms.is_empty())
-        .map(|(geometry, (transforms, path_ids))| {
-            let mut geo_data = geometry.to_vec();
-            let geo = wrap_geometry_data(&mut geo_data);
-            let create = if geo.colors.is_empty() { create_instance_data } else { create_colored_instance_data };
-            let mut data = create(
-                geo.positions.len() / 3,
-                geo.faces.len() / 3,
-                transforms.len(),
-            );
-            let mut instances = wrap_instance_data(&mut data);
-            instances.set_geometry(geo);
-            for (i, (transform, path_id)) in transforms.iter().zip(path_ids).enumerate() {
-                instances.set_transformation_matrix(i, &transform.to_cols_array());
-                instances.set_path_id(i, *path_id);
-            }
-            data
-        })
+        .map(|(geometry, (transforms, path_ids))| encode_instances(geometry, transforms, path_ids))
         .collect();
 
     inputs.extend(instance_data.iter().map(Vec::as_slice));
 
     concat_args(inputs)
-}
-
-/// `index` 0 is the first geometry and 1 the last, they share the range evenly.
-fn pick_index(index: f32, count: usize) -> usize {
-    ((index.clamp(0.0, 1.0) * count as f32) as usize).min(count - 1)
-}
-
-/// A positive bias picks the later geometries more often, a negative one the earlier ones.
-fn pick_random(hash: i32, bias: f32, count: usize) -> usize {
-    if bias == 0.0 {
-        return hash as usize % count;
-    }
-    let x = hash as f32 / 2_147_483_648.0;
-    let skewed = x.powf(4.0_f32.powf(-bias.clamp(-1.0, 1.0)));
-    pick_index(skewed, count)
 }
 
 #[cfg(test)]

@@ -120,6 +120,37 @@ fn create_instances(
     geo
 }
 
+/// Which of `count` geometries an instance places, the `pick` of `instance` and
+/// `instance_from_points`. By index, `value` 0 is the first geometry and 1 the last, they share
+/// the range evenly. At random, `hash` picks and `value` is the bias: above 0 the later
+/// geometries are picked more often, below 0 the earlier ones.
+pub fn pick_geometry(by_index: bool, value: f32, hash: i32, count: usize) -> usize {
+    let index = |v: f32| ((v.clamp(0.0, 1.0) * count as f32) as usize).min(count - 1);
+    if by_index {
+        return index(value);
+    }
+    if value == 0.0 {
+        return hash as usize % count;
+    }
+    let x = hash as f32 / 2_147_483_648.0;
+    index(x.powf(4.0_f32.powf(-value.clamp(-1.0, 1.0))))
+}
+
+/// Instances of `geometry` (brackets included), one per transform, each on the path of its id.
+pub fn encode_instances(geometry: &[i32], transforms: &[[f32; 16]], path_ids: &[i32]) -> Vec<i32> {
+    let mut geo_data = geometry.to_vec();
+    let geo = super::wrap_geometry_data(&mut geo_data);
+    let create = if geo.colors.is_empty() { create_instance_data } else { create_colored_instance_data };
+    let mut data = create(geo.positions.len() / 3, geo.faces.len() / 3, transforms.len());
+    let mut instances = wrap_instance_data(&mut data);
+    instances.set_geometry(geo);
+    for (i, (transform, path_id)) in transforms.iter().zip(path_ids).enumerate() {
+        instances.set_transformation_matrix(i, transform);
+        instances.set_path_id(i, *path_id);
+    }
+    data
+}
+
 /// Whether encoded instances (brackets included) bring a color per vertex of their geometry
 pub fn has_instance_colors(instances: &[i32]) -> bool {
     let (v, f, n) = (instances[3] as usize, instances[4] as usize, instances[5] as usize);
