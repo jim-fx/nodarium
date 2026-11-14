@@ -1102,3 +1102,34 @@ describe('getNodeDefinitions', () => {
     expect(manager.loaded).toBe(false);
   });
 });
+
+describe('loading the node types', () => {
+  it('only asks for the definitions when the registry can give them without code', async () => {
+    const registry = createMockNodeRegistry([mockFloatOutputNode, mockFloatInputNode]);
+    const load = vi.fn(registry.load);
+    const definitions: NodeId[][] = [];
+    const collections: string[] = [];
+    registry.load = load;
+    registry.loadDefinitions = async (ids) => {
+      definitions.push(ids);
+      return [];
+    };
+    registry.loadCollection = async (id) => {
+      collections.push(id);
+      return [];
+    };
+    const manager = new GraphManager(registry);
+
+    await manager.load({
+      id: 1,
+      nodes: [{ id: 0, type: 'test/node/output', position: [0, 0] }],
+      edges: [],
+      groups: []
+    });
+
+    expect(definitions).toEqual([['test/node/output']]);
+    expect(collections).toEqual(['test/node']);
+    expect(load).not.toHaveBeenCalled();
+    expect(manager.status).not.toBe('error');
+  });
+});

@@ -98,6 +98,19 @@
     }
   });
 
+  // the editor only loads definitions, so the worker would fetch the wasm only on the first run
+  $effect(() => {
+    const graphId = pm.graph?.id;
+    if (graphId === undefined || !appSettings.value.debug.useWorker) return;
+    untrack(() => {
+      const graph = pm.graph!;
+      const types = [...graph.nodes, ...(graph.groups ?? []).flatMap((g) => g.nodes)]
+        .filter((n) => n && 'type' in n)
+        .map((n) => n.type);
+      workerRuntime.loadNodes(types);
+    });
+  });
+
   function handleBeforeUnload(e: BeforeUnloadEvent) {
     if (pendingSave) e.preventDefault();
   }

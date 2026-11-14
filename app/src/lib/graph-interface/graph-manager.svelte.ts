@@ -102,6 +102,11 @@ export class GraphManager extends EventEmitter<{
     super();
   }
 
+  /** The editor only needs the definitions, the runtime loads the code of the nodes it runs */
+  loadDefinitions(nodeIds: NodeId[]) {
+    return this.registry.loadDefinitions?.(nodeIds) ?? this.registry.load(nodeIds);
+  }
+
   // While navigating, a level's newest state is in this.nodes/edges (current level), in its
   // parentStack snapshot (levels above it), or in its GroupDefinition (every other group).
   private levelState(groupId: number | null): {
@@ -446,7 +451,7 @@ export class GraphManager extends EventEmitter<{
       );
 
     try {
-      await this.registry.load(nodeIds);
+      await this.loadDefinitions(nodeIds);
     } catch (error) {
       log.error('failed to load the node types of the graph', error);
       toast(
@@ -467,12 +472,12 @@ export class GraphManager extends EventEmitter<{
     }
     this.collections = allCollections;
     for (const collection of allCollections) {
-      remoteRegistry
+      (this.registry.loadCollection?.(collection) ?? remoteRegistry
         .fetchCollection(collection)
-        .then((collection: { nodes: { id: NodeId }[] }) => {
-          const ids = collection.nodes.map((n) => n.id);
-          return this.registry.load(ids);
-        });
+        .then((collection: { nodes: { id: NodeId }[] }) =>
+          this.loadDefinitions(collection.nodes.map((n) => n.id))
+        ))
+        .catch((error) => log.error(`failed to load the collection ${collection}`, error));
     }
 
     log.info('loaded node types', this.registry.getAllNodes());

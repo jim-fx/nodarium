@@ -36,7 +36,7 @@ export class FileDropEventManager {
       }
 
       const pos = this.state.projectScreenToWorld(mx, my);
-      this.graph.registry.load([nodeId]).then(() => {
+      this.graph.loadDefinitions([nodeId]).then(() => {
         this.graph.createNode({
           type: nodeId,
           props,

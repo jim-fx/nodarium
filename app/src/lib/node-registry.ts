@@ -50,11 +50,19 @@ export async function getCollectionNodes(userId: `${string}/${string}`) {
     });
 }
 
+/**
+ * The listing of a collection with the definitions of its nodes, read from the same wasm files
+ * that are served next to it, so the editor needs no wasm to show them
+ */
 export async function getCollection(userId: `${string}/${string}`) {
   const nodes = await getCollectionNodes(userId);
+  const definitions = await Promise.all(
+    nodes.map((node) => getNode(node.id as `${string}/${string}/${string}`))
+  );
   return {
     id: userId,
-    nodes
+    nodes,
+    definitions: definitions.filter(Boolean)
   };
 }
 
