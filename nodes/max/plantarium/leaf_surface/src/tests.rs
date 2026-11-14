@@ -29,7 +29,7 @@ fn line(from: Vec3, to: Vec3, reach: impl Fn(f32) -> f32, n: usize) -> Vec<(Vec3
 
 /// A midrib 1 long along +z with `pairs` pairs of side veins, which reach `reach(t)` around them
 /// at `t` along their length. Returns the veins and the side veins as their base and tip.
-fn pinnate(pairs: usize, reach: impl Fn(f32) -> f32) -> (Vec<i32>, Vec<[Vec3; 2]>) {
+pub fn pinnate(pairs: usize, reach: impl Fn(f32) -> f32) -> (Vec<i32>, Vec<[Vec3; 2]>) {
     let midrib = line(Vec3::ZERO, Vec3::Z, |t| 0.05 * (1.0 - t), 24);
     let root = PathLink::root(1, 0);
     let mut paths = vec![path(&midrib, root, 1)];
@@ -47,8 +47,28 @@ fn pinnate(pairs: usize, reach: impl Fn(f32) -> f32) -> (Vec<i32>, Vec<[Vec3; 2]
     (concat_arg_vecs(paths), sides)
 }
 
-fn beech() -> Vec<i32> {
+pub fn beech() -> Vec<i32> {
     pinnate(7, |t| 0.08 * (1.0 - 0.5 * t)).0
+}
+
+/// A short midrib that ends in a ring of veins around a gap.
+pub fn ring() -> Vec<i32> {
+    let corners = [Vec3::new(-0.2, 0.0, 0.1), Vec3::new(0.2, 0.0, 0.1), Vec3::new(0.2, 0.0, 0.6), Vec3::new(-0.2, 0.0, 0.6)];
+    let midrib = line(Vec3::ZERO, Vec3::Z * 0.1, |_| 0.03, 4);
+    let root = PathLink::root(1, 0);
+    let mut paths = vec![path(&midrib, root, 1)];
+    for k in 0..4 {
+        let link = PathLink::child(2, root.id, 1.0, k as i32);
+        paths.push(path(&line(corners[k], corners[(k + 1) % 4], |_| 0.03, 8), link, 2));
+    }
+    concat_arg_vecs(paths)
+}
+
+/// A margin input of 16 teeth `depth` deep along alpha.
+pub fn teeth(depth: f32) -> Vec<i32> {
+    let alpha = concat_args(vec![&[2], &[0]]);
+    let teeth = concat_args(vec![&[8], &alpha, &[encode_float(16.0)], &[1]]);
+    concat_args(vec![&[0], &[2], &teeth, &[encode_float(depth)]])
 }
 
 fn run(veins: &[i32], smooth: f32, margin: &[i32], relief: f32) -> Vec<i32> {
@@ -246,16 +266,22 @@ fn a_midrib_that_tapers_to_nothing_reaches_its_tip() {
 }
 
 #[test]
+fn a_wide_fillet_around_a_fine_leaf_keeps_the_whole_blade() {
+    // the padding for a fillet of 1.5 around a leaf 1.1 across at 512 cells is more than 1024
+    // cells, where the grid used to end, cutting the blade off flat
+    let midrib = line(Vec3::ZERO, Vec3::Z, |t| 0.05 * (1.0 - t), 24);
+    let veins = concat_arg_vecs(vec![path(&midrib, PathLink::root(1, 0), 1)]);
+    let leaf = read(&run_at(&veins, 1.5, &plain(0.0), 0.0, 512));
+    let (min, max) = leaf.bounds();
+    assert!((min.z + 100.0).abs() < 0.5, "tip at {}", min.z);
+    assert!((max.z - 5.0).abs() < 0.5, "base at {}", max.z);
+    assert!((min.x + max.x).abs() < 0.5, "midrib off the middle: {min} {max}");
+    leaf.assert_disc();
+}
+
+#[test]
 fn the_gaps_the_veins_close_in_are_filled() {
-    let corners = [Vec3::new(-0.2, 0.0, 0.1), Vec3::new(0.2, 0.0, 0.1), Vec3::new(0.2, 0.0, 0.6), Vec3::new(-0.2, 0.0, 0.6)];
-    let midrib = line(Vec3::ZERO, Vec3::Z * 0.1, |_| 0.03, 4);
-    let root = PathLink::root(1, 0);
-    let mut paths = vec![path(&midrib, root, 1)];
-    for k in 0..4 {
-        let link = PathLink::child(2, root.id, 1.0, k as i32);
-        paths.push(path(&line(corners[k], corners[(k + 1) % 4], |_| 0.03, 8), link, 2));
-    }
-    let leaf = read(&run(&concat_arg_vecs(paths), 0.0, &plain(0.0), 0.0));
+    let leaf = read(&run(&ring(), 0.0, &plain(0.0), 0.0));
 
     assert!(leaf.covers(placed(Vec3::new(0.0, 0.0, 0.35))), "the middle of the ring is open");
     leaf.assert_disc();
@@ -286,14 +312,10 @@ fn lobes_follow_the_side_veins() {
 #[test]
 fn a_margin_of_0_leaves_the_outline_unchanged() {
     let veins = beech();
-    let alpha = concat_args(vec![&[2], &[0]]);
-    let teeth = concat_args(vec![&[8], &alpha, &[encode_float(16.0)], &[1]]);
-    let times = |depth: f32| concat_args(vec![&[0], &[2], &teeth, &[encode_float(depth)]]);
-
     let plain_leaf = run(&veins, 0.1, &plain(0.0), 0.003);
-    assert_eq!(run(&veins, 0.1, &times(0.0), 0.003), plain_leaf);
+    assert_eq!(run(&veins, 0.1, &teeth(0.0), 0.003), plain_leaf);
 
-    let toothed = read(&run(&veins, 0.1, &times(0.02), 0.003));
+    let toothed = read(&run(&veins, 0.1, &teeth(0.02), 0.003));
     let entire = read(&plain_leaf);
     toothed.assert_disc();
     assert!(toothed.area() < entire.area() * 0.97, "the teeth cut into the blade");

@@ -1,8 +1,8 @@
 use glam::Vec2;
 
-use crate::field::{cut_at, Field};
+use crate::field::{Cuts, Field};
 use crate::mesh::Density;
-use crate::polygon::{area2, cross, nearest, Polygon};
+use crate::polygon::{area2, distance, nearest, Bands};
 use crate::veins::{closest, Vein};
 
 /// The margin of the leaf: the longest closed line of the field, and where every point of it sits
@@ -29,17 +29,23 @@ pub struct Outline {
 }
 
 impl Outline {
-    pub fn of(field: &Field, veins: &[Vein], margin: &Margin, cuts: &[f32], density: &Density) -> Outline {
+    pub fn of(field: &Field, veins: &[Vein], cuts: &Cuts, density: &Density) -> Outline {
         let mut points = longest(field.contour_loops());
         if area2(&points) < 0.0 {
             points.reverse();
         }
         let mut fixed = vec![false; points.len()];
+        // made again only when a tip changes the margin
+        let mut bands = None;
         let tips = veins
             .iter()
             .map(|vein| {
-                let cut = cut_at(&margin.points, cuts, vein.end());
-                put_back_tip(&mut points, &mut fixed, vein, cut, field.cell)
+                let cut = cuts.at(vein.end());
+                let tip = put_back_tip(&mut points, &mut fixed, &mut bands, vein, cut, field.cell);
+                if tip.is_some() {
+                    bands = None;
+                }
+                tip
             })
             .collect();
         let points = simplify(&points, &fixed, density.tolerance, density.margin);
@@ -50,7 +56,14 @@ impl Outline {
 /// A vein that tapers to nothing ends in a spike thinner than a cell, which the grid loses. The
 /// spike is rebuilt from the reach of the vein, less the cut there, from its tip back to where the
 /// margin of the grid takes it in, and put into the margin in place of the stump.
-fn put_back_tip(points: &mut Vec<Vec2>, fixed: &mut Vec<bool>, vein: &Vein, cut: f32, cell: f32) -> Option<Vec2> {
+fn put_back_tip(
+    points: &mut Vec<Vec2>,
+    fixed: &mut Vec<bool>,
+    bands: &mut Option<Bands>,
+    vein: &Vein,
+    cut: f32,
+    cell: f32,
+) -> Option<Vec2> {
     let step = 0.25 * cell;
     let length = vein.length();
     let count = ((length / step) as usize).min(200);
@@ -69,8 +82,9 @@ fn put_back_tip(points: &mut Vec<Vec2>, fixed: &mut Vec<bool>, vein: &Vein, cut:
     if points.len() < 3 {
         return None;
     }
-    let polygon = Polygon::new(points);
-    if polygon.contains(tip) || polygon.distance(tip) < 0.25 * cell {
+    let bands = bands.get_or_insert_with(|| Bands::new(points));
+    let contains = |p: Vec2| bands.contains(points, p);
+    if contains(tip) || distance(points, tip) < 0.25 * cell {
         return None;
     }
 
@@ -80,7 +94,7 @@ fn put_back_tip(points: &mut Vec<Vec2>, fixed: &mut Vec<bool>, vein: &Vein, cut:
         let side = direction.perp() * width.max(0.0);
         left.push(p + side);
         right.push(p - side);
-        polygon.contains(p) && polygon.contains(p + side) && polygon.contains(p - side)
+        contains(p) && contains(p + side) && contains(p - side)
     });
     base?;
     let mut spike: Vec<Vec2> = right.into_iter().rev().collect();
@@ -103,11 +117,20 @@ fn splice(points: &mut Vec<Vec2>, fixed: &mut Vec<bool>, spike: &[Vec2]) -> bool
     let mut chain = vec![points[kept[kept.len() - 1]]];
     chain.extend_from_slice(spike);
     chain.push(points[kept[0]]);
+    let side = |p: Vec2, q: Vec2, r: Vec2| (q - p).perp_dot(r - p);
+    let mut sides = vec![0.0; kept.len()];
     for w in chain.windows(2) {
+        for (k, &i) in kept.iter().enumerate() {
+            sides[k] = side(w[0], w[1], points[i]);
+        }
+        // whether the edges cross in their insides, with the side of every point of the margin
+        // to the chain worked out once
         for k in 0..kept.len() - 1 {
-            let (a, b) = (points[kept[k]], points[kept[k + 1]]);
-            if cross(w[0], w[1], a, b) {
-                return false;
+            if sides[k] * sides[k + 1] < 0.0 {
+                let (a, b) = (points[kept[k]], points[kept[k + 1]]);
+                if side(a, b, w[0]) * side(a, b, w[1]) < 0.0 {
+                    return false;
+                }
             }
         }
     }

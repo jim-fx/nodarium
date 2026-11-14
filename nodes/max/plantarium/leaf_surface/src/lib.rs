@@ -24,10 +24,11 @@ use nodarium_utils::{
     int, split_args, Ctx,
 };
 
-use field::Field;
+use field::{Cuts, Field};
+use polygon::buckets;
 use mesh::{vein_mesh, Density, FlatMesh};
 use outline::{Margin, Outline};
-use veins::{groove, leaf_space, Vein};
+use veins::{groove, leaf_space, Segment, Vein};
 
 nodarium_definition_file!("src/definition.json");
 
@@ -50,17 +51,91 @@ fn heights(veins: &[Vein], p: Vec2, cell: f32) -> (f32, f32) {
     (if weights > 0.0 { sum / weights } else { 0.0 }, vein * vein)
 }
 
+/// The segments of the veins sorted into a grid by their grooves, for the depth part of `heights`
+/// alone: only a vein whose groove reaches `p` sinks it.
+struct Grooves<'a> {
+    segments: Vec<&'a Segment>,
+    origin: Vec2,
+    /// The side of a cell of the grid.
+    step: f32,
+    nx: usize,
+    ny: usize,
+    starts: Vec<u32>,
+    cells: Vec<u32>,
+    /// The cell of the field, for the width of a groove.
+    cell: f32,
+}
+
+impl<'a> Grooves<'a> {
+    fn new(veins: &'a [Vein], cell: f32) -> Grooves<'a> {
+        let segments: Vec<&Segment> = veins.iter().flat_map(|v| &v.segments).collect();
+        // a little wider, for the rounding of the distances
+        let reach = |s: &Segment| 1.01 * groove(s.ra.max(s.rb), cell);
+        let lo = segments.iter().fold(Vec2::MAX, |m, s| m.min(s.a.min(s.b) - reach(s)));
+        let hi = segments.iter().fold(Vec2::MIN, |m, s| m.max(s.a.max(s.b) + reach(s)));
+        let step = (4.0 * cell).max((hi - lo).max_element() / 256.0);
+        let (nx, ny) = (((hi.x - lo.x) / step) as usize + 1, ((hi.y - lo.y) / step) as usize + 1);
+        let key = |p: Vec2| {
+            let k = ((p - lo) / step).floor();
+            ((k.x.max(0.0) as usize).min(nx - 1), (k.y.max(0.0) as usize).min(ny - 1))
+        };
+        let each = |visit: &mut dyn FnMut(usize, u32)| {
+            for (k, s) in segments.iter().enumerate() {
+                let ((x0, y0), (x1, y1)) = (key(s.a.min(s.b) - reach(s)), key(s.a.max(s.b) + reach(s)));
+                for y in y0..=y1 {
+                    for x in x0..=x1 {
+                        visit(y * nx + x, k as u32);
+                    }
+                }
+            }
+        };
+        let (starts, cells) = buckets(nx * ny, each);
+        Grooves {
+            segments,
+            origin: lo,
+            step,
+            nx,
+            ny,
+            starts,
+            cells,
+            cell,
+        }
+    }
+
+    fn depth(&self, p: Vec2) -> f32 {
+        let k = ((p - self.origin) / self.step).floor();
+        if self.segments.is_empty() || k.x < 0.0 || k.y < 0.0 || k.x >= self.nx as f32 || k.y >= self.ny as f32 {
+            return 0.0;
+        }
+        let c = k.y as usize * self.nx + k.x as usize;
+        let mut vein = 0.0_f32;
+        for &k in &self.cells[self.starts[c] as usize..self.starts[c + 1] as usize] {
+            let s = self.segments[k as usize];
+            let (t, d) = s.closest(p);
+            let width = groove(s.reach(t), self.cell);
+            vein = vein.max(1.0 - (d / width).min(1.0).powi(2));
+        }
+        vein * vein
+    }
+}
+
 /// The flat mesh bent by the heights of the veins, the veins sunk by `relief`, in the frame of the
 /// leaf node: the base at the origin, along -z, facing +y.
 fn lift(mesh: &FlatMesh, veins: &[Vein], relief: f32, cell: f32, scale: f32) -> Vec<Vec3> {
+    // turned flat with rotate, veins keep heights of about a millionth of their length, from
+    // rounding, which would cost a blend of every segment at every vertex for nothing
+    let span = veins.iter().fold(0.0_f32, |m, v| m.max((v.max - v.min).max_element()));
     let bent = veins
         .iter()
         .flat_map(|v| &v.segments)
-        .any(|s| s.ha != 0.0 || s.hb != 0.0);
+        .any(|s| s.ha.abs().max(s.hb.abs()) > 1e-4 * span);
+    let grooves = (!bent && relief != 0.0).then(|| Grooves::new(veins, cell));
     mesh.positions
         .iter()
         .map(|&p| {
-            let (h, vein) = if bent || relief != 0.0 {
+            let (h, vein) = if let Some(grooves) = &grooves {
+                (0.0, grooves.depth(p))
+            } else if bent {
                 heights(veins, p, cell)
             } else {
                 (0.0, 0.0)
@@ -108,11 +183,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     };
 
     let margin = Margin::of(&field);
-    let cuts = ctx.float_along(args[3], margin.alphas.iter().copied());
-    field.cut(&margin.points, &cuts);
+    let along = ctx.float_along(args[3], margin.alphas.iter().copied());
+    let cuts = Cuts::new(&margin.points, &along, field.cell);
+    field.cut(&cuts);
 
     let density = Density::new(field.cell);
-    let outline = Outline::of(&field, &veins, &margin, &cuts, &density);
+    let outline = Outline::of(&field, &veins, &cuts, &density);
     let mesh = vein_mesh(&outline, &veins, &density);
     let positions = lift(&mesh, &veins, relief, field.cell, LEAF_LENGTH * size);
     encode(&positions, &mesh.faces)

@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::hash::{BuildHasherDefault, Hasher};
+
 use glam::Vec2;
 use spade::handles::FixedUndirectedEdgeHandle;
 use spade::{ConstrainedDelaunayTriangulation, Point2, PositionInTriangulation, Triangulation};
@@ -57,7 +60,12 @@ impl Density {
 
 /// The length of an edge at a point of the blade, from how far it lies from the margin and from
 /// the ends of the veins.
-fn sizes<'a>(margin: &'a Polygon, outline: &Outline, veins: &[Vein], density: &'a Density) -> impl Fn(Vec2) -> f32 + 'a {
+fn sizes<'a, 'p>(
+    margin: &'a Polygon<'p>,
+    outline: &Outline,
+    veins: &[Vein],
+    density: &'a Density,
+) -> impl Fn(Vec2) -> f32 + use<'a, 'p> {
     let ends: Vec<Vec2> = veins
         .iter()
         .map(|v| v.end())
@@ -65,16 +73,21 @@ fn sizes<'a>(margin: &'a Polygon, outline: &Outline, veins: &[Vein], density: &'
         .chain(outline.tips.iter().flatten().copied())
         .collect();
     move |p: Vec2| {
-        let d = ends.iter().map(|e| e.distance(p)).fold(margin.distance_within(p, density.reach()), f32::min);
-        density.size(d)
+        let end = ends.iter().map(|&e| (e - p).length_squared()).fold(f32::MAX, f32::min).sqrt();
+        density.size(margin.distance_within(p, density.reach().min(end)))
     }
 }
 
 /// The pieces of the veins inside the outline as chains of points, spaced by the size of the mesh
 /// there. A vein that branches from another starts on a point of its chain, and a vein whose tip
 /// is on the margin ends there.
-fn chains(outline: &Outline, veins: &[Vein], density: &Density, size: &impl Fn(Vec2) -> f32) -> Vec<(usize, Vec<Vec2>)> {
-    let margin = Polygon::new(&outline.points);
+fn chains(
+    outline: &Outline,
+    margin: &Polygon,
+    veins: &[Vein],
+    density: &Density,
+    size: &impl Fn(Vec2) -> f32,
+) -> Vec<(usize, Vec<Vec2>)> {
     let clearance = 0.25 * density.margin;
     let step = 0.5 * density.cell;
 
@@ -218,7 +231,7 @@ pub fn vein_mesh(outline: &Outline, veins: &[Vein], density: &Density) -> FlatMe
     let margin = Polygon::new(&outline.points);
     let size = sizes(&margin, outline, veins, density);
     insert(&mut cdt, &outline.points, true);
-    let chains = chains(outline, veins, density, &size);
+    let chains = chains(outline, &margin, veins, density, &size);
     for (_, chain) in &chains {
         insert(&mut cdt, chain, false);
     }
@@ -290,6 +303,30 @@ fn outside(cdt: &Cdt) -> Vec<bool> {
     outside
 }
 
+/// A triangle refinement splits: how skinny it is, its circumradius, its centroid and its
+/// circumcenter.
+type Bad = (f64, f64, Point2<f64>, Point2<f64>);
+
+/// Hashes the corners of a face, packed into one word.
+#[derive(Default)]
+struct Corners(u64);
+
+impl Hasher for Corners {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            self.write_u64(b as u64);
+        }
+    }
+
+    fn write_u64(&mut self, i: u64) {
+        self.0 = (self.0.rotate_left(5) ^ i).wrapping_mul(0x517c_c1b7_2722_0a95);
+    }
+}
+
 /// Splits a constraint edge in the middle into two.
 fn split(cdt: &mut Cdt, edge: FixedUndirectedEdgeHandle) {
     let e = cdt.undirected_edge(edge);
@@ -311,6 +348,8 @@ fn refine(cdt: &mut Cdt, density: &Density, size: impl Fn(Vec2) -> f32) {
     let ratio = 1.0 / (2.0 * ANGLE.to_radians().sin());
     let shortest = 0.3 * density.cell as f64;
     let limit = cdt.num_vertices() * 6 + 1000;
+    // vertices never move, so a face with the same corners as in the pass before is as bad
+    let mut seen: HashMap<u64, Option<Bad>, BuildHasherDefault<Corners>> = HashMap::default();
     for _ in 0..PASSES {
         let mut bad = Vec::new();
         let outside = outside(cdt);
@@ -318,22 +357,25 @@ fn refine(cdt: &mut Cdt, density: &Density, size: impl Fn(Vec2) -> f32) {
             if outside[face.fix().index()] {
                 continue;
             }
-            let corners = face.positions();
-            let middle = centroid(corners);
-            let [a, b, c] = corners;
-            let sides = [length(b, c), length(c, a), length(a, b)];
-            let short = sides.iter().copied().fold(f64::MAX, f64::min);
-            let doubled = ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)).abs();
-            if doubled <= 0.0 {
-                continue;
-            }
-            let radius = sides[0] * sides[1] * sides[2] / (2.0 * doubled);
-            let skinny = radius / short > ratio && short > shortest;
-            // about the edge of an equilateral triangle with this circumcircle
-            let edge = radius / 0.6;
-            if skinny || (edge > density.margin as f64 && edge > size(vec2(middle)) as f64) {
-                bad.push((radius / short, radius, middle, face.circumcenter()));
-            }
+            let [u, v, w] = face.vertices().map(|v| v.fix().index() as u64);
+            let found = *seen.entry(u | v << 21 | w << 42).or_insert_with(|| {
+                let corners = face.positions();
+                let middle = centroid(corners);
+                let [a, b, c] = corners;
+                let sides = [length(b, c), length(c, a), length(a, b)];
+                let short = sides.iter().copied().fold(f64::MAX, f64::min);
+                let doubled = ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)).abs();
+                if doubled <= 0.0 {
+                    return None;
+                }
+                let radius = sides[0] * sides[1] * sides[2] / (2.0 * doubled);
+                let skinny = radius / short > ratio && short > shortest;
+                // about the edge of an equilateral triangle with this circumcircle
+                let edge = radius / 0.6;
+                (skinny || (edge > density.margin as f64 && edge > size(vec2(middle)) as f64))
+                    .then(|| (radius / short, radius, middle, face.circumcenter()))
+            });
+            bad.extend(found);
         }
         if bad.is_empty() {
             return;
