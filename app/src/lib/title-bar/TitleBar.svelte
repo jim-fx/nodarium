@@ -218,7 +218,7 @@
       <button
         type="button"
         title="Rename (F2)"
-        class="max-w-80 cursor-pointer truncate border-none bg-transparent px-1 text-sm font-(--font-family)"
+        class="max-w-80 min-w-0 cursor-pointer truncate border-none bg-transparent px-1 text-sm font-(--font-family)"
         onclick={startRename}
       >
         {title}
