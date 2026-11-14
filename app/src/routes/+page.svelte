@@ -589,6 +589,7 @@
     width: 100vw;
     color: white;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 36px minmax(0, 1fr);
   }
 
