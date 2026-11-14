@@ -492,133 +492,175 @@ impl SparseGrid {
         let max = |f: fn(&ClosedSplat) -> f32| splats.iter().map(f).fold(0.0f32, f32::max);
         let (reach_max, radius_max) = (max(|s| s.reach), max(|s| s.closed.radius));
         let (kernel_max, weight_max) = (max(|s| s.kernel.reach), max(|s| s.weight()));
-        // a little more than half the diagonal of 2³ samples, every one of them is that close to their centre
-        let half = 0.87 * self.cell;
-        // the bounds are only so exact, segments within the margins are looked at
-        let (tube_margin, owner_margin) = (1e-3 * self.cell, 1e-5 * weight_max);
-        // how far from the centre of the samples a segment may be and still be nearer than `tube` or claim one
-        // of them by more than `owner`
-        let search = |tube: f32, owner: f32| {
-            let need = owner - owner_margin;
-            let owner_reach = if need <= 0.0 {
-                reach_max
-            } else {
-                let within =
-                    |reach: f32, weight: f32| if need < weight { reach * (1.0 - (need / weight).cbrt()).sqrt() } else { 0.0 };
-                larger(within(kernel_max, weight_max), within(reach_max, weight_max * FILL_OWNER_WEIGHT)) * 1.001
-            };
-            smaller(larger(tube + radius_max + tube_margin, owner_reach), reach_max) + half
+        let search = ClosedSearch {
+            tree: &tree,
+            splats: &splats,
+            reach_max,
+            radius_max,
+            kernel_max,
+            weight_max,
+            // a little more than half the diagonal of 2³ samples, every one of them is that close to their centre
+            half: 0.87 * self.cell,
+            // the bounds are only so exact, segments within the margins are looked at
+            tube_margin: 1e-3 * self.cell,
+            owner_margin: 1e-5 * weight_max,
+            ring: 0.25 * self.cell,
         };
-        let ring = 0.25 * self.cell;
-
-        let mut found: Vec<(f32, u32)> = Vec::new();
-        let mut ordered: Vec<(f32, u32)> = Vec::new();
-        let mut starts: Vec<usize> = Vec::new();
-        let [bx, by, _] = self.blocks;
-        let tiles = BLOCK / 2;
+        let mut scratch = BlockScratch::default();
         for b in 0..self.block_slots.len() {
-            let slot = self.block_slots[b];
-            if slot == EMPTY {
+            search.block(self, b, &mut scratch);
+        }
+    }
+}
+
+/// What [`ClosedSearch::block`] reuses from block to block
+#[derive(Default)]
+struct BlockScratch {
+    found: Vec<(f32, u32)>,
+    ordered: Vec<(f32, u32)>,
+    starts: Vec<usize>,
+}
+
+/// The closed segments of [`SparseGrid::splat_closed`] and the bounds of its search
+struct ClosedSearch<'a> {
+    tree: &'a TubeTree,
+    splats: &'a [ClosedSplat],
+    reach_max: f32,
+    radius_max: f32,
+    kernel_max: f32,
+    weight_max: f32,
+    half: f32,
+    tube_margin: f32,
+    owner_margin: f32,
+    ring: f32,
+}
+
+impl ClosedSearch<'_> {
+    /// How far from the centre of the samples a segment may be and still be nearer than `tube` or claim one
+    /// of them by more than `owner`
+    fn reach_for(&self, tube: f32, owner: f32) -> f32 {
+        let need = owner - self.owner_margin;
+        let owner_reach = if need <= 0.0 {
+            self.reach_max
+        } else {
+            let within =
+                |reach: f32, weight: f32| if need < weight { reach * (1.0 - (need / weight).cbrt()).sqrt() } else { 0.0 };
+            larger(within(self.kernel_max, self.weight_max), within(self.reach_max, self.weight_max * FILL_OWNER_WEIGHT))
+                * 1.001
+        };
+        smaller(larger(tube + self.radius_max + self.tube_margin, owner_reach), self.reach_max) + self.half
+    }
+
+    /// One block. The loop bodies split off like this one are kept out of line because V8 runs a wasm call that is
+    /// already running in baseline code until it returns, so a long loop only gets the optimized code of its body
+    /// if the body is called each time.
+    #[inline(never)]
+    fn block(&self, grid: &mut SparseGrid, b: usize, scratch: &mut BlockScratch) {
+        let BlockScratch { found, ordered, starts } = scratch;
+        let [bx, by, _] = grid.blocks;
+        let tiles = BLOCK / 2;
+
+        let slot = grid.block_slots[b];
+        if slot == EMPTY {
+            return;
+        }
+        let base = [b % bx * BLOCK, b / bx % by * BLOCK, b / (bx * by) * BLOCK];
+        for tile in 0..tiles * tiles * tiles {
+            let t = [base[0] + 2 * (tile % tiles), base[1] + 2 * (tile / tiles % tiles), base[2] + 2 * (tile / (tiles * tiles))];
+            if (0..3).any(|a| t[a] >= grid.samples[a]) {
                 continue;
             }
-            let base = [b % bx * BLOCK, b / bx % by * BLOCK, b / (bx * by) * BLOCK];
-            for tile in 0..tiles * tiles * tiles {
-                let t = [base[0] + 2 * (tile % tiles), base[1] + 2 * (tile / tiles % tiles), base[2] + 2 * (tile / (tiles * tiles))];
-                if (0..3).any(|a| t[a] >= self.samples[a]) {
+            let centre = grid.position(Vec3::new(t[0] as f32, t[1] as f32, t[2] as f32) + Vec3::splat(0.5));
+            // a segment that reaches all the samples bounds their nearest tube and how much their owner claims them
+            let (mut tube, mut owner) = (f32::INFINITY, 0.0f32);
+            let mut reach = self.reach_for(tube, owner);
+            found.clear();
+            self.tree.for_each_within(centre, reach, |k, d| {
+                let s = &self.splats[k as usize];
+                if d + self.half + self.tube_margin < s.reach {
+                    let (nearer, more) = (d + self.half - s.closed.radius, s.least_claim(larger(d - self.half, 0.0), d + self.half));
+                    if nearer < tube || more > owner {
+                        (tube, owner) = (smaller(tube, nearer), larger(owner, more));
+                        reach = self.reach_for(tube, owner);
+                    }
+                }
+                if d - self.half < s.reach {
+                    found.push((d, k));
+                }
+                reach
+            });
+            // nearest first in rings a quarter cell wide, a sample stops at the first self.ring too far to change it
+            let rings = (reach / self.ring) as usize + 1;
+            starts.clear();
+            starts.resize(rings, 0);
+            for &(d, _) in found.iter().filter(|f| f.0 < reach) {
+                starts[(d / self.ring) as usize] += 1;
+            }
+            let mut total = 0;
+            for start in starts.iter_mut() {
+                (*start, total) = (total, total + *start);
+            }
+            ordered.resize(total, (0.0, 0));
+            for &(d, k) in found.iter().filter(|f| f.0 < reach) {
+                let r = (d / self.ring) as usize;
+                ordered[starts[r]] = (d, k);
+                starts[r] += 1;
+            }
+            // `starts[r]` is now where self.ring `r` ends
+            for local in 0..8 {
+                let x = [t[0] + local % 2, t[1] + local / 2 % 2, t[2] + local / 4];
+                if (0..3).any(|a| x[a] >= grid.samples[a]) {
                     continue;
                 }
-                let centre = self.position(Vec3::new(t[0] as f32, t[1] as f32, t[2] as f32) + Vec3::splat(0.5));
-                // a segment that reaches all the samples bounds their nearest tube and how much their owner claims them
-                let (mut tube, mut owner) = (f32::INFINITY, 0.0f32);
-                let mut reach = search(tube, owner);
-                found.clear();
-                tree.for_each_within(centre, reach, |k, d| {
-                    let s = &splats[k as usize];
-                    if d + half + tube_margin < s.reach {
-                        let (nearer, more) = (d + half - s.closed.radius, s.least_claim(larger(d - half, 0.0), d + half));
-                        if nearer < tube || more > owner {
-                            (tube, owner) = (smaller(tube, nearer), larger(owner, more));
-                            reach = search(tube, owner);
+                let p = grid.position(Vec3::new(x[0] as f32, x[1] as f32, x[2] as f32));
+                // the first segment wins a tie, as splatting them in turn has it
+                let (mut tube, mut tube_by, mut owner, mut owner_by) = (f32::INFINITY, None, 0.0f32, None);
+                let mut reach = f32::INFINITY;
+                for r in 0..rings {
+                    if r as f32 * self.ring >= reach {
+                        break;
+                    }
+                    let from = if r == 0 { 0 } else { starts[r - 1] };
+                    for &(d, k) in &ordered[from..starts[r]] {
+                        if d >= reach {
+                            continue;
                         }
-                    }
-                    if d - half < s.reach {
-                        found.push((d, k));
-                    }
-                    reach
-                });
-                // nearest first in rings a quarter cell wide, a sample stops at the first ring too far to change it
-                let rings = (reach / ring) as usize + 1;
-                starts.clear();
-                starts.resize(rings, 0);
-                for &(d, _) in found.iter().filter(|f| f.0 < reach) {
-                    starts[(d / ring) as usize] += 1;
-                }
-                let mut total = 0;
-                for start in starts.iter_mut() {
-                    (*start, total) = (total, total + *start);
-                }
-                ordered.resize(total, (0.0, 0));
-                for &(d, k) in found.iter().filter(|f| f.0 < reach) {
-                    let r = (d / ring) as usize;
-                    ordered[starts[r]] = (d, k);
-                    starts[r] += 1;
-                }
-                // `starts[r]` is now where ring `r` ends
-                for local in 0..8 {
-                    let x = [t[0] + local % 2, t[1] + local / 2 % 2, t[2] + local / 4];
-                    if (0..3).any(|a| x[a] >= self.samples[a]) {
-                        continue;
-                    }
-                    let p = self.position(Vec3::new(x[0] as f32, x[1] as f32, x[2] as f32));
-                    // the first segment wins a tie, as splatting them in turn has it
-                    let (mut tube, mut tube_by, mut owner, mut owner_by) = (f32::INFINITY, None, 0.0f32, None);
-                    let mut reach = f32::INFINITY;
-                    for r in 0..rings {
-                        if r as f32 * ring >= reach {
-                            break;
+                        let s = &self.splats[k as usize];
+                        let d_sq = s.distance_sq(p);
+                        if d_sq >= s.reach_sq {
+                            continue;
                         }
-                        let from = if r == 0 { 0 } else { starts[r - 1] };
-                        for &(d, k) in &ordered[from..starts[r]] {
-                            if d >= reach {
+                        // a sample within reach lies in the box splatting goes through, only rounding can put
+                        // one just inside the reach outside it
+                        let inner = s.reach - 1e-3 * grid.cell;
+                        if d_sq >= inner * inner {
+                            let (lo, hi) = grid.sample_box(&s.segment, s.reach);
+                            if (0..3).any(|a| x[a] < lo[a] || x[a] > hi[a]) {
                                 continue;
                             }
-                            let s = &splats[k as usize];
-                            let d_sq = s.distance_sq(p);
-                            if d_sq >= s.reach_sq {
-                                continue;
-                            }
-                            // a sample within reach lies in the box splatting goes through, only rounding can put
-                            // one just inside the reach outside it
-                            let inner = s.reach - 1e-3 * self.cell;
-                            if d_sq >= inner * inner {
-                                let (lo, hi) = self.sample_box(&s.segment, s.reach);
-                                if (0..3).any(|a| x[a] < lo[a] || x[a] > hi[a]) {
-                                    continue;
-                                }
-                            }
-                            let nearer = d_sq.sqrt() - s.closed.radius;
-                            let claim = s.claim(d_sq);
-                            let mut changed = false;
-                            if nearer < tube || (nearer == tube && tube_by.is_some_and(|(index, _)| s.index < index)) {
-                                (tube, tube_by, changed) = (nearer, Some((s.index, s.closed.close)), true);
-                            }
-                            if claim > owner || (claim == owner && owner_by.is_some_and(|index| s.index < index)) {
-                                (owner, owner_by, changed) = (claim, Some(s.index), true);
-                            }
-                            if changed {
-                                reach = search(tube, owner);
-                            }
+                        }
+                        let nearer = d_sq.sqrt() - s.closed.radius;
+                        let claim = s.claim(d_sq);
+                        let mut changed = false;
+                        if nearer < tube || (nearer == tube && tube_by.is_some_and(|(index, _)| s.index < index)) {
+                            (tube, tube_by, changed) = (nearer, Some((s.index, s.closed.close)), true);
+                        }
+                        if claim > owner || (claim == owner && owner_by.is_some_and(|index| s.index < index)) {
+                            (owner, owner_by, changed) = (claim, Some(s.index), true);
+                        }
+                        if changed {
+                            reach = self.reach_for(tube, owner);
                         }
                     }
-                    let i = slot as usize * BLOCK_SAMPLES + Self::local(x);
-                    if let Some((_, close)) = tube_by {
-                        self.tube[i] = tube;
-                        self.tube_close[i] = close;
-                    }
-                    if let Some(index) = owner_by {
-                        self.owner_k[i] = owner;
-                        self.owner[i] = index;
-                    }
+                }
+                let i = slot as usize * BLOCK_SAMPLES + SparseGrid::local(x);
+                if let Some((_, close)) = tube_by {
+                    grid.tube[i] = tube;
+                    grid.tube_close[i] = close;
+                }
+                if let Some(index) = owner_by {
+                    grid.owner_k[i] = owner;
+                    grid.owner[i] = index;
                 }
             }
         }
@@ -834,46 +876,75 @@ fn distance_transform(d: &mut [f32], mut feature: Option<&mut [u32]>, samples: [
         }
     }
     let longest = ny.max(nz);
-    let mut buf_d = vec![0.0f32; nx * longest];
-    let mut buf_f = vec![0u32; if feature.is_some() { nx * longest } else { 0 }];
-    let mut changed = vec![false; nx];
+    let mut buffers = PlaneBuffers {
+        d: vec![0.0f32; nx * longest],
+        f: vec![0u32; if feature.is_some() { nx * longest } else { 0 }],
+        changed: vec![false; nx],
+        v,
+        z,
+        out,
+    };
     // the lines of one plane, along y in a plane of one z or along z in a plane of one y: sample `k` of the
     // line at `x` is at `first + k * stride + x`
     for (len, stride, planes, plane_step) in [(ny, nx, nz, nx * ny), (nz, nx * ny, ny, nx)] {
         for plane in 0..planes {
-            let first = plane * plane_step;
-            for k in 0..len {
-                let row = first + k * stride;
-                for x in 0..nx {
-                    buf_d[x * len + k] = d[row + x];
-                }
-                if let Some(f) = feature.as_ref() {
-                    for x in 0..nx {
-                        buf_f[x * len + k] = f[row + x];
-                    }
-                }
-            }
+            transform_plane(d, feature.as_deref_mut(), &mut buffers, nx, len, stride, plane * plane_step);
+        }
+    }
+}
+
+/// What [`transform_plane`] reuses from plane to plane
+struct PlaneBuffers {
+    d: Vec<f32>,
+    f: Vec<u32>,
+    changed: Vec<bool>,
+    v: Vec<usize>,
+    z: Vec<f32>,
+    out: Vec<(f32, u32)>,
+}
+
+/// The lines of one plane of [`distance_transform`], that starts at `first`
+#[inline(never)]
+fn transform_plane(
+    d: &mut [f32],
+    mut feature: Option<&mut [u32]>,
+    buffers: &mut PlaneBuffers,
+    nx: usize,
+    len: usize,
+    stride: usize,
+    first: usize,
+) {
+    let PlaneBuffers { d: buf_d, f: buf_f, changed, v, z, out } = buffers;
+    for k in 0..len {
+        let row = first + k * stride;
+        for x in 0..nx {
+            buf_d[x * len + k] = d[row + x];
+        }
+        if let Some(f) = feature.as_ref() {
             for x in 0..nx {
-                let line = &mut buf_d[x * len..(x + 1) * len];
-                changed[x] = !unchanged_line(line);
-                if changed[x] {
-                    let f = feature.is_some().then(|| &mut buf_f[x * len..(x + 1) * len]);
-                    transform_line(line, f, &mut v, &mut z, &mut out);
-                }
+                buf_f[x * len + k] = f[row + x];
             }
-            if !changed.iter().any(|&c| c) {
-                continue;
-            }
-            for k in 0..len {
-                let row = first + k * stride;
-                for x in (0..nx).filter(|&x| changed[x]) {
-                    d[row + x] = buf_d[x * len + k];
-                }
-                if let Some(f) = feature.as_mut() {
-                    for x in (0..nx).filter(|&x| changed[x]) {
-                        f[row + x] = buf_f[x * len + k];
-                    }
-                }
+        }
+    }
+    for x in 0..nx {
+        let line = &mut buf_d[x * len..(x + 1) * len];
+        changed[x] = !unchanged_line(line);
+        if changed[x] {
+            let f = feature.is_some().then(|| &mut buf_f[x * len..(x + 1) * len]);
+            transform_line(line, f, v, z, out);
+        }
+    }
+    if !changed.iter().any(|&c| c) {
+        return;
+    }
+    for k in 0..len {
+        let row = first + k * stride;
+        for x in (0..nx).filter(|&x| changed[x]) {
+            d[row + x] = buf_d[x * len + k];
+        }
+        if let Some(f) = feature.as_mut() {
+            for x in (0..nx).filter(|&x| changed[x]) {
+                f[row + x] = buf_f[x * len + k];
             }
         }
     }
@@ -905,45 +976,74 @@ fn distance_transform(d: &mut [f32], mut feature: Option<&mut [u32]>, samples: [
 fn closing(grid: &SparseGrid, frame: &Frame) -> Vec<f32> {
     let [nx, ny, nz] = grid.samples;
     let n = nx * ny * nz;
-    // the tube distance at a sample and the closing radius there, in world units
-    let tube_at = |grid: &SparseGrid, i: usize| {
-        grid.index([i % nx, i / nx % ny, i / (nx * ny)])
-            .map(|s| (grid.tube[s], grid.tube_close[s]))
-            .filter(|(t, _)| t.is_finite())
-    };
     // every tube reaches the largest radius and a little further, past that a ball of the largest radius is empty
     let rho_far = frame.close_max;
-    // the radius in cells of the empty ball around a centre, where no tube reaches the sample it is at least as
-    // far as every tube reaches
-    let ball = |grid: &SparseGrid, i: usize| {
-        let (tube, rho) = tube_at(grid, i).unwrap_or((rho_far + 2.0 * grid.cell, rho_far));
-        (tube > rho).then_some(tube / grid.cell)
-    };
 
     // the centre of the empty ball that covers each sample most, by squared distance in cells less the squared
     // radius of the ball
     let mut d = vec![f32::INFINITY; n];
     let mut feature = vec![EMPTY; n];
-    for i in 0..n {
-        if let Some(r) = ball(grid, i) {
-            d[i] = -r * r;
-            feature[i] = i as u32;
-        }
+    for (row, (d, feature)) in d.chunks_mut(nx).zip(feature.chunks_mut(nx)).enumerate() {
+        seed_balls(grid, rho_far, row * nx, d, feature);
     }
     distance_transform(&mut d, Some(&mut feature), grid.samples);
 
     // share of every sample inside the closing, ramping from 0 to 1 over two cells across its surface
     let mut shifts: Vec<(f32, f32)> = Vec::new();
-    let position = |i: usize| Vec3::new((i % nx) as f32, (i / nx % ny) as f32, (i / (nx * ny)) as f32);
     let mut solid = d;
-    for i in 0..n {
+    for (row, solid) in solid.chunks_mut(nx).enumerate() {
+        closing_row(grid, rho_far, row * nx, solid, &feature, &mut shifts);
+    }
+    drop(feature);
+    blur_by_radius(&mut solid, grid, frame);
+    solid
+}
+
+/// The tube distance at sample `i` and the closing radius there, in world units
+fn tube_at(grid: &SparseGrid, i: usize) -> Option<(f32, f32)> {
+    let [nx, ny, _] = grid.samples;
+    grid.index([i % nx, i / nx % ny, i / (nx * ny)]).map(|s| (grid.tube[s], grid.tube_close[s])).filter(|(t, _)| t.is_finite())
+}
+
+/// The radius in cells of the empty ball around sample `i`, where no tube reaches the sample it is at least as
+/// far as every tube reaches
+fn ball(grid: &SparseGrid, rho_far: f32, i: usize) -> Option<f32> {
+    let (tube, rho) = tube_at(grid, i).unwrap_or((rho_far + 2.0 * grid.cell, rho_far));
+    (tube > rho).then_some(tube / grid.cell)
+}
+
+/// The balls of the samples `first..` for [`closing`]
+#[inline(never)]
+fn seed_balls(grid: &SparseGrid, rho_far: f32, first: usize, d: &mut [f32], feature: &mut [u32]) {
+    for (k, (d, feature)) in d.iter_mut().zip(feature).enumerate() {
+        if let Some(r) = ball(grid, rho_far, first + k) {
+            *d = -r * r;
+            *feature = (first + k) as u32;
+        }
+    }
+}
+
+/// The share of the closing at the samples `first..`, `solid` holds their distance transform on the way in
+#[inline(never)]
+fn closing_row(
+    grid: &SparseGrid,
+    rho_far: f32,
+    first: usize,
+    solid: &mut [f32],
+    feature: &[u32],
+    shifts: &mut Vec<(f32, f32)>,
+) {
+    let [nx, ny, _] = grid.samples;
+    let position = |i: usize| Vec3::new((i % nx) as f32, (i / nx % ny) as f32, (i / (nx * ny)) as f32);
+    for (k, solid) in solid.iter_mut().enumerate() {
+        let i = first + k;
         let Some(slot) = grid.index([i % nx, i / nx % ny, i / (nx * ny)]) else {
-            solid[i] = 0.0;
+            *solid = 0.0;
             continue;
         };
         let tube = grid.tube[slot] / grid.cell;
         if !tube.is_finite() {
-            solid[i] = 0.0;
+            *solid = 0.0;
             continue;
         }
         let rho = grid.tube_close[slot];
@@ -961,15 +1061,12 @@ fn closing(grid: &SparseGrid, frame: &Frame) -> Vec<f32> {
         } else {
             let f = feature[i] as usize;
             // no point of the closed surface is farther than the tubes
-            (ball(grid, f).unwrap_or(0.0) - position(i).distance(position(f))).min(tube)
+            (ball(grid, rho_far, f).unwrap_or(0.0) - position(i).distance(position(f))).min(tube)
         };
         let allowed = grid.guard[slot] / grid.cell - GUARD * rho / grid.cell;
         let closing = (0.5 - 0.5 * (outside + shift)).min(0.5 + 0.5 * (allowed - shift));
-        solid[i] = closing.max(0.5 - 0.5 * (tube + shift)).clamp(0.0, 1.0);
+        *solid = closing.max(0.5 - 0.5 * (tube + shift)).clamp(0.0, 1.0);
     }
-    drop(feature);
-    blur_by_radius(&mut solid, grid, frame);
-    solid
 }
 
 /// Blurs the closing by [`SMOOTHING`] times the closing radius of every sample, so a tissue that
@@ -978,10 +1075,8 @@ fn closing(grid: &SparseGrid, frame: &Frame) -> Vec<f32> {
 /// it, blurred by the largest blur: where tissues of different radii meet, the surface goes
 /// over from the one blur to the other within about that blur.
 fn blur_by_radius(solid: &mut Vec<f32>, grid: &SparseGrid, frame: &Frame) {
-    let [nx, ny, _] = grid.samples;
-    let radius_at = |i: usize| {
-        grid.index([i % nx, i / nx % ny, i / (nx * ny)]).filter(|&s| grid.tube[s].is_finite()).map(|s| grid.tube_close[s])
-    };
+    let [nx, _, _] = grid.samples;
+    let radius_at = |i: usize| closing_radius_at(grid, i);
     let mut radii: Vec<f32> = Vec::new();
     for rho in (0..solid.len()).filter_map(radius_at) {
         if !radii.contains(&rho) {
@@ -1001,17 +1096,18 @@ fn blur_by_radius(solid: &mut Vec<f32>, grid: &SparseGrid, frame: &Frame) {
     // the same buffers for every radius, and the copy each blur reads from
     let (mut weight, mut blurred, mut source) = (vec![0.0f32; n], vec![0.0f32; n], Vec::new());
     for &rho in &radii {
-        for (i, w) in weight.iter_mut().enumerate() {
-            *w = if radius_at(i) == Some(rho) { 1.0 } else { 0.0 };
+        for (row, weight) in weight.chunks_mut(nx).enumerate() {
+            mark_radius(grid, rho, row * nx, weight);
         }
         blur_rows(&mut weight, grid.samples, SMOOTHING * frame.close_max / grid.cell, None, &mut source);
         // the closing blurred by this radius only counts where its weight does, the rest of the grid isn't blurred
         let wanted: Vec<bool> = weight.chunks_exact(nx).map(|row| row.iter().any(|&w| w != 0.0)).collect();
         blurred.copy_from_slice(&sharp);
         blur_rows(&mut blurred, grid.samples, SMOOTHING * rho / grid.cell, Some(&wanted), &mut source);
-        for i in (0..n).filter(|&i| weight[i] != 0.0) {
-            sum[i] += weight[i] * blurred[i];
-            total[i] += weight[i];
+        for (((sum, total), weight), blurred) in
+            sum.chunks_mut(nx).zip(total.chunks_mut(nx)).zip(weight.chunks(nx)).zip(blurred.chunks(nx))
+        {
+            add_weighted(sum, total, weight, blurred);
         }
     }
     drop((sharp, weight, blurred, source));
@@ -1019,6 +1115,29 @@ fn blur_by_radius(solid: &mut Vec<f32>, grid: &SparseGrid, frame: &Frame) {
         *s = if t > 0.0 { *s / t } else { 0.0 };
     }
     *solid = sum;
+}
+
+/// The closing radius of sample `i`, where there is a tube
+fn closing_radius_at(grid: &SparseGrid, i: usize) -> Option<f32> {
+    let [nx, ny, _] = grid.samples;
+    grid.index([i % nx, i / nx % ny, i / (nx * ny)]).filter(|&s| grid.tube[s].is_finite()).map(|s| grid.tube_close[s])
+}
+
+/// Sets the weights of the samples `first..` to 1 where the closing radius is `rho` and to 0 elsewhere
+#[inline(never)]
+fn mark_radius(grid: &SparseGrid, rho: f32, first: usize, weight: &mut [f32]) {
+    for (k, w) in weight.iter_mut().enumerate() {
+        *w = if closing_radius_at(grid, first + k) == Some(rho) { 1.0 } else { 0.0 };
+    }
+}
+
+/// Adds the blurred closing to `sum` and its weight to `total`, where the weight isn't 0
+#[inline(never)]
+fn add_weighted(sum: &mut [f32], total: &mut [f32], weight: &[f32], blurred: &[f32]) {
+    for i in (0..sum.len()).filter(|&i| weight[i] != 0.0) {
+        sum[i] += weight[i] * blurred[i];
+        total[i] += weight[i];
+    }
 }
 
 /// Adds the closed tissue to the density so that its surface lies at `threshold`.
@@ -1316,7 +1435,7 @@ fn blur_rows(values: &mut [f32], samples: [usize; 3], sigma: f32, wanted: Option
     let [nx, ny, nz] = samples;
     let rows = ny * nz;
     // the taps of a sample `k` along a line of `len` that lie on the line
-    let taps = |k: usize, len: usize| radius.saturating_sub(k)..weights.len().min(len + radius - k);
+    let taps = |k: usize, len: usize| tap_range(&weights, radius, k, len);
     // the rows the pass along z writes, along y and along x: each pass reads its taps' rows of the one before
     let along_z = wanted.map_or_else(|| vec![true; rows], <[bool]>::to_vec);
     let widen = |wanted: &[bool], len: usize, rows_per_step: usize| -> Vec<bool> {
@@ -1333,20 +1452,7 @@ fn blur_rows(values: &mut [f32], samples: [usize; 3], sigma: f32, wanted: Option
 
     let mut line = vec![0.0; nx];
     for (row, _) in values.chunks_exact_mut(nx).zip(&along_x).filter(|(_, w)| **w) {
-        if row.iter().all(|&v| v == 0.0) {
-            continue;
-        }
-        line.copy_from_slice(row);
-        // at the ends of the row the taps that fall off it are left out
-        let inner = radius.min(nx)..nx.saturating_sub(radius).max(radius.min(nx));
-        for k in (0..inner.start).chain(inner.end..nx) {
-            let mut sum = 0.0;
-            for o in taps(k, nx) {
-                sum += weights[o] * line[k + o - radius];
-            }
-            row[k] = sum;
-        }
-        convolve(&mut row[inner.clone()], &line[inner.start - radius..], &weights);
+        blur_row_along_x(row, &mut line, &weights);
     }
     // along y and z whole rows at once, the samples of a row lie next to each other
     source.clear();
@@ -1358,17 +1464,59 @@ fn blur_rows(values: &mut [f32], samples: [usize; 3], sigma: f32, wanted: Option
             *filled = row.iter().any(|&v| v != 0.0);
         }
         for (r, row) in values.chunks_exact_mut(nx).enumerate().filter(|&(r, _)| wanted[r]) {
-            let k = r / rows_per_step % len;
-            let first = r - k * rows_per_step;
-            row.fill(0.0);
-            for o in taps(k, len) {
-                let from = first + (k + o - radius) * rows_per_step;
-                if !filled[from] {
-                    continue;
-                }
-                add_scaled(row, &source[from * nx..(from + 1) * nx], weights[o]);
-            }
+            blur_row_across(row, r, source, &filled, &weights, len, rows_per_step);
         }
+    }
+}
+
+/// The taps of a sample `k` along a line of `len` that lie on the line
+fn tap_range(weights: &[f32], radius: usize, k: usize, len: usize) -> std::ops::Range<usize> {
+    radius.saturating_sub(k)..weights.len().min(len + radius - k)
+}
+
+/// One row of [`blur_rows`] along x, `line` is where it copies the row to read from
+#[cfg_attr(target_arch = "wasm32", target_feature(enable = "simd128"))]
+#[inline(never)]
+fn blur_row_along_x(row: &mut [f32], line: &mut [f32], weights: &[f32]) {
+    if row.iter().all(|&v| v == 0.0) {
+        return;
+    }
+    let (nx, radius) = (row.len(), weights.len() / 2);
+    line.copy_from_slice(row);
+    // at the ends of the row the taps that fall off it are left out
+    let inner = radius.min(nx)..nx.saturating_sub(radius).max(radius.min(nx));
+    for k in (0..inner.start).chain(inner.end..nx) {
+        let mut sum = 0.0;
+        for o in tap_range(weights, radius, k, nx) {
+            sum += weights[o] * line[k + o - radius];
+        }
+        row[k] = sum;
+    }
+    convolve(&mut row[inner.clone()], &line[inner.start - radius..], weights);
+}
+
+/// Row `r` of [`blur_rows`] along y or z
+#[cfg_attr(target_arch = "wasm32", target_feature(enable = "simd128"))]
+#[inline(never)]
+fn blur_row_across(
+    row: &mut [f32],
+    r: usize,
+    source: &[f32],
+    filled: &[bool],
+    weights: &[f32],
+    len: usize,
+    rows_per_step: usize,
+) {
+    let (nx, radius) = (row.len(), weights.len() / 2);
+    let k = r / rows_per_step % len;
+    let first = r - k * rows_per_step;
+    row.fill(0.0);
+    for o in tap_range(weights, radius, k, len) {
+        let from = first + (k + o - radius) * rows_per_step;
+        if !filled[from] {
+            continue;
+        }
+        add_scaled(row, &source[from * nx..(from + 1) * nx], weights[o]);
     }
 }
 
