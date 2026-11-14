@@ -500,17 +500,23 @@ describe('runtime cache by cost', () => {
   }
 
   it('does not store a big result that is quick to make', async () => {
-    const cache = new MemoryRuntimeCache();
-    const executor = new MemoryRuntimeExecutor(
-      createMockNodeRegistry([output, bigCheap]),
-      cache
-    );
-    await executor.execute(singleNodeGraph(bigCheap.id), {});
-    calls = {};
-    await executor.execute(singleNodeGraph(bigCheap.id), {});
+    // filling 4 MB can take longer than 4 ms on a slow runner, which would make it worth keeping
+    vi.useFakeTimers({ toFake: ['performance'] });
+    try {
+      const cache = new MemoryRuntimeCache();
+      const executor = new MemoryRuntimeExecutor(
+        createMockNodeRegistry([output, bigCheap]),
+        cache
+      );
+      await executor.execute(singleNodeGraph(bigCheap.id), {});
+      calls = {};
+      await executor.execute(singleNodeGraph(bigCheap.id), {});
 
-    expect(calls).toEqual({ [bigCheap.id]: 1, [output.id]: 1 });
-    expect(cache.bytes).toBe(0);
+      expect(calls).toEqual({ [bigCheap.id]: 1, [output.id]: 1 });
+      expect(cache.bytes).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not run a node when the cache has the results of the nodes it feeds', async () => {
