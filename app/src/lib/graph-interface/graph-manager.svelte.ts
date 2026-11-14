@@ -31,7 +31,7 @@ import { createLogger } from '@nodarium/utils';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { collectSettings } from './helpers/collectSettings';
 import EventEmitter from './helpers/EventEmitter';
-import { clone, debounce } from './helpers/index.ts';
+import { toPlain } from './helpers/index.ts';
 import { COLUMN_GAP, layoutGraph, NODE_WIDTH } from './helpers/layoutGraph';
 import {
   areEdgesEqual,
@@ -47,6 +47,8 @@ const log = createLogger('graph-manager');
 log.mute();
 
 const remoteRegistry = new RemoteNodeRegistry('');
+
+const SAVE_IDLE_MS = 300;
 
 export class GraphManager extends EventEmitter<{
   save: Graph;
@@ -93,6 +95,10 @@ export class GraphManager extends EventEmitter<{
 
   history: HistoryManager = new HistoryManager();
 
+  // A value that changes on every tick of a drag becomes one undo step once it rests
+  private historyWhenIdle = false;
+  private idleTimer: ReturnType<typeof setTimeout> | undefined;
+
   execute = throttle(() => {
     if (this.loaded === false) return;
     this.emit('result', this.serialize());
@@ -122,34 +128,41 @@ export class GraphManager extends EventEmitter<{
     return { nodes: group?.nodes ?? [], edges: group?.edges ?? [] };
   }
 
+  // Recomputed only after the graph changed: the history, the build, the database and the
+  // panels share one walk over the reactive state per change
+  private serialized = $derived.by(() => this.serializeState());
+
+  /** A copy of the graph, the caller may change it */
   serialize(): Graph {
+    return structuredClone(this.serialized);
+  }
+
+  private serializeState(): Graph {
     const root = this.levelState(null);
     const nodes = root.nodes.map(n => serializeNode(n));
     const edges = root.edges.map(e => serializeEdge(e));
 
     const groups = this.groups?.map((group) => {
       const level = this.levelState(group.id);
-      return {
-        id: group.id,
-        name: group.name,
-        inputs: group.inputs,
-        outputs: group.outputs,
-        nodes: level.nodes.map(n => serializeNode(n)),
-        edges: level.edges.map(e => serializeEdge(e))
-      };
+      const serialized = { id: group.id } as GroupDefinition;
+      if (group.name !== undefined) serialized.name = group.name;
+      if (group.inputs !== undefined) serialized.inputs = toPlain(group.inputs);
+      if (group.outputs !== undefined) serialized.outputs = toPlain(group.outputs);
+      serialized.nodes = level.nodes.map(n => serializeNode(n));
+      serialized.edges = level.edges.map(e => serializeEdge(e));
+      return serialized;
     });
 
-    const serialized = $state.snapshot({
-      id: this.id,
-      version: CURRENT_GRAPH_VERSION,
-      settings: this.settings,
-      meta: this.meta,
-      groups,
-      nodes,
-      edges
-    });
+    const serialized = {} as Graph;
+    if (this.id !== undefined) serialized.id = this.id;
+    serialized.version = CURRENT_GRAPH_VERSION;
+    if (this.settings !== undefined) serialized.settings = toPlain(this.settings);
+    if (this.meta !== undefined) serialized.meta = toPlain(this.meta);
+    if (groups !== undefined) serialized.groups = groups;
+    serialized.nodes = nodes;
+    serialized.edges = edges;
     log.log('serializing graph', serialized);
-    return clone(serialized);
+    return serialized;
   }
 
   private lastSettingsHash = 0;
@@ -162,7 +175,7 @@ export class GraphManager extends EventEmitter<{
     this.lastSettingsHash = hash;
 
     this.settings = settings;
-    this.save();
+    this.save({ coalesce: true });
     this.execute();
   }
 
@@ -408,6 +421,7 @@ export class GraphManager extends EventEmitter<{
 
   async load(graph: Graph) {
     const a = performance.now();
+    this.flush();
 
     try {
       graph = migrateGraph(graph);
@@ -494,6 +508,7 @@ export class GraphManager extends EventEmitter<{
     this.emit('settings', { types: settingTypes, values: settingValues });
 
     this.history.reset();
+    this.historyWhenIdle = false;
     this._init(graph);
     this.save();
     this.status = 'idle';
@@ -1421,6 +1436,7 @@ export class GraphManager extends EventEmitter<{
 
   undo() {
     log.log('undo');
+    this.flush();
     const nextState = this.history.undo();
     if (nextState) {
       this.restoreState(nextState);
@@ -1430,6 +1446,7 @@ export class GraphManager extends EventEmitter<{
 
   redo() {
     log.log('redo');
+    this.flush();
     const nextState = this.history.redo();
     if (nextState) {
       this.restoreState(nextState);
@@ -1446,18 +1463,36 @@ export class GraphManager extends EventEmitter<{
     this.save();
   }
 
-  private _emitSave = debounce(() => {
-    if (this.nodes.size === 0 && this.edges.length === 0) return;
-    const state = this.serialize();
-    this.emit('save', state);
-    log.log('saving graphs', state);
-  }, 300);
-
-  save() {
+  /**
+   * Adds an undo step and saves the graph to the database once the changes rest.
+   * With `coalesce` the undo step waits for the rest as well: a value that changes on every
+   * tick of a drag becomes one step, holding the value from before the drag.
+   */
+  save({ coalesce = false } = {}) {
     if (this.currentUndoGroup) return;
-    // History snapshot is immediate; the IDB emit is debounced.
-    this.history.save(this.serialize());
-    this._emitSave();
+    if (coalesce) {
+      this.historyWhenIdle = true;
+    } else {
+      this.historyWhenIdle = false;
+      this.history.save(this.serialized);
+    }
+    clearTimeout(this.idleTimer);
+    this.idleTimer = setTimeout(() => this.flush(), SAVE_IDLE_MS);
+  }
+
+  /** Adds the pending undo step and saves the graph right away, e.g. before the page is closed */
+  flush() {
+    if (this.historyWhenIdle) {
+      this.historyWhenIdle = false;
+      this.history.save(this.serialized);
+    }
+    if (this.idleTimer === undefined) return;
+    clearTimeout(this.idleTimer);
+    this.idleTimer = undefined;
+    if (this.nodes.size === 0 && this.edges.length === 0) return;
+    const graph = this.serialize();
+    this.emit('save', graph);
+    log.log('saving graphs', graph);
   }
 
   getParentsOfNode(node: NodeInstance) {
