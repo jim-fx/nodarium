@@ -86,7 +86,7 @@ export class HistoryManager {
   }
 
   redo() {
-    if (this.index <= this.history.length - 1) {
+    if (this.index < this.history.length - 1) {
       const nextIndex = Math.min(this.history.length - 1, this.index + 1);
       const delta = this.history[nextIndex];
       const nextState = diff.patch(this.state, delta) as Graph;

@@ -19,6 +19,17 @@ describe('HistoryManager', () => {
     expect(valueOf(manager.redo())).toBe(4);
   });
 
+  it('does nothing when redoing at the newest state', () => {
+    const manager = new HistoryManager({ maxHistory: 10 });
+    manager.save({ id: 1, meta: {}, nodes: [], edges: [] } as unknown as Graph);
+    manager.save({ id: 1, meta: {}, nodes: [{ id: 1 }], edges: [] } as unknown as Graph);
+    const index = manager.index;
+    expect(manager.redo()).toBeUndefined();
+    expect(manager.index).toBe(index);
+    expect(manager.undo()).toEqual({ id: 1, meta: {}, nodes: [], edges: [] });
+    expect(manager.redo()).toEqual({ id: 1, meta: {}, nodes: [{ id: 1 }], edges: [] });
+  });
+
   it('keeps index inside the history after exceeding maxHistory', () => {
     const manager = new HistoryManager({ maxHistory: 10 });
     fill(manager, 35);
