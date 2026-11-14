@@ -278,8 +278,10 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   // keyed by the id of the node a debug node is connected to
   private debugData: Record<number, DebugEntry> = {};
   // execution time in ms of every node of the last run, cached nodes keep
-  // the time of the run that computed their result
+  // the time of the run that computed their result, group nodes the sum of their nodes
   private nodeTimings: Record<number, number> = {};
+  // the same, but only of the nodes that ran in the last run and not from the cache
+  private runTimings: Record<number, number> = {};
   private lastError: RuntimeErrorInfo | undefined;
 
   perf?: PerformanceStore;
@@ -520,6 +522,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     // values and the keys of its input nodes, so we never hash result data
     const cacheKeys: Record<string, number> = {};
     const nodeTimings: Record<number, number> = {};
+    const runTimings: Record<number, number> = {};
     let cachedBytes = 0;
 
     const seed = typeof settings['seed'] === 'number' && Number.isFinite(settings['seed'])
@@ -646,6 +649,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         }
 
         nodeTimings[node.id] = b - a;
+        runTimings[node.id] = b - a;
         this.perf?.addPoint('node/' + node_type.id, b - a);
         log.log('Result:', results[node.id]);
         log.groupEnd();
@@ -669,7 +673,14 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       this.cache.maxBytes = cachedBytes * 2;
     }
 
+    // the nodes of a group run under ids the editor doesn't know, their group node shows the sum
+    for (const timings of [nodeTimings, runTimings]) {
+      for (const [id, origin] of origins) {
+        if (id in timings) timings[origin] = (timings[origin] ?? 0) + timings[id];
+      }
+    }
     this.nodeTimings = nodeTimings;
+    this.runTimings = runTimings;
 
     this.perf?.endPoint('runtime');
 
@@ -739,6 +750,10 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
   getNodeTimings() {
     return this.nodeTimings;
+  }
+
+  getRunTimings() {
+    return this.runTimings;
   }
 
   /** Details of the error of the last run, if it failed */

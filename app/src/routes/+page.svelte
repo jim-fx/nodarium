@@ -20,6 +20,7 @@
     probeSource
   } from '#lib/result-viewer/gizmos/gizmos.ts';
   import Viewer from '#lib/result-viewer/Viewer.svelte';
+  import { createDragHold } from '#lib/runtime/drag-hold.ts';
   import { errorLog } from '#lib/runtime/error-log.svelte.ts';
   import { WorkerRuntimeExecutor } from '#lib/runtime/index.ts';
   import { appSettings, AppSettingTypes } from '#lib/settings/app-settings.svelte.ts';
@@ -281,6 +282,7 @@
         )
         : debugResult;
       nodeTimings = await runtime.getNodeTimings();
+      dragHold.measured(g, await runtime.getRunTimings());
       errorNodeId = undefined;
       viewerComponent?.update(graphResult);
       pm.thumbnails.schedule(g, graphResult);
@@ -303,6 +305,13 @@
   }
 
   const handleUpdate = debounceAsyncFunction(update);
+
+  // a build can't be stopped, on a slow graph one of an early value of a drag delays the last one
+  const dragHold = createDragHold({
+    build: (g) => handleUpdate(g),
+    timings: () => nodeTimings
+  });
+  $effect(() => dragHold.listen(window));
 
   function focusNode(nodeId: number) {
     const node = manager?.getNode(nodeId);
@@ -446,7 +455,7 @@
               await pm.saveGraph(g);
               pendingSave = false;
             }}
-            onresult={(result) => handleUpdate(result as Graph)}
+            onresult={(result) => dragHold.request(result as Graph)}
           />
         {/key}
       {/if}

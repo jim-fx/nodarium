@@ -47,7 +47,8 @@ export async function executeGraph(
     performance: performanceStore.get().at(-1),
     // debug values can be entries of the runtime cache, so they are copied, not transferred
     debugData: executor.getDebugData(),
-    nodeTimings: executor.getNodeTimings()
+    nodeTimings: executor.getNodeTimings(),
+    runTimings: executor.getRunTimings()
   };
   if (result?.buffer) {
     return Comlink.transfer(execution, [result.buffer]);
