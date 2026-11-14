@@ -11,7 +11,8 @@
 //! it elsewhere and copying it.
 //!
 //! A node that only passes large buffers on keeps these buffers in an [`Arena`] instead of the
-//! allocator, see [`use_arena`].
+//! allocator, see [`use_arena`]. There a node may also lengthen an input that is the last buffer
+//! of its chunk, see [`extend_input`].
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, Once};
@@ -195,6 +196,27 @@ impl Arena {
         }
     }
 
+    /// Lengthens the `bytes` at `at` to `to` bytes when they are the last of their chunk: inside
+    /// the chunk, or by the missing pages when the chunk ends where the memory does
+    fn extend(&mut self, at: usize, bytes: usize, to: usize, memory: &mut impl Memory) -> bool {
+        let (bytes, to) = (bytes.next_multiple_of(8), to.next_multiple_of(8));
+        let end = memory.end();
+        let Some(chunk) = self.chunks.iter_mut().find(|c| c.start <= at && at + bytes == c.top) else {
+            return false;
+        };
+        let missing = (at + to).saturating_sub(chunk.end);
+        if missing > 0 {
+            if chunk.end != end {
+                return false;
+            }
+            let pages = missing.div_ceil(PAGE);
+            memory.grow(pages);
+            chunk.end += pages * PAGE;
+        }
+        chunk.top = at + to;
+        true
+    }
+
     fn rewind(&mut self) {
         for chunk in &mut self.chunks {
             chunk.top = chunk.start;
@@ -202,9 +224,12 @@ impl Arena {
     }
 }
 
-/// A buffer of `words` that lives until the reset, zeroed when `zero`
+/// A buffer of `words` that lives until the reset, zeroed when `zero`. Buffers smaller than a
+/// page stay out of the arena, so the large ones lie end to end there and the host's small
+/// buffers after an input, its other arguments and the argument table, don't keep it from
+/// being extended.
 fn buffer(words: usize, zero: bool) -> Storage {
-    if !USE_ARENA.load(Ordering::Relaxed) {
+    if !USE_ARENA.load(Ordering::Relaxed) || words * 4 < PAGE {
         return Storage::Heap(if zero { vec![0; words] } else { Vec::with_capacity(words) });
     }
     let at = ARENA.lock().unwrap().alloc(words * 4, &mut ModuleMemory);
@@ -258,6 +283,15 @@ impl InPlace {
     pub unsafe fn words(&self) -> &[i32] {
         std::slice::from_raw_parts(self.ptr, self.len)
     }
+
+    /// The words, to change them before they are returned
+    ///
+    /// # Safety
+    /// Only before it is returned, and no other reference to the words may be used meanwhile:
+    /// for an input given back by [`frame_input`] or [`extend_input`], the input isn't read again.
+    pub unsafe fn words_mut(&mut self) -> &mut [i32] {
+        std::slice::from_raw_parts_mut(self.ptr as *mut i32, self.len)
+    }
 }
 
 /// `prefix`, `input` and `suffix` as one result, without copying `input`: the words are written into
@@ -284,6 +318,32 @@ pub fn frame_input(input: &[i32], prefix: &[i32], suffix: &[i32]) -> Option<InPl
         std::ptr::copy_nonoverlapping(suffix.as_ptr(), base.add(HEADROOM + input.len()), suffix.len());
     }
     Some(InPlace { ptr: unsafe { base.add(first) }, len: prefix.len() + input.len() + suffix.len() })
+}
+
+/// `input` and `words` zeroed words after it as one result, without copying `input`, for a node
+/// that returns its input with more words. `None` when `input` isn't a whole buffer the host
+/// allocated for the current call, see [`frame_input`], when it isn't in the arena or isn't the
+/// last buffer of its chunk, or when the memory grew after that chunk; then the node copies it.
+/// An extended input can't be framed, shrunk or extended again.
+pub fn extend_input(input: &[i32], words: usize) -> Option<InPlace> {
+    if input.is_empty() {
+        return None;
+    }
+    let mut allocations = ALLOCATIONS.lock().unwrap();
+    let allocation =
+        allocations.iter_mut().rev().find(|a| a.input == Some(input.len()) && a.input_start() == input.as_ptr())?;
+    let Storage::Arena(at) = allocation.storage else {
+        return None;
+    };
+    let bytes = (input.len() + 2 * HEADROOM) * 4;
+    if !ARENA.lock().unwrap().extend(at, bytes, bytes + words * 4, &mut ModuleMemory) {
+        return None;
+    }
+    allocation.input = None;
+    let ptr = (at as *mut i32).wrapping_add(HEADROOM);
+    // SAFETY: the arena gave out these words after the input, nothing else refers to them
+    unsafe { std::ptr::write_bytes(ptr.add(input.len()), 0, words) };
+    Some(InPlace { ptr, len: input.len() + words })
 }
 
 /// A result written straight into a buffer of `words` that the ABI owns until the next reset.
@@ -657,32 +717,156 @@ mod tests {
         assert_eq!(memory.0, 7);
     }
 
+    /// Words of a buffer that is large enough for the arena
+    const LARGE: usize = PAGE / 4;
+
+    fn large(first: i32) -> Vec<i32> {
+        (first..first + LARGE as i32).collect()
+    }
+
+    fn in_arena(words: &[i32]) -> bool {
+        let allocations = ALLOCATIONS.lock().unwrap();
+        let allocation =
+            allocations.iter().find(|a| a.input_start() == words.as_ptr() || a.storage.start() == words.as_ptr());
+        matches!(allocation.unwrap().storage, Storage::Arena(_))
+    }
+
     #[test]
     fn inputs_and_results_in_the_arena_are_framed_written_and_rewound() {
         let _turn = STATE.lock().unwrap_or_else(|e| e.into_inner());
         reset();
         use_arena();
-        let input = host_input(&[7, 8, 9]);
+        let input = host_input(&large(7));
+        assert!(in_arena(input));
         let framed = frame_input(input, &[0, 4], &[1]).unwrap();
-        assert_eq!(unsafe { framed.words() }, &[0, 4, 7, 8, 9, 1]);
+        assert_eq!(unsafe { framed.words() }[..4], [0, 4, 7, 8]);
+        assert_eq!(unsafe { framed.words() }[LARGE + 2..], [1]);
         // memory used before is zeroed for a result
-        let result = write_result(3, |words| {
-            assert_eq!(words, &[0; 3]);
-            words.copy_from_slice(&[5, 5, 5]);
-            3
+        let result = write_result(LARGE, |words| {
+            assert!(words.iter().all(|&w| w == 0));
+            words.fill(5);
+            LARGE
         });
         assert_eq!(unsafe { shrink_input(input, 1) }, None);
         store_result((vec![0], vec![1]));
         reset();
         // a reset rewinds the arena, the next run uses the same memory
-        assert_eq!(host_input(&[1, 2, 3]).as_ptr(), input.as_ptr());
-        let again = write_result(3, |words| {
-            assert_eq!(words, &[0; 3]);
+        assert_eq!(host_input(&large(1)).as_ptr(), input.as_ptr());
+        let again = write_result(LARGE, |words| {
+            assert!(words.iter().all(|&w| w == 0));
             0
         });
         assert_eq!(again.ptr, result.ptr);
         USE_ARENA.store(false, Ordering::Relaxed);
         reset();
+    }
+
+    #[test]
+    fn buffers_smaller_than_a_page_stay_out_of_the_arena() {
+        let _turn = STATE.lock().unwrap_or_else(|e| e.into_inner());
+        reset();
+        use_arena();
+        let mesh = host_input(&large(0));
+        let color = host_input(&[1, 2, 3]);
+        let table = host_input(&[0, 0, 0, 0]);
+        let small = write_result(4, |_| 4);
+        assert!(in_arena(mesh));
+        assert!(!in_arena(color) && !in_arena(table));
+        assert!(!in_arena(unsafe { small.words() }));
+        // the large ones lie end to end
+        let next = host_input(&large(0));
+        let bytes = ((LARGE + 2 * HEADROOM) * 4).next_multiple_of(8);
+        assert_eq!(next.as_ptr() as usize - mesh.as_ptr() as usize, bytes);
+        USE_ARENA.store(false, Ordering::Relaxed);
+        reset();
+    }
+
+    #[test]
+    fn the_last_input_of_its_chunk_is_extended() {
+        let _turn = STATE.lock().unwrap_or_else(|e| e.into_inner());
+        reset();
+        use_arena();
+        let input = host_input(&large(3));
+        // the host's small buffers after it don't count
+        let color = host_input(&[1, 2, 3]);
+        host_input(&[0, 0, 0, 0]);
+        // by more than is left of the page, the memory grows by the pages that are missing
+        let words = PAGE / 4 + 5;
+        let mut extended = extend_input(input, words).unwrap();
+        assert_eq!(extended.len(), LARGE + words);
+        assert_eq!(unsafe { extended.words() }.as_ptr(), input.as_ptr());
+        assert_eq!(unsafe { extended.words() }[..LARGE], large(3)[..]);
+        assert!(unsafe { extended.words() }[LARGE..].iter().all(|&w| w == 0));
+        unsafe { extended.words_mut()[LARGE + words - 1] = 9 };
+        // once only, and it can't be framed or shrunk any more
+        assert_eq!(extend_input(input, 1), None);
+        assert_eq!(frame_input(input, &[], &[]), None);
+        assert_eq!(unsafe { shrink_input(input, 1) }, None);
+        // the next buffer of the arena starts after it and its headroom
+        let result = write_result(LARGE, |_| LARGE);
+        let end = input.as_ptr() as usize + (LARGE + words + HEADROOM) * 4;
+        assert!(result.ptr as usize >= end);
+        assert_eq!(color, &[1, 2, 3]);
+        let descriptor = store_result(Output::from(extended));
+        let pair = unsafe { std::slice::from_raw_parts(descriptor, 2) };
+        assert_eq!(pair, &[input.as_ptr() as u32, (LARGE + words) as u32]);
+        assert_eq!(unsafe { extended.words() }[LARGE + words - 1], 9);
+        USE_ARENA.store(false, Ordering::Relaxed);
+        reset();
+    }
+
+    #[test]
+    fn only_the_last_whole_input_of_the_call_in_its_chunk_is_extended() {
+        let _turn = STATE.lock().unwrap_or_else(|e| e.into_inner());
+        reset();
+        // not in the arena
+        let input = host_input(&large(0));
+        assert_eq!(extend_input(input, 1), None);
+        reset();
+        use_arena();
+        // small inputs aren't in the arena either
+        assert_eq!(extend_input(host_input(&[1, 2]), 1), None);
+        let first = host_input(&large(0));
+        let last = host_input(&large(1));
+        // an input with a large buffer after it, a part of an input, words that aren't an input
+        assert_eq!(extend_input(first, 1), None);
+        assert_eq!(extend_input(&last[1..], 1), None);
+        assert_eq!(extend_input(&last[..LARGE - 1], 1), None);
+        assert_eq!(extend_input(&large(1), 1), None);
+        // a framed input
+        assert!(frame_input(last, &[], &[]).is_some());
+        assert_eq!(extend_input(last, 1), None);
+        // the result of a call, passed into the next one, may still be read by other nodes
+        let result = write_result(LARGE, |_| LARGE);
+        store_result(Output::from(result));
+        assert_eq!(extend_input(unsafe { result.words() }, 1), None);
+        // nor an input of a call that is over
+        let next = host_input(&large(2));
+        store_result(vec![0]);
+        assert_eq!(extend_input(next, 1), None);
+        USE_ARENA.store(false, Ordering::Relaxed);
+        reset();
+    }
+
+    #[test]
+    fn the_arena_extends_only_the_last_buffer_of_a_chunk() {
+        let mut memory = Pages(1);
+        let mut arena = Arena { chunks: Vec::new() };
+        let first = arena.alloc(PAGE / 2, &mut memory);
+        let last = arena.alloc(PAGE / 4 + 4, &mut memory);
+        assert!(!arena.extend(first, PAGE / 2, PAGE / 2 + 8, &mut memory));
+        // inside the chunk, then by the pages that are missing
+        assert!(arena.extend(last, PAGE / 4 + 4, PAGE / 4 + 12, &mut memory));
+        assert_eq!(memory.0, 2);
+        assert!(arena.extend(last, PAGE / 4 + 12, 3 * PAGE, &mut memory));
+        assert_eq!(memory.0, 5);
+        assert_eq!(arena.alloc(8, &mut memory), last + 3 * PAGE);
+        // not when the memory grew after the chunk, unless it fits
+        let top = arena.alloc(PAGE / 4, &mut memory);
+        memory.grow(1);
+        assert!(!arena.extend(top, PAGE / 4, PAGE, &mut memory));
+        assert!(arena.extend(top, PAGE / 4, PAGE / 4 + 16, &mut memory));
+        assert_eq!(memory.0, 6);
     }
 
     #[test]

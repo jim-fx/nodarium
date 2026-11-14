@@ -374,6 +374,20 @@ impl<'a> MeshWords<'a> {
         out.done();
     }
 
+    /// Paints the mesh at the start of `words` like [`MeshWords::paint_into`], where it is. A mesh
+    /// without colors needs a word more per vertex, `words` has them after it.
+    pub fn paint_in_place(words: &mut [i32], color: u32) {
+        let (v, f, flags) = (words[1] as usize, words[2] as usize, words[3]);
+        let painted = if v > 0 { mesh_flags::COLORS } else { 0 };
+        assert_eq!(words.len(), encoded_len(v, f, painted), "no room to paint a mesh in place");
+        let colors = HEADER_LEN + f * 3 + v * 6;
+        if flags & mesh_flags::COLORS == 0 {
+            words.copy_within(colors..colors + v, colors + v);
+        }
+        words[colors..colors + v].fill(color as i32);
+        words[3] = painted;
+    }
+
     /// The words of [`MeshWords::join`]
     pub fn join_len(meshes: &[MeshWords]) -> usize {
         let meshes = meshes.iter().filter(|m| m.v > 0);
@@ -547,6 +561,23 @@ mod tests {
             let painted = Mesh { colors: vec![color; mesh.vertex_count()], ..mesh };
             assert_eq!(MeshWords::read(&words).unwrap().painted(color), painted.encode());
         }
+    }
+
+    #[test]
+    fn paints_the_words_in_place_like_the_mesh() {
+        let color = pack_rgba(0.2, 0.4, 0.6, 1.0);
+        let colored = Mesh { colors: vec![7; 3], ..triangle() };
+        for mesh in [Mesh::default(), triangle(), other(false), other(true), colored] {
+            let mut words = mesh.encode();
+            let painted = MeshWords::read(&words).unwrap().painted(color);
+            // the room for the colors holds what was there before
+            words.resize(painted.len(), -1);
+            MeshWords::paint_in_place(&mut words, color);
+            assert_eq!(words, painted);
+        }
+        let mut words = vec![MESH_TAG, 0, 0, mesh_flags::COLORS];
+        MeshWords::paint_in_place(&mut words, color);
+        assert_eq!(words, Mesh::default().encode());
     }
 
     /// What a builder adds: two triangles, and two vertices it takes back
