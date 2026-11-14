@@ -212,3 +212,81 @@ describe.skipIf(!BUILT && !ON_CI)('leaf variants from one vein graph', () => {
     expect(placed.reduce((sum, i) => sum + i[3], 0)).toBe(60);
   });
 });
+
+describe.skipIf(!BUILT && !ON_CI)('deform on the leaves of leaf_surface and leaf', () => {
+  const TWIST = 8;
+  const CURL = 9;
+  let leaves: Int32Array[] = [];
+  let twisted: Int32Array[] = [];
+  let flat: Leaf;
+  let curled: Leaf;
+
+  const wrap = (item: Int32Array) => readLeaf(Int32Array.from([0, item.length + 1, ...item, 1, 1]));
+
+  beforeAll(async () => {
+    const deformed = structuredClone(graph);
+    const node = (id: number) => deformed.nodes.find((n) => n.id === id)!;
+    node(STEM).props = { ...node(STEM).props, amount: 3 };
+    node(SURFACE).props = { ...node(SURFACE).props, variants: 3 };
+    node(LEAF).props = { x_resolution: 8 };
+    deformed.nodes.push(
+      {
+        id: TWIST,
+        type: 'max/plantarium/deform',
+        position: [0, 0],
+        props: { mode: 2, amount: 0.25 }
+      },
+      {
+        id: CURL,
+        type: 'max/plantarium/deform',
+        position: [0, 0],
+        props: { mode: 1, amount: -0.25 }
+      }
+    );
+    deformed.edges = deformed.edges.filter((e) => e[2] !== JOIN);
+    deformed.edges.push(
+      [SURFACE, 0, TWIST, 'geometry'],
+      [LEAF, 0, CURL, 'geometry'],
+      [TWIST, 0, JOIN, 'a'],
+      [CURL, 0, JOIN, 'b']
+    );
+
+    const registry = new FileNodeRegistry(resolve('static/nodes'));
+    const runtime = new MemoryRuntimeExecutor(registry, new MemoryRuntimeCache());
+    await registry.load(deformed.nodes.map((n) => n.type) as NodeId[]);
+    const probed = [SURFACE, TWIST, LEAF, CURL];
+    probed.forEach((id, i) => {
+      deformed.nodes.push({ id: 1e9 + i, type: DEBUG_NODE as NodeId, position: [0, 0] });
+      deformed.edges.push([id, 0, 1e9 + i, 'input']);
+    });
+    await runtime.execute(deformed, { seed: 1 });
+    const debug = runtime.getDebugData();
+    leaves = splitNestedArray(debug[SURFACE].data);
+    twisted = splitNestedArray(debug[TWIST].data);
+    flat = readLeaf(debug[LEAF].data);
+    curled = readLeaf(debug[CURL].data);
+  }, 120_000);
+
+  it('twists every leaf of the list and keeps its vertices', () => {
+    expect(twisted).toHaveLength(3);
+    twisted.forEach((leaf, i) => {
+      expect([leaf[1], leaf[2]]).toEqual([leaves[i][1], leaves[i][2]]);
+      // a quarter turn stands the tip on its edge
+      const { positions, normals } = wrap(leaf);
+      const length = -Math.min(...positions.map((p) => p[2]));
+      const tip = positions.filter((p) => p[2] < -0.85 * length);
+      const reach = (k: number) => Math.max(...tip.map((p) => Math.abs(p[k])));
+      expect(reach(1)).toBeGreaterThan(2 * reach(0));
+      expect(normals.every((n) => Math.abs(Math.hypot(...n) - 1) < 1e-3)).toBe(true);
+    });
+  });
+
+  it('rolls the margins of the leaf node under', () => {
+    expect(curled.positions).toHaveLength(flat.positions.length);
+    const width = (leaf: Leaf) => Math.max(...leaf.positions.map((p) => Math.abs(p[0])));
+    expect(width(curled)).toBeLessThan(0.9 * width(flat));
+    expect(Math.min(...curled.positions.map((p) => p[1]))).toBeLessThan(
+      Math.min(...flat.positions.map((p) => p[1])) - 5
+    );
+  });
+});
