@@ -12,7 +12,7 @@ import {
   Vector2,
   Vector3
 } from 'three';
-import { takeVertexColors } from '../geometry/geometryPool';
+import { takeGroups, takeVertexColors } from '../geometry/geometryPool';
 
 const loader = new TextureLoader();
 let matcapTexture: Texture | undefined;
@@ -363,11 +363,13 @@ export const materials = [
     id: 'groups',
     name: 'Groups',
     create: () =>
-      new ShaderMaterial({
-        vertexShader: groupsVertexShader,
-        fragmentShader: groupsFragmentShader,
-        side: DoubleSide
-      })
+      takeGroups(
+        new ShaderMaterial({
+          vertexShader: groupsVertexShader,
+          fragmentShader: groupsFragmentShader,
+          side: DoubleSide
+        })
+      )
   }
 ] as const satisfies { id: string; name: string; create: () => Material }[];
 
