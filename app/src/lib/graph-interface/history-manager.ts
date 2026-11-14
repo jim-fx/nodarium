@@ -54,7 +54,9 @@ export class HistoryManager {
         this.index++;
 
         if (this.history.length > this.opts.maxHistory) {
-          this.history.shift();
+          const dropped = this.history.shift()!;
+          this.index--;
+          this.initialState = diff.patch(this.initialState, dropped) as Graph;
         }
         this.state = newState;
       } else {
