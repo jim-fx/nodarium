@@ -76,8 +76,8 @@ pub struct Ctx {
     /// Where the branch or instance a node is placing sits on its parent path,
     /// from 0 at the base to 1 at the tip. The `alpha` node reads it.
     pub alpha: f32,
-    /// Where a vertex sits across a geometry, from 0 on its middle to 1 at its edge. Only
-    /// `set_color` sets it, the `alpha` node with `across` reads it.
+    /// Where a vertex sits across a geometry, from 0 on its middle to 1 at its edge. `set_color`,
+    /// `leaf_surface` and `deform` set it, the `alpha` node with `across` reads it.
     pub across: f32,
     /// How far a vertex of a leaf lies from the nearest vein, from 0 on it to 1 at the edge of
     /// its groove and beyond. Only `leaf_surface` sets it, the `alpha` node with `vein` reads it.
@@ -204,6 +204,32 @@ impl Ctx {
             .collect();
 
         self.alpha = alpha;
+        self.calls = end;
+        values
+    }
+
+    /// Evaluates `arg` at every `(alpha, across)`, e.g. at every vertex of a geometry. Like
+    /// `float_along`, random values are drawn once.
+    pub fn floats_at(&mut self, arg: &[i32], at: impl IntoIterator<Item = (f32, f32)>) -> Vec<f32> {
+        let at = at.into_iter();
+        if arg.len() == 1 {
+            let v = decode_float(arg[0]);
+            return at.map(|_| v).collect();
+        }
+        let (alpha, across, calls) = (self.alpha, self.across, self.calls);
+        let mut end = calls;
+        let values = at
+            .map(|(a, c)| {
+                self.alpha = a;
+                self.across = c;
+                self.calls = calls;
+                let v = self.float(arg);
+                end = self.calls;
+                v
+            })
+            .collect();
+        self.alpha = alpha;
+        self.across = across;
         self.calls = end;
         values
     }
@@ -953,6 +979,23 @@ mod tests {
         let twice = concat_args(vec![&[MIX_COLOR], &along, &encode_color(a), &[encode_float(0.0)]]);
         ctx.alpha = 1.0;
         assert_eq!(ctx.color(&twice), b);
+    }
+
+    #[test]
+    fn floats_at_read_alpha_and_across_and_draw_once() {
+        let mut ctx = Ctx::default();
+        let along = concat_args(vec![&[2], &[0]]);
+        let across = concat_args(vec![&[2], &[1]]);
+        let at = [(0.25, 1.0), (1.0, 0.5)];
+        assert_eq!(ctx.floats_at(&along, at), vec![0.25, 1.0]);
+        assert_eq!(ctx.floats_at(&across, at), vec![1.0, 0.5]);
+        assert_eq!(ctx.floats_at(&[encode_float(3.0)], at), vec![3.0, 3.0]);
+        assert_eq!((ctx.alpha, ctx.across), (0.0, 0.0));
+
+        let random = concat_args(vec![&[1], &[encode_float(0.0)], &[encode_float(1.0)], &[3]]);
+        let values = ctx.floats_at(&random, at);
+        assert_eq!(values[0], values[1]);
+        assert_ne!(ctx.floats_at(&random, [(0.0, 0.0)])[0], values[0]);
     }
 
     #[test]

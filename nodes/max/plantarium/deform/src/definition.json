@@ -1,0 +1,32 @@
+{
+  "id": "max/plantarium/deform",
+  "meta": {
+    "description": "Bends, curls or twists a geometry along the axis it grows on, -z from its base, the way leaf, leaf_surface and instance place a leaf. The amount is read along the geometry with alpha from its base to its tip and, for curl, with alpha across from its middle to its edge, so a curve of alpha says where it bends. Curl and twist before bend, they work on the straight geometry."
+  },
+  "outputs": [
+    "geometry"
+  ],
+  "inputs": {
+    "geometry": {
+      "type": "geometry",
+      "accepts": ["path"],
+      "external": true,
+      "description": "A geometry, or a list of them from leaf_surface with variants or a join node. Every geometry is deformed on its own, everything else passes through."
+    },
+    "mode": {
+      "type": "select",
+      "options": ["bend", "curl", "twist"],
+      "value": 0,
+      "internal": true,
+      "description": "Bend arches the geometry up or down along its length, past 90° and into a hook. Curl rolls both halves up or down around lines along it, a grass blade into a channel or the margin of a sage leaf under. Twist turns it around its axis."
+    },
+    "amount": {
+      "type": "float",
+      "min": -2,
+      "max": 2,
+      "step": 0.01,
+      "value": 0,
+      "description": "How far it turns, in turns: a constant amount turns the tip (or for curl the edge) by that much, 0.25 is a right angle. It is read along the geometry as how fast it turns there, so a curve of alpha that is 0 at first bends only the end. Positive bends and curls toward the face (+y), negative away from it, positive twists the edge at +x up."
+    }
+  }
+}

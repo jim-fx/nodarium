@@ -156,6 +156,26 @@ The vertices on a vein are exactly on it and the row of banks beside it is at th
 
 The other way would have been to colour the veins with `set_color` (paths carry colours, type 16) and have `leaf_surface` paint them onto the blade near them. The blade itself still needs a colour then, and the only node that could give it one, a `set_color` after `leaf_surface`, overwrites every vertex; letting `set_color` keep colours that are already there would change what it does to every coloured geometry. The vein distance can't be read by `set_color` either, because a geometry doesn't carry it, and putting it into the geometry would send data a link doesn't show. So the colour is read where the veins are known, in `leaf_surface`, with the generic `alpha`, `curve`, `path_info` and `mix_color` nodes shaping it.
 
+### Deform
+
+The heights of the veins arch a leaf of `leaf_surface` and let its margins droop, but they can't bend it much past 60°, roll its margins or twist it. `deform` does that to any geometry that is placed like a leaf, growing along -z from its base at the origin and facing +y: a leaf of `leaf_surface` or `leaf`, a petal, or a list of them, which it deforms one by one, like `set_color`. Its `mode` is bend, curl or twist and its `amount` is in turns, so 0.25 is a right angle:
+
+- **bend** arches the geometry around the x axis, positive towards its face (+y), negative away from it, a constant amount into an arc whose tip has turned by the amount. Past 0.25 it becomes a hook.
+- **curl** rolls both halves of the geometry around lines along it, a constant amount into arcs whose edges have turned by the amount: 0.5 rolls a flat leaf into a tube, a little makes the channel of a grass blade, a negative amount on the margin alone rolls it under like the margin of sage or rosemary.
+- **twist** turns the geometry around the z axis, positive turns its edge at +x up, a constant amount by the amount at the tip.
+
+The amount is read as how fast the geometry turns where it is read, not how far it has turned, so the deformation keeps the lengths and the width of a leaf and a curve shapes where it bends. Bend and twist read it along the geometry, with alpha from 0 at its base to 1 at the vertex farthest along -z, and add up how far it turned from the base. Curl reads it at every place along and across, with alpha across from 0 on the middle (x = 0) to 1 at the edge, and adds up how far the half turned from the middle, so a `curve` of across that stays 0 up to 0.7 rolls only the outer band. The width at a place along is the widest vertex there, so a tapering leaf curls the same at every width and its tip rolls as tightly as its base. A plain `random` is drawn once per geometry, like `set_color` draws it.
+
+```
+alpha (across) → curve (0 up to 0.7, then up to 1; max -2) → deform (curl)    a rolled-under margin
+alpha → curve (0 at the base, 1 at the tip; max 0.5) → deform (twist)           a twist that grows towards the tip
+leaf_surface → deform (curl) → deform (twist) → deform (bend) → instance
+```
+
+Each mode works in the frame of the straight geometry: curl rolls around lines along z and twist turns around the z axis. After a bend those lines are no longer the axis of the leaf, so curl and twist go before bend. Bend turns the height of a vertex with it, like a strip bent with its thickness, and curl adds it on top of the roll instead: a cupped or bent leaf is higher than the roll of a margin is wide, and turned with it, its vertices would fold over. So curl also works on a leaf of `leaf` with its own `y_curve` and `x_curve`. The normals are computed again from the faces, area weighted, on the side the old ones were turned to. Colours, the path id and the faces stay as they were. `deform` moves the vertices and adds none, so a leaf of `leaf` needs an `x_resolution` of 5 or more to roll, and an amount of 0 leaves the geometry exactly as it was.
+
+The curve of `leaf` (`y_curve`, `x_curve`, `y_twist`) does the same for its own leaf, as radians that are read along it. `deform` is the generic way: it works on `leaf_surface` and every other geometry and its amount is shaped by the generic `alpha` and `curve` nodes, so `leaf_surface` needs no inputs for it. It has one `mode` and one `amount`, three modes in a chain where a leaf needs them, which keeps the order visible.
+
 ## Geometry
 
 ```

@@ -1,7 +1,7 @@
 {
   "id": "max/plantarium/alpha",
   "meta": {
-    "description": "From 0 at the base to 1 at the tip: where a branch or instance sits on its parent path, and along the path for thickness and color. Across goes from 0 on the middle of a geometry to 1 at its edge, set_color and leaf_surface read it at every vertex. Vein goes from 0 on a vein of a leaf to 1 at the edge of its groove, leaf_surface reads it at every vertex. Everywhere else across and vein are 0."
+    "description": "From 0 at the base to 1 at the tip: where a branch or instance sits on its parent path, and along the path for thickness and color. Across goes from 0 on the middle of a geometry to 1 at its edge, set_color, leaf_surface and deform read it at every vertex. Vein goes from 0 on a vein of a leaf to 1 at the edge of its groove, leaf_surface reads it at every vertex. Everywhere else across and vein are 0."
   },
   "outputs": [
     "float"
