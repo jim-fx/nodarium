@@ -308,6 +308,7 @@ export const materials = [
   {
     id: 'plant',
     name: 'Plant',
+    environment: true,
     create: () => createMatcapStandardMaterial()
   },
   {
@@ -371,12 +372,16 @@ export const materials = [
         })
       )
   }
-] as const satisfies { id: string; name: string; create: () => Material }[];
+] as const satisfies { id: string; name: string; environment?: boolean; create: () => Material }[];
 
 export type MaterialId = (typeof materials)[number]['id'];
 
 export function getMaterial(id: string) {
   return materials.find((m) => m.id === id) ?? materials[0];
+}
+
+export function usesEnvironment(id: string) {
+  return 'environment' in getMaterial(id);
 }
 
 /** the lit materials fade from base to tip over the height of the whole result */

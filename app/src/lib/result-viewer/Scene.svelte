@@ -11,6 +11,7 @@
   import Debug from './debug/Debug.svelte';
   import type { Gizmo, GizmoChange, GizmoMode } from './gizmos/gizmos';
   import Gizmos from './gizmos/Gizmos.svelte';
+  import { usesEnvironment } from './materials/materials';
   import ScaleModel from './scale/ScaleModel.svelte';
   import ScaleViewer from './scale/ScaleViewer.svelte';
   import { updateViewScale } from './scale/view-scale.svelte';
@@ -94,7 +95,9 @@
   };
 </script>
 
-<Environment url="/environments/meadow_1k.exr" />
+{#if usesEnvironment(appSettings.value.material.id)}
+  <Environment url="/environments/meadow_1k.exr" />
+{/if}
 
 <T.DirectionalLight intensity={0.5} position={[0, 0, 1]} />
 <T.AmbientLight intensity={1} />
