@@ -26,6 +26,9 @@ export class WorkerRuntimeExecutor implements RuntimeExecutor {
   getNodeTimings() {
     return this.last?.nodeTimings ?? {};
   }
+  getRunTimings() {
+    return this.last?.runTimings ?? {};
+  }
   async getLastError() {
     return await this.worker.getLastError();
   }

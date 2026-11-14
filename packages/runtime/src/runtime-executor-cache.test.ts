@@ -272,6 +272,47 @@ describe('runtime node timings', () => {
     expect(Object.keys(second).map(Number).sort()).toEqual([0, 1, 2, 3]);
   });
 
+  it('keeps the times of the nodes that ran apart from the cached ones', async () => {
+    const executor = createExecutor();
+    await executor.execute(graph(), {});
+    expect(Object.keys(executor.getRunTimings()).map(Number).sort()).toEqual([0, 1, 2, 3]);
+
+    await executor.execute(graph({ value: 5 }), {});
+    expect(Object.keys(executor.getRunTimings()).map(Number).sort()).toEqual([0, 1, 2]);
+  });
+
+  it('gives a group node the sum of the nodes inside it', async () => {
+    const executor = createExecutor();
+    await executor.execute(
+      {
+        id: 0,
+        nodes: [
+          { id: 0, type: output.id, position: [0, 0] },
+          { id: 5, type: '__internal/group/instance', position: [0, 0], props: { groupId: 9 } }
+        ],
+        edges: [[5, 0, 0, 'input']],
+        groups: [{
+          id: 9,
+          nodes: [
+            { id: 1, type: add.id, position: [0, 0] },
+            { id: 2, type: left.id, position: [0, 0] },
+            { id: 3, type: right.id, position: [0, 0] },
+            { id: 4, type: '__internal/group/output', position: [0, 0] }
+          ],
+          edges: [[2, 0, 1, 'a'], [3, 0, 1, 'b'], [1, 0, 4, 'Out']],
+          outputs: [{ type: 'float' }]
+        }]
+      } as Graph,
+      {}
+    );
+    const timings = executor.getNodeTimings();
+    const inside = Object.entries(timings).filter(([id]) => id !== '0' && id !== '5');
+
+    expect(inside).toHaveLength(3);
+    expect(timings[5]).toBeCloseTo(inside.reduce((sum, [, time]) => sum + time, 0));
+    expect(executor.getRunTimings()[5]).toBeCloseTo(timings[5]);
+  });
+
   it('drops nodes that left the graph', async () => {
     const executor = createExecutor();
     await executor.execute(graph(), {});
