@@ -52,6 +52,11 @@
       "max": 256,
       "value": 96,
       "setting": "resolution.leaf"
+    },
+    "color": {
+      "type": "color",
+      "description": "The color of the blade, from mix_color, read at every vertex like set_color reads it on a leaf: alpha from the base to the tip, alpha across from the midrib to the margin, and alpha vein from 0 on the nearest vein to 1 at the edge of its groove, with path_info of that vein. A curve of alpha vein into the factor of a mix_color draws the veins, path_info depth tells the midrib from the side veins. Unconnected, the blade keeps the viewer's material.",
+      "external": true
     }
   }
 }

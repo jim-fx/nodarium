@@ -9,6 +9,8 @@
 //!    edges, refined until it is fine at the margin and coarse in the middle, flat in leaf space.
 //!    `polygon` helps it and `outline` find points in and near the outline.
 //! 5. `lift`: the heights of the veins bend the flat mesh, and it is placed like the leaf node.
+//! 6. `colors`: a connected `color` is read at every vertex, with alpha vein and the path of the
+//!    vein it lies closest to.
 
 mod field;
 mod mesh;
@@ -20,8 +22,8 @@ use glam::{Vec2, Vec3};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs,
-    geometry::{create_geometry_data, is_path, wrap_geometry_data},
-    int, split_args, Ctx,
+    geometry::{create_geometry_data, is_path, vertex_places, with_geometry_colors, wrap_geometry_data},
+    int, opaque, split_args, Ctx,
 };
 
 use field::{Cuts, Field};
@@ -145,6 +147,51 @@ fn lift(mesh: &FlatMesh, veins: &[Vein], relief: f32, cell: f32, scale: f32) -> 
         .collect()
 }
 
+/// The vein whose groove every vertex of the flat mesh lies deepest in, and how deep: 0 on the
+/// vein, 1 at the edge of its groove and beyond.
+fn nearest_veins(mesh: &FlatMesh, veins: &[Vein], cell: f32) -> Vec<(usize, f32)> {
+    mesh.positions
+        .iter()
+        .map(|&p| {
+            let mut best = (0, f32::MAX);
+            for (k, vein) in veins.iter().enumerate() {
+                let outside = vein.lower_bound(p) + vein.reach;
+                if outside >= best.1 * groove(vein.reach, cell) {
+                    continue;
+                }
+                for s in &vein.segments {
+                    let (t, d) = s.closest(p);
+                    let share = d / groove(s.reach(t), cell);
+                    if share < best.1 {
+                        best = (k, share);
+                    }
+                }
+            }
+            (best.0, best.1.min(1.0))
+        })
+        .collect()
+}
+
+/// The color of every vertex, read like `set_color` reads it on a leaf, with alpha vein and the
+/// path of the nearest vein, so `path_info` tells the midrib from the side veins.
+fn colors(ctx: &mut Ctx, color: &[i32], paths: &[&[i32]], veins: &[Vein], nearest: &[(usize, f32)], positions: &[Vec3]) -> Vec<u32> {
+    let flat: Vec<f32> = positions.iter().flat_map(|p| p.to_array()).collect();
+    let places = vertex_places(&flat);
+    let mut colors = vec![0; positions.len()];
+    for (k, vein) in veins.iter().enumerate() {
+        let vertices: Vec<usize> = (0..positions.len()).filter(|&i| nearest[i].0 == k).collect();
+        if vertices.is_empty() {
+            continue;
+        }
+        ctx.set_path(paths[vein.path], k, veins.len());
+        let at = vertices.iter().map(|&i| (places[i].0, places[i].1, nearest[i].1));
+        for (&i, c) in vertices.iter().zip(ctx.colors_at_veins(color, at)) {
+            colors[i] = opaque(c);
+        }
+    }
+    colors
+}
+
 fn encode(positions: &[Vec3], faces: &[[u32; 3]]) -> Vec<i32> {
     let mut normals = vec![Vec3::ZERO; positions.len()];
     for f in faces {
@@ -196,7 +243,15 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let outline = Outline::of(&field, &veins, &cuts, &density);
     let mesh = vein_mesh(&outline, &veins, &density);
     let positions = lift(&mesh, &veins, relief, field.cell, LEAF_LENGTH * size);
-    encode(&positions, &mesh.faces)
+    let geometry = encode(&positions, &mesh.faces);
+    // an unconnected color, the blade keeps the viewer's material
+    match args.get(6).filter(|c| **c != [0, 1, 1, 1]) {
+        Some(color) => {
+            let nearest = nearest_veins(&mesh, &veins, field.cell);
+            with_geometry_colors(&geometry, &colors(&mut ctx, color, &paths, &veins, &nearest, &positions))
+        }
+        None => geometry,
+    }
 }
 
 #[cfg(test)]
