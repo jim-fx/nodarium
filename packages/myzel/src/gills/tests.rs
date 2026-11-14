@@ -614,6 +614,20 @@ fn decurrent_gills_stay_on_the_stipe_and_get_lower() {
 }
 
 #[test]
+fn decurrent_gills_sink_into_the_stipe_at_their_end() {
+    // a stipe mesh that lies inside its path would otherwise show the end of the plate as a step
+    let p = decurrent(0.02);
+    let end = underside(STIPE_RADIUS) - p.decurrent;
+    for profile in [GillProfile::Plate, GillProfile::Fold] {
+        let gills = build(&cap(0.0), &pattern(24, 0.014), &p, profile);
+        let low: Vec<Vec3> = vertices(&gills.mesh).into_iter().filter(|q| q.y < end + 0.002 && from_axis(*q) < 0.015).collect();
+        assert!(low.len() > 24);
+        let out = low.iter().map(|q| from_axis(*q)).fold(0.0, f32::max);
+        assert!(out < STIPE_RADIUS - 0.0002, "{profile:?} ends {out} from the axis");
+    }
+}
+
+#[test]
 fn folds_that_run_down_a_short_stipe_stop_where_it_starts() {
     let p = Params { thickness: 0.0015, ..decurrent(0.03) };
     let lowest = |base: f32| {

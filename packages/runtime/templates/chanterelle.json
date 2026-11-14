@@ -1896,7 +1896,7 @@
       "position": [-60, -20],
       "type": "max/myzel/hyphae_to_mesh",
       "props": {
-        "fill": 1.5,
+        "fill": 4,
         "fibres": 0.75
       }
     },

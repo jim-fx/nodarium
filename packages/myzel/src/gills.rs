@@ -19,8 +19,8 @@
 //! slits between them.
 //!
 //! The gills that leave the stipe run on `decurrent` down it (decurrent gills, like Pleurotus
-//! and Cantharellus), at the angle they meet it and lower and lower until they are gone, at the
-//! latest where the stipe starts. Where they turn from the cap onto the stipe the way they hang
+//! and Cantharellus), at the angle they meet it and lower and lower until they have sunk into it,
+//! at the latest where the stipe starts. Where they turn from the cap onto the stipe the way they hang
 //! turns over about a depth, so their edge curves round the corner.
 
 use crate::{add_sheet, sheet_size, smooth_normals, write_mesh, Cap, CapFrame, Mesh, MeshBuild, SheetGrid};
@@ -631,7 +631,7 @@ impl Stipe {
 }
 
 /// A gill that runs on from the cap underside `length` down the stipe, at the angle it meets the
-/// stipe, lower and lower until it is gone. The slices go down from where the gill meets the
+/// stipe, lower and lower until its edge lies a depth inside the stipe. The slices go down from where the gill meets the
 /// stipe and stop where the stipe starts.
 fn run_down(stipe: &Stipe, frame: &CapFrame, first: &Slice, angle: f32, length: f32, step: f32) -> Vec<Slice> {
     let embed = first.reach * first.surface;
@@ -651,7 +651,9 @@ fn run_down(stipe: &Stipe, frame: &CapFrame, first: &Slice, angle: f32, length: 
             let out = (out - up * up.dot(out)).try_normalize()?;
             let inside = embed.min(0.5 * radius);
             let fade = smoothstep(0.0, 1.0, 1.0 - down / length);
-            let reach = depth * fade + inside;
+            // the edge sinks a depth into the stipe by the end, or the part in the flesh would
+            // end in a step wherever the stipe mesh lies inside its path
+            let reach = (inside + depth * (2.0 * fade - 1.0)).max(0.0);
             Some(Slice {
                 top: middle + out * (radius - inside),
                 normal: -out,
