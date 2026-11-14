@@ -30,10 +30,10 @@
     },
     "margin": {
       "type": "float",
-      "description": "How far the margin is cut in, read with alpha going along the margin from the base (0) to the tip (1) on both sides. A wave cuts teeth, a curve of alpha keeps them off the base. Negative values push the margin out.",
-      "min": -0.1,
-      "max": 0.1,
-      "step": 0.001,
+      "description": "How far the margin is cut in, as a share of how far the blade reaches around the veins there, so a thin lobe gets small teeth. 1 cuts in to the vein. Read with alpha going along the margin from the base (0) to the tip (1) on both sides: a wave cuts teeth, a curve of alpha keeps them off the base. Negative values push the margin out.",
+      "min": -1,
+      "max": 1,
+      "step": 0.005,
       "value": 0
     },
     "relief": {

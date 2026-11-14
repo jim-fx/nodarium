@@ -3,7 +3,7 @@
 //! 1. `veins`: the vein paths in leaf space, with the frame found from the main veins.
 //! 2. `field`: the blade as a field on a grid, the smooth union of the veins, without holes.
 //! 3. `outline`: the margin, a closed line with alpha along it. The `margin` input moves the
-//!    field in along it. The outline of the cut field, with the thin tips of the veins put back
+//!    field in along it, by a share of how far the blade reaches there. The outline of the cut field, with the thin tips of the veins put back
 //!    and simplified along its curvature, is what the mesh fills.
 //! 4. `mesh`: a constrained Delaunay triangulation of the outline with the veins as chains of
 //!    edges, refined until it is fine at the margin and coarse in the middle, flat in leaf space.
@@ -184,7 +184,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     let margin = Margin::of(&field);
     let along = ctx.float_along(args[3], margin.alphas.iter().copied());
-    let cuts = Cuts::new(&margin.points, &along, field.cell);
+    let reaches = if along.iter().any(|&s| s != 0.0) {
+        field.reaches(&margin.points)
+    } else {
+        vec![0.0; along.len()]
+    };
+    let cuts = Cuts::new(&margin.points, &along, &reaches, field.cell);
     field.cut(&cuts);
 
     let density = Density::new(field.cell);

@@ -315,11 +315,38 @@ fn a_margin_of_0_leaves_the_outline_unchanged() {
     let plain_leaf = run(&veins, 0.1, &plain(0.0), 0.003);
     assert_eq!(run(&veins, 0.1, &teeth(0.0), 0.003), plain_leaf);
 
-    let toothed = read(&run(&veins, 0.1, &teeth(0.02), 0.003));
+    let toothed = read(&run(&veins, 0.1, &teeth(0.3), 0.003));
     let entire = read(&plain_leaf);
     toothed.assert_disc();
     assert!(toothed.area() < entire.area() * 0.97, "the teeth cut into the blade");
     assert!(toothed.area() > entire.area() * 0.8, "the teeth only cut the margin");
+}
+
+#[test]
+fn the_margin_cuts_a_share_of_the_reach() {
+    // 0.05 m (5 units) around the midrib, a fifth of it cut
+    let midrib = line(Vec3::ZERO, Vec3::Z, |_| 0.05, 24);
+    let veins = concat_arg_vecs(vec![path(&midrib, PathLink::root(1, 0), 1)]);
+    for (share, width) in [(0.2, 4.0), (-0.2, 6.0)] {
+        let leaf = read(&run_at(&veins, 0.0, &plain(share), 0.0, 128));
+        let (min, max) = leaf.bounds();
+        assert!((max.x - width).abs() < 0.2 && (min.x + width).abs() < 0.2, "{share}: {min} {max}");
+    }
+}
+
+#[test]
+fn a_thin_lobe_keeps_its_tip_with_teeth() {
+    // a lobe that tapers to nothing, thinner at its tip than the teeth are deep at its base
+    let midrib = line(Vec3::ZERO, Vec3::Z, |t| 0.06 * (1.0 - t), 24);
+    let veins = concat_arg_vecs(vec![path(&midrib, PathLink::root(1, 0), 1)]);
+    let entire = read(&run(&veins, 0.0, &plain(0.0), 0.0));
+    let toothed = read(&run(&veins, 0.0, &teeth(0.3), 0.0));
+    toothed.assert_disc();
+    let (min, _) = toothed.bounds();
+    assert!((min.z + 100.0).abs() < 0.1, "tip at {}", min.z);
+    toothed.assert_chain(&[placed(Vec3::ZERO), placed(Vec3::Z)], 100.0 - 1e-3);
+    assert!(toothed.area() < entire.area() * 0.95, "the teeth cut into the blade");
+    assert!(toothed.area() > entire.area() * 0.7, "the teeth only cut the margin");
 }
 
 #[test]
