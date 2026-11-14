@@ -142,7 +142,7 @@ struct TubeNode {
     hi: Vec3,
     /// The thickest tube below the node
     radius: f32,
-    /// A leaf holds the tubes `first..first + count`, an inner node has its children at `first` and `first + 1`
+    /// A leaf holds the `count` tubes of leaf `first`, an inner node has its children at `first` and `first + 1`
     first: u32,
     count: u32,
 }
@@ -152,8 +152,41 @@ struct TubeNode {
 /// the distance to their bounds, so a query costs about the logarithm of the tubes, however dense they are.
 pub struct TubeTree {
     nodes: Vec<TubeNode>,
-    /// The tubes in leaf order with their index
-    tubes: Vec<(Vec3, Vec3, f32, u32)>,
+    leaves: Vec<Leaf>,
+}
+
+/// The tubes of a leaf, a coordinate at a time so they can be measured together
+#[derive(Clone, Copy, Default)]
+struct Leaf {
+    start: [[f32; LEAF_TUBES]; 3],
+    axis: [[f32; LEAF_TUBES]; 3],
+    length_sq: [f32; LEAF_TUBES],
+    radius: [f32; LEAF_TUBES],
+    index: [u32; LEAF_TUBES],
+    count: usize,
+}
+
+impl Leaf {
+    /// [`distance_sq_to_segment`] from `p` to every tube, the lanes past the tubes of the leaf hold nothing
+    /// meaningful. On wasm four tubes at a time, every lane does what the scalar code does in the same order.
+    #[cfg_attr(target_arch = "wasm32", target_feature(enable = "simd128"))]
+    #[inline(never)]
+    fn distances_sq(&self, p: Vec3) -> [f32; LEAF_TUBES] {
+        let [ax, ay, az] = &self.start;
+        let [dx, dy, dz] = &self.axis;
+        let mut out = [0.0; LEAF_TUBES];
+        for k in 0..LEAF_TUBES {
+            let (qx, qy, qz) = (p.x - ax[k], p.y - ay[k], p.z - az[k]);
+            let length_sq = self.length_sq[k];
+            let t = (qx * dx[k] + qy * dy[k] + qz * dz[k]) / length_sq;
+            // `unit` in the order that becomes two masks
+            let t = if t > 1.0 { 1.0 } else { t };
+            let t = if t < 0.0 || length_sq <= 0.0 { 0.0 } else { t };
+            let (rx, ry, rz) = (qx - dx[k] * t, qy - dy[k] * t, qz - dz[k] * t);
+            out[k] = rx * rx + ry * ry + rz * rz;
+        }
+        out
+    }
 }
 
 impl TubeTree {
@@ -162,24 +195,42 @@ impl TubeTree {
         // the centres (doubled) with the tube they belong to are what the tree is split by
         let mut order: Vec<(Vec3, u32)> = tubes.iter().enumerate().map(|(k, t)| (t.0 + t.1, k as u32)).collect();
         let mut nodes = Vec::with_capacity(2 * tubes.len().div_ceil(LEAF_TUBES));
+        let mut leaves = Vec::with_capacity(tubes.len().div_ceil(LEAF_TUBES / 2));
         if !tubes.is_empty() {
             nodes.push(TubeNode { lo: Vec3::ZERO, hi: Vec3::ZERO, radius: 0.0, first: 0, count: 0 });
-            Self::build(&mut nodes, &tubes, &mut order, 0, 0);
+            Self::build(&mut nodes, &mut leaves, &tubes, &mut order, 0);
         }
-        TubeTree { nodes, tubes: order.iter().map(|&(_, k)| tubes[k as usize]).collect() }
+        TubeTree { nodes, leaves }
     }
 
     /// Splits the tubes of `order` at the median of their centres along the longest side
-    fn build(nodes: &mut Vec<TubeNode>, tubes: &[(Vec3, Vec3, f32, u32)], order: &mut [(Vec3, u32)], node: usize, first: usize) {
+    fn build(
+        nodes: &mut Vec<TubeNode>,
+        leaves: &mut Vec<Leaf>,
+        tubes: &[(Vec3, Vec3, f32, u32)],
+        order: &mut [(Vec3, u32)],
+        node: usize,
+    ) {
         let (mut lo, mut hi) = (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY));
         if order.len() <= LEAF_TUBES {
             let mut radius = 0.0f32;
-            for &(_, k) in order.iter() {
-                let (a, b, r, _) = tubes[k as usize];
+            let mut leaf = Leaf::default();
+            for (lane, &(_, k)) in order.iter().enumerate() {
+                let (a, b, r, index) = tubes[k as usize];
                 (lo, hi) = (lowest(lowest(lo, a), b), highest(highest(hi, a), b));
                 radius = larger(radius, r);
+                let axis = b - a;
+                for c in 0..3 {
+                    leaf.start[c][lane] = a[c];
+                    leaf.axis[c][lane] = axis[c];
+                }
+                leaf.length_sq[lane] = axis.length_squared();
+                leaf.radius[lane] = r;
+                leaf.index[lane] = index;
             }
-            nodes[node] = TubeNode { lo, hi, radius, first: first as u32, count: order.len() as u32 };
+            leaf.count = order.len();
+            nodes[node] = TubeNode { lo, hi, radius, first: leaves.len() as u32, count: order.len() as u32 };
+            leaves.push(leaf);
             return;
         }
         for &(centre, _) in order.iter() {
@@ -195,8 +246,8 @@ impl TubeTree {
         nodes.push(nodes[node]);
         nodes.push(nodes[node]);
         let (left, right) = order.split_at_mut(half);
-        Self::build(nodes, tubes, left, children, first);
-        Self::build(nodes, tubes, right, children + 1, first + half);
+        Self::build(nodes, leaves, tubes, left, children);
+        Self::build(nodes, leaves, tubes, right, children + 1);
         let (l, r) = (nodes[children], nodes[children + 1]);
         nodes[node] = TubeNode {
             lo: lowest(l.lo, r.lo),
@@ -232,9 +283,11 @@ impl TubeTree {
             }
             let node = &self.nodes[n as usize];
             if node.count > 0 {
-                let first = node.first as usize;
-                for &(a, b, r, index) in &self.tubes[first..first + node.count as usize] {
-                    let d = distance_sq_to_segment(p, a, b).sqrt() - r;
+                let leaf = &self.leaves[node.first as usize];
+                let distances = leaf.distances_sq(p);
+                for k in 0..leaf.count {
+                    let (r, index) = (leaf.radius[k], leaf.index[k]);
+                    let d = distances[k].sqrt() - r;
                     let better = match best {
                         Some((best_d, best_index)) => d < best_d || (d == best_d && index < best_index),
                         None => d < limit,
@@ -265,7 +318,13 @@ impl TubeTree {
     /// Numbers the tubes by their place in the tree, so data kept in that order lies close together for the
     /// tubes a query finds. Returns the old index of every tube.
     pub fn number_in_order(&mut self) -> Vec<u32> {
-        self.tubes.iter_mut().enumerate().map(|(k, t)| std::mem::replace(&mut t.3, k as u32)).collect()
+        let mut old = Vec::new();
+        for leaf in &mut self.leaves {
+            for index in &mut leaf.index[..leaf.count] {
+                old.push(std::mem::replace(index, old.len() as u32));
+            }
+        }
+        old
     }
 
     /// Calls `visit(index, distance)` for every tube whose axis is closer to `p` than `reach`, with the
@@ -291,9 +350,9 @@ impl TubeTree {
             }
             let node = &self.nodes[n as usize];
             if node.count > 0 {
-                let first = node.first as usize;
-                for &(a, b, _, index) in &self.tubes[first..first + node.count as usize] {
-                    let d_sq = distance_sq_to_segment(p, a, b);
+                let leaf = &self.leaves[node.first as usize];
+                let distances = leaf.distances_sq(p);
+                for (&d_sq, &index) in distances.iter().zip(&leaf.index).take(leaf.count) {
                     if d_sq < reach_sq {
                         reach = visit(index, d_sq.sqrt());
                         reach_sq = reach * reach;
@@ -382,6 +441,33 @@ mod tests {
         renumbered.sort();
         let near: Vec<u32> = tubes.iter().filter(|t| distance_sq_to_segment(p, t.0, t.1) < 1e-4).map(|t| t.3).collect();
         assert_eq!(renumbered, near);
+    }
+
+    #[test]
+    fn a_leaf_measures_its_tubes_as_distance_sq_to_segment_does() {
+        let mut rng = Rng(5);
+        let tubes: Vec<(Vec3, Vec3, f32, u32)> = (0..600)
+            .map(|i| {
+                let a = rng.vec() * 0.05;
+                let b = match i % 5 {
+                    0 => a,
+                    1 => a + Vec3::new(1e-30, 0.0, 0.0),
+                    _ => a + rng.vec() * 0.01,
+                };
+                (a, b, 0.001, i)
+            })
+            .collect();
+        let tree = TubeTree::new(tubes.clone());
+        for _ in 0..200 {
+            let p = rng.vec() * 0.06;
+            for leaf in &tree.leaves {
+                let distances = leaf.distances_sq(p);
+                for k in 0..leaf.count {
+                    let (a, b, _, _) = tubes[leaf.index[k] as usize];
+                    assert_eq!(distances[k].to_bits(), distance_sq_to_segment(p, a, b).to_bits());
+                }
+            }
+        }
     }
 
     struct Rng(u32);
