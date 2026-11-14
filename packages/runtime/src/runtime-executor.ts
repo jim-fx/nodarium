@@ -262,6 +262,10 @@ function getValue(input: NodeInput, value?: unknown) {
  */
 export const RELEASE_INSTANCES_OVER = 32 * 2 ** 20;
 
+function nodeValueBytes(value: NodeValue) {
+  return value instanceof Int32Array ? value.byteLength : value.len * 4;
+}
+
 export class MemoryRuntimeExecutor implements RuntimeExecutor {
   private definitionMap: Map<string, NodeDefinition> = new Map();
   // every definition that may hold results in its memory, they stay there until it is reset
@@ -538,6 +542,22 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       definition.reset?.();
     }
 
+    if (this.cache) {
+      this.cache.startRun?.();
+      // a bigger graph than the last one keeps all of its results
+      this.cache.size = Math.max(this.cache.size, sortedNodes.length * 2);
+    }
+
+    type PlannedInput = Int32Array | { node: NonNullable<RuntimeNode>; output: number };
+    const planned: {
+      node: NonNullable<RuntimeNode>;
+      type: NodeDefinition;
+      inputs: PlannedInput[];
+      // inputs that fell back to an empty value, nodes may panic on these
+      missingInputs: string[];
+      inputHash?: string;
+    }[] = [];
+
     for (const node of sortedNodes) {
       if (!node) continue;
       const node_type = this.definitionMap.get(node.type)!;
@@ -550,33 +570,19 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       a = performance.now();
 
       const keyParts: (string | number)[] = [node.type];
-      // inputs that fell back to an empty value, nodes may panic on these
       const missingInputs: string[] = [];
-      const nodeError = (cause: unknown) =>
-        new NodeExecutionError(
-          cause,
-          { id: origins.get(node.id) ?? node.id, type: node.type },
-          node_type,
-          missingInputs
-        );
 
       const inputs = Object.entries(node_type.inputs || {}).map(
-        ([key, input]): NodeValue => {
+        ([key, input]): PlannedInput => {
           const inputNode = !input.setting && input.type !== 'seed' && input.type !== 'creator'
             ? node.state.inputNodes[key]
             : undefined;
           if (inputNode) {
             const output = node.state.inputOutputs[key] ?? 0;
-            const value = results[inputNode.id]?.[output];
-            if (value === undefined) {
-              throw nodeError(
-                `input "${key}" did not receive output ${output} from ${inputNode.type}#${inputNode.id}`
-              );
-            }
             keyParts.push(
               output === 0 ? cacheKeys[inputNode.id] : `${cacheKeys[inputNode.id]}:${output}`
             );
-            return value;
+            return { node: inputNode, output };
           }
 
           let value: number | number[] | Int32Array;
@@ -605,47 +611,106 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
       this.perf?.addPoint('collected-inputs', b - a);
 
-      if (node.type.endsWith('/debug')) this.storeDebugView(node, node_type, inputs);
+      let inputHash: string | undefined;
+      if (this.cache) {
+        a = performance.now();
+        cacheKeys[node.id] = hashString53(keyParts.join('|'));
+        inputHash = `node-${node.id}-${cacheKeys[node.id]}`;
+        b = performance.now();
+        this.perf?.addPoint('hash-inputs', b - a);
+      }
+
+      planned.push({ node, type: node_type, inputs, missingInputs, inputHash });
+    }
+
+    // From the output back: a node runs when the cache doesn't have its result and a node that
+    // runs, or a debug node, needs it. So a value the cache doesn't keep is only made again when
+    // something below it changed. Every entry of the graph is read, they all belong to this run.
+    const isDebug = (node: NonNullable<RuntimeNode>) => node.type.endsWith('/debug');
+    const needed = new Set<number>([outputNode.id]);
+    const cached = new Set<number>();
+    for (let i = planned.length - 1; i >= 0; i--) {
+      const { node, inputs, inputHash } = planned[i];
+      const cachedValue = inputHash !== undefined && node.id !== outputNode.id
+        ? this.cache!.get(inputHash)
+        : undefined;
+      if (cachedValue !== undefined) {
+        results[node.id] = cachedValue;
+        cachedBytes += byteSize(cachedValue);
+        cached.add(node.id);
+      }
+      if (isDebug(node)) needed.add(node.id);
+      if (!needed.has(node.id)) continue;
+      // a debug node shows its inputs, and the amount and clip from them
+      if (cachedValue !== undefined && !isDebug(node)) continue;
+      for (const input of inputs) if (!(input instanceof Int32Array)) needed.add(input.node.id);
+    }
+
+    for (
+      const { node, type: node_type, inputs: plannedInputs, missingInputs, inputHash } of planned
+    ) {
+      const nodeError = (cause: unknown) =>
+        new NodeExecutionError(
+          cause,
+          { id: origins.get(node.id) ?? node.id, type: node.type },
+          node_type,
+          missingInputs
+        );
+
+      if (!needed.has(node.id) || cached.has(node.id)) {
+        if (needed.has(node.id)) this.perf?.addPoint('cache-hit', 1);
+        if (node.id in this.nodeTimings) nodeTimings[node.id] = this.nodeTimings[node.id];
+      }
+      if (!needed.has(node.id)) continue;
+
+      const keys = Object.keys(node_type.inputs || {});
+      const inputs = !cached.has(node.id) || isDebug(node)
+        ? plannedInputs.map((input, index): NodeValue => {
+          if (input instanceof Int32Array) return input;
+          const value = results[input.node.id]?.[input.output];
+          if (value === undefined) {
+            throw nodeError(
+              `input "${
+                keys[index]
+              }" did not receive output ${input.output} from ${input.node.type}#${input.node.id}`
+            );
+          }
+          return value;
+        })
+        : [];
+
+      if (isDebug(node)) this.storeDebugView(node, node_type, inputs);
+
+      if (cached.has(node.id)) {
+        log.log(`Using cached value for ${node_type.id || node.id}`);
+        this.storeDebugData(node, node_type, results[node.id]);
+        continue;
+      }
+      this.perf?.addPoint('cache-hit', 0);
 
       try {
-        let inputHash: string | undefined;
-        if (this.cache) {
-          a = performance.now();
-          cacheKeys[node.id] = hashString53(keyParts.join('|'));
-          inputHash = `node-${node.id}-${cacheKeys[node.id]}`;
-          b = performance.now();
-          this.perf?.addPoint('hash-inputs', b - a);
-
-          const cachedValue = this.cache.get(inputHash);
-          if (cachedValue !== undefined) {
-            log.log(`Using cached value for ${node_type.id || node.id}`);
-            this.perf?.addPoint('cache-hit', 1);
-            results[node.id] = cachedValue;
-            cachedBytes += byteSize(cachedValue);
-            if (node.id in this.nodeTimings) {
-              nodeTimings[node.id] = this.nodeTimings[node.id];
-            }
-            this.storeDebugData(node, node_type, cachedValue);
-            continue;
-          }
-          this.perf?.addPoint('cache-hit', 0);
-        }
-
         log.group(`executing ${node_type.id}-${node.id}`);
         log.log(`Inputs:`, inputs);
+        // a module that has to be instantiated first takes longer than it will the next time
+        const cold = node_type.memoryBytes?.() === 0;
         a = performance.now();
-        const result = node_type.execute(inputs);
+        const result = node_type.execute!(inputs);
         results[node.id] = Array.isArray(result) ? result : [result];
         this.storeDebugData(node, node_type, results[node.id]);
         log.log('Executed', node.type, node.id);
         b = performance.now();
 
         if (this.cache && inputHash && node.id !== outputNode.id) {
-          const copies = results[node.id].map(readNodeValue);
-          cachedBytes += byteSize(copies);
-          // a bigger graph than the last one keeps all of its results
-          this.cache.maxBytes = Math.max(this.cache.maxBytes ?? 0, cachedBytes * 2);
-          this.cache.set(inputHash, copies);
+          const cost = cold && node.id in this.nodeTimings
+            ? Math.min(b - a, this.nodeTimings[node.id])
+            : b - a;
+          const bytes = results[node.id].reduce((sum, value) => sum + nodeValueBytes(value), 0);
+          if (this.cache.keeps?.(bytes, cost) ?? true) {
+            cachedBytes += bytes;
+            // a bigger graph than the last one keeps all of its results
+            this.cache.maxBytes = Math.max(this.cache.maxBytes ?? 0, cachedBytes * 2);
+            this.cache.set(inputHash, results[node.id].map(readNodeValue), cost);
+          }
         }
 
         nodeTimings[node.id] = b - a;

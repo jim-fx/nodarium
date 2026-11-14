@@ -19,10 +19,15 @@ export interface RuntimeExecutor {
 export interface SyncCache<T = unknown> {
   /** When the cache grows beyond this, the oldest items are removed */
   size: number;
-  /** When the items hold more bytes than this, the oldest items are removed */
+  /** When the items hold more bytes than this, items are removed */
   maxBytes?: number;
   get: (key: string) => T | undefined;
-  set: (key: string, value: T) => void;
+  /** @param cost the time it took to make the value in ms */
+  set: (key: string, value: T, cost?: number) => void;
+  /** Whether a value of `bytes` that took `cost` ms to make would be stored, before it is copied */
+  keeps?: (bytes: number, cost: number) => boolean;
+  /** The items read or written from now until the next call belong to one run */
+  startRun?: () => void;
   clear: () => void;
 }
 
