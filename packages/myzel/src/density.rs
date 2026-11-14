@@ -1,7 +1,7 @@
 use glam::Vec3;
 
 use crate::mesh::Mesh;
-use crate::spatial::{larger, smaller, unit, TubeTree};
+use crate::spatial::{distance_sq_to_segment, larger, smaller, unit, TubeTree};
 
 const BLOCK: usize = 8;
 const BLOCK_SAMPLES: usize = BLOCK * BLOCK * BLOCK;
@@ -148,36 +148,55 @@ impl SparseGrid {
         (to_sample(lo_world, f32::ceil), to_sample(hi_world, f32::floor))
     }
 
-    /// Every block the samples of a box reach, with one more block row below, so every cell next to an
-    /// inside sample has a vertex slot
-    fn box_blocks(&self, (lo, hi): ([usize; 3], [usize; 3])) -> impl Iterator<Item = usize> + '_ {
+    /// Every block without a slot that has a sample within `reach` of a segment, or a cell with such a sample as a
+    /// corner: the block row below counts too, so every cell next to an inside sample has a vertex slot
+    fn reach_blocks(&self, segment: &Segment, reach: f32) -> impl Iterator<Item = usize> + '_ {
+        let (lo, hi) = self.sample_box(segment, reach);
         let lo = lo.map(|v| v.saturating_sub(1) / BLOCK);
         let hi = hi.map(|v| v / BLOCK);
-        (lo[2]..=hi[2]).flat_map(move |bz| {
-            (lo[1]..=hi[1]).flat_map(move |by| (lo[0]..=hi[0]).map(move |bx| bx + self.blocks[0] * (by + self.blocks[1] * bz)))
-        })
+        // splatting rounds its distances, a block a little out of reach costs less than a sample without a slot
+        let reach = reach + 1e-3 * self.cell;
+        let (start, end) = (segment.start, segment.end);
+        let last = Vec3::new(self.samples[0] as f32, self.samples[1] as f32, self.samples[2] as f32) - Vec3::ONE;
+        let half_diagonal = 0.5 * BLOCK as f32 * 3f32.sqrt() * self.cell;
+        (lo[2]..=hi[2])
+            .flat_map(move |bz| (lo[1]..=hi[1]).flat_map(move |by| (lo[0]..=hi[0]).map(move |bx| [bx, by, bz])))
+            .filter(move |&[bx, by, bz]| {
+                if self.block_slots[bx + self.blocks[0] * (by + self.blocks[1] * bz)] != EMPTY {
+                    return false;
+                }
+                let first = Vec3::new(bx as f32, by as f32, bz as f32) * BLOCK as f32;
+                let (lo, hi) = (self.position(first), self.position((first + Vec3::splat(BLOCK as f32)).min(last)));
+                // the centre decides most blocks, only those near the reach need the whole box
+                let d = distance_sq_to_segment(0.5 * (lo + hi), start, end).sqrt();
+                d < reach || (d < reach + half_diagonal && segment_box_distance_sq(start, end, lo, hi) < reach * reach)
+            })
+            .map(|[bx, by, bz]| bx + self.blocks[0] * (by + self.blocks[1] * bz))
     }
 
     fn block_count(&self) -> usize {
         self.tube.len() / BLOCK_SAMPLES
     }
 
-    /// Gives the blocks of a box that have none a slot, numbered in turn
-    fn allocate(&mut self, sample_box: ([usize; 3], [usize; 3])) {
-        self.allocate_all(&[sample_box]);
+    /// Gives the blocks a segment reaches that have none a slot, numbered in turn, see [`SparseGrid::reach_blocks`]
+    fn allocate(&mut self, segment: &Segment, reach: f32) {
+        self.allocate_all([(*segment, reach)]);
     }
 
-    /// [`SparseGrid::allocate`] of every box in turn, with the arrays grown once to what they hold
-    fn allocate_all(&mut self, boxes: &[([usize; 3], [usize; 3])]) {
+    /// [`SparseGrid::allocate`] of every segment and its reach in turn, with the arrays grown once to what they hold
+    fn allocate_all(&mut self, reaches: impl IntoIterator<Item = (Segment, f32)>) {
         let mut count = self.block_count();
-        for &b in boxes {
-            let new: Vec<usize> = self.box_blocks(b).filter(|&i| self.block_slots[i] == EMPTY).collect();
-            for i in new {
+        let (mut segments, mut new) = (0, Vec::new());
+        for (segment, reach) in reaches {
+            new.clear();
+            new.extend(self.reach_blocks(&segment, reach));
+            for &i in &new {
                 self.block_slots[i] = count as u32;
                 count += 1;
             }
+            segments += 1;
         }
-        self.grow(count * BLOCK_SAMPLES, boxes.len() > 1);
+        self.grow(count * BLOCK_SAMPLES, segments > 1);
     }
 
     /// Grows the arrays to `len` samples. A grid that grows by many boxes at once knows what it needs, one
@@ -312,7 +331,7 @@ impl SparseGrid {
     fn floor(&mut self, index: u32, meshing: &Meshing, segment: &Segment, kernel: Kernel) {
         let reach = kernel.reach;
         let (lo, hi) = self.sample_box(segment, reach);
-        self.allocate((lo, hi));
+        self.allocate(segment, reach);
         let axis = segment.end - segment.start;
         let length_sq = axis.length_squared().max(f32::EPSILON);
         for z in lo[2]..=hi[2] {
@@ -351,7 +370,7 @@ impl SparseGrid {
         let weight = kernel.weight;
         let reach = splat_reach(kernel, closed);
         let (lo, hi) = self.sample_box(segment, reach);
-        self.allocate((lo, hi));
+        self.allocate(segment, reach);
 
         let axis = segment.end - segment.start;
         let length_sq = axis.length_squared().max(f32::EPSILON);
@@ -451,17 +470,25 @@ impl SparseGrid {
     /// dense tissue hundreds of segments reach a sample but the few nearest decide its tube and its owner, so
     /// every 2³ samples look up the segments that reach them in a [`TubeTree`] and every sample goes through
     /// them from the nearest on, until the rest are too far to be nearer or to claim it by more.
-    fn splat_closed(&mut self, splats: &[ClosedSplat]) {
-        debug_assert!(splats.iter().all(|s| s.closed.strand.is_none()));
-        let boxes: Vec<([usize; 3], [usize; 3])> = splats.iter().map(|s| self.sample_box(&s.segment, s.reach)).collect();
-        self.allocate_all(&boxes);
+    ///
+    /// `splat(k)` is the `k`-th of `count` closed segments, it is asked for each more than once, so the
+    /// splats are only kept in one list, in the order of the tree.
+    fn splat_closed(&mut self, count: usize, splat: impl Fn(usize) -> ClosedSplat) {
+        self.allocate_all((0..count).map(|k| {
+            let s = splat(k);
+            (s.segment, s.reach)
+        }));
         let mut tree = TubeTree::new(
-            splats.iter().enumerate().map(|(k, s)| (s.segment.start, s.segment.end, s.closed.radius, k as u32)).collect(),
+            (0..count)
+                .map(|k| {
+                    let s = splat(k);
+                    (s.segment.start, s.segment.end, s.closed.radius, k as u32)
+                })
+                .collect(),
         );
         // in the order of the tree, the segments a search finds lie close together
-        let order = tree.number_in_order();
-        let splats: Vec<ClosedSplat> = order.iter().map(|&k| splats[k as usize]).collect();
-        let boxes: Vec<([usize; 3], [usize; 3])> = order.iter().map(|&k| boxes[k as usize]).collect();
+        let splats: Vec<ClosedSplat> = tree.number_in_order().into_iter().map(|k| splat(k as usize)).collect();
+        debug_assert!(splats.iter().all(|s| s.closed.strand.is_none()));
         let max = |f: fn(&ClosedSplat) -> f32| splats.iter().map(f).fold(0.0f32, f32::max);
         let (reach_max, radius_max) = (max(|s| s.reach), max(|s| s.closed.radius));
         let (kernel_max, weight_max) = (max(|s| s.kernel.reach), max(|s| s.weight()));
@@ -555,15 +582,19 @@ impl SparseGrid {
                             if d >= reach {
                                 continue;
                             }
-                            let k = k as usize;
-                            let (lo, hi) = boxes[k];
-                            if (0..3).any(|a| x[a] < lo[a] || x[a] > hi[a]) {
-                                continue;
-                            }
-                            let s = &splats[k];
+                            let s = &splats[k as usize];
                             let d_sq = s.distance_sq(p);
                             if d_sq >= s.reach_sq {
                                 continue;
+                            }
+                            // a sample within reach lies in the box splatting goes through, only rounding can put
+                            // one just inside the reach outside it
+                            let inner = s.reach - 1e-3 * self.cell;
+                            if d_sq >= inner * inner {
+                                let (lo, hi) = self.sample_box(&s.segment, s.reach);
+                                if (0..3).any(|a| x[a] < lo[a] || x[a] > hi[a]) {
+                                    continue;
+                                }
                             }
                             let nearer = d_sq.sqrt() - s.closed.radius;
                             let claim = s.claim(d_sq);
@@ -597,6 +628,52 @@ impl SparseGrid {
 /// How far [`SparseGrid::splat`] reaches around a segment
 fn splat_reach(kernel: Kernel, closed: Option<Closed>) -> f32 {
     closed.map_or(kernel.reach, |c| c.reach.max(kernel.reach))
+}
+
+/// Squared distance between the segment `a`-`b` and the box `lo`-`hi`. Along the segment it is a convex
+/// sum of one quadratic per axis outside the box, so between the points where the segment crosses a side
+/// of the box it is one quadratic, whose least value is exact.
+fn segment_box_distance_sq(a: Vec3, b: Vec3, lo: Vec3, hi: Vec3) -> f32 {
+    let axis = b - a;
+    let mut ts = [0.0f32; 8];
+    let mut count = 2;
+    ts[1] = 1.0;
+    for i in 0..3 {
+        if axis[i] != 0.0 {
+            for side in [lo[i], hi[i]] {
+                let t = (side - a[i]) / axis[i];
+                if t > 0.0 && t < 1.0 {
+                    ts[count] = t;
+                    count += 1;
+                }
+            }
+        }
+    }
+    let ts = &mut ts[..count];
+    for i in 1..ts.len() {
+        let mut j = i;
+        while j > 0 && ts[j - 1] > ts[j] {
+            ts.swap(j - 1, j);
+            j -= 1;
+        }
+    }
+    let at = |t: f32| {
+        let p = a + axis * t;
+        (0..3).map(|i| if p[i] < lo[i] { lo[i] - p[i] } else if p[i] > hi[i] { p[i] - hi[i] } else { 0.0 }).map(|d| d * d).sum::<f32>()
+    };
+    let mut best = smaller(at(0.0), at(1.0));
+    for w in ts.windows(2) {
+        let mid = 0.5 * (w[0] + w[1]);
+        let p = a + axis * mid;
+        let (mut slope, mut square) = (0.0, 0.0);
+        for i in 0..3 {
+            let side = if p[i] < lo[i] { lo[i] } else if p[i] > hi[i] { hi[i] } else { continue };
+            slope += axis[i] * (a[i] - side);
+            square += axis[i] * axis[i];
+        }
+        best = smaller(best, at(if square > 0.0 { larger(w[0], smaller(-slope / square, w[1])) } else { mid }));
+    }
+    best
 }
 
 /// `(1 - d² / reach²)³`, the kernel of a segment at `d_sq` from it
@@ -1015,14 +1092,9 @@ impl TissueField {
             return None;
         }
         let mut grid = frame.tissue_grid();
-        let closed: Vec<ClosedSplat> = segments
-            .iter()
-            .zip(meshing)
-            .enumerate()
-            .filter(|(_, (_, m))| frame.closes(m))
-            .map(|(i, (s, m))| ClosedSplat::new(i as u32, m, *s, frame.owner_kernel(m, s), frame.closed(m, s, false)))
-            .collect();
-        grid.splat_closed(&closed);
+        let closed: Vec<u32> = (0..segments.len() as u32).filter(|&i| frame.closes(&meshing[i as usize])).collect();
+        grid.splat_closed(closed.len(), |k| frame.closed_splat(closed[k], &segments[closed[k] as usize], &meshing[closed[k] as usize]));
+        drop(closed);
         frame.guard(&mut grid, segments, meshing);
         let solid = closing(&grid, frame);
 
@@ -1047,13 +1119,7 @@ impl TissueField {
         let TissueField { frame, mut grid, solid, depth, centre, .. } = self;
         drop((depth, centre));
         grid.start_meshing();
-        let blended: Vec<_> = segments
-            .iter()
-            .zip(meshing)
-            .filter(|(_, m)| !frame.closes(m))
-            .map(|(s, m)| frame.splat_box(&grid, m, s, false))
-            .collect();
-        grid.allocate_all(&blended);
+        grid.allocate_all(segments.iter().zip(meshing).filter(|(_, m)| !frame.closes(m)).map(|(s, m)| (*s, frame.splat_reach(m, s, false))));
         for (i, (s, m)) in segments.iter().zip(meshing).enumerate() {
             if !frame.closes(m) {
                 grid.splat(i as u32, m, s, frame.kernel(m, s.radius), None);
@@ -1466,13 +1532,17 @@ impl Frame {
     }
 
     /// How far a segment is splatted, see [`SparseGrid::splat`]
-    fn splat_box(&self, grid: &SparseGrid, meshing: &Meshing, segment: &Segment, strand: bool) -> ([usize; 3], [usize; 3]) {
-        let reach = if self.closes(meshing) {
+    fn splat_reach(&self, meshing: &Meshing, segment: &Segment, strand: bool) -> f32 {
+        if self.closes(meshing) {
             splat_reach(self.owner_kernel(meshing, segment), Some(self.closed(meshing, segment, strand)))
         } else {
             self.kernel(meshing, segment.radius).reach
-        };
-        grid.sample_box(segment, reach)
+        }
+    }
+
+    /// The closed segment `index` as [`SparseGrid::splat_closed`] splats it
+    fn closed_splat(&self, index: u32, segment: &Segment, meshing: &Meshing) -> ClosedSplat {
+        ClosedSplat::new(index, meshing, *segment, self.owner_kernel(meshing, segment), self.closed(meshing, segment, false))
     }
 
     /// Whether a segment is closed into the tissue, a closed segment without a closing radius is blended
@@ -1518,9 +1588,7 @@ impl Frame {
             .filter(|&i| !self.closes(&meshing[i]) && segments[i].radius < self.min_radius)
             .filter(|&i| !grid.encloses(&segments[i], self.threshold))
             .collect();
-        let boxes: Vec<_> =
-            thin.iter().map(|&i| grid.sample_box(&segments[i], self.kernel(&meshing[i], self.min_radius).reach)).collect();
-        grid.allocate_all(&boxes);
+        grid.allocate_all(thin.iter().map(|&i| (segments[i], self.kernel(&meshing[i], self.min_radius).reach)));
         for i in thin {
             grid.floor(i as u32, &meshing[i], &segments[i], self.kernel(&meshing[i], self.min_radius));
         }
@@ -1582,8 +1650,7 @@ pub fn surface_in(
         return SegmentSurface::default();
     }
     let mut grid = frame.grid();
-    let boxes: Vec<_> = segments.iter().zip(meshing).enumerate().map(|(i, (s, m))| frame.splat_box(&grid, m, s, strand(i))).collect();
-    grid.allocate_all(&boxes);
+    grid.allocate_all(segments.iter().zip(meshing).enumerate().map(|(i, (s, m))| (*s, frame.splat_reach(m, s, strand(i)))));
     for (i, (s, m)) in segments.iter().zip(meshing).enumerate() {
         if frame.closes(m) {
             grid.splat(i as u32, m, s, frame.owner_kernel(m, s), Some(frame.closed(m, s, strand(i))));
@@ -1801,10 +1868,10 @@ mod tests {
         let mut splats = Vec::new();
         for (i, (s, m)) in segments.iter().zip(&meshing).enumerate().filter(|(_, (_, m))| frame.closes(m)) {
             in_turn.splat(i as u32, m, s, frame.owner_kernel(m, s), Some(frame.closed(m, s, false)));
-            splats.push(ClosedSplat::new(i as u32, m, *s, frame.owner_kernel(m, s), frame.closed(m, s, false)));
+            splats.push(frame.closed_splat(i as u32, s, m));
         }
         let mut together = frame.grid();
-        together.splat_closed(&splats);
+        together.splat_closed(splats.len(), |k| splats[k]);
         assert_eq!(together.block_slots, in_turn.block_slots);
         assert_eq!(together.tube, in_turn.tube);
         assert_eq!(together.tube_close, in_turn.tube_close);
@@ -1814,7 +1881,63 @@ mod tests {
     }
 
     #[test]
-    fn boxes_allocated_at_once_get_the_slots_of_one_after_another_and_no_more_room() {
+    fn the_distance_of_a_segment_to_a_box_is_the_least_along_it() {
+        let (lo, hi) = (Vec3::new(-0.5, -0.2, 0.0), Vec3::new(0.5, 0.3, 0.4));
+        for i in 0..2000 {
+            let at = |k: u32| Vec3::new(random(k), random(k + 1), random(k + 2)) * 3.0 - Vec3::splat(1.5);
+            let (a, b) = (at(6 * i), if i % 7 == 0 { at(6 * i) } else { at(6 * i + 3) });
+            let brute = (0..=4000)
+                .map(|k| {
+                    let p = a.lerp(b, k as f32 / 4000.0);
+                    (lo - p).max(Vec3::ZERO).max(p - hi).length_squared()
+                })
+                .fold(f32::INFINITY, f32::min);
+            let exact = segment_box_distance_sq(a, b, lo, hi);
+            assert!(exact <= brute + 1e-6 && exact >= brute - 2e-3 * brute.sqrt() - 1e-6, "{exact} {brute} {a} {b}");
+        }
+    }
+
+    #[test]
+    fn every_cell_with_a_corner_a_segment_reaches_has_a_slot() {
+        let segments: Vec<Segment> = (0..40)
+            .map(|i| {
+                let from = Vec3::new(random(i), random(i + 100), random(i + 200)) * 2.0;
+                segment(from, from + Vec3::new(random(i + 300) - 0.5, random(i + 400), 0.3), 0.02 + 0.05 * random(i + 500))
+            })
+            .collect();
+        let meshing = vec![Meshing::blended(2.0); segments.len()];
+        let frame = Frame::new(&segments, &meshing, 80).unwrap();
+        let mut grid = frame.grid();
+        grid.allocate_all(segments.iter().zip(&meshing).map(|(s, m)| (*s, frame.splat_reach(m, s, false))));
+        let [nx, ny, nz] = grid.samples;
+        let (mut reached, mut empty) = (0, 0);
+        for z in 0..nz {
+            for y in 0..ny {
+                for x in 0..nx {
+                    let p = grid.position(Vec3::new(x as f32, y as f32, z as f32));
+                    let near = segments.iter().zip(&meshing).any(|(s, m)| {
+                        let reach = frame.splat_reach(m, s, false);
+                        crate::spatial::distance_sq_to_segment(p, s.start, s.end) < reach * reach
+                    });
+                    if near {
+                        reached += 1;
+                        for o in CORNERS {
+                            let c = [x.wrapping_sub(o[0]), y.wrapping_sub(o[1]), z.wrapping_sub(o[2])];
+                            if c[0] < nx && c[1] < ny && c[2] < nz {
+                                assert_ne!(grid.slot(c), EMPTY, "cell {c:?} next to {:?}", [x, y, z]);
+                            }
+                        }
+                    } else if grid.index([x, y, z]).is_none() {
+                        empty += 1;
+                    }
+                }
+            }
+        }
+        assert!(reached > 10_000 && empty > 10_000, "{reached} {empty}");
+    }
+
+    #[test]
+    fn reaches_allocated_at_once_get_the_slots_of_one_after_another_and_no_more_room() {
         let segments: Vec<Segment> = (0..40)
             .map(|i| {
                 let from = Vec3::new(random(i), random(i + 100), random(i + 200)) * 2.0;
@@ -1823,13 +1946,13 @@ mod tests {
             .collect();
         let meshing = vec![Meshing::blended(2.0); segments.len()];
         let frame = Frame::new(&segments, &meshing, 80).unwrap();
-        let boxes: Vec<_> = segments.iter().zip(&meshing).map(|(s, m)| frame.splat_box(&frame.grid(), m, s, false)).collect();
+        let reaches: Vec<_> = segments.iter().zip(&meshing).map(|(s, m)| (*s, frame.splat_reach(m, s, false))).collect();
         let mut one_by_one = frame.grid();
-        for &b in &boxes {
-            one_by_one.allocate(b);
+        for (s, reach) in &reaches {
+            one_by_one.allocate(s, *reach);
         }
         let mut at_once = frame.grid();
-        at_once.allocate_all(&boxes);
+        at_once.allocate_all(reaches.iter().copied());
         assert_eq!(at_once.block_slots, one_by_one.block_slots);
         assert_eq!(at_once.density.len(), one_by_one.density.len());
         for len in [at_once.density.capacity(), at_once.tube.capacity(), at_once.owner.capacity(), at_once.run_k.capacity()] {
@@ -1837,7 +1960,7 @@ mod tests {
         }
         // the grid of a tissue has no density and no strands until it is meshed
         let mut tissue = frame.tissue_grid();
-        tissue.allocate_all(&boxes);
+        tissue.allocate_all(reaches.iter().copied());
         assert!(tissue.density.is_empty() && tissue.strand.is_empty() && tissue.run.is_empty() && tissue.run_k.is_empty());
         assert_eq!(tissue.tube.len(), at_once.tube.len());
         tissue.start_meshing();
