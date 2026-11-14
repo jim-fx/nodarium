@@ -1,7 +1,7 @@
 use glam::Vec3;
 
 use crate::mesh::Mesh;
-use crate::spatial::{distance_sq_to_segment, larger, smaller, unit, TubeTree};
+use crate::spatial::{distance_sq_to_segment, larger, smaller, TubeTree};
 
 const BLOCK: usize = 8;
 const BLOCK_SAMPLES: usize = BLOCK * BLOCK * BLOCK;
@@ -607,26 +607,41 @@ impl ClosedSearch<'_> {
                 starts[r] += 1;
             }
             // `starts[r]` is now where self.ring `r` ends
-            for local in 0..8 {
+            let mut tile = Tile::default();
+            for local in 0..TILE {
                 let x = [t[0] + local % 2, t[1] + local / 2 % 2, t[2] + local / 4];
-                if (0..3).any(|a| x[a] >= grid.samples[a]) {
-                    continue;
-                }
                 let p = grid.position(Vec3::new(x[0] as f32, x[1] as f32, x[2] as f32));
-                // the first segment wins a tie, as splatting them in turn has it
-                let (mut tube, mut tube_by, mut owner, mut owner_by) = (f32::INFINITY, None, 0.0f32, None);
-                let mut reach = f32::INFINITY;
-                for r in 0..rings {
-                    if r as f32 * self.ring >= reach {
-                        break;
-                    }
-                    let from = if r == 0 { 0 } else { starts[r - 1] };
-                    for &(d, k) in &ordered[from..starts[r]] {
-                        if d >= reach {
+                (tile.x[local], tile.y[local], tile.z[local]) = (p.x, p.y, p.z);
+            }
+            // the first segment wins a tie, as splatting them in turn has it
+            let mut tube = [f32::INFINITY; TILE];
+            let mut tube_by: [Option<(u32, f32)>; TILE] = [None; TILE];
+            let mut owner = [0.0f32; TILE];
+            let mut owner_by: [Option<u32>; TILE] = [None; TILE];
+            let mut reach = [f32::INFINITY; TILE];
+            let mut active: [bool; TILE] = std::array::from_fn(|local| {
+                let x = [t[0] + local % 2, t[1] + local / 2 % 2, t[2] + local / 4];
+                (0..3).all(|a| x[a] < grid.samples[a])
+            });
+            // every sample goes through the candidates of a ring in turn and leaves at the first ring too far to
+            // change it, as it would on its own; the candidates are measured for all samples at once
+            for r in 0..rings {
+                for local in 0..TILE {
+                    active[local] &= (r as f32 * self.ring) < reach[local];
+                }
+                if !active.contains(&true) {
+                    break;
+                }
+                let from = if r == 0 { 0 } else { starts[r - 1] };
+                for &(d, k) in &ordered[from..starts[r]] {
+                    let s = &self.splats[k as usize];
+                    let mut measured = TileMeasures::default();
+                    s.measure(&tile, &mut measured);
+                    for local in 0..TILE {
+                        if !active[local] || d >= reach[local] {
                             continue;
                         }
-                        let s = &self.splats[k as usize];
-                        let d_sq = s.distance_sq(p);
+                        let d_sq = measured.d_sq[local];
                         if d_sq >= s.reach_sq {
                             continue;
                         }
@@ -634,37 +649,66 @@ impl ClosedSearch<'_> {
                         // one just inside the reach outside it
                         let inner = s.reach - 1e-3 * grid.cell;
                         if d_sq >= inner * inner {
+                            let x = [t[0] + local % 2, t[1] + local / 2 % 2, t[2] + local / 4];
                             let (lo, hi) = grid.sample_box(&s.segment, s.reach);
                             if (0..3).any(|a| x[a] < lo[a] || x[a] > hi[a]) {
                                 continue;
                             }
                         }
-                        let nearer = d_sq.sqrt() - s.closed.radius;
-                        let claim = s.claim(d_sq);
+                        let (nearer, claim) = (measured.nearer[local], measured.claim[local]);
                         let mut changed = false;
-                        if nearer < tube || (nearer == tube && tube_by.is_some_and(|(index, _)| s.index < index)) {
-                            (tube, tube_by, changed) = (nearer, Some((s.index, s.closed.close)), true);
+                        if nearer < tube[local]
+                            || (nearer == tube[local] && tube_by[local].is_some_and(|(index, _)| s.index < index))
+                        {
+                            (tube[local], tube_by[local], changed) = (nearer, Some((s.index, s.closed.close)), true);
                         }
-                        if claim > owner || (claim == owner && owner_by.is_some_and(|index| s.index < index)) {
-                            (owner, owner_by, changed) = (claim, Some(s.index), true);
+                        if claim > owner[local]
+                            || (claim == owner[local] && owner_by[local].is_some_and(|index| s.index < index))
+                        {
+                            (owner[local], owner_by[local], changed) = (claim, Some(s.index), true);
                         }
                         if changed {
-                            reach = self.reach_for(tube, owner);
+                            reach[local] = self.reach_for(tube[local], owner[local]);
                         }
                     }
                 }
+            }
+            for local in 0..TILE {
+                let x = [t[0] + local % 2, t[1] + local / 2 % 2, t[2] + local / 4];
+                if (0..3).any(|a| x[a] >= grid.samples[a]) {
+                    continue;
+                }
                 let i = slot as usize * BLOCK_SAMPLES + SparseGrid::local(x);
-                if let Some((_, close)) = tube_by {
-                    grid.tube[i] = tube;
+                if let Some((_, close)) = tube_by[local] {
+                    grid.tube[i] = tube[local];
                     grid.tube_close[i] = close;
                 }
-                if let Some(index) = owner_by {
-                    grid.owner_k[i] = owner;
+                if let Some(index) = owner_by[local] {
+                    grid.owner_k[i] = owner[local];
                     grid.owner[i] = index;
                 }
             }
         }
     }
+}
+
+/// The 2³ samples [`ClosedSearch::block`] looks up the segments for at once
+const TILE: usize = 8;
+
+/// The positions of the samples of a tile, a coordinate at a time
+#[derive(Default)]
+struct Tile {
+    x: [f32; TILE],
+    y: [f32; TILE],
+    z: [f32; TILE],
+}
+
+/// What a closed segment does at every sample of a [`Tile`], see [`ClosedSplat::measure`]
+#[derive(Default)]
+struct TileMeasures {
+    d_sq: [f32; TILE],
+    nearer: [f32; TILE],
+    claim: [f32; TILE],
 }
 
 /// How far [`SparseGrid::splat`] reaches around a segment
@@ -762,8 +806,9 @@ impl ClosedSplat {
     }
 
     /// Squared distance from `p` to the axis, as [`SparseGrid::splat`] has it
+    #[cfg(test)]
     fn distance_sq(&self, p: Vec3) -> f32 {
-        let t = unit((p - self.segment.start).dot(self.axis) / self.length_sq);
+        let t = crate::spatial::unit((p - self.segment.start).dot(self.axis) / self.length_sq);
         (p - self.segment.start - self.axis * t).length_squared()
     }
 
@@ -779,7 +824,31 @@ impl ClosedSplat {
         }
     }
 
+    /// [`ClosedSplat::distance_sq`], the distance to the tube and [`ClosedSplat::claim`] at every sample of the
+    /// tile. On wasm four samples at a time, every lane does what the scalar code does in the same order.
+    #[cfg_attr(target_arch = "wasm32", target_feature(enable = "simd128"))]
+    #[inline(never)]
+    fn measure(&self, tile: &Tile, out: &mut TileMeasures) {
+        let (a, axis) = (self.segment.start, self.axis);
+        let (kernel_weight, fill_weight) = (self.kernel.weight, self.kernel.weight * FILL_OWNER_WEIGHT);
+        for k in 0..TILE {
+            let (qx, qy, qz) = (tile.x[k] - a.x, tile.y[k] - a.y, tile.z[k] - a.z);
+            let t = (qx * axis.x + qy * axis.y + qz * axis.z) / self.length_sq;
+            // `unit` in the order that becomes two masks
+            let t = if t > 1.0 { 1.0 } else { t };
+            let t = if t < 0.0 { 0.0 } else { t };
+            let (rx, ry, rz) = (qx - axis.x * t, qy - axis.y * t, qz - axis.z * t);
+            let d_sq = rx * rx + ry * ry + rz * rz;
+            out.d_sq[k] = d_sq;
+            out.nearer[k] = d_sq.sqrt() - self.closed.radius;
+            let (inside, past) = (falloff(d_sq, self.kernel_sq), falloff(d_sq, self.reach_sq));
+            let claim = if d_sq < self.kernel_sq { kernel_weight * inside } else { fill_weight * past };
+            out.claim[k] = claim * self.priority;
+        }
+    }
+
     /// What it claims a sample `d_sq` from its axis with, as [`SparseGrid::splat`] has it
+    #[cfg(test)]
     fn claim(&self, d_sq: f32) -> f32 {
         let k = if d_sq < self.kernel_sq {
             self.kernel.weight * falloff(d_sq, self.kernel_sq)
@@ -2026,6 +2095,41 @@ mod tests {
         assert_eq!(together.owner, in_turn.owner);
         assert_eq!(together.owner_k, in_turn.owner_k);
         assert!(in_turn.owner.iter().filter(|&&o| o != EMPTY).count() > 5000);
+    }
+
+    #[test]
+    fn a_tile_measures_a_closed_segment_as_every_sample_on_its_own() {
+        let mut seed = 3u32;
+        let mut next = || {
+            seed ^= seed << 13;
+            seed ^= seed >> 17;
+            seed ^= seed << 5;
+            seed as f32 / u32::MAX as f32
+        };
+        let mut segments = Vec::new();
+        let mut meshing = Vec::new();
+        for i in 0..200 {
+            let at = Vec3::new(next(), next(), next()) * 0.05;
+            let along = if i % 7 == 0 { Vec3::ZERO } else { Vec3::new(next() - 0.5, next() - 0.5, next() - 0.5) * 0.02 };
+            segments.push(segment(at, at + along, 0.001 + 0.004 * next()));
+            meshing.push(Meshing { priority: [1.0, 0.5, 2.0, 0.0][i % 4], ..Meshing::closed([3.0, 2.0][i % 2], 0.004) });
+        }
+        let frame = Frame::new(&segments, &meshing, 48).unwrap();
+        for (i, (s, m)) in segments.iter().zip(&meshing).enumerate() {
+            let splat = frame.closed_splat(i as u32, s, m);
+            let mut tile = Tile::default();
+            for k in 0..TILE {
+                (tile.x[k], tile.y[k], tile.z[k]) = (next() * 0.06, next() * 0.06, next() * 0.06);
+            }
+            let mut measured = TileMeasures::default();
+            splat.measure(&tile, &mut measured);
+            for k in 0..TILE {
+                let d_sq = splat.distance_sq(Vec3::new(tile.x[k], tile.y[k], tile.z[k]));
+                assert_eq!(measured.d_sq[k].to_bits(), d_sq.to_bits());
+                assert_eq!(measured.nearer[k].to_bits(), (d_sq.sqrt() - splat.closed.radius).to_bits());
+                assert_eq!(measured.claim[k].to_bits(), splat.claim(d_sq).to_bits());
+            }
+        }
     }
 
     #[test]
