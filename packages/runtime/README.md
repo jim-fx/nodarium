@@ -196,7 +196,7 @@ The matrices of `instances` fit `InstancedMesh.instanceMatrix` as they are. Thre
 ## More
 
 - `cache: true` in `createRuntime()` keeps the results of the nodes, so a run with a changed setting or seed only runs the nodes the change reaches.
-- A wasm memory never shrinks, so after every run the executor releases the instances of the nodes that left the graph and of those with more than `releaseInstancesOver` bytes (32 MB, `Infinity` keeps them all). A released node instantiates its compiled module again when it runs next. `releaseInstances()` releases all of them, for a graph that is built only once.
+- A wasm memory never shrinks, so after every run the executor releases the instances of the nodes that left the graph and of those with more than `releaseInstancesOver` bytes (32 MB, `Infinity` keeps them all). When runs overlap, the last one to finish releases. A released node instantiates its compiled module again when it runs next. `releaseInstances()` releases all of them, for a graph that is built only once.
 - When a node fails, `execute()` throws a `NodeExecutionError`, its `info` names the node, the inputs it was missing and where a Rust panic happened.
 - `MemoryRuntimeExecutor`, `MemoryRuntimeCache` and `WasmNodeRegistry` are the building blocks of `createRuntime()`. Subclass `WasmNodeRegistry` to load the nodes from somewhere else.
 - `migrateGraph()` and `CURRENT_GRAPH_VERSION` migrate graphs that don't come from a project file.

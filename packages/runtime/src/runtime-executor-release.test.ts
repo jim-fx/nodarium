@@ -1,4 +1,5 @@
-import type { Graph, NodeDefinition, NodeValue } from '@nodarium/types';
+import type { Graph, NodeDefinition, NodeRegistry, NodeValue } from '@nodarium/types';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FileNodeRegistry } from './registry/file-node-registry';
@@ -108,6 +109,58 @@ describe('releasing instances', () => {
     expect(big.release).toHaveBeenCalledTimes(1);
   });
 
+  it('waits for overlapping runs before releasing', async () => {
+    const registry = createMockNodeRegistry(
+      [output, small, other, big] as unknown as NodeDefinition[]
+    );
+    let resume = () => {};
+    const gated: NodeRegistry = {
+      ...registry,
+      load: async (ids) => {
+        if (ids.some((id) => id === other.id)) await new Promise<void>((r) => (resume = r));
+        return registry.load(ids);
+      }
+    };
+    const executor = new MemoryRuntimeExecutor(gated);
+    await executor.execute(chain(small.id), {});
+
+    // the second run still loads its nodes when the first one, without `small`, finishes
+    const second = executor.execute(chain(small.id, other.id), {});
+    await executor.execute(chain(big.id), {});
+    expect(small.release).not.toHaveBeenCalled();
+    expect(big.release).not.toHaveBeenCalled();
+
+    resume();
+    expect(await second).toEqual(Int32Array.of(3));
+    expect(small.release).not.toHaveBeenCalled();
+    expect(big.release).toHaveBeenCalledTimes(1);
+  });
+
+  it('releaseInstances() during a run releases after it', async () => {
+    const registry = createMockNodeRegistry(
+      [output, small, other, big] as unknown as NodeDefinition[]
+    );
+    let resume = () => {};
+    const gated: NodeRegistry = {
+      ...registry,
+      load: async (ids) => {
+        await new Promise<void>((r) => (resume = r));
+        return registry.load(ids);
+      }
+    };
+    const executor = new MemoryRuntimeExecutor(gated);
+    const first = executor.execute(chain(small.id), {});
+    resume();
+    await first;
+
+    const run = executor.execute(chain(small.id), {});
+    executor.releaseInstances();
+    expect(small.release).not.toHaveBeenCalled();
+    resume();
+    await run;
+    expect(small.release).toHaveBeenCalledTimes(1);
+  });
+
   it('releaseInstances() releases every node that ran', async () => {
     const executor = createExecutor();
     await executor.execute(chain(small.id), {});
@@ -118,8 +171,11 @@ describe('releasing instances', () => {
   });
 });
 
-describe('releasing instances of compiled nodes', () => {
-  const dir = fileURLToPath(new URL('../../../app/static/nodes/', import.meta.url));
+const ON_CI = !!(process.env.CI || process.env.GITEA_ACTIONS);
+const dir = fileURLToPath(new URL('../../../app/static/nodes/', import.meta.url));
+const BUILT = existsSync(`${dir}max/plantarium/stem.wasm`);
+
+describe.skipIf(!BUILT && !ON_CI)('releasing instances of compiled nodes', () => {
   const graph = {
     id: 0,
     nodes: [
