@@ -339,10 +339,74 @@ fn points_of(output: &[Vec<i32>], paths: &[usize]) -> Vec<Vec<f32>> {
     paths.iter().map(|index| wrap_path(&output[*index]).points.to_vec()).collect()
 }
 
+/// A stem resampled into fewer, evenly long segments for the contacts
+struct Resampled {
+    points: Vec<f32>,
+    /// where every point of the stem lies along the resampled one, in resampled segments
+    at: Vec<f32>,
+}
+
+impl Resampled {
+    /// The deltas of the resampled points, read along the stem at its own points
+    fn spread(&self, deltas: &[Vec3]) -> Vec<Vec3> {
+        let last = deltas.len() - 2;
+        self.at
+            .iter()
+            .map(|x| {
+                let m = (*x as usize).min(last);
+                deltas[m].lerp(deltas[m + 1], (x - m as f32).clamp(0.0, 1.0))
+            })
+            .collect()
+    }
+}
+
+/// Resamples a stem into segments about `step` long, or `None` when that would not give fewer
+/// segments than the stem has.
+fn resample(points: &[f32], step: f32) -> Option<Resampled> {
+    let n = points.len() / 4;
+    if n < 3 {
+        return None;
+    }
+    let mut at = Vec::with_capacity(n);
+    let mut length = 0.0;
+    at.push(0.0);
+    for i in 1..n {
+        length += point_at(points, i).distance(point_at(points, i - 1));
+        at.push(length);
+    }
+    let count = (length / step).ceil();
+    // also leaves out a stem without length and a step of zero, whose count is not a number
+    if !(length > 0.0 && count < (n - 1) as f32) {
+        return None;
+    }
+    let count = (count as usize).max(1);
+    let scale = count as f32 / length;
+    for x in &mut at {
+        *x *= scale;
+    }
+
+    let mut resampled = Vec::with_capacity((count + 1) * 4);
+    let mut k = 0;
+    for m in 0..=count {
+        let x = m as f32;
+        while k + 2 < n && at[k + 1] < x {
+            k += 1;
+        }
+        let span = at[k + 1] - at[k];
+        let f = if span > 0.0 { ((x - at[k]) / span).clamp(0.0, 1.0) } else { 0.0 };
+        resampled.extend((0..4).map(|c| points[k * 4 + c] + (points[(k + 1) * 4 + c] - points[k * 4 + c]) * f));
+    }
+    Some(Resampled { points: resampled, at })
+}
+
 /// Pushes every pair of segments that touch apart, `iterations` times. Every iteration reads the
 /// result of the one before, so a group of stems relaxes into an even spread. Outside the
 /// `exact` behaviour, contacts at the pinned bases are left out and the passes stop once a pass
-/// no longer removes much of the overlap, as in a bundle too full to come apart.
+/// no longer removes much of the overlap, as in a bundle too full to come apart. With a `step`,
+/// the contacts are found on the stems resampled to segments about that long: the push is smooth
+/// along a stem at the scale of the radius, while the pairs of segments within reach grow with
+/// the square of the points per stem.
+#[allow(clippy::too_many_arguments)]
 fn push_contacts(
     output: &mut [Vec<i32>],
     paths: &[usize],
@@ -351,18 +415,26 @@ fn push_contacts(
     smoothing: f32,
     iterations: usize,
     exact: bool,
+    step: Option<f32>,
 ) {
     let count = paths.len();
     let mut previous = f32::INFINITY;
 
     for _ in 0..iterations {
         let points = points_of(output, paths);
-        let segments: Vec<Vec<Segment>> = points.iter().map(|p| segments(p)).collect();
-        let mut deltas: Vec<Vec<Vec3>> = points
+        let resampled: Vec<Option<Resampled>> =
+            points.iter().map(|p| step.and_then(|step| resample(p, step))).collect();
+        let solved: Vec<&[f32]> = points
+            .iter()
+            .zip(&resampled)
+            .map(|(p, r)| r.as_ref().map_or(p.as_slice(), |r| r.points.as_slice()))
+            .collect();
+        let segments: Vec<Vec<Segment>> = solved.iter().map(|p| segments(p)).collect();
+        let mut deltas: Vec<Vec<Vec3>> = solved
             .iter()
             .map(|p| vec![Vec3::ZERO; p.len() / 4])
             .collect();
-        let mut weights: Vec<Vec<f32>> = points.iter().map(|p| vec![0.0; p.len() / 4]).collect();
+        let mut weights: Vec<Vec<f32>> = solved.iter().map(|p| vec![0.0; p.len() / 4]).collect();
 
         let (pairs, bits) = segment_pairs(&segments, radius);
         let mask = (1u64 << bits) - 1;
@@ -402,10 +474,14 @@ fn push_contacts(
             for (delta, weight) in deltas[order].iter_mut().zip(&weights[order]) {
                 *delta /= weight.max(1.0);
             }
-            smooth_deltas(&mut deltas[order], smoothing);
+            let mut moved = match &resampled[order] {
+                Some(r) => r.spread(&deltas[order]),
+                None => std::mem::take(&mut deltas[order]),
+            };
+            smooth_deltas(&mut moved, smoothing);
 
             let path = wrap_path_mut(&mut output[*index]);
-            rebuild_points(path.points, &points[order], &deltas[order]);
+            rebuild_points(path.points, &points[order], &moved);
         }
     }
 }
@@ -452,10 +528,12 @@ fn repel(
         return;
     }
     match mode {
-        Mode::Contacts => push_contacts(output, paths, radius, strength, smoothing, iterations, true),
+        Mode::Contacts => {
+            push_contacts(output, paths, radius, strength, smoothing, iterations, true, Some(radius * 0.5))
+        }
         Mode::Density => {
             spread_by_density(output, paths, radius, strength, smoothing, iterations);
-            push_contacts(output, paths, radius, strength, smoothing, iterations, false);
+            push_contacts(output, paths, radius, strength, smoothing, iterations, false, None);
         }
     }
 }
@@ -576,23 +654,71 @@ mod tests {
         let mut copy = result.clone();
         let paths = wrap_multiple_paths(&mut copy);
 
+        let closest = closest_distance(paths[0].points, paths[1].points);
+        assert!(closest > 0.2, "stems are still {} apart", closest);
+    }
+
+    fn closest_distance(a: &[f32], b: &[f32]) -> f32 {
         let mut closest = f32::MAX;
-        for i in 0..4 {
-            for j in 0..4 {
-                let (s, t) = super::closest_segment_params(
-                    super::point_at(paths[0].points, i),
-                    super::point_at(paths[0].points, i + 1),
-                    super::point_at(paths[1].points, j),
-                    super::point_at(paths[1].points, j + 1),
-                );
-                let a = super::point_at(paths[0].points, i)
-                    .lerp(super::point_at(paths[0].points, i + 1), s);
-                let b = super::point_at(paths[1].points, j)
-                    .lerp(super::point_at(paths[1].points, j + 1), t);
-                closest = closest.min(a.distance(b));
+        for i in 0..a.len() / 4 - 1 {
+            for j in 0..b.len() / 4 - 1 {
+                let (p, q) = (super::point_at(a, i), super::point_at(a, i + 1));
+                let (r, t) = (super::point_at(b, j), super::point_at(b, j + 1));
+                let (s, u) = super::closest_segment_params(p, q, r, t);
+                closest = closest.min(p.lerp(q, s).distance(r.lerp(t, u)));
             }
         }
+        closest
+    }
+
+    #[test]
+    fn finely_sampled_thin_stems_that_cross_are_separated() {
+        // segments far shorter than the radius, so the contacts are found on resampled stems
+        let points = 81;
+        let mut data = create_multiple_paths(2, points, 0, 0);
+        {
+            let mut stems = wrap_multiple_paths(&mut data);
+            for i in 0..points {
+                let a = i as f32 / (points - 1) as f32;
+                stems[0].points[i * 4..i * 4 + 4].copy_from_slice(&[0.0, 4.0 * a, 0.0, 0.01]);
+                stems[1].points[i * 4..i * 4 + 4].copy_from_slice(&[2.0 - 4.0 * a, 2.0, 0.0, 0.01]);
+            }
+        }
+        assert!(super::resample(wrap_multiple_paths(&mut data.clone())[0].points, 0.125).is_some());
+
+        let result = run(&data);
+        let mut copy = result.clone();
+        let paths = wrap_multiple_paths(&mut copy);
+        let closest = closest_distance(paths[0].points, paths[1].points);
         assert!(closest > 0.2, "stems are still {} apart", closest);
+    }
+
+    #[test]
+    fn resampling_keeps_the_ends_and_never_adds_points() {
+        let points: Vec<f32> = (0..9).flat_map(|i| [0.0, i as f32 * 0.5, 0.0, 0.1]).collect();
+
+        let resampled = super::resample(&points, 1.0).unwrap();
+        assert_eq!(resampled.points.len(), 5 * 4);
+        assert_eq!(&resampled.points[..4], &points[..4]);
+        assert!((resampled.points[17] - 4.0).abs() < 1e-5);
+        assert!((resampled.at[8] - 4.0).abs() < 1e-5);
+
+        assert!(super::resample(&points, 0.5).is_none());
+        assert!(super::resample(&points, 0.0).is_none());
+    }
+
+    #[test]
+    fn the_spread_follows_the_resampled_deltas() {
+        let points: Vec<f32> = (0..9).flat_map(|i| [0.0, i as f32 * 0.5, 0.0, 0.1]).collect();
+        let resampled = super::resample(&points, 2.0).unwrap();
+        let deltas = [glam::Vec3::ZERO, glam::Vec3::X, glam::Vec3::ZERO];
+
+        let spread = resampled.spread(&deltas);
+        assert_eq!(spread.len(), 9);
+        assert_eq!(spread[0], glam::Vec3::ZERO);
+        assert!((spread[2] - glam::Vec3::X * 0.5).length() < 1e-5);
+        assert!((spread[4] - glam::Vec3::X).length() < 1e-5);
+        assert!(spread[8].length() < 1e-5);
     }
 
     fn segment_lengths(data: &[i32]) -> Vec<Vec<f32>> {
