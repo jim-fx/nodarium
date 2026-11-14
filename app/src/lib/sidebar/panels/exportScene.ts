@@ -1,3 +1,4 @@
+import { exportGeometry } from '#lib/result-viewer/geometry/geometryPool.ts';
 import {
   BufferAttribute,
   BufferGeometry,
@@ -118,9 +119,10 @@ export function createExportScene(source: Object3D): Group {
     if (!object.visible) return;
 
     if (object instanceof InstancedMesh) {
+      const geometry = exportGeometry(object.geometry);
       for (let i = 0; i < object.count; i++) {
         object.getMatrixAt(i, matrix);
-        const mesh = new Mesh(object.geometry, object.material);
+        const mesh = new Mesh(geometry, object.material);
         matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
         parent.add(mesh);
       }
@@ -129,7 +131,8 @@ export function createExportScene(source: Object3D): Group {
 
     let copy: Object3D;
     if (object instanceof Mesh) {
-      copy = splitByGroup(object) ?? new Mesh(object.geometry, object.material);
+      const mesh = new Mesh(exportGeometry(object.geometry), object.material);
+      copy = splitByGroup(mesh) ?? mesh;
     } else {
       copy = new Group();
     }

@@ -1,4 +1,6 @@
 import {
+  Color,
+  ColorManagement,
   Group,
   type InstancedMesh,
   type Material,
@@ -7,12 +9,15 @@ import {
   MeshMatcapMaterial,
   MeshStandardMaterial,
   ShaderMaterial,
+  SRGBColorSpace,
   Texture
 } from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   createInstancedGeometryPool,
   createResultPools,
+  exportGeometry,
+  takeGroups,
   takeVertexColors,
   withVertexColors
 } from './geometryPool';
@@ -259,7 +264,7 @@ describe('createResultPools', () => {
 
   it('gives every vertex the group of its mesh', () => {
     const group = new Group();
-    const pools = createResultPools(group, new MeshBasicMaterial());
+    const pools = createResultPools(group, takeGroups(new MeshBasicMaterial()));
     pools.update([myzelMesh(null, 0, [0, 3, 5])]);
     expect([...shownMeshes(group)[0].geometry.getAttribute('group').array]).toEqual([0, 3, 5]);
     pools.update([myzelMesh(null, 0, [1, 1, 1])]);
@@ -268,7 +273,7 @@ describe('createResultPools', () => {
 
   it('groups plant geometry by its path, keeping 24 bits of the id', () => {
     const group = new Group();
-    const pools = createResultPools(group, new MeshBasicMaterial());
+    const pools = createResultPools(group, takeGroups(new MeshBasicMaterial()));
     pools.update([plantGeometry(0x7f12_3456)]);
     expect([...shownMeshes(group)[0].geometry.getAttribute('group').array]).toEqual(
       [0x12_3456, 0x12_3456, 0x12_3456]
@@ -295,5 +300,151 @@ describe('createResultPools', () => {
     pools.update([plantGeometry(5), instances(2), instances(1)]);
     expect(shownMeshes(group)[1].geometry.getAttribute('color')).toBeUndefined();
     expect(shownMeshes(group)[1].material).toBe(material);
+  });
+});
+
+describe('the vertex format', () => {
+  it('keeps the colors as the bytes of the result', () => {
+    const group = new Group();
+    createResultPools(group, new MeshBasicMaterial()).update([myzelMesh(0x8040_20ff)]);
+    const colors = shownMeshes(group)[0].geometry.getAttribute('color');
+    expect(colors.array).toBeInstanceOf(Uint8Array);
+    expect(colors.normalized).toBe(true);
+    expect([...colors.array.slice(0, 4)]).toEqual([0xff, 0x20, 0x40, 0x80]);
+  });
+
+  it('converts the colors to linear in the shader like Color does on the cpu', () => {
+    const material = withVertexColors(takeVertexColors(new MeshStandardMaterial()));
+    const shader = { vertexShader: '#include <color_vertex>', fragmentShader: '', uniforms: {} };
+    material.onBeforeCompile(shader as never, undefined as never);
+    const glsl = shader.vertexShader;
+    expect(glsl).toMatch(/#include <color_vertex>\s*#ifdef USE_COLOR\s*vColor.rgb = mix\(/);
+
+    // the expression of the shader, evaluated for every byte
+    const [low, scale, offset, power, edge] = [
+      /vColor.rgb \* ([\d.]+),/,
+      /pow\(vColor.rgb \* ([\d.]+)/,
+      /\+ ([\d.]+), vec3/,
+      /vec3\(([\d.]+)\)\),/,
+      /step\(vec3\(([\d.]+)\)/
+    ].map((pattern) => Number(glsl.match(pattern)![1]));
+    const shaded = (c: number) => c < edge ? c * low : (c * scale + offset) ** power;
+    for (let byte = 0; byte < 256; byte++) {
+      const c = byte / 255;
+      expect(shaded(c)).toBeCloseTo(new Color().setRGB(c, 0, 0, SRGBColorSpace).r, 6);
+    }
+  });
+
+  it('leaves the colors as they are while color management is off, like Color does', () => {
+    const material = withVertexColors(takeVertexColors(new MeshStandardMaterial()));
+    const managedKey = material.customProgramCacheKey();
+    ColorManagement.enabled = false;
+    try {
+      const shader = { vertexShader: '#include <color_vertex>', fragmentShader: '', uniforms: {} };
+      material.onBeforeCompile(shader as never, undefined as never);
+      expect(shader.vertexShader).toBe('#include <color_vertex>');
+      expect(material.customProgramCacheKey()).not.toBe(managedKey);
+      expect(new Color().setRGB(0.5, 0, 0, SRGBColorSpace).r).toBe(0.5);
+    } finally {
+      ColorManagement.enabled = true;
+    }
+  });
+
+  it('makes the group attribute only for a material that shows the groups', () => {
+    const group = new Group();
+    const plain = new MeshBasicMaterial();
+    const pools = createResultPools(group, plain);
+    pools.update([myzelMesh(null, 0, [0, 3, 5])]);
+    const geometry = shownMeshes(group)[0].geometry;
+    expect(geometry.getAttribute('group')).toBeUndefined();
+
+    pools.setMaterial(takeGroups(new MeshBasicMaterial()));
+    expect([...geometry.getAttribute('group').array]).toEqual([0, 3, 5]);
+    pools.update([myzelMesh(null, 1, [2, 2, 2])]);
+    expect([...geometry.getAttribute('group').array]).toEqual([2, 2, 2]);
+
+    const freed = vi.fn();
+    geometry.addEventListener('dispose', freed);
+    pools.setMaterial(plain);
+    expect(geometry.getAttribute('group')).toBeUndefined();
+    expect(freed).toHaveBeenCalled();
+  });
+
+  it('exports linear float colors and the groups', () => {
+    const group = new Group();
+    createResultPools(group, new MeshBasicMaterial()).update([
+      myzelMesh(0xff80_40ff, 0, [0, 3, 5])
+    ]);
+    const geometry = shownMeshes(group)[0].geometry;
+    const exported = exportGeometry(geometry);
+    expect(exported.getAttribute('position')).toBe(geometry.getAttribute('position'));
+    const colors = exported.getAttribute('color');
+    expect(colors.array).toBeInstanceOf(Float32Array);
+    const linear = new Color().setRGB(1, 0x40 / 255, 0x80 / 255, SRGBColorSpace);
+    expect([colors.getX(0), colors.getY(0), colors.getZ(0)]).toEqual([
+      Math.fround(linear.r),
+      Math.fround(linear.g),
+      Math.fround(linear.b)
+    ]);
+    expect(colors.getW(0)).toBeCloseTo(1);
+    expect([...exported.getAttribute('group').array]).toEqual([0, 3, 5]);
+  });
+});
+
+// a mesh of `vertexCount` vertices without colors, `x` for every coordinate
+function bigMesh(vertexCount: number, x = 0) {
+  const faceCount = vertexCount;
+  const data = new Int32Array(4 + faceCount * 3 + vertexCount * 7);
+  data.set([14, vertexCount, faceCount, 0]);
+  for (let i = 0; i < faceCount * 3; i++) data[4 + i] = i % vertexCount;
+  new Float32Array(data.buffer, (4 + faceCount * 3) * 4, vertexCount * 3).fill(x);
+  return data;
+}
+
+describe('freeing hidden objects', () => {
+  it('frees a hidden mesh of more than a MB and its buffers', () => {
+    const group = new Group();
+    const pools = createResultPools(group, new MeshBasicMaterial());
+    pools.update([bigMesh(40_000)]);
+    const big = shownMeshes(group)[0];
+    const freed = vi.fn();
+    big.geometry.addEventListener('dispose', freed);
+
+    pools.update([plantGeometry(5)]);
+    expect(freed).toHaveBeenCalled();
+    const all = group.children.flatMap((pool) => pool.children);
+    expect(all).not.toContain(big);
+    expect(all).toHaveLength(1);
+  });
+
+  it('keeps small hidden meshes for reuse', () => {
+    const group = new Group();
+    const pools = createResultPools(group, new MeshBasicMaterial());
+    pools.update([plantGeometry(1), plantGeometry(2)]);
+    const [, second] = shownMeshes(group);
+    pools.update([plantGeometry(1)]);
+    expect(second.visible).toBe(false);
+    pools.update([plantGeometry(1), plantGeometry(2)]);
+    expect(shownMeshes(group)[1]).toBe(second);
+  });
+
+  it('writes a result of the same size into the arrays it has, without freeing them', () => {
+    const group = new Group();
+    const pools = createResultPools(group, new MeshBasicMaterial());
+    pools.update([bigMesh(40_000, 1)]);
+    const geometry = shownMeshes(group)[0].geometry;
+    const positions = geometry.getAttribute('position').array;
+    const freed = vi.fn();
+    geometry.addEventListener('dispose', freed);
+
+    pools.update([bigMesh(40_000, 2)]);
+    expect(geometry.getAttribute('position').array).toBe(positions);
+    expect(positions[0]).toBe(2);
+    expect(freed).not.toHaveBeenCalled();
+
+    // other sizes get new arrays, the buffers of the old ones are freed right away
+    pools.update([bigMesh(30_000, 3)]);
+    expect(freed).toHaveBeenCalled();
+    expect(geometry.getAttribute('position').array).not.toBe(positions);
   });
 });

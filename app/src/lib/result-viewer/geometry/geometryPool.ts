@@ -5,7 +5,7 @@ import {
   BufferAttribute,
   BufferGeometry,
   Color,
-  Float32BufferAttribute,
+  ColorManagement,
   Group,
   InstancedBufferAttribute,
   InstancedMesh,
@@ -31,6 +31,23 @@ function groupAttribute(groups: Int32Array) {
 }
 
 const coloredMaterials = new WeakMap<Material, Material>();
+
+/**
+ * Vertex colors are kept as the sRGB bytes of the result, the renderer works with linear colors.
+ * The same conversion as `Color.setRGB(..., SRGBColorSpace)`, alpha stays as it is. Like there,
+ * nothing is converted while the color management of three is off: the canvas of the graph turns
+ * it off for the whole page, the thumbnail worker keeps it on.
+ */
+const SRGB_COLOR_VERTEX = /* glsl */ `
+  #include <color_vertex>
+  #ifdef USE_COLOR
+    vColor.rgb = mix(
+      vColor.rgb * 0.0773993808,
+      pow(vColor.rgb * 0.9478672986 + 0.0521327014, vec3(2.4)),
+      step(vec3(0.04045), vColor.rgb)
+    );
+  #endif
+`;
 
 /** The material where a vertex has no color of its own (alpha 0), its color where it has one */
 const VERTEX_COLOR_FRAGMENT = /* glsl */ `
@@ -89,6 +106,15 @@ export function takeVertexColors<T extends Material>(material: T) {
 }
 
 /**
+ * Lets `material` read the group of every vertex from the `group` attribute. Only the meshes shown
+ * with such a material have the attribute, everybody else saves its 4 bytes per vertex.
+ */
+export function takeGroups<T extends Material>(material: T) {
+  material.userData.groups = true;
+  return material;
+}
+
+/**
  * The material to show meshes that bring their own colors with, the material as it is unless it
  * takes colors (see takeVertexColors). Vertices without a color of their own (alpha 0, `NO_COLOR`
  * of myzel_core) keep the look of the material, the matcap tint is left out where they have one.
@@ -103,6 +129,12 @@ export function withVertexColors(material: Material) {
   const isMatcap = material instanceof MeshMatcapMaterial;
   colored.onBeforeCompile = (shader, renderer) => {
     material.onBeforeCompile(shader, renderer);
+    if (ColorManagement.enabled) {
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <color_vertex>',
+        SRGB_COLOR_VERTEX
+      );
+    }
     shader.fragmentShader = isMatcap
       ? shader.fragmentShader
         .replace('#include <color_fragment>', '')
@@ -112,7 +144,8 @@ export function withVertexColors(material: Material) {
         .replace('#include <lights_fragment_end>', COLOR_LIGHT_FRAGMENT)
         .replace('#include <tonemapping_fragment>', COLOR_TONE_MAPPING_FRAGMENT);
   };
-  colored.customProgramCacheKey = () => `${material.customProgramCacheKey()}:vertex-colors`;
+  colored.customProgramCacheKey = () =>
+    `${material.customProgramCacheKey()}:vertex-colors:${ColorManagement.enabled}`;
   coloredMaterials.set(material, colored);
   return colored;
 }
@@ -134,17 +167,22 @@ function sameIndices(a: Uint16Array, b: Int32Array) {
   return true;
 }
 
-function bits(array: Float32Array | Uint32Array | Int32Array) {
-  return new Int32Array(array.buffer, array.byteOffset, array.length);
+function bits(array: Float32Array | Uint32Array | Int32Array | Uint8Array) {
+  return new Int32Array(array.buffer, array.byteOffset, array.byteLength >> 2);
 }
 
 function sameFloats(attribute: BufferAttribute | undefined, values: Float32Array) {
   return !!attribute && sameBits(bits(attribute.array as Float32Array), bits(values));
 }
 
+/** colors as one word per vertex, as the result has them */
+function sameColors(attribute: BufferAttribute | undefined, words: Int32Array) {
+  return attribute?.array instanceof Uint8Array && sameBits(bits(attribute.array), words);
+}
+
 const color = new Color();
 
-/** Vertex colors are stored in sRGB, the renderer works with linear colors. Alpha stays as it is. */
+/** The linear colors that the shader makes of the sRGB bytes (see SRGB_COLOR_VERTEX) */
 function linearColors(colors: Uint8Array) {
   const out = new Float32Array(colors.length);
   for (let i = 0; i < colors.length; i += 4) {
@@ -185,9 +223,26 @@ type PoolStats = {
 type Slot<T> = { object: T; key: string };
 
 /**
+ * The plants show and hide paths with every seed, their objects are far smaller than this and stay
+ * for reuse. A hidden Myzel mesh would keep tens of MB in the page and on the GPU.
+ */
+const FREE_HIDDEN_BYTES = 1 << 20;
+
+function objectBytes(object: Mesh | InstancedMesh) {
+  const geometry = object.geometry;
+  let bytes = geometry.index?.array.byteLength ?? 0;
+  for (const attribute of Object.values(geometry.attributes)) {
+    bytes += attribute.array.byteLength;
+  }
+  if ('isInstancedMesh' in object) bytes += object.instanceMatrix.array.byteLength;
+  return bytes;
+}
+
+/**
  * Keeps one object per input and reuses them from update to update. Inputs are matched to objects
  * by key, so removing one input leaves all others on the object they had and only that one is
- * hidden. Objects that are not needed are hidden, not removed.
+ * hidden. Objects that are not needed are hidden for reuse, unless they hold more than
+ * FREE_HIDDEN_BYTES: those are removed and their buffers freed.
  */
 function createSlotPool<T extends Mesh | InstancedMesh>(
   parentScene: Group,
@@ -255,9 +310,20 @@ function createSlotPool<T extends Mesh | InstancedMesh>(
       used.add(slot);
     }
 
+    let kept = 0;
     for (const slot of slots) {
-      if (!used.has(slot)) slot.object.visible = false;
+      if (used.has(slot)) {
+        slots[kept++] = slot;
+      } else if (objectBytes(slot.object) > FREE_HIDDEN_BYTES) {
+        scene.remove(slot.object);
+        slot.object.geometry.dispose();
+        slot.object.dispose();
+      } else {
+        slot.object.visible = false;
+        slots[kept++] = slot;
+      }
     }
+    slots.length = kept;
 
     return stats;
   }
@@ -274,15 +340,57 @@ function createSlotPool<T extends Mesh | InstancedMesh>(
 function writeAttribute(
   geometry: BufferGeometry,
   name: string,
-  array: Float32Array,
-  itemSize = 3
+  array: Float32Array | Uint8Array,
+  itemSize = 3,
+  normalized = false
 ) {
   const attribute = geometry.getAttribute(name) as BufferAttribute | undefined;
-  if (attribute && attribute.array.length === array.length) {
+  if (
+    attribute && attribute.array.constructor === array.constructor
+    && attribute.array.length === array.length
+  ) {
     attribute.array.set(array);
     attribute.needsUpdate = true;
   } else {
-    geometry.setAttribute(name, new Float32BufferAttribute(array, itemSize));
+    geometry.setAttribute(name, new BufferAttribute(array.slice(), itemSize, normalized));
+  }
+}
+
+/**
+ * The renderer frees the buffers of the attributes a geometry has when it is disposed, an
+ * attribute that was replaced or deleted before would keep its buffer until it is collected.
+ * The next render uploads the geometry again.
+ */
+function freeBuffers(geometry: BufferGeometry) {
+  geometry.dispose();
+}
+
+/** Frees the buffers of a geometry whose arrays are about to be replaced by ones of another size */
+function freeBuffersOnResize(geometry: BufferGeometry, vertexCount: number, faceCount: number) {
+  const shown = geometry.userData;
+  if (shown.vertexCount === undefined) return;
+  if (shown.vertexCount !== vertexCount || shown.faceCount !== faceCount) freeBuffers(geometry);
+}
+
+function removeAttribute(geometry: BufferGeometry, name: string) {
+  if (!geometry.getAttribute(name)) return;
+  freeBuffers(geometry);
+  geometry.deleteAttribute(name);
+}
+
+/** Colors as normalized bytes, four per vertex, converted to linear in the shader */
+function writeColors(geometry: BufferGeometry, colors: Uint8Array | undefined) {
+  if (colors) writeAttribute(geometry, 'color', colors, 4, true);
+  else removeAttribute(geometry, 'color');
+}
+
+/** The group attribute of the groups in userData, only while the material shows them */
+function writeGroups(geometry: BufferGeometry, material: Material, changed: boolean) {
+  const groups: Int32Array | undefined = geometry.userData.groups;
+  if (!material.userData.groups || !groups) {
+    removeAttribute(geometry, 'group');
+  } else if (changed || !geometry.getAttribute('group')) {
+    writeAttribute(geometry, 'group', groupAttribute(groups), 1);
   }
 }
 
@@ -339,31 +447,27 @@ export function createGeometryPool(
       const groups = meshGroups
         ?? new Int32Array(vertexCount).fill(readGeometryPathId(data));
 
-      // one word per vertex, compared like the other attributes
-      const colorWords = colors && new Int32Array(colors.buffer, colors.byteOffset, vertexCount);
-      const shownColors: Int32Array | undefined = geometry.userData.colors;
-      const colorsShown = colorWords
-        ? !!shownColors && sameBits(shownColors, colorWords)
-        : !geometry.getAttribute('color');
+      const colorAttribute = geometry.getAttribute('color') as BufferAttribute | undefined;
+      const colorsShown = colors ? sameColors(colorAttribute, bits(colors)) : !colorAttribute;
+      // kept to compare with and to make the attribute of when the material shows the groups
       const shownGroups: Int32Array | undefined = geometry.userData.groups;
       const groupsShown = !!shownGroups && sameBits(shownGroups, groups);
 
       if (!colorsShown || !groupsShown || !showsData(geometry, faces, positions, normals)) {
+        freeBuffersOnResize(geometry, vertexCount, faceCount);
         writeIndex(geometry, faces, vertexCount);
         writeAttribute(geometry, 'position', positions);
         writeAttribute(geometry, 'normal', normals);
-        if (colors) writeAttribute(geometry, 'color', linearColors(colors), 4);
-        else geometry.deleteAttribute('color');
-        writeAttribute(geometry, 'group', groupAttribute(groups), 1);
+        writeColors(geometry, colors);
         // the renderer would compute the bounds from the vertices again, they are known here
         setBounds(geometry, positions);
         geometry.userData = {
           vertexCount,
           faceCount,
-          colors: colorWords?.slice(),
-          groups: groups.slice()
+          groups: groupsShown ? shownGroups : groups.slice()
         };
       }
+      writeGroups(geometry, material, !groupsShown);
       mesh.material = materialFor(geometry, material);
 
       stats.bounds.union(geometry.boundingBox!);
@@ -374,7 +478,10 @@ export function createGeometryPool(
   return {
     setMaterial(newMaterial: Material) {
       material = newMaterial;
-      pool.forEach((mesh) => mesh.material = materialFor(mesh.geometry, material));
+      pool.forEach((mesh) => {
+        writeGroups(mesh.geometry, material, false);
+        mesh.material = materialFor(mesh.geometry, material);
+      });
     },
     update: pool.update
   };
@@ -407,12 +514,12 @@ export function createInstancedGeometryPool(
       let mesh = existing;
       const geometry = mesh?.geometry ?? new BufferGeometry();
 
+      freeBuffersOnResize(geometry, vertexCount, faceCount);
       writeIndex(geometry, faces, vertexCount);
       writeAttribute(geometry, 'position', positions);
       writeAttribute(geometry, 'normal', normals);
       // the colors of the shape, every instance shows the same
-      if (colors) writeAttribute(geometry, 'color', linearColors(colors), 4);
-      else geometry.deleteAttribute('color');
+      writeColors(geometry, colors);
       const geometryBounds = setBounds(geometry, positions);
       geometry.userData = { vertexCount, faceCount };
 
@@ -466,6 +573,30 @@ export function createInstancedGeometryPool(
     },
     update: pool.update
   };
+}
+
+/**
+ * The geometry as other programs expect it: linear colors as floats and the groups as an
+ * attribute. The viewer keeps sRGB bytes and the groups only for the material that shows them.
+ */
+export function exportGeometry(geometry: BufferGeometry) {
+  const colors = geometry.getAttribute('color') as BufferAttribute | undefined;
+  const srgbColors = colors?.array instanceof Uint8Array ? colors.array : undefined;
+  const groups: Int32Array | undefined = geometry.getAttribute('group')
+    ? undefined
+    : geometry.userData.groups;
+  if (!srgbColors && !groups) return geometry;
+
+  const copy = new BufferGeometry();
+  copy.setIndex(geometry.getIndex());
+  for (const [name, attribute] of Object.entries(geometry.attributes)) {
+    copy.setAttribute(name, attribute);
+  }
+  if (srgbColors) copy.setAttribute('color', new BufferAttribute(linearColors(srgbColors), 4));
+  if (groups) copy.setAttribute('group', new BufferAttribute(groupAttribute(groups), 1));
+  copy.boundingBox = geometry.boundingBox;
+  copy.boundingSphere = geometry.boundingSphere;
+  return copy;
 }
 
 /**
