@@ -14,7 +14,9 @@
     toast
   } from '@nodarium/ui';
   import { onMount, tick } from 'svelte';
+  import staticPreviews from 'virtual:template-previews';
   import type { ProjectManager } from './project-manager.svelte';
+  import { loadTemplatePreviews as loadPreviews, type TemplatePreview } from './template-previews';
 
   type Props = {
     projectManager: ProjectManager;
@@ -50,17 +52,23 @@
     return filtered;
   });
 
-  let templatePreviews = $state<Record<string, string>>({});
+  let templatePreviews = $state<Record<string, TemplatePreview>>({});
   let templatePreviewsRequested = false;
 
   function loadTemplatePreviews() {
     if (templatePreviewsRequested) return;
     templatePreviewsRequested = true;
-    for (const template of templates) {
-      template.load().then((graph) => pm.thumbnails.renderPreview(graph)).then((url) => {
-        if (url) templatePreviews[template.id] = url;
-      });
-    }
+    loadPreviews(
+      templates,
+      staticPreviews,
+      (graph) => pm.thumbnails.renderPreview(graph),
+      (id, preview) => (templatePreviews[id] = preview)
+    );
+  }
+
+  function handlePreviewError(template: Template) {
+    console.warn(`[templates] failed to load the preview of ${template.id}`);
+    templatePreviews[template.id] = null;
   }
 
   function close() {
@@ -163,12 +171,25 @@
   }
 </script>
 
-{#snippet thumbnail(url: string | undefined, classes: string)}
+{#snippet thumbnail(url: string | null | undefined, classes: string, onerror?: () => void)}
   <span class="block shrink-0 bg-layer-0 {classes}">
     {#if url}
-      <img src={url} alt="" class="block h-full w-full object-contain" />
+      <img src={url} alt="" class="block h-full w-full object-contain" {onerror} />
     {/if}
   </span>
+{/snippet}
+
+{#snippet templatePreview(template: Template)}
+  {@const preview = templatePreviews[template.id]}
+  {@const icon = template.category === 'Mushrooms' ? 'i-[tabler--mushroom]' : 'i-[tabler--plant-2]'}
+  {@const classes = 'h-[34px] w-[34px] border border-outline'}
+  {#if preview === null}
+    <span class="flex shrink-0 items-center justify-center bg-layer-0 {classes}">
+      <span class="block h-4 w-4 opacity-30 {icon}"></span>
+    </span>
+  {:else}
+    {@render thumbnail(preview, classes, () => handlePreviewError(template))}
+  {/if}
 {/snippet}
 
 <dialog
@@ -236,7 +257,7 @@
               class="flex h-14 w-full cursor-pointer items-center gap-3 border-x-0 border-t-0 border-b border-outline bg-transparent px-5 text-left text-sm hover:bg-layer-2 font-(--font-family)"
               onclick={() => createFromTemplate(template)}
             >
-              {@render thumbnail(templatePreviews[template.id], 'h-[34px] w-[34px] border border-outline')}
+              {@render templatePreview(template)}
               {template.name}
             </button>
           {/each}

@@ -81,7 +81,7 @@ Every template is a `Graph` of the current graph version, `parseProjectFile()` i
 | `false-chanterelle`  | False chanterelle | Mushrooms | cm   |
 | `bitter-bolete`      | Bitter bolete     | Mushrooms | cm   |
 
-The ids stay, a template that is improved keeps its id. To add a template in this repository, put its graph into `packages/runtime/templates/<id>.json`, add a line `plant(...)` or `mushroom(...)` to the list in `templates/index.ts` and a row to the table above. The app lists it in its project browser from there.
+The ids stay, a template that is improved keeps its id. To add a template in this repository, put its graph into `packages/runtime/templates/<id>.json`, add a line `plant(...)` or `mushroom(...)` to the list in `templates/index.ts` and a row to the table above. The app lists it in its project browser from there. Its preview there is a pre-rendered image, see [Template previews](https://git.max-richter.dev/max/nodarium/src/branch/main/app/README.md#template-previews).
 
 ## Export a project from the app
 

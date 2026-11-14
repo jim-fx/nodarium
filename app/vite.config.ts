@@ -9,6 +9,7 @@ import glsl from 'vite-plugin-glsl';
 import wasm from 'vite-plugin-wasm';
 import { defineConfig } from 'vitest/config';
 import { devTemplatePlugin } from './scripts/dev-template-plugin.ts';
+import { templatePreviewsPlugin } from './scripts/template-previews-plugin.ts';
 
 export default defineConfig({
   plugins: [
@@ -17,7 +18,8 @@ export default defineConfig({
     sveltekit({ preprocess: vitePreprocess(), adapter: adapter() }),
     glsl(),
     wasm(),
-    devTemplatePlugin()
+    devTemplatePlugin(),
+    templatePreviewsPlugin()
   ],
   worker: {
     plugins: () => [
