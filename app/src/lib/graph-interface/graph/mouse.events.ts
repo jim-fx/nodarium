@@ -38,7 +38,7 @@ export class MouseEventManager {
     if (activeNode?.state?.isMoving) {
       activeNode.state = activeNode.state || {};
       activeNode.state.isMoving = false;
-      if (this.state.snapToGrid) {
+      if (this.state.options.snapToGrid) {
         const snapLevel = this.state.getSnapLevel();
         activeNode.position[0] = snapPointToGrid(
           activeNode?.state?.x ?? activeNode.position[0],
@@ -339,7 +339,7 @@ export class MouseEventManager {
 
       if (event.ctrlKey) {
         const snapLevel = this.state.getSnapLevel();
-        if (this.state.snapToGrid) {
+        if (this.state.options.snapToGrid) {
           newX = snapPointToGrid(newX, 5 / snapLevel);
           newY = snapPointToGrid(newY, 5 / snapLevel);
         }

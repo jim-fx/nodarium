@@ -1,10 +1,8 @@
 <script lang="ts">
-  import { appSettings } from '#lib/settings/app-settings.svelte.ts';
   import type { NodeInstance } from '@nodarium/types';
   import { T } from '@threlte/core';
   import { type Mesh } from 'three';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
-  import { colors } from '../graph/colors.svelte';
   import {
     getNodeHeight,
     getOutputRowCount,
@@ -17,6 +15,7 @@
 
   const graph = getGraphManager();
   const graphState = getGraphState();
+  const colors = graphState.options.colors;
 
   type Props = {
     node: NodeInstance;
@@ -28,9 +27,9 @@
 
   const isActive = $derived(graphState.activeNodeId === node.id);
   const isSelected = $derived(graphState.selectedNodes.has(node.id));
-  const hasError = $derived(graphState.errorNodeId === node.id);
+  const hasError = $derived(graphState.options.errorNodeId === node.id);
   const strokeColor = $derived(
-    appSettings.value.theme
+    graphState.options.theme
       && (isSelected
         ? colors.selected
         : isActive

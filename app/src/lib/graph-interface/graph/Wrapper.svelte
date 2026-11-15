@@ -5,19 +5,13 @@
   import { GraphManager } from '../graph-manager.svelte';
   import { GraphState, setGraphManager, setGraphState } from '../graph-state.svelte';
   import { setupKeymaps } from '../keymaps';
+  import type { GraphOptions } from '../options';
   import GraphEl from './Graph.svelte';
 
   type Props = {
     graph?: Graph;
     registry: NodeRegistry;
-
-    backgroundType?: 'grid' | 'dots' | 'none';
-    snapToGrid?: boolean;
-    showHelp?: boolean;
-    nodeTimings?: Record<number, number>;
-    errorNodeId?: number;
-
-    safePadding?: { left?: number; right?: number; bottom?: number; top?: number };
+    options: GraphOptions;
 
     onsave?: (save: Graph) => void;
     onresult?: (result: Graph) => void;
@@ -26,12 +20,7 @@
   let {
     graph,
     registry,
-    safePadding,
-    backgroundType = $bindable('grid'),
-    snapToGrid = $bindable(true),
-    showHelp = $bindable(false),
-    nodeTimings = {},
-    errorNodeId,
+    options,
     onsave,
     onresult
   }: Props = $props();
@@ -42,18 +31,7 @@
   export const manager = new GraphManager(registry);
   setGraphManager(manager);
 
-  export const state = new GraphState(manager);
-  $effect(() => {
-    if (safePadding) {
-      state.safePadding = safePadding;
-    }
-    state.backgroundType = backgroundType;
-    state.snapToGrid = snapToGrid;
-    state.showHelp = showHelp;
-    state.nodeTimings = nodeTimings;
-    state.errorNodeId = errorNodeId;
-  });
-
+  export const state = new GraphState(manager, () => options);
   setGraphState(state);
 
   setupKeymaps(keymap, manager, state);
@@ -84,4 +62,4 @@
   }}
 />
 
-<GraphEl {keymap} {safePadding} />
+<GraphEl {keymap} />

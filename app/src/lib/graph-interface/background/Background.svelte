@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { appSettings } from '#lib/settings/app-settings.svelte.ts';
   import { T, useThrelte } from '@threlte/core';
-  import { colors } from '../graph/colors.svelte';
+  import { getGraphState } from '../graph-state.svelte';
   import BackgroundFrag from './Background.frag';
   import BackgroundVert from './Background.vert';
 
   const { invalidate } = useThrelte();
+  const graphState = getGraphState();
+  const colors = graphState.options.colors;
 
   type Props = {
     minZoom?: number;
@@ -37,14 +38,14 @@
   let bh = $derived(height / cameraPosition[2]);
 
   $effect(() => {
-    if (appSettings.value.theme) {
+    if (graphState.options.theme) {
       setTimeout(() => invalidate(), 10);
     }
   });
 </script>
 
 <T.Group
-  visible={!appSettings.value.theme.includes('contrast')}
+  visible={!graphState.options.theme.includes('contrast')}
   position.x={cameraPosition[0]}
   position.z={cameraPosition[1]}
   position.y={-1.0}
@@ -76,9 +77,9 @@
         }
       }}
       uniforms.camPos.value={cameraPosition}
-      uniforms.backgroundColor.value={appSettings.value.theme
+      uniforms.backgroundColor.value={graphState.options.theme
       && colors['layer-0']}
-      uniforms.lineColor.value={appSettings.value.theme && colors['outline']}
+      uniforms.lineColor.value={graphState.options.theme && colors['outline']}
       uniforms.zoomLimits.value={[minZoom, maxZoom]}
       uniforms.dimensions.value={[width, height]}
       uniforms.gridType.value={gridType}

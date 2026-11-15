@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { colors } from '#lib/graph-interface/graph/colors.svelte.ts';
   import GraphInterface from '#lib/graph-interface/index.ts';
+  import type { GraphOptions } from '#lib/graph-interface/options.ts';
   import * as templates from '#lib/graph-templates/index.ts';
   import Grid from '#lib/grid/index.ts';
   import { createKeyMap } from '#lib/helpers/createKeyMap.ts';
@@ -121,6 +123,35 @@
   let debugData = $state<Record<number, { type: string; data: Int32Array }>>();
   let nodeTimings = $state<Record<number, number>>({});
   let errorNodeId = $state<number>();
+  const safePadding = $derived({ right: sidebarOpen ? 321 : undefined });
+  // read one by one: a run that only brings new timings leaves what reads the theme alone
+  const graphOptions: GraphOptions = {
+    get backgroundType() {
+      return appSettings.value.nodeInterface.backgroundType;
+    },
+    get snapToGrid() {
+      return appSettings.value.nodeInterface.snapToGrid;
+    },
+    get showHelp() {
+      return appSettings.value.nodeInterface.showHelp;
+    },
+    get showDebugInfo() {
+      return appSettings.value.debug.advancedMode;
+    },
+    get theme() {
+      return appSettings.value.theme;
+    },
+    colors,
+    get safePadding() {
+      return safePadding;
+    },
+    get nodeTimings() {
+      return nodeTimings;
+    },
+    get errorNodeId() {
+      return errorNodeId;
+    }
+  };
   const manager = $derived(graphInterface?.manager);
   const activeNode = $derived(
     graphInterface?.state.activeNodeId !== undefined && graphInterface.state.activeNodeId !== -1
@@ -429,12 +460,7 @@
             graph={pm.graph}
             bind:this={graphInterface}
             registry={nodeRegistry}
-            safePadding={{ right: sidebarOpen ? 321 : undefined }}
-            backgroundType={appSettings.value.nodeInterface.backgroundType}
-            snapToGrid={appSettings.value.nodeInterface.snapToGrid}
-            bind:showHelp={appSettings.value.nodeInterface.showHelp}
-            {nodeTimings}
-            {errorNodeId}
+            options={graphOptions}
             onsave={async (g) => {
               pendingSave = true;
               await pm.saveGraph(g);
