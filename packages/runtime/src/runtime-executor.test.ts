@@ -1,7 +1,8 @@
 import type { Graph, NodeDefinition, NodeValue } from '@nodarium/types';
 import { describe, expect, it } from 'vitest';
 import { NodeExecutionError } from './errors';
-import { expandGroups, MemoryRuntimeExecutor } from './runtime-executor';
+import { expandGroups } from './expand-groups';
+import { MemoryRuntimeExecutor } from './runtime-executor';
 import { createMockNodeRegistry } from './test-utils';
 
 // Helpers to build minimal serialized nodes/edges

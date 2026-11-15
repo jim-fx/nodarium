@@ -10,6 +10,7 @@ export type {
 export { createRuntime, type RuntimeOptions } from './create-runtime';
 export { debugNode } from './debug-node';
 export * from './errors';
+export { expandGroups } from './expand-groups';
 export {
   CURRENT_GRAPH_VERSION,
   GraphVersionError,
@@ -17,6 +18,7 @@ export {
   type Migration,
   MIGRATIONS
 } from './graph-migrations';
+export { RELEASE_INSTANCES_OVER } from './instances';
 export { parseProjectFile } from './project-file';
 export { FetchNodeRegistry } from './registry/fetch-node-registry';
 export { WasmNodeRegistry } from './registry/wasm-node-registry';
