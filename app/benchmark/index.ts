@@ -33,11 +33,13 @@ const SAMPLE_INTERVAL_MS = 200;
 
 const log = createLogger('bench');
 
-type Benchmark = { graph: Graph; runs: number; warmups: number };
+type Runs = { runs: number; warmups: number };
+type Benchmark = Runs & { graph: Graph; cachedRuns?: Runs };
 
 const plantRuns = { runs: 100, warmups: 10 };
-// a mushroom build takes seconds, fewer runs keep the bench within a few minutes on CI
-const mushroomRuns = { runs: 8, warmups: 1 };
+// a mushroom build takes seconds, fewer runs keep the bench within a few minutes on CI. A cached
+// run takes milliseconds, with only a few of them one pause moves the median
+const mushroomRuns = { runs: 8, warmups: 1, cachedRuns: { runs: 50, warmups: 5 } };
 
 const templates: Record<string, Benchmark> = {
   plant: { graph: plantTemplate as unknown as GraphType, ...plantRuns },
@@ -103,7 +105,7 @@ function createViewerBenchmark() {
  * @param cached - run with the runtime cache and a fixed seed, so every node
  * except the output node is served from the cache after the first run
  */
-async function run({ graph: g, runs: amount, warmups }: Benchmark, cached: boolean) {
+async function run({ graph: g, runs: amount, warmups }: Runs & { graph: Graph }, cached: boolean) {
   // a fresh registry per benchmark, wasm memories never shrink, so shared
   // instances would keep the memory of the largest graph for all benchmarks
   const registry = new FileNodeRegistry(resolve('static/nodes'));
@@ -268,7 +270,11 @@ async function main() {
       const name = cached ? key + '-cached' : key;
       log.log('executing ' + name);
 
-      const perfData = await run(templates[key], cached);
+      const { cachedRuns, ...benchmark } = templates[key];
+      const perfData = await run(
+        cached && cachedRuns ? { ...benchmark, ...cachedRuns } : benchmark,
+        cached
+      );
 
       await writeFile(resolve(outPath, name + '.json'), JSON.stringify(perfData));
 
