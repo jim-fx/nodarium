@@ -294,6 +294,56 @@ describe('expandGroups', () => {
   });
 });
 
+describe('expandGroups group references', () => {
+  // a group with one instance of each of `inner` and their values as outputs
+  function wrapper(id: number, ...inner: number[]): Graph['groups'][0] {
+    const instances = inner.map((groupId, i) =>
+      node(10 + i, '__internal/group/instance', { groupId })
+    );
+    return {
+      id,
+      nodes: [...instances, node(2, '__internal/group/output')],
+      edges: instances.map((n, i) => edge(n.id, 0, 2, `out_${i}`)),
+      inputs: {},
+      outputs: instances.map(() => ({ type: 'float' }))
+    };
+  }
+  const leaf: Graph['groups'][0] = {
+    id: 1,
+    nodes: [node(1, 'test/node/input'), node(2, '__internal/group/output')],
+    edges: [edge(1, 0, 2, 'out_0')],
+    inputs: {},
+    outputs: [{ type: 'float' }]
+  };
+  function graphOf(groups: Graph['groups'], instances: number[]): Graph {
+    return {
+      id: 1,
+      nodes: instances.map((groupId, i) => node(100 + i, '__internal/group/instance', { groupId })),
+      edges: [],
+      groups
+    };
+  }
+
+  it('expands a group that is used twice inside another group', () => {
+    const result = expandGroups(graphOf([leaf, wrapper(2, 1, 1)], [2]));
+    expect(result.nodes.map(n => n.type)).toEqual(['test/node/input', 'test/node/input']);
+  });
+
+  it('expands a group that two groups contain', () => {
+    const result = expandGroups(
+      graphOf([leaf, wrapper(2, 1), wrapper(3, 1), wrapper(4, 2, 3)], [4])
+    );
+    expect(result.nodes.map(n => n.type)).toEqual(['test/node/input', 'test/node/input']);
+  });
+
+  it('still rejects groups that contain each other or themselves', () => {
+    expect(() => expandGroups(graphOf([wrapper(2, 3), wrapper(3, 2)], [2])))
+      .toThrow('Circular group reference');
+    expect(() => expandGroups(graphOf([wrapper(2, 2)], [2])))
+      .toThrow('Circular group reference');
+  });
+});
+
 describe('MemoryRuntimeExecutor', () => {
   it('runs an output node that has nothing connected', async () => {
     let received: NodeValue[] = [];

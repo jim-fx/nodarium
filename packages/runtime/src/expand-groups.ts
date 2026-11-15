@@ -1,5 +1,5 @@
 import type { Graph, GroupDefinition, SerializedEdge, SerializedNode } from '@nodarium/types';
-import { GROUP_INPUT, GROUP_INSTANCE, GROUP_OUTPUT } from '@nodarium/types';
+import { GROUP_INPUT, GROUP_INSTANCE, GROUP_OUTPUT, groupIdOf } from '@nodarium/types';
 import { hashString53 } from '@nodarium/utils';
 
 /**
@@ -56,23 +56,25 @@ export function expandGroups(graph: Graph, origins?: Map<number, number>): Graph
   return { ...graph, nodes, edges };
 }
 
+/** A group may be used any number of times, as long as it is not inside itself */
 function assertNoGroupCycles(groups: Map<number, GroupDefinition>) {
-  function groupContainsSelf(groupId: number, visited = new Set<number>()): boolean {
-    if (visited.has(groupId)) return true;
-    visited.add(groupId);
-    const group = groups.get(groupId);
-    if (!group) return false;
-    for (const n of group.nodes) {
-      if (n.type === GROUP_INSTANCE) {
-        const nestedId = n.props?.groupId as number | undefined;
-        if (nestedId !== undefined && groupContainsSelf(nestedId, visited)) return true;
-      }
+  const onPath = new Set<number>();
+  const checked = new Set<number>();
+  function containsCycle(groupId: number): boolean {
+    if (onPath.has(groupId)) return true;
+    if (checked.has(groupId)) return false;
+    onPath.add(groupId);
+    for (const n of groups.get(groupId)?.nodes ?? []) {
+      const nestedId = groupIdOf(n);
+      if (nestedId !== undefined && containsCycle(nestedId)) return true;
     }
+    onPath.delete(groupId);
+    checked.add(groupId);
     return false;
   }
 
   for (const group of groups.values()) {
-    if (groupContainsSelf(group.id)) {
+    if (containsCycle(group.id)) {
       throw new Error(`Circular group reference: group ${group.id} contains itself`);
     }
   }
