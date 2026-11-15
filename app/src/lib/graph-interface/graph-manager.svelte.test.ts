@@ -1,6 +1,6 @@
 import { debugNode, expandGroups } from '@nodarium/runtime';
-import type { NodeDefinition, NodeId } from '@nodarium/types';
-import { assert, describe, expect, it, vi } from 'vitest';
+import type { Graph, NodeDefinition, NodeId, NodeInstance } from '@nodarium/types';
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GraphManager } from './graph-manager.svelte';
 import { getNodeHeight } from './helpers/nodeHelpers';
 import {
@@ -40,7 +40,6 @@ describe('groupNodes', () => {
 
     const edge = manager.createEdge(floatInputNode, 0, floatOutputNode, 'input');
     assert.isDefined(edge);
-    manager.save();
 
     manager.groupNodes([]);
 
@@ -77,7 +76,6 @@ describe('groupNodes', () => {
 
     const edge = manager.createEdge(floatInputNode, 0, floatOutputNode, 'input');
     assert.isDefined(edge);
-    manager.save();
 
     const groupNode = manager.groupNodes([floatInputNode.id]);
     assert.isDefined(groupNode);
@@ -322,7 +320,9 @@ describe('groups', () => {
   it('should keep saving after grouping an empty selection', () => {
     const { manager } = createChain();
     manager.groupNodes([-1]);
-    expect(manager.currentUndoGroup).toBeNull();
+    const steps = manager.history.history.length;
+    manager.createNode({ type: 'test/node/output', position: [0, 0], props: {} });
+    expect(manager.history.history.length).toBe(steps + 1);
   });
 
   it('should create one group output per internal source socket', () => {
@@ -939,7 +939,7 @@ describe('dropNodeOnEdge', () => {
       assert.isDefined(dropped);
       const edge = manager.createEdge(source, 0, target, 'input');
       assert.isDefined(edge);
-      manager.loaded = true;
+      manager.status = 'idle';
       vi.runAllTimers();
 
       const results: ReturnType<GraphManager['serialize']>[] = [];
@@ -948,8 +948,8 @@ describe('dropNodeOnEdge', () => {
       manager.dropNodeOnEdge(dropped.id, edge);
       vi.runAllTimers();
 
-      expect(results.length).toBeGreaterThan(0);
-      expect(results.at(-1)!.edges).toEqual([
+      expect(results).toHaveLength(1);
+      expect(results[0].edges).toEqual([
         [source.id, 0, dropped.id, 'input'],
         [dropped.id, 0, target.id, 'input']
       ]);
@@ -1099,7 +1099,6 @@ describe('getNodeDefinitions', () => {
       groups: []
     })).resolves.toBeUndefined();
     expect(manager.status).toBe('error');
-    expect(manager.loaded).toBe(false);
   });
 });
 
@@ -1185,5 +1184,283 @@ describe('two edges between the same nodes', () => {
 
     const sockets = manager.getPossibleSockets({ node: b, index: 0, position: [0, 0] });
     expect(sockets.map(([node]) => node.id)).not.toContain(a.id);
+  });
+});
+
+describe('a change made of several changes', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  // A → B → C → D
+  function setup() {
+    const manager = new GraphManager(
+      createMockNodeRegistry([mockFloatOutputNode, mockFloatInputNode])
+    );
+    const nodes = [0, 1, 2, 3].map((i) =>
+      manager.createNode({ type: 'test/node/input', position: [i * 100, 0], props: {} })!
+    );
+    for (let i = 1; i < nodes.length; i++) manager.createEdge(nodes[i - 1], 0, nodes[i], 'value');
+    manager.status = 'idle';
+    vi.runAllTimers();
+    const results: Graph[] = [];
+    manager.on('result', (graph) => results.push(graph));
+    const steps = manager.history.history.length;
+    return { manager, nodes, results, newSteps: () => manager.history.history.length - steps };
+  }
+
+  it('groupNodes builds once, the finished graph, and is one undo step', () => {
+    const { manager, nodes: [a, b], results, newSteps } = setup();
+
+    manager.groupNodes([a.id, b.id]);
+    vi.runAllTimers();
+
+    expect(results).toEqual([manager.serialize()]);
+    expect(newSteps()).toBe(1);
+  });
+
+  it('ungroupNode builds once and is one undo step', () => {
+    const { manager, nodes: [, b, c], results, newSteps } = setup();
+    const group = manager.groupNodes([b.id, c.id])!;
+    vi.runAllTimers();
+    results.length = 0;
+    const steps = newSteps();
+
+    manager.ungroupNode(group.id);
+    vi.runAllTimers();
+
+    expect(results).toEqual([manager.serialize()]);
+    expect(newSteps()).toBe(steps + 1);
+  });
+
+  it('deleting several nodes builds once and is one undo step', () => {
+    const { manager, nodes: [a, b, c, d], results, newSteps } = setup();
+
+    manager.transaction(() => {
+      manager.removeNode(b);
+      manager.removeNode(c, { restoreEdges: true });
+    });
+    vi.runAllTimers();
+
+    expect(results).toEqual([manager.serialize()]);
+    expect(results[0].nodes.map((n) => n.id)).toEqual([a.id, d.id]);
+    expect(newSteps()).toBe(1);
+    manager.undo();
+    expect(manager.serialize().edges).toHaveLength(3);
+  });
+
+  it('muting several nodes builds once and is one undo step', () => {
+    const { manager, nodes: [, b, c], results, newSteps } = setup();
+
+    manager.muteNodes([b.id, c.id]);
+    vi.runAllTimers();
+
+    expect(results).toEqual([manager.serialize()]);
+    expect(newSteps()).toBe(1);
+  });
+
+  it('a node created from a dragged socket builds once and is one undo step with its edge', () => {
+    const { manager, nodes: [, , , d], results, newSteps } = setup();
+
+    const created = manager.createNodeFromSocket(
+      { type: 'test/node/input', position: [400, 0], props: {} },
+      { node: d, index: 0, position: [0, 0] }
+    );
+    vi.runAllTimers();
+
+    expect(manager.getEdgesToNode(created!).map((e) => e[0].id)).toEqual([d.id]);
+    expect(results).toEqual([manager.serialize()]);
+    expect(newSteps()).toBe(1);
+    manager.undo();
+    expect(manager.nodes.has(created!.id)).toBe(false);
+  });
+
+  it('a new debug node builds once and is one undo step with its edge', () => {
+    const registry = createMockNodeRegistry([mockFloatInputNode, debugNode]);
+    const manager = new GraphManager(registry);
+    const node = manager.createNode({ type: 'test/node/input', position: [0, 0], props: {} })!;
+    manager.status = 'idle';
+    vi.runAllTimers();
+    const results: Graph[] = [];
+    manager.on('result', (graph) => results.push(graph));
+    const steps = manager.history.history.length;
+
+    manager.tryConnectToDebugNode(node.id);
+    vi.runAllTimers();
+
+    expect(results).toEqual([manager.serialize()]);
+    expect(results[0].edges).toHaveLength(1);
+    expect(manager.history.history.length).toBe(steps + 1);
+    manager.undo();
+    expect([...manager.nodes.keys()]).toEqual([node.id]);
+  });
+
+  it('nests, the inner transaction does not end the outer one', () => {
+    const { manager, nodes: [a, b, c], results, newSteps } = setup();
+
+    manager.transaction(() => {
+      manager.transaction(() => manager.removeNode(a));
+      expect(results).toHaveLength(0);
+      expect(newSteps()).toBe(0);
+      manager.removeNode(b);
+      manager.removeNode(c);
+    });
+    vi.runAllTimers();
+
+    expect(results).toHaveLength(1);
+    expect(newSteps()).toBe(1);
+  });
+
+  it('does not build when none of its changes needs a build', () => {
+    const { manager, results, newSteps } = setup();
+
+    manager.transaction(() => {
+      manager.createNode({ type: 'test/node/input', position: [0, 100], props: {} });
+      manager.formatNodes();
+    });
+    vi.runAllTimers();
+
+    expect(results).toHaveLength(0);
+    expect(newSteps()).toBe(1);
+  });
+
+  it('records the undo step right away unless all of its changes coalesce', () => {
+    const { manager, nodes: [a, b], newSteps } = setup();
+
+    manager.transaction(() => {
+      a.props = { value: 2 };
+      manager.commit({ coalesce: true });
+      b.props = { value: 3 };
+      manager.commit();
+    });
+    expect(newSteps()).toBe(1);
+
+    manager.transaction(() => {
+      a.props = { value: 4 };
+      manager.commit({ coalesce: true });
+    });
+    expect(newSteps()).toBe(1);
+    vi.runAllTimers();
+    expect(newSteps()).toBe(2);
+  });
+
+  it('records what changed before a change throws', () => {
+    const { manager, nodes: [a], newSteps } = setup();
+
+    expect(() =>
+      manager.transaction(() => {
+        manager.removeNode(a);
+        throw new Error('failed');
+      })
+    ).toThrow('failed');
+
+    expect(newSteps()).toBe(1);
+    manager.createNode({ type: 'test/node/input', position: [0, 100], props: {} });
+    expect(newSteps()).toBe(2);
+  });
+
+  it('a held undo step builds every change and becomes one step at its end', () => {
+    const { manager, nodes: [a], results, newSteps } = setup();
+
+    manager.beginUndoStep();
+    for (const value of [2, 3, 4]) {
+      a.props = { value: value };
+      manager.commit();
+      vi.advanceTimersByTime(16);
+    }
+    expect(results.map((g) => g.nodes[0].props?.value)).toEqual([2, 3, 4]);
+    expect(newSteps()).toBe(0);
+
+    manager.endUndoStep();
+    expect(newSteps()).toBe(1);
+    manager.undo();
+    expect(manager.serialize().nodes[0].props).toEqual({});
+  });
+
+  describe('a held undo step that never ends, e.g. the gizmo unmounted mid-drag', () => {
+    function drag(manager: GraphManager, node: NodeInstance, values: number[]) {
+      for (const value of values) {
+        node.props = { value };
+        manager.commit();
+      }
+    }
+
+    it('is ended by the next one, both become a step', () => {
+      const { manager, nodes: [a], newSteps } = setup();
+
+      manager.beginUndoStep();
+      drag(manager, a, [2, 3]);
+      manager.beginUndoStep();
+      expect(newSteps()).toBe(1);
+      drag(manager, a, [4, 5]);
+      manager.endUndoStep();
+      expect(newSteps()).toBe(2);
+
+      a.props = { value: 6 };
+      manager.commit();
+      expect(newSteps()).toBe(3);
+      manager.undo();
+      manager.undo();
+      expect(manager.serialize().nodes[0].props).toEqual({ value: 3 });
+    });
+
+    it('is ended by undo, which takes it back', () => {
+      const { manager, nodes: [a], newSteps } = setup();
+
+      manager.beginUndoStep();
+      drag(manager, a, [2, 3]);
+      manager.undo();
+
+      expect(manager.serialize().nodes[0].props).toEqual({});
+      manager.redo();
+      expect(manager.serialize().nodes[0].props).toEqual({ value: 3 });
+      const steps = newSteps();
+      manager.getNode(a.id)!.props = { value: 4 };
+      manager.commit();
+      expect(newSteps()).toBe(steps + 1);
+    });
+
+    it('is ended by flush(), so the page saves it before it closes', () => {
+      const { manager, nodes: [a], newSteps } = setup();
+      const saves: Graph[] = [];
+      manager.on('save', (graph) => saves.push(graph));
+
+      manager.beginUndoStep();
+      drag(manager, a, [2]);
+      manager.flush();
+
+      expect(newSteps()).toBe(1);
+      expect(saves.at(-1)?.nodes[0].props).toEqual({ value: 2 });
+    });
+
+    it('is dropped by load(), the new graph records its steps', async () => {
+      const { manager, nodes: [a] } = setup();
+      manager.beginUndoStep();
+      drag(manager, a, [2]);
+
+      vi.useRealTimers();
+      await manager.load(manager.serialize());
+      vi.useFakeTimers();
+      const steps = manager.history.history.length;
+      const node = manager.nodeArray[0];
+      node.props = { value: 7 };
+      manager.commit();
+
+      expect(manager.history.history.length).toBe(steps + 1);
+    });
+  });
+
+  it('entering a group asks for no build, leaving it does', () => {
+    const { manager, nodes: [, b], results } = setup();
+    const group = manager.groupNodes([b.id])!;
+    vi.runAllTimers();
+    results.length = 0;
+
+    manager.enterGroup(group.id);
+    vi.runAllTimers();
+    expect(results).toHaveLength(0);
+
+    manager.exitGroup();
+    vi.runAllTimers();
+    expect(results).toHaveLength(1);
   });
 });

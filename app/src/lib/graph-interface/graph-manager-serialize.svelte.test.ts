@@ -118,7 +118,7 @@ describe('serialize', () => {
         props: { value: 1 }
       });
       assert.isDefined(node);
-      manager.loaded = true;
+      manager.status = 'idle';
       vi.runAllTimers();
       const walk = vi.spyOn(
         manager as unknown as { serializeState: () => Graph },
@@ -128,8 +128,7 @@ describe('serialize', () => {
       manager.on('result', (g) => results.push(g));
 
       node.props = { value: 2 };
-      manager.save();
-      manager.execute();
+      manager.commit();
 
       expect(walk).toHaveBeenCalledTimes(1);
       expect(results.at(-1)?.nodes[0].props).toEqual({ value: 2 });
@@ -152,7 +151,6 @@ describe('a value dragged in an input', () => {
       props: { value: 1 }
     });
     assert.isDefined(node);
-    manager.save();
     vi.runAllTimers();
     return { manager, node };
   }
@@ -160,8 +158,7 @@ describe('a value dragged in an input', () => {
   function drag(manager: GraphManager, node: NodeInstance, values: number[]) {
     for (const value of values) {
       node.props = { ...node.props, value };
-      manager.save({ coalesce: true });
-      manager.execute();
+      manager.commit({ coalesce: true });
       vi.advanceTimersByTime(16);
     }
   }
@@ -195,7 +192,7 @@ describe('a value dragged in an input', () => {
 
   it('builds every value', () => {
     const { manager, node } = setup();
-    manager.loaded = true;
+    manager.status = 'idle';
     const results: Graph[] = [];
     manager.on('result', (g) => results.push(g));
 

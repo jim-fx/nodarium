@@ -87,10 +87,7 @@
     }
     lastPropsHash = propsHash;
 
-    if (needsUpdate) {
-      manager.save({ coalesce: true });
-      manager.execute();
-    }
+    if (needsUpdate) manager.commit({ coalesce: true });
   }
 
   const isGroupInstance = $derived(node?.type === GROUP_INSTANCE);

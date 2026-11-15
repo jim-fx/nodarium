@@ -17,8 +17,31 @@
 
   // only the active node has a gizmo
   const gizmo = $derived(gizmos[0]);
-  const handlers = $derived({ onchange, onstart, onend });
+
+  // A drag can lose its end: the gizmo unmounts when the active node changes, or the pointer is
+  // released outside of the canvas. Every drag that started ends exactly once.
+  let dragging = false;
+  function start() {
+    dragging = true;
+    onstart?.();
+  }
+  function end() {
+    if (!dragging) return;
+    dragging = false;
+    onend?.();
+  }
+
+  // a number, so a new gizmo of the same node on every tick of the drag doesn't end it
+  const gizmoNodeId = $derived(gizmo?.nodeId);
+  $effect(() => {
+    void gizmoNodeId;
+    return end;
+  });
+
+  const handlers = $derived({ onchange, onstart: start, onend: end });
 </script>
+
+<svelte:window onpointerup={end} onpointercancel={end} onblur={end} />
 
 {#if gizmo}
   {#key gizmo.nodeId}

@@ -166,7 +166,7 @@
     const node = manager?.getNode(nodeId);
     if (!node) return;
     node.props = { ...node.props, ...change };
-    manager.execute();
+    manager.commit();
   }
 
   pm.onrenameactive = (title) => {
@@ -243,7 +243,7 @@
     ...graphSettingTypes
   });
   $effect(() => {
-    if (graphSettings && graphSettingTypes && manager?.loaded) {
+    if (graphSettings && graphSettingTypes && untrack(() => manager?.status) === 'idle') {
       manager?.setSettings($state.snapshot(graphSettings));
     }
   });
@@ -436,8 +436,8 @@
           debugData={debugData}
           {gizmos}
           ongizmochange={handleGizmoChange}
-          ongizmostart={() => manager?.startUndoGroup()}
-          ongizmoend={() => manager?.saveUndoGroup()}
+          ongizmostart={() => manager?.beginUndoStep()}
+          ongizmoend={() => manager?.endUndoStep()}
           centerCamera={appSettings.value.centerCamera}
           projectId={pm.activeId}
         />
