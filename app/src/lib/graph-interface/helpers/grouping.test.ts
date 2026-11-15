@@ -386,6 +386,13 @@ describe('ungroupInstance', () => {
     expect(group).toEqual(definition());
   });
 
+  it('keeps a muted node muted', () => {
+    const group = definition();
+    group.nodes[2].muted = true;
+    const { nodes } = ungroupInstance(level([]), instance(), group, counter(200));
+    expect(nodes.map((n) => n.muted)).toEqual([undefined, true]);
+  });
+
   it('brings out a group without nodes as nothing', () => {
     const group = definition();
     group.nodes = [group.nodes[0], group.nodes[3]];

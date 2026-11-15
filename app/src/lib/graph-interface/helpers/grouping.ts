@@ -167,12 +167,12 @@ export function ungroupInstance(
   const offsetX = inner.length ? instance.position[0] - mean(inner.map((n) => n.position[0])) : 0;
   const offsetY = inner.length ? instance.position[1] - mean(inner.map((n) => n.position[1])) : 0;
 
+  // A copy of everything a node carries, the group and its other instances keep their own
   const nodes = new Map(inner.map((n): [number, SerializedNode] => [n.id, {
+    props: {},
+    ...serializeNode(n),
     id: newIds.get(n.id)!,
-    type: n.type,
-    position: [n.position[0] + offsetX, n.position[1] + offsetY],
-    props: toPlain(n.props) ?? {},
-    ...(n.exposed?.length ? { exposed: [...n.exposed] } : {})
+    position: [n.position[0] + offsetX, n.position[1] + offsetY]
   }]));
 
   const incoming = level.edges.filter((e) => e[2] === instance.id);
