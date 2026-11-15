@@ -77,8 +77,20 @@ describe('releasing instances', () => {
     expect(other.reset).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps a big instance while its node is in the graph', async () => {
+    const executor = createExecutor();
+    expect(await executor.execute(chain(big.id, small.id), {})).toEqual(Int32Array.of(3));
+    expect(await executor.execute(chain(big.id, small.id), {})).toEqual(Int32Array.of(3));
+    expect(big.release).not.toHaveBeenCalled();
+    expect(big.reset).toHaveBeenCalledTimes(2);
+
+    await executor.execute(chain(small.id), {});
+    expect(big.release).toHaveBeenCalledTimes(1);
+  });
+
   it('releases the nodes with more memory than releaseInstancesOver after every run', async () => {
     const executor = createExecutor();
+    executor.releaseInstancesOver = 32 * MB;
     expect(await executor.execute(chain(big.id, small.id), {})).toEqual(Int32Array.of(3));
     expect(big.release).toHaveBeenCalledTimes(1);
     expect(small.release).not.toHaveBeenCalled();
@@ -91,8 +103,25 @@ describe('releasing instances', () => {
     expect(big.release).toHaveBeenCalledTimes(2);
   });
 
+  it('releases the biggest instances once there are more than keepInstances', async () => {
+    other = fakeWasmNode(other.id, 8 * MB);
+    const executor = createExecutor();
+    executor.keepInstances = 3;
+    await executor.execute(chain(big.id, small.id, other.id), {});
+    expect(big.release).toHaveBeenCalledTimes(1);
+    expect(other.release).not.toHaveBeenCalled();
+
+    executor.keepInstances = 2;
+    await executor.execute(chain(big.id, small.id, other.id), {});
+    expect(big.release).toHaveBeenCalledTimes(2);
+    expect(other.release).toHaveBeenCalledTimes(1);
+    expect(small.release).not.toHaveBeenCalled();
+    expect(output.release).not.toHaveBeenCalled();
+  });
+
   it('keeps the cache entries of a released node', async () => {
     const executor = createExecutor(true);
+    executor.releaseInstancesOver = 32 * MB;
     await executor.execute(chain(big.id, small.id), {});
     await executor.execute(chain(big.id, small.id), {});
     expect(big.release).toHaveBeenCalledTimes(1);
@@ -101,6 +130,7 @@ describe('releasing instances', () => {
 
   it('releases after a failed run as well', async () => {
     const executor = createExecutor();
+    executor.releaseInstancesOver = 32 * MB;
     big.execute.mockImplementationOnce(() => {
       big.memory = 64 * MB;
       throw new Error('panic');
@@ -133,7 +163,36 @@ describe('releasing instances', () => {
     resume();
     expect(await second).toEqual(Int32Array.of(3));
     expect(small.release).not.toHaveBeenCalled();
+    expect(big.release).not.toHaveBeenCalled();
+
+    await executor.execute(chain(small.id), {});
     expect(big.release).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases the nodes of the latest graph last when over keepInstances', async () => {
+    other = fakeWasmNode(other.id, 8 * MB);
+    const registry = createMockNodeRegistry(
+      [output, small, other, big] as unknown as NodeDefinition[]
+    );
+    let resume = () => {};
+    const gated: NodeRegistry = {
+      ...registry,
+      load: async (ids) => {
+        if (ids.some((id) => id === other.id)) await new Promise<void>((r) => (resume = r));
+        return registry.load(ids);
+      }
+    };
+    const executor = new MemoryRuntimeExecutor(gated);
+    executor.keepInstances = 3;
+
+    // the older run finishes last, but the graph of the newer one is the latest
+    const older = executor.execute(chain(small.id, other.id), {});
+    await executor.execute(chain(big.id), {});
+    resume();
+    await older;
+    expect(other.release).toHaveBeenCalledTimes(1);
+    expect(small.release).not.toHaveBeenCalled();
+    expect(big.release).not.toHaveBeenCalled();
   });
 
   it('releaseInstances() during a run releases after it', async () => {

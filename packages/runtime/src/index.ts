@@ -18,7 +18,7 @@ export {
   type Migration,
   MIGRATIONS
 } from './graph-migrations';
-export { RELEASE_INSTANCES_OVER } from './instances';
+export { KEEP_INSTANCES, RELEASE_INSTANCES_OVER } from './instances';
 export { parseProjectFile } from './project-file';
 export { FetchNodeRegistry } from './registry/fetch-node-registry';
 export { WasmNodeRegistry } from './registry/wasm-node-registry';
