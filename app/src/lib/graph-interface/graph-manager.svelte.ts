@@ -22,7 +22,6 @@ import type {
   NodeInput,
   NodeInstance,
   NodeRegistry,
-  NodeValue,
   SerializedEdge,
   SerializedNode,
   Socket
@@ -33,6 +32,13 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { ChangeRecorder } from './change-recorder';
 import { collectSettings } from './helpers/collectSettings';
 import EventEmitter from './helpers/EventEmitter';
+import {
+  exposeInputs,
+  groupInputType,
+  groupInstanceType,
+  groupOptions,
+  groupOutputType
+} from './helpers/group-types';
 import { toPlain } from './helpers/index.ts';
 import { COLUMN_GAP, layoutGraph, NODE_WIDTH } from './helpers/layoutGraph';
 import {
@@ -604,166 +610,36 @@ export class GraphManager extends EventEmitter<{
     return this.nodes.get(id);
   }
 
-  /** The groups on the navigation path can't be placed inside themselves */
-  private placeableGroups() {
-    const open = new SvelteSet(this.path.map(e => e.groupId));
-    return this.groups.filter((g) => !open.has(g.id));
-  }
+  private currentGroup = $derived(
+    this.currentGroupId === null ? undefined : this.getGroup(this.currentGroupId)
+  );
+
+  // Recomputed only after a group was added, removed or renamed or the path changed
+  private groupOptions = $derived(
+    groupOptions(this.groups, new SvelteSet(this.path.map((entry) => entry.groupId)))
+  );
 
   getNodeType(node: NodeInstance) {
-    if (node.type === GROUP_INPUT) {
-      const group = this.currentGroupId !== null ? this.getGroup(this.currentGroupId) : undefined;
-      if (!group) return node.state.type;
-
-      const groupInputs: NodeDefinition['inputs'] = Object.fromEntries(
-        Object.values(group?.inputs || {}).map((o, i) => {
-          return [`in_${i}`, {
-            ...o,
-            external: true
-          }];
-        }) || []
-      );
-      return {
-        id: GROUP_INPUT as NodeId,
-        meta: {
-          title: 'Group Input'
-        },
-        inputs: groupInputs,
-        execute: (inputs: NodeValue[]) => inputs[0]
-      } as NodeDefinition;
+    switch (node.type) {
+      case GROUP_INPUT:
+        return this.currentGroup ? groupInputType(this.currentGroup) : node.state.type;
+      case GROUP_OUTPUT:
+        return this.currentGroup ? groupOutputType(this.currentGroup) : node.state.type;
+      case GROUP_INSTANCE:
+        return this.groupInstanceType(node);
+      default:
+        return exposeInputs(node.state.type, node.exposed);
     }
-
-    if (node.type === GROUP_OUTPUT) {
-      const group = this.currentGroupId !== null ? this.getGroup(this.currentGroupId) : undefined;
-      if (!group) return node.state.type;
-      return {
-        id: GROUP_OUTPUT as NodeId,
-        inputs: Object.fromEntries(
-          (group.outputs ?? []).map((
-            o,
-            i
-          ) => [`out_${i}`, { type: o.type, label: o.label, external: true }])
-        ),
-        meta: {
-          title: 'Group Output'
-        },
-        outputs: [],
-        execute: (inputs: NodeValue[]) => inputs[0]
-      } as NodeDefinition;
-    }
-
-    // Construct the group inputs on the fly. This has to start from the registry
-    // type, a group's inputs and outputs change while its instances are loaded.
-    if (node.type === GROUP_INSTANCE) {
-      const groupId = node.props?.groupId as number;
-      const baseType = this.registry.getNode(node.type);
-
-      let options = this.placeableGroups().map((g) => ({
-        value: g.id,
-        label: g.name || `Group#${g.id}`
-      }));
-
-      // Handle if multiple groups have the same name, by adding the groupid
-      const groupNames = new SvelteMap<string, number>();
-      for (const o of options) {
-        const value = groupNames.get(o.label) || 0;
-        groupNames.set(o.label, value + 1);
-      }
-      options = options.map(o => {
-        const amount = groupNames.get(o.label) || 0;
-        if (amount > 1) {
-          return {
-            label: `${o.label}#${o.value}`,
-            value: o.value
-          };
-        }
-        return o;
-      });
-
-      if (!groupId) {
-        return {
-          ...baseType,
-          id: GROUP_INSTANCE as NodeId,
-          meta: {
-            title: 'Group',
-            ...baseType?.meta || {}
-          },
-          inputs: {
-            'groupId': {
-              type: 'select',
-              label: '',
-              internal: true,
-              options
-            }
-          },
-          outputs: []
-        } as NodeDefinition;
-      }
-
-      const groupDefinition = this.getGroup(node.props?.groupId as number);
-      if (!groupDefinition) {
-        log.error(`Group not found: ${node.props?.groupId}`);
-        return;
-      }
-
-      const inputs = {
-        'groupId': {
-          type: 'select',
-          label: '',
-          value: node.props?.groupId,
-          internal: true,
-          options
-        },
-        ...groupDefinition.inputs
-      };
-
-      const groupType = {
-        ...baseType,
-        id: GROUP_INSTANCE as NodeId,
-        meta: {
-          title: 'Group',
-          ...baseType?.meta || {}
-        },
-        inputs,
-        outputs: groupDefinition?.outputs
-      } as NodeDefinition;
-
-      return groupType;
-    }
-
-    return this.getExposedNodeType(node.state.type, node.exposed);
   }
 
-  private exposedNodeTypes = new WeakMap<NodeDefinition, Map<string, NodeDefinition>>();
-
-  // The node type with the exposed hidden inputs shown on the node. Cached, so
-  // all nodes with the same exposed inputs share one definition.
-  private getExposedNodeType(type: NodeDefinition | undefined, exposed?: string[]) {
-    if (!type?.inputs || !exposed?.some(key => type.inputs?.[key]?.hidden)) return type;
-
-    const cacheKey = exposed.join(',');
-    let cache = this.exposedNodeTypes.get(type);
-    if (!cache) {
-      // Not reactive, getNodeType() is called inside $derived where state can't be written
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity
-      cache = new Map();
-      this.exposedNodeTypes.set(type, cache);
+  private groupInstanceType(node: NodeInstance) {
+    const groupId = node.props?.groupId as number;
+    const group = groupId ? this.getGroup(groupId) : undefined;
+    if (groupId && !group) {
+      log.error(`Group not found: ${groupId}`);
+      return;
     }
-
-    let exposedType = cache.get(cacheKey);
-    if (!exposedType) {
-      exposedType = {
-        ...type,
-        inputs: Object.fromEntries(
-          Object.entries(type.inputs).map(([key, input]) => [
-            key,
-            exposed.includes(key) ? { ...input, hidden: false } : input
-          ])
-        )
-      };
-      cache.set(cacheKey, exposedType);
-    }
-    return exposedType;
+    return groupInstanceType(this.registry.getNode(node.type), group, this.groupOptions);
   }
 
   // Shows or hides one of the hidden inputs of a node on the node itself.
@@ -1342,8 +1218,8 @@ export class GraphManager extends EventEmitter<{
 
     // a group node from the add menu comes without a group
     if (type === GROUP_INSTANCE && props?.groupId === undefined) {
-      const group = this.placeableGroups()[0];
-      if (group) props = { ...props, groupId: group.id };
+      const group = this.groupOptions[0];
+      if (group) props = { ...props, groupId: group.value };
     }
 
     const node: NodeInstance = $state({

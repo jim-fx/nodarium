@@ -1,5 +1,13 @@
 import type { Graph, GroupDefinition, SerializedEdge, SerializedNode } from '@nodarium/types';
-import { GROUP_INPUT, GROUP_INSTANCE, GROUP_OUTPUT, groupIdOf } from '@nodarium/types';
+import {
+  GROUP_INPUT,
+  GROUP_INSTANCE,
+  GROUP_OUTPUT,
+  groupIdOf,
+  groupInputKey,
+  groupInputValue,
+  groupOutputIndex
+} from '@nodarium/types';
 import { hashString53 } from '@nodarium/utils';
 
 /**
@@ -86,13 +94,15 @@ function bypassInstance(
   group: GroupDefinition,
   edges: SerializedEdge[]
 ): SerializedEdge[] {
-  const firstKey = Object.keys(group.inputs ?? {})[0];
+  const firstKey = groupInputKey(group, 0);
   const incoming = edges.find(e => e[2] === instance.id && e[3] === firstKey);
   if (!incoming) return [];
   return edges
     .filter(e => e[0] === instance.id)
     .map(out => [incoming[0], incoming[1], out[2], out[3]]);
 }
+
+type Props = NonNullable<SerializedNode['props']>;
 
 /** The nodes of the group under new ids and the edges that replace those of the instance */
 function inlineInstance(
@@ -118,42 +128,36 @@ function inlineInstance(
 
   // external_source → [inputBoundary →] internal_target
   //
-  // The input boundary's sockets are positional: output index N of the
-  // boundary belongs to the N-th key of group.inputs (keys can have gaps
-  // after a removal). Match each external edge only to the internal edges
-  // that originate from that specific output slot — not a cartesian product of all.
-  const propOverrides = new Map<number, NonNullable<SerializedNode['props']>>();
+  // Match each external edge only to the internal edges that originate from the output
+  // socket of the boundary its input stands for, not a cartesian product of all.
+  const propOverrides = new Map<number, Props>();
   if (inputBoundary) {
-    const inputKeys = Object.keys(group.inputs ?? {});
-    const fromInput = group.edges.filter(e => e[0] === inputBoundary.id);
+    const fromInput = group.edges
+      .filter(e => e[0] === inputBoundary.id)
+      .map(e => ({ key: groupInputKey(group, e[1]), to: e[2], socket: e[3] }));
     for (const extEdge of incomingExternal) {
-      const inputIndex = inputKeys.indexOf(extEdge[3]);
-      const matchingIntEdges = fromInput.filter(e => e[1] === inputIndex);
-      for (const intEdge of matchingIntEdges) {
-        const toId = idMap.get(intEdge[2]);
-        if (toId !== undefined) newEdges.push([extEdge[0], extEdge[1], toId, intEdge[3]]);
+      for (const intEdge of fromInput) {
+        if (intEdge.key !== extEdge[3]) continue;
+        const toId = idMap.get(intEdge.to);
+        if (toId !== undefined) newEdges.push([extEdge[0], extEdge[1], toId, intEdge.socket]);
       }
     }
 
-    // Unconnected group inputs pass the value set on the group node through,
-    // or the group input's default, which the group node's widget shows
     const connected = new Set(incomingExternal.map(e => e[3]));
-    for (const intEdge of fromInput) {
-      const key = inputKeys[intEdge[1]];
-      const value = instance.props?.[key] ?? group.inputs?.[key]?.value;
-      if (key === undefined || connected.has(key) || value === undefined) continue;
-      propOverrides.set(intEdge[2], { ...propOverrides.get(intEdge[2]), [intEdge[3]]: value });
+    for (const { key, to, socket } of fromInput) {
+      if (key === undefined || connected.has(key)) continue;
+      const value = groupInputValue(instance, group, key);
+      if (value === undefined) continue;
+      propOverrides.set(to, { ...propOverrides.get(to), [socket]: value as Props[string] });
     }
   }
 
   // internal_source → [outputBoundary →] external_target
-  // Group output socket N is the "out_N" input of the output boundary
-  // (older groups used "Out" for their single output).
   if (outputBoundary) {
     const toOutput = group.edges.filter(e => e[2] === outputBoundary.id);
     for (const extEdge of outgoingExternal) {
       for (const intEdge of toOutput) {
-        if (Number(/^out_(\d+)$/.exec(intEdge[3])?.[1] ?? 0) !== extEdge[1]) continue;
+        if (groupOutputIndex(intEdge[3]) !== extEdge[1]) continue;
         const fromId = idMap.get(intEdge[0]);
         if (fromId !== undefined) newEdges.push([fromId, intEdge[1], extEdge[2], extEdge[3]]);
       }
