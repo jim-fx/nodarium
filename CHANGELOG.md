@@ -1,3 +1,29 @@
+# v1.1.0 (2026-11-15)
+
+## Features
+
+- New lighting in the viewer: a warm key light from above, a sky and ground fill, and a dimmer environment for the Plant material. The editor, the material previews and the thumbnails share one colour pipeline, so vertex colours look the same everywhere. Clay is darker, and the Plant preview in the Material panel is no longer black (#360).
+- The mushroom templates no longer grow on a substrate. `@nodarium/runtime/templates` exports `withSubstrate()` and `substrates`, and `loadTemplate(id, { substrate: true })` loads porcini, bitter bolete, chanterelle, false chanterelle, honey fungus or sulphur tuft with the substrate it had before (#362).
+
+## Fixes
+
+- The dots at the ends of an edge show the colours of their ports (#363).
+
+## Upgrading
+
+Projects that build the mushroom templates from `@nodarium/runtime` and want the substrate back pass `{ substrate: true }` to `loadTemplate`. The mesh is the same as in v1.0.0.
+
+---
+
+- [436e6a5c](https://git.max-richter.dev/max/nodarium/commit/436e6a5cef54a558572e3931bf18a9f566cec09f) Merge pull request 'feat(templates): mushrooms without substrates, withSubstrate() adds them back' (#365) from feat/362-template-substrates into main
+- [032ed639](https://git.max-richter.dev/max/nodarium/commit/032ed6395a2e1cd0f28957494cc46f20fdb3ed34) test(runtime): cover withSubstrate and loadTemplate with a substrate
+- [8bf3be3b](https://git.max-richter.dev/max/nodarium/commit/8bf3be3b9abe9b97caafb841f45acb8559539030) feat(templates): mushrooms without substrates, withSubstrate() adds them back
+- [a6cc3139](https://git.max-richter.dev/max/nodarium/commit/a6cc313949db6ff185be92a2ad7c4f7766b040b3) Merge pull request 'fix(graph-interface): edge end dots show their port colours, no double colour conversion' (#364) from fix/edge-dot-colour into main
+- [ceb36073](https://git.max-richter.dev/max/nodarium/commit/ceb36073d971d019098a4bf9f414bb55fceb276b) fix(graph-interface): edge end dots show their port colours
+- [7187fb94](https://git.max-richter.dev/max/nodarium/commit/7187fb94e2810f22b8bf3c6a4ccd88e83e57c58b) fix(graph-interface): edge end dots keep the outline colour when the theme loads
+- [c4aa93ee](https://git.max-richter.dev/max/nodarium/commit/c4aa93ee0c53f1e345cef5f913241ad0c7b1ecd6) Merge pull request 'feat(viewer): rework the lighting, one colour pipeline for editor and previews' (#361) from feat/360-lighting into main
+- [8e952010](https://git.max-richter.dev/max/nodarium/commit/8e9520104dd73683af91af254359bc482afa88ba) feat(viewer): rework the lighting, one colour pipeline for editor and previews
+
 # v1.0.0 (2026-11-15)
 
 The first stable release. From now on Nodarium follows SemVer: a major version for breaking changes to the graph format or the `@nodarium/runtime` API, a minor version for features, a patch version for fixes.
