@@ -1,20 +1,4 @@
 <script module lang="ts">
-  import { colors } from '../graph/colors.svelte';
-
-  const circleMaterial = new MeshBasicMaterial({
-    color: colors.outline.clone(),
-    toneMapped: false
-  });
-
-  $effect.root(() => {
-    $effect(() => {
-      if (appSettings.value.theme === undefined) {
-        return;
-      }
-      circleMaterial.color = colors.outline.clone();
-    });
-  });
-
   const curve = new CubicBezierCurve(
     new Vector2(0, 0),
     new Vector2(0, 0),
@@ -24,11 +8,10 @@
 </script>
 
 <script lang="ts">
-  import { appSettings } from '#lib/settings/app-settings.svelte.ts';
   import { T } from '@threlte/core';
   import { MeshLineGeometry, MeshLineMaterial } from '@threlte/extras';
   import { onDestroy } from 'svelte';
-  import { Color, LinearSRGBColorSpace, MeshBasicMaterial, Vector3 } from 'three';
+  import { Color, LinearSRGBColorSpace, Vector3 } from 'three';
   import { CubicBezierCurve } from 'three/src/extras/curves/CubicBezierCurve.js';
   import { Vector2 } from 'three/src/math/Vector2.js';
   import { getGraphState } from '../graph-state.svelte';
@@ -98,7 +81,6 @@
   position.z={y2}
   position.y={0.8}
   rotation.x={-Math.PI / 2}
-  material={circleMaterial}
 >
   <T.CircleGeometry args={[0.5, 16]} />
   <T.MeshBasicMaterial color={outputColor} toneMapped={false} />
