@@ -143,6 +143,15 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     this.instances.releaseOver = bytes;
   }
 
+  /** Instances kept after a run, see {@link KEEP_INSTANCES} */
+  get keepInstances() {
+    return this.instances.keep;
+  }
+
+  set keepInstances(count: number) {
+    this.instances.keep = count;
+  }
+
   private async loadDefinitions(graph: Graph) {
     if (this.registry.status !== 'ready') {
       throw new Error('Node registry is not ready');
@@ -166,9 +175,9 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
   async execute(graph: Graph, settings: Record<string, unknown>) {
     this.lastError = undefined;
-    this.instances.enterRun();
+    const run = this.instances.enterRun();
     try {
-      return await this.executeGraph(graph, settings);
+      return await this.executeGraph(graph, settings, run);
     } catch (error) {
       this.lastError = getErrorInfo(error);
       throw error;
@@ -182,7 +191,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     this.instances.releaseAll();
   }
 
-  private async executeGraph(graph: Graph, settings: Record<string, unknown>) {
+  private async executeGraph(graph: Graph, settings: Record<string, unknown>, run: number) {
     this.perf?.addPoint('runtime');
     const startedAt = performance.now();
 
@@ -196,7 +205,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       perf: this.perf,
       startedAt
     });
-    this.instances.resetFor(definitions);
+    this.instances.resetFor(definitions, run);
     const cache = startCacheRun(this.cache, plan.nodes.length);
     const runs = decideRuns(plan, cache);
     const { result, debugData, nodeTimings, runTimings } = this.runPlan(plan, runs, cache, origins);
