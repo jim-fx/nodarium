@@ -604,6 +604,12 @@ export class GraphManager extends EventEmitter<{
     return this.nodes.get(id);
   }
 
+  /** The groups on the navigation path can't be placed inside themselves */
+  private placeableGroups() {
+    const open = new SvelteSet(this.path.map(e => e.groupId));
+    return this.groups.filter((g) => !open.has(g.id));
+  }
+
   getNodeType(node: NodeInstance) {
     if (node.type === GROUP_INPUT) {
       const group = this.currentGroupId !== null ? this.getGroup(this.currentGroupId) : undefined;
@@ -652,12 +658,10 @@ export class GraphManager extends EventEmitter<{
       const groupId = node.props?.groupId as number;
       const baseType = this.registry.getNode(node.type);
 
-      // The groups on the navigation path can't be placed inside themselves
-      const activeIds = new SvelteSet(this.path.map(e => e.groupId));
-      let options = this.groups.map((g) => ({
+      let options = this.placeableGroups().map((g) => ({
         value: g.id,
         label: g.name || `Group#${g.id}`
-      })).filter((g) => !activeIds.has(g.value));
+      }));
 
       // Handle if multiple groups have the same name, by adding the groupid
       const groupNames = new SvelteMap<string, number>();
@@ -688,7 +692,6 @@ export class GraphManager extends EventEmitter<{
             'groupId': {
               type: 'select',
               label: '',
-              value: this.groups?.[0]?.id,
               internal: true,
               options
             }
@@ -1335,6 +1338,12 @@ export class GraphManager extends EventEmitter<{
     if (!nodeType && !type.startsWith(INTERNAL_PREFIX)) {
       log.error(`Node type not found: ${type}`);
       return;
+    }
+
+    // a group node from the add menu comes without a group
+    if (type === GROUP_INSTANCE && props?.groupId === undefined) {
+      const group = this.placeableGroups()[0];
+      if (group) props = { ...props, groupId: group.id };
     }
 
     const node: NodeInstance = $state({

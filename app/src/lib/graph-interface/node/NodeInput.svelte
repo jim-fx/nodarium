@@ -20,50 +20,35 @@
     graph
   }: Props = $props();
 
-  function getDefaultValue() {
-    if (node?.props?.[id] !== undefined) return node?.props?.[id] as number;
-    if ('value' in input && input?.value !== undefined) {
-      return input?.value as number;
-    }
-    if (input.type === 'boolean') return 0;
-    if (input.type === 'float') return 0.5;
-    if (input.type === 'integer') return 0;
-    if (input.type === 'select') return 0;
-    return 0;
+  /** What the node runs with: its own value, or the default of the input */
+  function nodeValue() {
+    const value = node?.props?.[id] ?? ('value' in input ? input.value : undefined);
+    return $state.snapshot(value ?? (input.type === 'float' ? 0.5 : 0));
   }
 
-  let value = $state(structuredClone($state.snapshot(getDefaultValue())));
-
-  function diffArray(a: number[], b?: number[] | number) {
-    if (!Array.isArray(b)) return true;
-    if (Array.isArray(a) !== Array.isArray(b)) return true;
-    if (a.length !== b.length) return true;
-    for (let i = 0; i < a.length; i++) {
-      if (a[i] !== b[i]) return true;
-    }
-    return false;
+  function isSame(a: unknown, b: unknown) {
+    if (!Array.isArray(a) || !Array.isArray(b)) return a === b;
+    return a.length === b.length && a.every((v, i) => v === b[i]);
   }
 
-  // The prop can also change from outside, for example when a value is dragged in the viewer
+  // A copy: the inputs change arrays in place, and the default belongs to the definition
+  let value = $state(nodeValue());
+
+  // The value can also change from outside, by a drag in the viewer or by undo
   $effect(() => {
-    const b = $state.snapshot(node?.props?.[id]);
+    const shown = nodeValue();
     untrack(() => {
-      if (b === undefined) return;
-      const a = $state.snapshot(value);
-      const isDiff = Array.isArray(b) ? diffArray(b, a as number[] | number) : a !== b;
-      if (isDiff) value = structuredClone(b) as number;
+      if (!isSame($state.snapshot(value), shown)) value = shown;
     });
   });
 
+  // Only a changed value is written: a node that shows the defaults of its inputs keeps no props
   $effect(() => {
-    const a = $state.snapshot(value);
+    const changed = $state.snapshot(value);
     untrack(() => {
-      const b = $state.snapshot(node?.props?.[id]);
-      const isDiff = Array.isArray(a) ? diffArray(a, b) : a !== b;
-      if (value !== undefined && isDiff) {
-        node.props = { ...node.props, [id]: a };
-        graph?.commit({ coalesce: true });
-      }
+      if (isSame(changed, nodeValue())) return;
+      node.props = { ...node.props, [id]: changed } as NodeInstance['props'];
+      graph?.commit({ coalesce: true });
     });
   });
 </script>
