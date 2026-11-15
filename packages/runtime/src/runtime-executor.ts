@@ -16,11 +16,11 @@ import {
   type PerformanceStore,
   readNodeValue
 } from '@nodarium/utils';
+import { startCacheRun } from './cache-run';
 import { getErrorInfo, NodeExecutionError, type RuntimeErrorInfo } from './errors';
 import { expandGroups } from './expand-groups';
 import { migrateGraph } from './graph-migrations';
 import { InstanceTracker } from './instances';
-import { byteSize } from './runtime-executor-cache';
 import type { DebugEntry, RuntimeNode } from './types';
 
 /** The node that turns a value of this socket type into something the debug view can draw */
@@ -88,10 +88,6 @@ function getValue(input: NodeInput, value?: unknown) {
   }
 
   throw new Error(`Unknown input type ${input.type}`);
-}
-
-function nodeValueBytes(value: NodeValue) {
-  return value instanceof Int32Array ? value.byteLength : value.len * 4;
 }
 
 export class MemoryRuntimeExecutor implements RuntimeExecutor {
@@ -332,7 +328,6 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     const cacheKeys: Record<string, number> = {};
     const nodeTimings: Record<number, number> = {};
     const runTimings: Record<number, number> = {};
-    let cachedBytes = 0;
 
     const seed = typeof settings['seed'] === 'number' && Number.isFinite(settings['seed'])
       ? Math.floor(settings['seed'])
@@ -340,12 +335,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
     // nothing below this may await
     this.instances.resetFor(this.definitionMap);
-
-    if (this.cache) {
-      this.cache.startRun?.();
-      // a bigger graph than the last one keeps all of its results
-      this.cache.size = Math.max(this.cache.size, sortedNodes.length * 2);
-    }
+    const cache = startCacheRun(this.cache, sortedNodes.length);
 
     type PlannedInput = Int32Array | { node: NonNullable<RuntimeNode>; output: number };
     const planned: {
@@ -411,7 +401,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       this.perf?.addPoint('collected-inputs', b - a);
 
       let inputHash: string | undefined;
-      if (this.cache) {
+      if (cache.enabled) {
         a = performance.now();
         cacheKeys[node.id] = hashString53(keyParts.join('|'));
         inputHash = `node-${node.id}-${cacheKeys[node.id]}`;
@@ -431,11 +421,10 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     for (let i = planned.length - 1; i >= 0; i--) {
       const { node, inputs, inputHash } = planned[i];
       const cachedValue = inputHash !== undefined && node.id !== outputNode.id
-        ? this.cache!.get(inputHash)
+        ? cache.read(inputHash)
         : undefined;
       if (cachedValue !== undefined) {
         results[node.id] = cachedValue;
-        cachedBytes += byteSize(cachedValue);
         cached.add(node.id);
       }
       if (isDebug(node)) needed.add(node.id);
@@ -499,17 +488,11 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         log.log('Executed', node.type, node.id);
         b = performance.now();
 
-        if (this.cache && inputHash && node.id !== outputNode.id) {
+        if (inputHash && node.id !== outputNode.id) {
           const cost = cold && node.id in this.nodeTimings
             ? Math.min(b - a, this.nodeTimings[node.id])
             : b - a;
-          const bytes = results[node.id].reduce((sum, value) => sum + nodeValueBytes(value), 0);
-          if (this.cache.keeps?.(bytes, cost) ?? true) {
-            cachedBytes += bytes;
-            // a bigger graph than the last one keeps all of its results
-            this.cache.maxBytes = Math.max(this.cache.maxBytes ?? 0, cachedBytes * 2);
-            this.cache.set(inputHash, results[node.id].map(readNodeValue), cost);
-          }
+          cache.store(inputHash, results[node.id], cost);
         }
 
         nodeTimings[node.id] = b - a;
@@ -530,12 +513,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     // after the result is copied, a preview may run the output node once more
     this.previewDebugData();
 
-    // every change of a value or the seed adds new results, the cache keeps those of this run and
-    // as many older ones again, so a change can be undone without running the nodes again
-    if (this.cache) {
-      this.cache.size = sortedNodes.length * 2;
-      this.cache.maxBytes = cachedBytes * 2;
-    }
+    cache.finish();
 
     // the nodes of a group run under ids the editor doesn't know, their group node shows the sum
     for (const timings of [nodeTimings, runTimings]) {
