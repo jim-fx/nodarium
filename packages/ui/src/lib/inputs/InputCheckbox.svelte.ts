@@ -24,4 +24,20 @@ describe('InputCheckbox', () => {
     const input = page.getByRole('checkbox');
     await expect.element(input).toBeChecked();
   });
+
+  it('shows 1 as checked and leaves the value as it is', async () => {
+    const props = $state({ value: 1 as unknown as boolean });
+    render(InputCheckbox, props);
+
+    await expect.element(page.getByRole('checkbox')).toBeChecked();
+    expect(props.value).toBe(1);
+  });
+
+  it('writes a boolean when the user changes it', async () => {
+    const props = $state({ value: 1 as unknown as boolean });
+    render(InputCheckbox, props);
+
+    await page.getByRole('checkbox').click({ force: true });
+    expect(props.value).toBe(false);
+  });
 });

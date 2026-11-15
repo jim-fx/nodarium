@@ -6,15 +6,12 @@
 
   let { value = $bindable(false), id }: Props = $props();
 
-  $effect(() => {
-    if (typeof value === 'string') {
-      value = value === 'true';
-    } else if (typeof value === 'number') {
-      value = value === 1;
-    } else if (!(typeof value === 'boolean')) {
-      value = !!value;
-    }
-  });
+  // node props hold 1 and 0, the value only becomes a boolean when the user changes it
+  function isChecked(v: unknown) {
+    if (typeof v === 'string') return v === 'true';
+    if (typeof v === 'number') return v === 1;
+    return !!v;
+  }
 </script>
 
 <label
@@ -22,7 +19,7 @@
 >
   <input
     type="checkbox"
-    bind:checked={value}
+    bind:checked={() => isChecked(value), (checked) => (value = checked)}
     class="peer absolute h-px w-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)]"
     {id}
   />
