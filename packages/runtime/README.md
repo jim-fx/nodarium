@@ -83,6 +83,20 @@ Every template is a `Graph` of the current graph version, `parseProjectFile()` i
 
 The ids stay, a template that is improved keeps its id. To add a template in this repository, put its graph into `packages/runtime/templates/<id>.json`, add a line `plant(...)` or `mushroom(...)` to the list in `templates/index.ts` and a row to the table above. The app lists it in its project browser from there. Its preview there is a pre-rendered image, see [Template previews](https://git.max-richter.dev/max/nodarium/src/branch/main/app/README.md#template-previews).
 
+### Substrates
+
+The mushroom templates come without a substrate. `withSubstrate(graph, substrate)` returns a copy of a mushroom graph that grows on one: a Substrate group with the `max/myzel/mesh` node joins its scan into the last input of the `join_meshes` before the `output`, so it is the highest material group of the mesh, and gives the places of `sample_mesh` on it to the `points` of the Stipe group. Its instance is the one node with a `substrate` prop. `substrates` keeps the substrate `porcini`, `chanterelle`, `honey-fungus`, `sulphur-tuft`, `false-chanterelle` and `bitter-bolete` grew on before, `loadTemplate(id, { substrate: true })` loads a template with it.
+
+```ts
+import { loadTemplate, substrates, withSubstrate } from '@nodarium/runtime/templates';
+
+const honeyFungus = await loadTemplate('honey-fungus', { substrate: true });
+const porcini = withSubstrate(await loadTemplate('porcini'), {
+  ...substrates.porcini!,
+  kind: 'stump'
+});
+```
+
 ## Export a project from the app
 
 Open the plant or mushroom in the app and choose **File → Export .json**. The app saves it as `<title>.nodarium.json`. `parseProjectFile()` reads these files, and the bare graphs older versions of the app saved. It checks them and migrates them to the format of the runtime. A graph made with a newer version of the app than the package throws a `GraphVersionError`.
