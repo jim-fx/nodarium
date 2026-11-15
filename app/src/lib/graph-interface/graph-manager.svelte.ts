@@ -413,32 +413,59 @@ export class GraphManager extends EventEmitter<{
     if (isDebugNode(node.type)) return;
     const outputCount = this.getNodeSockets(node).outputs.length;
     if (!outputCount) return;
-    let debugNode = this.nodes.values().find(n => isDebugNode(n.type));
+    return this.transaction(() => {
+      const debugNode = this.nodes.values().find(n => isDebugNode(n.type))
+        ?? this.createNode({ type: DEBUG_NODE, position: [0, 0], props: {} });
+      if (!debugNode) return;
 
-    if (!debugNode) {
-      debugNode = this.createNode({
-        type: DEBUG_NODE,
-        position: [0, 0],
-        props: {}
+      // above and to the right of the debugged node, nodes are 20 units wide
+      const debugType = this.getNodeType(debugNode);
+      const height = debugType ? getNodeHeight(debugType) : 5;
+      debugNode.position = [node.position[0] + 25, node.position[1] - height - 5];
+
+      // debugging a node again steps through its outputs
+      const connected = this.getEdgesToNode(debugNode).find(e => e[0].id === node.id);
+      const output = connected ? (connected[1] + 1) % outputCount : 0;
+      if (connected && connected[1] === output) {
+        this.commit({ build: false });
+      } else {
+        this.createEdge(node, output, debugNode, 'input');
+      }
+
+      return debugNode;
+    });
+  }
+
+  /** A node added from the end of an edge dragged out of `socket`, connected to it where the types fit */
+  createNodeFromSocket(
+    node: Pick<NodeInstance, 'type' | 'position' | 'props'>,
+    socket: Socket | null
+  ) {
+    return this.transaction(() => {
+      const newNode = this.createNode({
+        type: node.type,
+        position: node.position,
+        props: node.props
       });
-    }
-    if (!debugNode) return;
+      if (!newNode || !socket) return newNode;
 
-    // above and to the right of the debugged node, nodes are 20 units wide
-    const debugType = this.getNodeType(debugNode);
-    const height = debugType ? getNodeHeight(debugType) : 5;
-    debugNode.position = [node.position[0] + 25, node.position[1] - height - 5];
-
-    // debugging a node again steps through its outputs
-    const connected = this.getEdgesToNode(debugNode).find(e => e[0].id === node.id);
-    const output = connected ? (connected[1] + 1) % outputCount : 0;
-    if (connected && connected[1] === output) {
-      this.commit({ build: false });
-    } else {
-      this.createEdge(node, output, debugNode, 'input');
-    }
-
-    return debugNode;
+      const newSockets = this.getNodeSockets(newNode);
+      if (typeof socket.index === 'number') {
+        const socketType = this.getSocketType(socket.node, socket.index);
+        const input = Object.entries(newSockets.inputs).find(([, input]) =>
+          areSocketsCompatible(socketType, [input.type, ...(input.accepts ?? [])])
+        );
+        if (input) this.createEdge(socket.node, socket.index, newNode, input[0]);
+      } else {
+        const input = this.getNodeSockets(socket.node).inputs[socket.index];
+        const accepted = [input?.type, ...(input?.accepts ?? [])];
+        const outputIndex = newSockets.outputs.findIndex((output) =>
+          areSocketsCompatible(output, accepted)
+        );
+        if (outputIndex !== -1) this.createEdge(newNode, outputIndex, socket.node, socket.index);
+      }
+      return newNode;
+    });
   }
 
   getEdgesBetweenNodes(nodes: NodeInstance[]): SerializedEdge[] {

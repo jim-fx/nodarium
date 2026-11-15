@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { Edge, NodeInstance } from '@nodarium/types';
-  import { areSocketsCompatible } from '@nodarium/types';
   import { Canvas } from '@threlte/core';
   import { HTML } from '@threlte/extras';
   import { createKeyMap } from '../../helpers/createKeyMap';
@@ -50,40 +49,7 @@
   }
 
   function handleNodeCreation(node: NodeInstance) {
-    const newNode = graph.createNode({
-      type: node.type,
-      position: node.position,
-      props: node.props
-    });
-    if (!newNode) return;
-
-    const socket = graphState.activeSocket;
-    if (socket) {
-      const newSockets = graph.getNodeSockets(newNode);
-      if (typeof socket.index === 'number') {
-        const socketType = graph.getSocketType(socket.node, socket.index);
-
-        const input = Object.entries(newSockets.inputs).find(([, input]) =>
-          areSocketsCompatible(socketType, [input.type, ...(input.accepts ?? [])])
-        );
-
-        if (input) {
-          graph.createEdge(socket.node, socket.index, newNode, input[0]);
-        }
-      } else {
-        const input = graph.getNodeSockets(socket.node).inputs[socket.index];
-        const accepted = [input?.type, ...(input?.accepts ?? [])];
-
-        const outputIndex = newSockets.outputs.findIndex((output) =>
-          areSocketsCompatible(output, accepted)
-        );
-
-        if (outputIndex !== -1) {
-          graph.createEdge(newNode, outputIndex, socket.node, socket.index);
-        }
-      }
-    }
-
+    if (!graph.createNodeFromSocket(node, graphState.activeSocket)) return;
     graphState.activeSocket = null;
     graphState.addMenuPosition = null;
   }

@@ -1258,6 +1258,42 @@ describe('a change made of several changes', () => {
     expect(newSteps()).toBe(1);
   });
 
+  it('a node created from a dragged socket builds once and is one undo step with its edge', () => {
+    const { manager, nodes: [, , , d], results, newSteps } = setup();
+
+    const created = manager.createNodeFromSocket(
+      { type: 'test/node/input', position: [400, 0], props: {} },
+      { node: d, index: 0, position: [0, 0] }
+    );
+    vi.runAllTimers();
+
+    expect(manager.getEdgesToNode(created!).map((e) => e[0].id)).toEqual([d.id]);
+    expect(results).toEqual([manager.serialize()]);
+    expect(newSteps()).toBe(1);
+    manager.undo();
+    expect(manager.nodes.has(created!.id)).toBe(false);
+  });
+
+  it('a new debug node builds once and is one undo step with its edge', () => {
+    const registry = createMockNodeRegistry([mockFloatInputNode, debugNode]);
+    const manager = new GraphManager(registry);
+    const node = manager.createNode({ type: 'test/node/input', position: [0, 0], props: {} })!;
+    manager.status = 'idle';
+    vi.runAllTimers();
+    const results: Graph[] = [];
+    manager.on('result', (graph) => results.push(graph));
+    const steps = manager.history.history.length;
+
+    manager.tryConnectToDebugNode(node.id);
+    vi.runAllTimers();
+
+    expect(results).toEqual([manager.serialize()]);
+    expect(results[0].edges).toHaveLength(1);
+    expect(manager.history.history.length).toBe(steps + 1);
+    manager.undo();
+    expect([...manager.nodes.keys()]).toEqual([node.id]);
+  });
+
   it('nests, the inner transaction does not end the outer one', () => {
     const { manager, nodes: [a, b, c], results, newSteps } = setup();
 
