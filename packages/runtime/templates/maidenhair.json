@@ -2,7 +2,7 @@
   "id": 0,
   "version": 13,
   "meta": { "unit": "cm" },
-  "settings": { "resolution.circle": 8, "resolution.curve": 64 },
+  "settings": { "resolution.circle": 8, "resolution.curve": 64, "time.t": 1 },
   "groups": [],
   "nodes": [
     {
@@ -326,10 +326,94 @@
     },
     { "id": 44, "position": [0, -45], "type": "max/plantarium/set_color", "props": {} },
     { "id": 45, "position": [0, 15], "type": "max/plantarium/set_color", "props": {} },
-    { "id": 46, "position": [40, -45], "type": "max/plantarium/join", "props": {} }
+    { "id": 46, "position": [40, -45], "type": "max/plantarium/join", "props": {} },
+    { "id": 47, "position": [-480, -60], "type": "max/myzel/time", "props": {} },
+    {
+      "id": 48,
+      "position": [-510, -30],
+      "type": "max/plantarium/random",
+      "props": { "min": 1, "max": 1.65, "uniform": 1, "per_path": 1 }
+    },
+    {
+      "id": 49,
+      "position": [-450, -45],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 1 }
+    },
+    {
+      "id": 50,
+      "position": [-420, -45],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0.08, 0.35, 0.3, 0.7, 0.8, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 51,
+      "position": [-360, -30],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 1 }
+    },
+    {
+      "id": 52,
+      "position": [-240, 40],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 1, 0.4, 0.45, 0.8, 0.08, 1, 0], "min": 0.75, "max": 7.5 }
+    },
+    {
+      "id": 53,
+      "position": [-240, 100],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 1, 1], "min": 0, "max": 0.4 }
+    },
+    {
+      "id": 54,
+      "position": [-210, 120],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 1, "a": 0, "b": 0 }
+    },
+    {
+      "id": 55,
+      "position": [-180, 80],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 0.3, 0.55, 0.6, 1, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 56,
+      "position": [-180, 110],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 1 }
+    },
+    {
+      "id": 57,
+      "position": [-210, 140],
+      "type": "max/plantarium/path_info",
+      "props": { "info": 5 }
+    },
+    {
+      "id": 58,
+      "position": [-180, 140],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 80 }
+    },
+    {
+      "id": 59,
+      "position": [-150, 80],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 0.5, 0.7, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 60,
+      "position": [-120, 160],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 1 }
+    },
+    {
+      "id": 61,
+      "position": [-90, 175],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0.15, 0.25, 0.4, 0.6, 0.8, 1, 1], "min": 0, "max": 1 }
+    }
   ],
   "edges": [
-    [10, 0, 11, "length"],
     [11, 0, 13, "plant"],
     [12, 0, 13, "angle"],
     [13, 0, 14, "plant"],
@@ -338,7 +422,6 @@
     [19, 0, 20, "plant"],
     [21, 0, 22, "value"],
     [34, 0, 23, "plant"],
-    [22, 0, 23, "length"],
     [23, 0, 24, "plant"],
     [25, 0, 26, "shape"],
     [35, 0, 27, "plant"],
@@ -349,7 +432,6 @@
     [4, 0, 3, "b"],
     [17, 0, 18, "value"],
     [18, 0, 3, "a"],
-    [3, 0, 19, "length"],
     [1, 0, 0, "x"],
     [6, 0, 1, "max"],
     [8, 0, 6, "a"],
@@ -377,6 +459,27 @@
     [26, 0, 45, "plant"],
     [43, 0, 45, "color"],
     [44, 0, 46, "a"],
-    [45, 0, 46, "b"]
+    [45, 0, 46, "b"],
+    [47, 0, 49, "a"],
+    [48, 0, 49, "b"],
+    [49, 0, 50, "value"],
+    [10, 0, 51, "a"],
+    [51, 0, 11, "length"],
+    [50, 0, 51, "b"],
+    [50, 0, 52, "value"],
+    [52, 0, 16, "strength"],
+    [49, 0, 54, "a"],
+    [53, 0, 54, "b"],
+    [54, 0, 55, "value"],
+    [3, 0, 56, "a"],
+    [56, 0, 19, "length"],
+    [55, 0, 56, "b"],
+    [57, 0, 58, "a"],
+    [58, 0, 59, "value"],
+    [22, 0, 60, "a"],
+    [60, 0, 23, "length"],
+    [59, 0, 60, "b"],
+    [47, 0, 61, "value"],
+    [61, 0, 26, "size"]
   ]
 }

@@ -3,7 +3,7 @@
   "version": 13,
   "meta": { "unit": "cm" },
   "groups": [],
-  "settings": { "resolution.circle": 12, "resolution.curve": 32 },
+  "settings": { "resolution.circle": 12, "resolution.curve": 32, "time.t": 1 },
   "nodes": [
     {
       "id": 10,
@@ -818,16 +818,117 @@
       "type": "max/myzel/mix_color",
       "props": { "a": [226, 218, 236] }
     },
-    { "id": 102, "position": [0, -40], "type": "max/plantarium/set_color", "props": {} }
+    { "id": 102, "position": [0, -40], "type": "max/plantarium/set_color", "props": {} },
+    { "id": 103, "position": [-660, -80], "type": "max/myzel/time", "props": {} },
+    {
+      "id": 104,
+      "position": [-630, 45],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0.25, 0.4, 0.7, 0.75, 0.95, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 105,
+      "position": [-600, 105],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 1 }
+    },
+    {
+      "id": 106,
+      "position": [-660, 45],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0.2, 0.5, 0.6, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 107,
+      "position": [-630, 65],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 0.00825 }
+    },
+    {
+      "id": 108,
+      "position": [-570, -50],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 1, 1], "min": 0, "max": 0.35 }
+    },
+    {
+      "id": 109,
+      "position": [-540, -50],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 1, "a": 0, "b": 0 }
+    },
+    {
+      "id": 110,
+      "position": [-510, -50],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0.05, 0.15, 0.08, 0.4, 0.5, 0.65, 1, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 111,
+      "position": [-510, -25],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 1 }
+    },
+    {
+      "id": 112,
+      "position": [-450, -50],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0.2, 0.3, 0.6, 0.65, 1, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 113,
+      "position": [-405, 185],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 1 }
+    },
+    {
+      "id": 114,
+      "position": [-345, 90],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 1 }
+    },
+    {
+      "id": 115,
+      "position": [-330, 45],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 0.5, 0, 0.8, 0.75, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 116,
+      "position": [-300, 65],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 1 }
+    },
+    {
+      "id": 117,
+      "position": [-195, 145],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 1 }
+    },
+    {
+      "id": 118,
+      "position": [-150, 140],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 0.65, 0, 0.9, 0.85, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 119,
+      "position": [-120, 120],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 0.117003 }
+    },
+    {
+      "id": 120,
+      "position": [-75, 130],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 1, "b": 1 }
+    }
   ],
   "edges": [
     [10, 0, 11, "plant"],
-    [12, 0, 11, "length"],
     [13, 0, 11, "angle"],
     [11, 0, 14, "plant"],
     [14, 0, 15, "plant"],
     [71, 0, 16, "plant"],
-    [17, 0, 16, "length"],
     [19, 0, 18, "value"],
     [18, 0, 16, "rotation"],
     [21, 0, 20, "value"],
@@ -838,11 +939,9 @@
     [25, 0, 26, "shape"],
     [28, 0, 27, "value"],
     [30, 0, 29, "value"],
-    [27, 0, 31, "a"],
     [29, 0, 31, "b"],
     [75, 0, 32, "plant"],
     [81, 0, 32, "geometry"],
-    [27, 0, 32, "size"],
     [32, 0, 33, "plant"],
     [81, 0, 33, "geometry"],
     [31, 0, 33, "size"],
@@ -853,22 +952,17 @@
     [38, 0, 40, "b"],
     [33, 0, 41, "plant"],
     [85, 0, 41, "geometry"],
-    [40, 0, 41, "size"],
     [41, 0, 42, "plant"],
     [85, 0, 42, "geometry"],
-    [40, 0, 42, "size"],
     [42, 0, 43, "plant"],
-    [44, 0, 43, "length"],
     [43, 0, 45, "plant"],
     [45, 0, 46, "plant"],
     [47, 0, 48, "shape"],
     [50, 0, 49, "value"],
     [52, 0, 51, "value"],
-    [49, 0, 53, "a"],
     [51, 0, 53, "b"],
     [89, 0, 54, "plant"],
     [90, 0, 54, "geometry"],
-    [49, 0, 54, "size"],
     [54, 0, 55, "plant"],
     [90, 0, 55, "geometry"],
     [53, 0, 55, "size"],
@@ -879,11 +973,9 @@
     [61, 0, 62, "shape"],
     [60, 0, 63, "plant"],
     [97, 0, 63, "geometry"],
-    [57, 0, 63, "size"],
     [64, 0, 65, "shape"],
     [63, 0, 66, "plant"],
     [102, 0, 66, "geometry"],
-    [57, 0, 66, "size"],
     [66, 0, 67, "input"],
     [68, 0, 69, "value"],
     [69, 0, 70, "factor"],
@@ -921,6 +1013,43 @@
     [98, 0, 101, "b"],
     [100, 0, 101, "factor"],
     [65, 0, 102, "plant"],
-    [101, 0, 102, "color"]
+    [101, 0, 102, "color"],
+    [103, 0, 104, "value"],
+    [12, 0, 105, "a"],
+    [105, 0, 11, "length"],
+    [104, 0, 105, "b"],
+    [103, 0, 106, "value"],
+    [106, 0, 107, "a"],
+    [107, 0, 10, "thickness"],
+    [103, 0, 109, "a"],
+    [108, 0, 109, "b"],
+    [109, 0, 110, "value"],
+    [17, 0, 111, "a"],
+    [111, 0, 16, "length"],
+    [110, 0, 111, "b"],
+    [109, 0, 112, "value"],
+    [113, 0, 32, "size"],
+    [113, 0, 31, "a"],
+    [27, 0, 113, "a"],
+    [112, 0, 113, "b"],
+    [114, 0, 41, "size"],
+    [114, 0, 42, "size"],
+    [40, 0, 114, "a"],
+    [112, 0, 114, "b"],
+    [103, 0, 115, "value"],
+    [44, 0, 116, "a"],
+    [116, 0, 43, "length"],
+    [115, 0, 116, "b"],
+    [117, 0, 54, "size"],
+    [117, 0, 53, "a"],
+    [49, 0, 117, "a"],
+    [115, 0, 117, "b"],
+    [103, 0, 118, "value"],
+    [118, 0, 119, "a"],
+    [119, 0, 60, "size"],
+    [120, 0, 63, "size"],
+    [120, 0, 66, "size"],
+    [57, 0, 120, "a"],
+    [118, 0, 120, "b"]
   ]
 }
