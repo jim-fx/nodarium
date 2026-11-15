@@ -31,6 +31,8 @@
     key?: string;
     value: SettingsValue;
     type: SettingsType;
+    // for values that have their own owner: gets the changed input instead of `value` being written
+    onchange?: (key: string, value: unknown) => void;
     onButtonClick?: (id: string) => void;
     // rendered next to the label of each input
     inputAction?: Snippet<[key: string]>;
@@ -45,6 +47,7 @@
     key = '',
     value = $bindable(),
     type,
+    onchange,
     onButtonClick,
     inputAction,
     customInput,
@@ -119,13 +122,16 @@
       result = node.options[newValue];
     }
 
-    if (result !== undefined && value[key] !== result) {
-      value[key] = result as SettingsValue[string];
-    }
+    if (result === undefined || value[key] === result) return;
+    if (onchange) onchange(key, result);
+    else value[key] = result as SettingsValue[string];
   }
 
-  // Populate `value` with the defaults of inputs that have no value yet
-  onMount(() => setInternalValue(internalValue));
+  // Populate `value` with the defaults of inputs that have no value yet, the owner behind
+  // `onchange` has its own defaults
+  onMount(() => {
+    if (!onchange) setInternalValue(internalValue);
+  });
 </script>
 
 {#if key && isNodeInput(type?.[key])}
@@ -156,13 +162,15 @@
   </div>
 {:else if depth === 0}
   {#each Object.keys(type ?? {}).filter((k) => k !== 'title') as childKey (childKey)}
+    <!-- a function binding, so that a parent with `onchange` can pass `value` without binding it -->
     <NestedSettings
+      {onchange}
       {onButtonClick}
       {inputAction}
       {customInput}
       id={`${id}.${childKey}`}
       key={childKey}
-      bind:value
+      bind:value={() => value, (v) => (value = v)}
       {type}
       depth={depth + 1}
     />
@@ -177,6 +185,7 @@
     <div class="content">
       {#each Object.keys(type[key] as SettingsGroup).filter((k) => k !== 'title') as childKey (childKey)}
         <NestedSettings
+          {onchange}
           {onButtonClick}
           {inputAction}
           {customInput}
