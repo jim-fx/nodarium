@@ -6,27 +6,22 @@ import type {
   RuntimeExecutor,
   SyncCache
 } from '@nodarium/types';
-import { getOutputType, INTERNAL_PREFIX } from '@nodarium/types';
-import { createLogger, decodeFloat, type PerformanceStore, readNodeValue } from '@nodarium/utils';
+import { INTERNAL_PREFIX } from '@nodarium/types';
+import { createLogger, type PerformanceStore, readNodeValue } from '@nodarium/utils';
 import { type CacheRun, startCacheRun } from './cache-run';
+import { DebugCollector } from './debug-data';
 import { getErrorInfo, NodeExecutionError, type RuntimeErrorInfo } from './errors';
 import { expandGroups } from './expand-groups';
 import { migrateGraph } from './graph-migrations';
 import { InstanceTracker } from './instances';
 import { buildPlan, type Plan, type PlanNode } from './plan';
-import type { DebugEntry } from './types';
+import type { RunResult } from './types';
 
 export { toCreatorId } from './inputs';
 
-/** The node that turns a value of this socket type into something the debug view can draw */
-const DEBUG_PREVIEWS: Record<string, { node: string }> = {
-  // a flat disc colored by the pattern
-  pattern: { node: 'max/myzel/output' }
-};
 const log = createLogger('runtime-executor');
 log.mute();
 
-type DebugData = Record<number, DebugEntry>;
 type Timings = Record<number, number>;
 
 /** Which nodes of a plan run and which are read from the cache */
@@ -62,52 +57,6 @@ function decideRuns(plan: Plan, cache: CacheRun): Runs {
   return { needed, cached };
 }
 
-function storeDebugData(debugData: DebugData, node: PlanNode, values: NodeValue[]) {
-  const output = node.debugOutput;
-  const outputs = node.definition.outputs;
-  if (output === undefined || !outputs) return;
-  const value = values[output];
-  if (value === undefined) return;
-  debugData[node.id] = {
-    type: getOutputType(outputs[output]) ?? 'unknown',
-    output,
-    data: readNodeValue(value)
-  };
-}
-
-/**
- * The amount and clip of a debug node go along with the data it shows, the viewer applies
- * them. So the output of the debugged node and every cache key stay as they are.
- */
-function storeDebugView(debugData: DebugData, node: PlanNode, inputs: NodeValue[]) {
-  const keys = Object.keys(node.definition.inputs ?? {});
-  const shown = node.inputs[keys.indexOf('input')];
-  const entry = shown && !(shown instanceof Int32Array) ? debugData[shown.node.id] : undefined;
-  if (!entry) return;
-  for (const key of ['amount', 'clip'] as const) {
-    const value = inputs[keys.indexOf(key)];
-    if (value !== undefined) entry[key] = decodeFloat(readNodeValue(value)[0]);
-  }
-}
-
-/**
- * Values the viewer can't draw as they are get turned into something it can, by a node of the
- * graph's own collection. A pattern is only numbers, its preview is the mesh of the output node.
- */
-function previewDebugData(debugData: DebugData, definitions: Map<string, NodeDefinition>) {
-  for (const entry of Object.values(debugData)) {
-    const preview = DEBUG_PREVIEWS[entry.type];
-    const node = preview && definitions.get(preview.node);
-    if (!node) continue;
-    try {
-      const result = node.execute([entry.data]);
-      entry.data = readNodeValue(Array.isArray(result) ? result[0] : result);
-    } catch (e) {
-      log.warn(`could not preview the ${entry.type} for debugging`, e);
-    }
-  }
-}
-
 /** The nodes of a group run under ids the editor doesn't know, their group node shows the sum */
 function addGroupTimings(timings: Timings, origins: Map<number, number>) {
   for (const [id, origin] of origins) {
@@ -118,13 +67,8 @@ function addGroupTimings(timings: Timings, origins: Map<number, number>) {
 export class MemoryRuntimeExecutor implements RuntimeExecutor {
   private instances = new InstanceTracker();
 
-  // keyed by the id of the node a debug node is connected to
-  private debugData: DebugData = {};
-  // execution time in ms of every node of the last run, cached nodes keep
-  // the time of the run that computed their result, group nodes the sum of their nodes
-  private nodeTimings: Timings = {};
-  // the same, but only of the nodes that ran in the last run and not from the cache
-  private runTimings: Timings = {};
+  // what the getters read, of the last run that succeeded. Its result belongs to the caller
+  private last?: Omit<RunResult, 'result'>;
   private lastError: RuntimeErrorInfo | undefined;
 
   perf?: PerformanceStore;
@@ -174,6 +118,11 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   }
 
   async execute(graph: Graph, settings: Record<string, unknown>) {
+    return (await this.run(graph, settings)).result;
+  }
+
+  /** Like {@link execute}, with the debug data and the timings of this run */
+  async run(graph: Graph, settings: Record<string, unknown>): Promise<RunResult> {
     this.lastError = undefined;
     const run = this.instances.enterRun();
     try {
@@ -191,7 +140,11 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     this.instances.releaseAll();
   }
 
-  private async executeGraph(graph: Graph, settings: Record<string, unknown>, run: number) {
+  private async executeGraph(
+    graph: Graph,
+    settings: Record<string, unknown>,
+    run: number
+  ): Promise<RunResult> {
     this.perf?.addPoint('runtime');
     const startedAt = performance.now();
 
@@ -208,28 +161,27 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     this.instances.resetFor(definitions, run);
     const cache = startCacheRun(this.cache, plan.nodes.length);
     const runs = decideRuns(plan, cache);
-    const { result, debugData, nodeTimings, runTimings } = this.runPlan(plan, runs, cache, origins);
+    const { result, debug, nodeTimings, runTimings } = this.runPlan(plan, runs, cache, origins);
 
     // after the result is copied, a preview may run the output node once more
-    previewDebugData(debugData, definitions);
+    debug.preview(definitions);
     cache.finish();
 
     addGroupTimings(nodeTimings, origins);
     addGroupTimings(runTimings, origins);
-    this.debugData = debugData;
-    this.nodeTimings = nodeTimings;
-    this.runTimings = runTimings;
+    this.last = { debugData: debug.data, nodeTimings, runTimings };
 
     this.perf?.endPoint('runtime');
-    return result as unknown as Int32Array;
+    return { result: result as unknown as Int32Array, ...this.last };
   }
 
   private runPlan(plan: Plan, runs: Runs, cache: CacheRun, origins: Map<number, number>) {
     // results of wasm nodes stay inside their module's memory until the next run
     const results: Record<number, NodeValue[]> = {};
-    const debugData: DebugData = {};
+    const debug = new DebugCollector();
     const nodeTimings: Timings = {};
     const runTimings: Timings = {};
+    const previousTimings = this.last?.nodeTimings ?? {};
 
     for (const node of plan.nodes) {
       const { definition } = node;
@@ -246,7 +198,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       if (cachedValue !== undefined) results[node.id] = cachedValue;
       if (!needed || cachedValue !== undefined) {
         if (needed) this.perf?.addPoint('cache-hit', 1);
-        if (node.id in this.nodeTimings) nodeTimings[node.id] = this.nodeTimings[node.id];
+        if (node.id in previousTimings) nodeTimings[node.id] = previousTimings[node.id];
       }
       if (!needed) continue;
 
@@ -267,11 +219,11 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         })
         : [];
 
-      if (isDebug) storeDebugView(debugData, node, inputs);
+      if (isDebug) debug.applyView(node, inputs);
 
       if (cachedValue !== undefined) {
         log.log(`Using cached value for ${definition.id || node.id}`);
-        storeDebugData(debugData, node, cachedValue);
+        debug.record(node, cachedValue);
         continue;
       }
       this.perf?.addPoint('cache-hit', 0);
@@ -284,13 +236,14 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         const a = performance.now();
         const result = definition.execute(inputs);
         results[node.id] = Array.isArray(result) ? result : [result];
-        storeDebugData(debugData, node, results[node.id]);
+        // counts into the time of the node, by which the cache decides whether it keeps the result
+        debug.record(node, results[node.id]);
         log.log('Executed', node.type, node.id);
         const b = performance.now();
 
         if (node.cacheKey !== undefined && node.id !== plan.output.id) {
-          const cost = cold && node.id in this.nodeTimings
-            ? Math.min(b - a, this.nodeTimings[node.id])
+          const cost = cold && node.id in previousTimings
+            ? Math.min(b - a, previousTimings[node.id])
             : b - a;
           cache.store(cacheEntry(node), results[node.id], cost);
         }
@@ -308,11 +261,11 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
     const outputResult = results[plan.output.id]?.[0];
     const result = outputResult && readNodeValue(outputResult);
-    return { result, debugData, nodeTimings, runTimings };
+    return { result, debug, nodeTimings, runTimings };
   }
 
   getDebugData() {
-    return this.debugData;
+    return this.last?.debugData ?? {};
   }
 
   getPerformanceData() {
@@ -320,11 +273,11 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   }
 
   getNodeTimings() {
-    return this.nodeTimings;
+    return this.last?.nodeTimings ?? {};
   }
 
   getRunTimings() {
-    return this.runTimings;
+    return this.last?.runTimings ?? {};
   }
 
   /** Details of the error of the last run, if it failed */

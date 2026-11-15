@@ -25,4 +25,4 @@ export { WasmNodeRegistry } from './registry/wasm-node-registry';
 export * from './result/decode-result';
 export * from './runtime-executor';
 export * from './runtime-executor-cache';
-export type { DebugEntry, RuntimeNode } from './types';
+export type { DebugEntry, RunResult, RuntimeNode } from './types';
