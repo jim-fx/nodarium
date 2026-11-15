@@ -1,4 +1,4 @@
-import type { Graph } from '@nodarium/types';
+import type { Graph, NodeInput } from '@nodarium/types';
 
 /** A drag holds its builds back when the nodes it changes took at least this long to run */
 export const HOLD_OVER_MS = 250;
@@ -18,13 +18,48 @@ function groupKey(group: Graph['groups'][number]) {
   return JSON.stringify([group.nodes.map(nodeKey), group.edges, group.inputs, group.outputs]);
 }
 
-/** The ids of the nodes of `next` that run with other values or inputs than in `base` */
-export function changedNodes(base: Graph, next: Graph): Set<number> {
+/** The inputs of a node type, they say which settings its nodes read */
+type InputsOf = (type: string) => Record<string, NodeInput> | undefined;
+
+function changedSettings(base: Graph, next: Graph) {
+  const before = base.settings ?? {};
+  const after = next.settings ?? {};
+  return new Set(
+    Object.keys({ ...before, ...after }).filter((key) =>
+      JSON.stringify(before[key]) !== JSON.stringify(after[key])
+    )
+  );
+}
+
+function readsOneOf(settings: Set<string>, input: NodeInput) {
+  // the runtime hands the seed to every seed input, whatever else the input declares
+  if (input.type === 'seed') return settings.has('seed');
+  return input.setting !== undefined && settings.has(input.setting);
+}
+
+/**
+ * The ids of the nodes of `next` that run with other values or inputs than in `base`. A changed
+ * setting changes the nodes that read it, which only `inputsOf` knows.
+ */
+export function changedNodes(
+  base: Graph,
+  next: Graph,
+  inputsOf: InputsOf = () => undefined
+): Set<number> {
   const changed = new Set<number>();
+
+  const settings = changedSettings(base, next);
+  const readsChangedSetting = (node: Graph['nodes'][number]) =>
+    settings.size > 0
+    // a muted node is passed over, it doesn't run
+    && !node.muted
+    && Object.values(inputsOf(node.type) ?? {}).some((input) => readsOneOf(settings, input));
 
   const groups = new Map((base.groups ?? []).map((g) => [g.id, groupKey(g)]));
   const changedGroups = new Set(
-    (next.groups ?? []).filter((g) => groups.get(g.id) !== groupKey(g)).map((g) => g.id)
+    (next.groups ?? [])
+      .filter((g) => groups.get(g.id) !== groupKey(g) || g.nodes.some(readsChangedSetting))
+      .map((g) => g.id)
   );
   // a group that contains a changed group has changed too
   for (let grown = true; grown;) {
@@ -40,7 +75,7 @@ export function changedNodes(base: Graph, next: Graph): Set<number> {
 
   const nodes = new Map(base.nodes.map((n) => [n.id, nodeKey(n)]));
   for (const node of next.nodes) {
-    if (nodes.get(node.id) !== nodeKey(node)) changed.add(node.id);
+    if (nodes.get(node.id) !== nodeKey(node) || readsChangedSetting(node)) changed.add(node.id);
     if (changedGroups.has(node.props?.groupId as number)) changed.add(node.id);
   }
 
@@ -85,6 +120,8 @@ type DragHoldOptions = {
   build: (graph: Graph) => void;
   /** The time of every node the last time it ran, group nodes with the sum of their nodes */
   timings: () => Record<number, number>;
+  /** Without them no change of a setting is held */
+  inputs?: InputsOf;
   holdOverMs?: number;
   restMs?: number;
   settleMs?: number;
@@ -103,6 +140,7 @@ type DragHoldOptions = {
 export function createDragHold({
   build,
   timings,
+  inputs,
   holdOverMs = HOLD_OVER_MS,
   restMs = REST_MS,
   settleMs = SETTLE_MS
@@ -121,7 +159,7 @@ export function createDragHold({
     let changed = changes.get(graph);
     if (!changed) {
       changed = built?.id === graph.id
-        ? [...changedNodes(built, graph)].sort((a, b) => a - b)
+        ? [...changedNodes(built, graph, inputs)].sort((a, b) => a - b)
         : [];
       changes.set(graph, changed);
     }

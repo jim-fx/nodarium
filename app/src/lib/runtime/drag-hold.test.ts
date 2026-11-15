@@ -1,4 +1,4 @@
-import type { Graph } from '@nodarium/types';
+import type { Graph, NodeInput } from '@nodarium/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { changedNodes, createDragHold, downstreamCost, REST_MS, SETTLE_MS } from './drag-hold';
 
@@ -19,6 +19,43 @@ function graph(early = 1, late = 1, extra: Partial<Graph> = {}): Graph {
 }
 
 const timings = { 0: 5, 1: 2000, 2: 1, 3: 1 };
+
+const inputs: Record<string, Record<string, NodeInput>> = {
+  'test/node/output': {
+    a: { type: 'float' },
+    b: { type: 'float' },
+    circle: { type: 'integer', setting: 'resolution.circle' }
+  },
+  'test/node/mesh': {
+    length: { type: 'float' },
+    curve: { type: 'integer', setting: 'resolution.curve' }
+  },
+  'test/node/random': { max: { type: 'float' }, seed: { type: 'seed' } },
+  'test/node/time': { t: { type: 'float', setting: 'time.t' } }
+};
+const inputsOf = (type: string) => inputs[type];
+
+function withSettings(settings: Record<string, unknown>, extra: Partial<Graph> = {}) {
+  return graph(1, 1, { settings, ...extra });
+}
+
+// the graph with 4 group instance -> 1 mesh, the instance holds a group that holds the time node
+function withTimeInGroup(t: number, muted = false) {
+  const instance = (id: number, groupId: number) => ({
+    id,
+    type: '__internal/group/instance',
+    position: [0, 0],
+    props: { groupId }
+  });
+  return withSettings({ 'time.t': t }, {
+    nodes: [...graph().nodes, instance(4, 8)],
+    edges: [...graph().edges, [4, 0, 1, 'curve']],
+    groups: [
+      { id: 7, nodes: [{ id: 0, type: 'test/node/time', position: [0, 0], muted }], edges: [] },
+      { id: 8, nodes: [instance(0, 7)], edges: [] }
+    ]
+  } as Partial<Graph>);
+}
 
 describe('downstreamCost', () => {
   it('adds up the changed node and everything downstream of it', () => {
@@ -67,6 +104,51 @@ describe('changedNodes', () => {
       });
 
     expect([...changedNodes(withGroups(1), withGroups(2))]).toEqual([4]);
+  });
+});
+
+describe('changedNodes of a changed setting', () => {
+  const changed = (base: Graph, next: Graph) =>
+    [...changedNodes(base, next, inputsOf)].sort((a, b) => a - b);
+
+  it('finds the nodes with an input that reads the setting', () => {
+    const base = withSettings({ 'resolution.curve': 10, 'resolution.circle': 8 });
+    expect(changed(base, withSettings({ 'resolution.curve': 20, 'resolution.circle': 8 })))
+      .toEqual([1]);
+    expect(changed(base, withSettings({ 'resolution.curve': 10, 'resolution.circle': 16 })))
+      .toEqual([0]);
+    expect(changed(base, withSettings({ 'resolution.curve': 10, 'resolution.circle': 8 })))
+      .toEqual([]);
+  });
+
+  it('finds nothing for a setting no node reads', () => {
+    expect(changed(withSettings({ 'time.t': 0.1 }), withSettings({ 'time.t': 0.2 }))).toEqual([]);
+  });
+
+  it('finds the nodes with a seed input for the seed, no node declares it as a setting', () => {
+    expect(changed(withSettings({ seed: 1 }), withSettings({ seed: 2 }))).toEqual([2, 3]);
+  });
+
+  it('compares the values of a setting, not their objects', () => {
+    const setting = () => withSettings({ 'resolution.curve': [1, 2, 3] });
+    expect(changed(setting(), setting())).toEqual([]);
+  });
+
+  it('leaves out a muted node, it does not run', () => {
+    const next = withSettings({ seed: 2 });
+    next.nodes[2].muted = true;
+    const base = withSettings({ seed: 1 });
+    base.nodes[2].muted = true;
+    expect(changed(base, next)).toEqual([3]);
+  });
+
+  it('counts the group nodes of a group whose nodes read the setting', () => {
+    expect(changed(withTimeInGroup(0.1), withTimeInGroup(0.2))).toEqual([4]);
+    expect(changed(withTimeInGroup(0.1, true), withTimeInGroup(0.2, true))).toEqual([]);
+  });
+
+  it('knows no setting without the inputs of the nodes', () => {
+    expect([...changedNodes(withSettings({ seed: 1 }), withSettings({ seed: 2 }))]).toEqual([]);
   });
 });
 
@@ -224,5 +306,77 @@ describe('createDragHold', () => {
     target.dispatchEvent(new Event('mouseup'));
     vi.advanceTimersByTime(SETTLE_MS);
     expect(builds).toHaveLength(2);
+  });
+});
+
+describe('createDragHold with a dragged setting', () => {
+  let builds: Graph[];
+  let hold: ReturnType<typeof createDragHold>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    builds = [];
+    hold = createDragHold({
+      build: (g) => builds.push(g),
+      timings: () => ({ ...timings, 4: 1 }),
+      inputs: inputsOf
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function drag(key: string, values: number[], change = (v: number) => withSettings({ [key]: v })) {
+    hold.request(change(0));
+    hold.press();
+    for (const v of values) {
+      hold.move(1);
+      hold.request(change(v));
+    }
+  }
+
+  it('holds a setting that a slow node reads and builds the last value after the release', () => {
+    drag('resolution.curve', [1, 2, 3]);
+    hold.release();
+    expect(builds).toHaveLength(1);
+
+    vi.advanceTimersByTime(SETTLE_MS);
+    expect(builds.map((g) => g.settings!['resolution.curve'])).toEqual([0, 3]);
+  });
+
+  it('builds the value of a held setting that rests while the pointer is still down', () => {
+    drag('resolution.curve', [1, 2]);
+    vi.advanceTimersByTime(REST_MS);
+    expect(builds.map((g) => g.settings!['resolution.curve'])).toEqual([0, 2]);
+  });
+
+  it('holds a setting whose nodes are cheap but feed a slow node', () => {
+    drag('seed', [1, 2, 3]);
+    expect(builds).toHaveLength(1);
+  });
+
+  it('holds a setting that a node inside a group reads', () => {
+    drag('time.t', [0.1, 0.2], withTimeInGroup);
+    expect(builds).toHaveLength(1);
+  });
+
+  it('keeps a setting live that only cheap nodes read', () => {
+    drag('resolution.circle', [1, 2, 3]);
+    expect(builds).toHaveLength(4);
+  });
+
+  it('keeps a setting live that no node reads', () => {
+    drag('time.t', [0.1, 0.2, 0.3]);
+    expect(builds).toHaveLength(4);
+  });
+
+  it('keeps a setting live once a build showed that the change is cheap', () => {
+    drag('resolution.curve', []);
+    hold.request(withSettings({ 'resolution.curve': 1 }));
+    hold.measured(builds.at(-1)!, { 0: 5, 1: 100 });
+    hold.release();
+    drag('resolution.curve', [2, 3]);
+    expect(builds).toHaveLength(5);
   });
 });

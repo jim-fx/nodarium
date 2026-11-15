@@ -306,7 +306,8 @@
   // a build can't be stopped, on a slow graph one of an early value of a drag delays the last one
   const dragHold = createDragHold({
     build: (g) => handleUpdate(g),
-    timings: () => nodeTimings
+    timings: () => nodeTimings,
+    inputs: (type) => nodeRegistry.getNode(type)?.inputs
   });
   $effect(() => dragHold.listen(window));
 
