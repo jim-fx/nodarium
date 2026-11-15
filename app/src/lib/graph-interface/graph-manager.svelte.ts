@@ -29,7 +29,7 @@ import { toast } from '@nodarium/ui';
 import { fastHashString } from '@nodarium/utils';
 import { createLogger } from '@nodarium/utils';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import { collectSettings } from './helpers/collectSettings';
+import { collectSettings, pickSettings } from './helpers/collectSettings';
 import EventEmitter from './helpers/EventEmitter';
 import { toPlain } from './helpers/index.ts';
 import { COLUMN_GAP, layoutGraph, NODE_WIDTH } from './helpers/layoutGraph';
@@ -166,10 +166,15 @@ export class GraphManager extends EventEmitter<{
   }
 
   private lastSettingsHash = 0;
+  private settingTypes: Record<string, NodeInput> = {};
+  private settingTypesKey = '';
 
   /** the collections the loaded graph uses, like `max/plantarium` */
   private collections: ReadonlySet<string> = new SvelteSet<string>();
   setSettings(settings: Record<string, unknown>) {
+    // the panel can still hold the settings of the graph loaded before
+    if (!this.loaded) return;
+    settings = pickSettings(this.settingTypes, settings);
     const hash = fastHashString(JSON.stringify(settings));
     if (hash === this.lastSettingsHash) return;
     this.lastSettingsHash = hash;
@@ -177,6 +182,38 @@ export class GraphManager extends EventEmitter<{
     this.settings = settings;
     this.save({ coalesce: true });
     this.execute();
+  }
+
+  private usedNodeTypes() {
+    const types = new SvelteSet<NodeId>();
+    for (const groupId of [null, ...this.groups.map((g) => g.id)]) {
+      for (const node of this.levelState(groupId).nodes) types.add(node.type);
+    }
+    return types;
+  }
+
+  private setSettingTypes(
+    types: Record<string, NodeInput>,
+    values: Record<string, unknown>
+  ) {
+    this.settingTypes = types;
+    this.settingTypesKey = Object.keys(types).sort().join('\n');
+    this.settings = values;
+    this.lastSettingsHash = fastHashString(JSON.stringify(values));
+    this.emit('settings', { types, values });
+  }
+
+  /**
+   * Only the nodes in the graph declare its settings, not every node of their collections or
+   * every node the registry loaded for earlier graphs. Adding or removing a node can change them.
+   */
+  private updateSettings(values = this.settings, force = false) {
+    const definitions = [...this.usedNodeTypes()].flatMap((type) =>
+      this.registry.getNode(type) ?? []
+    );
+    const { types, values: filled } = collectSettings(definitions, values);
+    if (!force && Object.keys(types).sort().join('\n') === this.settingTypesKey) return;
+    this.setSettingTypes(types, filled);
   }
 
   /**
@@ -441,6 +478,7 @@ export class GraphManager extends EventEmitter<{
     }
 
     this.loaded = false;
+    this.setSettingTypes({}, {});
     graph.groups ??= [];
     this.meta = graph.meta;
     this.groups = graph.groups;
@@ -496,20 +534,13 @@ export class GraphManager extends EventEmitter<{
 
     log.info('loaded node types', this.registry.getAllNodes());
 
-    const { types: settingTypes, values: settingValues } = collectSettings(
-      this.getNodeDefinitions(),
-      graph.settings
-    );
-
     this.parentStack = [];
     this.currentGroupId = null;
-
-    this.settings = settingValues;
-    this.emit('settings', { types: settingTypes, values: settingValues });
 
     this.history.reset();
     this.historyWhenIdle = false;
     this._init(graph);
+    this.updateSettings(graph.settings, true);
     this.save();
     this.status = 'idle';
     this.loaded = true;
@@ -1432,6 +1463,7 @@ export class GraphManager extends EventEmitter<{
     this.parentStack = this.parentStack.slice(0, depth);
     this.currentGroupId = depth === 0 ? null : path[depth - 1];
     this._init(level);
+    this.updateSettings();
   }
 
   undo() {
@@ -1474,6 +1506,7 @@ export class GraphManager extends EventEmitter<{
       this.historyWhenIdle = true;
     } else {
       this.historyWhenIdle = false;
+      this.updateSettings();
       this.history.save(this.serialized);
     }
     clearTimeout(this.idleTimer);
@@ -1484,6 +1517,7 @@ export class GraphManager extends EventEmitter<{
   flush() {
     if (this.historyWhenIdle) {
       this.historyWhenIdle = false;
+      this.updateSettings();
       this.history.save(this.serialized);
     }
     if (this.idleTimer === undefined) return;
