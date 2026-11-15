@@ -6,6 +6,9 @@ export {
   GROUP_INSTANCE,
   GROUP_OUTPUT,
   groupIdOf,
+  groupInputKey,
+  groupInputValue,
+  groupOutputIndex,
   INTERNAL_PREFIX,
   isDebugNode,
   isOutputNode

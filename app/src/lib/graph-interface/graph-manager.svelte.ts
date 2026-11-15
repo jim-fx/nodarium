@@ -13,7 +13,6 @@ import {
   isOutputNode
 } from '@nodarium/types';
 import type {
-  Box,
   Edge,
   Graph,
   GroupDefinition,
@@ -22,7 +21,6 @@ import type {
   NodeInput,
   NodeInstance,
   NodeRegistry,
-  NodeValue,
   SerializedEdge,
   SerializedNode,
   Socket
@@ -33,6 +31,14 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { ChangeRecorder } from './change-recorder';
 import { collectSettings } from './helpers/collectSettings';
 import EventEmitter from './helpers/EventEmitter';
+import {
+  exposeInputs,
+  groupInputType,
+  groupInstanceType,
+  groupOptions,
+  groupOutputType
+} from './helpers/group-types';
+import { groupSelection, ungroupInstance } from './helpers/grouping';
 import { toPlain } from './helpers/index.ts';
 import { COLUMN_GAP, layoutGraph, NODE_WIDTH } from './helpers/layoutGraph';
 import {
@@ -478,15 +484,23 @@ export class GraphManager extends EventEmitter<{
   /** Makes the nodes and edges of `level` the open ones, as new instances */
   private openLevel(level: Level) {
     this.nodes.clear();
-    for (const node of level.nodes) {
-      const n: NodeInstance = $state({
-        ...serializeNode(node),
-        state: { type: this.registry.getNode(node.type) }
-      });
-      this.nodes.set(n.id, n);
-    }
+    for (const node of level.nodes) this.addNode(node);
+    this.edges = this.liveEdges(level.edges);
+  }
 
-    this.edges = level.edges.flatMap((edge) => {
+  /** A new instance of the node in the open level */
+  private addNode(node: SerializedNode) {
+    const instance: NodeInstance = $state({
+      ...serializeNode(node),
+      state: { type: this.registry.getNode(node.type) }
+    });
+    this.nodes.set(instance.id, instance);
+    return instance;
+  }
+
+  /** The edges between the nodes of the open level */
+  private liveEdges(edges: SerializedEdge[]): Edge[] {
+    return edges.flatMap((edge) => {
       const from = this.nodes.get(edge[0]);
       const to = this.nodes.get(edge[2]);
       if (!from || !to) {
@@ -604,166 +618,36 @@ export class GraphManager extends EventEmitter<{
     return this.nodes.get(id);
   }
 
-  /** The groups on the navigation path can't be placed inside themselves */
-  private placeableGroups() {
-    const open = new SvelteSet(this.path.map(e => e.groupId));
-    return this.groups.filter((g) => !open.has(g.id));
-  }
+  private currentGroup = $derived(
+    this.currentGroupId === null ? undefined : this.getGroup(this.currentGroupId)
+  );
+
+  // Recomputed only after a group was added, removed or renamed or the path changed
+  private groupOptions = $derived(
+    groupOptions(this.groups, new SvelteSet(this.path.map((entry) => entry.groupId)))
+  );
 
   getNodeType(node: NodeInstance) {
-    if (node.type === GROUP_INPUT) {
-      const group = this.currentGroupId !== null ? this.getGroup(this.currentGroupId) : undefined;
-      if (!group) return node.state.type;
-
-      const groupInputs: NodeDefinition['inputs'] = Object.fromEntries(
-        Object.values(group?.inputs || {}).map((o, i) => {
-          return [`in_${i}`, {
-            ...o,
-            external: true
-          }];
-        }) || []
-      );
-      return {
-        id: GROUP_INPUT as NodeId,
-        meta: {
-          title: 'Group Input'
-        },
-        inputs: groupInputs,
-        execute: (inputs: NodeValue[]) => inputs[0]
-      } as NodeDefinition;
+    switch (node.type) {
+      case GROUP_INPUT:
+        return this.currentGroup ? groupInputType(this.currentGroup) : node.state.type;
+      case GROUP_OUTPUT:
+        return this.currentGroup ? groupOutputType(this.currentGroup) : node.state.type;
+      case GROUP_INSTANCE:
+        return this.groupInstanceType(node);
+      default:
+        return exposeInputs(node.state.type, node.exposed);
     }
-
-    if (node.type === GROUP_OUTPUT) {
-      const group = this.currentGroupId !== null ? this.getGroup(this.currentGroupId) : undefined;
-      if (!group) return node.state.type;
-      return {
-        id: GROUP_OUTPUT as NodeId,
-        inputs: Object.fromEntries(
-          (group.outputs ?? []).map((
-            o,
-            i
-          ) => [`out_${i}`, { type: o.type, label: o.label, external: true }])
-        ),
-        meta: {
-          title: 'Group Output'
-        },
-        outputs: [],
-        execute: (inputs: NodeValue[]) => inputs[0]
-      } as NodeDefinition;
-    }
-
-    // Construct the group inputs on the fly. This has to start from the registry
-    // type, a group's inputs and outputs change while its instances are loaded.
-    if (node.type === GROUP_INSTANCE) {
-      const groupId = node.props?.groupId as number;
-      const baseType = this.registry.getNode(node.type);
-
-      let options = this.placeableGroups().map((g) => ({
-        value: g.id,
-        label: g.name || `Group#${g.id}`
-      }));
-
-      // Handle if multiple groups have the same name, by adding the groupid
-      const groupNames = new SvelteMap<string, number>();
-      for (const o of options) {
-        const value = groupNames.get(o.label) || 0;
-        groupNames.set(o.label, value + 1);
-      }
-      options = options.map(o => {
-        const amount = groupNames.get(o.label) || 0;
-        if (amount > 1) {
-          return {
-            label: `${o.label}#${o.value}`,
-            value: o.value
-          };
-        }
-        return o;
-      });
-
-      if (!groupId) {
-        return {
-          ...baseType,
-          id: GROUP_INSTANCE as NodeId,
-          meta: {
-            title: 'Group',
-            ...baseType?.meta || {}
-          },
-          inputs: {
-            'groupId': {
-              type: 'select',
-              label: '',
-              internal: true,
-              options
-            }
-          },
-          outputs: []
-        } as NodeDefinition;
-      }
-
-      const groupDefinition = this.getGroup(node.props?.groupId as number);
-      if (!groupDefinition) {
-        log.error(`Group not found: ${node.props?.groupId}`);
-        return;
-      }
-
-      const inputs = {
-        'groupId': {
-          type: 'select',
-          label: '',
-          value: node.props?.groupId,
-          internal: true,
-          options
-        },
-        ...groupDefinition.inputs
-      };
-
-      const groupType = {
-        ...baseType,
-        id: GROUP_INSTANCE as NodeId,
-        meta: {
-          title: 'Group',
-          ...baseType?.meta || {}
-        },
-        inputs,
-        outputs: groupDefinition?.outputs
-      } as NodeDefinition;
-
-      return groupType;
-    }
-
-    return this.getExposedNodeType(node.state.type, node.exposed);
   }
 
-  private exposedNodeTypes = new WeakMap<NodeDefinition, Map<string, NodeDefinition>>();
-
-  // The node type with the exposed hidden inputs shown on the node. Cached, so
-  // all nodes with the same exposed inputs share one definition.
-  private getExposedNodeType(type: NodeDefinition | undefined, exposed?: string[]) {
-    if (!type?.inputs || !exposed?.some(key => type.inputs?.[key]?.hidden)) return type;
-
-    const cacheKey = exposed.join(',');
-    let cache = this.exposedNodeTypes.get(type);
-    if (!cache) {
-      // Not reactive, getNodeType() is called inside $derived where state can't be written
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity
-      cache = new Map();
-      this.exposedNodeTypes.set(type, cache);
+  private groupInstanceType(node: NodeInstance) {
+    const groupId = node.props?.groupId as number;
+    const group = groupId ? this.getGroup(groupId) : undefined;
+    if (groupId && !group) {
+      log.error(`Group not found: ${groupId}`);
+      return;
     }
-
-    let exposedType = cache.get(cacheKey);
-    if (!exposedType) {
-      exposedType = {
-        ...type,
-        inputs: Object.fromEntries(
-          Object.entries(type.inputs).map(([key, input]) => [
-            key,
-            exposed.includes(key) ? { ...input, hidden: false } : input
-          ])
-        )
-      };
-      cache.set(cacheKey, exposedType);
-    }
-    return exposedType;
+    return groupInstanceType(this.registry.getNode(node.type), group, this.groupOptions);
   }
 
   // Shows or hides one of the hidden inputs of a node on the node itself.
@@ -1040,166 +924,23 @@ export class GraphManager extends EventEmitter<{
   }
 
   groupNodes(nodeIds: number[]) {
-    const nodes = [
-      ...new SvelteSet(nodeIds).values().map(id => this.getNode(id)).filter(Boolean)
-    ].filter(n => n!.type !== GROUP_INPUT && n!.type !== GROUP_OUTPUT) as NodeInstance[];
-
-    if (!nodes.length) return;
-    return this.transaction(() => this.groupNodesNow(nodes));
-  }
-
-  private groupNodesNow(nodes: NodeInstance[]) {
-    log.log(`Grouping ${nodes.length} nodes`, { nodes });
-
-    const ids = new SvelteSet(nodes.map(n => n.id));
-
-    // We use the map to dedupe when one external node is connected to multiple internal nodes
-    //           ┌──internal_a
-    // external──┤
-    //           └──internal_b
-    // This should only result in one group input not two
-    const incomingEdges = this.edges.filter((edge) => ids.has(edge[2].id) && !ids.has(edge[0].id));
-    const groupInputs = new SvelteMap<string, Edge>();
-    for (const edge of incomingEdges) {
-      groupInputs.set(`${edge[0].id}-${edge[1]}`, edge);
-    }
-
-    // And the same for the outputs, deduped by the internal source socket
-    //                ┌──external_a
-    // internal_out───┤
-    //                └──external_b
-    const outgoingEdges = this.edges.filter((edge) => ids.has(edge[0].id) && !ids.has(edge[2].id));
-    const groupOutputs = new SvelteMap<string, Edge>();
-    for (const edge of outgoingEdges) {
-      groupOutputs.set(`${edge[0].id}-${edge[1]}`, edge);
-    }
-
-    const inputs: Record<string, NodeInput> = {};
-    [...groupInputs.values()].forEach((edge, i) => {
-      const internalInputDef = this.getNodeType(edge[2])?.inputs?.[edge[3]];
-      const type = this.getSocketType(edge[0], edge[1]) || '*';
-      // The group node's widget starts at the value the internal node runs with
-      const value = internalInputDef?.type === type
-        ? edge[2].props?.[edge[3]] ?? internalInputDef.value
-        : undefined;
-      const input = {
-        label: internalInputDef?.label ?? edge[3],
-        type,
-        ...(value !== undefined && { value: $state.snapshot(value) })
-      };
-      inputs[`input_${i}`] = input as NodeInput;
+    const grouped = groupSelection(this.levelState(this.currentGroupId), new SvelteSet(nodeIds), {
+      outputType: (nodeId, output) => this.getSocketType(this.nodes.get(nodeId)!, output),
+      input: (nodeId, key) => this.getNodeType(this.nodes.get(nodeId)!)?.inputs?.[key],
+      nextId: this.createIdAllocator()
     });
+    if (!grouped) return;
+    const { group, instance, edges } = grouped;
+    log.log('grouping nodes', { group });
 
-    const outputs = [...groupOutputs.values()].map((edge) => {
-      const outputType = this.getSocketType(edge[0], edge[1]) || '*';
-      return {
-        label: outputType === '*'
-          ? 'Output'
-          : outputType.charAt(0).toUpperCase() + outputType.slice(1),
-        type: outputType
-      };
+    return this.transaction(() => {
+      this.groups.push(group);
+      for (const node of group.nodes) this.nodes.delete(node.id);
+      const groupNode = this.addNode(instance);
+      this.edges = this.liveEdges(edges);
+      this.commit();
+      return groupNode;
     });
-
-    const groupPosition = [0, 0] as [number, number];
-    const bounds: Box = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
-    for (const node of nodes) {
-      groupPosition[0] += node.position[0];
-      groupPosition[1] += node.position[1];
-      bounds.minX = Math.min(bounds.minX, node.position[0]);
-      bounds.maxX = Math.max(bounds.maxX, node.position[0]);
-      bounds.minY = Math.min(bounds.minY, node.position[1]);
-      bounds.maxY = Math.max(bounds.maxY, node.position[1]);
-    }
-    groupPosition[0] /= nodes.length;
-    groupPosition[1] /= nodes.length;
-
-    // Map from deduped edge source key → group input index, used for both
-    // internal edge wiring and external edge socket naming.
-    const inputIndexByEdgeKey = new SvelteMap<string, number>();
-    [...groupInputs.keys()].forEach((key, i) => inputIndexByEdgeKey.set(key, i));
-    const outputIndexByEdgeKey = new SvelteMap<string, number>();
-    [...groupOutputs.keys()].forEach((key, i) => outputIndexByEdgeKey.set(key, i));
-
-    // Fan-out connections collapse into the same boundary edge, keep only one
-    const uniqueBy = <T>(getKey: (e: T) => string) => {
-      const seen = new SvelteSet<string>();
-      return (e: T) => !seen.has(getKey(e)) && !!seen.add(getKey(e));
-    };
-
-    // Allocate all needed IDs up front so sequential calls never collide.
-    const nextId = this.createIdAllocator();
-
-    const groupInputNode: NodeInstance = {
-      id: nextId(),
-      type: GROUP_INPUT,
-      position: [bounds.minX - 50, (bounds.minY + bounds.maxY) / 2],
-      state: {}
-    };
-
-    const groupOutputNode: NodeInstance = {
-      id: nextId(),
-      type: GROUP_OUTPUT,
-      position: [bounds.maxX + 25, (bounds.minY + bounds.maxY) / 2],
-      state: {}
-    };
-
-    // Edges that are inside the group, routed through boundary nodes at
-    // the correct input/output index for each unique external connection.
-    const internalEdges = this.edges.filter((edge) => {
-      return ids.has(edge[0].id) || ids.has(edge[2].id);
-    }).map((edge) => {
-      if (!ids.has(edge[0].id)) {
-        const idx = inputIndexByEdgeKey.get(`${edge[0].id}-${edge[1]}`) ?? 0;
-        return [groupInputNode.id, idx, edge[2].id, edge[3]];
-      } else if (!ids.has(edge[2].id)) {
-        const idx = outputIndexByEdgeKey.get(`${edge[0].id}-${edge[1]}`) ?? 0;
-        return [edge[0].id, edge[1], groupOutputNode.id, `out_${idx}`];
-      }
-      return [edge[0].id, edge[1], edge[2].id, edge[3]];
-    }).filter(uniqueBy(e => e.join('-'))) as [number, number, number, string][];
-
-    const groupId = nextId();
-    const groupDefinition: GroupDefinition = {
-      id: groupId,
-      inputs: inputs,
-      outputs: outputs,
-      edges: internalEdges,
-      nodes: [groupInputNode, ...nodes, groupOutputNode].map(n => serializeNode(n))
-    };
-
-    // Push before createNode so the id allocator inside sees the allocated IDs.
-    this.groups.push(groupDefinition);
-
-    const groupNode = this.createNode({
-      type: GROUP_INSTANCE,
-      position: [groupPosition[0], groupPosition[1]],
-      props: {
-        groupId: groupId
-      }
-    });
-
-    if (!groupNode) throw new Error('Failed to create group node');
-
-    // Rewire external edges to/from the group node using the correct input socket.
-    const externalEdges = this.edges.map((edge) => {
-      if (ids.has(edge[2].id)) {
-        const idx = inputIndexByEdgeKey.get(`${edge[0].id}-${edge[1]}`) ?? 0;
-        return [edge[0], edge[1], groupNode, `input_${idx}`] as Edge;
-      } else if (ids.has(edge[0].id)) {
-        const idx = outputIndexByEdgeKey.get(`${edge[0].id}-${edge[1]}`) ?? 0;
-        return [groupNode, idx, edge[2], edge[3]] as Edge;
-      }
-      return edge;
-    }).filter(uniqueBy((e: Edge) => this.getEdgeId(e)));
-
-    this.nodes.set(groupNode.id, groupNode);
-    this.edges = externalEdges;
-
-    for (const node of nodes) {
-      this.removeNode(node);
-    }
-
-    return groupNode;
   }
 
   ungroupNode(nodeId: number) {
@@ -1211,118 +952,22 @@ export class GraphManager extends EventEmitter<{
     if (!group) return false;
 
     log.log('ungrouping node', { groupId, group });
-    return this.transaction(() => this.ungroupNow(groupNode, group));
-  }
-
-  private ungroupNow(groupNode: NodeInstance, group: GroupDefinition) {
-    const nodeId = groupNode.id;
-    const edgesToGroup = this.edges.filter(e => e[2].id === nodeId);
-    const edgesFromGroup = this.edges.filter(e => e[0].id === nodeId);
-
-    const groupInputNode = group.nodes.find(n => n.type === GROUP_INPUT);
-    const groupOutputNode = group.nodes.find(n => n.type === GROUP_OUTPUT);
-    const internalNodes = group.nodes.filter(
-      n => n.type !== GROUP_INPUT && n.type !== GROUP_OUTPUT
+    const { nodes, edges } = ungroupInstance(
+      this.levelState(this.currentGroupId),
+      groupNode,
+      group,
+      this.createIdAllocator()
     );
 
-    // Offset internal nodes so their average position matches the group node's position
-    let centerX = 0, centerY = 0;
-    for (const n of internalNodes) {
-      centerX += n.position[0];
-      centerY += n.position[1];
-    }
-    const offsetX = internalNodes.length
-      ? groupNode.position[0] - centerX / internalNodes.length
-      : 0;
-    const offsetY = internalNodes.length
-      ? groupNode.position[1] - centerY / internalNodes.length
-      : 0;
-
-    const nextId = this.createIdAllocator();
-
-    const idMap = new SvelteMap<number, number>();
-    for (const n of group.nodes) {
-      idMap.set(n.id, nextId());
-    }
-
-    const newNodes: NodeInstance[] = internalNodes.map(n => {
-      const nodeType = this.registry.getNode(n.type);
-      const node: NodeInstance = $state({
-        id: idMap.get(n.id)!,
-        type: n.type,
-        position: [n.position[0] + offsetX, n.position[1] + offsetY] as [number, number],
-        state: { type: nodeType },
-        // Copy, the group definition (and its other instances) must not share these props
-        props: $state.snapshot(n.props) || {},
-        ...(n.exposed?.length ? { exposed: [...n.exposed] } : {})
-      });
-      return node;
+    return this.transaction(() => {
+      const instances = nodes.map((node) => this.addNode(node));
+      // createEdge() checks the socket types, the types of a group can be changed after it was wired
+      for (const [fromId, fromSocket, toId, toSocket] of edges) {
+        this.createEdge(this.nodes.get(fromId)!, fromSocket, this.nodes.get(toId)!, toSocket);
+      }
+      this.removeNode(groupNode);
+      return instances;
     });
-
-    for (const node of newNodes) {
-      this.nodes.set(node.id, node);
-    }
-
-    // Group Input sockets are positional: socket i belongs to the i-th key of group.inputs
-    const inputKeys = Object.keys(group.inputs ?? {});
-
-    // input socket index on the group node → the external source that was feeding it
-    const inputIdxToExternal = new SvelteMap<number, { node: NodeInstance; socket: number }>();
-    for (const edge of edgesToGroup) {
-      const idx = inputKeys.indexOf(edge[3]);
-      if (idx !== -1) inputIdxToExternal.set(idx, { node: edge[0], socket: edge[1] });
-    }
-
-    // All external nodes that received output from the group node
-    const externalOutputTargets = edgesFromGroup.map(e => ({
-      fromSocket: e[1],
-      toNode: e[2],
-      toSocket: e[3]
-    }));
-
-    // Recreate internal edges, substituting boundary nodes with the real external peers
-    for (const [fromId, fromSocketIdx, toId, toSocketKey] of group.edges) {
-      let fromNode: NodeInstance | undefined;
-      let resolvedFromSocket = fromSocketIdx;
-
-      if (groupInputNode && fromId === groupInputNode.id) {
-        const ext = inputIdxToExternal.get(fromSocketIdx);
-        if (!ext) {
-          // Unconnected group input: keep the value the group node ran with
-          const key = inputKeys[fromSocketIdx];
-          const value = groupNode.props?.[key] ?? group.inputs?.[key]?.value;
-          const toNode = this.nodes.get(idMap.get(toId)!);
-          if (value !== undefined && toNode?.props) toNode.props[toSocketKey] = value;
-          continue;
-        }
-        fromNode = ext.node;
-        resolvedFromSocket = ext.socket;
-      } else {
-        const newId = idMap.get(fromId);
-        if (newId !== undefined) fromNode = this.nodes.get(newId);
-      }
-
-      if (!fromNode) continue;
-
-      if (groupOutputNode && toId === groupOutputNode.id) {
-        // Older groups used "Out" for their single output
-        const outputIndex = Number(/^out_(\d+)$/.exec(toSocketKey)?.[1] ?? 0);
-        for (const { fromSocket, toNode, toSocket } of externalOutputTargets) {
-          if (fromSocket !== outputIndex) continue;
-          this.createEdge(fromNode, resolvedFromSocket, toNode, toSocket);
-        }
-      } else {
-        const newToId = idMap.get(toId);
-        if (newToId === undefined) continue;
-        const toNode = this.nodes.get(newToId);
-        if (!toNode) continue;
-        this.createEdge(fromNode, resolvedFromSocket, toNode, toSocketKey);
-      }
-    }
-
-    this.removeNode(groupNode);
-
-    return newNodes;
   }
 
   createNode({
@@ -1342,8 +987,8 @@ export class GraphManager extends EventEmitter<{
 
     // a group node from the add menu comes without a group
     if (type === GROUP_INSTANCE && props?.groupId === undefined) {
-      const group = this.placeableGroups()[0];
-      if (group) props = { ...props, groupId: group.id };
+      const group = this.groupOptions[0];
+      if (group) props = { ...props, groupId: group.value };
     }
 
     const node: NodeInstance = $state({

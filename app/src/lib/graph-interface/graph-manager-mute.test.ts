@@ -177,6 +177,20 @@ describe('GraphManager.muteNode', () => {
     expect(inner).toBeDefined();
   });
 
+  it('keeps a muted node muted when its group is ungrouped', () => {
+    const { manager, nodeA, nodeB, output } = createChain();
+    manager.muteNode(nodeB.id);
+    const group = manager.groupNodes([nodeA.id, nodeB.id])!;
+
+    manager.ungroupNode(group.id);
+
+    const graph = manager.serialize();
+    const muted = graph.nodes.filter(n => n.muted);
+    expect(muted).toHaveLength(1);
+    expect(graph.edges).toContainEqual([muted[0].id, 0, output.id, 'input']);
+    expect(manager.getNode(muted[0].id)?.muted).toBe(true);
+  });
+
   it('keeps a pasted muted node muted', () => {
     const { manager, nodeB } = createChain();
     manager.muteNode(nodeB.id);
