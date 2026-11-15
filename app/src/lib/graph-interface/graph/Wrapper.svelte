@@ -23,7 +23,7 @@
     safePadding?: { left?: number; right?: number; bottom?: number; top?: number };
 
     onsave?: (save: Graph) => void;
-    onresult?: (result: unknown) => void;
+    onresult?: (result: Graph) => void;
   };
 
   let {

@@ -943,7 +943,7 @@ describe('dropNodeOnEdge', () => {
       vi.runAllTimers();
 
       const results: ReturnType<GraphManager['serialize']>[] = [];
-      manager.on('result', (graph) => results.push(graph as ReturnType<GraphManager['serialize']>));
+      manager.on('result', (graph) => results.push(graph));
 
       manager.dropNodeOnEdge(dropped.id, edge);
       vi.runAllTimers();

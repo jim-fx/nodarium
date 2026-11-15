@@ -52,7 +52,7 @@ const SAVE_IDLE_MS = 300;
 
 export class GraphManager extends EventEmitter<{
   save: Graph;
-  result: unknown;
+  result: Graph;
   settings: {
     types: Record<string, NodeInput>;
     values: Record<string, unknown>;
@@ -548,21 +548,11 @@ export class GraphManager extends EventEmitter<{
     setTimeout(() => this.execute(), 100);
   }
 
-  getAllNodes() {
-    return Array
-      .from(this.nodes.values());
-  }
-
   getNode(id: number) {
     return this.nodes.get(id);
   }
 
   getNodeType(node: NodeInstance) {
-    if (!node) {
-      console.trace('failed to get node type', { node });
-      return;
-    }
-
     if (node.type === GROUP_INPUT) {
       const group = this.currentGroupId !== null ? this.getGroup(this.currentGroupId) : undefined;
       if (!group) return node.state.type;
@@ -967,10 +957,6 @@ export class GraphManager extends EventEmitter<{
     };
   }
 
-  createNodeId() {
-    return this.createIdAllocator()();
-  }
-
   createGraph(nodes: SerializedNode[], edges: [number, number, number, string][]) {
     // A level has a single Group Input and Output node, pasting must not add another
     // one (only the first one is used). Their edges are dropped with them.
@@ -1151,7 +1137,7 @@ export class GraphManager extends EventEmitter<{
       nodes: [groupInputNode, ...nodes, groupOutputNode]
     };
 
-    // Push before createNode so createNodeId() inside sees the allocated IDs.
+    // Push before createNode so the id allocator inside sees the allocated IDs.
     this.groups.push(groupDefinition);
 
     const groupNode = this.createNode({
@@ -1330,7 +1316,7 @@ export class GraphManager extends EventEmitter<{
     }
 
     const node: NodeInstance = $state({
-      id: this.createNodeId(),
+      id: this.createIdAllocator()(),
       type,
       position,
       state: { type: nodeType },
@@ -1578,7 +1564,7 @@ export class GraphManager extends EventEmitter<{
     if (typeof index === 'string') {
       if (!isInputConnectable(this.getNodeSockets(node).inputs[index])) return [];
       const children = new SvelteSet(this.getChildren(node).map((n) => n.id));
-      const nodes = this.getAllNodes().filter(
+      const nodes = this.nodeArray.filter(
         (n) => n.id !== node.id && !children.has(n.id)
       );
 
@@ -1592,7 +1578,7 @@ export class GraphManager extends EventEmitter<{
       }
     } else if (typeof index === 'number') {
       const parents = new SvelteSet(this.getParentsOfNode(node).map((n) => n.id));
-      const nodes = this.getAllNodes().filter(
+      const nodes = this.nodeArray.filter(
         (n) => n.id !== node.id && !parents.has(n.id)
       );
 
@@ -1668,26 +1654,10 @@ export class GraphManager extends EventEmitter<{
   }
 
   getEdgesToNode(node: NodeInstance) {
-    return this.edges
-      .filter((edge) => edge[2].id === node.id)
-      .map((edge) => {
-        const from = this.getNode(edge[0].id);
-        const to = this.getNode(edge[2].id);
-        if (!from || !to) return;
-        return [from, edge[1], to, edge[3]] as const;
-      })
-      .filter(Boolean) as unknown as [NodeInstance, number, NodeInstance, string][];
+    return this.edges.filter((e) => e[2].id === node.id);
   }
 
   getEdgesFromNode(node: NodeInstance) {
-    return this.edges
-      .filter((edge) => edge[0].id === node.id)
-      .map((edge) => {
-        const from = this.getNode(edge[0].id);
-        const to = this.getNode(edge[2].id);
-        if (!from || !to) return;
-        return [from, edge[1], to, edge[3]] as const;
-      })
-      .filter(Boolean) as unknown as [NodeInstance, number, NodeInstance, string][];
+    return this.edges.filter((e) => e[0].id === node.id);
   }
 }
