@@ -60,7 +60,6 @@ function legacySerialize(manager: GraphManager): Graph {
 async function loadTemplate(graph: Graph) {
   const registry = createMockNodeRegistry(definitions);
   registry.loadDefinitions = async () => [];
-  registry.loadCollection = async () => [];
   const manager = new GraphManager(registry);
   await manager.load(structuredClone(graph));
   return manager;

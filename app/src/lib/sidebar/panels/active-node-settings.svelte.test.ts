@@ -30,7 +30,6 @@ const graph: Graph = {
 async function setup() {
   const { render } = await import('vitest-browser-svelte');
   const registry = createMockNodeRegistry([random]);
-  registry.loadCollection = async () => [];
   const manager = new GraphManager(registry);
   await manager.load(structuredClone(graph));
   const rest = () => {

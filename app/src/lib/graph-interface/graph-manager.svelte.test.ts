@@ -540,7 +540,6 @@ describe('groups', () => {
     const loaded = $state.snapshot(graph);
 
     const registry = createMockNodeRegistry([mockFloatOutputNode, mockFloatInputNode]);
-    registry.loadCollection = async () => [];
     const manager = new GraphManager(registry);
     await manager.load(graph);
     expect(manager.getNode(graph.nodes[0].id)).not.toBe(graph.nodes[0]);
@@ -1113,7 +1112,6 @@ describe('dropNodeOnEdge making room', () => {
 
 describe('getNodeDefinitions', () => {
   it('only offers the collections of the loaded graph', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ nodes: [] }))));
     const otherCollection: NodeDefinition = { ...mockFloatInputNode, id: 'test/other/input' };
     const registry = createMockNodeRegistry([
       mockFloatOutputNode,
@@ -1134,7 +1132,6 @@ describe('getNodeDefinitions', () => {
     const ids = manager.getNodeDefinitions().map((d) => d.id);
     expect(ids).toContain('test/node/input');
     expect(ids).not.toContain('test/other/input');
-    vi.unstubAllGlobals();
   });
 
   it('fails to load a graph with a node type that does not exist any more, without throwing', async () => {
