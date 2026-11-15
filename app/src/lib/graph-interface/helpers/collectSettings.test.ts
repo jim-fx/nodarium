@@ -25,8 +25,13 @@ describe('collectSettings', () => {
   });
 
   it('fills missing values with defaults and keeps saved values', () => {
-    const { values } = collectSettings([stem, output], { 'resolution.curve': 32, other: true });
-    expect(values).toEqual({ 'resolution.curve': 32, 'resolution.circle': 8, other: true });
+    const { values } = collectSettings([stem, output], { 'resolution.curve': 32 });
+    expect(values).toEqual({ 'resolution.curve': 32, 'resolution.circle': 8 });
+  });
+
+  it('drops saved values no node declares, but keeps the seed', () => {
+    const { values } = collectSettings([stem], { 'resolution.circle': 4, 'time.t': 1, seed: 7 });
+    expect(values).toEqual({ 'resolution.curve': 16, seed: 7 });
   });
 
   it('does not add a value for settings without a default', () => {
