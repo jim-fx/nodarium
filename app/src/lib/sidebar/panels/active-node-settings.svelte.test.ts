@@ -4,7 +4,6 @@ import { CURRENT_GRAPH_VERSION } from '@nodarium/runtime';
 import type { Graph, NodeDefinition } from '@nodarium/types';
 import { flushSync } from 'svelte';
 import { assert, describe, expect, it } from 'vitest';
-import { render } from 'vitest-browser-svelte';
 import ActiveNodeSettings from './ActiveNodeSettings.svelte';
 
 const random = {
@@ -29,6 +28,7 @@ const graph: Graph = {
 };
 
 async function setup() {
+  const { render } = await import('vitest-browser-svelte');
   const registry = createMockNodeRegistry([random]);
   registry.loadCollection = async () => [];
   const manager = new GraphManager(registry);
@@ -50,7 +50,8 @@ async function setup() {
   return { manager, rest, show, steps, props };
 }
 
-describe('the settings of the active node', () => {
+// The panel only exists in a browser, `vitest --browser=false` has no document for it
+describe.skipIf(import.meta.env.SSR)('the settings of the active node', () => {
   it('write nothing when the node is selected', async () => {
     const { show, steps, props } = await setup();
 
