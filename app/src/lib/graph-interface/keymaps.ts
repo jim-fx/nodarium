@@ -167,24 +167,24 @@ export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: Gr
     description: 'Delete selected nodes',
     callback: (event) => {
       if (!graphState.isBodyFocused()) return;
-      graph.startUndoGroup();
-      if (graphState.activeNodeId !== -1) {
-        const node = graph.getNode(graphState.activeNodeId);
-        if (node) {
-          graph.removeNode(node, { restoreEdges: event.ctrlKey });
-          graphState.activeNodeId = -1;
-        }
-      }
-      if (graphState.selectedNodes) {
-        for (const nodeId of graphState.selectedNodes) {
-          const node = graph.getNode(nodeId);
+      graph.transaction(() => {
+        if (graphState.activeNodeId !== -1) {
+          const node = graph.getNode(graphState.activeNodeId);
           if (node) {
             graph.removeNode(node, { restoreEdges: event.ctrlKey });
+            graphState.activeNodeId = -1;
           }
         }
-        graphState.clearSelection();
-      }
-      graph.saveUndoGroup();
+        if (graphState.selectedNodes) {
+          for (const nodeId of graphState.selectedNodes) {
+            const node = graph.getNode(nodeId);
+            if (node) {
+              graph.removeNode(node, { restoreEdges: event.ctrlKey });
+            }
+          }
+          graphState.clearSelection();
+        }
+      });
     }
   });
 

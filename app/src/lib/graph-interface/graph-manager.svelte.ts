@@ -60,7 +60,6 @@ export class GraphManager extends EventEmitter<{
   };
 }> {
   status = $state<'loading' | 'idle' | 'error'>();
-  loaded = false;
 
   // Snapshots of parent levels we navigated away from. Empty at root.
   // Entry i has the saved state of depth i (0 = root graph, 1 = first group, …).
@@ -83,8 +82,6 @@ export class GraphManager extends EventEmitter<{
   nodeArray = $derived(Array.from(this.nodes.values()));
 
   settings = $state<Record<string, unknown>>();
-
-  currentUndoGroup: number | null = null;
 
   inputSockets = $derived.by(() => {
     const s = new SvelteSet<string>();
@@ -109,10 +106,60 @@ export class GraphManager extends EventEmitter<{
     return this.recorder.history;
   }
 
+  /** Asks for a build of the graph as it is now */
   execute = throttle(() => {
-    if (this.loaded === false) return;
+    if (this.status !== 'idle') return;
     this.emit('result', this.serialize());
   }, 10);
+
+  // The changes of the running transactions, recorded once the outermost one ends
+  private transactionDepth = 0;
+  private pendingChange: { build: boolean; coalesce: boolean } | undefined;
+  private heldStepDepth = 0;
+  private heldStepChanged = false;
+
+  /** The graph changed. `build: false` for changes the result doesn't depend on, like a position. */
+  commit({ build = true, coalesce = false } = {}) {
+    if (this.transactionDepth > 0) {
+      this.pendingChange = {
+        build: build || !!this.pendingChange?.build,
+        coalesce: coalesce && (this.pendingChange?.coalesce ?? true)
+      };
+      return;
+    }
+    if (this.heldStepDepth > 0) this.heldStepChanged = true;
+    else if (coalesce) this.recorder.coalesce();
+    else this.recorder.step();
+    if (build) this.execute();
+  }
+
+  /** Several changes as one: one undo step and one build, after the last of them */
+  transaction<T>(change: () => T): T {
+    this.transactionDepth++;
+    try {
+      return change();
+    } finally {
+      this.transactionDepth--;
+      const pending = this.pendingChange;
+      if (this.transactionDepth === 0 && pending) {
+        this.pendingChange = undefined;
+        this.commit(pending);
+      }
+    }
+  }
+
+  /** A change that takes time, like a drag in the viewer: it builds on the way, the undo step waits for the end */
+  beginUndoStep() {
+    this.heldStepDepth++;
+  }
+
+  endUndoStep() {
+    if (this.heldStepDepth === 0) return;
+    this.heldStepDepth--;
+    if (this.heldStepDepth > 0 || !this.heldStepChanged) return;
+    this.heldStepChanged = false;
+    this.recorder.step();
+  }
 
   constructor(public registry: NodeRegistry) {
     super();
@@ -183,15 +230,14 @@ export class GraphManager extends EventEmitter<{
   private collections: ReadonlySet<string> = new SvelteSet<string>();
   setSettings(settings: Record<string, unknown>) {
     // the panel can still hold the settings of the graph loaded before
-    if (!this.loaded) return;
+    if (this.status !== 'idle') return;
     settings = pickSettings(this.settingTypes, settings);
     const hash = fastHashString(JSON.stringify(settings));
     if (hash === this.lastSettingsHash) return;
     this.lastSettingsHash = hash;
 
     this.settings = settings;
-    this.save({ coalesce: true });
-    this.execute();
+    this.commit({ coalesce: true });
   }
 
   private usedNodeTypes() {
@@ -293,23 +339,12 @@ export class GraphManager extends EventEmitter<{
       return new SvelteMap();
     }
 
-    this.startUndoGroup();
-
-    this.removeEdge(edge, { applyDeletion: false });
-
-    this.createEdge(fromNode, fromSocketIdx, draggedNode, bestInputEntry[0], {
-      applyUpdate: false
+    return this.transaction(() => {
+      this.removeEdge(edge);
+      this.createEdge(fromNode, fromSocketIdx, draggedNode, bestInputEntry[0]);
+      this.createEdge(draggedNode, bestOutputIdx, toNode, toSocketKey);
+      return this.makeRoomForNode(draggedNode, fromNode, toNode);
     });
-
-    this.createEdge(draggedNode, bestOutputIdx, toNode, toSocketKey, {
-      applyUpdate: false
-    });
-
-    const moved = this.makeRoomForNode(draggedNode, fromNode, toNode);
-
-    this.saveUndoGroup();
-    this.execute();
-    return moved;
   }
 
   // Pushes `to` and everything downstream of it right, and `from` and everything upstream of it
@@ -398,7 +433,7 @@ export class GraphManager extends EventEmitter<{
     const connected = this.getEdgesToNode(debugNode).find(e => e[0].id === node.id);
     const output = connected ? (connected[1] + 1) % outputCount : 0;
     if (connected && connected[1] === output) {
-      this.save();
+      this.commit({ build: false });
     } else {
       this.createEdge(node, output, debugNode, 'input');
     }
@@ -432,8 +467,6 @@ export class GraphManager extends EventEmitter<{
       }
       return [[from, edge[1], to, edge[3]] as Edge];
     });
-
-    this.execute();
   }
 
   // Recomputed only after an edge was added or removed, moving a node or changing a value keeps it
@@ -470,7 +503,6 @@ export class GraphManager extends EventEmitter<{
       return;
     }
 
-    this.loaded = false;
     this.setSettingTypes({}, {});
     graph.groups ??= [];
     this.meta = graph.meta;
@@ -533,9 +565,8 @@ export class GraphManager extends EventEmitter<{
     this.recorder.reset();
     this._init(graph);
     this.updateSettings(graph.settings, true);
-    this.save();
+    this.recorder.step();
     this.status = 'idle';
-    this.loaded = true;
     log.log(`Graph loaded in ${performance.now() - a}ms`);
     setTimeout(() => this.execute(), 100);
   }
@@ -709,17 +740,17 @@ export class GraphManager extends EventEmitter<{
     const current = node.exposed ?? [];
     if (current.includes(key) === exposed) return;
 
-    this.startUndoGroup();
-    if (exposed) {
-      node.exposed = [...current, key];
-    } else {
-      node.exposed = current.filter(k => k !== key);
-      for (const edge of this.getEdgesToNode(node)) {
-        if (edge[3] === key) this.removeEdge(edge, { applyDeletion: false });
+    this.transaction(() => {
+      if (exposed) {
+        node.exposed = [...current, key];
+      } else {
+        node.exposed = current.filter(k => k !== key);
+        for (const edge of this.getEdgesToNode(node)) {
+          if (edge[3] === key) this.removeEdge(edge);
+        }
       }
-    }
-    this.saveUndoGroup();
-    this.execute();
+      this.commit();
+    });
   }
 
   // The sockets edges can connect to. The Group Input node exposes its output
@@ -769,31 +800,27 @@ export class GraphManager extends EventEmitter<{
     log.log('removing node', { id: node.id, type: node.type, restoreEdges });
     const edgesToNode = this.edges.filter((edge) => edge[2].id === node.id);
     const edgesFromNode = this.edges.filter((edge) => edge[0].id === node.id);
-    for (const edge of [...edgesToNode, ...edgesFromNode]) {
-      this.removeEdge(edge, { applyDeletion: false });
-    }
+    this.transaction(() => {
+      for (const edge of [...edgesToNode, ...edgesFromNode]) {
+        this.removeEdge(edge);
+      }
 
-    if (restoreEdges) {
-      const outputSockets = edgesToNode.map((e) => [e[0], e[1]] as const);
-      const inputSockets = edgesFromNode.map((e) => [e[2], e[3]] as const);
+      if (restoreEdges) {
+        const outputSockets = edgesToNode.map((e) => [e[0], e[1]] as const);
+        const inputSockets = edgesFromNode.map((e) => [e[2], e[3]] as const);
 
-      for (const [to, toSocket] of inputSockets) {
-        for (const [from, fromSocket] of outputSockets) {
-          const outputType = this.getSocketType(from, fromSocket);
-          const inputType = this.getSocketType(to, toSocket);
-          if (outputType === inputType) {
-            this.createEdge(from, fromSocket, to, toSocket, {
-              applyUpdate: false
-            });
-            continue;
+        for (const [to, toSocket] of inputSockets) {
+          for (const [from, fromSocket] of outputSockets) {
+            const outputType = this.getSocketType(from, fromSocket);
+            const inputType = this.getSocketType(to, toSocket);
+            if (outputType === inputType) this.createEdge(from, fromSocket, to, toSocket);
           }
         }
       }
-    }
 
-    this.nodes.delete(node.id);
-    this.execute();
-    this.save();
+      this.nodes.delete(node.id);
+      this.commit();
+    });
   }
 
   // arranges the nodes of the current level in columns, see layoutGraph
@@ -807,7 +834,7 @@ export class GraphManager extends EventEmitter<{
       const position = positions.get(node.id);
       if (position) node.position = position;
     }
-    this.save();
+    this.commit({ build: false });
   }
 
   smartConnect(from: NodeInstance, to: NodeInstance): Edge | undefined {
@@ -833,25 +860,27 @@ export class GraphManager extends EventEmitter<{
     const group = this.getGroup(groupId);
     if (!group) return;
     group.name = name;
-    this.save();
+    this.commit({ build: false });
   }
 
   removeGroupInput(groupId: number, key: string) {
     const group = this.getGroup(groupId);
     if (!group?.inputs || !(key in group.inputs)) return;
     log.log('removing group input', { groupId, key });
+    this.transaction(() => this.removeGroupInputOf(group, key));
+  }
 
+  private removeGroupInputOf(group: GroupDefinition, key: string) {
+    const groupId = group.id;
     // Group Input sockets are positional, so the sockets after the removed one move up by one
-    const index = Object.keys(group.inputs).indexOf(key);
+    const index = Object.keys(group.inputs!).indexOf(key);
     const inputs = { ...group.inputs };
     delete inputs[key];
     group.inputs = inputs;
 
-    this.startUndoGroup();
-
     if (this.currentGroupId === groupId) {
       for (const edge of this.edges.filter(e => e[0].type === GROUP_INPUT)) {
-        if (edge[1] === index) this.removeEdge(edge, { applyDeletion: false });
+        if (edge[1] === index) this.removeEdge(edge);
         else if (edge[1] > index) edge[1]--;
       }
     } else {
@@ -865,7 +894,7 @@ export class GraphManager extends EventEmitter<{
 
     // Drop the edges into the removed socket on every instance of the group
     for (const edge of this.edges.filter(e => groupIdOf(e[2]) === groupId && e[3] === key)) {
-      this.removeEdge(edge, { applyDeletion: false });
+      this.removeEdge(edge);
     }
     for (const level of [...this.parentStack, ...this.groups]) {
       level.edges = level.edges.filter(e =>
@@ -873,8 +902,7 @@ export class GraphManager extends EventEmitter<{
       );
     }
 
-    this.saveUndoGroup();
-    this.execute();
+    this.commit();
   }
 
   isInsideGroup = $derived(this.currentGroupId !== null);
@@ -917,9 +945,7 @@ export class GraphManager extends EventEmitter<{
     const parent = this.parentStack.pop()!;
     this.currentGroupId = parent.id;
     this._init(parent);
-
-    this.execute();
-    this.save();
+    this.commit();
 
     return { nodeId: parent.nodeId };
   }
@@ -970,7 +996,7 @@ export class GraphManager extends EventEmitter<{
       if (from && to) this.edges.push([from, fromSocket, to, toSocket]);
     }
 
-    this.save();
+    this.commit({ build: false });
     return instances;
   }
 
@@ -990,7 +1016,7 @@ export class GraphManager extends EventEmitter<{
     const unused = this.getUnusedGroups();
     const unusedIds = new SvelteSet(unused.map(g => g.id));
     this.groups = this.groups.filter(g => !unusedIds.has(g.id));
-    this.save();
+    this.commit({ build: false });
     return unused.length;
   }
 
@@ -1000,9 +1026,10 @@ export class GraphManager extends EventEmitter<{
     ].filter(n => n!.type !== GROUP_INPUT && n!.type !== GROUP_OUTPUT) as NodeInstance[];
 
     if (!nodes.length) return;
+    return this.transaction(() => this.groupNodesNow(nodes));
+  }
 
-    this.startUndoGroup();
-
+  private groupNodesNow(nodes: NodeInstance[]) {
     log.log(`Grouping ${nodes.length} nodes`, { nodes });
 
     const ids = new SvelteSet(nodes.map(n => n.id));
@@ -1153,8 +1180,6 @@ export class GraphManager extends EventEmitter<{
       this.removeNode(node);
     }
 
-    this.saveUndoGroup();
-
     return groupNode;
   }
 
@@ -1167,9 +1192,11 @@ export class GraphManager extends EventEmitter<{
     if (!group) return false;
 
     log.log('ungrouping node', { groupId, group });
+    return this.transaction(() => this.ungroupNow(groupNode, group));
+  }
 
-    this.startUndoGroup();
-
+  private ungroupNow(groupNode: NodeInstance, group: GroupDefinition) {
+    const nodeId = groupNode.id;
     const edgesToGroup = this.edges.filter(e => e[2].id === nodeId);
     const edgesFromGroup = this.edges.filter(e => e[0].id === nodeId);
 
@@ -1263,20 +1290,18 @@ export class GraphManager extends EventEmitter<{
         const outputIndex = Number(/^out_(\d+)$/.exec(toSocketKey)?.[1] ?? 0);
         for (const { fromSocket, toNode, toSocket } of externalOutputTargets) {
           if (fromSocket !== outputIndex) continue;
-          this.createEdge(fromNode, resolvedFromSocket, toNode, toSocket, { applyUpdate: false });
+          this.createEdge(fromNode, resolvedFromSocket, toNode, toSocket);
         }
       } else {
         const newToId = idMap.get(toId);
         if (newToId === undefined) continue;
         const toNode = this.nodes.get(newToId);
         if (!toNode) continue;
-        this.createEdge(fromNode, resolvedFromSocket, toNode, toSocketKey, { applyUpdate: false });
+        this.createEdge(fromNode, resolvedFromSocket, toNode, toSocketKey);
       }
     }
 
     this.removeNode(groupNode);
-
-    this.saveUndoGroup();
 
     return newNodes;
   }
@@ -1307,7 +1332,7 @@ export class GraphManager extends EventEmitter<{
     log.log('creating node', { id: node.id, type, position, props });
     this.nodes.set(node.id, node);
 
-    this.save();
+    this.commit({ build: false });
 
     return node;
   }
@@ -1316,8 +1341,7 @@ export class GraphManager extends EventEmitter<{
     from: NodeInstance,
     fromSocket: number,
     to: NodeInstance,
-    toSocket: string,
-    { applyUpdate = true } = {}
+    toSocket: string
   ): Edge | undefined {
     const existingEdges = this.getEdgesToNode(to);
 
@@ -1348,21 +1372,15 @@ export class GraphManager extends EventEmitter<{
     const edgeToBeReplaced = this.edges.find(
       (e) => e[2].id === to.id && e[3] === toSocket
     );
-    if (edgeToBeReplaced) {
-      this.removeEdge(edgeToBeReplaced, { applyDeletion: false });
-    }
-
     const edge = [from, fromSocket, to, toSocket] as Edge;
 
     log.log('creating edge', { from: from.id, fromSocket, to: to.id, toSocket });
-    this.edges.push(edge);
-
-    if (applyUpdate) {
-      this.save();
-      this.execute();
-    }
-
-    return edge;
+    return this.transaction(() => {
+      if (edgeToBeReplaced) this.removeEdge(edgeToBeReplaced);
+      this.edges.push(edge);
+      this.commit();
+      return edge;
+    });
   }
 
   /**
@@ -1381,12 +1399,10 @@ export class GraphManager extends EventEmitter<{
   }
 
   muteNodes(nodeIds: number[]) {
-    nodeIds.forEach(id => this.muteNode(id, false));
-    this.save();
-    this.execute();
+    this.transaction(() => nodeIds.forEach(id => this.muteNode(id)));
   }
 
-  muteNode(activeNodeId: number, executeImmediately = true): void {
+  muteNode(activeNodeId: number): void {
     const node = this.getNode(activeNodeId);
     if (!node) return;
     if (!this.getMutePassthroughInput(node)) return;
@@ -1395,10 +1411,7 @@ export class GraphManager extends EventEmitter<{
     if (isDebugNode(node.type)) return;
     if (isOutputNode(node.type)) return;
     node.muted = !node.muted;
-    if (executeImmediately) {
-      this.save();
-      this.execute();
-    }
+    this.commit();
   }
 
   // History entries are full graphs (see serialize()) and one history spans all
@@ -1441,27 +1454,8 @@ export class GraphManager extends EventEmitter<{
   private restore(graph: Graph | undefined) {
     if (!graph) return;
     this.restoreState(graph);
+    this.execute();
     this.emit('save', this.serialize());
-  }
-
-  startUndoGroup() {
-    this.currentUndoGroup = 1;
-  }
-
-  saveUndoGroup() {
-    this.currentUndoGroup = null;
-    this.save();
-  }
-
-  /**
-   * Adds an undo step and saves the graph to the database once the changes rest.
-   * With `coalesce` the undo step waits for the rest as well: a value that changes on every
-   * tick of a drag becomes one step, holding the value from before the drag.
-   */
-  save({ coalesce = false } = {}) {
-    if (this.currentUndoGroup) return;
-    if (coalesce) this.recorder.coalesce();
-    else this.recorder.step();
   }
 
   /** Adds the pending undo step and saves the graph right away, e.g. before the page is closed */
@@ -1556,10 +1550,7 @@ export class GraphManager extends EventEmitter<{
     return sockets;
   }
 
-  removeEdge(
-    edge: Edge,
-    { applyDeletion = true }: { applyDeletion?: boolean } = {}
-  ) {
+  removeEdge(edge: Edge) {
     log.log('removing edge', {
       from: edge[0].id,
       fromSocket: edge[1],
@@ -1578,10 +1569,7 @@ export class GraphManager extends EventEmitter<{
     if (!_edge) return;
 
     this.edges = this.edges.filter((e) => !areEdgesEqual(e, edge));
-    if (applyDeletion) {
-      this.execute();
-      this.save();
-    }
+    this.commit();
   }
 
   getEdgesToNode(node: NodeInstance) {

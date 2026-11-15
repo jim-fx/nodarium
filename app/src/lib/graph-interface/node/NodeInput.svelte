@@ -62,10 +62,7 @@
       const isDiff = Array.isArray(a) ? diffArray(a, b) : a !== b;
       if (value !== undefined && isDiff) {
         node.props = { ...node.props, [id]: a };
-        if (graph) {
-          graph.save({ coalesce: true });
-          graph.execute();
-        }
+        graph?.commit({ coalesce: true });
       }
     });
   });

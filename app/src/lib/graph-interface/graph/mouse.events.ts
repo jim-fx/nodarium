@@ -97,7 +97,7 @@ export class MouseEventManager {
           }
         }
       });
-      this.graph.save();
+      this.graph.commit({ build: false });
     } else if (this.state.hoveredSocket && this.state.activeSocket) {
       if (
         typeof this.state.hoveredSocket.index === 'number'
@@ -120,7 +120,6 @@ export class MouseEventManager {
           this.state.hoveredSocket.index
         );
       }
-      this.graph.save();
     } else if (this.state.activeSocket && event.ctrlKey) {
       // Handle automatic adding of nodes on ctrl+mouseUp
       this.state.edgeEndPosition = [

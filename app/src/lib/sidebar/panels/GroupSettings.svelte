@@ -67,7 +67,7 @@
       },
       ...outputs.slice(1)
     ];
-    manager.save();
+    manager.commit({ build: false });
   });
 </script>
 
