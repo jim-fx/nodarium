@@ -2322,135 +2322,6 @@
           "label": "Body"
         }
       ]
-    },
-    {
-      "id": 8032,
-      "name": "Substrate",
-      "nodes": [
-        {
-          "id": 8033,
-          "position": [-90, 5],
-          "type": "__internal/group/input",
-          "props": {}
-        },
-        {
-          "id": 8034,
-          "position": [0, 0],
-          "type": "__internal/group/output",
-          "props": {}
-        },
-        {
-          "id": 8035,
-          "position": [-60, 5],
-          "type": "max/myzel/mesh",
-          "props": {
-            "substrate": 0,
-            "colored": 1
-          }
-        },
-        {
-          "id": 8036,
-          "position": [-30, 5],
-          "type": "max/myzel/sample_mesh",
-          "props": {
-            "amount": 2,
-            "spacing": 0.12,
-            "facing_up": 0.93
-          }
-        }
-      ],
-      "edges": [
-        [
-          8033,
-          0,
-          8035,
-          "substrate"
-        ],
-        [
-          8033,
-          1,
-          8035,
-          "colored"
-        ],
-        [
-          8033,
-          2,
-          8036,
-          "amount"
-        ],
-        [
-          8033,
-          3,
-          8036,
-          "spacing"
-        ],
-        [
-          8035,
-          0,
-          8036,
-          "mesh"
-        ],
-        [
-          8035,
-          0,
-          8034,
-          "out_0"
-        ],
-        [
-          8036,
-          0,
-          8034,
-          "out_1"
-        ]
-      ],
-      "inputs": {
-        "substrate": {
-          "type": "select",
-          "label": "Substrate",
-          "options": [
-            "stump",
-            "moss",
-            "needles",
-            "leaves"
-          ],
-          "value": 0,
-          "description": "What the mushrooms grow on. Mute the group to leave the substrate out, then the stipes stand where the template puts them"
-        },
-        "colored": {
-          "type": "boolean",
-          "label": "Colored",
-          "value": true,
-          "description": "Off shows the substrate in the material of the viewer, so the mushrooms stand out"
-        },
-        "places": {
-          "type": "integer",
-          "label": "Places",
-          "value": 2,
-          "min": 1,
-          "max": 50,
-          "description": "How many places on the substrate the stipes start at, the stipes take them in turn"
-        },
-        "spacing": {
-          "type": "float",
-          "label": "Spacing",
-          "value": 0.12,
-          "min": 0,
-          "max": 0.3,
-          "step": 0.005,
-          "unit": "m",
-          "description": "How far apart the places keep at least"
-        }
-      },
-      "outputs": [
-        {
-          "type": "mesh",
-          "label": "Substrate"
-        },
-        {
-          "type": "points",
-          "label": "Places"
-        }
-      ]
     }
   ],
   "nodes": [
@@ -2751,18 +2622,6 @@
         "max": 0.008125,
         "once": 1
       }
-    },
-    {
-      "id": 8037,
-      "position": [-210, -32.85],
-      "type": "__internal/group/instance",
-      "props": {
-        "groupId": 8032,
-        "substrate": 0,
-        "colored": 1,
-        "places": 2,
-        "spacing": 0.12
-      }
     }
   ],
   "edges": [
@@ -2963,18 +2822,6 @@
       0,
       110,
       "length"
-    ],
-    [
-      8037,
-      0,
-      114,
-      "d"
-    ],
-    [
-      8037,
-      1,
-      107,
-      "points"
     ]
   ]
 }

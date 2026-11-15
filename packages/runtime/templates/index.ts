@@ -1,4 +1,13 @@
 import type { Graph, ProjectUnit } from '@nodarium/types';
+import { substrates, withSubstrate } from './substrate';
+
+export {
+  type Substrate,
+  type SubstrateKind,
+  substrateKinds,
+  substrates,
+  withSubstrate
+} from './substrate';
 
 export type TemplateCategory = 'Plants' | 'Mushrooms';
 
@@ -69,8 +78,17 @@ export const templates: Template[] = [
   mushroom('bitter-bolete', 'Bitter bolete', 'cm', () => import('./bitter-bolete.json'))
 ];
 
-export function loadTemplate(id: string): Promise<Graph> {
+export type LoadTemplateOptions = {
+  /** Puts the mushrooms on the substrate of `substrates[id]`, see `withSubstrate()` */
+  substrate?: boolean;
+};
+
+export async function loadTemplate(id: string, options: LoadTemplateOptions = {}): Promise<Graph> {
   const template = templates.find((t) => t.id === id);
-  if (!template) return Promise.reject(new Error(`Unknown template "${id}"`));
-  return template.load();
+  if (!template) throw new Error(`Unknown template "${id}"`);
+  const graph = await template.load();
+  if (!options.substrate) return graph;
+  const substrate = substrates[id];
+  if (!substrate) throw new Error(`The template "${id}" has no substrate`);
+  return withSubstrate(graph, substrate);
 }
