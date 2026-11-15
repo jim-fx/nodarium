@@ -11,12 +11,9 @@
     graph?: Graph;
     registry: NodeRegistry;
 
-    settings?: Record<string, unknown>;
-
     backgroundType?: 'grid' | 'dots' | 'none';
     snapToGrid?: boolean;
     showHelp?: boolean;
-    settingTypes?: Record<string, unknown>;
     nodeTimings?: Record<number, number>;
     errorNodeId?: number;
 
@@ -30,13 +27,9 @@
     graph,
     registry,
     safePadding,
-    // eslint-disable-next-line no-useless-assignment
-    settings = $bindable(),
     backgroundType = $bindable('grid'),
     snapToGrid = $bindable(true),
     showHelp = $bindable(false),
-    // eslint-disable-next-line no-useless-assignment
-    settingTypes = $bindable(),
     nodeTimings = {},
     errorNodeId,
     onsave,
@@ -70,12 +63,6 @@
       state.edgeEndPosition = null;
       state.activeSocket = null;
     }
-  });
-
-  // only the settings of the loaded graph, the ones of a graph loaded before are dropped
-  manager.on('settings', (_settings) => {
-    settingTypes = _settings.types;
-    settings = _settings.values;
   });
 
   manager.on('result', (result) => onresult?.(result));

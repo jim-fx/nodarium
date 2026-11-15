@@ -449,6 +449,29 @@ describe('groups', () => {
     expect(group?.inputs?.input_0?.value).toBe(0.25);
   });
 
+  it('makes a group node that comes without a group an instance of the first group', () => {
+    const { manager, nodeB } = createChain();
+    const groupNode = manager.groupNodes([nodeB.id]);
+    assert.isDefined(groupNode);
+    const steps = manager.history.history.length;
+
+    const added = manager.createNode({ type: groupNode.type, position: [0, 100], props: {} });
+
+    expect(added?.props).toEqual({ groupId: groupNode.props?.groupId });
+    expect(manager.history.history.length).toBe(steps + 1);
+  });
+
+  it('leaves a group node without a group inside the only group there is', () => {
+    const { manager, nodeB } = createChain();
+    const groupNode = manager.groupNodes([nodeB.id]);
+    assert.isDefined(groupNode);
+    manager.enterGroup(groupNode.id);
+
+    const added = manager.createNode({ type: groupNode.type, position: [0, 100], props: {} });
+
+    expect(added?.props).toEqual({});
+  });
+
   it('should not paste a second group input or output node', () => {
     const { manager, nodeB } = createChain();
     const groupNode = manager.groupNodes([nodeB.id]);

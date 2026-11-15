@@ -199,10 +199,9 @@
 
   async function randomGenerate() {
     if (!manager) return;
-    const g = manager.serialize();
-    const s = { ...graphSettings, seed: Math.floor(Math.random() * 100000000) };
-    graphSettings = s;
-    await handleUpdate(g, s);
+    manager.setSetting('seed', Math.floor(Math.random() * 100000000));
+    // the benchmark waits for this build
+    await handleUpdate(manager.serialize());
   }
 
   let applicationKeymap = createKeyMap([
@@ -236,30 +235,15 @@
     }
   ]);
 
-  let graphSettings = $state<SettingsValue>({});
-  let graphSettingTypes = $state({});
-  const settingPanelTypes = $derived({
-    seed: { type: 'integer', label: 'Seed', value: 0 },
-    ...graphSettingTypes
-  });
-  $effect(() => {
-    if (graphSettings && graphSettingTypes && untrack(() => manager?.status) === 'idle') {
-      manager?.setSettings($state.snapshot(graphSettings));
-    }
-  });
-
   let timeout: ReturnType<typeof setTimeout>;
   const runs = createRepeatGuard();
 
-  async function update(
-    g: Graph,
-    s: Record<string, unknown> = $state.snapshot(graphSettings)
-  ) {
+  async function update(g: Graph) {
     const probed = addProbe(g, graphInterface?.state.activeNodeId ?? -1);
     // loading a graph or pressing R asks for the same run twice, the second would only
     // read the cache and push the time of the real build out of the performance viewer
-    const { nodes, edges, groups } = probed.graph;
-    const runKey = JSON.stringify([nodes, edges, groups, s]);
+    const { nodes, edges, groups, settings = {} } = probed.graph;
+    const runKey = JSON.stringify([nodes, edges, groups, settings]);
     if (runs.isRepeat(runKey)) return;
 
     if (timeout) clearTimeout(timeout);
@@ -269,7 +253,7 @@
     performanceStore.startRun();
     try {
       let a = performance.now();
-      const graphResult = await runtime.execute(probed.graph, s);
+      const graphResult = await runtime.execute(probed.graph, settings);
       let b = performance.now();
 
       if (runtime === workerRuntime) {
@@ -459,8 +443,6 @@
             backgroundType={appSettings.value.nodeInterface.backgroundType}
             snapToGrid={appSettings.value.nodeInterface.snapToGrid}
             bind:showHelp={appSettings.value.nodeInterface.showHelp}
-            bind:settings={graphSettings}
-            bind:settingTypes={graphSettingTypes}
             {nodeTimings}
             {errorNodeId}
             onsave={async (g) => {
@@ -555,11 +537,14 @@
           icon="c-[custom--graph] bg-blue-400"
         >
           <span class="block h-[1px]"></span>
-          <NestedSettings
-            id="graph-settings"
-            type={settingPanelTypes}
-            bind:value={graphSettings}
-          />
+          {#if manager}
+            <NestedSettings
+              id="graph-settings"
+              type={manager.settingTypes}
+              value={manager.settings as SettingsValue}
+              onchange={(key, value) => manager.setSetting(key, value)}
+            />
+          {/if}
           {#key activeNode}
             {#key activeNode?.exposed?.join()}
               <ActiveNodeSettings {manager} node={activeNode} />

@@ -1,5 +1,5 @@
 import type { Graph, NodeDefinition } from '@nodarium/types';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GraphManager } from './graph-manager.svelte';
 import { createMockNodeRegistry } from './test-utils';
 
@@ -27,14 +27,14 @@ function setup() {
   const registry = createMockNodeRegistry([stem, leaf, time]);
   registry.loadCollection = async () => [];
   const manager = new GraphManager(registry);
-  const emitted: { types: string[]; values: Record<string, unknown> }[] = [];
-  manager.on('settings', ({ types, values }) => {
-    emitted.push({ types: Object.keys(types).sort(), values });
-  });
   const saved: Graph[] = [];
   manager.on('save', (graph) => saved.push(graph));
-  return { manager, emitted, saved };
+  const results: Graph[] = [];
+  manager.on('result', (graph) => results.push(graph));
+  return { manager, saved, results };
 }
+
+const types = (manager: GraphManager) => Object.keys(manager.settingTypes).sort();
 
 const mushroom: Graph = {
   id: 1,
@@ -57,51 +57,58 @@ const plant: Graph = {
 
 describe('graph settings', () => {
   it('shows and saves only the settings of the graph loaded last', async () => {
-    const { manager, emitted, saved } = setup();
+    const { manager, saved } = setup();
 
     await manager.load(structuredClone(mushroom));
-    expect(emitted.at(-1)).toEqual({
-      types: ['resolution.curve', 'time.t'],
-      values: { 'time.t': 0.3, 'resolution.curve': 40, seed: 4 }
-    });
+    expect(types(manager)).toEqual(['resolution.curve', 'seed', 'time.t']);
+    expect(manager.settings).toEqual({ 'time.t': 0.3, 'resolution.curve': 40, seed: 4 });
 
     await manager.load(structuredClone(plant));
-    expect(emitted.at(-1)).toEqual({
-      types: ['resolution.curve'],
-      values: { 'resolution.curve': 24 }
-    });
+    expect(types(manager)).toEqual(['resolution.curve', 'seed']);
+    expect(manager.settings).toEqual({ 'resolution.curve': 24, seed: 0 });
 
     manager.flush();
     expect(saved.at(-1)?.id).toBe(2);
-    expect(saved.at(-1)?.settings).toEqual({ 'resolution.curve': 24 });
+    expect(saved.at(-1)?.settings).toEqual({ 'resolution.curve': 24, seed: 0 });
   });
 
   it('fills settings the graph has no values for with the defaults', async () => {
-    const { manager, emitted } = setup();
+    const { manager } = setup();
 
     await manager.load(structuredClone(mushroom));
     await manager.load({ ...structuredClone(plant), settings: undefined });
 
-    expect(emitted.at(-1)?.values).toEqual({ 'resolution.curve': 16 });
+    expect(manager.settings).toEqual({ 'resolution.curve': 16, seed: 0 });
   });
 
-  it('clears the settings while the next graph loads and ignores the old ones', async () => {
-    const { manager, emitted, saved } = setup();
+  it('has no settings while the next graph loads, a value set then is dropped', async () => {
+    const { manager, saved } = setup();
 
     await manager.load(structuredClone(mushroom));
     const loading = manager.load(structuredClone(plant));
-    expect(emitted.at(-1)).toEqual({ types: [], values: {} });
-    manager.setSettings(structuredClone(mushroom.settings!));
+    expect(types(manager)).toEqual([]);
+    expect(manager.settings).toEqual({});
+    manager.setSetting('time.t', 0.9);
+    manager.setSetting('resolution.curve', 40);
     await loading;
 
-    manager.setSettings({ ...mushroom.settings, 'resolution.curve': 24 });
+    expect(manager.settings).toEqual({ 'resolution.curve': 24, seed: 0 });
     manager.flush();
-    expect(manager.serialize().settings).toEqual({ 'resolution.curve': 24, seed: 4 });
     expect(saved.every((g) => g.id !== 2 || !('time.t' in (g.settings ?? {})))).toBe(true);
   });
 
+  it('only takes values for the settings of the graph', async () => {
+    const { manager } = setup();
+
+    await manager.load(structuredClone(plant));
+    manager.setSetting('time.t', 0.9);
+    manager.setSetting('seed', 7);
+
+    expect(manager.serialize().settings).toEqual({ 'resolution.curve': 24, seed: 7 });
+  });
+
   it('collects the settings of nodes inside groups', async () => {
-    const { manager, emitted } = setup();
+    const { manager } = setup();
 
     await manager.load({
       ...structuredClone(plant),
@@ -112,18 +119,125 @@ describe('graph settings', () => {
       }]
     });
 
-    expect(emitted.at(-1)?.types).toEqual(['resolution.curve', 'time.t']);
+    expect(types(manager)).toEqual(['resolution.curve', 'seed', 'time.t']);
   });
 
   it('adds the setting of a node added to the graph', async () => {
-    const { manager, emitted } = setup();
+    const { manager } = setup();
 
     await manager.load(structuredClone(plant));
     manager.createNode({ type: 'test/plant/leaf', position: [0, 30], props: {} });
 
-    expect(emitted.at(-1)).toEqual({
-      types: ['resolution.curve', 'resolution.leaf'],
-      values: { 'resolution.curve': 24, 'resolution.leaf': 96 }
+    expect(types(manager)).toEqual(['resolution.curve', 'resolution.leaf', 'seed']);
+    expect(manager.settings).toEqual({ 'resolution.curve': 24, 'resolution.leaf': 96, seed: 0 });
+  });
+});
+
+describe('a dragged setting', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('builds every value and becomes one undo step and one save', async () => {
+    const { manager, saved, results } = setup();
+    await manager.load(structuredClone(plant));
+    vi.runAllTimers();
+    const steps = manager.history.history.length;
+    const saves = saved.length;
+    const builds = results.length;
+
+    for (const value of [25, 26, 27]) {
+      manager.setSetting('resolution.curve', value);
+      vi.advanceTimersByTime(16);
+    }
+    expect(results.slice(builds).map((g) => g.settings?.['resolution.curve'])).toEqual([
+      25,
+      26,
+      27
+    ]);
+    expect(manager.history.history.length).toBe(steps);
+
+    vi.runAllTimers();
+    expect(manager.history.history.length).toBe(steps + 1);
+    expect(saved.length).toBe(saves + 1);
+  });
+
+  it('does nothing for the value the setting has', async () => {
+    const { manager, saved, results } = setup();
+    await manager.load(structuredClone(plant));
+    vi.runAllTimers();
+    const saves = saved.length;
+    const builds = results.length;
+
+    manager.setSetting('resolution.curve', 24);
+    vi.runAllTimers();
+
+    expect(results.length).toBe(builds);
+    expect(saved.length).toBe(saves);
+  });
+});
+
+describe('undo and redo of a setting', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  async function changed() {
+    const context = setup();
+    await context.manager.load(structuredClone(mushroom));
+    vi.runAllTimers();
+    context.manager.setSetting('time.t', 0.9);
+    vi.runAllTimers();
+    return context;
+  }
+
+  it('brings the value back and builds the graph with it', async () => {
+    const { manager, results, saved } = await changed();
+    expect(results.at(-1)?.settings?.['time.t']).toBe(0.9);
+
+    manager.undo();
+    vi.runAllTimers();
+    expect(manager.settings['time.t']).toBe(0.3);
+    expect(results.at(-1)?.settings).toEqual({ 'time.t': 0.3, 'resolution.curve': 40, seed: 4 });
+    expect(saved.at(-1)?.settings?.['time.t']).toBe(0.3);
+
+    manager.redo();
+    vi.runAllTimers();
+    expect(manager.settings['time.t']).toBe(0.9);
+    expect(results.at(-1)?.settings).toEqual({ 'time.t': 0.9, 'resolution.curve': 40, seed: 4 });
+    expect(saved.at(-1)?.settings?.['time.t']).toBe(0.9);
+  });
+
+  it('is one step, the next undo is the change before it', async () => {
+    const { manager } = await changed();
+    manager.setSetting('seed', 5);
+    vi.runAllTimers();
+
+    manager.undo();
+    expect(manager.settings).toEqual({ 'time.t': 0.9, 'resolution.curve': 40, seed: 4 });
+    manager.undo();
+    expect(manager.settings).toEqual({ 'time.t': 0.3, 'resolution.curve': 40, seed: 4 });
+  });
+
+  it('restores the settings together with the nodes of a step that changed both', async () => {
+    const { manager } = await changed();
+    manager.transaction(() => {
+      manager.createNode({ type: 'test/plant/leaf', position: [0, 30], props: {} });
+      manager.setSetting('time.t', 0.1);
+    });
+    vi.runAllTimers();
+    expect(types(manager)).toEqual(['resolution.curve', 'resolution.leaf', 'seed', 'time.t']);
+
+    manager.undo();
+    expect(manager.nodes.size).toBe(2);
+    expect(types(manager)).toEqual(['resolution.curve', 'seed', 'time.t']);
+    expect(manager.settings).toEqual({ 'time.t': 0.9, 'resolution.curve': 40, seed: 4 });
+
+    manager.redo();
+    expect(manager.nodes.size).toBe(3);
+    expect(manager.settings).toEqual({
+      'time.t': 0.1,
+      'resolution.curve': 40,
+      'resolution.leaf': 96,
+      seed: 4
     });
   });
 });

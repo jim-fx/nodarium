@@ -28,11 +28,10 @@ import type {
   Socket
 } from '@nodarium/types';
 import { toast } from '@nodarium/ui';
-import { fastHashString } from '@nodarium/utils';
 import { createLogger } from '@nodarium/utils';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { ChangeRecorder } from './change-recorder';
-import { collectSettings, pickSettings } from './helpers/collectSettings';
+import { collectSettings } from './helpers/collectSettings';
 import EventEmitter from './helpers/EventEmitter';
 import { toPlain } from './helpers/index.ts';
 import { COLUMN_GAP, layoutGraph, NODE_WIDTH } from './helpers/layoutGraph';
@@ -53,13 +52,14 @@ const remoteRegistry = new RemoteNodeRegistry('');
 
 type Level = { nodes: SerializedNode[]; edges: SerializedEdge[] };
 
+function sameKeys(a: object, b: object) {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => key in b);
+}
+
 export class GraphManager extends EventEmitter<{
   save: Graph;
   result: Graph;
-  settings: {
-    types: Record<string, NodeInput>;
-    values: Record<string, unknown>;
-  };
 }> {
   status = $state<'loading' | 'idle' | 'error'>();
 
@@ -79,7 +79,9 @@ export class GraphManager extends EventEmitter<{
 
   nodeArray = $derived(Array.from(this.nodes.values()));
 
-  settings = $state<Record<string, unknown>>();
+  /** The settings the nodes of the graph declare, and the seed */
+  settingTypes: Record<string, NodeInput> = $state.raw({});
+  settings: Record<string, unknown> = $state({});
 
   inputSockets = $derived.by(() => {
     const s = new SvelteSet<string>();
@@ -227,7 +229,7 @@ export class GraphManager extends EventEmitter<{
     const serialized = {} as Graph;
     if (this.id !== undefined) serialized.id = this.id;
     serialized.version = CURRENT_GRAPH_VERSION;
-    if (this.settings !== undefined) serialized.settings = toPlain(this.settings);
+    serialized.settings = toPlain(this.settings);
     if (this.meta !== undefined) serialized.meta = toPlain(this.meta);
     if (groups !== undefined) serialized.groups = groups;
     serialized.nodes = nodes;
@@ -236,21 +238,14 @@ export class GraphManager extends EventEmitter<{
     return serialized;
   }
 
-  private lastSettingsHash = 0;
-  private settingTypes: Record<string, NodeInput> = {};
-  private settingTypesKey = '';
-
   /** the collections the loaded graph uses, like `max/plantarium` */
   private collections: ReadonlySet<string> = new SvelteSet<string>();
-  setSettings(settings: Record<string, unknown>) {
-    // the panel can still hold the settings of the graph loaded before
-    if (this.status !== 'idle') return;
-    settings = pickSettings(this.settingTypes, settings);
-    const hash = fastHashString(JSON.stringify(settings));
-    if (hash === this.lastSettingsHash) return;
-    this.lastSettingsHash = hash;
 
-    this.settings = settings;
+  /** A value changed in the settings panel */
+  setSetting(key: string, value: unknown) {
+    if (this.status !== 'idle' || !(key in this.settingTypes)) return;
+    if (JSON.stringify(this.settings[key]) === JSON.stringify(value)) return;
+    this.settings[key] = value;
     this.commit({ coalesce: true });
   }
 
@@ -262,28 +257,19 @@ export class GraphManager extends EventEmitter<{
     return types;
   }
 
-  private setSettingTypes(
-    types: Record<string, NodeInput>,
-    values: Record<string, unknown>
-  ) {
-    this.settingTypes = types;
-    this.settingTypesKey = Object.keys(types).sort().join('\n');
-    this.settings = values;
-    this.lastSettingsHash = fastHashString(JSON.stringify(values));
-    this.emit('settings', { types, values });
-  }
-
   /**
    * Only the nodes in the graph declare its settings, not every node of their collections or
    * every node the registry loaded for earlier graphs. Adding or removing a node can change them.
    */
-  private updateSettings(values = this.settings, force = false) {
+  private updateSettings(values = this.settings) {
     const definitions = [...this.usedNodeTypes()].flatMap((type) =>
       this.registry.getNode(type) ?? []
     );
     const { types, values: filled } = collectSettings(definitions, values);
-    if (!force && Object.keys(types).sort().join('\n') === this.settingTypesKey) return;
-    this.setSettingTypes(types, filled);
+    // most changes of the graph leave its settings as they are, the panel keeps its inputs then
+    if (values === this.settings && sameKeys(types, this.settingTypes)) return;
+    this.settingTypes = types;
+    this.settings = filled;
   }
 
   /**
@@ -545,7 +531,8 @@ export class GraphManager extends EventEmitter<{
       return;
     }
 
-    this.setSettingTypes({}, {});
+    this.settingTypes = {};
+    this.settings = {};
     const groups = $state.snapshot(graph.groups ?? []);
     this.meta = graph.meta;
     this.groups = groups;
@@ -606,7 +593,7 @@ export class GraphManager extends EventEmitter<{
     this.heldStep = undefined;
     this.recorder.reset();
     this.openLevel(graph);
-    this.updateSettings(graph.settings, true);
+    this.updateSettings(graph.settings);
     this.recorder.step();
     this.status = 'idle';
     log.log(`Graph loaded in ${performance.now() - a}ms`);
@@ -615,6 +602,12 @@ export class GraphManager extends EventEmitter<{
 
   getNode(id: number) {
     return this.nodes.get(id);
+  }
+
+  /** The groups on the navigation path can't be placed inside themselves */
+  private placeableGroups() {
+    const open = new SvelteSet(this.path.map(e => e.groupId));
+    return this.groups.filter((g) => !open.has(g.id));
   }
 
   getNodeType(node: NodeInstance) {
@@ -665,12 +658,10 @@ export class GraphManager extends EventEmitter<{
       const groupId = node.props?.groupId as number;
       const baseType = this.registry.getNode(node.type);
 
-      // The groups on the navigation path can't be placed inside themselves
-      const activeIds = new SvelteSet(this.path.map(e => e.groupId));
-      let options = this.groups.map((g) => ({
+      let options = this.placeableGroups().map((g) => ({
         value: g.id,
         label: g.name || `Group#${g.id}`
-      })).filter((g) => !activeIds.has(g.value));
+      }));
 
       // Handle if multiple groups have the same name, by adding the groupid
       const groupNames = new SvelteMap<string, number>();
@@ -701,7 +692,6 @@ export class GraphManager extends EventEmitter<{
             'groupId': {
               type: 'select',
               label: '',
-              value: this.groups?.[0]?.id,
               internal: true,
               options
             }
@@ -1350,6 +1340,12 @@ export class GraphManager extends EventEmitter<{
       return;
     }
 
+    // a group node from the add menu comes without a group
+    if (type === GROUP_INSTANCE && props?.groupId === undefined) {
+      const group = this.placeableGroups()[0];
+      if (group) props = { ...props, groupId: group.id };
+    }
+
     const node: NodeInstance = $state({
       id: this.createIdAllocator()(),
       type,
@@ -1451,7 +1447,7 @@ export class GraphManager extends EventEmitter<{
     this.root = { nodes: state.nodes, edges: state.edges };
     this.path = this.pathStillIn(state);
     this.openLevel(this.storedLevel(this.currentGroupId));
-    this.updateSettings();
+    this.updateSettings(state.settings);
   }
 
   /** The longest start of the path whose group instances and groups exist in `state` */
