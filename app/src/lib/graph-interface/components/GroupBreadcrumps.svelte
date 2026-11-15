@@ -14,9 +14,9 @@
     }
   }
 
-  // Intermediate groups: parent stack entries that are groups (not the root graph).
+  // The groups between the root and the open one
   const intermediateGroupIds = $derived(
-    graph.parentStack.flatMap(e => e.id === null ? [] : [e.id])
+    graph.path.slice(0, -1).map((e) => e.groupId)
   );
 </script>
 

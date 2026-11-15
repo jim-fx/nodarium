@@ -508,6 +508,35 @@ describe('groups', () => {
     expect(manager.serialize().groups[0].nodes).toHaveLength(groupNodeCount);
   });
 
+  // The page loads the graph of the project manager, a $state proxy
+  it('should leave the loaded graph as it was', async () => {
+    const { manager: source, nodeB } = createChain();
+    const groupNode = source.groupNodes([nodeB.id]);
+    assert.isDefined(groupNode);
+    const graph = $state(source.serialize());
+    const loaded = $state.snapshot(graph);
+
+    const registry = createMockNodeRegistry([mockFloatOutputNode, mockFloatInputNode]);
+    registry.loadCollection = async () => [];
+    const manager = new GraphManager(registry);
+    await manager.load(graph);
+    expect(manager.getNode(graph.nodes[0].id)).not.toBe(graph.nodes[0]);
+
+    manager.enterGroup(groupNode.id);
+    const inner = manager.nodeArray.find(n => n.type === 'test/node/output');
+    assert.isDefined(inner);
+    inner.props = { value: 3 };
+    manager.commit();
+    manager.exitGroup();
+    manager.getNode(graph.nodes[0].id)!.position = [5, 5];
+    manager.commit({ build: false });
+
+    expect($state.snapshot(graph)).toStrictEqual(loaded);
+    expect(manager.serialize().groups[0].nodes.find(n => n.id === inner.id)?.props).toEqual({
+      value: 3
+    });
+  });
+
   it('should leave a group when undoing to before it existed', () => {
     const { manager, nodeA, nodeB, nodeC } = createChain();
     const groupNode = manager.groupNodes([nodeB.id]);
@@ -517,7 +546,7 @@ describe('groups', () => {
     manager.undo();
 
     expect(manager.isInsideGroup).toBe(false);
-    expect(manager.parentStack).toHaveLength(0);
+    expect(manager.path).toHaveLength(0);
     expect([...manager.nodes.keys()].sort()).toEqual([nodeA.id, nodeB.id, nodeC.id].sort());
     expect(manager.serialize().groups).toHaveLength(0);
   });
@@ -536,7 +565,7 @@ describe('groups', () => {
     manager.undo();
 
     expect(manager.currentGroupId).toBe(inner.props?.groupId);
-    expect(manager.parentStack).toHaveLength(2);
+    expect(manager.path).toHaveLength(2);
     expect([...manager.nodes.values()].map(n => n.type).sort()).toEqual(innerTypes);
 
     manager.exitGroup();

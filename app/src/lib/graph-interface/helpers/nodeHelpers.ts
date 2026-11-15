@@ -1,10 +1,4 @@
-import type {
-  Edge,
-  NodeDefinition,
-  NodeInstance,
-  SerializedEdge,
-  SerializedNode
-} from '@nodarium/types';
+import type { Edge, NodeDefinition, SerializedEdge, SerializedNode } from '@nodarium/types';
 import { GROUP_INPUT } from '@nodarium/types';
 import { toPlain } from './index.ts';
 
@@ -42,7 +36,7 @@ export function getParameterHeight(node: NodeDefinition, inputKey: string) {
   return 50;
 }
 
-export function serializeNode(node: SerializedNode | NodeInstance): SerializedNode {
+export function serializeNode(node: SerializedNode): SerializedNode {
   const serialized: SerializedNode = {
     id: node.id,
     position: toPlain(node.position),

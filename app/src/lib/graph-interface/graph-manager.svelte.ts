@@ -51,6 +51,8 @@ log.mute();
 
 const remoteRegistry = new RemoteNodeRegistry('');
 
+type Level = { nodes: SerializedNode[]; edges: SerializedEdge[] };
+
 export class GraphManager extends EventEmitter<{
   save: Graph;
   result: Graph;
@@ -61,17 +63,13 @@ export class GraphManager extends EventEmitter<{
 }> {
   status = $state<'loading' | 'idle' | 'error'>();
 
-  // Snapshots of parent levels we navigated away from. Empty at root.
-  // Entry i has the saved state of depth i (0 = root graph, 1 = first group, …).
-  parentStack: {
-    id: number | null; // group id of this level, null for the root graph
-    nodes: SerializedNode[];
-    edges: SerializedEdge[];
-    nodeId: number; // group instance node id that was entered to reach the next level
-  }[] = $state([]);
+  /** The group instances entered from the root, empty at the root */
+  path: { groupId: number; nodeId: number }[] = $state([]);
+  currentGroupId = $derived(this.path.at(-1)?.groupId ?? null);
+  isInsideGroup = $derived(this.path.length > 0);
 
-  // ID of the currently active group, or null when at the root graph.
-  currentGroupId = $state<number | null>(null);
+  // The root level while a group is open. A closed group is stored in its GroupDefinition.
+  private root: Level = $state.raw({ nodes: [], edges: [] });
 
   id = $state(0);
   meta = $state<Graph['meta']>({});
@@ -173,19 +171,32 @@ export class GraphManager extends EventEmitter<{
     return this.registry.loadDefinitions?.(nodeIds) ?? this.registry.load(nodeIds);
   }
 
-  // While navigating, a level's newest state is in this.nodes/edges (current level), in its
-  // parentStack snapshot (levels above it), or in its GroupDefinition (every other group).
-  private levelState(groupId: number | null): {
-    nodes: (SerializedNode | NodeInstance)[];
-    edges: (SerializedEdge | Edge)[];
-  } {
-    if (this.currentGroupId === groupId) {
-      return { nodes: [...this.nodes.values()], edges: [...this.edges.values()] };
-    }
-    const stackState = this.parentStack.find((s) => s.id === groupId);
-    if (stackState) return stackState;
-    const group = groupId === null ? undefined : this.getGroup(groupId);
+  /** The open level from the live nodes, every other level from where it is stored */
+  private levelState(groupId: number | null): Level {
+    if (groupId !== this.currentGroupId) return this.storedLevel(groupId);
+    return { nodes: [...this.nodes.values()], edges: this.edges.map(e => serializeEdge(e)) };
+  }
+
+  private storedLevel(groupId: number | null): Level {
+    if (groupId === null) return this.root;
+    const group = this.getGroup(groupId);
     return { nodes: group?.nodes ?? [], edges: group?.edges ?? [] };
+  }
+
+  /** Writes the open level to where it is stored */
+  private storeLevel() {
+    const level = {
+      nodes: [...this.nodes.values()].map(n => serializeNode(n)),
+      edges: this.edges.map(e => serializeEdge(e))
+    };
+    if (this.currentGroupId === null) {
+      this.root = level;
+      return;
+    }
+    const group = this.getGroup(this.currentGroupId);
+    if (!group) return;
+    group.nodes = level.nodes;
+    group.edges = level.edges;
   }
 
   // Recomputed only after the graph changed: the history, the build, the database and the
@@ -478,17 +489,18 @@ export class GraphManager extends EventEmitter<{
       .map((e) => serializeEdge(e));
   }
 
-  private _init(
-    graph: { nodes: SerializedNode[]; edges: SerializedEdge[] }
-  ) {
+  /** Makes the nodes and edges of `level` the open ones, as new instances */
+  private openLevel(level: Level) {
     this.nodes.clear();
-    for (const node of graph.nodes) {
-      const n = $state(node) as NodeInstance;
-      n.state = { type: this.registry.getNode(node.type) };
+    for (const node of level.nodes) {
+      const n: NodeInstance = $state({
+        ...serializeNode(node),
+        state: { type: this.registry.getNode(node.type) }
+      });
       this.nodes.set(n.id, n);
     }
 
-    this.edges = graph.edges.flatMap((edge) => {
+    this.edges = level.edges.flatMap((edge) => {
       const from = this.nodes.get(edge[0]);
       const to = this.nodes.get(edge[2]);
       if (!from || !to) {
@@ -534,9 +546,9 @@ export class GraphManager extends EventEmitter<{
     }
 
     this.setSettingTypes({}, {});
-    graph.groups ??= [];
+    const groups = $state.snapshot(graph.groups ?? []);
     this.meta = graph.meta;
-    this.groups = graph.groups;
+    this.groups = groups;
     this.status = 'loading';
     this.id = graph.id;
 
@@ -550,7 +562,7 @@ export class GraphManager extends EventEmitter<{
         new SvelteSet(
           [
             ...graph.nodes,
-            ...graph.groups.flatMap(g => g.nodes)
+            ...groups.flatMap(g => g.nodes)
           ]
             .filter(n => n && 'type' in n)
             .map((n) => n.type)
@@ -589,12 +601,11 @@ export class GraphManager extends EventEmitter<{
 
     log.info('loaded node types', this.registry.getAllNodes());
 
-    this.parentStack = [];
-    this.currentGroupId = null;
+    this.path = [];
 
     this.heldStep = undefined;
     this.recorder.reset();
-    this._init(graph);
+    this.openLevel(graph);
     this.updateSettings(graph.settings, true);
     this.recorder.step();
     this.status = 'idle';
@@ -655,7 +666,7 @@ export class GraphManager extends EventEmitter<{
       const baseType = this.registry.getNode(node.type);
 
       // The groups on the navigation path can't be placed inside themselves
-      const activeIds = new SvelteSet([...this.parentStack.map(e => e.id), this.currentGroupId]);
+      const activeIds = new SvelteSet(this.path.map(e => e.groupId));
       let options = this.groups.map((g) => ({
         value: g.id,
         label: g.name || `Group#${g.id}`
@@ -927,16 +938,17 @@ export class GraphManager extends EventEmitter<{
     for (const edge of this.edges.filter(e => groupIdOf(e[2]) === groupId && e[3] === key)) {
       this.removeEdge(edge);
     }
-    for (const level of [...this.parentStack, ...this.groups]) {
-      level.edges = level.edges.filter(e =>
+    const withoutInput = (level: Level) =>
+      level.edges.filter(e =>
         !(e[3] === key && groupIdOf(level.nodes.find(n => n.id === e[2])) === groupId)
       );
+    if (this.isInsideGroup) this.root = { ...this.root, edges: withoutInput(this.root) };
+    for (const level of this.groups) {
+      if (level.id !== this.currentGroupId) level.edges = withoutInput(level);
     }
 
     this.commit();
   }
-
-  isInsideGroup = $derived(this.currentGroupId !== null);
 
   enterGroup(nodeId: number): boolean {
     const groupNode = this.getNode(nodeId);
@@ -948,48 +960,34 @@ export class GraphManager extends EventEmitter<{
     const group = this.getGroup(groupId);
     if (!group) return false;
 
-    // Snapshot current level and push it onto the parent stack.
-    this.parentStack.push({
-      id: this.currentGroupId,
-      nodes: [...this.nodes.values()].map(n => serializeNode(n)),
-      edges: [...this.edges.values()].map(e => serializeEdge(e)),
-      nodeId
-    });
-    this.currentGroupId = groupId;
-
-    log.log('entered group', { groupId, depth: this.parentStack.length });
-    this._init(group);
+    this.storeLevel();
+    this.path.push({ groupId, nodeId });
+    log.log('entered group', { groupId, depth: this.path.length });
+    this.openLevel(group);
     return true;
   }
 
   exitGroup() {
-    log.log('exiting group', { depth: this.parentStack.length });
-    if (this.parentStack.length === 0) return;
+    log.log('exiting group', { depth: this.path.length });
+    const entry = this.path.at(-1);
+    if (!entry) return;
 
-    // Persist live edits back to the GroupDefinition.
-    const group = this.getGroup(this.currentGroupId!);
-    if (group) {
-      group.nodes = [...this.nodes.values()].map(n => serializeNode(n));
-      group.edges = [...this.edges.values()].map(e => serializeEdge(e));
-    }
-
-    const parent = this.parentStack.pop()!;
-    this.currentGroupId = parent.id;
-    this._init(parent);
+    this.storeLevel();
+    this.path.pop();
+    this.openLevel(this.storedLevel(this.currentGroupId));
     this.commit();
 
-    return { nodeId: parent.nodeId };
+    return { nodeId: entry.nodeId };
   }
 
-  // Returns a function that hands out unused IDs. IDs are kept unique across
-  // all levels (including the parent levels we navigated away from) and the
+  // Returns a function that hands out unused IDs. IDs are kept unique across all levels and the
   // group IDs, so a node can't be mistaken for one of another level.
   private createIdAllocator() {
     const usedIds = new SvelteSet<number>([
       ...this.nodes.keys(),
-      ...this.parentStack.flatMap(s => s.nodes.map(n => n.id)),
+      ...(this.isInsideGroup ? this.root.nodes.map(n => n.id) : []),
       ...this.groups.map(g => g.id),
-      ...this.groups.flatMap(g => g.nodes.map(n => n.id))
+      ...this.groups.flatMap(g => g.id === this.currentGroupId ? [] : g.nodes.map(n => n.id))
     ]);
     return () => {
       let id = 0;
@@ -1176,7 +1174,7 @@ export class GraphManager extends EventEmitter<{
       inputs: inputs,
       outputs: outputs,
       edges: internalEdges,
-      nodes: [groupInputNode, ...nodes, groupOutputNode]
+      nodes: [groupInputNode, ...nodes, groupOutputNode].map(n => serializeNode(n))
     };
 
     // Push before createNode so the id allocator inside sees the allocated IDs.
@@ -1445,31 +1443,29 @@ export class GraphManager extends EventEmitter<{
     this.commit();
   }
 
-  // History entries are full graphs (see serialize()) and one history spans all
-  // levels. The parent snapshots are refreshed from the restored graph, and if
-  // a group on the navigation path doesn't exist in it (e.g. undoing the
-  // grouping) we end up at the deepest level that still does.
+  // History entries are full graphs (see serialize()) and one history spans all levels. If a
+  // group on the path doesn't exist in the restored graph (e.g. undoing the grouping) we end up
+  // at the deepest level that still does.
   private restoreState(state: Graph) {
     this.groups = state.groups ?? [];
+    this.root = { nodes: state.nodes, edges: state.edges };
+    this.path = this.pathStillIn(state);
+    this.openLevel(this.storedLevel(this.currentGroupId));
+    this.updateSettings();
+  }
 
-    // group ids of the levels below the root, the last one is the current group
-    const path = [...this.parentStack.slice(1).map(e => e.id!), this.currentGroupId!];
-    let level: { nodes: SerializedNode[]; edges: SerializedEdge[] } = state;
-    let depth = 0;
-    for (; depth < this.parentStack.length; depth++) {
-      const entry = this.parentStack[depth];
-      const group = this.getGroup(path[depth]);
+  /** The longest start of the path whose group instances and groups exist in `state` */
+  private pathStillIn(state: Graph) {
+    let level: Level = state;
+    const path: typeof this.path = [];
+    for (const entry of this.path) {
+      const group = this.getGroup(entry.groupId);
       const instance = level.nodes.find(n => n.id === entry.nodeId);
       if (!group || instance?.props?.groupId !== group.id) break;
-      entry.nodes = level.nodes.map(n => serializeNode(n));
-      entry.edges = level.edges.map(e => serializeEdge(e));
+      path.push({ ...entry });
       level = group;
     }
-
-    this.parentStack = this.parentStack.slice(0, depth);
-    this.currentGroupId = depth === 0 ? null : path[depth - 1];
-    this._init(level);
-    this.updateSettings();
+    return path;
   }
 
   undo() {
