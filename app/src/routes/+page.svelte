@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { colors } from '#lib/graph-interface/graph/colors.svelte.ts';
   import GraphInterface from '#lib/graph-interface/index.ts';
   import type { GraphOptions } from '#lib/graph-interface/options.ts';
   import * as templates from '#lib/graph-templates/index.ts';
@@ -9,6 +8,7 @@
   import { localState } from '#lib/helpers/localState.svelte.ts';
   import { groupNode } from '#lib/node-registry/groupNode.ts';
   import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
+  import { colors } from '#lib/theme/colors.svelte.ts';
 
   import PerformanceViewer from '#lib/performance/PerformanceViewer.svelte';
   import { createRepeatGuard } from '#lib/performance/run-values.ts';

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { colors } from '#lib/graph-interface/graph/colors.svelte.ts';
+  import { colors } from '#lib/theme/colors.svelte.ts';
   import { unitSettings } from '@nodarium/ui';
   import { T, useTask, useThrelte } from '@threlte/core';
   import { Environment, Grid } from '@threlte/extras';

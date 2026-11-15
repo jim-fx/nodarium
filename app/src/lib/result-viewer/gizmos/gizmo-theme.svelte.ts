@@ -1,5 +1,5 @@
-import { colors } from '#lib/graph-interface/graph/colors.svelte.ts';
 import { appSettings } from '#lib/settings/app-settings.svelte.ts';
+import { colors } from '#lib/theme/colors.svelte.ts';
 import { Color, SRGBColorSpace } from 'three';
 
 /** `colors` holds the CSS values as they are, the materials of three.js want its working color space */
