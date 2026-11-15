@@ -1,5 +1,5 @@
 import { debugNode, expandGroups } from '@nodarium/runtime';
-import type { Graph, NodeDefinition, NodeId } from '@nodarium/types';
+import type { Graph, NodeDefinition, NodeId, NodeInstance } from '@nodarium/types';
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GraphManager } from './graph-manager.svelte';
 import { getNodeHeight } from './helpers/nodeHelpers';
@@ -1374,6 +1374,79 @@ describe('a change made of several changes', () => {
     expect(newSteps()).toBe(1);
     manager.undo();
     expect(manager.serialize().nodes[0].props).toEqual({});
+  });
+
+  describe('a held undo step that never ends, e.g. the gizmo unmounted mid-drag', () => {
+    function drag(manager: GraphManager, node: NodeInstance, values: number[]) {
+      for (const value of values) {
+        node.props = { value };
+        manager.commit();
+      }
+    }
+
+    it('is ended by the next one, both become a step', () => {
+      const { manager, nodes: [a], newSteps } = setup();
+
+      manager.beginUndoStep();
+      drag(manager, a, [2, 3]);
+      manager.beginUndoStep();
+      expect(newSteps()).toBe(1);
+      drag(manager, a, [4, 5]);
+      manager.endUndoStep();
+      expect(newSteps()).toBe(2);
+
+      a.props = { value: 6 };
+      manager.commit();
+      expect(newSteps()).toBe(3);
+      manager.undo();
+      manager.undo();
+      expect(manager.serialize().nodes[0].props).toEqual({ value: 3 });
+    });
+
+    it('is ended by undo, which takes it back', () => {
+      const { manager, nodes: [a], newSteps } = setup();
+
+      manager.beginUndoStep();
+      drag(manager, a, [2, 3]);
+      manager.undo();
+
+      expect(manager.serialize().nodes[0].props).toEqual({});
+      manager.redo();
+      expect(manager.serialize().nodes[0].props).toEqual({ value: 3 });
+      const steps = newSteps();
+      manager.getNode(a.id)!.props = { value: 4 };
+      manager.commit();
+      expect(newSteps()).toBe(steps + 1);
+    });
+
+    it('is ended by flush(), so the page saves it before it closes', () => {
+      const { manager, nodes: [a], newSteps } = setup();
+      const saves: Graph[] = [];
+      manager.on('save', (graph) => saves.push(graph));
+
+      manager.beginUndoStep();
+      drag(manager, a, [2]);
+      manager.flush();
+
+      expect(newSteps()).toBe(1);
+      expect(saves.at(-1)?.nodes[0].props).toEqual({ value: 2 });
+    });
+
+    it('is dropped by load(), the new graph records its steps', async () => {
+      const { manager, nodes: [a] } = setup();
+      manager.beginUndoStep();
+      drag(manager, a, [2]);
+
+      vi.useRealTimers();
+      await manager.load(manager.serialize());
+      vi.useFakeTimers();
+      const steps = manager.history.history.length;
+      const node = manager.nodeArray[0];
+      node.props = { value: 7 };
+      manager.commit();
+
+      expect(manager.history.history.length).toBe(steps + 1);
+    });
   });
 
   it('entering a group asks for no build, leaving it does', () => {

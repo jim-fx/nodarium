@@ -115,8 +115,8 @@ export class GraphManager extends EventEmitter<{
   // The changes of the running transactions, recorded once the outermost one ends
   private transactionDepth = 0;
   private pendingChange: { build: boolean; coalesce: boolean } | undefined;
-  private heldStepDepth = 0;
-  private heldStepChanged = false;
+  // Not a counter: an end that never came (the gizmo unmounted mid-drag) must not hold every later step
+  private heldStep: { changed: boolean } | undefined;
 
   /** The graph changed. `build: false` for changes the result doesn't depend on, like a position. */
   commit({ build = true, coalesce = false } = {}) {
@@ -127,7 +127,7 @@ export class GraphManager extends EventEmitter<{
       };
       return;
     }
-    if (this.heldStepDepth > 0) this.heldStepChanged = true;
+    if (this.heldStep) this.heldStep.changed = true;
     else if (coalesce) this.recorder.coalesce();
     else this.recorder.step();
     if (build) this.execute();
@@ -148,17 +148,20 @@ export class GraphManager extends EventEmitter<{
     }
   }
 
-  /** A change that takes time, like a drag in the viewer: it builds on the way, the undo step waits for the end */
+  /**
+   * A change that takes time, like a drag in the viewer: it builds on the way, the undo step waits
+   * for the end. A new begin, undo, redo, flush() and load() end a step that is still held.
+   */
   beginUndoStep() {
-    this.heldStepDepth++;
+    this.endUndoStep();
+    this.heldStep = { changed: false };
   }
 
   endUndoStep() {
-    if (this.heldStepDepth === 0) return;
-    this.heldStepDepth--;
-    if (this.heldStepDepth > 0 || !this.heldStepChanged) return;
-    this.heldStepChanged = false;
-    this.recorder.step();
+    const held = this.heldStep;
+    if (!held) return;
+    this.heldStep = undefined;
+    if (held.changed) this.recorder.step();
   }
 
   constructor(public registry: NodeRegistry) {
@@ -589,6 +592,7 @@ export class GraphManager extends EventEmitter<{
     this.parentStack = [];
     this.currentGroupId = null;
 
+    this.heldStep = undefined;
     this.recorder.reset();
     this._init(graph);
     this.updateSettings(graph.settings, true);
@@ -1470,11 +1474,13 @@ export class GraphManager extends EventEmitter<{
 
   undo() {
     log.log('undo');
+    this.endUndoStep();
     this.restore(this.recorder.undo());
   }
 
   redo() {
     log.log('redo');
+    this.endUndoStep();
     this.restore(this.recorder.redo());
   }
 
@@ -1487,6 +1493,7 @@ export class GraphManager extends EventEmitter<{
 
   /** Adds the pending undo step and saves the graph right away, e.g. before the page is closed */
   flush() {
+    this.endUndoStep();
     this.recorder.flush();
   }
 
