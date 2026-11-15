@@ -2498,7 +2498,7 @@
       "props": {
         "groupId": 39,
         "ring_button": 0.9,
-        "ring_open": 0.88,
+        "ring_open": 0.75,
         "color": [
           246,
           243,
@@ -2711,8 +2711,8 @@
       "position": [-180, 160],
       "type": "max/plantarium/random",
       "props": {
-        "min": 0.82,
-        "max": 0.92,
+        "min": 0.72,
+        "max": 0.78,
         "once": 1
       }
     },
