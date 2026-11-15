@@ -1,7 +1,6 @@
-import { GraphManager } from '#lib/graph-interface/graph-manager.svelte.ts';
-import { createMockNodeRegistry } from '#lib/graph-interface/test-utils.ts';
+import { GraphManager } from '#lib/graph-interface/index.ts';
 import { CURRENT_GRAPH_VERSION } from '@nodarium/runtime';
-import type { Graph, NodeDefinition } from '@nodarium/types';
+import type { Graph, NodeDefinition, NodeRegistry } from '@nodarium/types';
 import { flushSync } from 'svelte';
 import { assert, describe, expect, it } from 'vitest';
 import ActiveNodeSettings from './ActiveNodeSettings.svelte';
@@ -19,6 +18,14 @@ const random = {
   execute: () => new Int32Array()
 } as unknown as NodeDefinition;
 
+const registry: NodeRegistry = {
+  status: 'ready',
+  load: async () => [random],
+  getNode: (id) => (id === random.id ? random : undefined),
+  getAllNodes: () => [random],
+  register: async () => random
+};
+
 const graph: Graph = {
   id: 1,
   version: CURRENT_GRAPH_VERSION,
@@ -29,7 +36,6 @@ const graph: Graph = {
 
 async function setup() {
   const { render } = await import('vitest-browser-svelte');
-  const registry = createMockNodeRegistry([random]);
   const manager = new GraphManager(registry);
   await manager.load(structuredClone(graph));
   const rest = () => {

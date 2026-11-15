@@ -1,5 +1,5 @@
 <script lang="ts">
-  import NodeHTML from '#lib/graph-interface/node/NodeHTML.svelte';
+  import { NodePreview } from '#lib/graph-interface/index.ts';
   import Grid from '#lib/grid/index.ts';
   import { localState } from '#lib/helpers/localState.svelte.ts';
   import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
@@ -71,7 +71,7 @@
 
 <div class="node-wrapper absolute bottom-8 left-8">
   {#if nodeInstance}
-    <NodeHTML inView position="relative" z={5} bind:node={nodeInstance} />
+    <NodePreview inView position="relative" z={5} bind:node={nodeInstance} />
   {/if}
 </div>
 

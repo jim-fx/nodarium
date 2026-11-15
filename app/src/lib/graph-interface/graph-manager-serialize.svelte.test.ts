@@ -1,4 +1,5 @@
 import { CURRENT_GRAPH_VERSION } from '@nodarium/runtime';
+import { templates } from '@nodarium/runtime/templates';
 import type { Graph, NodeDefinition, NodeInstance, SerializedNode } from '@nodarium/types';
 import { GROUP_INSTANCE } from '@nodarium/types';
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,13 +7,6 @@ import { GraphManager } from './graph-manager.svelte';
 import { serializeEdge } from './helpers/nodeHelpers';
 import { createMockNodeRegistry, mockFloatInputNode, mockFloatOutputNode } from './test-utils';
 
-const templates = {
-  ...import.meta.glob<Graph>('../graph-templates/*.json', { eager: true, import: 'default' }),
-  ...import.meta.glob<Graph>('../../../../packages/runtime/templates/*.json', {
-    eager: true,
-    import: 'default'
-  })
-};
 const definitions = Object.values(
   import.meta.glob<NodeDefinition>('../../../../nodes/*/*/*/src/definition.json', {
     eager: true,
@@ -66,8 +60,8 @@ async function loadTemplate(graph: Graph) {
 }
 
 describe('serialize', () => {
-  it.each(Object.entries(templates))('gives the same graph as before for %s', async (_, graph) => {
-    const manager = await loadTemplate(graph);
+  it.each(templates)('gives the same graph as before for $id', async ({ load }) => {
+    const manager = await loadTemplate(await load());
     expect(manager.status).toBe('idle');
     manager.muteNode(manager.nodeArray[0].id);
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import NodeHtml from '#lib/graph-interface/node/NodeHTML.svelte';
+  import { NodePreview } from '#lib/graph-interface/index.ts';
   import type { NodeDefinition, NodeId, NodeInstance } from '@nodarium/types';
   import { onMount } from 'svelte';
 
@@ -52,7 +52,7 @@
     ondragstart={handleDragStart}
   >
     {#if nodeData}
-      <NodeHtml bind:node={nodeData} inView={true} position="relative" z={5} />
+      <NodePreview bind:node={nodeData} inView={true} position="relative" z={5} />
     {/if}
   </div>
 </div>

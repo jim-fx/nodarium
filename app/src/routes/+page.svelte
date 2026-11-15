@@ -1,6 +1,5 @@
 <script lang="ts">
-  import GraphInterface from '#lib/graph-interface/index.ts';
-  import type { GraphOptions } from '#lib/graph-interface/options.ts';
+  import GraphInterface, { type GraphOptions } from '#lib/graph-interface/index.ts';
   import * as templates from '#lib/graph-templates/index.ts';
   import Grid from '#lib/grid/index.ts';
   import { debounceAsyncFunction } from '#lib/helpers/index.ts';
