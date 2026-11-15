@@ -1,3 +1,142 @@
+# v1.0.0 (2026-11-15)
+
+The first stable release. From now on Nodarium follows SemVer: a major version for breaking changes to the graph format or the `@nodarium/runtime` API, a minor version for features, a patch version for fixes.
+
+## Features
+
+- Leaves grown from their veins: `leaf_surface` meshes a leaf blade along a vein tree, with the triangles running from vein to vein (#72, #302, #303).
+- `leaf_surface` can colour the blade by its veins with the new `alpha` vein (#308), cut the margin as a share of a vein's reach (#305), and build several leaf variants from one vein graph (#306).
+- New Plantarium nodes:
+  - `wave`, a generic float node (#301);
+  - `deform`, which bends, curls and twists a geometry (#307);
+  - `stem.fan`, which fans stems out in a plane (#309).
+- `instance_from_points` picks among a list of geometries, like `instance` does.
+- The plant templates have colours. Paths can carry a colour at every point, and geometry can carry vertex colours (#286).
+- Substrates for mushrooms to grow on: the `mesh` and `sample_mesh` nodes, the Hallimasch, and the toxic twins of the diary mushrooms (#287, #288, #289).
+- `@nodarium/runtime/templates` ships the templates of the app, and every push to `main` publishes `@nodarium/runtime@dev` (#292).
+- Nodarium is licensed under MIT.
+
+## Templates
+
+- The sapling grows birch vein leaves (#310).
+- The decurrent gills of the chanterelle sink into the stipe, and its stem fills its gaps (#355).
+
+## Performance
+
+- The runtime releases wasm instances the graph no longer needs, once they hold more than 32 MB (#335).
+- Slow builds are held while a slider is dragged, and run when it rests or is released (#334).
+- Template previews are pre-rendered, and a placeholder is shown when one fails (#336, #343).
+- Hidden meshes over 1 MB are freed, and the viewer keeps a leaner vertex (#338).
+- The runtime cache keeps its entries by the time they save per byte (#337).
+- Node definitions are read from the collection listing, so no wasm runs on the main thread (#339).
+- The environment map loads only while the Plant material is active (#340).
+- A drag is one undo step, and the graph is serialised once per change (#341).
+- Faster nodes:
+  - `leaf_surface` works out the blade only near the margin (#304);
+  - `random` remembers its draws per seed (#314);
+  - `hyphae_to_mesh` and `splat_closed` use simd128 and run optimised code from the first build (#312, #313, #317);
+  - distance transforms run only where the grid has blocks (#315);
+  - `avoid` finds contacts on resampled stems (#316);
+  - `set_mesh_color` paints the mesh in place (#318).
+
+## Fixes
+
+- Undo history stays consistent past `maxHistory` (#342), and redo at the newest state does nothing (#345).
+- The title bar stays readable on narrow screens (#356).
+- A lone path in `hyphae_to_mesh` keeps its radius at any fill (#240).
+- The templates build without the dts plugin.
+- `GraphVersionError` names the graph's version and the highest version the runtime knows.
+
+---
+
+- [3ece2273](https://git.max-richter.dev/max/nodarium/commit/3ece2273b6ab9c7da10af535e41054dc188ddf5d) Merge pull request 'fix(app): keep title bar entries readable on narrow screens' (#359) from fix/356-title-bar-narrow into main
+- [b542d2cc](https://git.max-richter.dev/max/nodarium/commit/b542d2cc207b7f0e9e068934777325159e4ee32b) fix(app): let the title bar project name shrink explicitly
+- [b9694eba](https://git.max-richter.dev/max/nodarium/commit/b9694ebace7c7f4097e29faecdbb7016a5714a22) fix(app): keep title bar entries readable on narrow screens
+- [ce9b5af6](https://git.max-richter.dev/max/nodarium/commit/ce9b5af69b4a5c5c632db1b26601d48f4cf97d0e) Merge pull request 'perf(graph-interface): one undo step per drag, serialize once per change' (#358) from perf/341-serialize-once into main
+- [648bb741](https://git.max-richter.dev/max/nodarium/commit/648bb7415b4f5060e2e3545999df20b65c798bf9) test(graph-interface): run the walk count test only with the client build of Svelte
+- [ace50287](https://git.max-richter.dev/max/nodarium/commit/ace50287ac1411e1fcee1587a412d7f7a4289339) perf(graph-interface): one undo step per drag, serialize once per change
+- [f48a099b](https://git.max-richter.dev/max/nodarium/commit/f48a099ba59c2580525fa97bf0987dfc491cd6e8) Merge pull request 'fix(myzel): decurrent gills sink into the stipe, chanterelle stem fills its gaps' (#357) from fix/355-chanterelle-stem into main
+- [16e1c4cc](https://git.max-richter.dev/max/nodarium/commit/16e1c4cc6f78c68ebbaf6a6fb22be0e2c88ffe73) fix(myzel): decurrent gills sink into the stipe, chanterelle stem fills its gaps
+- [f35cbda4](https://git.max-richter.dev/max/nodarium/commit/f35cbda47523e89f182712d385d6322fc6a907d1) Merge pull request 'perf(app): load the environment map only while the Plant material is active' (#353) from perf/340-lazy-env-map into main
+- [0d73c631](https://git.max-richter.dev/max/nodarium/commit/0d73c631811711e71d576f9338cba81c8c1a7f01) Merge pull request 'test(runtime): fake the clock in the big quick result cache test' (#354) from fix/flaky-cache-cost-test into main
+- [9d247461](https://git.max-richter.dev/max/nodarium/commit/9d247461150533427d1aea493150fa54209c7001) test(runtime): fake the clock in the big quick result cache test
+- [ff205e62](https://git.max-richter.dev/max/nodarium/commit/ff205e622f35073c37cfee4ab4359a84804c8e27) perf(app): load the environment map only while the Plant material is active
+- [26a4eff5](https://git.max-richter.dev/max/nodarium/commit/26a4eff5534aaa58101757557b3592c542ec54b5) Merge pull request 'perf(app): read node definitions from the collection listing, no wasm on the main thread' (#352) from perf/339-definitions-json into main
+- [04644e12](https://git.max-richter.dev/max/nodarium/commit/04644e129a8e498ec63a134cc72379ce25762594) perf(app): read node definitions from the collection listing, no wasm on the main thread
+- [381b5ece](https://git.max-richter.dev/max/nodarium/commit/381b5ecef44f18904707cc7ceb2e7f02461d6491) Merge pull request 'perf(runtime): keep cache entries by the time they save per byte' (#351) from perf/337-cache-by-cost into main
+- [a1a0391c](https://git.max-richter.dev/max/nodarium/commit/a1a0391c96cfdcf1db1412d1f5e17ee7f0f499c9) perf(runtime): keep cache entries by the time they save per byte
+- [e32bb463](https://git.max-richter.dev/max/nodarium/commit/e32bb4630553c1d92faed36e166f5f5a04955cce) Merge pull request 'perf(app): free hidden meshes over 1 MB and keep a leaner vertex in the viewer' (#350) from perf/338-viewer-memory into main
+- [9a58ef18](https://git.max-richter.dev/max/nodarium/commit/9a58ef18c154d75eed3145712493830c234bd649) perf(app): free hidden meshes over 1 MB and keep a leaner vertex in the viewer
+- [d9d9999e](https://git.max-richter.dev/max/nodarium/commit/d9d9999ee21e783ec9350000bf0e026ebd79f8da) Merge pull request 'perf(app): ship pre-rendered template previews, show a placeholder when one fails' (#349) from perf/336-template-previews into main
+- [2b8d4d7c](https://git.max-richter.dev/max/nodarium/commit/2b8d4d7cf703c1d62238e5e3fa1cb44612f0d1f1) perf(app): ship pre-rendered template previews, show a placeholder when one fails
+- [4a1b7042](https://git.max-richter.dev/max/nodarium/commit/4a1b70426ba32dde5e3e0bce34bc26399833ef4b) Merge pull request 'perf(app): hold slow builds while a slider is dragged' (#348) from perf/334-hold-drag-builds into main
+- [24f32ef6](https://git.max-richter.dev/max/nodarium/commit/24f32ef683e4278041a9479e66c2ad52fe336e47) perf(app): hold slow builds while a slider is dragged
+- [d47ca858](https://git.max-richter.dev/max/nodarium/commit/d47ca858feac028a0fedf67e956f0fccb6305789) Merge pull request 'perf(runtime): release wasm instances the graph doesn't need' (#347) from perf/335-release-instances into main
+- [dbf31ff0](https://git.max-richter.dev/max/nodarium/commit/dbf31ff06165fc113d0754aea1557546819b5b52) fix(runtime): release instances only after the last overlapping run
+- [d2db092b](https://git.max-richter.dev/max/nodarium/commit/d2db092ba9d132ca1123d0c083cef3360673e688) perf(runtime): release wasm instances the graph doesn't need
+- [000774c7](https://git.max-richter.dev/max/nodarium/commit/000774c7c3fd6dd9e5aed65db62e9a90f6345c6b) Merge pull request 'fix(graph-interface): redo at the newest state does nothing' (#346) from fix/345-redo-newest into main
+- [1283b6ae](https://git.max-richter.dev/max/nodarium/commit/1283b6ae4591640b6194391aad68a8c085638b95) fix(graph-interface): redo at the newest state does nothing
+- [9165387c](https://git.max-richter.dev/max/nodarium/commit/9165387c2562102879e0482dd04cb4c37c5711c9) Merge pull request 'fix(graph-interface): keep undo history consistent past maxHistory' (#344) from fix/342-undo-history into main
+- [7ec0e1d1](https://git.max-richter.dev/max/nodarium/commit/7ec0e1d1728c4ae8da8f4f2beea7e1750cce1c49) fix(graph-interface): keep undo history consistent past maxHistory
+- [039990f1](https://git.max-richter.dev/max/nodarium/commit/039990f1a4937ec04ac9206c57f2c3e82d81d802) Merge pull request 'feat(templates): sapling grows birch vein leaves' (#333) from feat/310-vein-leaf-templates into main
+- [7d10935b](https://git.max-richter.dev/max/nodarium/commit/7d10935b51ec2baa7c165bf890ceb8797b12f5a2) feat(templates): sapling grows birch vein leaves
+- [ae34545a](https://git.max-richter.dev/max/nodarium/commit/ae34545acef0612dc6f678b2c07bc1f857158185) Merge pull request 'perf(myzel): set_mesh_color paints the mesh where it is' (#332) from perf/318-paint-in-place into main
+- [6dc6dbbe](https://git.max-richter.dev/max/nodarium/commit/6dc6dbbe1d7c44d86a16ef954a0e969b8b3e6b41) perf(myzel): set_mesh_color paints the mesh where it is
+- [5768e29b](https://git.max-richter.dev/max/nodarium/commit/5768e29b32349bcd2b83514f1baefff842679044) Merge pull request 'feat(plantarium): stem fans its stems out in a plane' (#331) from feat/309-fan into main
+- [5a18da4b](https://git.max-richter.dev/max/nodarium/commit/5a18da4bf1f4356289674d806a8ba5e796db798c) feat(plantarium): stem fans its stems out in a plane
+- [1e40f7a6](https://git.max-richter.dev/max/nodarium/commit/1e40f7a6615636425fb4798c970c13f0fa577696) Merge pull request 'perf(myzel): distance transforms only where the grid has blocks' (#330) from perf/315-blur-transforms into main
+- [8272f157](https://git.max-richter.dev/max/nodarium/commit/8272f157161b3405f5e84859785d57049b00aa1d) perf(myzel): distance transforms only where the grid has blocks
+- [2bebea6d](https://git.max-richter.dev/max/nodarium/commit/2bebea6d9effa271245fa4ee5a0a628675620f82) Merge pull request 'feat(plantarium): deform bends, curls and twists a geometry' (#329) from feat/307-deform into main
+- [7b6a77c6](https://git.max-richter.dev/max/nodarium/commit/7b6a77c6a6395958712fc50c6d6e7c1a31de354d) feat(plantarium): deform bends, curls and twists a geometry
+- [a8bbf891](https://git.max-richter.dev/max/nodarium/commit/a8bbf89189e2e8f801aba054fdfab48a59384025) Merge pull request 'perf(plantarium): avoid finds contacts on stems resampled to half the radius' (#328) from perf/316-avoid-contacts into main
+- [3cf96dfd](https://git.max-richter.dev/max/nodarium/commit/3cf96dfd5e9768f9a61db728dcc6085a7d5314b6) perf(plantarium): avoid finds contacts on stems resampled to half the radius
+- [74291507](https://git.max-richter.dev/max/nodarium/commit/742915073e4dd370b4e6ac727722e851453bdb9b) Merge pull request 'feat(plantarium): leaf variants from one vein graph' (#327) from feat/306-leaf-variants into main
+- [1b8d0e1d](https://git.max-richter.dev/max/nodarium/commit/1b8d0e1d6de55d6426745397acc334c42ee4290f) feat(plantarium): leaf variants from one vein graph
+- [3969f497](https://git.max-richter.dev/max/nodarium/commit/3969f4974eb63da52e8e20be3b8002c81f350db9) Merge pull request 'perf(myzel): splat_closed measures tubes and samples four at a time with simd128' (#326) from perf/313-simd-splat into main
+- [231cd922](https://git.max-richter.dev/max/nodarium/commit/231cd9222c152c10d71865d2832ff3615bd936bf) perf(myzel): splat_closed measures tubes and samples four at a time with simd128
+- [ffbd55ea](https://git.max-richter.dev/max/nodarium/commit/ffbd55ea20746cc6b47b8041650a7df3c7f8ea25) Merge pull request 'feat(plantarium): leaf_surface colours the blade by its veins' (#325) from feat/308-vein-colour into main
+- [57b96035](https://git.max-richter.dev/max/nodarium/commit/57b960353e16e229cba536e1f2c5c220c92681fc) feat(plantarium): leaf_surface colours the blade by its veins
+- [3f9537b9](https://git.max-richter.dev/max/nodarium/commit/3f9537b95ce073a43fd2e34bc7e38153c2027772) Merge pull request 'perf(myzel): hyphae_to_mesh calls the bodies of its long loops so the first build runs optimized code' (#324) from perf/312-first-build-loops into main
+- [028310fb](https://git.max-richter.dev/max/nodarium/commit/028310fbd104bd5308af1c090da87fb540a3f9c4) perf(myzel): hyphae_to_mesh calls the bodies of its long loops so the first build runs optimized code
+- [a3dcb5b7](https://git.max-richter.dev/max/nodarium/commit/a3dcb5b708005e88e15d569af6f661f28eeadea7) Merge pull request 'feat(plantarium): margin cuts a share of the vein's reach' (#323) from feat/305-vein-reach into main
+- [2f789282](https://git.max-richter.dev/max/nodarium/commit/2f789282255854d6762aa116ad967ca85003d299) feat(plantarium): margin cuts a share of the vein's reach
+- [d497c0c0](https://git.max-richter.dev/max/nodarium/commit/d497c0c0336bc926c4e6728b110fcf1eb71ae575) Merge pull request 'perf(myzel): hyphae_to_mesh keeps one splat list and allocates blocks by reach' (#322) from perf/317-hyphae-mesh-memory into main
+- [3bd806d4](https://git.max-richter.dev/max/nodarium/commit/3bd806d4f5c388426a89084dacf49ea024a521c3) perf(myzel): hyphae_to_mesh keeps one splat list and allocates blocks by reach
+- [2a591d65](https://git.max-richter.dev/max/nodarium/commit/2a591d659d0afaf4a9362cb41ce079196690bfae) Merge pull request 'perf(plantarium): leaf_surface works out the blade only near the margin' (#321) from perf/304-leaf-surface into main
+- [53879862](https://git.max-richter.dev/max/nodarium/commit/538798626464d18cb2050a757831254949bd57c6) perf(plantarium): leaf_surface works out the blade only near the margin
+- [ed752992](https://git.max-richter.dev/max/nodarium/commit/ed752992d497b3bdbdee3a126d24c272c9940f16) Merge pull request 'perf(utils): remember random draws per seed, read expressions without a list' (#320) from perf/314-random-memo into main
+- [dd496cdf](https://git.max-richter.dev/max/nodarium/commit/dd496cdf76a9cdf0e3d10989229761f543fda214) perf(utils): remember random draws per seed, read expressions without a list
+- [f2973162](https://git.max-richter.dev/max/nodarium/commit/f29731623569492024bdd3ac46f85bbb7c8c6843) Merge pull request 'feat(plantarium): leaf_surface meshes along its veins' (#319) from feat/303-vein-aligned-mesh into main
+- [d29713c9](https://git.max-richter.dev/max/nodarium/commit/d29713c9c9568d0fab271aa5fc54513e31376064) feat(plantarium): leaf_surface meshes along its veins
+- [68b54385](https://git.max-richter.dev/max/nodarium/commit/68b54385deb177499a196bca9def330e7e758bf2) Merge pull request 'feat(plantarium): wave and leaf_surface, leaves grown from their veins' (#311) from feat/301-302-leaf-surface into main
+- [09c6a913](https://git.max-richter.dev/max/nodarium/commit/09c6a9135f7d2ae28e5a1209c534781645d428fb) feat(plantarium): leaf_surface, a leaf blade from its veins
+- [401824c6](https://git.max-richter.dev/max/nodarium/commit/401824c62783d7a1bbb854e9c5c7db5eea9c6136) feat(plantarium): wave, a repeating profile for margins and rings
+- [5ec8c094](https://git.max-richter.dev/max/nodarium/commit/5ec8c094d413ec9999bdfdc03a2396c9cc731009) Merge pull request 'chore: review follow-ups from #296 and #291' (#298) from chore/review-followups into main
+- [e814b255](https://git.max-richter.dev/max/nodarium/commit/e814b255c5cc794e359b2001617b8737815977db) Merge branch 'main' into chore/review-followups
+- [3660a6cf](https://git.max-richter.dev/max/nodarium/commit/3660a6cf674c816b5b6f9e132028a4560502ae6f) Merge pull request 'fix(runtime): build the templates without the dts plugin' (#299) from fix/runtime-build-memory into main
+- [7dd7dfd1](https://git.max-richter.dev/max/nodarium/commit/7dd7dfd1e140dc91753d00b2085704fb6ddd1cca) fix(runtime): build the templates without the dts plugin
+- [3bf19da7](https://git.max-richter.dev/max/nodarium/commit/3bf19da7b54794ba2b40d2371bdd8add638de7bd) Merge pull request 'chore: license Nodarium under MIT' (#297) from chore/license into main
+- [0385859f](https://git.max-richter.dev/max/nodarium/commit/0385859f9f4fdb168c043c1053e53159d4a04e79) chore: license Nodarium under MIT
+- [21da72ca](https://git.max-richter.dev/max/nodarium/commit/21da72ca2b60e73231ef6fc8d3629cdc57c9c091) test(runtime): cover WasmNodeRegistry load deduplication and validation
+- [194ff68a](https://git.max-richter.dev/max/nodarium/commit/194ff68aa7ba3860c1e4831d44da8692176113d6) fix(runtime): make the GraphVersionError message neutral
+- [0e52d697](https://git.max-richter.dev/max/nodarium/commit/0e52d697950932f820b0b89c81baf8151f810bfc) fix(myzel): describe loose_strands 0 as the tissue taking in every strand it is deeper than
+- [bd71c6b6](https://git.max-richter.dev/max/nodarium/commit/bd71c6b65ba15e7a618abc356389cdbd19291b90) Merge pull request 'feat: colour the plant templates (#286)' (#295) from feat/286-plant-colours into main
+- [3a9ecb2d](https://git.max-richter.dev/max/nodarium/commit/3a9ecb2df837793472e55c779848d85b3cbb93ec) Merge pull request 'fix(myzel): a lone path keeps its radius at any fill (#240)' (#296) from fix/240-lone-path-radius into main
+- [21cd27d4](https://git.max-richter.dev/max/nodarium/commit/21cd27d458365cd24da032f23591d0889109f183) fix(plantarium): instance_from_points places nothing for a link without geometry (#286)
+- [f76889b4](https://git.max-richter.dev/max/nodarium/commit/f76889b47b5821865d739c77cbb9057b9e5827b1) fix(myzel): a lone path keeps its radius at any fill (#240)
+- [52a9f472](https://git.max-richter.dev/max/nodarium/commit/52a9f4725026bf6d7ad2c8ef01ff87537c3cc0fe) feat(templates): color the plant templates (#286)
+- [cdf60cc7](https://git.max-richter.dev/max/nodarium/commit/cdf60cc727a7720dc70a6bdcb0db6f4a7b4b14fc) docs(plantarium): colors, and set_color reads a curled leaf to its tip (#286)
+- [3acd5d5e](https://git.max-richter.dev/max/nodarium/commit/3acd5d5e4106ea6bbf806397fed7502a29921267) feat(plantarium): colors on paths, geometry and instances (#286)
+- [57db9a01](https://git.max-richter.dev/max/nodarium/commit/57db9a013830ccfa2ad7d21c6709a4ac809016c0) Merge pull request 'feat: substrates to grow on, the Hallimasch and the toxic twins (#287, #288, #289)' (#294) from feat/287-289-substrates-and-twins into main
+- [62cdb60c](https://git.max-richter.dev/max/nodarium/commit/62cdb60c53f788be8364dd438b0af3e5fc5e0a2e) feat(templates): the toxic twins, sulphur tuft, false chanterelle, bitter bolete (#288)
+- [8b1df7b9](https://git.max-richter.dev/max/nodarium/commit/8b1df7b99e80903f727223a2b2614cf71bada34b) feat(templates): honey fungus, a cluster on a stump (#287)
+- [a2c5d5a4](https://git.max-richter.dev/max/nodarium/commit/a2c5d5a4ccfc6091cab0360d34c610d79ffa2405) feat(templates): chanterelle and porcini grow on moss (#289)
+- [a4cd8cfc](https://git.max-richter.dev/max/nodarium/commit/a4cd8cfccf3375c0382787b48146d7d181d909b7) feat(plantarium): stems on points, keep_apart that leans (#289)
+- [b6efbad1](https://git.max-richter.dev/max/nodarium/commit/b6efbad19268c9ed7df32a3e14e0e1197f18e489) feat(myzel): mesh node with baked substrates and sample_mesh (#289)
+- [ff0f9226](https://git.max-richter.dev/max/nodarium/commit/ff0f922621a2b156359adc48fd0b8ea070ac0d96) Merge pull request 'feat(runtime): templates as @nodarium/runtime/templates, @dev on every push to main' (#293) from feat/runtime-templates-and-dev into main
+- [468d1a67](https://git.max-richter.dev/max/nodarium/commit/468d1a672539ffb2e9b6a3647bb4597903156314) ci(release): publish @nodarium/runtime@dev on every push to main (#292)
+- [e3e1e98a](https://git.max-richter.dev/max/nodarium/commit/e3e1e98aaa7369bf8f5ce71625324d765595f194) feat(runtime): the templates as @nodarium/runtime/templates (#292)
+
 # v0.0.10 (2026-11-13)
 
 ## Features
