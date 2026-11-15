@@ -14,6 +14,7 @@ import {
   serializeEdge,
   serializeNode
 } from './helpers/nodeHelpers';
+import type { GraphOptions } from './options';
 
 const [getGraphState, setGraphState, hasGraphState] = createContext<GraphState>();
 const [getGraphManager, setGraphManager, hasGraphManager] = createContext<GraphManager>();
@@ -65,7 +66,7 @@ const predefinedColors = {
 export class GraphState {
   colors = new ColorGenerator(predefinedColors);
 
-  constructor(private graph: GraphManager) {
+  constructor(private graph: GraphManager, private readOptions: () => GraphOptions) {
     const storageKey = (id: number) => `node.cameraPosition.${id}`;
 
     const saveCameraPosition = debounce(() => {
@@ -106,6 +107,10 @@ export class GraphState {
 
   private loadedCameraId: number | undefined;
 
+  get options() {
+    return this.readOptions();
+  }
+
   width = $state(100);
   height = $state(100);
 
@@ -138,13 +143,6 @@ export class GraphState {
   edgeEndPosition = $state<[number, number] | null>();
   addMenuPosition = $state<[number, number] | null>(null);
 
-  snapToGrid = $state(false);
-  backgroundType = $state<'grid' | 'dots' | 'none'>('grid');
-  showHelp = $state(false);
-  nodeTimings = $state<Record<number, number>>({});
-  /** Node that made the last execution fail */
-  errorNodeId = $state<number>();
-
   cameraDown = [0, 0];
   mouseDownNodeId = -1;
 
@@ -156,9 +154,6 @@ export class GraphState {
   activeNodeId = $state(-1);
   selectedNodes = new SvelteSet<number>();
   activeSocket = $state<Socket | null>(null);
-  safePadding = $state<{ left?: number; right?: number; bottom?: number; top?: number } | null>(
-    null
-  );
   hoveredSocket = $state<Socket | null>(null);
   possibleSockets = $state<Socket[]>([]);
   possibleSocketIds = $derived(
@@ -283,7 +278,7 @@ export class GraphState {
       maxY = Math.max(maxY, y + (type ? getNodeHeight(type) : 20));
     }
 
-    const pad = this.safePadding;
+    const pad = this.options.safePadding;
     const margin = 40; // px of breathing room around the box
     const left = (pad?.left || 0) + margin;
     const right = (pad?.right || 0) + margin;

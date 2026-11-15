@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { appSettings } from '#lib/settings/app-settings.svelte.ts';
   import { GROUP_INPUT, GROUP_OUTPUT } from '@nodarium/types';
   import { getOutputLabel, type NodeInstance, type Socket } from '@nodarium/types';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
@@ -78,7 +77,7 @@
   const socketType = $derived(getSocketType(graphState.activeSocket));
   const hoverColor = $derived(graphState.colors.getColor(socketType));
 
-  const timing = $derived(graphState.nodeTimings[node.id]);
+  const timing = $derived(graphState.options.nodeTimings[node.id]);
   function formatTiming(ms: number) {
     if (ms < 1) return '<1ms';
     if (ms < 10) return `${ms.toFixed(1)}ms`;
@@ -95,12 +94,12 @@
   class:possible-socket={graphState?.possibleSocketIds.has(socketId)}
 >
   <div class="content" class:pr-4={rightBump} {title}>
-    {#if appSettings.value.debug.advancedMode}
+    {#if graphState?.options.showDebugInfo}
       <span class="shrink-0 bg-white text-black! mr-2 px-1 rounded-sm opacity-30">{node.id}</span>
     {/if}
     <span class="min-w-0 truncate">{title}</span>
     <span class="ml-auto"></span>
-    {#if appSettings.value.debug.advancedMode && timing !== undefined}
+    {#if graphState?.options.showDebugInfo && timing !== undefined}
       <span class="shrink-0 ml-2 mr-2 text-xs opacity-50">{formatTiming(timing)}</span>
     {/if}
     {#if outputLabel}

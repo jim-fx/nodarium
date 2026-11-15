@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Edge, NodeInstance } from '@nodarium/types';
+  import type { createKeyMap } from '@nodarium/ui';
   import { Canvas } from '@threlte/core';
   import { HTML } from '@threlte/extras';
-  import { createKeyMap } from '../../helpers/createKeyMap';
   import Background from '../background/Background.svelte';
   import AddMenu from '../components/AddMenu.svelte';
   import BoxSelection from '../components/BoxSelection.svelte';
@@ -19,18 +19,13 @@
   import { MouseEventManager } from './mouse.events';
   import ZoomIndicator from './ZoomIndicator.svelte';
 
-  const {
-    keymap,
-    safePadding
-  }: {
-    keymap: ReturnType<typeof createKeyMap>;
-    safePadding?: { left?: number; right?: number; bottom?: number; top?: number };
-  } = $props();
+  const { keymap }: { keymap: ReturnType<typeof createKeyMap> } = $props();
 
   let overlayEl = $state<HTMLElement>();
 
   const graph = getGraphManager();
   const graphState = getGraphState();
+  const safePadding = $derived(graphState.options.safePadding);
   const fileDropEvents = new FileDropEventManager(graph, graphState);
   const mouseEvents = new MouseEventManager(graph, graphState);
 
@@ -101,9 +96,9 @@
       position={graphState.cameraPosition}
     />
 
-    {#if graphState.backgroundType !== 'none'}
+    {#if graphState.options.backgroundType !== 'none'}
       <Background
-        type={graphState.backgroundType}
+        type={graphState.options.backgroundType}
         cameraPosition={graphState.cameraPosition}
         {maxZoom}
         {minZoom}
@@ -193,7 +188,7 @@
   </Canvas>
 </div>
 
-{#if graphState.showHelp}
+{#if graphState.options.showHelp}
   <HelpView registry={graph.registry} />
 {/if}
 

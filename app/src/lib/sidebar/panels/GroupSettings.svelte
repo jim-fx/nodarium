@@ -1,6 +1,5 @@
 <script lang="ts">
-  import type { GraphManager } from '#lib/graph-interface/graph-manager.svelte.ts';
-  import { GraphState } from '#lib/graph-interface/graph-state.svelte.ts';
+  import type { GraphManager, GraphState } from '#lib/graph-interface/index.ts';
   import { GROUP_INSTANCE } from '@nodarium/types';
   import type { NodeInstance } from '@nodarium/types';
   import { SocketTable } from '@nodarium/ui';

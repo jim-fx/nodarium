@@ -1,12 +1,12 @@
 <script lang="ts">
-  import GraphInterface from '#lib/graph-interface/index.ts';
+  import GraphInterface, { type GraphOptions } from '#lib/graph-interface/index.ts';
   import * as templates from '#lib/graph-templates/index.ts';
   import Grid from '#lib/grid/index.ts';
-  import { createKeyMap } from '#lib/helpers/createKeyMap.ts';
   import { debounceAsyncFunction } from '#lib/helpers/index.ts';
   import { localState } from '#lib/helpers/localState.svelte.ts';
   import { groupNode } from '#lib/node-registry/groupNode.ts';
   import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
+  import { colors } from '#lib/theme/colors.svelte.ts';
 
   import PerformanceViewer from '#lib/performance/PerformanceViewer.svelte';
   import { createRepeatGuard } from '#lib/performance/run-values.ts';
@@ -48,7 +48,7 @@
   import { debugNode, MemoryRuntimeCache, MemoryRuntimeExecutor } from '@nodarium/runtime';
   import { loadTemplate } from '@nodarium/runtime/templates';
   import type { Edge, Graph } from '@nodarium/types';
-  import { Spinner, Toast, toast, unitSettings } from '@nodarium/ui';
+  import { createKeyMap, Spinner, Toast, toast, unitSettings } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
   import { untrack } from 'svelte';
   import type { Group } from 'three';
@@ -121,6 +121,35 @@
   let debugData = $state<Record<number, { type: string; data: Int32Array }>>();
   let nodeTimings = $state<Record<number, number>>({});
   let errorNodeId = $state<number>();
+  const safePadding = $derived({ right: sidebarOpen ? 321 : undefined });
+  // read one by one: a run that only brings new timings leaves what reads the theme alone
+  const graphOptions: GraphOptions = {
+    get backgroundType() {
+      return appSettings.value.nodeInterface.backgroundType;
+    },
+    get snapToGrid() {
+      return appSettings.value.nodeInterface.snapToGrid;
+    },
+    get showHelp() {
+      return appSettings.value.nodeInterface.showHelp;
+    },
+    get showDebugInfo() {
+      return appSettings.value.debug.advancedMode;
+    },
+    get theme() {
+      return appSettings.value.theme;
+    },
+    colors,
+    get safePadding() {
+      return safePadding;
+    },
+    get nodeTimings() {
+      return nodeTimings;
+    },
+    get errorNodeId() {
+      return errorNodeId;
+    }
+  };
   const manager = $derived(graphInterface?.manager);
   const activeNode = $derived(
     graphInterface?.state.activeNodeId !== undefined && graphInterface.state.activeNodeId !== -1
@@ -429,12 +458,8 @@
             graph={pm.graph}
             bind:this={graphInterface}
             registry={nodeRegistry}
-            safePadding={{ right: sidebarOpen ? 321 : undefined }}
-            backgroundType={appSettings.value.nodeInterface.backgroundType}
-            snapToGrid={appSettings.value.nodeInterface.snapToGrid}
-            bind:showHelp={appSettings.value.nodeInterface.showHelp}
-            {nodeTimings}
-            {errorNodeId}
+            options={graphOptions}
+            onhelp={() => panelState.setActivePanel('shortcuts')}
             onsave={async (g) => {
               pendingSave = true;
               await pm.saveGraph(g);

@@ -34,7 +34,7 @@
 
   const thickness = $derived(Math.max(0.001, 0.00082 * Math.exp(0.055 * z)));
 
-  // the graph shows the CSS values as they are, see colors.svelte.ts
+  // the graph shows the CSS values as they are, as the colours of the theme it is given do
   const inputColor = $derived(
     new Color().setStyle(graphState.colors.getColor(inputType), LinearSRGBColorSpace)
   );

@@ -1,4 +1,27 @@
 import type { NodeDefinition, NodeId, NodeRegistry } from '@nodarium/types';
+import { Color } from 'three/src/math/Color.js';
+import type { GraphOptions } from './options';
+
+export function createGraphOptions(options: Partial<GraphOptions> = {}): GraphOptions {
+  return {
+    backgroundType: 'grid',
+    snapToGrid: true,
+    showHelp: false,
+    showDebugInfo: false,
+    theme: 'dark',
+    colors: {
+      'layer-0': new Color(),
+      'layer-1': new Color(),
+      'layer-2': new Color(),
+      outline: new Color(),
+      active: new Color(),
+      selected: new Color(),
+      error: new Color()
+    },
+    nodeTimings: {},
+    ...options
+  };
+}
 
 export function createMockNodeRegistry(nodes: NodeDefinition[]): NodeRegistry {
   const nodesMap = new Map(nodes.map(n => [n.id, n]));

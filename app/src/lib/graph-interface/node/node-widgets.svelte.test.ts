@@ -47,7 +47,6 @@ const inBrowser = describe.skipIf(import.meta.env.SSR);
 async function setup() {
   const { render } = await import('vitest-browser-svelte');
   const registry = createMockNodeRegistry([stem, noise, debugNode]);
-  registry.loadCollection = async () => [];
   const manager = new GraphManager(registry);
   await manager.load(structuredClone(graph));
   const view = await render(TestNodes, { manager });

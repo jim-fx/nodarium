@@ -1,4 +1,3 @@
-import { RemoteNodeRegistry } from '#lib/node-registry/index.ts';
 import { CURRENT_GRAPH_VERSION, GraphVersionError, migrateGraph } from '@nodarium/runtime';
 import {
   areSocketsCompatible,
@@ -53,8 +52,6 @@ import throttle from './helpers/throttle.ts';
 
 const log = createLogger('graph-manager');
 log.mute();
-
-const remoteRegistry = new RemoteNodeRegistry('');
 
 type Level = { nodes: SerializedNode[]; edges: SerializedEdge[] };
 
@@ -592,11 +589,7 @@ export class GraphManager extends EventEmitter<{
     }
     this.collections = allCollections;
     for (const collection of allCollections) {
-      (this.registry.loadCollection?.(collection) ?? remoteRegistry
-        .fetchCollection(collection)
-        .then((collection: { nodes: { id: NodeId }[] }) =>
-          this.loadDefinitions(collection.nodes.map((n) => n.id))
-        ))
+      this.registry.loadCollection?.(collection)
         .catch((error) => log.error(`failed to load the collection ${collection}`, error));
     }
 

@@ -1,6 +1,6 @@
 import { derived, get, writable } from 'svelte/store';
 
-export type ShortCut = {
+export type KeyMapShortCut = {
   key: string | string[];
   shift?: boolean;
   ctrl?: boolean;
@@ -10,13 +10,13 @@ export type ShortCut = {
   callback: (event: KeyboardEvent) => void;
 };
 
-function getShortcutId(shortcut: ShortCut) {
+function getShortcutId(shortcut: KeyMapShortCut) {
   return `${shortcut.key}${shortcut.shift ? '+shift' : ''}${shortcut.ctrl ? '+ctrl' : ''}${
     shortcut.alt ? '+alt' : ''
   }`;
 }
 
-export function createKeyMap(keys: ShortCut[]) {
+export function createKeyMap(keys: KeyMapShortCut[]) {
   const store = writable(new Map(keys.map(k => [getShortcutId(k), k])));
 
   return {
@@ -33,7 +33,7 @@ export function createKeyMap(keys: ShortCut[]) {
       if (key && key.preventDefault) event.preventDefault();
       key?.callback(event);
     },
-    addShortcut: (shortcut: ShortCut) => {
+    addShortcut: (shortcut: KeyMapShortCut) => {
       if (Array.isArray(shortcut.key)) {
         for (const k of shortcut.key) {
           store.update(shortcuts => {

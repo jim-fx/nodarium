@@ -25,7 +25,6 @@ const time = node('test/myzel/time', {
 
 function setup() {
   const registry = createMockNodeRegistry([stem, leaf, time]);
-  registry.loadCollection = async () => [];
   const manager = new GraphManager(registry);
   const saved: Graph[] = [];
   manager.on('save', (graph) => saved.push(graph));

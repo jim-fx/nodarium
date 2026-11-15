@@ -1,7 +1,12 @@
 import { assert, describe, expect, it } from 'vitest';
 import { GraphManager } from './graph-manager.svelte';
 import { GraphState } from './graph-state.svelte';
-import { createMockNodeRegistry, mockFloatInputNode, mockFloatOutputNode } from './test-utils';
+import {
+  createGraphOptions,
+  createMockNodeRegistry,
+  mockFloatInputNode,
+  mockFloatOutputNode
+} from './test-utils';
 
 // GraphState constructor reads localStorage synchronously — mock before any instantiation
 Object.defineProperty(globalThis, 'localStorage', {
@@ -20,7 +25,8 @@ Object.defineProperty(globalThis, 'localStorage', {
 function createFixture() {
   const registry = createMockNodeRegistry([mockFloatOutputNode, mockFloatInputNode]);
   const manager = new GraphManager(registry);
-  const state = new GraphState(manager);
+  const options = createGraphOptions();
+  const state = new GraphState(manager, () => options);
   return { manager, state };
 }
 

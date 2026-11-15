@@ -14,6 +14,7 @@ export { default as Button } from './Button.svelte';
 export { default as ConfirmDialog } from './ConfirmDialog.svelte';
 export { default as Details } from './Details.svelte';
 export { default as JsonViewer } from './JsonViewer.svelte';
+export { createKeyMap, type KeyMapShortCut } from './keymap';
 export type { Menu, MenuAction, MenuEntry } from './menu';
 export { default as MenuBar } from './MenuBar.svelte';
 export { default as MenuList } from './MenuList.svelte';

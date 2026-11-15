@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { colors } from '#lib/graph-interface/graph/colors.svelte.ts';
+  import { colors } from '#lib/theme/colors.svelte.ts';
   import { T } from '@threlte/core';
   import { type Box3, type EulerTuple, Vector3 } from 'three';
   import { appSettings } from '../../settings/app-settings.svelte';

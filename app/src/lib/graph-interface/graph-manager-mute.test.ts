@@ -1,5 +1,5 @@
 import type { Graph } from '@nodarium/types';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { GraphManager } from './graph-manager.svelte';
 import { createMockNodeRegistry, mockFloatInputNode, mockFloatOutputNode } from './test-utils';
 
@@ -18,17 +18,6 @@ const mutedOf = (manager: GraphManager, id: number) =>
   manager.serialize().nodes.find(n => n.id === id)?.muted;
 
 describe('GraphManager.muteNode', () => {
-  // load() fetches the node collections in the background
-  beforeEach(() => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({ ok: true, json: async () => ({ nodes: [] }) }))
-    );
-  });
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
   it('toggles the muted state', () => {
     const { manager, nodeB } = createChain();
 
