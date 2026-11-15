@@ -31,6 +31,7 @@ import { toast } from '@nodarium/ui';
 import { fastHashString } from '@nodarium/utils';
 import { createLogger } from '@nodarium/utils';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { ChangeRecorder } from './change-recorder';
 import { collectSettings, pickSettings } from './helpers/collectSettings';
 import EventEmitter from './helpers/EventEmitter';
 import { toPlain } from './helpers/index.ts';
@@ -44,14 +45,11 @@ import {
 } from './helpers/nodeHelpers';
 import { buildRelations, reachable } from './helpers/relations';
 import throttle from './helpers/throttle.ts';
-import { HistoryManager } from './history-manager';
 
 const log = createLogger('graph-manager');
 log.mute();
 
 const remoteRegistry = new RemoteNodeRegistry('');
-
-const SAVE_IDLE_MS = 300;
 
 export class GraphManager extends EventEmitter<{
   save: Graph;
@@ -96,11 +94,20 @@ export class GraphManager extends EventEmitter<{
     return s;
   });
 
-  history: HistoryManager = new HistoryManager();
+  private recorder = new ChangeRecorder({
+    snapshot: () => {
+      this.updateSettings();
+      return this.serialized;
+    },
+    onsave: () => {
+      if (this.nodes.size === 0 && this.edges.length === 0) return;
+      this.emit('save', this.serialize());
+    }
+  });
 
-  // A value that changes on every tick of a drag becomes one undo step once it rests
-  private historyWhenIdle = false;
-  private idleTimer: ReturnType<typeof setTimeout> | undefined;
+  get history() {
+    return this.recorder.history;
+  }
 
   execute = throttle(() => {
     if (this.loaded === false) return;
@@ -523,8 +530,7 @@ export class GraphManager extends EventEmitter<{
     this.parentStack = [];
     this.currentGroupId = null;
 
-    this.history.reset();
-    this.historyWhenIdle = false;
+    this.recorder.reset();
     this._init(graph);
     this.updateSettings(graph.settings, true);
     this.save();
@@ -1424,22 +1430,18 @@ export class GraphManager extends EventEmitter<{
 
   undo() {
     log.log('undo');
-    this.flush();
-    const nextState = this.history.undo();
-    if (nextState) {
-      this.restoreState(nextState);
-      this.emit('save', this.serialize());
-    }
+    this.restore(this.recorder.undo());
   }
 
   redo() {
     log.log('redo');
-    this.flush();
-    const nextState = this.history.redo();
-    if (nextState) {
-      this.restoreState(nextState);
-      this.emit('save', this.serialize());
-    }
+    this.restore(this.recorder.redo());
+  }
+
+  private restore(graph: Graph | undefined) {
+    if (!graph) return;
+    this.restoreState(graph);
+    this.emit('save', this.serialize());
   }
 
   startUndoGroup() {
@@ -1458,31 +1460,13 @@ export class GraphManager extends EventEmitter<{
    */
   save({ coalesce = false } = {}) {
     if (this.currentUndoGroup) return;
-    if (coalesce) {
-      this.historyWhenIdle = true;
-    } else {
-      this.historyWhenIdle = false;
-      this.updateSettings();
-      this.history.save(this.serialized);
-    }
-    clearTimeout(this.idleTimer);
-    this.idleTimer = setTimeout(() => this.flush(), SAVE_IDLE_MS);
+    if (coalesce) this.recorder.coalesce();
+    else this.recorder.step();
   }
 
   /** Adds the pending undo step and saves the graph right away, e.g. before the page is closed */
   flush() {
-    if (this.historyWhenIdle) {
-      this.historyWhenIdle = false;
-      this.updateSettings();
-      this.history.save(this.serialized);
-    }
-    if (this.idleTimer === undefined) return;
-    clearTimeout(this.idleTimer);
-    this.idleTimer = undefined;
-    if (this.nodes.size === 0 && this.edges.length === 0) return;
-    const graph = this.serialize();
-    this.emit('save', graph);
-    log.log('saving graphs', graph);
+    this.recorder.flush();
   }
 
   /** Everything upstream of `node`, each node once */
