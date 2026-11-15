@@ -1,25 +1,17 @@
 import type { NodeDefinition, NodeInput } from '@nodarium/types';
 
-// no node declares the seed, the runtime hands it to every seed input
-const GRAPH_SETTINGS = ['seed'];
+/** The settings every graph has, no node declares them. The runtime hands the seed to every seed input. */
+export const GRAPH_SETTING_TYPES: Record<string, NodeInput> = {
+  seed: { type: 'integer', label: 'Seed', value: 0 }
+};
 
-/** The values of the declared settings and of the graph's own settings, nothing else */
-export function pickSettings(
-  types: Record<string, unknown>,
-  values: Record<string, unknown> = {}
-): Record<string, unknown> {
-  const picked: Record<string, unknown> = {};
-  for (const key in values) {
-    if (key in types || GRAPH_SETTINGS.includes(key)) picked[key] = values[key];
-  }
-  return picked;
-}
-
+/** The settings of a graph with these nodes: their types, and the values of them, nothing else */
 export function collectSettings(
   definitions: NodeDefinition[],
   values: Record<string, unknown> = {}
 ): { types: Record<string, NodeInput>; values: Record<string, unknown> } {
   const types: Record<string, NodeInput> = {};
+  for (const key in GRAPH_SETTING_TYPES) types[key] = { ...GRAPH_SETTING_TYPES[key] };
   for (const definition of definitions) {
     for (const key in definition.inputs) {
       const input = definition.inputs[key];
@@ -28,12 +20,11 @@ export function collectSettings(
       types[settingId] = { ...input };
     }
   }
-  const filled = pickSettings(types, values);
+  const filled: Record<string, unknown> = {};
   for (const settingId in types) {
     const input = types[settingId];
-    if (filled[settingId] === undefined && 'value' in input) {
-      filled[settingId] = input.value;
-    }
+    if (values[settingId] !== undefined) filled[settingId] = values[settingId];
+    else if ('value' in input) filled[settingId] = input.value;
   }
   return { types, values: filled };
 }

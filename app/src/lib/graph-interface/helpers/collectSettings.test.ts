@@ -1,6 +1,6 @@
 import type { NodeDefinition } from '@nodarium/types';
 import { describe, expect, it } from 'vitest';
-import { collectSettings } from './collectSettings';
+import { collectSettings, GRAPH_SETTING_TYPES } from './collectSettings';
 
 function node(id: string, inputs: NodeDefinition['inputs']): NodeDefinition {
   return { id, inputs, outputs: [], meta: {}, execute: () => new Int32Array() } as NodeDefinition;
@@ -20,13 +20,13 @@ const noDefault = node('test/plant/nodefault', {
 describe('collectSettings', () => {
   it('collects setting types and ignores inputs without a setting', () => {
     const { types } = collectSettings([stem, output]);
-    expect(Object.keys(types).sort()).toEqual(['resolution.circle', 'resolution.curve']);
+    expect(Object.keys(types)).toEqual(['seed', 'resolution.curve', 'resolution.circle']);
     expect(types['resolution.curve']).toEqual(stem.inputs!.resolution);
   });
 
   it('fills missing values with defaults and keeps saved values', () => {
     const { values } = collectSettings([stem, output], { 'resolution.curve': 32 });
-    expect(values).toEqual({ 'resolution.curve': 32, 'resolution.circle': 8 });
+    expect(values).toEqual({ seed: 0, 'resolution.curve': 32, 'resolution.circle': 8 });
   });
 
   it('drops saved values no node declares, but keeps the seed', () => {
@@ -34,10 +34,17 @@ describe('collectSettings', () => {
     expect(values).toEqual({ 'resolution.curve': 16, seed: 7 });
   });
 
+  it('every graph has a seed, no node declares it', () => {
+    const { types, values } = collectSettings([]);
+    expect(types).toEqual({ seed: GRAPH_SETTING_TYPES.seed });
+    expect(types.seed).not.toBe(GRAPH_SETTING_TYPES.seed);
+    expect(values).toEqual({ seed: 0 });
+  });
+
   it('does not add a value for settings without a default', () => {
     const { types, values } = collectSettings([noDefault]);
     expect(types.amount).toBeDefined();
-    expect(values).toEqual({});
+    expect(values).toEqual({ seed: 0 });
   });
 
   it('does not mutate the input values or definitions', () => {
@@ -48,9 +55,6 @@ describe('collectSettings', () => {
   });
 
   it('handles definitions without inputs', () => {
-    expect(collectSettings([node('test/plant/empty', undefined)])).toEqual({
-      types: {},
-      values: {}
-    });
+    expect(collectSettings([node('test/plant/empty', undefined)]).values).toEqual({ seed: 0 });
   });
 });
