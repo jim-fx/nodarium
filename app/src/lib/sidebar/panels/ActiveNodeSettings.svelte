@@ -60,34 +60,31 @@
     return store;
   }
 
-  let lastPropsHash = '';
+  // What the panel showed the last time: only a value the user changed since then is written,
+  // selecting a node leaves its props as they are
+  let shown: Record<string, string> | undefined;
   function updateNode() {
     if (!node || !store) return;
-    let needsUpdate = false;
-    Object.keys(store).forEach((_key: string) => {
-      node.props = node.props || {};
-      const key = _key as keyof typeof store;
-      if (node && store) {
-        needsUpdate = true;
-        const value = store[key];
-        if (typeof value === 'string') {
-          // node props store the index of the chosen select option
-          const input = nodeDefinition[key];
-          const options: unknown[] = input && 'options' in input ? input.options ?? [] : [];
-          node.props[key] = Math.max(0, options.indexOf(value));
-        } else if (value !== undefined) {
-          node.props[key] = value;
-        }
+    const values = Object.fromEntries(
+      Object.entries(store).map(([key, value]) => [key, JSON.stringify(value)])
+    );
+    const changed = Object.keys(values).filter((key) => shown && values[key] !== shown[key]);
+    shown = values;
+    if (!changed.length) return;
+
+    node.props = node.props || {};
+    for (const key of changed) {
+      const value = store[key];
+      if (typeof value === 'string') {
+        // node props store the index of the chosen select option
+        const input = nodeDefinition[key];
+        const options: unknown[] = input && 'options' in input ? input.options ?? [] : [];
+        node.props[key] = Math.max(0, options.indexOf(value));
+      } else if (value !== undefined) {
+        node.props[key] = value;
       }
-    });
-
-    let propsHash = JSON.stringify(node.props);
-    if (propsHash === lastPropsHash) {
-      return;
     }
-    lastPropsHash = propsHash;
-
-    if (needsUpdate) manager.commit({ coalesce: true });
+    manager.commit({ coalesce: true });
   }
 
   const isGroupInstance = $derived(node?.type === GROUP_INSTANCE);
