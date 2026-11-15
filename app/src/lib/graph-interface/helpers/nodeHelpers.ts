@@ -43,7 +43,6 @@ export function getParameterHeight(node: NodeDefinition, inputKey: string) {
 }
 
 export function serializeNode(node: SerializedNode | NodeInstance): SerializedNode {
-  const muted = 'state' in node ? node.state.muted : node.muted;
   const serialized: SerializedNode = {
     id: node.id,
     position: toPlain(node.position),
@@ -51,7 +50,7 @@ export function serializeNode(node: SerializedNode | NodeInstance): SerializedNo
   };
   if (node.props) serialized.props = toPlain(node.props);
   if (node.exposed?.length) serialized.exposed = toPlain(node.exposed);
-  if (muted) serialized.muted = true;
+  if (node.muted) serialized.muted = true;
   return serialized;
 }
 

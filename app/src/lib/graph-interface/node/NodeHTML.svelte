@@ -64,14 +64,14 @@
   });
 </script>
 
-{#if node.state.muted && node.state.children?.length && showMutedEdge}
+{#if node.muted && graph?.childrenOf(node).length && showMutedEdge}
   <MutedEdge {node} {z} />
 {/if}
 
 <div
   class="node {position}"
   class:active={isActive}
-  class:muted={node.state.muted}
+  class:muted={node.muted}
   style:--cz={z + zOffset}
   style:display={inView && z > zLimit ? 'block' : 'none'}
   class:selected={isSelected}

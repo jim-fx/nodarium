@@ -33,10 +33,10 @@ describe('GraphManager.muteNode', () => {
     const { manager, nodeB } = createChain();
 
     manager.muteNode(nodeB.id);
-    expect(manager.getNode(nodeB.id)?.state.muted).toBe(true);
+    expect(manager.getNode(nodeB.id)?.muted).toBe(true);
 
     manager.muteNode(nodeB.id);
-    expect(manager.getNode(nodeB.id)?.state.muted).toBe(false);
+    expect(manager.getNode(nodeB.id)?.muted).toBe(false);
   });
 
   it('does nothing for an unknown node id', () => {
@@ -52,7 +52,7 @@ describe('GraphManager.muteNode', () => {
   it('does not mute output nodes', () => {
     const { manager, output } = createChain();
     manager.muteNode(output.id);
-    expect(manager.getNode(output.id)?.state.muted).toBeFalsy();
+    expect(manager.getNode(output.id)?.muted).toBeFalsy();
   });
 
   it('does not mute nodes without inputs', () => {
@@ -65,7 +65,7 @@ describe('GraphManager.muteNode', () => {
 
     manager.muteNode(node.id);
 
-    expect(manager.getNode(node.id)?.state.muted).toBeFalsy();
+    expect(manager.getNode(node.id)?.muted).toBeFalsy();
   });
 
   it('does not mute debug nodes', () => {
@@ -78,7 +78,7 @@ describe('GraphManager.muteNode', () => {
 
     manager.muteNode(node.id);
 
-    expect(manager.getNode(node.id)?.state.muted).toBeFalsy();
+    expect(manager.getNode(node.id)?.muted).toBeFalsy();
   });
 
   it('does not mute group boundary nodes', () => {
@@ -89,7 +89,7 @@ describe('GraphManager.muteNode', () => {
     for (const boundary of manager.nodes.values()) {
       if (!boundary.type.startsWith('__internal/group/')) continue;
       manager.muteNode(boundary.id);
-      expect(manager.getNode(boundary.id)?.state.muted).toBeFalsy();
+      expect(manager.getNode(boundary.id)?.muted).toBeFalsy();
     }
   });
 
@@ -101,11 +101,11 @@ describe('GraphManager.muteNode', () => {
     expect(manager.getMutePassthroughInput(group!)).toBe(Object.keys(groupInputs ?? {})[0]);
 
     manager.muteNode(group.id);
-    expect(manager.getNode(group.id)?.state.muted).toBe(true);
+    expect(manager.getNode(group.id)?.muted).toBe(true);
     expect(mutedOf(manager, group.id)).toBe(true);
 
     manager.muteNode(group.id);
-    expect(manager.getNode(group.id)?.state.muted).toBeFalsy();
+    expect(manager.getNode(group.id)?.muted).toBeFalsy();
   });
 
   it('does not mute a group instance without inputs', () => {
@@ -115,7 +115,7 @@ describe('GraphManager.muteNode', () => {
 
     manager.muteNode(group.id);
 
-    expect(manager.getNode(group.id)?.state.muted).toBeFalsy();
+    expect(manager.getNode(group.id)?.muted).toBeFalsy();
   });
 
   it('serializes muted only for muted nodes', () => {
@@ -134,21 +134,21 @@ describe('GraphManager.muteNode', () => {
     const loaded = new GraphManager(manager.registry);
     await loaded.load(graph);
 
-    expect(loaded.getNode(nodeB.id)?.state.muted).toBe(true);
-    expect(loaded.getNode(nodeA.id)?.state.muted).toBeFalsy();
+    expect(loaded.getNode(nodeB.id)?.muted).toBe(true);
+    expect(loaded.getNode(nodeA.id)?.muted).toBeFalsy();
   });
 
   it('can undo and redo muting', () => {
     const { manager, nodeB } = createChain();
 
     manager.muteNode(nodeB.id);
-    expect(manager.getNode(nodeB.id)?.state.muted).toBe(true);
+    expect(manager.getNode(nodeB.id)?.muted).toBe(true);
 
     manager.undo();
-    expect(manager.getNode(nodeB.id)?.state.muted).toBeFalsy();
+    expect(manager.getNode(nodeB.id)?.muted).toBeFalsy();
 
     manager.redo();
-    expect(manager.getNode(nodeB.id)?.state.muted).toBe(true);
+    expect(manager.getNode(nodeB.id)?.muted).toBe(true);
   });
 
   it('keeps edges and props when muting', () => {
@@ -177,6 +177,17 @@ describe('GraphManager.muteNode', () => {
     expect(inner).toBeDefined();
   });
 
+  it('keeps a pasted muted node muted', () => {
+    const { manager, nodeB } = createChain();
+    manager.muteNode(nodeB.id);
+    const copied = manager.serialize().nodes.find(n => n.id === nodeB.id)!;
+
+    const [pasted] = manager.createGraph([copied], []);
+
+    expect(pasted.muted).toBe(true);
+    expect(mutedOf(manager, pasted.id)).toBe(true);
+  });
+
   it('keeps the muted state of nodes inside a group after leaving it', () => {
     const { manager, nodeA, nodeB } = createChain();
     const group = manager.groupNodes([nodeA.id, nodeB.id])!;
@@ -203,7 +214,7 @@ describe('GraphManager.muteNode with unwirable first inputs', () => {
 
       manager.muteNode(node.id);
 
-      expect(manager.getNode(node.id)?.state.muted).toBeFalsy();
+      expect(manager.getNode(node.id)?.muted).toBeFalsy();
     }
   });
 });

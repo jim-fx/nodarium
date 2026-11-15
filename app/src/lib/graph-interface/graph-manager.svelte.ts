@@ -40,6 +40,7 @@ import {
   serializeEdge,
   serializeNode
 } from './helpers/nodeHelpers';
+import { buildRelations, reachable } from './helpers/relations';
 import throttle from './helpers/throttle.ts';
 import { HistoryManager } from './history-manager';
 
@@ -396,28 +397,11 @@ export class GraphManager extends EventEmitter<{
     return debugNode;
   }
 
-  getEdgesBetweenNodes(nodes: NodeInstance[]): [number, number, number, string][] {
-    const edges = [];
-    for (const node of nodes) {
-      const children = node.state?.children || [];
-      for (const child of children) {
-        if (nodes.includes(child)) {
-          const edge = this.edges.find(
-            (e) => e[0].id === node.id && e[2].id === child.id
-          );
-          if (edge) {
-            edges.push([edge[0].id, edge[1], edge[2].id, edge[3]] as [
-              number,
-              number,
-              number,
-              string
-            ]);
-          }
-        }
-      }
-    }
-
-    return edges;
+  getEdgesBetweenNodes(nodes: NodeInstance[]): SerializedEdge[] {
+    const ids = new SvelteSet(nodes.map((n) => n.id));
+    return this.edges
+      .filter((e) => ids.has(e[0].id) && ids.has(e[2].id))
+      .map((e) => serializeEdge(e));
   }
 
   private _init(
@@ -426,7 +410,7 @@ export class GraphManager extends EventEmitter<{
     this.nodes.clear();
     for (const node of graph.nodes) {
       const n = $state(node) as NodeInstance;
-      n.state = { type: this.registry.getNode(node.type), muted: node.muted };
+      n.state = { type: this.registry.getNode(node.type) };
       this.nodes.set(n.id, n);
     }
 
@@ -439,21 +423,21 @@ export class GraphManager extends EventEmitter<{
       }
       return [[from, edge[1], to, edge[3]] as Edge];
     });
-    this.updateRelations();
 
     this.execute();
   }
 
-  // Rebuilds state.parents and state.children from the edges
-  private updateRelations() {
-    for (const node of this.nodes.values()) {
-      node.state.parents = [];
-      node.state.children = [];
-    }
-    for (const [from, , to] of this.edges) {
-      from.state.children?.push(to);
-      to.state.parents?.push(from);
-    }
+  // Recomputed only after an edge was added or removed, moving a node or changing a value keeps it
+  private relations = $derived(buildRelations(this.edges));
+
+  /** The nodes behind the outputs of `node`, each once */
+  childrenOf(node: NodeInstance): NodeInstance[] {
+    return this.relations.children.get(node.id) ?? [];
+  }
+
+  /** The nodes in front of the inputs of `node`, each once */
+  parentsOf(node: NodeInstance): NodeInstance[] {
+    return this.relations.parents.get(node.id) ?? [];
   }
 
   async load(graph: Graph) {
@@ -751,16 +735,9 @@ export class GraphManager extends EventEmitter<{
     return typeof index === 'string' ? inputs[index]?.type : outputs[index];
   }
 
-  getChildren(node: NodeInstance) {
-    const children = [];
-    const stack = node.state?.children?.slice(0);
-    while (stack?.length) {
-      const child = stack.pop();
-      if (!child) continue;
-      children.push(child);
-      stack.push(...(child.state?.children || []));
-    }
-    return children;
+  /** Everything downstream of `node`, each node once */
+  getChildren(node: NodeInstance): NodeInstance[] {
+    return reachable(node, this.relations.children);
   }
 
   getNodesBetween(from: NodeInstance, to: NodeInstance): NodeInstance[] | undefined {
@@ -984,7 +961,6 @@ export class GraphManager extends EventEmitter<{
       const to = instances.find((n) => n.id === idMap.get(toId));
       if (from && to) this.edges.push([from, fromSocket, to, toSocket]);
     }
-    this.updateRelations();
 
     this.save();
     return instances;
@@ -1168,9 +1144,6 @@ export class GraphManager extends EventEmitter<{
     for (const node of nodes) {
       this.removeNode(node);
     }
-
-    // The edges were replaced wholesale, removeEdge() didn't update the relations
-    this.updateRelations();
 
     this.saveUndoGroup();
 
@@ -1376,11 +1349,6 @@ export class GraphManager extends EventEmitter<{
     log.log('creating edge', { from: from.id, fromSocket, to: to.id, toSocket });
     this.edges.push(edge);
 
-    from.state.children = from.state.children || [];
-    from.state.children.push(to);
-    to.state.parents = to.state.parents || [];
-    to.state.parents.push(from);
-
     if (applyUpdate) {
       this.save();
       this.execute();
@@ -1418,7 +1386,7 @@ export class GraphManager extends EventEmitter<{
     if (node.type === GROUP_INPUT) return;
     if (node.type.endsWith('/debug')) return;
     if (node.type.endsWith('/output')) return;
-    node.state.muted = !node.state.muted;
+    node.muted = !node.muted;
     if (executeImmediately) {
       this.save();
       this.execute();
@@ -1515,20 +1483,9 @@ export class GraphManager extends EventEmitter<{
     log.log('saving graphs', graph);
   }
 
-  getParentsOfNode(node: NodeInstance) {
-    const parents = [];
-    const stack = node.state?.parents?.slice(0);
-    while (stack?.length) {
-      if (parents.length > 1000000) {
-        log.warn('Infinite loop detected');
-        break;
-      }
-      const parent = stack.pop();
-      if (!parent) continue;
-      parents.push(parent);
-      stack.push(...(parent.state?.parents || []));
-    }
-    return parents.reverse();
+  /** Everything upstream of `node`, each node once */
+  getParentsOfNode(node: NodeInstance): NodeInstance[] {
+    return reachable(node, this.relations.parents);
   }
 
   getPossibleNodes(socket: Socket): NodeDefinition[] {
@@ -1633,18 +1590,6 @@ export class GraphManager extends EventEmitter<{
     );
 
     if (!_edge) return;
-
-    if (edge[0].state.children) {
-      edge[0].state.children = edge[0].state.children.filter(
-        (n: NodeInstance) => n.id !== id2
-      );
-    }
-
-    if (edge[2].state.parents) {
-      edge[2].state.parents = edge[2].state.parents.filter(
-        (n: NodeInstance) => n.id !== id0
-      );
-    }
 
     this.edges = this.edges.filter((e) => !areEdgesEqual(e, edge));
     if (applyDeletion) {
