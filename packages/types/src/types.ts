@@ -17,9 +17,6 @@ export type NodeId = z.infer<typeof NodeIdSchema>;
 
 export type NodeRuntimeState = {
   mesh?: any;
-  muted?: boolean;
-  parents?: NodeInstance[];
-  children?: NodeInstance[];
   // The registry definition. The sockets of group nodes depend on their group,
   // read them through GraphManager.getNodeType()
   type?: NodeDefinition;

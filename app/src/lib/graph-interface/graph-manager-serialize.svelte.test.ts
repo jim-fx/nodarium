@@ -23,14 +23,13 @@ const definitions = Object.values(
 // serialize() as it was before it walked the fields itself
 function legacySerialize(manager: GraphManager): Graph {
   const serializeNode = (node: SerializedNode | NodeInstance) => {
-    const muted = 'state' in node ? node.state.muted : node.muted;
     return {
       id: node.id,
       position: [...node.position],
       type: node.type,
       props: node.props ? JSON.parse(JSON.stringify(node.props)) : undefined,
       ...(node.exposed?.length ? { exposed: [...node.exposed] } : {}),
-      ...(muted ? { muted: true } : {})
+      ...(node.muted ? { muted: true } : {})
     };
   };
   const levelState = (id: number | null) => manager['levelState'](id);

@@ -433,10 +433,10 @@ describe('groups', () => {
     const groupNode = manager.groupNodes([nodeB.id]);
     assert.isDefined(groupNode);
 
-    expect(manager.getNode(nodeA.id)?.state.children).toEqual([groupNode]);
-    expect(groupNode.state.parents).toEqual([manager.getNode(nodeA.id)]);
-    expect(groupNode.state.children).toEqual([manager.getNode(nodeC.id)]);
-    expect(manager.getNode(nodeC.id)?.state.parents).toEqual([groupNode]);
+    expect(manager.childrenOf(manager.getNode(nodeA.id)!)).toEqual([groupNode]);
+    expect(manager.parentsOf(groupNode)).toEqual([manager.getNode(nodeA.id)]);
+    expect(manager.childrenOf(groupNode)).toEqual([manager.getNode(nodeC.id)]);
+    expect(manager.parentsOf(manager.getNode(nodeC.id)!)).toEqual([groupNode]);
   });
 
   it('should start the group input at the value of the internal node', () => {
@@ -477,7 +477,7 @@ describe('groups', () => {
     expect(pasted.map(n => n.id)).not.toContain(nodeA.id);
     expect(pasted.map(n => n.id)).not.toContain(nodeC.id);
     expect(manager.getNode(nodeC.id)?.type).toBe('test/node/input');
-    expect(pasted[1].state.parents).toEqual([pasted[0]]);
+    expect(manager.parentsOf(pasted[1])).toEqual([pasted[0]]);
   });
 
   it('should not reuse the IDs of the parent levels inside a group', () => {
@@ -1131,5 +1131,59 @@ describe('loading the node types', () => {
     expect(collections).toEqual(['test/node']);
     expect(load).not.toHaveBeenCalled();
     expect(manager.status).not.toBe('error');
+  });
+});
+
+describe('two edges between the same nodes', () => {
+  const mockMergeNode: NodeDefinition = {
+    id: 'test/node/merge',
+    inputs: { a: { type: 'float' }, b: { type: 'float' } },
+    outputs: ['float'],
+    meta: { title: 'Merge' },
+    execute: () => new Int32Array()
+  };
+
+  function setup() {
+    const manager = new GraphManager(createMockNodeRegistry([mockFloatOutputNode, mockMergeNode]));
+    const a = manager.createNode({ type: 'test/node/output', position: [0, 0], props: {} });
+    const b = manager.createNode({ type: 'test/node/merge', position: [40, 0], props: {} });
+    assert.isDefined(a);
+    assert.isDefined(b);
+    const first = manager.createEdge(a, 0, b, 'a');
+    manager.createEdge(a, 0, b, 'b');
+    assert.isDefined(first);
+    return { manager, a, b, first };
+  }
+
+  it('copies both edges', () => {
+    const { manager, a, b } = setup();
+    expect(manager.getEdgesBetweenNodes([a, b])).toEqual([
+      [a.id, 0, b.id, 'a'],
+      [a.id, 0, b.id, 'b']
+    ]);
+  });
+
+  it('keeps the nodes related after removing one of the edges', () => {
+    const { manager, a, b, first } = setup();
+    manager.removeEdge(first);
+
+    expect(manager.childrenOf(a)).toEqual([b]);
+    expect(manager.parentsOf(b)).toEqual([a]);
+    expect(manager.getChildren(a)).toEqual([b]);
+    expect(manager.getParentsOfNode(b)).toEqual([a]);
+  });
+
+  it('lists the other node once while both edges exist', () => {
+    const { manager, a, b } = setup();
+    expect(manager.childrenOf(a)).toEqual([b]);
+    expect(manager.parentsOf(b)).toEqual([a]);
+  });
+
+  it('does not offer an upstream node after removing one of the edges', () => {
+    const { manager, a, b, first } = setup();
+    manager.removeEdge(first);
+
+    const sockets = manager.getPossibleSockets({ node: b, index: 0, position: [0, 0] });
+    expect(sockets.map(([node]) => node.id)).not.toContain(a.id);
   });
 });

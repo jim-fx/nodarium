@@ -95,7 +95,7 @@
       uHeight: { value: 200 },
       uZoom: { value: 1.0 }
     }}
-    uniforms.uIsMuted.value={node.state.muted}
+    uniforms.uIsMuted.value={node.muted}
     uniforms.uZoom.value={zoomValue}
     uniforms.uHeight.value={height}
     uniforms.uSectionHeights.value={sectionHeights}
