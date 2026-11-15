@@ -129,7 +129,7 @@
 
   <GroupBreadcrumps />
 
-  <Canvas shadows={false} renderMode="on-demand" colorManagementEnabled={false}>
+  <Canvas shadows={false} renderMode="on-demand">
     <Camera
       bind:camera={graphState.camera}
       position={graphState.cameraPosition}

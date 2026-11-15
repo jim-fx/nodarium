@@ -1,6 +1,7 @@
 import {
   AgXToneMapping,
   Box3,
+  EquirectangularReflectionMapping,
   Float32BufferAttribute,
   Mesh,
   PerspectiveCamera,
@@ -8,7 +9,9 @@ import {
   SphereGeometry,
   WebGLRenderer
 } from 'three';
-import { matcapLoaded, materials, setHeightRange } from './materials';
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+import { createLights, lighting } from './lighting';
+import { matcapLoaded, materials, setHeightRange, usesEnvironment } from './materials';
 
 const SIZE = 128;
 
@@ -21,7 +24,12 @@ export function getMaterialPreviews() {
 }
 
 async function renderPreviews() {
-  await matcapLoaded;
+  const [, environment] = await Promise.all([
+    matcapLoaded,
+    // without the meadow the plant preview is darker, but the others still render
+    new EXRLoader().loadAsync(lighting.environment.url).catch(() => null)
+  ]);
+  if (environment) environment.mapping = EquirectangularReflectionMapping;
 
   const canvas = document.createElement('canvas');
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -31,6 +39,8 @@ async function renderPreviews() {
   renderer.setSize(SIZE, SIZE, false);
 
   const scene = new Scene();
+  scene.add(...createLights());
+  scene.environmentIntensity = lighting.environment.intensity;
   const geometry = new SphereGeometry(1, 32, 20);
   geometry.computeBoundingBox();
   // bands of rings for the groups material, the other materials ignore it
@@ -53,12 +63,14 @@ async function renderPreviews() {
       const material = entry.create();
       setHeightRange(material, geometry.boundingBox ?? new Box3());
       mesh.material = material;
+      scene.environment = usesEnvironment(entry.id) ? environment : null;
       renderer.render(scene, camera);
       result[entry.id] = canvas.toDataURL('image/png');
       material.dispose();
     }
   } finally {
     geometry.dispose();
+    environment?.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
   }

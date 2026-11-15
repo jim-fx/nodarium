@@ -35,8 +35,7 @@ const coloredMaterials = new WeakMap<Material, Material>();
 /**
  * Vertex colors are kept as the sRGB bytes of the result, the renderer works with linear colors.
  * The same conversion as `Color.setRGB(..., SRGBColorSpace)`, alpha stays as it is. Like there,
- * nothing is converted while the color management of three is off: the canvas of the graph turns
- * it off for the whole page, the thumbnail worker keeps it on.
+ * nothing is converted while the color management of three is off.
  */
 const SRGB_COLOR_VERTEX = /* glsl */ `
   #include <color_vertex>
@@ -59,11 +58,11 @@ const VERTEX_COLOR_FRAGMENT = /* glsl */ `
 `;
 
 /**
- * A color's own light. The ambient light of the viewer adds to the light of the environment map,
- * the matcap of the plant material darkens that again, but a color leaves the matcap out (see
- * the plant material) and would get about one and a half times the light: a yellow-orange
- * turned out a pale yellow. Without the ambient light a surface facing the sky gets about the
- * light of the environment map, a color looks like its value there.
+ * A color's own light. The ambient and fill lights of the viewer add to the light of the
+ * environment map, the matcap of the plant material darkens that again, but a color leaves the
+ * matcap out (see the plant material) and would get too much light: a yellow-orange turned out a
+ * pale yellow. Without them a color gets the environment map and the key light, and looks close
+ * to its value and to the thumbnails.
  */
 const COLOR_LIGHT_FRAGMENT = /* glsl */ `
   #if defined( USE_COLOR_ALPHA )

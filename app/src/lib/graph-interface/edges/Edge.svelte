@@ -28,7 +28,7 @@
   import { T } from '@threlte/core';
   import { MeshLineGeometry, MeshLineMaterial } from '@threlte/extras';
   import { onDestroy } from 'svelte';
-  import { MeshBasicMaterial, Vector3 } from 'three';
+  import { Color, LinearSRGBColorSpace, MeshBasicMaterial, Vector3 } from 'three';
   import { CubicBezierCurve } from 'three/src/extras/curves/CubicBezierCurve.js';
   import { Vector2 } from 'three/src/math/Vector2.js';
   import { getGraphState } from '../graph-state.svelte';
@@ -51,8 +51,13 @@
 
   const thickness = $derived(Math.max(0.001, 0.00082 * Math.exp(0.055 * z)));
 
-  const inputColor = $derived(graphState.colors.getColor(inputType));
-  const outputColor = $derived(graphState.colors.getColor(outputType));
+  // the graph shows the CSS values as they are, see colors.svelte.ts
+  const inputColor = $derived(
+    new Color().setStyle(graphState.colors.getColor(inputType), LinearSRGBColorSpace)
+  );
+  const outputColor = $derived(
+    new Color().setStyle(graphState.colors.getColor(outputType), LinearSRGBColorSpace)
+  );
 
   const points = $derived.by(() => {
     const dx = x2 - x1;
