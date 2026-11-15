@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Edge, NodeInstance } from '@nodarium/types';
+  import type { createKeyMap } from '@nodarium/ui';
   import { Canvas } from '@threlte/core';
   import { HTML } from '@threlte/extras';
-  import { createKeyMap } from '../../helpers/createKeyMap';
   import Background from '../background/Background.svelte';
   import AddMenu from '../components/AddMenu.svelte';
   import BoxSelection from '../components/BoxSelection.svelte';

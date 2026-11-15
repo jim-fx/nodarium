@@ -3,7 +3,6 @@
   import type { GraphOptions } from '#lib/graph-interface/options.ts';
   import * as templates from '#lib/graph-templates/index.ts';
   import Grid from '#lib/grid/index.ts';
-  import { createKeyMap } from '#lib/helpers/createKeyMap.ts';
   import { debounceAsyncFunction } from '#lib/helpers/index.ts';
   import { localState } from '#lib/helpers/localState.svelte.ts';
   import { groupNode } from '#lib/node-registry/groupNode.ts';
@@ -50,7 +49,7 @@
   import { debugNode, MemoryRuntimeCache, MemoryRuntimeExecutor } from '@nodarium/runtime';
   import { loadTemplate } from '@nodarium/runtime/templates';
   import type { Edge, Graph } from '@nodarium/types';
-  import { Spinner, Toast, toast, unitSettings } from '@nodarium/ui';
+  import { createKeyMap, Spinner, Toast, toast, unitSettings } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
   import { untrack } from 'svelte';
   import type { Group } from 'three';
@@ -461,6 +460,7 @@
             bind:this={graphInterface}
             registry={nodeRegistry}
             options={graphOptions}
+            onhelp={() => panelState.setActivePanel('shortcuts')}
             onsave={async (g) => {
               pendingSave = true;
               await pm.saveGraph(g);

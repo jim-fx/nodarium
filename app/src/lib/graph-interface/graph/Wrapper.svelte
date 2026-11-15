@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { createKeyMap } from '#lib/helpers/createKeyMap.ts';
   import type { Graph, NodeRegistry } from '@nodarium/types';
+  import { createKeyMap } from '@nodarium/ui';
   import { onMount } from 'svelte';
   import { GraphManager } from '../graph-manager.svelte';
   import { GraphState, setGraphManager, setGraphState } from '../graph-state.svelte';
@@ -15,6 +15,8 @@
 
     onsave?: (save: Graph) => void;
     onresult?: (result: Graph) => void;
+    /** the `?` shortcut */
+    onhelp?: () => void;
   };
 
   let {
@@ -22,7 +24,8 @@
     registry,
     options,
     onsave,
-    onresult
+    onresult,
+    onhelp
   }: Props = $props();
 
   export const keymap = createKeyMap([]);
@@ -34,7 +37,7 @@
   export const state = new GraphState(manager, () => options);
   setGraphState(state);
 
-  setupKeymaps(keymap, manager, state);
+  setupKeymaps(keymap, manager, state, () => onhelp?.());
 
   $effect(() => {
     if (!state.addMenuPosition) {

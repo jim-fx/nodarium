@@ -1,12 +1,15 @@
-import type { createKeyMap } from '#lib/helpers/createKeyMap.ts';
-import { panelState } from '#lib/sidebar/PanelState.svelte.ts';
-import { toast } from '@nodarium/ui';
+import { type createKeyMap, toast } from '@nodarium/ui';
 import FileSaver from 'file-saver';
 import type { GraphManager } from './graph-manager.svelte';
 import type { GraphState } from './graph-state.svelte';
 
 type Keymap = ReturnType<typeof createKeyMap>;
-export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: GraphState) {
+export function setupKeymaps(
+  keymap: Keymap,
+  graph: GraphManager,
+  graphState: GraphState,
+  onhelp: () => void
+) {
   keymap.addShortcut({
     key: 'l',
     description: 'Select linked nodes',
@@ -25,9 +28,7 @@ export function setupKeymaps(keymap: Keymap, graph: GraphManager, graphState: Gr
   keymap.addShortcut({
     key: '?',
     description: 'Toggle Help',
-    callback: () => {
-      panelState.setActivePanel('shortcuts');
-    }
+    callback: onhelp
   });
 
   keymap.addShortcut({
