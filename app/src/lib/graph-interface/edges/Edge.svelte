@@ -11,7 +11,7 @@
       if (appSettings.value.theme === undefined) {
         return;
       }
-      circleMaterial.color = colors.outline.clone().convertSRGBToLinear();
+      circleMaterial.color = colors.outline.clone();
     });
   });
 
