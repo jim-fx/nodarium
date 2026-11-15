@@ -23,6 +23,8 @@
   import { createDragHold } from '#lib/runtime/drag-hold.ts';
   import { errorLog } from '#lib/runtime/error-log.svelte.ts';
   import { WorkerRuntimeExecutor } from '#lib/runtime/index.ts';
+  import { errorInfo } from '#lib/runtime/run-error.ts';
+  import type { AppRuntime } from '#lib/runtime/types.ts';
   import { appSettings, AppSettingTypes } from '#lib/settings/app-settings.svelte.ts';
   import type { SettingsValue } from '#lib/settings/index.ts';
   import MaterialPicker from '#lib/settings/MaterialPicker.svelte';
@@ -43,12 +45,7 @@
   import { tutorialChecks } from '#lib/tutorial/tutorial-checks.ts';
   import { tutorialConfig } from '#lib/tutorial/tutorial-config.ts';
   import { Planty, type StepActionHook } from '@nodarium/planty';
-  import {
-    debugNode,
-    getErrorInfo,
-    MemoryRuntimeCache,
-    MemoryRuntimeExecutor
-  } from '@nodarium/runtime';
+  import { debugNode, MemoryRuntimeCache, MemoryRuntimeExecutor } from '@nodarium/runtime';
   import { loadTemplate } from '@nodarium/runtime/templates';
   import type { Edge, Graph } from '@nodarium/types';
   import { Spinner, Toast, toast, unitSettings } from '@nodarium/ui';
@@ -77,7 +74,7 @@
   memoryRuntime.perf = performanceStore;
   const pm = new ProjectManager();
 
-  const runtime = $derived(
+  const runtime: AppRuntime = $derived(
     appSettings.value.debug.useWorker ? workerRuntime : memoryRuntime
   );
 
@@ -238,6 +235,13 @@
   let timeout: ReturnType<typeof setTimeout>;
   const runs = createRepeatGuard();
 
+  /** The timings of a run in the worker join those of the page, the rest of the wait is transfer */
+  function mergeWorkerRun({ total, ...points }: Record<string, number[]>, waited: number) {
+    if (!total) return;
+    performanceStore.mergeData({ ...points, runtime: total });
+    performanceStore.addPoint('worker-transfer', waited - total[0]);
+  }
+
   async function update(g: Graph) {
     const probed = addProbe(g, graphInterface?.state.activeNodeId ?? -1);
     // loading a graph or pressing R asks for the same run twice, the second would only
@@ -252,45 +256,30 @@
     }, 100);
     performanceStore.startRun();
     try {
-      let a = performance.now();
-      const graphResult = await runtime.execute(probed.graph, settings);
-      let b = performance.now();
+      const startedAt = performance.now();
+      const run = await runtime.run(probed.graph, settings);
+      if (run.performance) mergeWorkerRun(run.performance, performance.now() - startedAt);
 
-      if (runtime === workerRuntime) {
-        const lastRun = workerRuntime.getPerformanceData();
-        if (lastRun?.total) {
-          lastRun.runtime = lastRun.total;
-          delete lastRun.total;
-          performanceStore.mergeData(lastRun);
-          performanceStore.addPoint(
-            'worker-transfer',
-            b - a - lastRun.runtime[0]
-          );
-        }
-      }
-      const debugResult = await runtime.getDebugData();
       probe = probed.sourceId === undefined
         ? undefined
-        : { sourceId: probed.sourceId, paths: readPaths(debugResult[probed.sourceId]?.data) };
+        : { sourceId: probed.sourceId, paths: readPaths(run.debugData[probed.sourceId]?.data) };
       // the output of a node that is only watched for the gizmo is not drawn
       debugData = probed.hidden
         ? Object.fromEntries(
-          Object.entries(debugResult).filter(([id]) => Number(id) !== probed.sourceId)
+          Object.entries(run.debugData).filter(([id]) => Number(id) !== probed.sourceId)
         )
-        : debugResult;
-      nodeTimings = await runtime.getNodeTimings();
-      dragHold.measured(g, await runtime.getRunTimings());
+        : run.debugData;
+      nodeTimings = run.nodeTimings;
+      dragHold.measured(g, run.runTimings);
       errorNodeId = undefined;
-      viewerComponent?.update(graphResult);
-      pm.thumbnails.schedule(g, graphResult);
+      viewerComponent?.update(run.result);
+      pm.thumbnails.schedule(g, run.result);
       runs.succeeded(runKey);
     } catch (error) {
       runs.failed();
       // the viewer would keep showing the geometry of the previous graph otherwise
       viewerComponent?.update(new Int32Array());
-      // errors from the worker lose everything but their message on the way here
-      const info = (await Promise.resolve(runtime.getLastError()).catch(() => undefined))
-        ?? getErrorInfo(error);
+      const info = errorInfo(error);
       errorNodeId = info.nodeId;
       errorLog.add(info);
       toast(info.message, 'error', 6000);

@@ -1,12 +1,15 @@
-import type { DebugEntry } from '@nodarium/runtime';
+import type { RunResult, RuntimeErrorInfo } from '@nodarium/runtime';
+import type { Graph } from '@nodarium/types';
 
-/** What a run in the worker sends back */
-export type WorkerExecution = {
-  result: Int32Array;
-  /** the timings of this run */
-  performance?: Record<string, number[]>;
-  debugData: Record<number, DebugEntry>;
-  nodeTimings: Record<number, number>;
-  /** the timings of the nodes that ran and were not read from the cache */
-  runTimings: Record<number, number>;
-};
+/** What the app reads of a run, a run in the worker brings the timings of the worker along */
+export type Execution = RunResult & { performance?: Record<string, number[]> };
+
+/** What the worker answers, an error thrown through Comlink would only keep its message */
+export type WorkerExecution =
+  | ({ ok: true } & Execution)
+  | { ok: false; error: RuntimeErrorInfo };
+
+/** A runtime of the app, on the main thread or in the worker */
+export interface AppRuntime {
+  run(graph: Graph, settings: Record<string, unknown>): Promise<Execution>;
+}
