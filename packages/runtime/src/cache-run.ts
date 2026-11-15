@@ -2,7 +2,7 @@ import type { NodeValue, SyncCache } from '@nodarium/types';
 import { readNodeValue } from '@nodarium/utils';
 import { byteSize } from './runtime-executor-cache';
 
-type CacheRun = {
+export type CacheRun = {
   readonly enabled: boolean;
   read(key: string): Int32Array[] | undefined;
   /** Copies and stores the values when the cache keeps them */

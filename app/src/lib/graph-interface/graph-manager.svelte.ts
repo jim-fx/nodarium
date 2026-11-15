@@ -8,7 +8,9 @@ import {
   GROUP_INSTANCE,
   GROUP_OUTPUT,
   groupIdOf,
-  INTERNAL_PREFIX
+  INTERNAL_PREFIX,
+  isDebugNode,
+  isOutputNode
 } from '@nodarium/types';
 import type {
   Box,
@@ -366,10 +368,10 @@ export class GraphManager extends EventEmitter<{
   tryConnectToDebugNode(nodeId: number) {
     const node = this.nodes.get(nodeId);
     if (!node) return;
-    if (node.type.endsWith('/debug')) return;
+    if (isDebugNode(node.type)) return;
     const outputCount = this.getNodeSockets(node).outputs.length;
     if (!outputCount) return;
-    let debugNode = this.nodes.values().find(n => n.type.endsWith('/debug'));
+    let debugNode = this.nodes.values().find(n => isDebugNode(n.type));
 
     if (!debugNode) {
       debugNode = this.createNode({
@@ -1384,8 +1386,8 @@ export class GraphManager extends EventEmitter<{
     if (!this.getMutePassthroughInput(node)) return;
     if (node.type === GROUP_OUTPUT) return;
     if (node.type === GROUP_INPUT) return;
-    if (node.type.endsWith('/debug')) return;
-    if (node.type.endsWith('/output')) return;
+    if (isDebugNode(node.type)) return;
+    if (isOutputNode(node.type)) return;
     node.muted = !node.muted;
     if (executeImmediately) {
       this.save();

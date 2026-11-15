@@ -43,6 +43,15 @@ export class NodeExecutionError extends Error {
   }
 }
 
+/** A graph whose nodes depend on each other in a circle, none of them can run first */
+export class GraphCycleError extends Error {
+  constructor(public readonly nodes: { id: number; type: string }[]) {
+    const names = nodes.map(n => `${n.type}#${n.id}`).join(' → ');
+    super(`The graph has a cycle: ${names}`);
+    this.name = 'GraphCycleError';
+  }
+}
+
 export function getErrorInfo(error: unknown): RuntimeErrorInfo {
   if (error instanceof NodeExecutionError) return error.info;
   return { message: error instanceof Error ? error.message : String(error) };

@@ -6,7 +6,9 @@ export {
   GROUP_INSTANCE,
   GROUP_OUTPUT,
   groupIdOf,
-  INTERNAL_PREFIX
+  INTERNAL_PREFIX,
+  isDebugNode,
+  isOutputNode
 } from './internal-nodes';
 export { areSocketsCompatible } from './sockets';
 export type {

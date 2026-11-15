@@ -1,7 +1,8 @@
 import type { Graph, NodeDefinition, NodeValue } from '@nodarium/types';
 import { describe, expect, it } from 'vitest';
-import { NodeExecutionError } from './errors';
+import { GraphCycleError, NodeExecutionError } from './errors';
 import { expandGroups } from './expand-groups';
+import { CURRENT_GRAPH_VERSION } from './graph-migrations';
 import { MemoryRuntimeExecutor } from './runtime-executor';
 import { createMockNodeRegistry } from './test-utils';
 
@@ -294,6 +295,56 @@ describe('expandGroups', () => {
   });
 });
 
+describe('expandGroups group references', () => {
+  // a group with one instance of each of `inner` and their values as outputs
+  function wrapper(id: number, ...inner: number[]): Graph['groups'][0] {
+    const instances = inner.map((groupId, i) =>
+      node(10 + i, '__internal/group/instance', { groupId })
+    );
+    return {
+      id,
+      nodes: [...instances, node(2, '__internal/group/output')],
+      edges: instances.map((n, i) => edge(n.id, 0, 2, `out_${i}`)),
+      inputs: {},
+      outputs: instances.map(() => ({ type: 'float' }))
+    };
+  }
+  const leaf: Graph['groups'][0] = {
+    id: 1,
+    nodes: [node(1, 'test/node/input'), node(2, '__internal/group/output')],
+    edges: [edge(1, 0, 2, 'out_0')],
+    inputs: {},
+    outputs: [{ type: 'float' }]
+  };
+  function graphOf(groups: Graph['groups'], instances: number[]): Graph {
+    return {
+      id: 1,
+      nodes: instances.map((groupId, i) => node(100 + i, '__internal/group/instance', { groupId })),
+      edges: [],
+      groups
+    };
+  }
+
+  it('expands a group that is used twice inside another group', () => {
+    const result = expandGroups(graphOf([leaf, wrapper(2, 1, 1)], [2]));
+    expect(result.nodes.map(n => n.type)).toEqual(['test/node/input', 'test/node/input']);
+  });
+
+  it('expands a group that two groups contain', () => {
+    const result = expandGroups(
+      graphOf([leaf, wrapper(2, 1), wrapper(3, 1), wrapper(4, 2, 3)], [4])
+    );
+    expect(result.nodes.map(n => n.type)).toEqual(['test/node/input', 'test/node/input']);
+  });
+
+  it('still rejects groups that contain each other or themselves', () => {
+    expect(() => expandGroups(graphOf([wrapper(2, 3), wrapper(3, 2)], [2])))
+      .toThrow('Circular group reference');
+    expect(() => expandGroups(graphOf([wrapper(2, 2)], [2])))
+      .toThrow('Circular group reference');
+  });
+});
+
 describe('MemoryRuntimeExecutor', () => {
   it('runs an output node that has nothing connected', async () => {
     let received: NodeValue[] = [];
@@ -382,5 +433,68 @@ describe('MemoryRuntimeExecutor', () => {
 
     await expect(runtime.execute(graph, {})).rejects.toThrow('Leaf failed');
     expect(runtime.getLastError()?.nodeId).toBe(5);
+  });
+
+  describe('runs', () => {
+    const value = (id: string, n: number) =>
+      ({
+        id,
+        inputs: {},
+        outputs: ['integer'],
+        execute: () => Int32Array.of(n)
+      }) as unknown as NodeDefinition;
+    const a = value('test/v/a', 1);
+    const b = value('test/v/b', 2);
+    const out = {
+      id: 'test/node/output',
+      inputs: { input: { type: 'integer' } },
+      outputs: [],
+      execute: (inputs: NodeValue[]) => inputs[0]
+    } as unknown as NodeDefinition;
+    const chain = (type: string): Graph => ({
+      id: 0,
+      version: CURRENT_GRAPH_VERSION,
+      nodes: [node(0, out.id), node(1, type)],
+      edges: [edge(1, 0, 0, 'input')],
+      groups: []
+    });
+
+    it('keeps the nodes of overlapping runs apart', async () => {
+      const runtime = new MemoryRuntimeExecutor(createMockNodeRegistry([out, a, b]));
+      const results = await Promise.all([
+        runtime.execute(chain(a.id), {}),
+        runtime.execute(chain(b.id), {})
+      ]);
+      expect(results.map(r => [...r])).toEqual([[1], [2]]);
+    });
+
+    it('leaves the graph it was given as it was', async () => {
+      const runtime = new MemoryRuntimeExecutor(createMockNodeRegistry([out, a]));
+      const graph = chain(a.id);
+      const before = structuredClone(graph);
+      await runtime.execute(graph, {});
+      expect(graph).toStrictEqual(before);
+      expect(() => JSON.stringify(graph)).not.toThrow();
+    });
+
+    it('rejects a graph with a cycle', async () => {
+      const pass = {
+        id: 'test/v/pass',
+        inputs: { input: { type: 'integer' } },
+        outputs: ['integer'],
+        execute: (inputs: NodeValue[]) => inputs[0]
+      } as unknown as NodeDefinition;
+      const runtime = new MemoryRuntimeExecutor(createMockNodeRegistry([out, pass]));
+      const graph: Graph = {
+        id: 0,
+        nodes: [node(0, out.id), node(1, pass.id), node(2, pass.id)],
+        edges: [edge(1, 0, 2, 'input'), edge(2, 0, 1, 'input'), edge(2, 0, 0, 'input')],
+        groups: []
+      };
+      await expect(runtime.execute(graph, {})).rejects.toThrow(GraphCycleError);
+      await expect(runtime.execute(graph, {})).rejects.toThrow(
+        'The graph has a cycle: test/v/pass#2 → test/v/pass#1 → test/v/pass#2'
+      );
+    });
   });
 });

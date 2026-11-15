@@ -21,4 +21,5 @@ type RuntimeState = {
   debugOutput?: number;
 };
 
+/** @deprecated the runtime doesn't use it any more, it plans a run without writing into nodes */
 export type RuntimeNode = null | (SerializedNode & { state: RuntimeState });
