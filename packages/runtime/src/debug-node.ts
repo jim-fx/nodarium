@@ -11,7 +11,7 @@ export const debugNode = {
       type: '*',
       label: ''
     },
-    // they travel to the viewer with the debug data, see storeDebugView in the runtime
+    // they travel to the viewer with the debug data, see DebugCollector.applyView in the runtime
     amount: {
       type: 'float',
       label: 'Amount',

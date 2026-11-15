@@ -249,4 +249,74 @@ describe('nodes with several outputs', () => {
       expect(runtime.getDebugData()[0].amount).toBeCloseTo(0.05);
     });
   });
+
+  describe('a run', () => {
+    // split #0 is debugged at its second output and feeds combine #2, which feeds the output #3
+    const debugged = (value: number) =>
+      graph(
+        [
+          node(0, split.id, { props: { value } }),
+          node(1, debug.id),
+          node(2, combine.id),
+          node(3, output.id)
+        ],
+        [[0, 1, 1, 'input'], [0, 0, 2, 'a'], [2, 0, 3, 'input']]
+      );
+    const ids = (timings: Record<number, number>) => Object.keys(timings).map(Number).sort();
+
+    it('returns the result of execute with its debug data and both timings', async () => {
+      const run = await setup().run(debugged(3), {});
+
+      expect(run.result).toEqual(await setup().execute(debugged(3), {}));
+      expect(run.debugData).toEqual({ 0: { type: 'integer', output: 1, data: Int32Array.of(30) } });
+      expect(ids(run.nodeTimings)).toEqual([0, 1, 2, 3]);
+      expect(run.runTimings).toEqual(run.nodeTimings);
+    });
+
+    it('returns the time of the nodes it read from the cache, apart from the ones that ran', async () => {
+      const runtime = setup(true);
+      const first = await runtime.run(debugged(3), {});
+      const second = await runtime.run(debugged(3), {});
+
+      expect(second.result).toEqual(first.result);
+      expect(second.debugData).toEqual(first.debugData);
+      expect(ids(second.runTimings)).toEqual([3]);
+      expect(ids(second.nodeTimings)).toEqual([0, 1, 2, 3]);
+      expect(second.nodeTimings[0]).toBe(first.nodeTimings[0]);
+    });
+
+    it('is what the getters read until the next run', async () => {
+      const runtime = setup(true);
+      const run = await runtime.run(debugged(3), {});
+
+      expect(runtime.getDebugData()).toBe(run.debugData);
+      expect(runtime.getNodeTimings()).toBe(run.nodeTimings);
+      expect(runtime.getRunTimings()).toBe(run.runTimings);
+    });
+
+    it('keeps its data when the next run is made', async () => {
+      const runtime = setup(true);
+      const first = await runtime.run(debugged(3), {});
+      const second = await runtime.run(debugged(4), {});
+
+      expect(first.debugData[0].data).toEqual(Int32Array.of(30));
+      expect(second.debugData[0].data).toEqual(Int32Array.of(40));
+      expect([...first.result]).toEqual([3]);
+      expect([...second.result]).toEqual([4]);
+      expect(ids(first.runTimings)).toEqual([0, 1, 2, 3]);
+    });
+
+    it('throws like execute and leaves the getters at the last run that succeeded', async () => {
+      const runtime = setup();
+      const run = await runtime.run(debugged(3), {});
+      vi.mocked(split.execute).mockImplementationOnce(() => {
+        throw new Error('broken');
+      });
+
+      await expect(runtime.run(debugged(4), {})).rejects.toThrow('broken');
+      expect(runtime.getLastError()).toMatchObject({ nodeId: 0, nodeType: split.id });
+      expect(runtime.getDebugData()).toBe(run.debugData);
+      expect(runtime.getNodeTimings()).toBe(run.nodeTimings);
+    });
+  });
 });

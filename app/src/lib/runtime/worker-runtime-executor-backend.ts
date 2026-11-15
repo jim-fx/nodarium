@@ -1,5 +1,10 @@
 import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
-import { debugNode, MemoryRuntimeCache, MemoryRuntimeExecutor } from '@nodarium/runtime';
+import {
+  debugNode,
+  getErrorInfo,
+  MemoryRuntimeCache,
+  MemoryRuntimeExecutor
+} from '@nodarium/runtime';
 import type { Graph, NodeId } from '@nodarium/types';
 import { createPerformanceStore } from '@nodarium/utils';
 import * as Comlink from 'comlink';
@@ -36,31 +41,26 @@ export async function loadNodes(nodeIds: NodeId[]) {
 }
 
 /**
- * Everything the app reads after a run comes back with the result, every extra call would be
- * another round trip to the worker
+ * Everything the app reads of a run comes back in one answer, of a failed run what is known about
+ * its error: every extra call would be another round trip to the worker
  */
 export async function executeGraph(
   graph: Graph,
   settings: Record<string, unknown>
 ): Promise<WorkerExecution> {
-  await nodeRegistry.load(graph.nodes.map((n) => n.type));
-  performanceStore.startRun();
-  const result = await executor.execute(graph, settings);
-  performanceStore.stopRun();
-  const execution: WorkerExecution = {
-    result,
-    performance: performanceStore.get().at(-1),
+  try {
+    await nodeRegistry.load(graph.nodes.map((n) => n.type));
+    performanceStore.startRun();
+    const run = await executor.run(graph, settings);
+    performanceStore.stopRun();
+    const execution: WorkerExecution = {
+      ok: true,
+      ...run,
+      performance: performanceStore.get().at(-1)
+    };
     // debug values can be entries of the runtime cache, so they are copied, not transferred
-    debugData: executor.getDebugData(),
-    nodeTimings: executor.getNodeTimings(),
-    runTimings: executor.getRunTimings()
-  };
-  if (result?.buffer) {
-    return Comlink.transfer(execution, [result.buffer]);
+    return run.result?.buffer ? Comlink.transfer(execution, [run.result.buffer]) : execution;
+  } catch (error) {
+    return { ok: false, error: getErrorInfo(error) };
   }
-  return execution;
-}
-
-export function getLastError() {
-  return executor.getLastError();
 }

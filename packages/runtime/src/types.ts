@@ -11,6 +11,20 @@ export type DebugEntry = {
   clip?: number;
 };
 
+/** What one run of a graph produces */
+export type RunResult = {
+  result: Int32Array;
+  /** keyed by the id of the node a debug node is connected to */
+  debugData: Record<number, DebugEntry>;
+  /**
+   * ms per node, cached nodes keep the time of the run that made their result, group nodes show
+   * the sum of their nodes
+   */
+  nodeTimings: Record<number, number>;
+  /** the same, only of the nodes that ran and were not read from the cache */
+  runTimings: Record<number, number>;
+};
+
 type RuntimeState = {
   depth: number;
   parents: RuntimeNode[];
