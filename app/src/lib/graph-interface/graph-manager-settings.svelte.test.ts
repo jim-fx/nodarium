@@ -175,3 +175,69 @@ describe('a dragged setting', () => {
     expect(saved.length).toBe(saves);
   });
 });
+
+describe('undo and redo of a setting', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  async function changed() {
+    const context = setup();
+    await context.manager.load(structuredClone(mushroom));
+    vi.runAllTimers();
+    context.manager.setSetting('time.t', 0.9);
+    vi.runAllTimers();
+    return context;
+  }
+
+  it('brings the value back and builds the graph with it', async () => {
+    const { manager, results, saved } = await changed();
+    expect(results.at(-1)?.settings?.['time.t']).toBe(0.9);
+
+    manager.undo();
+    vi.runAllTimers();
+    expect(manager.settings['time.t']).toBe(0.3);
+    expect(results.at(-1)?.settings).toEqual({ 'time.t': 0.3, 'resolution.curve': 40, seed: 4 });
+    expect(saved.at(-1)?.settings?.['time.t']).toBe(0.3);
+
+    manager.redo();
+    vi.runAllTimers();
+    expect(manager.settings['time.t']).toBe(0.9);
+    expect(results.at(-1)?.settings).toEqual({ 'time.t': 0.9, 'resolution.curve': 40, seed: 4 });
+    expect(saved.at(-1)?.settings?.['time.t']).toBe(0.9);
+  });
+
+  it('is one step, the next undo is the change before it', async () => {
+    const { manager } = await changed();
+    manager.setSetting('seed', 5);
+    vi.runAllTimers();
+
+    manager.undo();
+    expect(manager.settings).toEqual({ 'time.t': 0.9, 'resolution.curve': 40, seed: 4 });
+    manager.undo();
+    expect(manager.settings).toEqual({ 'time.t': 0.3, 'resolution.curve': 40, seed: 4 });
+  });
+
+  it('restores the settings together with the nodes of a step that changed both', async () => {
+    const { manager } = await changed();
+    manager.transaction(() => {
+      manager.createNode({ type: 'test/plant/leaf', position: [0, 30], props: {} });
+      manager.setSetting('time.t', 0.1);
+    });
+    vi.runAllTimers();
+    expect(types(manager)).toEqual(['resolution.curve', 'resolution.leaf', 'seed', 'time.t']);
+
+    manager.undo();
+    expect(manager.nodes.size).toBe(2);
+    expect(types(manager)).toEqual(['resolution.curve', 'seed', 'time.t']);
+    expect(manager.settings).toEqual({ 'time.t': 0.9, 'resolution.curve': 40, seed: 4 });
+
+    manager.redo();
+    expect(manager.nodes.size).toBe(3);
+    expect(manager.settings).toEqual({
+      'time.t': 0.1,
+      'resolution.curve': 40,
+      'resolution.leaf': 96,
+      seed: 4
+    });
+  });
+});

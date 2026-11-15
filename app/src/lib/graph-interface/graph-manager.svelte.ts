@@ -1438,7 +1438,7 @@ export class GraphManager extends EventEmitter<{
     this.root = { nodes: state.nodes, edges: state.edges };
     this.path = this.pathStillIn(state);
     this.openLevel(this.storedLevel(this.currentGroupId));
-    this.updateSettings();
+    this.updateSettings(state.settings);
   }
 
   /** The longest start of the path whose group instances and groups exist in `state` */
