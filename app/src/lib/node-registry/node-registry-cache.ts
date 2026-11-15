@@ -26,24 +26,6 @@ export class IndexDBCache implements AsyncCache<unknown> {
     return res as T;
   }
 
-  async getArrayBuffer(key: string) {
-    const res = await this.get(key);
-    if (!res) return;
-    if (res instanceof ArrayBuffer) {
-      return res;
-    }
-    return;
-  }
-
-  async getString(key: string) {
-    const res = await this.get(key);
-    if (!res) return;
-    if (typeof res === 'string') {
-      return res;
-    }
-    return;
-  }
-
   async set(key: string, value: unknown) {
     this._cache.set(key, value);
     const db = await this.db;

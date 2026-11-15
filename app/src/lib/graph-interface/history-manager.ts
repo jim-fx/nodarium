@@ -24,16 +24,10 @@ export class HistoryManager {
   private initialState: Graph | undefined;
   private state: Graph | undefined;
 
-  private opts = {
-    debounce: 400,
-    maxHistory: 100
-  };
+  private maxHistory: number;
 
-  constructor({ maxHistory = 100, debounce = 100 } = {}) {
-    this.history = [];
-    this.index = -1;
-    this.opts.debounce = debounce;
-    this.opts.maxHistory = maxHistory;
+  constructor({ maxHistory = 100 } = {}) {
+    this.maxHistory = maxHistory;
   }
 
   save(state: Graph) {
@@ -54,7 +48,7 @@ export class HistoryManager {
         this.history.push(delta);
         this.index++;
 
-        if (this.history.length > this.opts.maxHistory) {
+        if (this.history.length > this.maxHistory) {
           const dropped = this.history.shift()!;
           this.index--;
           this.initialState = diff.patch(this.initialState, dropped) as Graph;

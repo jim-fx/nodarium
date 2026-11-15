@@ -1,71 +1,19 @@
-import throttle from './throttle.ts';
-
 type EventMap = Record<string, unknown>;
 type EventKey<T extends EventMap> = string & keyof T;
-type EventReceiver<T> = (params: T, stuff?: Record<string, unknown>) => unknown;
 
-export default class EventEmitter<
-  T extends EventMap = { [key: string]: unknown }
-> {
-  index = 0;
-  public eventMap: T = {} as T;
-  constructor() {}
+export default class EventEmitter<T extends EventMap> {
+  private cbs: { [K in keyof T]?: ((data: T[K]) => unknown)[] } = {};
 
-  private cbs: { [key: string]: ((data?: unknown) => unknown)[] } = {};
-  private cbsOnce: { [key: string]: ((data?: unknown) => unknown)[] } = {};
-
-  public emit(event: string, data?: unknown) {
-    if (event in this.cbs) {
-      this.cbs[event].forEach((c) => c(data));
-    }
-    if (event in this.cbsOnce) {
-      this.cbsOnce[event].forEach((c) => c(data));
-      delete this.cbsOnce[event];
-    }
+  protected emit<K extends EventKey<T>>(event: K, data: T[K]) {
+    this.cbs[event]?.forEach((c) => c(data));
   }
 
-  public on<K extends EventKey<T>>(
-    event: K,
-    cb: EventReceiver<T[K]>,
-    throttleTimer = 0
-  ) {
-    if (throttleTimer > 0) cb = throttle(cb, throttleTimer);
-    const cbs = Object.assign(this.cbs, {
-      [event]: [...(this.cbs[event] || []), cb]
-    });
-    this.cbs = cbs;
-
+  public on<K extends EventKey<T>>(event: K, cb: (data: T[K]) => unknown) {
+    const cbs = (this.cbs[event] ??= []);
+    cbs.push(cb);
     return () => {
-      this.cbs[event]?.splice(cbs[event].indexOf(cb), 1);
+      const i = cbs.indexOf(cb);
+      if (i !== -1) cbs.splice(i, 1);
     };
-  }
-
-  /**
-   * Register a special listener which only gets called once
-   * @param {string} event Name of the event to listen to
-   * @param {function} cb Listener, gets called the next time the event is emitted
-   * @returns {function} Returns a function which removes the listener when called
-   */
-  public once<K extends EventKey<T>>(
-    event: K,
-    cb: EventReceiver<T[K]>
-  ): () => void {
-    const cbsOnce = Object.assign(this.cbsOnce, {
-      [event]: [...(this.cbsOnce[event] || []), cb]
-    });
-    this.cbsOnce = cbsOnce;
-
-    return () => {
-      cbsOnce[event]?.splice(cbsOnce[event].indexOf(cb), 1);
-    };
-  }
-
-  public destroyEventEmitter() {
-    Object.keys(this.cbs).forEach((key) => {
-      delete this.cbs[key];
-    });
-    Object.keys(this.cbsOnce).forEach((key) => delete this.cbsOnce[key]);
-    this.cbs = {};
-    this.cbsOnce = {};
   }
 }

@@ -126,7 +126,7 @@ describe('serialize', () => {
         'serializeState'
       );
       const results: Graph[] = [];
-      manager.on('result', (g) => results.push(g as Graph));
+      manager.on('result', (g) => results.push(g));
 
       node.props = { value: 2 };
       manager.save();
@@ -198,7 +198,7 @@ describe('a value dragged in an input', () => {
     const { manager, node } = setup();
     manager.loaded = true;
     const results: Graph[] = [];
-    manager.on('result', (g) => results.push(g as Graph));
+    manager.on('result', (g) => results.push(g));
 
     drag(manager, node, [2, 3, 4]);
 

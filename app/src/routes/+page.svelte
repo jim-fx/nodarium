@@ -391,7 +391,7 @@
       g.id = pm.graph.id;
       g.meta = { ...pm.graph.meta };
       manager.load(g);
-      graphInterface.state.centerNode(graphInterface.manager.getAllNodes()[0]);
+      graphInterface.state.centerNode(graphInterface.manager.nodeArray[0]);
     },
     'open-github-nodes': () => {
       window.open(
@@ -468,7 +468,7 @@
               await pm.saveGraph(g);
               pendingSave = false;
             }}
-            onresult={(result) => dragHold.request(result as Graph)}
+            onresult={(result) => dragHold.request(result)}
           />
         {/key}
       {/if}

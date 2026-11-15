@@ -16,12 +16,10 @@ export const NodeIdSchema = z
 export type NodeId = z.infer<typeof NodeIdSchema>;
 
 export type NodeRuntimeState = {
-  depth?: number;
   mesh?: any;
   muted?: boolean;
   parents?: NodeInstance[];
   children?: NodeInstance[];
-  inputNodes?: Record<string, NodeInstance>;
   // The registry definition. The sockets of group nodes depend on their group,
   // read them through GraphManager.getNodeType()
   type?: NodeDefinition;
@@ -30,7 +28,6 @@ export type NodeRuntimeState = {
   x?: number;
   y?: number;
   ref?: HTMLElement;
-  visible?: boolean;
   isMoving?: boolean;
 };
 
