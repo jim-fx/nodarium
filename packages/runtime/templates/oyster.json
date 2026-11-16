@@ -2,10 +2,7 @@
   "id": 0,
   "version": 13,
   "meta": { "unit": "cm" },
-  "settings": {
-    "resolution.field": 160,
-    "resolution.curve": 24
-  },
+  "settings": { "time.t": 1, "resolution.field": 160, "resolution.curve": 24 },
   "groups": [
     {
       "id": 701,
@@ -911,21 +908,13 @@
       "id": 6000,
       "position": [-240, 60],
       "type": "max/plantarium/random",
-      "props": {
-        "min": 0.8,
-        "max": 1.25,
-        "once": 1
-      }
+      "props": { "min": 0.744, "max": 1.31, "once": 1, "uniform": 1 }
     },
     {
       "id": 6001,
       "position": [-240, 80],
       "type": "max/plantarium/random",
-      "props": {
-        "min": 0.016,
-        "max": 0.03,
-        "once": 1
-      }
+      "props": { "min": 0.0143, "max": 0.0318, "once": 1, "uniform": 1 }
     },
     {
       "id": 6002,
@@ -939,11 +928,7 @@
       "id": 6003,
       "position": [-240, 95],
       "type": "max/plantarium/random",
-      "props": {
-        "min": 0.0038,
-        "max": 0.0055,
-        "once": 1
-      }
+      "props": { "min": 0.00359, "max": 0.00571, "once": 1, "uniform": 1 }
     },
     {
       "id": 6004,
@@ -957,11 +942,7 @@
       "id": 6005,
       "position": [-240, 30],
       "type": "max/plantarium/random",
-      "props": {
-        "min": 0.054,
-        "max": 0.072,
-        "once": 1
-      }
+      "props": { "min": 0.0518, "max": 0.0742, "once": 1, "uniform": 1 }
     },
     {
       "id": 6006,
@@ -975,11 +956,7 @@
       "id": 6007,
       "position": [-240, 15],
       "type": "max/plantarium/random",
-      "props": {
-        "min": 0.012,
-        "max": 0.02,
-        "once": 1
-      }
+      "props": { "min": 0.011, "max": 0.021, "once": 1, "uniform": 1 }
     },
     {
       "id": 6008,
@@ -1047,6 +1024,31 @@
         "a": [156, 142, 128],
         "b": [92, 82, 78]
       }
+    },
+    { "id": 6020, "position": [-300, 60], "type": "max/myzel/time", "props": {} },
+    {
+      "id": 6021,
+      "position": [-270, 60],
+      "type": "max/plantarium/curve",
+      "props": { "curve": [0, 0, 0.3, 0.25, 0.7, 0.8, 1, 1], "min": 0.2, "max": 1 }
+    },
+    {
+      "id": 6022,
+      "position": [-270, 105],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 0, "b": 0 }
+    },
+    {
+      "id": 6023,
+      "position": [-90, 25],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 0, "b": 0 }
+    },
+    {
+      "id": 6024,
+      "position": [-90, 70],
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "a": 0, "b": 0 }
     }
   ],
   "edges": [
@@ -1105,12 +1107,6 @@
       "a"
     ],
     [
-      6000,
-      0,
-      6002,
-      "b"
-    ],
-    [
       6002,
       0,
       740,
@@ -1121,12 +1117,6 @@
       0,
       6004,
       "a"
-    ],
-    [
-      6000,
-      0,
-      6004,
-      "b"
     ],
     [
       6004,
@@ -1141,12 +1131,6 @@
       "a"
     ],
     [
-      6000,
-      0,
-      6006,
-      "b"
-    ],
-    [
       6006,
       0,
       741,
@@ -1157,12 +1141,6 @@
       0,
       6008,
       "a"
-    ],
-    [
-      6000,
-      0,
-      6008,
-      "b"
     ],
     [
       6008,
@@ -1183,22 +1161,10 @@
       "a"
     ],
     [
-      6010,
-      0,
-      742,
-      "reach"
-    ],
-    [
       6011,
       0,
       742,
       "spacing"
-    ],
-    [
-      6012,
-      0,
-      742,
-      "depth"
     ],
     [
       6013,
@@ -1211,6 +1177,84 @@
       0,
       741,
       "color"
+    ],
+    [
+      6020,
+      0,
+      6021,
+      "value"
+    ],
+    [
+      6000,
+      0,
+      6022,
+      "a"
+    ],
+    [
+      6021,
+      0,
+      6022,
+      "b"
+    ],
+    [
+      6022,
+      0,
+      6002,
+      "b"
+    ],
+    [
+      6022,
+      0,
+      6004,
+      "b"
+    ],
+    [
+      6022,
+      0,
+      6006,
+      "b"
+    ],
+    [
+      6022,
+      0,
+      6008,
+      "b"
+    ],
+    [
+      6012,
+      0,
+      6023,
+      "a"
+    ],
+    [
+      6021,
+      0,
+      6023,
+      "b"
+    ],
+    [
+      6023,
+      0,
+      742,
+      "depth"
+    ],
+    [
+      6010,
+      0,
+      6024,
+      "a"
+    ],
+    [
+      6021,
+      0,
+      6024,
+      "b"
+    ],
+    [
+      6024,
+      0,
+      742,
+      "reach"
     ]
   ]
 }

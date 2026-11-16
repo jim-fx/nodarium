@@ -52,7 +52,6 @@ Every template is a `Graph` of the current graph version, `parseProjectFile()` i
 | -------------------- | ----------------- | --------- | ---- |
 | `default-plant`      | Default Plant     | Plants    | m    |
 | `fern`               | Fern              | Plants    | cm   |
-| `willow`             | Weeping Willow    | Plants    | m    |
 | `agave`              | Agave             | Plants    | m    |
 | `grass`              | Ornamental Grass  | Plants    | cm   |
 | `palm`               | Palm              | Plants    | m    |
@@ -64,12 +63,10 @@ Every template is a `Graph` of the current graph version, `parseProjectFile()` i
 | `maidenhair`         | Maidenhair Fern   | Plants    | cm   |
 | `daisy`              | Daisy             | Plants    | cm   |
 | `horsetail`          | Field Horsetail   | Plants    | cm   |
-| `foxglove`           | Foxglove          | Plants    | m    |
 | `devils-backbone`    | Devil's Backbone  | Plants    | cm   |
 | `knotweed`           | Japanese Knotweed | Plants    | m    |
 | `wild-carrot`        | Wild Carrot       | Plants    | cm   |
 | `champignon-groomed` | Champignon        | Mushrooms | cm   |
-| `chestnut`           | Chestnut mushroom | Mushrooms | cm   |
 | `fly-agaric`         | Fly agaric        | Mushrooms | cm   |
 | `porcini`            | Porcini           | Mushrooms | cm   |
 | `shiitake`           | Shiitake          | Mushrooms | cm   |
@@ -77,9 +74,8 @@ Every template is a `Graph` of the current graph version, `parseProjectFile()` i
 | `chanterelle`        | Chanterelle       | Mushrooms | cm   |
 | `oyster`             | Oyster mushroom   | Mushrooms | cm   |
 | `honey-fungus`       | Honey fungus      | Mushrooms | cm   |
-| `sulphur-tuft`       | Sulphur tuft      | Mushrooms | cm   |
-| `false-chanterelle`  | False chanterelle | Mushrooms | cm   |
-| `bitter-bolete`      | Bitter bolete     | Mushrooms | cm   |
+
+`sulphur-tuft`, `false-chanterelle` and `bitter-bolete` (Mushrooms, cm) are no longer in that list and the app doesn't show them. They are still part of the package as `unlistedTemplates`, and `loadTemplate()` loads them by their id.
 
 The ids stay, a template that is improved keeps its id. To add a template in this repository, put its graph into `packages/runtime/templates/<id>.json`, add a line `plant(...)` or `mushroom(...)` to the list in `templates/index.ts` and a row to the table above. The app lists it in its project browser from there. Its preview there is a pre-rendered image, see [Template previews](https://git.max-richter.dev/max/nodarium/src/branch/main/app/README.md#template-previews).
 

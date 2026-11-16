@@ -43,7 +43,6 @@ const mushroom = template('Mushrooms');
 export const templates: Template[] = [
   plant('default-plant', 'Default Plant', 'm', () => import('./default-plant.json')),
   plant('fern', 'Fern', 'cm', () => import('./fern.json')),
-  plant('willow', 'Weeping Willow', 'm', () => import('./willow.json')),
   plant('agave', 'Agave', 'm', () => import('./agave.json')),
   plant('grass', 'Ornamental Grass', 'cm', () => import('./grass.json')),
   plant('palm', 'Palm', 'm', () => import('./palm.json')),
@@ -55,19 +54,24 @@ export const templates: Template[] = [
   plant('maidenhair', 'Maidenhair Fern', 'cm', () => import('./maidenhair.json')),
   plant('daisy', 'Daisy', 'cm', () => import('./daisy.json')),
   plant('horsetail', 'Field Horsetail', 'cm', () => import('./horsetail.json')),
-  plant('foxglove', 'Foxglove', 'm', () => import('./foxglove.json')),
   plant('devils-backbone', "Devil's Backbone", 'cm', () => import('./devils-backbone.json')),
   plant('knotweed', 'Japanese Knotweed', 'm', () => import('./knotweed.json')),
   plant('wild-carrot', 'Wild Carrot', 'cm', () => import('./wild-carrot.json')),
   mushroom('champignon-groomed', 'Champignon', 'cm', () => import('./champignon-groomed.json')),
-  mushroom('chestnut', 'Chestnut mushroom', 'cm', () => import('./chestnut.json')),
   mushroom('fly-agaric', 'Fly agaric', 'cm', () => import('./fly-agaric.json')),
   mushroom('porcini', 'Porcini', 'cm', () => import('./porcini.json')),
   mushroom('shiitake', 'Shiitake', 'cm', () => import('./shiitake.json')),
   mushroom('shaggy-inkcap', 'Shaggy inkcap', 'cm', () => import('./shaggy-inkcap.json')),
   mushroom('chanterelle', 'Chanterelle', 'cm', () => import('./chanterelle.json')),
   mushroom('oyster', 'Oyster mushroom', 'cm', () => import('./oyster.json')),
-  mushroom('honey-fungus', 'Honey fungus', 'cm', () => import('./honey-fungus.json')),
+  mushroom('honey-fungus', 'Honey fungus', 'cm', () => import('./honey-fungus.json'))
+];
+
+/**
+ * Templates the project browser doesn't list any more. They stay in the package for the
+ * projects that load them, `loadTemplate()` finds them by their id
+ */
+export const unlistedTemplates: Template[] = [
   mushroom('sulphur-tuft', 'Sulphur tuft', 'cm', () => import('./sulphur-tuft.json')),
   mushroom(
     'false-chanterelle',
@@ -84,7 +88,7 @@ export type LoadTemplateOptions = {
 };
 
 export async function loadTemplate(id: string, options: LoadTemplateOptions = {}): Promise<Graph> {
-  const template = templates.find((t) => t.id === id);
+  const template = [...templates, ...unlistedTemplates].find((t) => t.id === id);
   if (!template) throw new Error(`Unknown template "${id}"`);
   const graph = await template.load();
   if (!options.substrate) return graph;

@@ -1,6 +1,6 @@
 import { readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { loadTemplate, templateCategories, templates } from './index';
+import { loadTemplate, templateCategories, templates, unlistedTemplates } from './index';
 
 describe('templates', () => {
   it('are grouped into Plants and Mushrooms', () => {
@@ -14,7 +14,8 @@ describe('templates', () => {
     const files = readdirSync(import.meta.dirname)
       .filter((f) => f.endsWith('.json'))
       .map((f) => f.slice(0, -5));
-    expect(templates.map((t) => t.id).sort()).toEqual(files.sort());
+    const ids = [...templates, ...unlistedTemplates].map((t) => t.id);
+    expect(ids.sort()).toEqual(files.sort());
   });
 
   it('have unique names', () => {
@@ -28,6 +29,13 @@ describe('templates', () => {
       expect(graph.meta?.unit ?? 'm', template.id).toBe(template.unit);
       const myzel = graph.nodes.some((n) => n.type === 'max/myzel/output');
       expect(template.category, template.id).toBe(myzel ? 'Mushrooms' : 'Plants');
+    }
+  });
+
+  it('load an unlisted template by its id', async () => {
+    for (const template of unlistedTemplates) {
+      expect(templates.some((t) => t.id === template.id)).toBe(false);
+      expect(await loadTemplate(template.id)).toBe(await template.load());
     }
   });
 

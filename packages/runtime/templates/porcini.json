@@ -186,10 +186,7 @@
           "id": 3015,
           "position": [-270, 6.67],
           "type": "max/plantarium/random",
-          "props": {
-            "min": 0,
-            "max": 6
-          }
+          "props": { "min": 0, "max": 10 }
         },
         {
           "id": 3016,
@@ -1788,21 +1785,13 @@
       "id": 3000,
       "position": [-210, -8.67],
       "type": "max/plantarium/random",
-      "props": {
-        "min": 0.85,
-        "max": 1.18,
-        "once": 1
-      }
+      "props": { "min": 0.8, "max": 1.23, "once": 1, "uniform": 1 }
     },
     {
       "id": 3001,
       "position": [-210, -83],
       "type": "max/plantarium/random",
-      "props": {
-        "min": 0.085,
-        "max": 0.125,
-        "once": 1
-      }
+      "props": { "min": 0.079, "max": 0.131, "once": 1, "uniform": 1 }
     },
     {
       "id": 3002,
@@ -1816,11 +1805,7 @@
       "id": 3003,
       "position": [-210, -43],
       "type": "max/plantarium/random",
-      "props": {
-        "min": 0.021,
-        "max": 0.031,
-        "once": 1
-      }
+      "props": { "min": 0.0195, "max": 0.0325, "once": 1, "uniform": 1 }
     },
     {
       "id": 3004,
@@ -1834,11 +1819,7 @@
       "id": 3005,
       "position": [-210, 70],
       "type": "max/plantarium/random",
-      "props": {
-        "min": 0.054,
-        "max": 0.07,
-        "once": 1
-      }
+      "props": { "min": 0.0516, "max": 0.0724, "once": 1, "uniform": 1 }
     },
     {
       "id": 3006,

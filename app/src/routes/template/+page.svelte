@@ -8,7 +8,8 @@
   import { page } from '$app/state';
   import { debugNode, MemoryRuntimeExecutor } from '@nodarium/runtime';
   import { templates } from '@nodarium/runtime/templates';
-  import { Spinner, toast } from '@nodarium/ui';
+  import type { Graph } from '@nodarium/types';
+  import { InputNumber, Spinner, toast } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
   import type { Group } from 'three';
 
@@ -26,27 +27,71 @@
 
   let scene = $state<Group>(null!);
   let viewer = $state<ReturnType<typeof Viewer>>();
+  let graph = $state.raw<Graph>();
+  let time = $state(0.5);
+  let seed = $state<number>();
+  let isLoading = $state(false);
   let isExecuting = $state(false);
+  let queued = false;
 
-  async function generate(reroll: boolean, template = selected) {
-    const entry = templates.find((t) => t.id === template);
-    if (!entry || !viewer) return;
-    isExecuting = true;
-    perf.startRun();
+  const hasTime = $derived(graph?.nodes.some((n) => n.type === 'max/myzel/time') ?? false);
+
+  function fail(error: unknown) {
+    viewer?.update(new Int32Array());
+    toast(error instanceof Error ? error.message : String(error), 'error', 6000);
+  }
+
+  async function load(id: string) {
+    const entry = templates.find((t) => t.id === id);
+    if (!entry) return;
+    isLoading = true;
     try {
-      const graph = structuredClone(await entry.load());
-      await nodeRegistry.load(graph.nodes.map((n) => n.type));
-      const settings = reroll
-        ? { ...graph.settings, seed: Math.floor(Math.random() * 100000000) }
-        : (graph.settings ?? {});
-      viewer.update(await runtime.execute(graph, settings));
+      const loaded = structuredClone(await entry.load());
+      await nodeRegistry.load(loaded.nodes.map((n) => n.type));
+      if (id !== selected) return;
+      graph = loaded;
+      time = Number(loaded.settings?.['time.t'] ?? 0.5);
+      seed = undefined;
     } catch (error) {
-      viewer.update(new Int32Array());
-      toast(error instanceof Error ? error.message : String(error), 'error', 6000);
+      if (id !== selected) return;
+      graph = undefined;
+      fail(error);
     } finally {
-      perf.stopRun();
-      isExecuting = false;
+      if (id === selected) isLoading = false;
     }
+    await run();
+  }
+
+  async function run() {
+    if (!graph || !viewer) return;
+    // a scrub asks for more builds than there is time for, only the last one asked for is built
+    if (isExecuting) {
+      queued = true;
+      return;
+    }
+    isExecuting = true;
+    do {
+      queued = false;
+      const settings = {
+        ...graph.settings,
+        ...(hasTime && { 'time.t': time }),
+        ...(seed !== undefined && { seed })
+      };
+      perf.startRun();
+      try {
+        viewer.update(await runtime.execute(graph, settings));
+      } catch (error) {
+        fail(error);
+      } finally {
+        perf.stopRun();
+      }
+    } while (queued && graph);
+    isExecuting = false;
+  }
+
+  function scrub(t: number) {
+    time = t;
+    void run();
   }
 
   function select(id: string) {
@@ -59,11 +104,12 @@
 
   function onkeydown(event: KeyboardEvent) {
     if (event.key !== 'r' || event.ctrlKey || event.metaKey || event.altKey) return;
-    generate(true);
+    seed = Math.floor(Math.random() * 100000000);
+    void run();
   }
 
   $effect(() => {
-    if (viewer) generate(false, selected);
+    if (viewer) void load(selected);
   });
 </script>
 
@@ -89,7 +135,13 @@
       <span>{humanizeNumber(vertices)} vertices</span>
       <span>{humanizeNumber(faces)} faces</span>
     </div>
-    {#if isExecuting}
+    {#if hasTime}
+      <div class="time">
+        <label for="time">Time</label>
+        <InputNumber id="time" bind:value={() => time, scrub} min={0} max={1} step={0.01} />
+      </div>
+    {/if}
+    {#if isLoading || isExecuting}
       <div class="spinner"><Spinner size={28} /></div>
     {/if}
   </main>
@@ -171,6 +223,24 @@
     font-size: 12px;
     opacity: 0.7;
     pointer-events: none;
+  }
+  .time {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 220px;
+    font-size: 12px;
+    transform: translateX(-50%);
+  }
+  .time label {
+    opacity: 0.7;
+  }
+  .time :global(.component-wrapper) {
+    flex: 1;
   }
   .spinner {
     position: absolute;
