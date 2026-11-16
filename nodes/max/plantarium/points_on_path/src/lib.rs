@@ -56,7 +56,10 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             };
             let alpha = (root_alpha + offset).clamp(0.0, 1.0);
 
-            let (position, orthogonal, tangent) = interpolate_along_path(path.points, alpha);
+            // a point the path has not grown up to yet waits at the tip, what grows on it is
+            // dormant until the tip reaches it
+            let spot = path.link.spot_or_tip(alpha);
+            let (position, orthogonal, tangent) = interpolate_along_path(path.points, spot);
             let direction = rotate_vector_by_angle(orthogonal, tangent, turn);
             turn += ctx.float(args[4]) * PI / 180.0;
 
@@ -132,6 +135,34 @@ mod tests {
             assert!((point.position.y - point.alpha * 4.0).abs() < 1e-4);
             assert!((point.position.x - (i / 3) as f32).abs() < 1e-5);
             assert!((point.scale - 0.1).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn the_points_above_the_tip_of_a_growing_path_wait_there() {
+        let full = decode_points(&run(&straight_stems(1), 5, 90.0));
+        // the lower half of the stem, 2 long
+        let mut half = straight_stems(1);
+        for stem in wrap_multiple_paths(&mut half).iter_mut() {
+            for i in 0..5 {
+                stem.points[i * 4 + 1] = i as f32 * 0.5;
+            }
+            stem.set_grown(0.5);
+        }
+        let points = decode_points(&run(&half, 5, 90.0));
+
+        assert_eq!(points.len(), 5);
+        for (point, full) in points.iter().zip(&full) {
+            assert_eq!((point.index, point.alpha), (full.index, full.alpha));
+            assert!((point.direction - full.direction).length() < 1e-4);
+        }
+        // the points at 0, 0.25 and 0.5 sit where they will sit on the full-grown stem
+        for (point, full) in points.iter().zip(&full).take(3) {
+            assert!((point.position - full.position).length() < 1e-4);
+        }
+        // the tip has not reached 0.75 and 1 yet, they wait there
+        for point in &points[3..] {
+            assert!((point.position.y - 2.0).abs() < 1e-4);
         }
     }
 

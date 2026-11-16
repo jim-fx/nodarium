@@ -1,7 +1,7 @@
 {
   "id": "max/plantarium/path_info",
   "meta": {
-    "description": "Tells a node about the path it works on: where it is among all paths, how deep it is in the plant, where on its parent it grows and how long it is. A branch or instance reads the path it grows on."
+    "description": "Tells a node about the path it works on: where it is among all paths, how deep it is in the plant, where on its parent it grows, how long it is and how much of it has grown. A branch or instance reads the path it grows on."
   },
   "outputs": [
     "float"
@@ -15,11 +15,13 @@
         "count",
         "depth",
         "parent position",
-        "length"
+        "length",
+        "grown",
+        "age"
       ],
       "value": 0,
       "internal": true,
-      "description": "Position goes from 0 at the first path to 1 at the last, index counts the paths from 0, count is how many there are. Depth is 1 for a stem and one more for every branching. Parent position is where on its parent a path grows, from 0 at the base to 1 at the tip, a stem has 0. Length is how long the path is."
+      "description": "Position goes from 0 at the first path to 1 at the last, index counts the paths from 0, count is how many there are. Depth is 1 for a stem and one more for every branching. Parent position is where on its parent a path grows, from 0 at the base to 1 at the tip, a stem has 0. Length is how long the path is. Grown is the growth of the path, 1 when it is full-grown and more when it has been for a while. Age is how long ago its tip grew past the spot a node works on, grown minus alpha: 0 where the tip is now. A branch or an instance that takes its growth or size from the age starts when the tip reaches it."
     }
   }
 }

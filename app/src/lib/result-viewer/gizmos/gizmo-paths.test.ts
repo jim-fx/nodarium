@@ -1,12 +1,15 @@
-import { concatEncodedArrays } from '@nodarium/utils';
+import { concatEncodedArrays, PATH_HEADER_SIZE } from '@nodarium/utils';
 import { describe, expect, it } from 'vitest';
 import { angleStep, pickBranchPath, readPaths, sampleAlong } from './gizmo-paths';
 
 // [0, depth, id, parent id, parent alpha, creator, index, ...x y z thickness]
 function path(depth: number, points: number[][]) {
-  const data = new Int32Array(7 + points.length * 4);
+  const data = new Int32Array(PATH_HEADER_SIZE + points.length * 4);
   data.set([0, depth, 0, -1, 0, 0, 0]);
-  new Float32Array(data.buffer).set(points.flat(), 7);
+  const floats = new Float32Array(data.buffer);
+  // a full-grown path
+  floats[7] = 1;
+  floats.set(points.flat(), PATH_HEADER_SIZE);
   return data;
 }
 

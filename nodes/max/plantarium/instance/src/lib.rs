@@ -59,8 +59,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             ctx.alpha = alpha;
             ctx.set_instance(i);
 
-            let point = path.get_point_at(alpha);
-            let tangent = Vec3::from_slice(&path.get_direction_at(alpha)).normalize();
+            // a path that has not grown up to this instance yet reads its inputs like a
+            // full-grown one, so the random values of the instances below it stay
+            let spot = path.link.spot(alpha.clamp(0.0, 1.0));
+            let point = path.get_point_at(spot.unwrap_or(1.0));
+            let tangent = Vec3::from_slice(&path.get_direction_at(spot.unwrap_or(1.0))).normalize();
             let size = (point[3] + 0.01) * ctx.float(args[7]);
 
             // the geometry grows along its -z axis, its face looks along +y.
@@ -97,7 +100,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 (back * size).extend(0.0),
                 Vec3::from_slice(&point).extend(1.0),
             );
-            if is_collapsed(&transform) {
+            if spot.is_none() || is_collapsed(&transform) {
                 continue;
             }
 

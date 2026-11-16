@@ -250,6 +250,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     for item in items {
         match item.get(2) {
+            // a bud, a path that has not started to grow, is not drawn
+            Some(0) | Some(&COLORED_PATH) if path_link(item).is_bud() => {}
             Some(0) | Some(&COLORED_PATH) => {
                 variants.add_geometry(&extrude(item, circle_segments, max_points))
             }

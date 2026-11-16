@@ -8,7 +8,7 @@ import {
   MemoryRuntimeExecutor
 } from '@nodarium/runtime/node';
 import { DEBUG_NODE, type Graph, type NodeId } from '@nodarium/types';
-import { splitNestedArray } from '@nodarium/utils';
+import { PATH_HEADER_SIZE, splitNestedArray } from '@nodarium/utils';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -23,9 +23,13 @@ type Path = {
 
 function readPaths(data: Int32Array): Path[] {
   return splitNestedArray(data)
-    .filter((item) => item[0] === 0 && item.length > 7)
+    .filter((item) => item[0] === 0 && item.length > PATH_HEADER_SIZE)
     .map((item) => {
-      const floats = new Float32Array(item.buffer, item.byteOffset + 7 * 4, item.length - 7);
+      const floats = new Float32Array(
+        item.buffer,
+        item.byteOffset + PATH_HEADER_SIZE * 4,
+        item.length - PATH_HEADER_SIZE
+      );
       const points: Path['points'] = [];
       for (let i = 0; i + 3 < floats.length; i += 4) {
         points.push({ p: [floats[i], floats[i + 1], floats[i + 2]], r: Math.abs(floats[i + 3]) });

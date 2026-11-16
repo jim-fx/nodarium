@@ -3,7 +3,7 @@ use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
     decode_points, int,
-    geometry::{create_multiple_paths, wrap_multiple_paths},
+    geometry::{create_multiple_paths, wrap_multiple_paths, BUD_LENGTH},
     log, Ctx, PathInfo,
 };
 
@@ -28,7 +28,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     log!("stem args: {:?}", args);
 
     // the graph node that makes the stems, it is the last input
-    let creator = int(args[8]);
+    let creator = int(args[9]);
 
     let mut stem_data = create_multiple_paths(amount, path_resolution, 1, creator);
 
@@ -51,9 +51,15 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         ctx.seed_path(stem.link.id);
         // read with points too, so a stem draws the same values on a point as without
         let origin = ctx.vec3(args[0]);
-        let length = ctx.float(args[4]);
+        // the length is read first, so its random values are those of a stem without growth
+        let full_length = ctx.float(args[4]);
+        let grown = ctx.float(args[8]).max(0.0);
+        stem.set_grown(grown);
+        // a stem that has not finished growing is the lower part of the full-grown one
+        let length = (full_length * stem.link.share()).max(BUD_LENGTH);
         // path_info length reads the length of this stem, so its thickness can follow it
         ctx.path.length = length;
+        ctx.path.grown = grown;
         let amount_points = stem.points.len() / 4;
         let alphas = (0..amount_points).map(|i| i as f32 / (path_resolution - 1) as f32);
         // alpha goes along the stem, so the thickness can follow a curve
@@ -98,7 +104,7 @@ mod tests {
 
     fn run_fan(points: &[i32], amount: i32, length: f32, fan: f32) -> Vec<i32> {
         let creator = 2;
-        __nodarium_execute_inner(&[&origin(), points, &[amount], &[encode_float(fan)], &[encode_float(length)], &[encode_float(0.1)], &[5], &[encode_float(1.0)], &[creator]])
+        __nodarium_execute_inner(&[&origin(), points, &[amount], &[encode_float(fan)], &[encode_float(length)], &[encode_float(0.1)], &[5], &[encode_float(1.0)], &[encode_float(1.0)], &[creator]])
     }
 
     fn run(points: &[i32], amount: i32, length: f32) -> Vec<i32> {
@@ -117,7 +123,7 @@ mod tests {
         let path_length = concat_args(vec![&[5], &[5]]);
         let thickness = concat_args(vec![&[0], &[2], &path_length, &[encode_float(0.1)]]);
 
-        let mut data = __nodarium_execute_inner(&[&origin, &[], &[4], &[encode_float(0.0)], &length, &thickness, &[8], &[encode_float(0.0)], &[2]]);
+        let mut data = __nodarium_execute_inner(&[&origin, &[], &[4], &[encode_float(0.0)], &length, &thickness, &[8], &[encode_float(0.0)], &[encode_float(1.0)], &[2]]);
         let stems = wrap_multiple_paths(&mut data);
         assert_eq!(stems.len(), 4);
         let mut lengths = Vec::new();
@@ -129,6 +135,24 @@ mod tests {
             lengths.push(top);
         }
         assert!(lengths.windows(2).any(|w| w[0] != w[1]), "{:?}", lengths);
+    }
+
+    #[test]
+    fn the_growth_is_the_share_of_its_length_a_stem_has() {
+        let run_grown = |growth: f32| {
+            let origin = concat_args(vec![&[encode_float(0.0)], &[encode_float(0.0)], &[encode_float(0.0)]]);
+            // the thickness is a tenth of what path_info reads as grown
+            let grown = concat_args(vec![&[5], &[6]]);
+            let thickness = concat_args(vec![&[0], &[2], &grown, &[encode_float(0.1)]]);
+            __nodarium_execute_inner(&[&origin, &[], &[1], &[encode_float(0.0)], &[encode_float(2.0)], &thickness, &[5], &[encode_float(0.0)], &[encode_float(growth)], &[2]])
+        };
+        for (growth, top) in [(0.25, 0.5), (1.0, 2.0), (1.5, 2.0)] {
+            let mut data = run_grown(growth);
+            let stems = wrap_multiple_paths(&mut data);
+            assert_eq!(stems[0].link.grown, growth);
+            assert!((stems[0].points[stems[0].points.len() - 3] - top).abs() < 1e-6);
+            assert!((stems[0].points[3] - 0.1 * growth).abs() < 1e-6);
+        }
     }
 
     #[test]
@@ -198,7 +222,7 @@ mod tests {
     fn a_fan_keeps_the_ids_and_random_values_of_the_stems() {
         let length = concat_args(vec![&[1], &[encode_float(1.0)], &[encode_float(3.0)], &[7]]);
         let stems = |fan: f32| {
-            let mut data = __nodarium_execute_inner(&[&origin(), &[], &[3], &[encode_float(fan)], &length, &[encode_float(0.1)], &[5], &[encode_float(1.0)], &[2]]);
+            let mut data = __nodarium_execute_inner(&[&origin(), &[], &[3], &[encode_float(fan)], &length, &[encode_float(0.1)], &[5], &[encode_float(1.0)], &[encode_float(1.0)], &[2]]);
             wrap_multiple_paths(&mut data)
                 .iter()
                 .map(|stem| {

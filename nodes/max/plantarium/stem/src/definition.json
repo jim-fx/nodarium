@@ -67,6 +67,15 @@
       "step": 0.05,
       "value": 1
     },
+    "growth": {
+      "type": "float",
+      "description": "How much of the stem has grown. Below 1 it is that share of its length, and what sits on it stays where it will be on the full-grown stem: kinks, points, branches and instances above the tip are left out until it reaches them. Above 1 the stem is full-grown and only gets older, path_info reads it as grown and age.",
+      "hidden": true,
+      "min": 0,
+      "max": 4,
+      "step": 0.01,
+      "value": 1
+    },
     "creator": {
       "type": "creator"
     }

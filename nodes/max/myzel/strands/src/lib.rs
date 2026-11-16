@@ -118,6 +118,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 depth: path.depth + 1,
                 parent_position: 0.0,
                 length,
+                ..Default::default()
             });
             ctx.seed_path(link.id);
             // read for every strand, so a random node gives each strand its own thickness

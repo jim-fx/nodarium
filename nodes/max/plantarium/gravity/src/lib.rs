@@ -138,8 +138,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             let path = wrap_path(path_data);
             let mut output_data = path_data.to_vec();
 
+            // a path that has not finished growing bends like the lower part of the full-grown
+            // one, so a spot keeps its bend while the tip grows on
+            let share = path.link.share();
             // alpha goes along the path, so the strength can change from base to tip
-            let alphas = (0..path.length).map(|i| i as f32 / (path.length - 1).max(1) as f32);
+            let alphas = (0..path.length).map(|i| i as f32 / (path.length - 1).max(1) as f32 * share);
             let strengths = ctx.float_along(args[1], alphas);
             let output = wrap_path_mut(&mut output_data);
 
@@ -178,7 +181,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 for i in 1..path.length {
                     let seg_idx = i - 1;
                     // the middle of the segment, so coarse paths bend like fine ones
-                    let alpha = (seg_idx as f32 + 0.5) / (path.length - 1) as f32;
+                    let alpha = (seg_idx as f32 + 0.5) / (path.length - 1) as f32 * share;
                     let strength = (strengths[seg_idx] + strengths[i]) * 0.5;
                     // Tip bend angle in radians. PI/2 = horizontal tip at strength=1.
                     let max_angle = strength * std::f32::consts::FRAC_PI_2;
@@ -201,7 +204,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
                 for i in 0..path.length - 1 {
                     // the middle of the segment, so coarse paths bend like fine ones
-                    let alpha = (i as f32 + 0.5) / (path.length - 1) as f32;
+                    let alpha = (i as f32 + 0.5) / (path.length - 1) as f32 * share;
                     let start_index = i * 4;
 
                     let start_point = Vec3::from_slice(&path.points[start_index..start_index + 3]);

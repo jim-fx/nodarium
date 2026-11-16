@@ -141,6 +141,7 @@ fn skins(args: &[&[i32]], strand_count: i32) -> Vec<Skin> {
                     depth: source.depth,
                     parent_position: source.alpha,
                     length: if spot.is_some() { 0.0 } else { on_b.length() },
+                    ..Default::default()
                 });
                 ctx.seed_path(path_id(creator, source.id, rank as i32));
             }

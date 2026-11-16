@@ -4,7 +4,7 @@ use nodarium_utils::{
     concat_arg_vecs,
     geometry::{
         create_path, interpolate_along_path, is_path, rotate_vector_by_angle, set_path_link,
-        wrap_path, wrap_path_mut, DeepestPaths, PathLink,
+        wrap_path, wrap_path_mut, DeepestPaths, PathLink, BUD_LENGTH,
     },
     int, log, split_args, Ctx,
 };
@@ -36,7 +36,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let path_count = selected.count(&paths);
     let mut path_index = 0;
     // the graph node that makes the branches, it is the last input
-    let creator = int(args[12]);
+    let creator = int(args[13]);
 
     for path_data in paths.iter() {
         if !selected.contains(path_data) {
@@ -68,12 +68,15 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 .max(0.0);
             ctx.alpha = root_alpha;
 
-            let length = ctx.float(args[1]);
+            // the length is read first, so its random values are those of a branch without growth
+            let full_length = ctx.float(args[1]);
+            let growth = ctx.float(args[12]).max(0.0);
             let taper = ctx.float(args[11]);
             // a branch as long as the longest path gets the full resolution, shorter ones get
-            // fewer points, no matter which layer they grow on
+            // fewer points, no matter which layer they grow on. A branch that grows keeps the
+            // points of the full-grown one
             let resolution = if reference_length > 0.0 {
-                ((max_resolution as f32 * length / reference_length).round() as usize)
+                ((max_resolution as f32 * full_length / reference_length).round() as usize)
                     .clamp(4, max_resolution)
             } else {
                 max_resolution
@@ -89,11 +92,22 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 0.0
             };
 
-            let (branch_origin, orthogonal, direction) =
-                interpolate_along_path(path.points, root_alpha + offset_single);
-
             let rotation_angle = turn;
             turn += ctx.float(args[9]) * PI / 180.0;
+
+            // a branch the path has not grown up to yet is a bud at its tip
+            let spot = path.link.spot((root_alpha + offset_single).min(1.0));
+            let link = PathLink {
+                grown: if spot.is_some() { growth } else { 0.0 },
+                // the id only depends on this node, the parent and the number of the branch, so
+                // it stays when the amount of other branches or paths changes. A skipped branch
+                // leaves a gap instead of renumbering the ones after it.
+                ..PathLink::child(creator, path.link.id, root_alpha + offset_single, i)
+            };
+            // a branch that has not finished growing is the lower part of the full-grown one
+            let length = (full_length * link.share()).max(BUD_LENGTH);
+            let (branch_origin, orthogonal, direction) =
+                interpolate_along_path(path.points, spot.unwrap_or(1.0));
 
             if orthogonal[0].is_nan() || orthogonal[1].is_nan() || orthogonal[2].is_nan() {
                 log!(
@@ -118,13 +132,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             );
             // a branch is always one layer deeper than the path it grows on
             let mut branch_data = create_path(resolution, path_data[3] + 1);
-            set_path_link(
-                &mut branch_data,
-                // the id only depends on this node, the parent and the number of the branch, so
-                // it stays when the amount of other branches or paths changes. A skipped branch
-                // leaves a gap instead of renumbering the ones after it.
-                PathLink::child(creator, path.link.id, root_alpha + offset_single, i),
-            );
+            set_path_link(&mut branch_data, link);
             let branch = wrap_path_mut(&mut branch_data);
 
             for j in 0..resolution {
@@ -169,6 +177,7 @@ mod tests {
             &[8],
             &[encode_float(rotation)],
             &[encode_float(0.0)],
+            &[encode_float(1.0)],
             &[encode_float(1.0)],
             &[creator],
         ])

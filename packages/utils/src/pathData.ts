@@ -4,8 +4,8 @@
  * surrounding brackets, starting at the type.
  */
 
-/** type, depth, id, parent id, parent alpha, creator and index */
-export const PATH_HEADER_SIZE = 7;
+/** type, depth, id, parent id, parent alpha, creator, index and grown */
+export const PATH_HEADER_SIZE = 8;
 
 /** The parent id of a path that grows on its own. */
 export const NO_PARENT = -1;
@@ -24,6 +24,8 @@ export type PathLink = {
   creator: number;
   /** The number of the path among the paths its creator made on the same parent. */
   index: number;
+  /** How much of the path has grown: 1 when it is full-grown, below 1 that share of its final length. */
+  grown: number;
 };
 
 /** The type of a path with an RGBA8 color at every point, its colors follow its points. */
@@ -53,7 +55,8 @@ export function readPathLink(path: Int32Array): PathLink {
     parentId: path[3],
     parentAlpha: new Float32Array(path.buffer, path.byteOffset + 4 * 4, 1)[0],
     creator: path[5],
-    index: path[6]
+    index: path[6],
+    grown: new Float32Array(path.buffer, path.byteOffset + 7 * 4, 1)[0]
   };
 }
 

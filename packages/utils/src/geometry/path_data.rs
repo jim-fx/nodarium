@@ -8,7 +8,12 @@ use glam::{vec3, vec4, Vec3, Vec4, Vec4Swizzles};
 // 4: where on the parent this path is attached (f32 bits, 0..1 along its length)
 // 5: creator, the id of the graph node that made the path
 // 6: index among the paths the creator made on the same parent, the first is 0
-static PATH_HEADER_SIZE: usize = 7;
+// 7: how much of the path has grown (f32 bits), see `PathLink::grown`
+static PATH_HEADER_SIZE: usize = 8;
+
+/// The length of a bud, a path that has not started to grow. It is too short to see and long
+/// enough to have a direction, so the nodes that work on paths take it like any other.
+pub const BUD_LENGTH: f32 = 1e-5;
 
 /// The parent id of a path that is not attached to another path.
 pub const NO_PARENT: i32 = -1;
@@ -149,6 +154,15 @@ pub struct PathLink {
     pub parent_alpha: f32,
     pub creator: i32,
     pub index: i32,
+    /// How much of the path has grown. 1 is a full-grown path. Below 1 the path is that share
+    /// of its final length, above 1 it has been full-grown for that much longer. Places on the
+    /// path (`parent_alpha`, the alpha of a point) are shares of its final length, so they stay
+    /// where they are while the path grows, `spot` finds them on the path as it is now.
+    ///
+    /// At 0 the path is a bud: it is in the plant with its id and its place, `BUD_LENGTH` long,
+    /// and is not drawn. A branch above the tip of its parent is a bud too. So a plant has the
+    /// same paths on the same layers at every time, only their lengths change.
+    pub grown: f32,
 }
 
 impl PathLink {
@@ -160,6 +174,7 @@ impl PathLink {
             parent_alpha: 0.0,
             creator,
             index,
+            grown: 1.0,
         }
     }
 
@@ -171,11 +186,35 @@ impl PathLink {
             parent_alpha,
             creator,
             index,
+            grown: 1.0,
         }
     }
 
     pub fn has_parent(&self) -> bool {
         self.parent_id != NO_PARENT
+    }
+
+    /// The share of its final length the path has, from 0 to 1.
+    pub fn share(&self) -> f32 {
+        self.grown.clamp(0.0, 1.0)
+    }
+
+    /// A path that has not started to grow.
+    pub fn is_bud(&self) -> bool {
+        self.grown <= 0.0
+    }
+
+    /// Where `alpha` of the full-grown path lies on the path as it is now, from 0 to 1. `None`
+    /// when the path has not grown that far yet: what sits there is dormant, a node keeps it at
+    /// the tip (`spot_or_tip`) and leaves it out of what is drawn.
+    pub fn spot(&self, alpha: f32) -> Option<f32> {
+        let share = self.share();
+        (share > 0.0 && alpha <= share).then(|| alpha / share)
+    }
+
+    /// Like `spot`, the tip for a place the path has not grown to yet.
+    pub fn spot_or_tip(&self, alpha: f32) -> f32 {
+        self.spot(alpha).unwrap_or(1.0)
     }
 }
 
@@ -187,6 +226,7 @@ pub fn path_link(path: &[i32]) -> PathLink {
         parent_alpha: f32::from_bits(path[6] as u32),
         creator: path[7],
         index: path[8],
+        grown: f32::from_bits(path[9] as u32),
     }
 }
 
@@ -197,6 +237,7 @@ pub fn set_path_link(path: &mut [i32], link: PathLink) {
     path[6] = link.parent_alpha.to_bits() as i32;
     path[7] = link.creator;
     path[8] = link.index;
+    path[9] = link.grown.to_bits() as i32;
 }
 
 fn read_link(header: &[i32]) -> PathLink {
@@ -206,6 +247,7 @@ fn read_link(header: &[i32]) -> PathLink {
         parent_alpha: f32::from_bits(header[4] as u32),
         creator: header[5],
         index: header[6],
+        grown: f32::from_bits(header[7] as u32),
     }
 }
 
@@ -217,9 +259,16 @@ pub struct PathDataMut<'a> {
     pub points: &'a mut [f32],
     /// An RGBA8 color per point, empty for a path without colors
     pub colors: &'a mut [u32],
+    grown: &'a mut i32,
 }
 
 impl PathDataMut<'_> {
+    /// Sets how much of the path has grown, see `PathLink::grown`.
+    pub fn set_grown(&mut self, grown: f32) {
+        self.link.grown = grown;
+        *self.grown = grown.to_bits() as i32;
+    }
+
     pub fn get_length(&self) -> f32 {
         let mut l = 0.0;
         for i in 0..(self.length - 1) {
@@ -425,6 +474,7 @@ pub fn wrap_path_mut<'a>(geometry: &'a mut [i32]) -> PathDataMut<'a> {
         length,
         points,
         colors,
+        grown: &mut header[7],
     }
 }
 
@@ -665,6 +715,7 @@ mod tests {
             parent_alpha: 0.25,
             creator: 11,
             index: 5,
+            grown: 0.5,
         };
         set_path_link(&mut data, link);
 
@@ -673,6 +724,36 @@ mod tests {
         assert_eq!(wrap_path_mut(&mut data).link, link);
         assert_eq!(wrap_path(&data).depth, 2);
         assert_eq!(wrap_path(&data).length, 3);
+
+        wrap_path_mut(&mut data).set_grown(1.5);
+        assert_eq!(path_link(&data), PathLink { grown: 1.5, ..link });
+    }
+
+    #[test]
+    fn a_new_path_is_full_grown() {
+        assert_eq!(path_link(&create_path(3, 1)).grown, 1.0);
+        let mut paths = create_multiple_paths(2, 3, 1, 4);
+        for path in wrap_multiple_paths(&mut paths) {
+            assert_eq!(path.link.grown, 1.0);
+        }
+    }
+
+    #[test]
+    fn a_spot_is_a_share_of_the_full_grown_path() {
+        let link = |grown: f32| PathLink { grown, ..PathLink::root(1, 0) };
+        // on a full-grown path a spot is where its alpha says, also when the path is older
+        assert_eq!(link(1.0).spot(0.4), Some(0.4));
+        assert_eq!(link(1.0).spot(1.0), Some(1.0));
+        assert_eq!(link(2.5).spot(0.4), Some(0.4));
+        // half of the path is there: its tip is the middle of the full-grown path
+        assert_eq!(link(0.5).spot(0.25), Some(0.5));
+        assert_eq!(link(0.5).spot(0.5), Some(1.0));
+        assert_eq!(link(0.5).spot(0.6), None);
+        assert_eq!(link(0.5).spot_or_tip(0.6), 1.0);
+        // nothing sits on a bud yet
+        assert!(link(0.0).is_bud());
+        assert_eq!(link(0.0).spot(0.0), None);
+        assert_eq!(link(0.0).spot(0.1), None);
     }
 
     #[test]

@@ -25,10 +25,12 @@ mod tests {
             depth: 3,
             parent_position: 0.4,
             length: 1.5,
+            grown: 0.75,
         });
+        ctx.alpha = 0.25;
 
-        // position, index, count, depth, parent position, length
-        for (field, expected) in [(0, 0.5), (1, 7.0), (2, 5.0), (3, 3.0), (4, 0.4), (5, 1.5)] {
+        // position, index, count, depth, parent position, length, grown, age
+        for (field, expected) in [(0, 0.5), (1, 7.0), (2, 5.0), (3, 3.0), (4, 0.4), (5, 1.5), (6, 0.75), (7, 0.5)] {
             let expression = __nodarium_execute_inner(&[&[field]]);
             assert_eq!(ctx.float(&expression), expected, "field {}", field);
         }

@@ -71,7 +71,7 @@ mod tests {
     fn list_with_branch(creator: i32) -> Vec<i32> {
         let mut data = create_multiple_paths(2, 3, 1, creator);
         let first = path_link(&data[2..]).id;
-        let start = 2 + (3 * 4 + 7 + 4);
+        let start = 2 + (3 * 4 + 8 + 4);
         set_path_link(
             &mut data[start..],
             PathLink::child(creator, first, 0.5, 0),

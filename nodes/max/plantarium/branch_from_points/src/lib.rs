@@ -3,17 +3,28 @@ use nodarium_utils::{
     concat_arg_vecs, decode_points,
     geometry::{
         create_path, is_path, path_link, set_path_link, wrap_path, wrap_path_mut, PathLink,
+        BUD_LENGTH,
     },
     group_points_by_parent, int, split_args, Ctx, Point,
 };
 
 nodarium_definition_file!("src/definition.json");
 
-/// A branch growing from `point`, with up to `max_resolution` points.
-fn grow(ctx: &mut Ctx, args: &[&[i32]], point: &Point, max_resolution: usize, reference_length: f32, creator: i32) -> Vec<i32> {
+/// A branch growing from `point`, with up to `max_resolution` points. On a `dormant` point, one
+/// its path has not grown up to yet, the branch is a bud, like a branch without growth.
+fn grow(ctx: &mut Ctx, args: &[&[i32]], point: &Point, dormant: bool, max_resolution: usize, reference_length: f32, creator: i32) -> Vec<i32> {
     ctx.alpha = point.alpha;
 
-    let length = ctx.float(args[2]);
+    // the length is read first, so its random values are those of a branch without growth
+    let full_length = ctx.float(args[2]);
+    let growth = ctx.float(args[6]).max(0.0);
+    let link = PathLink {
+        grown: if dormant { 0.0 } else { growth },
+        // the id only depends on this node, the parent and the number of the point, so it stays
+        // when other points come or go
+        ..PathLink::child(creator, point.parent_id, point.alpha, point.index)
+    };
+    let length = (full_length * link.share()).max(BUD_LENGTH);
     let taper = ctx.float(args[5]);
     // a branch as long as the longest path gets the full resolution, shorter ones get fewer
     // points, no matter which layer they grow on
@@ -34,12 +45,7 @@ fn grow(ctx: &mut Ctx, args: &[&[i32]], point: &Point, max_resolution: usize, re
 
     // a branch is always one layer deeper than the path it grows on
     let mut data = create_path(resolution, point.depth + 1);
-    // the id only depends on this node, the parent and the number of the point, so it stays
-    // when other points come or go
-    set_path_link(
-        &mut data,
-        PathLink::child(creator, point.parent_id, point.alpha, point.index),
-    );
+    set_path_link(&mut data, link);
     let branch = wrap_path_mut(&mut data);
     for j in 0..resolution {
         let a = j as f32 / (resolution - 1) as f32;
@@ -59,8 +65,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
     let plant = split_args(args[0]);
     let points = decode_points(args[1]);
-    let max_resolution = int(args[6]).max(4) as usize;
-    let creator = int(args[7]);
+    let max_resolution = int(args[7]).max(4) as usize;
+    let creator = int(args[8]);
 
     // the longest path sets the point density, so branches on every level share it
     let reference_length = plant
@@ -75,15 +81,16 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     for (rank, (parent_id, group)) in groups.iter().enumerate() {
         // the random values of the branches start from the path they grow on, a point whose
         // path is not in the plant has nothing to start from
-        match plant
+        let parent = plant
             .iter()
-            .find(|p| is_path(p) && path_link(p).id == *parent_id)
-        {
+            .find(|p| is_path(p) && path_link(p).id == *parent_id);
+        match parent {
             Some(parent) => ctx.set_path(parent, rank, groups.len()),
             None => ctx.seed_path(*parent_id),
         }
         for point in group {
-            branches[rank].push(grow(&mut ctx, args, point, max_resolution, reference_length, creator));
+            let dormant = parent.is_some_and(|p| path_link(p).spot(point.alpha).is_none());
+            branches[rank].push(grow(&mut ctx, args, point, dormant, max_resolution, reference_length, creator));
         }
     }
 
@@ -142,6 +149,10 @@ mod tests {
     }
 
     fn run(plant: &[i32], points: &[Point], angle: f32) -> Vec<i32> {
+        run_grown(plant, points, angle, 1.0)
+    }
+
+    fn run_grown(plant: &[i32], points: &[Point], angle: f32, growth: f32) -> Vec<i32> {
         __nodarium_execute_inner(&[
             plant,
             &encode_points(points),
@@ -149,6 +160,7 @@ mod tests {
             &[encode_float(1.0)],
             &[encode_float(angle)],
             &[encode_float(1.0)],
+            &[encode_float(growth)],
             &[8],
             &[BRANCH_NODE],
         ])
@@ -177,6 +189,55 @@ mod tests {
             assert!(branch.points[n * 4 + 3].abs() < 1e-5);
             assert_eq!(branch.depth, 2);
         }
+    }
+
+    #[test]
+    fn the_growth_is_the_share_of_its_length_a_branch_has() {
+        let plant = stem();
+        let stem_id = path_link(&split_args(&plant)[0]).id;
+        let tip_of = |growth: f32| {
+            let result = run_grown(&plant, &[point(stem_id, 0, 1.0)], 0.0, growth);
+            let branch = wrap_path(split_args(&result)[0]);
+            assert_eq!(branch.link.grown, growth);
+            let n = branch.length - 1;
+            Vec3::from_slice(&branch.points[n * 4..n * 4 + 3])
+        };
+
+        assert!((tip_of(0.25) - Vec3::new(0.25, 1.0, 0.0)).length() < 1e-5);
+        // a full-grown branch only gets older
+        assert!((tip_of(1.0) - Vec3::new(1.0, 1.0, 0.0)).length() < 1e-5);
+        assert!((tip_of(1.5) - Vec3::new(1.0, 1.0, 0.0)).length() < 1e-5);
+
+    }
+
+    #[test]
+    fn a_branch_that_has_not_started_is_a_bud() {
+        let length_of = |plant: &[i32], y: f32, growth: f32| {
+            let stem_id = path_link(&split_args(plant)[0]).id;
+            let result = run_grown(plant, &[point(stem_id, 0, y)], 0.0, growth);
+            // the branch is in the plant, with its id and its place
+            let items = split_args(&result);
+            assert_eq!(items.len(), 2);
+            let branch = wrap_path(items[0]);
+            assert_eq!(branch.link.id, PathLink::child(BRANCH_NODE, stem_id, y / 4.0, 0).id);
+            (branch.link, branch.get_length())
+        };
+
+        // without growth
+        let (link, length) = length_of(&stem(), 1.0, 0.0);
+        assert!(link.is_bud());
+        assert!(length > 0.0 && length < 1e-4);
+
+        // on a point its path has not grown up to: half of the stem is there, the point sits
+        // at three quarters of the full-grown one
+        let mut half = stem();
+        for stem in wrap_multiple_paths(&mut half).iter_mut() {
+            stem.set_grown(0.5);
+        }
+        assert!(length_of(&half, 3.0, 1.0).0.is_bud());
+        let (link, length) = length_of(&half, 1.0, 1.0);
+        assert!(!link.is_bud());
+        assert!((length - 1.0).abs() < 1e-5);
     }
 
     #[test]

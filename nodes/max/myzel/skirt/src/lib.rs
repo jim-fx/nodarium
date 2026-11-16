@@ -169,7 +169,7 @@ fn ring_reads(ctx: &mut Ctx, ring: &Attachment, length: &[i32], flare: &[i32], c
     (0..count)
         .map(|i| {
             let source = ring.sources[i];
-            ctx.set_path_info(PathInfo { index: i, rank: i, count, depth: source.depth, parent_position: source.alpha, length: 0.0 });
+            ctx.set_path_info(PathInfo { index: i, rank: i, count, depth: source.depth, parent_position: source.alpha, ..Default::default() });
             ctx.seed_path(path_id(creator, source.id, 0));
             ctx.alpha = ring.place(i);
             (ctx.float(length), Flare::read(ctx, flare))
@@ -225,7 +225,7 @@ fn skins(args: &[&[i32]], strand_count: i32) -> Vec<Skin> {
             count: skins.len(),
             depth: source.depth,
             parent_position: source.alpha,
-            length: 0.0,
+            ..Default::default()
         });
         let key = path_id(creator, source.id, 0);
         ctx.seed_path(key);

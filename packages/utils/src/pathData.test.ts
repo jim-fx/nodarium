@@ -14,21 +14,38 @@ import {
 } from './pathData';
 
 function path(
-  link: { id: number; parentId: number; alpha: number; creator: number; index: number }
+  link: {
+    id: number;
+    parentId: number;
+    alpha: number;
+    creator: number;
+    index: number;
+    grown?: number;
+  }
 ) {
   const data = new Int32Array(PATH_HEADER_SIZE + 8);
   const f32 = new Float32Array(data.buffer);
   data.set([0, 2, link.id, link.parentId]);
   f32[4] = link.alpha;
   data.set([link.creator, link.index], 5);
+  f32[7] = link.grown ?? 1;
   return data;
 }
 
 describe('readPathLink', () => {
   it('reads the id, the parent and who made the path', () => {
-    const link = readPathLink(path({ id: 31, parentId: 7, alpha: 0.25, creator: 12, index: 3 }));
+    const link = readPathLink(
+      path({ id: 31, parentId: 7, alpha: 0.25, creator: 12, index: 3, grown: 0.5 })
+    );
 
-    expect(link).toEqual({ id: 31, parentId: 7, parentAlpha: 0.25, creator: 12, index: 3 });
+    expect(link).toEqual({
+      id: 31,
+      parentId: 7,
+      parentAlpha: 0.25,
+      creator: 12,
+      index: 3,
+      grown: 0.5
+    });
   });
 
   it('reads a path that is a view into a larger buffer', () => {

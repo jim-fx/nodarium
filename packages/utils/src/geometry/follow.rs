@@ -41,10 +41,12 @@ impl PathStructure {
                 if !link.has_parent() {
                     return None;
                 }
+                // the spot on the parent as it is now, a parent that has not grown that far
+                // carries the path at its tip
                 by_id
                     .get(&link.parent_id)
                     .filter(|parent| **parent != index)
-                    .map(|parent| (*parent, link.parent_alpha))
+                    .map(|parent| (*parent, path_link(&paths[*parent]).spot_or_tip(link.parent_alpha)))
             })
             .collect();
 
@@ -154,6 +156,25 @@ mod tests {
 
     fn stem(x: f32) -> Vec<i32> {
         path(0, 1, None, &[[x, 0.0, 0.0], [x, 1.0, 0.0], [x, 2.0, 0.0]])
+    }
+
+    #[test]
+    fn a_child_sits_at_its_share_of_the_full_grown_parent() {
+        // the stem is half-grown: 2 long now, 4 when it is full-grown
+        let mut half = stem(0.0);
+        wrap_path_mut(&mut half).set_grown(0.5);
+        // the branch grows at a quarter of the full-grown stem, the middle of it as it is now
+        let branch = path(1, 2, Some((0, 0.25)), &[[0.0, 1.0, 0.0], [1.0, 1.0, 0.0]]);
+        let original = vec![half, branch];
+        let mut current = original.clone();
+        translate_path(&mut current[0], Vec3::X);
+        for point in wrap_path_mut(&mut current[0]).points.chunks_exact_mut(4) {
+            // lean the stem: x grows with the height
+            point[0] += point[1];
+        }
+
+        follow_parents(&original, &mut current);
+        assert_eq!(base(&current[1]), Vec3::new(2.0, 1.0, 0.0));
     }
 
     #[test]

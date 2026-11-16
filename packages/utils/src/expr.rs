@@ -19,6 +19,11 @@ pub enum PathField {
     ParentPosition,
     /// How long the path is.
     Length,
+    /// How much of the path has grown, `PathLink::grown`.
+    Grown,
+    /// How long ago the tip of the path grew past the spot a node works on: grown minus alpha.
+    /// 0 where the tip is, below 0 where the path has not grown yet.
+    Age,
 }
 
 impl PathField {
@@ -31,6 +36,8 @@ impl PathField {
             3 => Self::Depth,
             4 => Self::ParentPosition,
             5 => Self::Length,
+            6 => Self::Grown,
+            7 => Self::Age,
             _ => return None,
         })
     }
@@ -38,7 +45,7 @@ impl PathField {
 
 /// The path a node is working on, set by `Ctx::set_path` before the inputs of that path are read.
 /// A `branch` or `instance` works on the path it places its branches or instances on.
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PathInfo {
     /// The number of the path among the paths its creator made on the same parent.
     pub index: usize,
@@ -48,6 +55,14 @@ pub struct PathInfo {
     pub depth: i32,
     pub parent_position: f32,
     pub length: f32,
+    pub grown: f32,
+}
+
+impl Default for PathInfo {
+    /// A full-grown path.
+    fn default() -> Self {
+        Self { index: 0, rank: 0, count: 0, depth: 0, parent_position: 0.0, length: 0.0, grown: 1.0 }
+    }
 }
 
 impl PathInfo {
@@ -55,7 +70,8 @@ impl PathInfo {
         self.rank as f32 / self.count.saturating_sub(1).max(1) as f32
     }
 
-    pub fn read(&self, field: PathField) -> f32 {
+    /// `alpha` is the spot on the path the node works on, the age is read there.
+    pub fn read(&self, field: PathField, alpha: f32) -> f32 {
         match field {
             PathField::Position => self.position(),
             PathField::Index => self.index as f32,
@@ -63,6 +79,8 @@ impl PathInfo {
             PathField::Depth => self.depth as f32,
             PathField::ParentPosition => self.parent_position,
             PathField::Length => self.length,
+            PathField::Grown => self.grown,
+            PathField::Age => self.grown - alpha,
         }
     }
 }
@@ -116,6 +134,7 @@ impl Ctx {
                 0.0
             },
             length: wrap_path(path).get_length(),
+            grown: link.grown,
         });
     }
 
@@ -186,7 +205,7 @@ impl Ctx {
             [[2], [2]] => self.vein,
             [[2], ..] => self.alpha,
             [[5], [field]] => PathField::from_index(*field)
-                .map(|field| self.path.read(field))
+                .map(|field| self.path.read(field, self.alpha))
                 .unwrap_or(0.0),
             [[3], value, min, max, points @ ..] => {
                 let x = self.float(value).clamp(0.0, 1.0);
@@ -707,6 +726,7 @@ mod tests {
             depth: 2,
             parent_position: 0.4,
             length: 2.5,
+            grown: 1.0,
         });
         assert_eq!(ctx.float(&info(0)), 0.5);
         assert_eq!(ctx.float(&info(1)), 4.0);
@@ -747,6 +767,7 @@ mod tests {
                 parent_alpha: 0.4,
                 creator: 2,
                 index: 6,
+                grown: 0.5,
             },
         );
         for (i, point) in wrap_path_mut(&mut path).points.chunks_exact_mut(4).enumerate() {
@@ -764,6 +785,12 @@ mod tests {
         assert_eq!(ctx.float(&info(3)), 2.0);
         assert_eq!(ctx.float(&info(4)), 0.4);
         assert_eq!(ctx.float(&info(5)), 3.0);
+        // half of it has grown, the age of a spot is how far the tip is past it
+        assert_eq!(ctx.float(&info(6)), 0.5);
+        ctx.alpha = 0.125;
+        assert_eq!(ctx.float(&info(7)), 0.375);
+        ctx.alpha = 0.75;
+        assert_eq!(ctx.float(&info(7)), -0.25);
 
         // a path that grows on its own has no parent position
         let stem = create_path(4, 1);

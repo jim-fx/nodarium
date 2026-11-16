@@ -16,7 +16,7 @@ A `float` input is either a plain value or an **expression** produced by the `ma
 [3, value, min, max, x0, y0, x1, y1, ...]
                      curve: min + curve(value) * (max - min), value clamped to 0-1
 [5, field]           path_info: a value of the path the node works on, field is the option of the node:
-                     0 position, 1 index, 2 count, 3 depth, 4 parent position, 5 length
+                     0 position, 1 index, 2 count, 3 depth, 4 parent position, 5 length, 6 grown, 7 age
 [8, value, count, shape]
                      wave: a profile repeated count times from value 0 to 1, 0 on a crest and 1 in a trough,
                      shape 0 sine, 1 tooth, 2 saw, 3 round
@@ -42,8 +42,8 @@ Alpha is only one number that changes from place to place, so it can't tell a no
 ## Path
 
 ```
-[0, stem_depth, id, parent_id, parent_alpha, creator, index, ...points]    each point: x, y, z, thickness
-[16, stem_depth, id, parent_id, parent_alpha, creator, index, ...points, ...colors]
+[0, stem_depth, id, parent_id, parent_alpha, creator, index, grown, ...points]    each point: x, y, z, thickness
+[16, stem_depth, id, parent_id, parent_alpha, creator, index, grown, ...points, ...colors]
 ```
 
 A path with the type 16 (`COLORED_PATH`) has an RGBA8 color for every point after its points, see Colors. `is_path` and `wrap_path` take both, `wrap_path` gives the points and the colors apart, so a node that moves the points of a path keeps its colors without knowing them.
@@ -55,6 +55,25 @@ The header says where the path sits in the plant, so a node, the viewer or a mat
 - `index` is the number of the path among the paths its creator made on the same parent, the first is 0.
 - `id` is a hash of `creator`, `parent_id` and `index` (`path_id` in `nodarium_utils::geometry`, never negative). It only depends on these three, so it is the same in every run and doesn't change when other paths come or go: more stems, another amount of branches on a different path, a node somewhere else in the graph. Changing the amount of a node only adds or removes the paths with the highest indexes, a branch that is skipped leaves a gap in the indexes instead of renumbering the rest. Two paths of a list never share an id (unless the same list is joined twice, see `join`).
 - `parent_alpha` is an `f32`, where along the length of the parent (0 to 1) the path is attached.
+- `grown` is an `f32`, how much of the path has grown, see Growth. 1 is a full-grown path.
+
+### Growth
+
+A path that is still growing is the lower part of the full-grown one. `stem`, `branch` and `branch_from_points` have a hidden `growth` input: below 1 the path is that share of its `length`, above 1 it is full-grown and only gets older. They write it into `grown` of the header (`PathLink::grown`), and a node that copies a path or its link keeps it.
+
+Places on a path are shares of its full-grown length: `parent_alpha` of a child, the alpha of a point, and `lowest_...` and `highest_...` of the nodes that place something. `PathLink::spot(alpha)` gives the place on the path as it is now, or nothing when the path has not grown that far. Everything below the tip stays where it will be on the full-grown path while the tip grows on: nothing slides up the path. `gravity` (along each path) and `noise` read alpha and the length of the full-grown path too, so the grown part keeps its shape. `follow_parents` finds the spot of a child the same way.
+
+Growth never changes which paths a plant has, only how long they are. What lies above the tip is dormant: `points_on_path` and `trunk_kink` still give its point, it waits at the tip (a dormant kink bends nothing), `branch` and `branch_from_points` make its branch as a bud, and `instance` and `instance_from_points` place nothing there. A bud is a path with `grown` 0 (`PathLink::is_bud`): it has its id, its link and its layer, is `BUD_LENGTH` long and is not drawn by `output` and `to_geometry`. A branch whose own `growth` is 0 is a bud too. So the layers, the ids, the indexes, the counts of `path_info` and the random values are the same at every time, and a node that works on the deepest layer finds the branches there before the first of them has started.
+
+`path_info` reads the growth of the path a node works on as `grown`, and as `age`: `grown` minus alpha, how long ago the tip grew past the spot. It is 0 where the tip is now and rises as the path grows on, also after the path is full-grown, as long as its `growth` rises above 1. An age into the `growth` of a branch or the `size` of an instance starts it when the tip of its parent reaches it, without a jump. The growth of a branch is the `grown` of the path its own leaves and twigs read, so one `time` into the `growth` of the stems drives the whole plant, level by level. The thickness of a `stem` or branch reads alpha along the path as it is now, so the tip stays closed while it grows.
+
+To let what is already there move up a little, like internodes that still stretch, let the `length` rise too: a `length` that goes from 0.7 to 1 of the full length while the `growth` goes from 0 to 1 stretches the whole path by the last 30%. With `length` alone and no `growth` everything slides up with the path, with `growth` alone nothing moves.
+
+```
+time → curve (max above 1) → stem.growth
+path_info (age) → curve → branch_from_points.growth        starts when the tip of the stem passes the point
+path_info (age) → math × 4 → curve → instance.size         a leaf unfolds behind the tip of the path it sits on
+```
 
 `stem` makes paths without a parent, `branch` makes every new branch with the path it grows on as parent. `join` keeps the ids as they are, only a list that clashes with one joined before it (the same list joined twice) gets new ids, parents inside it follow. A node that removes a path leaves the links of its children pointing at nothing, nodes that follow a parent must ignore a `parent_id` they can't find. A node that shortens a path changes what `parent_alpha` of its children means. A node that copies a path keeps its header, so the ids survive `gravity`, `rotate`, `noise`, `snap`, `avoid`, `keep_apart`, `neighbour_sensing` and `apply_force`.
 

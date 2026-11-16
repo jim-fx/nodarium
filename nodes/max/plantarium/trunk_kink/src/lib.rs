@@ -16,8 +16,10 @@ nodarium_definition_file!("src/definition.json");
 struct Kink {
     /// The number of the kink on its path, the first is 0.
     index: i32,
-    /// Where on the path the kink sits, along its length.
+    /// Where on the full-grown path the kink sits, along its length.
     alpha: f32,
+    /// Where it sits on the path as it is now.
+    spot: f32,
     /// How far everything above the kink turns, in radians.
     angle: f32,
     /// How far the kink is turned around the path, in radians.
@@ -82,7 +84,7 @@ fn bend(points: &mut Vec<Vec4>, kinks: &mut [Kink], path: (i32, i32)) -> Vec<Poi
     let (parent_id, depth) = path;
     kinks.sort_by(|a, b| a.alpha.total_cmp(&b.alpha));
     // the points have to be in before bending, so every kink finds its spot on the straight path
-    let indexes: Vec<usize> = kinks.iter().map(|k| point_at(points, k.alpha)).collect();
+    let indexes: Vec<usize> = kinks.iter().map(|k| point_at(points, k.spot)).collect();
 
     let mut side: Option<Vec3> = None;
     let mut result = Vec::with_capacity(kinks.len());
@@ -157,15 +159,21 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
         // each kink reads its angle and the rotation step itself, so a random node gives every
         // kink its own bend and turn
         let mut turn = 0.0;
+        let link = path.link;
         let mut kinks: Vec<Kink> = (0..amount)
             .map(|i| {
                 let a = i as f32 / (amount - 1).max(1) as f32;
                 let alpha = (lowest + a * (highest - lowest)).clamp(0.0, 1.0);
                 ctx.alpha = alpha;
+                let angle = ctx.float(args[4]).to_radians();
+                // a kink the path has not grown up to yet waits at the tip and bends nothing,
+                // so the kinks below it and their points are the same as on the full-grown path
+                let spot = link.spot(alpha);
                 let kink = Kink {
                     index: i,
                     alpha,
-                    angle: ctx.float(args[4]).to_radians(),
+                    spot: spot.unwrap_or(1.0),
+                    angle: if spot.is_some() { angle } else { 0.0 },
                     turn,
                 };
                 turn += ctx.float(args[5]).to_radians();
@@ -176,7 +184,6 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
         let mut points: Vec<Vec4> = path.points.chunks_exact(4).map(Vec4::from_slice).collect();
         // the colors stay where they were along the path, it keeps its length
         let colored = (!path.colors.is_empty()).then(|| (path.points.to_vec(), path.colors.to_vec()));
-        let link = path.link;
         let path_depth = path.depth;
         kink_points.extend(bend(&mut points, &mut kinks, (link.id, path_depth)));
 
@@ -271,6 +278,46 @@ mod tests {
         let points = decode_points(&points);
         assert_eq!(points.len(), 1);
         assert!((points[0].position - Vec3::new(0.0, 2.0, 0.0)).length() < 1e-5);
+    }
+
+    #[test]
+    fn the_kinks_above_the_tip_of_a_growing_path_wait_there() {
+        // the lower half of the stem: from (0, 0, 0) up to (0, 2, 0), full-grown it is 4 long
+        let mut half = stem();
+        for stem in wrap_multiple_paths(&mut half).iter_mut() {
+            for i in 0..5 {
+                stem.points[i * 4 + 1] = i as f32 * 0.5;
+            }
+            stem.set_grown(0.5);
+        }
+
+        let (grown_plant, grown) = run(&stem(), 5, (0.1, 0.9), 20.0, 180.0);
+        let (plant, points) = run(&half, 5, (0.1, 0.9), 20.0, 180.0);
+        let (grown, points) = (decode_points(&grown), decode_points(&points));
+
+        // every kink has its point, with the index and the alpha of the full-grown stem
+        assert_eq!(points.len(), 5);
+        for (point, full) in points.iter().zip(&grown) {
+            assert_eq!(point.index, full.index);
+            assert_eq!(point.alpha, full.alpha);
+        }
+        // the kinks at 0.1, 0.3 and 0.5 sit where they will sit on the full-grown stem, and
+        // bend the same way
+        for (point, full) in points.iter().zip(&grown).take(3) {
+            assert!((point.position - full.position).length() < 1e-4, "{:?} {:?}", point, full);
+            assert!((point.direction - full.direction).length() < 1e-4);
+        }
+        // the tip has not reached 0.7 and 0.9 yet, they wait there and bend nothing
+        let top = tip(split_args(&plant)[0]);
+        for point in &points[3..] {
+            assert!((point.position - top).length() < 1e-5);
+            assert!(path_link(split_args(&plant)[0]).spot(point.alpha).is_none());
+        }
+        // the path is still half-grown and as long as it was
+        let path = split_args(&plant)[0].to_vec();
+        assert_eq!(path_link(&path).grown, 0.5);
+        assert!((wrap_path(&path).get_length() - 2.0).abs() < 1e-4);
+        assert_eq!(path_link(split_args(&grown_plant)[0]).grown, 1.0);
     }
 
     #[test]

@@ -40,9 +40,11 @@ function instantiate(path = NODE) {
 
 /** One path of `points` points along x, as `[0, 1, path, 1, 1]` */
 function pathList(points: number) {
-  const words = new Int32Array(4 + 9 + points * 4 + 2);
-  words.set([0, 1, 0, points * 4 + 8, 0, 1, 7, -1, 0, 3, 0]);
-  const floats = new Float32Array(words.buffer, 11 * 4, points * 4);
+  const words = new Int32Array(4 + 10 + points * 4 + 2);
+  words.set([0, 1, 0, points * 4 + 9, 0, 1, 7, -1, 0, 3, 0]);
+  // a full-grown path
+  new Float32Array(words.buffer, 11 * 4, 1)[0] = 1;
+  const floats = new Float32Array(words.buffer, 12 * 4, points * 4);
   for (let i = 0; i < points; i++) floats.set([i * 0.001, 1, 2, 0.1], i * 4);
   words.set([1, 1, 1, 1], words.length - 4);
   return words;

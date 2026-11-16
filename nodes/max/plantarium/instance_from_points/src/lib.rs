@@ -52,19 +52,25 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let groups = group_points_by_parent(&points);
     for (rank, (parent_id, group)) in groups.iter().enumerate() {
         // the random values of the instances start from the path they sit on
-        match plant
+        let parent = plant
             .iter()
-            .find(|p| is_path(p) && path_link(p).id == *parent_id)
-        {
+            .find(|p| is_path(p) && path_link(p).id == *parent_id);
+        match parent {
             Some(parent) => ctx.set_path(parent, rank, groups.len()),
             None => ctx.seed_path(*parent_id),
         }
+        let parent = parent.map(|p| path_link(p));
         for point in group {
             ctx.alpha = point.alpha;
             ctx.set_instance(point.index);
             let size = (point.scale + 0.01) * ctx.float(args[3]);
             let angle = ctx.float(args[4]).to_radians();
             let pick = pick_input.map_or(0.0, |p| ctx.float(p));
+            // the path has not grown up to this point yet, it reads its inputs like the others
+            // so their random values stay
+            if parent.is_some_and(|link| link.spot(point.alpha).is_none()) {
+                continue;
+            }
             let hash = path_id(seed, point.parent_id, point.index);
             let choice = pick_geometry(by_index, pick, hash, geometries.len());
             placed[choice].0.push(transform(point, size, angle).to_cols_array());

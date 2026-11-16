@@ -63,11 +63,14 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
             let path = wrap_path_mut(&mut path_data);
 
-            let length = path.get_length() as f64;
+            // a path that has not finished growing is shaped like the lower part of the
+            // full-grown one: alpha and the length are those of the full-grown path
+            let share = path.link.share();
+            let length = if share > 0.0 { path.get_length() as f64 / share as f64 } else { 0.0 };
 
             // alpha goes along the path, so every setting can change from base to tip
             let alphas: Vec<f32> = (0..path.length)
-                .map(|i| i as f32 / (path.length - 1).max(1) as f32)
+                .map(|i| i as f32 / (path.length - 1).max(1) as f32 * share)
                 .collect();
             let scale: Vec<f64> = ctx
                 .float_along(args[1], alphas.iter().copied())
@@ -105,7 +108,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
             for i in 1..path.length {
                 // sample the middle of the segment, so coarse paths follow the same noise
-                let a = (i as f64 - 0.5) / (path.length - 1) as f64;
+                let a = (i as f64 - 0.5) / (path.length - 1) as f64 * share as f64;
                 let px = j as f64 + a * length * scale[i];
                 let py = a * scale[i];
                 let sf = lerp(1.0, a as f32, fix_bottom[i]);

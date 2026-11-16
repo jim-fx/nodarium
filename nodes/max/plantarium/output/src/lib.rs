@@ -1,7 +1,9 @@
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    geometry::{extrude_path_into, extrude_path_len, split_items, wrap_path, COLORED_PATH},
+    geometry::{
+        extrude_path_into, extrude_path_len, path_link, split_items, wrap_path, COLORED_PATH,
+    },
     int, log,
 };
 
@@ -19,7 +21,10 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     log!("inputs: {}, resolution: {}", inputs.len(), resolution);
 
     // a path is passed on and also extruded into geometry
-    let is_path = |arg: &[i32]| matches!(arg.get(2), Some(&0) | Some(&COLORED_PATH));
+    // a bud, a path that has not started to grow, is passed on but not drawn
+    let is_path = |arg: &[i32]| {
+        matches!(arg.get(2), Some(&0) | Some(&COLORED_PATH)) && !path_link(arg).is_bud()
+    };
 
     // the geometry is the bulk of the result, it is extruded straight into it instead of being
     // copied over from a buffer of its own
