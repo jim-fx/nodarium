@@ -26,7 +26,7 @@
       "value": false,
       "hidden": true,
       "label": "once per path",
-      "description": "One value for every path, the same in every node that reads it, like the age of a mushroom that its stipe, its cap and how far the cap opens all read. Off, every read draws a new value."
+      "description": "One value for every path, the same in every node that reads it, like the age of a mushroom that its stipe, its cap and how far the cap opens all read. Wins over once per instance. Off, every read draws a new value."
     },
     "creator": {
       "type": "creator"
@@ -37,6 +37,13 @@
       "hidden": true,
       "label": "once for the graph",
       "description": "One value for the whole graph, the same in every node and on every path that reads it, like the size of a single mushroom that its stipe, its cap and the pattern on its cap all read. Wins over once per path."
+    },
+    "per_instance": {
+      "type": "boolean",
+      "value": false,
+      "hidden": true,
+      "label": "once per instance",
+      "description": "One value for every instance, the same in every input of the instance node that reads it, like the size of a leaf and how far it hangs down."
     }
   }
 }

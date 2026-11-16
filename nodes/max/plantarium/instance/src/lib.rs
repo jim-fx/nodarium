@@ -57,6 +57,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             let alpha = lowest_instance
                 + (i as f32 / (amount - 1).max(1) as f32) * (highest_instance - lowest_instance);
             ctx.alpha = alpha;
+            ctx.set_instance(i);
 
             let point = path.get_point_at(alpha);
             let tangent = Vec3::from_slice(&path.get_direction_at(alpha)).normalize();
@@ -122,6 +123,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 #[cfg(test)]
 mod tests {
     use super::__nodarium_execute_inner;
+    use glam::Mat4;
     use nodarium_utils::{
         concat_args, encode_float,
         geometry::{
@@ -364,6 +366,51 @@ mod tests {
             counts(&run_with(&stems, &list, 9, 0, 1.0, &[&[1], unconnected])),
             [18, 0, 0]
         );
+    }
+
+    /// What the size and the angle inputs gave every instance, read back from its transform.
+    fn sizes_and_angles(stems: &[i32], size: &[i32], angle: &[i32]) -> Vec<(f32, f32)> {
+        let (zero, one) = ([encode_float(0.0)], [encode_float(1.0)]);
+        let result = __nodarium_execute_inner(&[
+            stems, &geometry(3), &[4], &zero, &one, &zero, &[1], size, angle, &[0], &[0], &[0], &[0],
+        ]);
+        let mut item = split_args(&result).iter().find(|i| i[2] == 2).unwrap().to_vec();
+        wrap_instance_data(&mut item)
+            .instances
+            .chunks_exact(16)
+            .map(|m| {
+                // the geometry grows along -z, on an upright stem the angle lifts that axis
+                let out = -Mat4::from_cols_slice(m).z_axis.truncate();
+                (out.length() / 0.11, (out.y / out.length()).asin().to_degrees())
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_random_per_instance_gives_size_and_angle_the_same_value() {
+        let random = |per_instance: i32| {
+            let (min, max) = ([encode_float(10.0)], [encode_float(80.0)]);
+            concat_args(vec![&[1], &min, &max, &[7], &[1], &[0], &[5], &[0], &[per_instance]])
+        };
+        let stems = stems();
+
+        let instances = sizes_and_angles(&stems, &random(1), &random(1));
+        assert_eq!(instances.len(), 8);
+        for (i, (size, angle)) in instances.iter().enumerate() {
+            assert!((10.0..=80.0).contains(size), "{:?}", instances);
+            assert!((size - angle).abs() < 0.01, "{:?}", instances);
+            for (other, _) in &instances[..i] {
+                assert!((size - other).abs() > 0.01, "{:?}", instances);
+            }
+        }
+
+        // an instance keeps its value when the path before its own is gone
+        let second = concat_args(vec![split_args(&stems)[1]]);
+        assert_eq!(sizes_and_angles(&second, &random(1), &random(1)), &instances[4..]);
+
+        // without the option the two inputs draw one after the other
+        let drawn = sizes_and_angles(&stems, &random(0), &random(0));
+        assert!(drawn.iter().all(|(size, angle)| (size - angle).abs() > 0.01), "{:?}", drawn);
     }
 
     #[test]

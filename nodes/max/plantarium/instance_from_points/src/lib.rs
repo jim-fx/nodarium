@@ -61,6 +61,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         }
         for point in group {
             ctx.alpha = point.alpha;
+            ctx.set_instance(point.index);
             let size = (point.scale + 0.01) * ctx.float(args[3]);
             let angle = ctx.float(args[4]).to_radians();
             let pick = pick_input.map_or(0.0, |p| ctx.float(p));
@@ -237,6 +238,56 @@ mod tests {
         let framed = wrap_arg(&triangle()[2..triangle().len() - 2]);
         let list = concat_args(vec![&framed, &framed]);
         assert_eq!(run(&list), run(&triangle()));
+    }
+
+    #[test]
+    fn a_random_per_instance_gives_size_and_angle_the_same_value() {
+        let plant = create_multiple_paths(1, 4, 1, 6);
+        let stem_id = path_link(split_args(&plant)[0]).id;
+        let points: Vec<Point> = (0..6)
+            .map(|i| Point {
+                position: Vec3::new(0.0, i as f32, 0.0),
+                direction: Vec3::X,
+                tangent: Vec3::Y,
+                scale: 0.09,
+                parent_id: stem_id,
+                alpha: i as f32 / 5.0,
+                depth: 1,
+                index: i,
+            })
+            .collect();
+        // what the size and the angle inputs gave every instance, read back from its transform
+        let read = |points: &[Point], per_instance: i32| -> Vec<(f32, f32)> {
+            let (min, max) = ([encode_float(10.0)], [encode_float(80.0)]);
+            let random = concat_args(vec![&[1], &min, &max, &[7], &[1], &[0], &[5], &[0], &[per_instance]]);
+            let result = __nodarium_execute_inner(&[&plant, &encode_points(points), &triangle(), &random, &random]);
+            let mut instance_data = split_args(&result)[1].to_vec();
+            wrap_instance_data(&mut instance_data)
+                .instances
+                .chunks_exact(16)
+                .map(|m| {
+                    let out = -Mat4::from_cols_slice(m).z_axis.truncate();
+                    (out.length() / 0.1, (out.y / out.length()).asin().to_degrees())
+                })
+                .collect()
+        };
+
+        let instances = read(&points, 1);
+        assert_eq!(instances.len(), 6);
+        for (i, (size, angle)) in instances.iter().enumerate() {
+            assert!((10.0..=80.0).contains(size), "{instances:?}");
+            assert!((size - angle).abs() < 0.01, "{instances:?}");
+            for (other, _) in &instances[..i] {
+                assert!((size - other).abs() > 0.01, "{instances:?}");
+            }
+        }
+
+        // an instance keeps its value when the points before its own are gone
+        assert_eq!(read(&points[3..], 1), &instances[3..]);
+
+        // without the option the two inputs draw one after the other
+        let drawn = read(&points, 0);
+        assert!(drawn.iter().all(|(size, angle)| (size - angle).abs() > 0.01), "{drawn:?}");
     }
 
     /// A geometry of `vertices` points at the origin and a single face.

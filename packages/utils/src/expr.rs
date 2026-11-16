@@ -1,4 +1,4 @@
-use crate::geometry::{path_link, wrap_path};
+use crate::geometry::{path_id, path_link, path_random, wrap_path};
 use crate::{decode_float, log, mix_colors, plain_color, split_args_inline, MIX_COLOR};
 use noise::{core::open_simplex::open_simplex_2d, permutationtable::PermutationTable, Vector2};
 
@@ -87,7 +87,13 @@ pub struct Ctx {
     calls: i32,
     /// The path the random values are drawn for, set by `seed_path`
     path_id: i32,
+    /// The instance a `random` with `per_instance` is drawn for, set by `set_instance`
+    instance_id: Option<i32>,
 }
+
+/// Stands where the creator stands in the id of a path. The id of a node is never negative, so
+/// an instance doesn't get the id of a path that grows on the same path with the same index.
+const INSTANCE: i32 = -2;
 
 impl Ctx {
     /// Starts working on `path`, the `rank`-th of `count` paths. Alpha is the position of the
@@ -117,6 +123,15 @@ impl Ctx {
     pub fn seed_path(&mut self, id: i32) {
         self.calls = (id as u32 % 100_000) as i32;
         self.path_id = id;
+        self.instance_id = None;
+    }
+
+    /// Starts working on the `index`-th instance of the path that was seeded last, call it
+    /// before the inputs of that instance are read. A `random` with `per_instance` gives every
+    /// input the same value until the next instance or path. The id of the instance comes from
+    /// the id of its path and its number on it, so its values stay when other paths come or go.
+    pub fn set_instance(&mut self, index: i32) {
+        self.instance_id = Some(path_id(INSTANCE, self.path_id, index));
     }
 
     /// Like `set_path`, for a path that doesn't exist yet, e.g. a stem that is about to be made.
@@ -147,12 +162,20 @@ impl Ctx {
                 let (min, max) = (self.float(min), self.float(max));
                 let flag = |i: usize| options.get(i).is_some_and(|o| o.first() == Some(&1));
                 let uniform = flag(0);
-                let once = flag(3);
-                if flag(1) || once {
+                let (per_path, once, per_instance) = (flag(1), flag(3), flag(4));
+                if per_path || once || per_instance {
                     let salt = options.get(2).and_then(|o| o.first()).copied().unwrap_or(0);
-                    // drawn for no path at all, so a node without a path reads the same value
-                    let path = if once { 0 } else { self.path_id };
-                    min + self.per_path(*seed, path, salt, uniform) * (max - min)
+                    // the coarser option wins
+                    let id = if once {
+                        // drawn for no path at all, so a node without a path reads the same value
+                        0
+                    } else if per_path {
+                        self.path_id
+                    } else {
+                        // a node that places no instances draws for its path
+                        self.instance_id.unwrap_or(self.path_id)
+                    };
+                    min + self.drawn_for(*seed, id, salt, uniform) * (max - min)
                 } else if uniform {
                     min + self.random_u32(*seed) as f32 / u32::MAX as f32 * (max - min)
                 } else {
@@ -339,11 +362,11 @@ impl Ctx {
         min + value * (max - min)
     }
 
-    /// A number from 0 to 1 that only depends on the seed, the path and `salt` (the random
-    /// node), so every node that reads it for the same path gets the same value. It draws
-    /// nothing, the values after it stay as they were.
-    fn per_path(&self, seed: i32, path: i32, salt: i32, uniform: bool) -> f32 {
-        let draw = |k: i32| crate::geometry::path_random(seed, path, salt.wrapping_mul(2).wrapping_add(k));
+    /// A number from 0 to 1 that only depends on the seed, `id` (a path or an instance) and
+    /// `salt` (the random node), so every read for the same path or instance gets the same
+    /// value. It draws nothing, the values after it stay as they were.
+    fn drawn_for(&self, seed: i32, id: i32, salt: i32, uniform: bool) -> f32 {
+        let draw = |k: i32| path_random(seed, id, salt.wrapping_mul(2).wrapping_add(k));
         if uniform {
             draw(0)
         } else {
@@ -552,6 +575,96 @@ mod tests {
         let mut b = Ctx::default();
         b.seed_path(3);
         assert_eq!(a.float(&other), b.float(&other));
+    }
+
+    /// A random from 0 to 10 with seed 7, the options are `uniform, per_path, salt, once, per_instance`.
+    fn random_with(options: [i32; 5]) -> Vec<i32> {
+        let options = options.map(|o| [o]);
+        let (min, max) = ([encode_float(0.0)], [encode_float(10.0)]);
+        let mut parts: Vec<&[i32]> = vec![&[1], &min, &max, &[7]];
+        parts.extend(options.iter().map(|o| &o[..]));
+        concat_args(parts)
+    }
+
+    #[test]
+    fn a_random_per_instance_is_the_same_in_every_input_of_the_instance() {
+        let random = random_with([1, 0, 5, 0, 1]);
+        let other = concat_args(vec![&[1], &[encode_float(0.0)], &[encode_float(10.0)], &[7]]);
+        let read = |path: i32, instance: i32, first: &[i32], expr: &[i32]| {
+            let mut ctx = Ctx::default();
+            ctx.seed_path(path);
+            ctx.set_instance(instance);
+            ctx.float(first);
+            ctx.float(expr)
+        };
+        // read first or after other random values, it stays the same
+        let size = read(3, 0, &random, &random);
+        assert_eq!(size, read(3, 0, &other, &random));
+        assert_eq!(size, read(3, 0, &concat_args(vec![&[encode_float(1.0)]]), &random));
+        assert!((0.0..=10.0).contains(&size));
+        // every instance, the same instance of another path and every random node has its own
+        assert_ne!(size, read(3, 1, &other, &random));
+        assert_ne!(size, read(4, 0, &other, &random));
+        assert_ne!(size, read(3, 0, &other, &random_with([1, 0, 6, 0, 1])));
+        // and it is not the value of its path
+        assert_ne!(size, read(3, 0, &other, &random_with([1, 1, 5, 0, 0])));
+
+        // it draws nothing, the values after it stay as they were
+        let mut a = Ctx::default();
+        a.seed_path(3);
+        a.set_instance(2);
+        a.float(&random_with([0, 0, 5, 0, 1]));
+        let mut b = Ctx::default();
+        b.seed_path(3);
+        assert_eq!(a.float(&other), b.float(&other));
+        // and neither does the start of an instance
+        let mut c = Ctx::default();
+        c.seed_path(3);
+        let first = c.float(&other);
+        c.set_instance(0);
+        let mut d = Ctx::default();
+        d.seed_path(3);
+        assert_eq!([first, c.float(&other)], [d.float(&other), d.float(&other)]);
+    }
+
+    #[test]
+    fn a_random_per_instance_gives_way_to_the_coarser_options() {
+        let read = |instance: i32, options: [i32; 5]| {
+            let mut ctx = Ctx::default();
+            ctx.seed_path(3);
+            ctx.set_instance(instance);
+            ctx.float(&random_with(options))
+        };
+        let per_path = read(0, [0, 1, 5, 0, 0]);
+        let once = read(0, [0, 0, 5, 1, 0]);
+        for instance in 0..4 {
+            assert_eq!(per_path, read(instance, [0, 1, 5, 0, 1]));
+            assert_eq!(once, read(instance, [0, 0, 5, 1, 1]));
+            assert_eq!(once, read(instance, [0, 1, 5, 1, 1]));
+        }
+        assert_ne!(read(0, [0, 0, 5, 0, 1]), read(1, [0, 0, 5, 0, 1]));
+    }
+
+    #[test]
+    fn a_random_per_instance_without_an_instance_is_drawn_for_the_path() {
+        let per_path = random_with([0, 1, 5, 0, 0]);
+        let per_instance = random_with([0, 0, 5, 0, 1]);
+        let mut ctx = Ctx::default();
+        // no path either, like a node that reads it without one
+        assert_eq!(ctx.float(&per_instance), ctx.float(&per_path));
+
+        ctx.seed_path(3);
+        let of_path = ctx.float(&per_path);
+        assert_eq!(ctx.float(&per_instance), of_path);
+
+        ctx.set_instance(1);
+        assert_ne!(ctx.float(&per_instance), of_path);
+
+        // the next path starts without an instance
+        ctx.seed_path(4);
+        assert_eq!(ctx.float(&per_instance), ctx.float(&per_path));
+        ctx.seed_path(3);
+        assert_eq!(ctx.float(&per_instance), of_path);
     }
 
     #[test]
