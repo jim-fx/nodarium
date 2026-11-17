@@ -15,6 +15,9 @@ export class WorkerRuntimeExecutor implements AppRuntime {
   loadNodes(nodeIds: NodeId[]) {
     return this.worker.loadNodes(nodeIds);
   }
+  registerNode(wasm: ArrayBuffer) {
+    return this.worker.registerNode(wasm);
+  }
   set useRuntimeCache(useCache: boolean) {
     this.worker.setUseRuntimeCache(useCache);
   }

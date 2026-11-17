@@ -39,6 +39,11 @@ export async function loadNodes(nodeIds: NodeId[]) {
   await nodeRegistry.load(nodeIds).catch(() => {});
 }
 
+/** A wasm file dropped onto the editor, the worker can't fetch its node */
+export async function registerNode(wasm: ArrayBuffer) {
+  await nodeRegistry.register('', wasm);
+}
+
 /**
  * Everything the app reads of a run comes back in one answer, of a failed run what is known about
  * its error: every extra call would be another round trip to the worker

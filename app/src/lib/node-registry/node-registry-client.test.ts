@@ -145,6 +145,23 @@ describe.skipIf(!BUILT && !ON_CI)('RemoteNodeRegistry', () => {
     expect(requests).toEqual(['/nodes/max/plantarium.json']);
   });
 
+  it('loads a kept dropped file in a new registry when the site does not serve its node', async () => {
+    const dropped = new MemoryCache();
+    const dropping = new RemoteNodeRegistry('', undefined, [], dropped);
+    await dropping.keepDropped(await dropping.register('', wasm.slice(0)), wasm.slice(0));
+
+    serve({});
+    const [node] = await new RemoteNodeRegistry('', undefined, [], dropped).loadDefinitions([
+      float
+    ]);
+    expect(node.execute).toBeTypeOf('function');
+
+    dropped.values.set(float, new ArrayBuffer(8));
+    serve({ '/nodes/max/plantarium/float.wasm': wasmFile });
+    await expect(new RemoteNodeRegistry('', undefined, [], dropped).load([float])).resolves
+      .toHaveLength(1);
+  });
+
   it('loads a node named after its file, `<node>.wasm`, under its id', async () => {
     serve({ '/nodes/max/plantarium/float.wasm': wasmFile });
     const registry = new RemoteNodeRegistry('');
