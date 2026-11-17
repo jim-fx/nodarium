@@ -64,7 +64,8 @@ export const templates: Template[] = [
   mushroom('shaggy-inkcap', 'Shaggy inkcap', 'cm', () => import('./shaggy-inkcap.json')),
   mushroom('chanterelle', 'Chanterelle', 'cm', () => import('./chanterelle.json')),
   mushroom('oyster', 'Oyster mushroom', 'cm', () => import('./oyster.json')),
-  mushroom('honey-fungus', 'Honey fungus', 'cm', () => import('./honey-fungus.json'))
+  mushroom('honey-fungus', 'Honey fungus', 'cm', () => import('./honey-fungus.json')),
+  mushroom('clouded-agaric', 'Clouded agaric', 'cm', () => import('./clouded-agaric.json'))
 ];
 
 /**

@@ -74,6 +74,7 @@ Every template is a `Graph` of the current graph version, `parseProjectFile()` i
 | `chanterelle`        | Chanterelle       | Mushrooms | cm   |
 | `oyster`             | Oyster mushroom   | Mushrooms | cm   |
 | `honey-fungus`       | Honey fungus      | Mushrooms | cm   |
+| `clouded-agaric`     | Clouded agaric    | Mushrooms | cm   |
 
 `sulphur-tuft`, `false-chanterelle` and `bitter-bolete` (Mushrooms, cm) are no longer in that list and the app doesn't show them. They are still part of the package as `unlistedTemplates`, and `loadTemplate()` loads them by their id.
 
