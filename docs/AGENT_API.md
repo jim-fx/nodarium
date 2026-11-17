@@ -24,6 +24,33 @@ const result = await page.evaluate((graph) => window.nodarium!.graph.load(graph)
 
 `polling: 100` matters in a page that gets no animation frames, Playwright polls with `requestAnimationFrame` otherwise. `?tutorial=0` keeps Planty closed for the visit, without remembering it. `app/e2e/agent-api.test.ts` uses every method.
 
+## Opening the app with a graph
+
+The address of the main page takes a few parameters. The page reads them once when it loads and then removes them from the address bar, so a reload doesn't open the graph again.
+
+| address                 | does                                                                                   |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| `/?template=fern`       | opens a template as a new project, as the project browser does                         |
+| `/#graph=<data>`        | opens the graph in the fragment as a new project, as File → Import does with a file    |
+| `&seed=7`               | the seed of the graph that `template` or `graph` opens                                 |
+| `&tutorial=0`           | Planty stays closed for this visit                                                     |
+| `&panel=graph-settings` | opens a panel of the sidebar: `general`, `shortcuts`, `exports`, `graph-settings`, ... |
+
+`<data>` is the JSON of a graph or a project file, deflated (`CompressionStream('deflate-raw')`) and base64url. `graphLink(graph, base)` of `@nodarium/runtime` makes such a link, `nodarium link my-plant.json` prints one and File → Copy link copies the one of the open project. The fern is a link of 2.4 KB, the fly agaric, the largest template, 6.6 KB. The fragment is never sent to a server and the analytics of the site leave it out. A link unpacks to 1 MB of JSON at most.
+
+A graph from a link is checked like an imported file. Before it makes a new project, the page looks for a project with the same graph (the same nodes, inputs, edges, groups and settings, the positions don't count) and opens that one: a link opened twice makes one project. A link that can't be opened, cut off, changed or with a template that doesn't exist, shows a toast with the reason, and the app starts as it would without it. `nodarium.ready` resolves in both cases:
+
+```ts
+await page.goto(`http://localhost:4173/?tutorial=0#graph=${data}`);
+await page.waitForFunction(() => window.nodarium, null, { polling: 100 });
+const result = await page.evaluate(async () => {
+  await window.nodarium!.ready;
+  return window.nodarium!.lastResult();
+});
+```
+
+`app/e2e/url.test.ts` opens a template, a link, the same link twice and a broken one.
+
 ## The object
 
 | member                                      | what it does                                                                                                         |
@@ -86,3 +113,17 @@ The viewer itself also draws once without a frame, 500 ms after a result arrived
 ## Without the API
 
 The viewer has a line of status with the vertices, the faces and the time of the last build, in an element with `role="status"`. The input File → Import uses is labelled "Import a project file", a tool can give it a file without the dialog of the menu.
+
+## Files on the site
+
+The site serves files that need no JavaScript, prerendered when the app is built. `/llms.txt` (`app/static/llms.txt`) says what Nodarium is and links the others:
+
+| path                                    | what                                                                                    |
+| --------------------------------------- | --------------------------------------------------------------------------------------- |
+| `/nodes/index.txt`, `/nodes/index.json` | every node with its data types and the first sentence of its description                |
+| `/nodes/<user>/<collection>.json`       | the definitions of the nodes of a collection, `/nodes/users.json` lists the collections |
+| `/templates/index.json`                 | the templates of the project browser, `/templates/<id>.json` is the graph of one        |
+| `/graph.schema.json`                    | the JSON Schema of a graph and of a project file, `graphFileJsonSchema()`               |
+| `/docs/graphs.md`                       | `docs/GRAPHS.md`                                                                        |
+
+`app/src/lib/site-files.ts` makes them, `app/e2e/site-files.test.ts` checks that every link of `llms.txt` is in the build.

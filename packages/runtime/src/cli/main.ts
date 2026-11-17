@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { findNodes, formatNode, formatNodeList, nodesOfType } from '../catalog';
 import { expandGroups } from '../expand-groups';
+import { GRAPH_LINK_BASE, graphLink } from '../graph-link';
 import { CURRENT_GRAPH_VERSION } from '../graph-migrations';
 import { listNodes } from '../list-nodes';
 import { nodesDir } from '../nodes-dir';
@@ -34,9 +35,10 @@ export const USAGE = `Usage: nodarium <command> [options]
       [--out dir] [--size px] [--seed n] [--time t] [--set key=value]...
       [--focus x,z,r] [--below] [--node id[:output]]
   format <graph...> [--check]  places the nodes that have no position
+  link <graph...> [--base url] prints a link that opens the graph in the app
 
   <graph>        a template id (fern, porcini, ...), the path of a graph or of a
-                 .nodarium.json project, or - for stdin
+                 .nodarium.json project, a link of the app, or - for stdin
   --json         prints JSON
   --nodes dir    the folder of the compiled nodes, the nodes of the package by default
   --seed n       the seed of the random nodes, 1 by default
@@ -50,6 +52,7 @@ export const USAGE = `Usage: nodarium <command> [options]
   --below        adds a view from below
   --node id      renders the output of that node instead of the graph's
   --check        format only reports the graphs with nodes that have no position
+  --base url     the app a link opens, ${GRAPH_LINK_BASE} by default
 `;
 
 const OPTIONS = {
@@ -67,6 +70,7 @@ const OPTIONS = {
   below: { type: 'boolean' },
   node: { type: 'string' },
   check: { type: 'boolean' },
+  base: { type: 'string' },
   help: { type: 'boolean', short: 'h' }
 } as const;
 
@@ -85,6 +89,7 @@ type Options = {
   below?: boolean;
   node?: string;
   check?: boolean;
+  base?: string;
   help?: boolean;
 };
 
@@ -422,6 +427,29 @@ class Cli {
     }
   }
 
+  async link(targets: string[]) {
+    const base = this.options.base ?? GRAPH_LINK_BASE;
+    if (!/^https?:\/\/[^/]/.test(base)) {
+      throw new CliError(`--base takes an http(s) address, not ${base}`);
+    }
+    for (const target of targets) {
+      const prepared = await this.prepare(target);
+      if (!prepared) continue;
+      const { name } = prepared;
+      // the app gives the project an id of its own and the title of the graph
+      const { version, meta, settings, nodes, edges, groups } = prepared.graph;
+      const link = await graphLink({
+        version,
+        meta: { title: meta?.title ?? name, unit: meta?.unit },
+        settings: { ...settings, ...this.sets.settings },
+        nodes,
+        edges,
+        groups
+      }, base);
+      this.print(this.options.json ? { name, link, length: link.length } : link);
+    }
+  }
+
   async format(targets: string[]) {
     const definitions = await this.allNodes();
     // a header, a row per input that is shown, roughly as the editor draws a node
@@ -506,6 +534,7 @@ export async function main(args: string[]): Promise<number> {
       case 'run':
       case 'render':
       case 'format':
+      case 'link':
         if (rest.length === 0) throw new CliError(`${command} takes a graph\n\n${USAGE}`);
         await cli[command](rest);
         break;

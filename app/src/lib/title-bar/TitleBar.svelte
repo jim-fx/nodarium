@@ -68,6 +68,17 @@
     }
   }
 
+  async function copyLink(id: number) {
+    try {
+      const link = await pm.projectLink(id);
+      if (!link) return;
+      await navigator.clipboard.writeText(link);
+      toast('Link copied to clipboard', 'success');
+    } catch {
+      toast('Could not copy to the clipboard', 'error');
+    }
+  }
+
   let confirmDelete = $state(false);
   let showAbout = $state(false);
 
@@ -116,6 +127,7 @@
         'separator',
         { label: 'Import .json…', onselect: () => importInput?.click() },
         { label: 'Export .json', onselect: withActive((id) => pm.exportProject(id)) },
+        { label: 'Copy link', onselect: withActive(copyLink) },
         { label: 'Export mesh…', onselect: () => panelState.setActivePanel('exports') },
         'separator',
         { label: 'Delete project…', onselect: () => (confirmDelete = true) }

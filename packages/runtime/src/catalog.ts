@@ -8,12 +8,19 @@ export function firstSentence(text: string) {
   return text.match(/^(.*?[.!?])(?=\s+[A-Z]|$)/s)?.[1] ?? text;
 }
 
-/** `max/plantarium/noise (path) -> path`: the id, the data the node takes and what it gives */
-export function nodeSignature(node: NodeDefinition) {
+/** A node in short: the types of the data it takes and gives, the first sentence of what it does */
+export function nodeSummary(node: NodeDefinition) {
   const inputs = Object.values(node.inputs ?? {})
     .filter((input) => DATA_TYPES.has(input.type) && !input.hidden && !input.internal)
     .map((input) => input.type);
   const outputs = (node.outputs ?? []).map(getOutputType);
+  const description = node.meta?.description && firstSentence(node.meta.description);
+  return { id: node.id, inputs, outputs, ...(description && { description }) };
+}
+
+/** `max/plantarium/noise (path) -> path`: the id, the data the node takes and what it gives */
+export function nodeSignature(node: NodeDefinition) {
+  const { inputs, outputs } = nodeSummary(node);
   return `${node.id} (${inputs.join(', ')})${outputs.length ? ` -> ${outputs.join(', ')}` : ''}`;
 }
 

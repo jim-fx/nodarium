@@ -7,7 +7,8 @@ export {
   formatNode,
   formatNodeList,
   nodeSignature,
-  nodesOfType
+  nodesOfType,
+  nodeSummary
 } from './catalog';
 export {
   applySets,

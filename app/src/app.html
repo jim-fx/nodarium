@@ -10,9 +10,15 @@
       defer
       src="https://umami.max-richter.dev/script.js"
       data-website-id="585c442b-0524-4874-8955-f9853b44b17e"
+      data-exclude-hash="true"
     >
     </script>
     <title>Nodes</title>
+    <meta
+      name="description"
+      content="Nodarium is a node editor for procedural 3D plants and mushrooms that runs in the browser. Every node is a WebAssembly module written in Rust."
+    >
+    <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
     <script>
       var store = localStorage.getItem('node-settings');
       if (store) {
@@ -28,6 +34,16 @@
   </head>
 
   <body data-sveltekit-preload-data="hover">
+    <noscript>
+      <p>
+        Nodarium is a node editor for procedural 3D plants and mushrooms. It runs in the browser and
+        needs JavaScript. Without it, these files describe it: <a href="/llms.txt">llms.txt</a>, the
+        <a href="/nodes/index.txt">node catalog</a>, the
+        <a href="/templates/index.json">templates</a>, the
+        <a href="/graph.schema.json">graph schema</a> and
+        <a href="/docs/graphs.md">how to write a graph</a>.
+      </p>
+    </noscript>
     <div style="display: contents">%sveltekit.body%</div>
   </body>
 </html>

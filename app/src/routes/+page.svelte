@@ -11,6 +11,7 @@
 
   import PerformanceViewer from '#lib/performance/PerformanceViewer.svelte';
   import { createRepeatGuard } from '#lib/performance/run-values.ts';
+  import { openUrlProject } from '#lib/project-manager/open-url.ts';
   import { ProjectManager } from '#lib/project-manager/project-manager.svelte.ts';
   import ProjectBrowser from '#lib/project-manager/ProjectBrowser.svelte';
   import { type ProbePath, readPaths } from '#lib/result-viewer/gizmos/gizmo-paths.ts';
@@ -46,18 +47,21 @@
   import TitleBar from '#lib/title-bar/TitleBar.svelte';
   import { tutorialChecks } from '#lib/tutorial/tutorial-checks.ts';
   import { tutorialConfig } from '#lib/tutorial/tutorial-config.ts';
-  import { readUrlOptions } from '#lib/url-options.ts';
+  import { readUrlOptions, withoutUrlOptions } from '#lib/url-options.ts';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
   import { Planty, type StepActionHook } from '@nodarium/planty';
   import { debugNode, MemoryRuntimeCache, MemoryRuntimeExecutor } from '@nodarium/runtime';
   import { loadTemplate } from '@nodarium/runtime/templates';
   import type { Edge, Graph } from '@nodarium/types';
   import { createKeyMap, Spinner, Toast, toast, unitSettings } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
-  import { onDestroy, untrack } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import type { Group } from 'three';
   import { version } from '../../package.json';
 
-  const urlOptions = readUrlOptions(location.search);
+  const urlOptions = readUrlOptions(new URL(location.href));
 
   let performanceStore = createPerformanceStore();
   let planty = $state<ReturnType<typeof Planty>>();
@@ -77,7 +81,29 @@
   const runtimeCache = new MemoryRuntimeCache();
   const memoryRuntime = new MemoryRuntimeExecutor(nodeRegistry, runtimeCache);
   memoryRuntime.perf = performanceStore;
-  const pm = new ProjectManager(nodeRegistry);
+  const pm = new ProjectManager(nodeRegistry, (pm) => openUrlProject(pm, urlOptions));
+
+  function removeUrlOptions() {
+    const clean = withoutUrlOptions(new URL(location.href));
+    if (clean !== undefined) {
+      const path = resolve(`/${clean}`);
+      void goto(path, { replace: true, shallow: true, state: page.state });
+    }
+  }
+
+  // a link pasted into a tab that has the app open only changes the fragment, the page stays
+  function handleHashChange() {
+    const { graph } = readUrlOptions(new URL(location.href));
+    if (graph === undefined) return;
+    removeUrlOptions();
+    void openUrlProject(pm, { tutorial: true, graph });
+  }
+
+  onMount(() => {
+    removeUrlOptions();
+    const panel = urlOptions.panel && panelState.panels[urlOptions.panel];
+    if (panel && !panel.hidden) panelState.setActivePanel(urlOptions.panel!);
+  });
 
   const runtime: AppRuntime = $derived(
     appSettings.value.debug.useWorker ? workerRuntime : memoryRuntime
@@ -439,7 +465,7 @@
 </script>
 
 <svelte:document onkeydown={applicationKeymap.handleKeyboardEvent} />
-<svelte:window onbeforeunload={handleBeforeUnload} />
+<svelte:window onbeforeunload={handleBeforeUnload} onhashchange={handleHashChange} />
 
 <Planty
   bind:this={planty}

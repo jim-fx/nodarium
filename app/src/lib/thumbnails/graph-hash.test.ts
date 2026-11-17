@@ -42,4 +42,17 @@ describe('hashGraph', () => {
     changed.edges = [];
     expect(hashGraph(changed)).not.toBe(hashGraph(createGraph()));
   });
+
+  it('ignores the order of keys with ignoreKeyOrder', () => {
+    const graph = createGraph();
+    graph.settings = { seed: 0, 'resolution.curve': 8 };
+    graph.nodes[1].props = { length: 4, thickness: 1 };
+    const reordered = createGraph();
+    reordered.settings = { 'resolution.curve': 8, seed: 0 };
+    reordered.nodes[1].props = { thickness: 1, length: 4 };
+    expect(hashGraph(reordered)).not.toBe(hashGraph(graph));
+    expect(hashGraph(reordered, { ignoreKeyOrder: true })).toBe(
+      hashGraph(graph, { ignoreKeyOrder: true })
+    );
+  });
 });
