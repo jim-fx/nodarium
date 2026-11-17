@@ -198,7 +198,7 @@ max/plantarium/noise (path) -> path
 
 In parentheses are the types of the data a node takes, after the arrow what it gives. An input shows its type, its default, its range and a unit, `hidden` ones are set in the templates, `not connectable` ones only on the node, and those with `setting` read a setting of the graph.
 
-The same is in the package: `listNodes()` gives the definitions of all nodes of the package (or of a folder), `formatNode()` and `formatNodeList()` write them as above, and `renderToPng(result, options)` rasterizes a result into a PNG with the size of what it shows, without any dependency but `node:zlib`. All of them are in `@nodarium/runtime/node`.
+The same is in the package: `listNodes()` gives the definitions of all nodes of the package (or of a folder), `formatNode()` and `formatNodeList()` write them as above, and `renderToPng(result, options)` rasterizes a result into a PNG with the size of what it shows, without any dependency but `node:zlib`. `readGraphSource(target)` reads a graph as the commands do, from a template id, a file or `-`, `parseSets()` and `applySets()` read and apply `--set`. All of them are in `@nodarium/runtime/node`.
 
 ```ts
 import { createRuntime, listNodes, renderToPng } from '@nodarium/runtime/node';

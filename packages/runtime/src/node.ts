@@ -9,6 +9,13 @@ export {
   nodeSignature,
   nodesOfType
 } from './catalog';
+export {
+  applySets,
+  type GraphSets,
+  type GraphSource,
+  parseSets,
+  readGraphSource
+} from './cli/graph-input';
 export * from './index';
 export { listNodeIds, listNodes } from './list-nodes';
 export { nodesDir } from './nodes-dir';

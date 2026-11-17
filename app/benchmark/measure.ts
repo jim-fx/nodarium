@@ -1,0 +1,242 @@
+import {
+  FileNodeRegistry,
+  MemoryRuntimeCache,
+  MemoryRuntimeExecutor
+} from '@nodarium/runtime/node';
+import type { Graph, NodeId } from '@nodarium/types';
+import { createPerformanceStore, splitNestedArray } from '@nodarium/utils';
+
+import { execSync } from 'node:child_process';
+import { cpus, freemem, loadavg, totalmem } from 'node:os';
+
+import { Group, MeshBasicMaterial } from 'three';
+import { createResultPools } from '../src/lib/result-viewer/geometry/geometryPool.ts';
+
+import type { Runs } from './args.ts';
+import {
+  getMachineInfo,
+  measureCpuUsage,
+  readCgroupCpuStat,
+  readCpuSnapshot,
+  readProcMemInfo,
+  type SystemSample
+} from './systemStats.ts';
+import { NODES_DIR } from './targets.ts';
+
+const SAMPLE_INTERVAL_MS = 200;
+
+/** Progress goes to stderr, stdout has the summary */
+export const log = (message: string) => console.error('[bench] ' + message);
+
+function git(args: string) {
+  try {
+    return execSync(`git ${args}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+      .trim();
+  } catch {
+    return null;
+  }
+}
+
+function getCommitInfo() {
+  return {
+    sha: process.env.GITHUB_SHA || git('rev-parse HEAD'),
+    branch: process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME
+      || git('rev-parse --abbrev-ref HEAD'),
+    message: git('log -1 --format=%s')
+  };
+}
+
+// 0.1μs precision is plenty for timings in ms and keeps the result files small
+function roundRuns(data: Record<string, number[]>[]) {
+  return data.map(run =>
+    Object.fromEntries(
+      Object.entries(run).map(([key, values]) => [key, values.map(v => Math.round(v * 1e4) / 1e4)])
+    )
+  );
+}
+
+function average(values: number[]) {
+  if (values.length === 0) return 0;
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+/**
+ * The main thread work of the viewer after a run, without the upload to the GPU. Uncached runs
+ * use a random seed, so they measure changed geometry, cached runs measure unchanged geometry.
+ */
+function createViewerBenchmark() {
+  const scene = new Group();
+  const material = new MeshBasicMaterial();
+  const pools = createResultPools(scene, material);
+
+  return (result: Int32Array) => {
+    const a = performance.now();
+    const parts = splitNestedArray(result);
+    const b = performance.now();
+    const { totalVertices, totalFaces } = pools.update(parts);
+    const c = performance.now();
+    return { split: b - a, update: c - b, totalVertices, totalFaces };
+  };
+}
+
+/**
+ * @param cached - run with the runtime cache and a fixed seed, so every node
+ * except the output node is served from the cache after the first run
+ */
+export async function run(
+  { graph: g, runs: amount, warmups }: Runs & { graph: Graph },
+  cached: boolean
+) {
+  // a fresh registry per benchmark, wasm memories never shrink, so shared
+  // instances would keep the memory of the largest graph for all benchmarks
+  const registry = new FileNodeRegistry(NODES_DIR);
+  await registry.load(g.nodes.map(n => n.type) as NodeId[]);
+
+  const r = new MemoryRuntimeExecutor(registry, cached ? new MemoryRuntimeCache() : undefined);
+  // the template's own settings, like the app passes them: without them every input with a
+  // setting falls back to its node's default, the mushrooms to a quarter of their resolution
+  const settings = () => ({
+    ...g.settings,
+    seed: cached ? 0 : Math.floor(Math.random() * 100000000)
+  });
+
+  log('loaded ' + g.nodes.length + ' nodes');
+
+  const updateViewer = createViewerBenchmark();
+
+  log('warming up');
+
+  for (let index = 0; index < warmups; index++) {
+    updateViewer(await r.execute(g, settings()));
+  }
+
+  const systemSamples: SystemSample[] = [];
+
+  let previousCpuSnapshot = await readCpuSnapshot();
+
+  async function sampleSystem() {
+    try {
+      const cpu = await measureCpuUsage(previousCpuSnapshot);
+
+      previousCpuSnapshot = cpu.snapshot;
+
+      const [l1, l5, l15] = loadavg();
+
+      systemSamples.push({
+        timestamp: Date.now(),
+
+        cpuUsagePercent: cpu.usagePercent,
+        cpuStealPercent: cpu.stealPercent,
+
+        load1: l1,
+        load5: l5,
+        load15: l15,
+
+        freeMemory: freemem(),
+        totalMemory: totalmem()
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  const sampler = setInterval(sampleSystem, SAMPLE_INTERVAL_MS);
+
+  log('executing');
+
+  const perfStore = createPerformanceStore();
+
+  r.perf = perfStore;
+
+  let res: Int32Array | undefined;
+
+  const cgroupBefore = await readCgroupCpuStat();
+  const processCpuBefore = process.cpuUsage();
+  const wallBefore = performance.now();
+
+  for (let i = 0; i < amount; i++) {
+    r.perf?.startRun();
+
+    res = await r.execute(g, settings());
+
+    r.perf?.stopRun();
+
+    // not part of the total, which stays the time of the runtime alone
+    const viewer = updateViewer(res!);
+
+    r.perf?.addToLastRun('total-vertices', viewer.totalVertices);
+    r.perf?.addToLastRun('total-faces', viewer.totalFaces);
+    r.perf?.addToLastRun('viewer/split-result', viewer.split);
+    r.perf?.addToLastRun('viewer/update-geometries', viewer.update);
+  }
+
+  const cgroupAfter = await readCgroupCpuStat();
+  const processCpu = process.cpuUsage(processCpuBefore);
+  const wall = performance.now() - wallBefore;
+
+  clearInterval(sampler);
+  // short benchmarks finish before the first interval
+  await sampleSystem();
+
+  log('finished');
+
+  // share of the whole machine used by this process, so the dashboard can
+  // tell our own load apart from other load on the runner
+  const ownCpuPercent = 100 * ((processCpu.user + processCpu.system) / 1000) / wall
+    / cpus().length;
+  const cpuUsagePercent = average(systemSamples.map(s => s.cpuUsagePercent));
+
+  return {
+    data: roundRuns(r.perf.get()),
+    metadata: {
+      timestamp: new Date().toISOString(),
+
+      commit: getCommitInfo(),
+
+      benchmark: {
+        iterations: amount,
+        warmups,
+        cached
+      },
+
+      machine: getMachineInfo(),
+
+      process: {
+        pid: process.pid,
+        uptime: process.uptime(),
+
+        memoryUsage: process.memoryUsage()
+      },
+
+      system: {
+        sampleIntervalMs: SAMPLE_INTERVAL_MS,
+        sampleCount: systemSamples.length,
+
+        averages: {
+          cpuUsagePercent,
+          ownCpuPercent,
+          otherCpuPercent: Math.max(0, cpuUsagePercent - ownCpuPercent),
+
+          cpuStealPercent: average(
+            systemSamples.map(s => s.cpuStealPercent)
+          ),
+
+          load1: average(systemSamples.map(s => s.load1)),
+          load5: average(systemSamples.map(s => s.load5)),
+          load15: average(systemSamples.map(s => s.load15)),
+
+          freeMemory: average(
+            systemSamples.map(s => s.freeMemory)
+          )
+        },
+
+        meminfo: await readProcMemInfo()
+      },
+
+      cgroup: {
+        before: cgroupBefore,
+        after: cgroupAfter
+      }
+    }
+  };
+}

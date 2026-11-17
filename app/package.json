@@ -21,6 +21,8 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "bench": "tsx ./benchmark/index.ts",
     "bench:paths": "tsx ./scripts/bench-path-nodes.ts",
+    "profile": "tsx ./benchmark/profile.ts",
+    "profile:node": "tsx ./benchmark/profile-node.ts",
     "render-graph": "tsx ./scripts/render-graph.ts",
     "render-template-previews": "tsx ./scripts/render-template-previews.ts",
     "format-graph": "tsx ./scripts/format-graph.ts"
