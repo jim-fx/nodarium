@@ -1,5 +1,5 @@
 import type { Graph, NodeDefinition, SerializedNode } from '@nodarium/types';
-import { areSocketsCompatible, getOutputType, isDebugNode, isOutputNode } from '@nodarium/types';
+import { getOutputType, inputAccepts, isDebugNode, isOutputNode } from '@nodarium/types';
 import { createLogger, hashString53, type PerformanceStore } from '@nodarium/utils';
 import { GraphCycleError } from './errors';
 import { type InputContext, resolveInput } from './inputs';
@@ -170,9 +170,7 @@ function bypassMuted(nodes: LinkedNode[]): LinkedNode[] {
       if (source.node !== connection.node) {
         const input = node.definition?.inputs?.[key];
         const sourceType = getOutputType(source.node.definition?.outputs?.[source.output]);
-        const accepted = !!input
-          && areSocketsCompatible(sourceType as string, [input.type, ...(input.accepts || [])]);
-        if (!accepted) continue;
+        if (!input || !inputAccepts(input, sourceType)) continue;
       }
       connections[key] = source;
     }

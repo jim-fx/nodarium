@@ -1,12 +1,12 @@
 import { CURRENT_GRAPH_VERSION, GraphVersionError, migrateGraph } from '@nodarium/runtime';
 import {
-  areSocketsCompatible,
   DEBUG_NODE,
   getOutputType,
   GROUP_INPUT,
   GROUP_INSTANCE,
   GROUP_OUTPUT,
   groupIdOf,
+  inputAccepts,
   INTERNAL_PREFIX,
   isDebugNode,
   isOutputNode
@@ -325,16 +325,13 @@ export class GraphManager extends EventEmitter<{
 
     const edgeOutputSocketType = this.getSocketType(fromNode, fromSocketIdx);
     const targetInput = this.getNodeSockets(toNode).inputs[toSocketKey];
-    const targetAcceptedTypes = [targetInput?.type, ...(targetInput?.accepts || [])];
 
-    const bestInputEntry = draggedInputs.find(([, input]) => {
-      if (!isInputConnectable(input)) return false;
-      const accepted = [input.type, ...(input.accepts || [])];
-      return areSocketsCompatible(edgeOutputSocketType, accepted);
-    });
+    const bestInputEntry = draggedInputs.find(([, input]) =>
+      isInputConnectable(input) && inputAccepts(input, edgeOutputSocketType)
+    );
 
     const bestOutputIdx = draggedOutputs.findIndex(outputType =>
-      areSocketsCompatible(outputType, targetAcceptedTypes)
+      inputAccepts(targetInput, outputType)
     );
 
     if (!bestInputEntry || bestOutputIdx === -1) {
@@ -391,19 +388,16 @@ export class GraphManager extends EventEmitter<{
       if (fromNode.id === nodeId || toNode.id === nodeId) return false;
 
       const edgeOutputSocketType = this.getSocketType(fromNode, fromSocketIdx);
-      const canPlugIntoDragged = draggedInputs.some(input => {
-        if (!isInputConnectable(input)) return false;
-        const acceptedTypes = [input.type, ...(input.accepts || [])];
-        return areSocketsCompatible(edgeOutputSocketType, acceptedTypes);
-      });
+      const canPlugIntoDragged = draggedInputs.some(input =>
+        isInputConnectable(input) && inputAccepts(input, edgeOutputSocketType)
+      );
 
       if (!canPlugIntoDragged) return false;
 
       const targetInput = this.getNodeSockets(toNode).inputs[toSocketKey];
-      const targetAcceptedTypes = [targetInput?.type, ...(targetInput?.accepts || [])];
 
       const draggedCanPlugIntoTarget = draggedOutputs.some(outputType =>
-        areSocketsCompatible(outputType, targetAcceptedTypes)
+        inputAccepts(targetInput, outputType)
       );
 
       return draggedCanPlugIntoTarget;
@@ -456,15 +450,12 @@ export class GraphManager extends EventEmitter<{
       if (typeof socket.index === 'number') {
         const socketType = this.getSocketType(socket.node, socket.index);
         const input = Object.entries(newSockets.inputs).find(([, input]) =>
-          areSocketsCompatible(socketType, [input.type, ...(input.accepts ?? [])])
+          inputAccepts(input, socketType)
         );
         if (input) this.createEdge(socket.node, socket.index, newNode, input[0]);
       } else {
         const input = this.getNodeSockets(socket.node).inputs[socket.index];
-        const accepted = [input?.type, ...(input?.accepts ?? [])];
-        const outputIndex = newSockets.outputs.findIndex((output) =>
-          areSocketsCompatible(output, accepted)
-        );
+        const outputIndex = newSockets.outputs.findIndex((output) => inputAccepts(input, output));
         if (outputIndex !== -1) this.createEdge(newNode, outputIndex, socket.node, socket.index);
       }
       return newNode;
@@ -1018,17 +1009,14 @@ export class GraphManager extends EventEmitter<{
 
     const fromSocketType = this.getSocketType(from, fromSocket);
     const toInput = this.getNodeSockets(to).inputs[toSocket];
-    const toSocketType = [toInput?.type, ...(toInput?.accepts || [])];
 
     if (toInput?.internal) {
       log.error(`Input ${toSocket} of ${to.type} is internal and can not be connected`);
       return;
     }
 
-    if (!toInput || !areSocketsCompatible(fromSocketType, toSocketType)) {
-      log.error(
-        `Socket types do not match: ${fromSocketType} !== ${toSocketType}`
-      );
+    if (!toInput || !inputAccepts(toInput, fromSocketType)) {
+      log.error(`Socket types do not match: ${fromSocketType} !== ${toInput?.type}`);
       return;
     }
 
@@ -1139,9 +1127,8 @@ export class GraphManager extends EventEmitter<{
     if (typeof socket.index === 'string') {
       const input = this.getNodeSockets(socket.node).inputs[socket.index];
       if (!isInputConnectable(input)) return [];
-      const accepted = [input.type, ...(input.accepts ?? [])];
       return allDefinitions.filter(d =>
-        d.outputs?.some(output => areSocketsCompatible(getOutputType(output), accepted))
+        d.outputs?.some(output => inputAccepts(input, getOutputType(output)))
       );
     }
 
@@ -1150,8 +1137,7 @@ export class GraphManager extends EventEmitter<{
     if (!outputType) return [];
     return allDefinitions.filter(d =>
       Object.values(d.inputs ?? {}).some(input =>
-        isInputConnectable(input)
-        && areSocketsCompatible(outputType, [input.type, ...(input.accepts ?? [])])
+        isInputConnectable(input) && inputAccepts(input, outputType)
       )
     );
   }
@@ -1198,13 +1184,8 @@ export class GraphManager extends EventEmitter<{
         const inputs = this.getNodeSockets(node).inputs;
         for (const key in inputs) {
           if (!isInputConnectable(inputs[key])) continue;
-          const otherType = [inputs[key].type];
-          otherType.push(...(inputs[key].accepts || []));
 
-          if (
-            areSocketsCompatible(ownType, otherType)
-            && !edges.get(node.id)?.includes(key)
-          ) {
+          if (inputAccepts(inputs[key], ownType) && !edges.get(node.id)?.includes(key)) {
             sockets.push([node, key]);
           }
         }

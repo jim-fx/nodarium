@@ -97,6 +97,71 @@ const porcini = withSubstrate(await loadTemplate('porcini'), {
 
 Open the plant or mushroom in the app and choose **File → Export .json**. The app saves it as `<title>.nodarium.json`. `parseProjectFile()` reads these files, and the bare graphs older versions of the app saved. It checks them and migrates them to the format of the runtime. A graph made with a newer version of the app than the package throws a `GraphVersionError`.
 
+## Check a graph
+
+A graph written by hand or by a program can have mistakes the runtime doesn't name: an edge into an input the node doesn't have is left out, a prop with a typo is never read. `validateGraph()` finds all of them at once, in the graph and in its groups, without running anything. It takes the graph and the definitions of the nodes it may use by their id, the internal nodes (groups and the debug node) are known without them. It returns a list of `GraphIssue`, empty for a graph without mistakes.
+
+```ts
+import { FileNodeRegistry, validateGraph } from '@nodarium/runtime/node';
+
+// the nodes the graph may use, a type that doesn't load is reported by the validation
+const registry = new FileNodeRegistry();
+await Promise.allSettled(graph.nodes.map((node) => registry.load([node.type])));
+const definitions = new Map(registry.getAllNodes().map((d) => [d.id, d]));
+for (const issue of validateGraph(graph, definitions)) {
+  console.log(issue.severity, issue.code, issue.message);
+  // error unknown-input noise#2 has no input "strenght", did you mean "strength"?
+}
+```
+
+```ts
+type GraphIssue = {
+  severity: 'error' | 'warning';
+  code: GraphIssueCode;
+  message: string; // names the node as type#id, the input and the fix where there is one
+  nodeId?: number; // the node, inside the group groupId if that is set
+  groupId?: number;
+  edge?: SerializedEdge; // [from node, output, to node, input]
+  suggestion?: string; // what to write instead: a name, a node type or a value
+};
+```
+
+| code                    | severity | what is wrong                                                                        |
+| ----------------------- | -------- | ------------------------------------------------------------------------------------ |
+| `unknown-node-type`     | error    | no definition for the type of a node, or a group instance of a group that is missing |
+| `unknown-input`         | error    | an edge goes into an input the node doesn't have, or a shown input doesn't exist     |
+| `unknown-prop`          | error    | a prop the node has no input for, or one it never reads (a seed or a setting)        |
+| `incompatible-edge`     | error    | the type of the output doesn't fit the input, or the input can't be connected        |
+| `missing-node`          | error    | an edge from or to a node the graph doesn't have                                     |
+| `output-out-of-range`   | error    | an edge reads an output the node doesn't have                                        |
+| `duplicate-id`          | error    | two nodes or two groups with the same id                                             |
+| `input-connected-twice` | error    | two edges into one input, only the last counts                                       |
+| `no-output`             | error    | the graph has no output node                                                         |
+| `several-outputs`       | error    | the graph has more than one output node, only the first is used                      |
+| `cycle`                 | error    | nodes that depend on each other in a circle, or a group that contains itself         |
+| `wrong-value-type`      | error    | a prop of the wrong type, like a list for a float                                    |
+| `value-out-of-range`    | warning  | a number far outside the range of its input, or a select option that doesn't exist   |
+| `unknown-setting`       | warning  | a setting of the graph no node reads                                                 |
+| `no-version`            | warning  | the graph has no `version` and is migrated from version 0                            |
+| `unreachable-node`      | warning  | a node that leads neither to the output nor to a debug node, it never runs           |
+
+Names are compared by their edit distance, a typo gets a "did you mean", an unknown node type the nearest ids of the definitions. An edge fits when the type of the output is the type of the input or one it `accepts`, the same rule the editor connects by (`inputAccepts()`). The editor lets a number be typed past the min and max of its input, so only a value further outside than 100 times the width of the range is a warning. A prop under an edge is left alone, the edge wins.
+
+A graph of an older version is checked as it is after its migration. A graph without a `version` is checked as it is written, with the warning `no-version`: without the field it would be migrated from version 0, which renames inputs of today.
+
+`createRuntime({ validate: true })` checks every graph before it runs: a graph with an error throws a `GraphValidationError`, its `issues` list them all, warnings included. Graphs with only warnings run. It costs a fraction of a millisecond per run (0.2 ms for the largest template, 140 nodes), `execute()` and `run()` without the option check nothing.
+
+```ts
+import { createRuntime, GraphValidationError } from '@nodarium/runtime/node';
+
+const runtime = createRuntime({ validate: true });
+try {
+  await runtime.execute(graph, graph.settings);
+} catch (error) {
+  if (error instanceof GraphValidationError) console.log(error.issues);
+}
+```
+
 ## Node
 
 `@nodarium/runtime/node` reads the nodes from the package, `createRuntime()` needs no arguments:
@@ -208,7 +273,7 @@ The matrices of `instances` fit `InstancedMesh.instanceMatrix` as they are. Thre
 - `cache: true` in `createRuntime()` keeps the results of the nodes, so a run with a changed setting or seed only runs the nodes the change reaches. It keeps the results by the time they save per byte: a result over 1 MB that took less than 1 ms per MB to make, like a mesh a node only passes on, is made again instead.
 - A wasm memory never shrinks, so after every run the executor releases the instances of the nodes that left the graph. A process only has room for about 125 wasm memories, so once it holds more than `keepInstances` (40) it releases the biggest ones, those outside the latest graph first. `releaseInstancesOver` releases every instance with more bytes after every run (`Infinity` by default). When runs overlap, the last one to finish releases. A released node instantiates its compiled module again when it runs next. `releaseInstances()` releases all of them, for a graph that is built only once.
 - `run()` takes what `execute()` takes and returns a `RunResult`: the `result`, the `debugData` of the nodes a debug node is connected to and the time every node took in ms, `nodeTimings` for all nodes and `runTimings` for those that ran and were not read from the cache.
-- When a node fails, `execute()` throws a `NodeExecutionError`, its `info` names the node, the inputs it was missing and where a Rust panic happened.
+- When a node fails, `execute()` throws a `NodeExecutionError`, its `info` names the node, the inputs it was missing and where a Rust panic happened. A runtime with `validate: true` throws a `GraphValidationError` before anything runs, see [Check a graph](#check-a-graph).
 - `MemoryRuntimeExecutor`, `MemoryRuntimeCache` and `WasmNodeRegistry` are the building blocks of `createRuntime()`. Subclass `WasmNodeRegistry` to load the nodes from somewhere else.
 - `migrateGraph()` and `CURRENT_GRAPH_VERSION` migrate graphs that don't come from a project file.
 

@@ -71,7 +71,7 @@
   const runtimeCache = new MemoryRuntimeCache();
   const memoryRuntime = new MemoryRuntimeExecutor(nodeRegistry, runtimeCache);
   memoryRuntime.perf = performanceStore;
-  const pm = new ProjectManager();
+  const pm = new ProjectManager(nodeRegistry);
 
   const runtime: AppRuntime = $derived(
     appSettings.value.debug.useWorker ? workerRuntime : memoryRuntime

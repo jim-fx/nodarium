@@ -9,3 +9,11 @@ export function areSocketsCompatible(
   }
   return inputs === output;
 }
+
+/** Whether an output of type `output` may connect to `input`, its type or one it `accepts` */
+export function inputAccepts(
+  input: { type: string; accepts?: string[] } | undefined,
+  output: string | undefined
+) {
+  return areSocketsCompatible(output, [input?.type, ...(input?.accepts ?? [])]);
+}

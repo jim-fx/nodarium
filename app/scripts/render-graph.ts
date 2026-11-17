@@ -16,7 +16,16 @@
 //   --below  adds a fourth view from below, for the underside of caps and leaves
 //
 // Prints one line of JSON per target with the path of the screenshot and the size of the plant.
-import { FileNodeRegistry, MemoryRuntimeExecutor, parseProjectFile } from '@nodarium/runtime/node';
+// Before a graph runs, the issues validateGraph() finds in it are printed to stderr. A graph with
+// an error is not run, its line has the error and all issues. The exit code is 1 once a target
+// failed.
+import {
+  FileNodeRegistry,
+  type GraphIssue,
+  MemoryRuntimeExecutor,
+  parseProjectFile,
+  validateGraph
+} from '@nodarium/runtime/node';
 import { type Graph, INTERNAL_PREFIX, type NodeId } from '@nodarium/types';
 import { splitNestedArray } from '@nodarium/utils';
 import { existsSync } from 'node:fs';
@@ -81,12 +90,49 @@ async function resolveTargets(names: string[]) {
   return files;
 }
 
-async function loadGraph(file: string): Promise<Graph> {
-  return parseProjectFile(JSON.parse(await readFile(file, 'utf8'))).graph;
+const nodesDir = resolve('static/nodes');
+
+/** Every node of static/nodes, so a mistyped node type gets the nearest ones as suggestions */
+async function loadAllDefinitions() {
+  const ids: string[] = [];
+  for (const user of await readdir(nodesDir)) {
+    for (const collection of await readdir(join(nodesDir, user)).catch(() => [])) {
+      const files = await readdir(join(nodesDir, user, collection)).catch(() => []);
+      for (const file of files.filter((f) => f.endsWith('.wasm'))) {
+        ids.push(`${user}/${collection}/${file.slice(0, -5)}`);
+      }
+    }
+  }
+  const registry = new FileNodeRegistry(nodesDir);
+  await registry.load(ids as NodeId[]);
+  return new Map(registry.getAllNodes().map((d) => [d.id as string, d]));
+}
+
+const definitions = await loadAllDefinitions();
+
+/**
+ * The graph with the issues `validateGraph` finds in it as it is written. A file the format
+ * check rejects has no graph but its issues all the same.
+ */
+async function loadGraph(file: string) {
+  const input = JSON.parse(await readFile(file, 'utf8'));
+  const written = input && typeof input === 'object' && 'format' in input ? input.graph : input;
+  const issues = validateGraph(written, definitions);
+  try {
+    return { graph: parseProjectFile(input).graph, issues };
+  } catch (error) {
+    return { issues, invalid: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+function printIssues(name: string, issues: GraphIssue[]) {
+  for (const issue of issues) {
+    console.error(`${name}: ${issue.severity} ${issue.code}: ${issue.message}`);
+  }
 }
 
 async function execute(graph: Graph, seed: number) {
-  const registry = new FileNodeRegistry(resolve('static/nodes'));
+  const registry = new FileNodeRegistry(nodesDir);
   // group nodes have no wasm, the runtime loads the nodes inside them once it expands them
   const types = graph.nodes.map((n) => n.type).filter((t) => !t.startsWith(INTERNAL_PREFIX));
   await registry.load(types as NodeId[]);
@@ -362,19 +408,29 @@ await mkdir(options.out, { recursive: true });
 
 for (const file of await resolveTargets(targets)) {
   const name = basename(file).replace(/(\.nodarium)?\.json$/, '');
+  // one broken graph shouldn't stop the others
+  const fail = (error: string, issues?: GraphIssue[]) => {
+    process.exitCode = 1;
+    console.log(JSON.stringify({ name, error, issues }));
+  };
   let result: Int32Array;
   try {
-    result = await execute(await loadGraph(file), Number(options.seed));
+    const { graph, issues, invalid } = await loadGraph(file);
+    printIssues(name, issues);
+    const errors = issues.filter((issue) => issue.severity === 'error');
+    if (invalid || errors.length) {
+      if (invalid) console.error(`${name}: error ${invalid}`);
+      fail(invalid ?? errors[0].message, issues);
+      continue;
+    }
+    result = await execute(graph!, Number(options.seed));
   } catch (error) {
-    // one broken graph shouldn't stop the others
-    console.log(
-      JSON.stringify({ name, error: error instanceof Error ? error.message : String(error) })
-    );
+    fail(error instanceof Error ? error.message : String(error));
     continue;
   }
   const { triangles, instances } = focus(collectTriangles(result));
   if (triangles.length === 0) {
-    console.log(JSON.stringify({ name, error: 'the graph produced no geometry' }));
+    fail('the graph produced no geometry');
     continue;
   }
 
