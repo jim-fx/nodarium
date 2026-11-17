@@ -1,11 +1,15 @@
 {
   "id": "max/plantarium/triangle",
+  "meta": {
+    "description": "A single triangle as geometry, flat in the plane of x and z and facing up, with its corners at (-size, 0, 0), (size, 0, 0) and (0, 0, size)."
+  },
   "outputs": [
     "geometry"
   ],
   "inputs": {
     "size": {
       "type": "float",
+      "description": "How far the corners lie from the origin.",
       "value": 2,
       "unit": "m"
     }

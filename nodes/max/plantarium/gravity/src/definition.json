@@ -1,14 +1,19 @@
 {
   "id": "max/plantarium/gravity",
+  "meta": {
+    "description": "Bends paths down under their weight, more toward the tip. Every segment keeps its length, so a path droops without stretching."
+  },
   "outputs": [
     "path"
   ],
   "inputs": {
     "plant": {
-      "type": "path"
+      "type": "path",
+      "description": "The paths to bend. Only the deepest depth levels bend (the last level by default), the others are passed on."
     },
     "strength": {
       "type": "float",
+      "description": "How far a path droops: 1 turns its tip by 90° toward the ground, 0.5 by 45°, a negative value bends it up. Read along the path, alpha goes from the base (0) to the tip (1).",
       "min": 0,
       "max": 1,
       "value": 1

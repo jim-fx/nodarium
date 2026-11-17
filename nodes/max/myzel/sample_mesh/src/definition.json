@@ -9,6 +9,7 @@
   "inputs": {
     "mesh": {
       "type": "mesh",
+      "description": "The surface to spread the points over, like a substrate from the mesh node.",
       "label": "Mesh",
       "external": true
     },

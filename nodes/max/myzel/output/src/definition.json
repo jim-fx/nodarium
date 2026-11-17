@@ -7,6 +7,7 @@
   "inputs": {
     "mesh": {
       "type": "path",
+      "description": "What to show: a mesh, paths (drawn as lines) or a pattern (drawn as a disc).",
       "accepts": [
         "mesh",
         "path",

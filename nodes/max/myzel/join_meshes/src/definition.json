@@ -9,18 +9,22 @@
   "inputs": {
     "a": {
       "type": "mesh",
+      "description": "A mesh, its groups come first.",
       "external": true
     },
     "b": {
       "type": "mesh",
+      "description": "Another mesh, its groups are numbered after those of a.",
       "external": true
     },
     "c": {
       "type": "mesh",
+      "description": "Another mesh, its groups are numbered after those of a and b.",
       "external": true
     },
     "d": {
       "type": "mesh",
+      "description": "Another mesh, its groups are numbered after those of a, b and c.",
       "external": true
     }
   }

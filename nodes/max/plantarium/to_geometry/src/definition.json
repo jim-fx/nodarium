@@ -17,6 +17,7 @@
     },
     "resolution_circle": {
       "type": "integer",
+      "description": "How many segments a baked path has around, from the setting resolution.circle. max_circle_segments lowers it.",
       "value": 32,
       "min": 3,
       "max": 64,

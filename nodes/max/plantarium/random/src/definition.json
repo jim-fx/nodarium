@@ -1,15 +1,20 @@
 {
   "id": "max/plantarium/random",
+  "meta": {
+    "description": "A random number from min to max. Every read draws a new value, so every stem, branch or leaf it goes into gets its own, and the seed of the graph gives the same values in every run."
+  },
   "outputs": [
     "float"
   ],
   "inputs": {
     "min": {
       "type": "float",
+      "description": "The smallest value it gives.",
       "value": 1
     },
     "max": {
       "type": "float",
+      "description": "The largest value it gives.",
       "value": 2
     },
     "seed": {

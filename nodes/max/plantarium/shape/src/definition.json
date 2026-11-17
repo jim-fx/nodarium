@@ -1,11 +1,15 @@
 {
   "id": "max/plantarium/shape",
+  "meta": {
+    "description": "An outline drawn on the node, for the shape of leaf: one half of the leaf, mirrored at the midrib."
+  },
   "outputs": [
     "shape"
   ],
   "inputs": {
     "shape": {
       "type": "shape",
+      "description": "The points of the outline: x from the edge (0) to the midrib (50), y from the tip (0) to the base (100).",
       "internal": true,
       "value": [
         47.8,

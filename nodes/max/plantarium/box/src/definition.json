@@ -1,11 +1,15 @@
 {
   "id": "max/plantarium/box",
+  "meta": {
+    "description": "A cube around the origin as geometry, for example to try out instance or join."
+  },
   "outputs": [
     "geometry"
   ],
   "inputs": {
     "size": {
       "type": "float",
+      "description": "Half the length of an edge: the cube reaches from -size to size on every axis.",
       "value": 2,
       "unit": "m"
     }

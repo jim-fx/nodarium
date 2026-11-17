@@ -1,11 +1,15 @@
 {
   "id": "max/plantarium/leaf",
+  "meta": {
+    "description": "Draws a leaf from a shape, its outline mirrored at the midrib. It grows along -z from its base at the origin and faces up (+y), at size 1 it is 100 long, so instance scales it down by the thickness of the path."
+  },
   "outputs": [
     "geometry"
   ],
   "inputs": {
     "shape": {
       "type": "shape",
+      "description": "The outline of one half of the leaf, from a shape node: points in a box of 100 by 100, x from the edge (0) to the midrib (50), y from the tip (0) to the base (100).",
       "external": true,
       "value": [
         47.8,
@@ -24,6 +28,7 @@
     },
     "size": {
       "type": "float",
+      "description": "The scale of the leaf, at 1 it is 100 long. instance scales it again by the thickness of the path, leaves that go into instance take about 0.01 to 1. Read along the leaf, alpha goes from the base (0) to the tip (1).",
       "value": 1,
       "unit": "m"
     },
@@ -38,7 +43,7 @@
     },
     "x_resolution": {
       "type": "integer",
-      "description": "The amount of stems to produce",
+      "description": "How many points the leaf has across, at least 3. deform needs 5 or more to roll it.",
       "min": 1,
       "max": 64,
       "value": 1,
