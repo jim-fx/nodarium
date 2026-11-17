@@ -142,7 +142,9 @@ export function createAgentApi(host: AgentApiHost): NodariumApi {
 
   /** Waits until project `id` is open and built, a failed load gives a result without a build */
   async function opened(id: number, issues?: GraphIssue[]): Promise<BuildResult> {
-    await when(() => host.isIdle() && host.manager()?.id === id);
+    await when(() =>
+      host.isIdle() && (host.manager()?.id === id || host.manager()?.status === 'error')
+    );
     if (host.manager()?.status === 'error') {
       return {
         ok: false,

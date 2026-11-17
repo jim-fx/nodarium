@@ -394,12 +394,12 @@
     renderViews: (result, size, views) => pm.thumbnails.renderViews(result, size, views)
   };
   // only tools use it, the page doesn't wait for its code
-  const agentApi = import('#lib/agent-api/agent-api.ts').then(({ createAgentApi }) =>
-    window.nodarium = createAgentApi(agentApiHost)
-  );
+  const agentApi = import('#lib/agent-api/agent-api.ts')
+    .then(({ createAgentApi }) => window.nodarium = createAgentApi(agentApiHost))
+    .catch(() => undefined);
   onDestroy(() => {
     agentApi.then((api) => {
-      if (window.nodarium === api) delete window.nodarium;
+      if (api && window.nodarium === api) delete window.nodarium;
     });
   });
 
