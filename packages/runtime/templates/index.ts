@@ -18,11 +18,121 @@ export type Template = {
   category: TemplateCategory;
   /** The unit the app shows lengths in, the graph stores meters either way */
   unit: ProjectUnit;
+  /** The species a plant template models, as `docs/PLANT_TEMPLATES.md` names it */
+  species?: string;
+  /** One line on how the graph builds it */
+  notes?: string;
+  /** The topic of `nodarium docs` that describes the template in full */
+  doc?: 'plant-templates' | 'myzel';
   /** The graph is shared by everyone who loads it, clone it before changing it */
   load: () => Promise<Graph>;
 };
 
 export const templateCategories: TemplateCategory[] = ['Plants', 'Mushrooms'];
+
+type About = { species?: string; notes: string };
+
+// from the template sections of docs/PLANT_TEMPLATES.md and the table of docs/MYZEL.md
+const ABOUT: Record<string, About> = {
+  fern: {
+    species: 'Nephrolepis exaltata (Boston fern)',
+    notes: '22 fronds from a short crown at the golden angle, arched by gravity, each with 110 '
+      + 'pinnae in two ranks.'
+  },
+  agave: {
+    species: 'Agave americana (century plant)',
+    notes: 'A short thick stem, one channelled leaf shape on two instance nodes: 18 outer and 22 '
+      + 'inner leaves at the golden angle.'
+  },
+  grass: {
+    species: 'Cenchrus purpurascens (fountain grass)',
+    notes: '22 arching culms, a plume of 140 bristles at the top of each and eight leaf blades at '
+      + 'its base.'
+  },
+  palm: {
+    species: 'Cocos nucifera (coconut palm)',
+    notes: 'A leaning trunk with 26 fronds at the golden angle in its top, each with 120 narrow, '
+      + 'folded leaflets.'
+  },
+  sapling: {
+    species: 'Betula pendula (silver birch), young tree',
+    notes: 'A straight trunk with 16 branches at 137.5°, each with 12 hanging twigs, birch leaves '
+      + 'from a node group.'
+  },
+  lavender: {
+    species: 'Lavandula angustifolia (English lavender)',
+    notes: 'A short woody crown with 12 woody stems, each with 3–5 flower stems of linear leaves '
+      + 'and a spike of 120 florets.'
+  },
+  sage: {
+    species: 'Salvia officinalis (common sage)',
+    notes: 'A short woody crown with 9 woody stems, each with 7 shoots of opposite, decussate leaf '
+      + 'pairs.'
+  },
+  bamboo: {
+    species: 'Phyllostachys aurea (golden bamboo)',
+    notes: '11 culms with 28 branches in pairs from half-way up, 2–5 leaves near each branch tip.'
+  },
+  'lady-fern': {
+    species: 'Athyrium filix-femina (lady fern)',
+    notes: '14 fronds arched into a vase, each with 40–50 pinnae in two ranks.'
+  },
+  maidenhair: {
+    species: 'Adiantum raddianum (delta maidenhair)',
+    notes: '20 thin fronds arched into a mound, a deltate, 3-pinnate blade on the upper half of '
+      + 'each.'
+  },
+  daisy: {
+    species: 'Bellis perennis (common daisy)',
+    notes: '5 scapes with a rosette of 15 leaves at their base and a head of disc, rays and bracts '
+      + 'on each tip.'
+  },
+  horsetail: {
+    species: 'Equisetum arvense (field horsetail)',
+    notes: 'Five stems, each with 14 nodes of sheath teeth and a whorl of 9–12 branches at each.'
+  },
+  'devils-backbone': {
+    species: 'Euphorbia tithymaloides (zigzag plant)',
+    notes: '9 stems zigzagged by trunk_kink, a leaf on the outer side of every kink.'
+  },
+  knotweed: {
+    species: 'Reynoutria japonica (Japanese knotweed)',
+    notes: '7 arching canes that zigzag a little, a large leaf and a branch at each of their 13 '
+      + 'nodes.'
+  },
+  'wild-carrot': {
+    species: "Daucus carota (Queen Anne's lace)",
+    notes: 'A main stem with 3 side branches and 3 stalks from the base, an open umbel or a bud on '
+      + 'every tip.'
+  },
+  'champignon-groomed': { notes: 'The Stipe, Cap, Gills and Veil groups, grown by time.' },
+  'fly-agaric': { notes: 'As the champignon, with a Cuticle and a Volva group.' },
+  porcini: {
+    notes: 'The Stipe and Cap groups, a Pores group instead of the Gills and a Reticulation net on '
+      + 'the stipe.'
+  },
+  shiitake: { notes: 'The Stipe, Cap, Gills and Cuticle groups, no veil.' },
+  'shaggy-inkcap': {
+    notes: 'Three to seven stipes of their own age, with the Gills, Cuticle and Ring groups.'
+  },
+  chanterelle: {
+    notes: 'Four to nine stipes of their own age, ridges instead of gills, a Stipe base group.'
+  },
+  oyster: { notes: 'The Stipe, Cap and Gills groups, time scales the lengths and radii.' },
+  'honey-fungus': {
+    notes: 'Six to eleven stipes of their own age, with the Gills, Ring and Cuticle groups.'
+  },
+  'clouded-agaric': {
+    species: 'Clitocybe nebularis',
+    notes: 'Five to ten stipes on an arc of a ring, each of its own age, with the Gills and '
+      + 'Cuticle groups.'
+  },
+  'sulphur-tuft': { notes: 'Eight to fourteen thin stipes, like the honey fungus.' },
+  'false-chanterelle': { notes: 'Like the chanterelle, with lamellae instead of ridges.' },
+  'bitter-bolete': {
+    notes: 'Like the porcini, its pores white turning pink and a coarse dark net on the stipe.'
+  }
+};
 
 // every template is imported on its own, so a bundler splits them into chunks of their own
 function template(category: TemplateCategory) {
@@ -32,6 +142,7 @@ function template(category: TemplateCategory) {
     name,
     category,
     unit,
+    ...(ABOUT[id] && { ...ABOUT[id], doc: category === 'Plants' ? 'plant-templates' : 'myzel' }),
     load: () => load().then((m) => m.default as Graph)
   });
 }
