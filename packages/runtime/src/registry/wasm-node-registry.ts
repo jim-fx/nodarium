@@ -55,8 +55,16 @@ export abstract class WasmNodeRegistry implements NodeRegistry {
       release: wasm.release,
       memoryBytes: wasm.memoryBytes
     };
-    this.nodes.set(id, node);
+    this.nodes.set(this.storageId(id, node), node);
     return node;
+  }
+
+  /**
+   * The id {@link register} stores a node under, the id it was given. A registry that is given
+   * wasm files without their ids, like one dropped onto an editor, can store under `node.id`.
+   */
+  protected storageId(id: string, _node: NodeDefinition): string {
+    return id;
   }
 
   getNode(id: NodeId | string): NodeDefinition | undefined {

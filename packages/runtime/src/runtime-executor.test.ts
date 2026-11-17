@@ -373,6 +373,15 @@ describe('MemoryRuntimeExecutor', () => {
     outputs: [],
     execute: (inputs: NodeValue[]) => inputs[0]
   } as unknown as NodeDefinition;
+  it('loads the nodes of a registry that has not loaded any yet', async () => {
+    const registry = { ...createMockNodeRegistry([output]), status: 'loading' as const };
+    const runtime = new MemoryRuntimeExecutor(registry);
+
+    const graph: Graph = { id: 0, nodes: [node(0, output.id)], edges: [], groups: [] };
+
+    expect([...await runtime.execute(graph, {})]).toEqual([0, 1, 1, 1]);
+  });
+
   const leaf = {
     id: 'test/node/leaf',
     meta: { title: 'Leaf' },

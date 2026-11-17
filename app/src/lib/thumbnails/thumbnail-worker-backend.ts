@@ -1,10 +1,9 @@
-import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
-import { debugNode, MemoryRuntimeExecutor } from '@nodarium/runtime';
+import { createAppRegistry } from '#lib/node-registry/index.ts';
+import { MemoryRuntimeExecutor } from '@nodarium/runtime';
 import type { Graph } from '@nodarium/types';
 import { loadMatcap, ThumbnailRenderer } from './thumbnail-renderer';
 
-const nodeRegistry = new RemoteNodeRegistry('', new IndexDBCache('node-registry'), [debugNode]);
-const executor = new MemoryRuntimeExecutor(nodeRegistry);
+const executor = new MemoryRuntimeExecutor(createAppRegistry());
 
 let rendererPromise: Promise<ThumbnailRenderer> | undefined;
 function getRenderer() {
@@ -20,7 +19,6 @@ export async function renderResult(result: Int32Array, size: number) {
 }
 
 export async function renderGraph(graph: Graph, size: number) {
-  await nodeRegistry.load(graph.nodes.map((n) => n.type));
   // a thumbnail is built once, its nodes don't need to keep their memory
   const result = await executor.execute(graph, graph.settings ?? {}).finally(() =>
     executor.releaseInstances()

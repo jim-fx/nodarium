@@ -1,12 +1,12 @@
+import { WasmNodeRegistry } from '@nodarium/runtime';
 import {
   type AsyncCache,
   INTERNAL_PREFIX,
   type NodeDefinition,
   NodeDefinitionSchema,
-  type NodeId,
-  type NodeRegistry
+  type NodeId
 } from '@nodarium/types';
-import { createLogger, createWasmWrapper } from '@nodarium/utils';
+import { createLogger } from '@nodarium/utils';
 
 const log = createLogger('node-registry');
 log.mute();
@@ -28,24 +28,21 @@ function sameBytes(a: ArrayBuffer, b: ArrayBuffer) {
   return true;
 }
 
-export class RemoteNodeRegistry implements NodeRegistry {
-  status: 'loading' | 'ready' | 'error' = 'loading';
-  private nodes: Map<string, NodeDefinition> = new Map();
+/**
+ * The nodes under `<url>/nodes`, with the listings of their collections. With a cache, a file is
+ * answered from it at once and fetched again in the background.
+ */
+export class RemoteNodeRegistry extends WasmNodeRegistry {
   /** Nodes known from the collection listing, without their code */
   private definitions: Map<string, NodeDefinition> = new Map();
-  private pending: Map<string, Promise<NodeDefinition | undefined>> = new Map();
   private collections: Map<string, Promise<CollectionListing>> = new Map();
 
   constructor(
     private url: string,
     public cache?: AsyncCache<ArrayBuffer | string>,
-    nodes?: NodeDefinition[]
+    nodes: NodeDefinition[] = []
   ) {
-    if (nodes?.length) {
-      for (const node of nodes) {
-        this.nodes.set(node.id, node);
-      }
-    }
+    super(nodes);
   }
 
   async fetchJson(url: string, skipCache = false) {
@@ -119,50 +116,17 @@ export class RemoteNodeRegistry implements NodeRegistry {
     return this.fetchJson(`nodes/${nodeId}.json`);
   }
 
-  private async fetchNodeWasm(nodeId: `${string}/${string}/${string}`) {
-    const node = await this.fetchArrayBuffer(`nodes/${nodeId}.wasm`);
-    if (!node) {
-      throw new Error(`Failed to load node wasm ${nodeId}`);
-    }
-
-    return node;
-  }
-
   /** Older collection listings name the nodes after their files, `<node>.wasm` */
   private normalizeIds(nodeIds: NodeId[]) {
     return [...new Set(nodeIds.map((id) => id.replace(/\.wasm$/, '') as NodeId))];
   }
 
-  async load(nodeIds: NodeId[]) {
-    const a = performance.now();
+  protected readWasm(id: NodeId) {
+    return this.fetchArrayBuffer(`nodes/${id}.wasm`);
+  }
 
-    const nodes = (await Promise.all(
-      this.normalizeIds(nodeIds).map((id) => {
-        if (this.nodes.has(id)) {
-          return this.nodes.get(id)!;
-        }
-
-        if (id.startsWith(INTERNAL_PREFIX)) return;
-
-        // every node is only instantiated once, even when it is requested again while loading
-        let pending = this.pending.get(id);
-        if (!pending) {
-          pending = this.fetchAndRegister(id).finally(() => this.pending.delete(id));
-          this.pending.set(id, pending);
-        }
-        return pending;
-      })
-    )).filter(Boolean) as NodeDefinition[];
-
-    const duration = performance.now() - a;
-
-    log.group('loaded nodes in', duration, 'ms');
-    log.info(nodeIds);
-    log.info(nodes);
-    log.groupEnd();
-    this.status = 'ready';
-
-    return nodes;
+  override load(nodeIds: NodeId[]) {
+    return super.load(this.normalizeIds(nodeIds));
   }
 
   /**
@@ -192,7 +156,6 @@ export class RemoteNodeRegistry implements NodeRegistry {
     const withoutDefinition = ids.filter((id) => !this.getNode(id));
     if (withoutDefinition.length) await this.load(withoutDefinition);
 
-    this.status = 'ready';
     return ids.map((id) => this.getNode(id)).filter(Boolean) as NodeDefinition[];
   }
 
@@ -209,65 +172,29 @@ export class RemoteNodeRegistry implements NodeRegistry {
         log.warn('Invalid definition in the listing', raw, definition.error);
         continue;
       }
-      if (!this.nodes.has(definition.data.id)) {
+      if (!super.getNode(definition.data.id)) {
         // it has no execute until load() replaces it, which the runtime calls before running it
         this.definitions.set(definition.data.id, definition.data as NodeDefinition);
       }
     }
   }
 
-  private async fetchAndRegister(id: `${string}/${string}/${string}`) {
-    const wasmBuffer = await this.fetchNodeWasm(id);
-
-    try {
-      return await this.register(id, wasmBuffer);
-    } catch (e) {
-      console.log('Failed to register: ', id);
-      console.error(e);
-      return;
-    }
-  }
-
-  async register(id: string, wasmBuffer: ArrayBuffer) {
-    const wrapper = (() => {
-      try {
-        return createWasmWrapper(wasmBuffer);
-      } catch (error) {
-        console.error(`Failed to create node wrapper for node: ${id}`, error);
-        throw error;
-      }
-    })();
-
-    const rawDefinition = wrapper.get_definition();
-    const definition = NodeDefinitionSchema.safeParse(rawDefinition);
-
-    if (definition.error) {
-      throw new Error(
-        'Failed to parse node definition from node:+\n' + JSON.stringify(rawDefinition, null, 2)
-          + '\n'
-          + definition.error
-      );
-    }
-
-    const node = {
-      ...definition.data,
-      execute: wrapper.execute,
-      reset: wrapper.reset,
-      release: wrapper.release,
-      memoryBytes: wrapper.memoryBytes
-    };
-
-    this.nodes.set(definition.data.id, node);
-    this.definitions.delete(definition.data.id);
-
+  override async register(id: string, wasmBuffer: ArrayBuffer) {
+    const node = await super.register(id, wasmBuffer);
+    this.definitions.delete(node.id);
     return node;
   }
 
-  getNode(id: string) {
-    return this.nodes.get(id) ?? this.definitions.get(id);
+  /** A dropped wasm file comes without an id, every node is found by the id of its definition */
+  protected override storageId(_id: string, node: NodeDefinition) {
+    return node.id;
   }
 
-  getAllNodes() {
-    return [...this.nodes.values(), ...this.definitions.values()];
+  override getNode(id: string) {
+    return super.getNode(id) ?? this.definitions.get(id);
+  }
+
+  override getAllNodes() {
+    return [...super.getAllNodes(), ...this.definitions.values()];
   }
 }

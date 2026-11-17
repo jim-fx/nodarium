@@ -97,10 +97,6 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
   }
 
   private async loadDefinitions(graph: Graph) {
-    if (this.registry.status !== 'ready') {
-      throw new Error('Node registry is not ready');
-    }
-
     // Only load non-virtual types (virtual nodes are resolved locally)
     const nonVirtualTypes = graph.nodes
       .map(node => node.type)
