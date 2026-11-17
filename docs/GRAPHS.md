@@ -1,6 +1,6 @@
 # Writing a graph by hand
 
-A graph is a JSON file. The quickest start is a template: `pnpm -s nodarium run fern --print-graph > fern.json` (`-s` keeps the lines of pnpm out of the file) prints the fern with every field filled in, `pnpm nodarium nodes` lists the nodes and `pnpm nodarium nodes stem noise` shows their inputs. Outside the repository, `npx @nodarium/runtime` is the same command (see `packages/runtime/README.md`).
+A graph is a JSON file. The quickest start is a template: `pnpm -s nodarium run fern --print-graph > fern.json` (`-s` keeps the lines of pnpm out of the file) prints the fern with every field filled in, `pnpm nodarium nodes` lists the nodes and `pnpm nodarium nodes stem noise` shows their inputs. Outside the repository, `npx @nodarium/runtime` is the same command (see `packages/runtime/README.md`), and `nodarium mcp` gives its commands to an agent without a shell as MCP tools.
 
 A small plant, a stem bent by gravity with eight leaves:
 

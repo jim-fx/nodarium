@@ -24,5 +24,6 @@ The app is at https://nodes.max-richter.dev and needs JavaScript and WebAssembly
 ## Without the app
 
 - [@nodarium/runtime](https://git.max-richter.dev/max/nodarium/src/branch/main/packages/runtime/README.md): runs a graph in Node or in the browser, with the compiled nodes and the templates. Its command `nodarium` lists the nodes, checks a graph, builds it, renders it into a PNG and prints a link that opens it in the app.
+- [MCP server](https://git.max-richter.dev/max/nodarium/src/branch/main/packages/runtime/README.md#mcp-server): `npx -p @nodarium/runtime -p @modelcontextprotocol/sdk nodarium mcp` is a local MCP server for an agent without a shell, with tools to list the nodes and templates, check, run and render a graph, and link to it
 - [The package in the registry](https://git.max-richter.dev/max/-/packages/npm/@nodarium%2Fruntime): `@nodarium:registry=https://git.max-richter.dev/api/packages/max/npm/` in `.npmrc`, then `npm install @nodarium/runtime`
 - [Repository](https://git.max-richter.dev/max/nodarium): the source code, MIT licensed

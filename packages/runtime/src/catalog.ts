@@ -99,3 +99,12 @@ export function nodesOfType(nodes: NodeDefinition[], type: string) {
     ) || (node.outputs ?? []).some((output) => getOutputType(output) === type)
   );
 }
+
+/** The nodes whose id or description contains `query`, ignoring case */
+export function searchNodes(nodes: NodeDefinition[], query: string) {
+  const word = query.toLowerCase();
+  return nodes.filter((node) =>
+    node.id.toLowerCase().includes(word)
+    || node.meta?.description?.toLowerCase().includes(word)
+  );
+}

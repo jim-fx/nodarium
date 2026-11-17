@@ -58,7 +58,16 @@
   "dependencies": {
     "zod": "^4.6.7"
   },
+  "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.0"
+  },
+  "peerDependenciesMeta": {
+    "@modelcontextprotocol/sdk": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@nodarium/types": "workspace:^",
     "@nodarium/utils": "workspace:^",
     "@types/node": "^26.6.5",

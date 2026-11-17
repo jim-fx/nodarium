@@ -184,6 +184,7 @@ In this repository it is `pnpm nodarium` in the root, with the nodes of `app/sta
 | `render <graph...>`            | front, side and top view in one PNG, `<out>/<name>.png`, and a line with its size                          |
 | `format <graph...> [--check]`  | places the nodes without a position in columns, like loading the graph does, and writes them into the file |
 | `link <graph...> [--base url]` | prints a link that opens the graph in the app as a new project, `https://nodes.max-richter.dev` by default |
+| `mcp`                          | starts an MCP server on stdio with these commands as tools, see [MCP server](#mcp-server)                  |
 
 `run` and `render` check the graph first: its warnings go to stderr, a graph with an error doesn't run. They take `--seed n` (1 by default), `--time t` for the setting `time.t` and `--set key=value`, any number of times: a key with a dot after a node id sets an input of that node (`--set 4.length=0.3`), any other key a setting (`--set resolution.curve=8`). `run --timings` adds the ms and the output bytes of every node, `run --print-graph` prints the graph with a `version` and a position for every node instead of running it. `render` takes `--out dir` (`./screenshots`), `--size px` (512 per view), `--focus x,z,r` for a close-up, `--below` for a view from below, and `--node id[:output]` to draw what comes out of one node: a debug node behind it in a copy of the graph shows its geometry, its paths as tubes of their thickness and its points as dots. `--nodes dir` reads the nodes from another folder.
 
@@ -216,6 +217,48 @@ const rendered = renderToPng(result, { size: 256 }); // null when there is nothi
 if (rendered) await writeFile('fern.png', rendered.png);
 console.log(nodes.length, rendered?.stats.height);
 ```
+
+## MCP server
+
+An agent in a chat app like Claude Desktop has no shell to run `nodarium` in. `nodarium mcp` gives it the same commands as the tools of an [MCP](https://modelcontextprotocol.io) server on stdio, so it can be asked for "a fern with wider fronds" and answer with a picture and a link. It needs the MCP SDK, `@modelcontextprotocol/sdk` 1.32 or later, an optional peer dependency that only this command loads. Without it, `nodarium mcp` stops with a line that says what to install.
+
+Add the scope of the registry to `~/.npmrc` as in [Install](#install), then the server to the config of the client, for Claude Desktop `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "nodarium": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "-p",
+        "@nodarium/runtime",
+        "-p",
+        "@modelcontextprotocol/sdk",
+        "nodarium",
+        "mcp"
+      ]
+    }
+  }
+}
+```
+
+`npx` installs both packages once and starts the command of the first. With the packages installed in a project, the command is the path of `node_modules/.bin/nodarium` and the arguments are `["mcp"]`. In this repository, `pnpm nodarium mcp` serves the nodes of `app/static/nodes`.
+
+| tool                                                                           | answers with                                                                                                                              |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_nodes(query?, type?)`                                                    | the list of `nodarium nodes`; `type` as `--type`, `query` keeps the nodes whose id or description contains it                             |
+| `get_node(id)`                                                                 | `nodarium nodes <id>`: the node with every input and its description; several ids separated by spaces                                     |
+| `list_templates()`                                                             | the templates as `id: name (category, unit)`                                                                                              |
+| `get_template(id)`                                                             | the graph of a template as `nodarium run <id> --print-graph` prints it                                                                    |
+| `check_graph(graph)`                                                           | `nodarium check`: the issues of `validateGraph()`, one per line                                                                           |
+| `run_graph(graph, seed?, settings?)`                                           | `nodarium run --timings --json`: vertices, faces, bounds, and the ms and bytes of every node                                              |
+| `render_graph(graph, seed?, settings?, node?, output?, views?, size?, focus?)` | the PNG of `nodarium render` as an image, front, side and top view (`views: "front-side-top-below"` adds one from below), and its numbers |
+| `graph_link(graph)`                                                            | the link of `nodarium link`                                                                                                               |
+
+`graph` is the JSON of a graph or a project file, its JSON as text, a template id or a link of the app. `settings` are put on top of those of the graph like `--set resolution.curve=8`, `seed` is 1 by default. A tool and its command give the same answer for the same graph. A graph with an error doesn't run: `run_graph`, `render_graph` and `graph_link` answer with an error that lists all its issues, so the model can fix its graph. Warnings come after the answer. The prompt `write_graph` tells a model in which order to use the tools, followed by [docs/GRAPHS.md](https://git.max-richter.dev/max/nodarium/src/branch/main/docs/GRAPHS.md); its argument `request` is what to make.
+
+What the server may reach: it reads the nodes and the templates of the package, and nothing else; `--nodes dir` in the config points it at other nodes. The tools take a graph, never the path of a file, and write no files, `render_graph` answers with the PNG itself. A link of the app is decoded where it is, nothing is fetched. A graph may have 1 MB of JSON (`MAX_GRAPH_LINK_BYTES`, what a link may unpack to), a view of `render_graph` at most 1024 pixels. Stdout carries only the protocol: the logs of the runtime and of the nodes go to stderr. A mushroom takes a few seconds, during which the server answers nothing else.
 
 ## Graphs without positions
 
