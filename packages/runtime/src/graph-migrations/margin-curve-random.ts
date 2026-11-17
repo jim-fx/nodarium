@@ -1,4 +1,5 @@
 import type { Graph, SerializedEdge, SerializedNode } from '@nodarium/types';
+import { offsetPosition } from '../place-nodes';
 import {
   type InputSocket,
   type ReplaceContext,
@@ -33,7 +34,6 @@ type Builder = {
 };
 
 function builder(old: SerializedNode, nextId: () => number): Builder {
-  const [x, y] = old.position;
   const nodes: SerializedNode[] = [];
   let step = 0;
   return {
@@ -44,7 +44,7 @@ function builder(old: SerializedNode, nextId: () => number): Builder {
       step++;
       nodes.push({
         id,
-        position: [x - STEP * step, y + STEP],
+        position: offsetPosition(old.position, -STEP * step, STEP),
         type: type as SerializedNode['type'],
         props
       });

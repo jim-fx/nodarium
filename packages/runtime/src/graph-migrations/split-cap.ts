@@ -1,4 +1,5 @@
 import type { Graph, SerializedEdge, SerializedNode } from '@nodarium/types';
+import { offsetPosition } from '../place-nodes';
 import type { InputSocket, OutputSocket, ReplaceContext, Replacement } from './helpers';
 import { wiredInputs } from './helpers';
 
@@ -53,9 +54,8 @@ export function splitCap(
   const used = (key: keyof typeof OLD_DEFAULTS, idle: unknown = OLD_DEFAULTS[key]) =>
     wired.has(key) || !sameValue(value(key), idle);
 
-  const [x, y] = old.position;
   let step = 0;
-  const place = (): [number, number] => [x + STEP * ++step, y];
+  const place = () => offsetPosition(old.position, STEP * ++step, 0);
 
   const cap: SerializedNode = {
     ...old,
@@ -72,7 +72,7 @@ export function splitCap(
   nodes.push({
     id: thickness,
     type: 'max/plantarium/curve',
-    position: [x - STEP, y + STEP],
+    position: offsetPosition(old.position, -STEP, STEP),
     props: { curve: value('thickness_curve'), min: 0, max: value('thickness') }
   });
   edges.push([thickness, 0, old.id, 'thickness']);
@@ -113,7 +113,7 @@ export function splitCap(
       nodes.push({
         id: amplitude,
         type: 'max/plantarium/curve',
-        position: [x + STEP * step, y + STEP],
+        position: offsetPosition(old.position, STEP * step, STEP),
         props: { curve: value('wave_profile'), min: 0, max: value('wave_amplitude') }
       });
       edges.push([amplitude, 0, waves, 'amplitude']);

@@ -136,7 +136,7 @@ export function withSubstrate(template: Graph, substrate: Substrate): Graph {
   graph.groups.push(substrateGroup(groupId, substrate));
   graph.nodes.push({
     id: instanceId,
-    position: [join.position[0] - 60, join.position[1] + 40],
+    position: join.position && [join.position[0] - 60, join.position[1] + 40],
     type: GROUP_INSTANCE,
     props: {
       groupId,

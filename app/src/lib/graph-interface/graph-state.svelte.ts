@@ -13,6 +13,7 @@ import { boxContains, boxesOverlap, nodeBox } from './helpers/nodeBox';
 import {
   getInputSocketOffset,
   getOutputSocketOffset,
+  positionOf,
   serializeEdge,
   serializeNode
 } from './helpers/nodeHelpers';
@@ -246,8 +247,8 @@ export class GraphState {
     const nodes = this.clipboard.nodes.map((node) => ({
       ...node,
       position: [
-        this.mousePosition[0] - node.position[0],
-        this.mousePosition[1] - node.position[1]
+        this.mousePosition[0] - positionOf(node)[0],
+        this.mousePosition[1] - positionOf(node)[1]
       ] as [number, number]
     }));
 

@@ -1,4 +1,5 @@
 import type { Graph, SerializedEdge, SerializedNode } from '@nodarium/types';
+import { offsetPosition } from '../place-nodes';
 import { idAllocator, removeInputs, renameInputs, type Scope, scopes } from './helpers';
 
 const HYPHAE_TO_MESH = 'max/myzel/hyphae_to_mesh';
@@ -167,12 +168,11 @@ function joinHyphaeMeshes(scope: Scope, nextId: () => number, strays: Map<number
     // the groups of the paths come first, then those of the meshes one after the other. A join
     // has four inputs, the next one in a row takes the one before it as its first
     let last: Source = [hyphae.id, 0];
-    const [x, y] = hyphae.position;
     for (let rest = sources, row = 1; rest.length > 0; row++) {
       const join: SerializedNode = {
         id: nextId(),
         type: JOIN_MESHES as SerializedNode['type'],
-        position: [x + STEP * row, y],
+        position: offsetPosition(hyphae.position, STEP * row, 0),
         props: {}
       };
       scope.nodes.push(join);

@@ -1,5 +1,10 @@
 import type { NodeDefinition, SerializedEdge, SerializedNode } from '@nodarium/types';
-import { getInputSocketOffset, getNodeHeight, getOutputSocketOffset } from './nodeHelpers';
+import {
+  getInputSocketOffset,
+  getNodeHeight,
+  getOutputSocketOffset,
+  positionOf
+} from './nodeHelpers';
 
 export const NODE_WIDTH = 20;
 // space between two columns, and between two nodes in a column
@@ -65,7 +70,7 @@ export function layoutGraph<T extends SerializedNode>(
   // Nodes that feed nothing stay where they are
   function getTargetY(node: T, column: number) {
     const next = outgoing.get(node.id)!.filter((e) => columns.get(e[2]) === column - 1);
-    if (next.length === 0) return node.position[1];
+    if (next.length === 0) return positionOf(node)[1];
     let sum = 0;
     for (const [, outputIndex, targetId, inputKey] of next) {
       sum += positions.get(targetId)![1]
@@ -104,11 +109,11 @@ export function layoutGraph<T extends SerializedNode>(
   const anchor = nodes.find((n) => n.type.endsWith('/output')) ?? byColumn.find(Boolean)![0];
 
   for (let column = 0; column < byColumn.length; column++) {
-    const x = anchor.position[0] - column * (NODE_WIDTH + COLUMN_GAP);
+    const x = positionOf(anchor)[0] - column * (NODE_WIDTH + COLUMN_GAP);
     const placed = (byColumn[column] ?? [])
       .map((node) => ({ node, y: getTargetY(node, column) }))
       .sort((a, b) =>
-        a.y - b.y || a.node.position[1] - b.node.position[1] || a.node.id - b.node.id
+        a.y - b.y || positionOf(a.node)[1] - positionOf(b.node)[1] || a.node.id - b.node.id
       );
 
     const y = spreadColumn(
@@ -120,7 +125,7 @@ export function layoutGraph<T extends SerializedNode>(
 
     // the column of the output node moves as a whole, so the output node keeps its position
     const placedAnchor = placed.find((p) => p.node === anchor);
-    const shift = placedAnchor ? anchor.position[1] - placedAnchor.y : 0;
+    const shift = placedAnchor ? positionOf(anchor)[1] - placedAnchor.y : 0;
     for (const p of placed) {
       positions.set(p.node.id, [x, p.y + shift]);
     }

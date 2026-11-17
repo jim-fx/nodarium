@@ -1,4 +1,9 @@
-import { CURRENT_GRAPH_VERSION, GraphVersionError, migrateGraph } from '@nodarium/runtime';
+import {
+  CURRENT_GRAPH_VERSION,
+  GraphVersionError,
+  migrateGraph,
+  placeNodes
+} from '@nodarium/runtime';
 import {
   DEBUG_NODE,
   getOutputType,
@@ -44,6 +49,7 @@ import {
   areEdgesEqual,
   getNodeHeight,
   isInputConnectable,
+  positionOf,
   serializeEdge,
   serializeNode
 } from './helpers/nodeHelpers';
@@ -63,6 +69,8 @@ function sameKeys(a: object, b: object) {
 export class GraphManager extends EventEmitter<{
   save: Graph;
   result: Graph;
+  /** load() placed nodes that had no position, the camera doesn't know where they are */
+  placed: Graph;
 }> {
   status = $state<'loading' | 'idle' | 'error'>();
 
@@ -480,6 +488,7 @@ export class GraphManager extends EventEmitter<{
   private addNode(node: SerializedNode) {
     const instance: NodeInstance = $state({
       ...serializeNode(node),
+      position: positionOf(node),
       state: { type: this.registry.getNode(node.type) }
     });
     this.nodes.set(instance.id, instance);
@@ -572,6 +581,19 @@ export class GraphManager extends EventEmitter<{
       return;
     }
 
+    // a graph written by hand may leave out the positions of its nodes
+    const placed = placeNodes(graph, {
+      height: (node) => {
+        const type = this.registry.getNode(node.type);
+        return type ? getNodeHeight(type) : 20;
+      }
+    });
+    const wasPlaced = placed !== graph;
+    if (wasPlaced) {
+      graph = placed;
+      this.groups = $state.snapshot(placed.groups);
+    }
+
     const allCollections = new SvelteSet<`${string}/${string}`>();
     for (const id of nodeIds) {
       const [user, collection] = id.split('/');
@@ -594,6 +616,7 @@ export class GraphManager extends EventEmitter<{
     this.updateSettings(graph.settings);
     this.recorder.step();
     this.status = 'idle';
+    if (wasPlaced) this.emit('placed', graph);
     log.log(`Graph loaded in ${performance.now() - a}ms`);
     setTimeout(() => this.execute(), 100);
   }
@@ -868,7 +891,12 @@ export class GraphManager extends EventEmitter<{
       if (!type && !node.type.startsWith(INTERNAL_PREFIX)) {
         throw new Error(`Node type not found: ${node.type}`);
       }
-      const instance: NodeInstance = $state({ ...node, id: nextId(), state: { type } });
+      const instance: NodeInstance = $state({
+        ...node,
+        id: nextId(),
+        position: positionOf(node),
+        state: { type }
+      });
       idMap.set(node.id, instance.id);
       return instance;
     });

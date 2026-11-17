@@ -1,4 +1,5 @@
 import type { Graph, SerializedEdge, SerializedNode } from '@nodarium/types';
+import { offsetPosition } from '../place-nodes';
 import {
   type InputSocket,
   type ReplaceContext,
@@ -126,7 +127,6 @@ function replace(
   const props = old.props ?? {};
   const value = <K extends keyof typeof OLD_DEFAULTS>(key: K) =>
     (props[key] ?? OLD_DEFAULTS[key]) as (typeof OLD_DEFAULTS)[K];
-  const [x, y] = old.position;
   const nodes: SerializedNode[] = [];
   const edges: SerializedEdge[] = [];
   const inputs: Record<string, InputSocket[]> = {};
@@ -138,7 +138,7 @@ function replace(
     const id = nextId();
     const node: SerializedNode = {
       id,
-      position: [x, y + STEP * (nodes.length + 1)],
+      position: offsetPosition(old.position, 0, STEP * (nodes.length + 1)),
       type: type as SerializedNode['type'],
       props: nodeProps
     };
