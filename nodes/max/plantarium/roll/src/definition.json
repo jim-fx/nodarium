@@ -1,0 +1,40 @@
+{
+  "id": "max/plantarium/roll",
+  "meta": {
+    "description": "Rolls up the end of paths into a flat coil, like the crozier of a fern. The coil lies in the plane the path already bends in and gets tighter towards the tip. Every segment keeps its length, and the paths that grow on a rolled path are rolled up with it."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The paths to roll up. Only the deepest depth levels roll (the last level by default), the others are passed on.",
+      "external": true
+    },
+    "roll": {
+      "type": "float",
+      "description": "How much of a path is rolled up, as a share of its length from the tip: 0 leaves it as it is, 0.5 rolls up its outer half, 1 all of it. Going down it unrolls from the base of the coil, the tip stays curled the longest. Read once per path, so a path_info with grown lets a frond unroll as it grows.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.5
+    },
+    "turns": {
+      "type": "float",
+      "description": "How tight the coil is: how often a path turns around when all of it is rolled up. A path rolled up half as far turns half as often, with the same curl at its tip. A negative value rolls against the bend of the path.",
+      "min": -4,
+      "max": 4,
+      "step": 0.05,
+      "value": 2
+    },
+    "depth": {
+      "type": "integer",
+      "min": 1,
+      "max": 10,
+      "value": 1,
+      "hidden": true,
+      "description": "On which layers of paths to work, counted from the deepest. 2 rolls up the fronds together with their pinnae."
+    }
+  }
+}
