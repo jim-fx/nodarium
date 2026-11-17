@@ -141,7 +141,11 @@
 
   // the worker and the registries of the thumbnails and the garden can't fetch a dropped node
   async function registerDroppedNode(node: NodeDefinition, wasm: ArrayBuffer) {
-    await Promise.all([workerRuntime.registerNode(wasm), nodeRegistry.keepDropped(node, wasm)]);
+    // the worker gets its own copy: a transfer would leave the one that is kept empty
+    await Promise.all([
+      workerRuntime.registerNode(wasm.slice(0)),
+      nodeRegistry.keepDropped(node, wasm)
+    ]);
   }
 
   function handleBeforeUnload(e: BeforeUnloadEvent) {
