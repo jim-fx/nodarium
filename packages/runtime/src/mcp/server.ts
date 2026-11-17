@@ -349,6 +349,10 @@ export function createServer(dir = nodesDir): McpServer {
  */
 export async function serveStdio(dir = nodesDir) {
   const log = (...args: unknown[]) => console.error(...args);
-  console.log = console.info = console.debug = log;
+  console.log =
+    console.info =
+    console.debug =
+    console.warn =
+      log;
   await createServer(dir).connect(new StdioServerTransport());
 }
