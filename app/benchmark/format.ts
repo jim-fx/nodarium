@@ -1,4 +1,4 @@
-import { type Change, compareMedians, type Summary } from './stats.ts';
+import { type Change, compareMedians, ONE_PROCESS_LIMIT, type Summary } from './stats.ts';
 
 /** Two significant digits at least: 662, 3.8, 0.15, 0.042 */
 export function ms(value: number) {
@@ -76,7 +76,13 @@ export type Comparison = {
 
 const key = (s: Summary) => s.name + (s.cached ? '-cached' : '');
 
-export function compareSummaries(before: Summary[], after: Summary[], topNodes = 3): Comparison[] {
+/** @param oneProcessLimit see {@link compareMedians} */
+export function compareSummaries(
+  before: Summary[],
+  after: Summary[],
+  oneProcessLimit = ONE_PROCESS_LIMIT,
+  topNodes = 3
+): Comparison[] {
   const old = new Map(before.map(s => [key(s), s]));
   return after.map(s => {
     const b = old.get(key(s));
@@ -85,7 +91,7 @@ export function compareSummaries(before: Summary[], after: Summary[], topNodes =
     return {
       name: s.name,
       cached: s.cached,
-      total: compareMedians(b, s),
+      total: compareMedians(b, s, oneProcessLimit),
       p95: { before: b.p95, after: s.p95 },
       spread: { before: b.spread, after: s.spread },
       nodes: s.nodes.slice(0, topNodes).map(n => ({
@@ -106,7 +112,9 @@ export function comparisonTable(comparisons: Comparison[]) {
       c.name + (c.cached ? '*' : ''),
       `${ms(c.total.before)} → ${ms(c.total.after)} ms`,
       percent(c.total.change, true),
-      c.total.verdict,
+      c.total.verdict === 'one process' || c.total.verdict === 'busy'
+        ? "can't tell"
+        : c.total.verdict,
       `${ms(c.p95!.before)} → ${ms(c.p95!.after)}`,
       `${percent(c.spread!.before)} / ${percent(c.spread!.after)}`,
       c.nodes.map(n => `${shortNode(n.node)} ${ms(n.before)} → ${ms(n.after)}`).join(', ')

@@ -10,10 +10,18 @@ export const BENCH_USAGE = `Usage: pnpm bench [target...] [options]
                    for a mushroom with the cache
   --warmups n      runs before the measured ones, by default 10, 1 and 5
   --no-cached      only the runs without the cache
-  --quick          a tenth of the runs and warmups, at least 3 runs
-  --save name      copies the result files to benchmark/saved/<name>/
+  --quick          a tenth of the runs, at least 3, in one process: a first look, its
+                   --compare can't tell noise from a change and never fails
+  --repeat n       fresh processes the benchmarks run in, one after the other. 3 with --save
+                   or --compare, the median moves more between processes than between runs
+                   of one. 1 otherwise and with --quick
+  --save name      keeps the result files in benchmark/saved/<name>/
   --compare x      compares with benchmark/saved/<x>/ or a folder of result files, like
-                   data/main/<timestamp> of the benchmarks repository (data/main: the latest)
+                   data/main/<timestamp> of the benchmarks repository (data/main: the latest).
+                   A change counts when the medians lie further apart than twice the spreads
+                   between the processes of both sides added. With one process on a side, or
+                   when other work used more than 60 % of the machine, only a change beyond
+                   twice or half counts
   --threshold p    --compare exits with 1 when a benchmark got slower by more than p %, 10
   --json           prints the summary as JSON
   --out dir        where the result files go, benchmark/out by default
@@ -75,6 +83,7 @@ export type BenchOptions = {
   warmups?: number;
   cached: boolean;
   quick: boolean;
+  repeat?: number;
   save?: string;
   compare?: string;
   /** 0.1 is 10 % */
@@ -90,6 +99,7 @@ export function parseBenchArgs(args: string[]): BenchOptions {
     warmups: { type: 'string' },
     'no-cached': { type: 'boolean' },
     quick: { type: 'boolean' },
+    repeat: { type: 'string' },
     save: { type: 'string' },
     compare: { type: 'string' },
     threshold: { type: 'string', default: '10' },
@@ -110,6 +120,7 @@ export function parseBenchArgs(args: string[]): BenchOptions {
     warmups: count(values.warmups, 'warmups', 0),
     cached: !values['no-cached'],
     quick: values.quick ?? false,
+    repeat: count(values.repeat, 'repeat'),
     save: values.save,
     compare: values.compare,
     threshold: threshold / 100,
@@ -119,15 +130,22 @@ export function parseBenchArgs(args: string[]): BenchOptions {
   };
 }
 
+/** The processes to run in: several for a comparison, which has to know their scatter */
+export function processCount(options: Pick<BenchOptions, 'repeat' | 'quick' | 'save' | 'compare'>) {
+  if (options.repeat !== undefined) return options.repeat;
+  const compared = options.save !== undefined || options.compare !== undefined;
+  return compared && !options.quick ? 3 : 1;
+}
+
 export type Runs = { runs: number; warmups: number };
 
-/** `--runs` and `--warmups` win over the defaults, `--quick` only shortens the defaults */
+/**
+ * `--runs` and `--warmups` win over the defaults, `--quick` only shortens the runs: with a tenth
+ * of the warmups a plant ran twice as long, its code wasn't optimized yet
+ */
 export function runsFor(defaults: Runs, options: Pick<BenchOptions, 'runs' | 'warmups' | 'quick'>) {
   const quick = options.quick
-    ? {
-      runs: Math.max(3, Math.ceil(defaults.runs / 10)),
-      warmups: Math.ceil(defaults.warmups / 10)
-    }
+    ? { runs: Math.max(3, Math.ceil(defaults.runs / 10)), warmups: defaults.warmups }
     : defaults;
   return { runs: options.runs ?? quick.runs, warmups: options.warmups ?? quick.warmups };
 }

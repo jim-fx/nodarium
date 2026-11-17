@@ -5,6 +5,7 @@ import {
   parseProfileArgs,
   parseProfileNodeArgs,
   parseScale,
+  processCount,
   runsFor,
   UsageError,
   userPath
@@ -58,13 +59,23 @@ describe('pnpm bench', () => {
     expect(() => parseBenchArgs(['--threshold', '-1'])).toThrow(UsageError);
   });
 
-  it('takes a tenth of the runs with --quick, at least 3, unless they are given', () => {
+  it('takes a tenth of the runs with --quick, at least 3, and all warmups', () => {
     const plant = { runs: 100, warmups: 10 };
     const mushroom = { runs: 8, warmups: 1 };
-    expect(runsFor(plant, { quick: true })).toEqual({ runs: 10, warmups: 1 });
+    expect(runsFor(plant, { quick: true })).toEqual({ runs: 10, warmups: 10 });
     expect(runsFor(mushroom, { quick: true })).toEqual({ runs: 3, warmups: 1 });
     expect(runsFor(plant, { quick: false })).toEqual(plant);
     expect(runsFor(plant, { quick: true, runs: 40, warmups: 0 })).toEqual({ runs: 40, warmups: 0 });
+  });
+
+  it('runs in 3 processes to save or compare, in one otherwise and with --quick', () => {
+    expect(processCount(parseBenchArgs([]))).toBe(1);
+    expect(processCount(parseBenchArgs(['--save', 'before']))).toBe(3);
+    expect(processCount(parseBenchArgs(['--compare', 'before']))).toBe(3);
+    expect(processCount(parseBenchArgs(['--compare', 'before', '--quick']))).toBe(1);
+    expect(processCount(parseBenchArgs(['--save', 'before', '--repeat', '5']))).toBe(5);
+    expect(processCount(parseBenchArgs(['--repeat', '2']))).toBe(2);
+    expect(() => parseBenchArgs(['--repeat', '0'])).toThrow(UsageError);
   });
 
   it('reads paths relative to where pnpm was started', () => {
