@@ -1,4 +1,5 @@
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadTemplate, templateCategories, templates, unlistedTemplates } from './index';
 
@@ -36,6 +37,34 @@ describe('templates', () => {
     for (const template of unlistedTemplates) {
       expect(templates.some((t) => t.id === template.id)).toBe(false);
       expect(await loadTemplate(template.id)).toBe(await template.load());
+    }
+  });
+
+  it('say what they are, as the doc they name describes them', () => {
+    const docs = {
+      'plant-templates': readFileSync(
+        join(import.meta.dirname, '../../../docs/PLANT_TEMPLATES.md'),
+        'utf8'
+      ),
+      myzel: readFileSync(join(import.meta.dirname, '../../../docs/MYZEL.md'), 'utf8')
+    };
+    for (const template of [...templates, ...unlistedTemplates]) {
+      if (template.id === 'default-plant') {
+        expect(template.notes).toBeUndefined();
+        continue;
+      }
+      expect(template.notes, template.id).toMatch(/^[A-Z0-9].+\.$/);
+      expect(template.doc, template.id).toBe(
+        template.category === 'Plants' ? 'plant-templates' : 'myzel'
+      );
+      if (template.category === 'Plants') {
+        const latin = template.species!.split(' (')[0];
+        expect(docs['plant-templates'], template.id).toMatch(
+          new RegExp(`^## ${template.name.replace(/[()']/g, '.')}: _${latin}_`, 'm')
+        );
+      } else {
+        expect(docs.myzel, template.id).toContain(`| \`${template.id}\``);
+      }
     }
   });
 

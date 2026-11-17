@@ -1,6 +1,6 @@
 # Plant Templates
 
-The plant templates in `packages/runtime/templates` each model a real species. This file describes the structure of each plant and how its template builds it, so a template can be tuned against the real plant. Render a template with `pnpm render-graph <name>` in `app/`.
+The plant templates in `packages/runtime/templates` each model a real species. This file describes the structure of each plant and how its template builds it, so a template can be tuned against the real plant. Render a template with `pnpm render-graph <name>` in `app/`, or `nodarium render <name>` outside the repository.
 
 Proportions are relative. The garden scales every plant to the same height, so only the ratios matter: leaf length to plant height, width to height, and so on.
 
@@ -34,7 +34,7 @@ This section is for anyone, person or LLM, who builds a new template. It collect
 
 1. Write the species section first: the parts of the plant, how they are arranged, and numbers from a flora (counts, lengths, ratios). A flora gives ranges such as "20–35 pairs of pinnae" or "leaves 1–6 cm". Use them, not a picture from memory.
 2. Go through the plant from the ground up and give every level of branching its own node: crown, main axes, side axes, then the organs on the last level. A `branch` adds a level of paths, an `instance` puts leaves or flowers on the deepest paths. Count the levels a flora names: once-pinnate is one `branch` for the fronds and one `instance` for the pinnae, 3-pinnate needs two more `branch` nodes.
-3. Render the template with `pnpm render-graph <name> --out <dir>` and compare the front, side and top views with photos of the plant. Check the top view too: it shows whether the stems spread evenly and what outline the blade has.
+3. Render the template with `pnpm render-graph <name> --out <dir>` and compare the front, side and top views with photos of the plant. Check the top view too: it shows whether the stems spread evenly and what outline the blade has. `pnpm nodarium render <name> --seeds 1,2,3,4` puts four seeds into one sheet at the same scale.
 4. Render one unit up close: copy the graph, set `amount` of the first `branch` to 1 to get a single frond or shoot, and give it a fixed `angle` of 90 with `noise` and `gravity` at 0 to see a flower head from above. The renderer frames the whole plant, so a small part only shows up when it is alone.
 5. Change one thing at a time, render again, and write down what the nodes can't do in the template section ("missing: ...").
 

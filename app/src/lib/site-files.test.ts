@@ -10,6 +10,8 @@ describe('the files of the site', () => {
       name: 'Fern',
       category: 'Plants',
       unit: 'cm',
+      species: 'Nephrolepis exaltata (Boston fern)',
+      notes: expect.stringContaining('22 fronds'),
       graph: '/templates/fern.json',
       open: '/?template=fern'
     });

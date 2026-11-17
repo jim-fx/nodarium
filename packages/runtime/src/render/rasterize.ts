@@ -1,39 +1,49 @@
 import { bounds, INSTANCE_COLOR, STEM_COLOR, type Triangle, type Vec3 } from './triangles';
 
-const BACKGROUND = [236, 233, 224];
+export const BACKGROUND = [236, 233, 224];
 const GROUND = [150, 130, 100];
 // rendered larger and scaled down, so thin stems don't break up into dots
 const SUPERSAMPLING = 2;
 
-/** Front, side, from above and optionally from below, all at the same scale so they can be compared */
-function views(below: boolean) {
-  return [
-    { yaw: 0, pitch: 0 },
-    { yaw: Math.PI / 2, pitch: 0 },
-    { yaw: 0.6, pitch: -1.15 },
-    ...(below ? [{ yaw: 0.6, pitch: 1.15 }] : [])
-  ];
-}
+/** The directions a view looks from, all drawn at the same scale so they can be compared */
+export const VIEWS = {
+  front: { yaw: 0, pitch: 0 },
+  side: { yaw: Math.PI / 2, pitch: 0 },
+  top: { yaw: 0.6, pitch: -1.15 },
+  below: { yaw: 0.6, pitch: 1.15 }
+} as const;
+
+export type View = keyof typeof VIEWS;
 
 export type Image = { pixels: Uint8Array; width: number; height: number };
 
-/** The views of the triangles next to each other, `viewSize` pixels each, as RGB */
-export function rasterize(triangles: Triangle[], viewSize: number, below: boolean): Image {
-  const VIEWS = views(below);
-  const size = viewSize * SUPERSAMPLING;
-  const width = size * VIEWS.length;
-  const pixels = new Uint8Array(width * size * 3);
-  for (let i = 0; i < pixels.length; i += 3) pixels.set(BACKGROUND, i);
-  const depth = new Float32Array(width * size).fill(Infinity);
+/** The part of space the views show: its center and the length that fills a view */
+export type Frame = { center: Vec3; extent: number };
 
-  const { min, max } = bounds(triangles);
+/** The frame of everything within `min` and `max`, with the ground at 0 in it */
+export function frameOf({ min, max }: { min: Vec3; max: Vec3 }): Frame {
   // the ground stays in the picture, the plant grows from the origin
   const bottom = Math.min(min[1], 0), top = Math.max(max[1], 0);
   const center: Vec3 = [(min[0] + max[0]) / 2, (bottom + top) / 2, (min[2] + max[2]) / 2];
   const extent = Math.max(max[0] - min[0], top - bottom, max[2] - min[2], 1e-6) * 1.08;
+  return { center, extent };
+}
+
+/** The views of the triangles next to each other, `viewSize` pixels each, as RGB */
+export function rasterize(
+  triangles: Triangle[],
+  viewSize: number,
+  views: readonly View[],
+  { center, extent }: Frame = frameOf(bounds(triangles))
+): Image {
+  const size = viewSize * SUPERSAMPLING;
+  const width = size * views.length;
+  const pixels = new Uint8Array(width * size * 3);
+  for (let i = 0; i < pixels.length; i += 3) pixels.set(BACKGROUND, i);
+  const depth = new Float32Array(width * size).fill(Infinity);
   const light = [0.4, 0.8, 0.45].map((v) => v / Math.hypot(0.4, 0.8, 0.45));
 
-  VIEWS.forEach(({ yaw, pitch }, view) => {
+  views.map((name) => VIEWS[name]).forEach(({ yaw, pitch }, view) => {
     const offset = view * size;
     const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
     const project = (v: Vec3): Vec3 => {

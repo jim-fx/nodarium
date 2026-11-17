@@ -29,13 +29,21 @@ export default defineConfig({
   inputOptions: { resolve: { mainFields: ['module', 'main'] } },
   plugins: [
     {
-      // the prompt of `nodarium mcp` is docs/GRAPHS.md, which lies outside the package
-      name: 'nodarium-graphs-doc',
+      // `nodarium docs` and the MCP server give docs of the repository, which lie outside the
+      // package
+      name: 'nodarium-docs',
       load: {
-        filter: { id: /[\\/]src[\\/]mcp[\\/]graphs-doc\.ts$/ },
+        filter: { id: /[\\/]src[\\/]docs[\\/]texts\.ts$/ },
         handler() {
-          const text = readFileSync('../../docs/GRAPHS.md', 'utf8');
-          return { code: `export const GRAPHS_DOC = ${JSON.stringify(text)};`, moduleType: 'js' };
+          const files = ['GRAPHS.md', 'PLANT_TEMPLATES.md', 'PLANTARIUM.md', 'MYZEL.md'];
+          const texts = Object.fromEntries(
+            files.map((file) => [file, readFileSync(`../../docs/${file}`, 'utf8')])
+          );
+          return {
+            code: `export const DOC_FILES = ${JSON.stringify(files)};\n`
+              + `export const DOC_TEXTS = ${JSON.stringify(texts)};`,
+            moduleType: 'js'
+          };
         }
       }
     },

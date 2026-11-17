@@ -32,6 +32,8 @@ export async function templateIndex() {
       name: template.name,
       category: template.category,
       unit: template.unit,
+      ...(template.species && { species: template.species }),
+      ...(template.notes && { notes: template.notes }),
       nodes: graph.nodes.length + (graph.groups ?? []).reduce((n, g) => n + g.nodes.length, 0),
       graph: `/templates/${template.id}.json`,
       open: `/?template=${template.id}`,

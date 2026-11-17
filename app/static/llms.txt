@@ -11,7 +11,7 @@ The app is at https://nodes.max-richter.dev and needs JavaScript and WebAssembly
 - [Collections](/nodes/users.json): the collections of nodes; `/nodes/<user>/<collection>.json` has the definitions of all nodes of a collection, with the type, default, range and description of every input
 - [Writing a graph](/docs/graphs.md): what a graph file looks like, with an example
 - [Graph schema](/graph.schema.json): the JSON Schema of a graph and of a project file
-- [Templates](/templates/index.json): the plants and mushrooms of the project browser; `/templates/<id>.json` is the graph of one
+- [Templates](/templates/index.json): the plants and mushrooms of the project browser, with the species of a plant and a line on how each is built; `/templates/<id>.json` is the graph of one
 
 ## Opening a graph in the app
 
