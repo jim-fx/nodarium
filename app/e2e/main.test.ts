@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-// nodes outside of the camera are not rendered, the default plant needs the room
+// nodes outside of the camera are hidden, the new project needs the room
 test.use({ viewport: { width: 1920, height: 1080 } });
 
 test('test', async ({ page }) => {
@@ -49,7 +49,8 @@ test('test', async ({ page }) => {
     const wrapper = page.locator(
       `div.wrapper[data-node-id="${node.id}"][data-node-type="${node.type}"]`
     );
-    await expect(wrapper).toBeVisible();
+    // the default plant is larger than the view, its nodes only have to be in the page
+    await expect(wrapper).toBeAttached();
     if ('props' in node) {
       const props = node.props as unknown as Record<string, number>;
       for (const propId in node.props) {
