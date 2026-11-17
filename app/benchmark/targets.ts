@@ -8,7 +8,7 @@ import type { Graph } from '@nodarium/types';
 import { existsSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { userPath } from './args.ts';
+import { type Scale, userPath } from './args.ts';
 
 export const BENCH_TEMPLATES = join(import.meta.dirname, 'templates');
 export const NODES_DIR = join(import.meta.dirname, '..', 'static', 'nodes');
@@ -61,4 +61,29 @@ const allNodes = (graph: Graph) => [
 /** A graph with a Myzel node takes seconds to build, not milliseconds */
 export function isMushroom(graph: Graph) {
   return allNodes(graph).some(node => node.type.startsWith('max/myzel/'));
+}
+
+/**
+ * Multiplies a number input of every node of a type, in the groups too. An input the node
+ * doesn't set starts from `fallback`, the default of its definition. A whole number stays whole.
+ * Returns how many nodes changed, per scale.
+ */
+export function scaleProps(
+  graph: Graph,
+  scales: Scale[],
+  fallback: (type: string, prop: string) => unknown = () => undefined
+) {
+  const nodes = allNodes(graph);
+  return scales.map(({ type, prop, factor }) => {
+    let changed = 0;
+    for (const node of nodes) {
+      if (node.type !== type && node.type.split('/').pop() !== type) continue;
+      const value = node.props?.[prop] ?? fallback(node.type, prop);
+      if (typeof value !== 'number') continue;
+      const scaled = value * factor;
+      node.props = { ...node.props, [prop]: Number.isInteger(value) ? Math.round(scaled) : scaled };
+      changed++;
+    }
+    return changed;
+  });
 }

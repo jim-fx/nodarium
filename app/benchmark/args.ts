@@ -19,6 +19,32 @@ export const BENCH_USAGE = `Usage: pnpm bench [target...] [options]
   --out dir        where the result files go, benchmark/out by default
 `;
 
+export const PROFILE_USAGE = `Usage: pnpm run profile <target> [options]
+
+  target               a template of benchmark/templates, a template id of the runtime or the
+                       path of a graph or project file
+  --seed n             1 by default
+  --builds n           builds of the graph, the first is cold, 3 by default
+  --cache              runs with the cache of the runtime and the same seed
+  --set key=value      a setting (resolution.curve=16) or an input of a node (4.length=0.3)
+  --scale t.prop=f     multiplies the input prop of every node of type t by f, like
+                       max/plantarium/instance.amount=4 or instance.amount=4
+  --json               prints JSON
+  --dump-args dir      writes the inputs of every node to dir/<node>.<call>.args,
+                       for pnpm profile:node
+`;
+
+export const PROFILE_NODE_USAGE = `Usage: pnpm profile:node <node> <args file> [options]
+
+  node          the id of a node (max/myzel/strands) or its name (strands)
+  args file     inputs written by pnpm run profile --dump-args
+  --runs n      5 by default
+  --wasm dir    the compiled nodes, as <dir>/<user>/<collection>/<node>.wasm, static/nodes by
+                default
+  --cpu-prof    writes a .cpuprofile next to the args file and prints the 10 functions with
+                the most time of their own
+`;
+
 export class UsageError extends Error {}
 
 function count(text: string | undefined, flag: string, min = 1) {
@@ -104,4 +130,86 @@ export function runsFor(defaults: Runs, options: Pick<BenchOptions, 'runs' | 'wa
     }
     : defaults;
   return { runs: options.runs ?? quick.runs, warmups: options.warmups ?? quick.warmups };
+}
+
+export type Scale = { type: string; prop: string; factor: number };
+
+export type ProfileOptions = {
+  target?: string;
+  seed: number;
+  builds: number;
+  cache: boolean;
+  set: string[];
+  scale: Scale[];
+  json: boolean;
+  dumpArgs?: string;
+  help: boolean;
+};
+
+/** `max/plantarium/instance.amount=4`, the type may be the name of a node alone */
+export function parseScale(text: string): Scale {
+  const match = text.match(/^(.+)\.([^.=]+)=(.+)$/);
+  const factor = Number(match?.[3]);
+  if (!match || !Number.isFinite(factor)) {
+    throw new UsageError(`--scale ${text}: write type.prop=factor, like instance.amount=4`);
+  }
+  return { type: match[1], prop: match[2], factor };
+}
+
+export function parseProfileArgs(args: string[]): ProfileOptions {
+  const { values, positionals } = parse(args, {
+    seed: { type: 'string', default: '1' },
+    builds: { type: 'string', default: '3' },
+    cache: { type: 'boolean' },
+    set: { type: 'string', multiple: true },
+    scale: { type: 'string', multiple: true },
+    json: { type: 'boolean' },
+    'dump-args': { type: 'string' },
+    help: { type: 'boolean', short: 'h' }
+  });
+  if (positionals.length > 1) {
+    throw new UsageError(`profile takes one target, not ${positionals.join(', ')}`);
+  }
+  return {
+    target: positionals[0],
+    seed: count(values.seed, 'seed', 0)!,
+    builds: count(values.builds, 'builds')!,
+    cache: values.cache ?? false,
+    set: values.set ?? [],
+    scale: (values.scale ?? []).map(parseScale),
+    json: values.json ?? false,
+    dumpArgs: values['dump-args'],
+    help: values.help ?? false
+  };
+}
+
+export type ProfileNodeOptions = {
+  node?: string;
+  args?: string;
+  runs: number;
+  wasm?: string;
+  cpuProf: boolean;
+  help: boolean;
+};
+
+export function parseProfileNodeArgs(args: string[]): ProfileNodeOptions {
+  const { values, positionals } = parse(args, {
+    runs: { type: 'string', default: '5' },
+    wasm: { type: 'string' },
+    'cpu-prof': { type: 'boolean' },
+    help: { type: 'boolean', short: 'h' }
+  });
+  if (positionals.length > 2) {
+    throw new UsageError(
+      `profile:node takes a node and an args file, not ${positionals.join(', ')}`
+    );
+  }
+  return {
+    node: positionals[0],
+    args: positionals[1],
+    runs: count(values.runs, 'runs')!,
+    wasm: values.wasm,
+    cpuProf: values['cpu-prof'] ?? false,
+    help: values.help ?? false
+  };
 }
