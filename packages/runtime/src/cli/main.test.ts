@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CURRENT_GRAPH_VERSION } from '../graph-migrations';
-import { main, stringifyGraph } from './main';
+import { stringifyGraph } from './graph-commands';
+import { main } from './main';
 
 const nodesDir = fileURLToPath(new URL('../../../../app/static/nodes', import.meta.url));
 

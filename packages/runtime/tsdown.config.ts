@@ -20,14 +20,25 @@ export default defineConfig({
   target: 'es2022',
   // types and utils are workspace packages that are not published, their code and types go
   // into the bundle, zod stays a dependency. The command line imports the templates of the
-  // package by its name
+  // package by its name. The MCP SDK is an optional peer dependency only `nodarium mcp` loads
   deps: {
     alwaysBundle: ['@nodarium/types', '@nodarium/utils'],
-    neverBundle: [/^node:/, /^@nodarium\/runtime\//]
+    neverBundle: [/^node:/, /^@nodarium\/runtime\//, /^@modelcontextprotocol\/sdk\//]
   },
   // utils only has a main field, which the neutral platform ignores by default
   inputOptions: { resolve: { mainFields: ['module', 'main'] } },
   plugins: [
+    {
+      // the prompt of `nodarium mcp` is docs/GRAPHS.md, which lies outside the package
+      name: 'nodarium-graphs-doc',
+      load: {
+        filter: { id: /[\\/]src[\\/]mcp[\\/]graphs-doc\.ts$/ },
+        handler() {
+          const text = readFileSync('../../docs/GRAPHS.md', 'utf8');
+          return { code: `export const GRAPHS_DOC = ${JSON.stringify(text)};`, moduleType: 'js' };
+        }
+      }
+    },
     {
       // the templates are written by the build:done hook, the dts plugin needs gigabytes for
       // the declarations it would generate from them

@@ -1,20 +1,25 @@
-import { DEBUG_NODE, type Graph, type NodeDefinition } from '@nodarium/types';
+import type { Graph, NodeDefinition } from '@nodarium/types';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { findNodes, formatNode, formatNodeList, nodesOfType } from '../catalog';
-import { expandGroups } from '../expand-groups';
-import { GRAPH_LINK_BASE, graphLink } from '../graph-link';
-import { CURRENT_GRAPH_VERSION } from '../graph-migrations';
+import { GRAPH_LINK_BASE } from '../graph-link';
 import { listNodes } from '../list-nodes';
 import { nodesDir } from '../nodes-dir';
 import { placeNodes } from '../place-nodes';
 import { FileNodeRegistry } from '../registry/file-node-registry';
-import { renderToPng } from '../render';
-import { bounds, collectTriangles } from '../render/triangles';
-import { decodeResult } from '../result/decode-result';
-import { MemoryRuntimeExecutor } from '../runtime-executor';
 import type { GraphIssue } from '../validate-graph';
+import {
+  checkReport,
+  graphError,
+  issueLines,
+  linkGraph,
+  printedGraph,
+  renderGraph,
+  runGraph,
+  runSettings,
+  stringifyGraph
+} from './graph-commands';
 import {
   applySets,
   checkGraph,
@@ -36,6 +41,7 @@ export const USAGE = `Usage: nodarium <command> [options]
       [--focus x,z,r] [--below] [--node id[:output]]
   format <graph...> [--check]  places the nodes that have no position
   link <graph...> [--base url] prints a link that opens the graph in the app
+  mcp                          starts an MCP server on stdio with these commands as tools
 
   <graph>        a template id (fern, porcini, ...), the path of a graph or of a
                  .nodarium.json project, a link of the app, or - for stdin
@@ -95,34 +101,8 @@ type Options = {
 
 class CliError extends Error {}
 
-/** The outputs `--node` can draw, like the debug view of the app */
-const DRAWN_TYPES = new Set(['path', 'geometry', 'points', 'mesh', 'pattern']);
-
-/** Indented JSON with lists of numbers and strings, like positions and edges, on one line */
-export function stringifyGraph(value: unknown, indent = ''): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
-  const inner = indent + '  ';
-  if (Array.isArray(value)) {
-    if (value.length === 0) return '[]';
-    if (value.every((item) => typeof item === 'number' || typeof item === 'string')) {
-      return `[${value.map((item) => JSON.stringify(item)).join(', ')}]`;
-    }
-    return `[\n${value.map((item) => inner + stringifyGraph(item, inner)).join(',\n')}\n${indent}]`;
-  }
-  const entries = Object.entries(value).filter(([, item]) => item !== undefined);
-  if (entries.length === 0) return '{}';
-  const lines = entries.map(([key, item]) =>
-    `${inner}${JSON.stringify(key)}: ${stringifyGraph(item, inner)}`
-  );
-  return `{\n${lines.join(',\n')}\n${indent}}`;
-}
-
 /** The name a target is reported under when it can't be read */
 const targetName = (target: string) => (target === '-' ? 'stdin' : target);
-
-function round(v: number) {
-  return Math.round(v * 10000) / 10000;
-}
 
 function kilobytes(bytes: number) {
   return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} kB`;
@@ -174,8 +154,8 @@ class Cli {
     else console.error(`${name}: error ${error}`);
   }
 
-  private printIssues(name: string, issues: GraphIssue[], to = console.error) {
-    for (const issue of issues) to(`${name}: ${issue.severity} ${issue.code}: ${issue.message}`);
+  private printIssues(name: string, issues: GraphIssue[]) {
+    for (const line of issueLines(name, issues)) console.error(line);
   }
 
   async nodes(names: string[]) {
@@ -223,10 +203,10 @@ class Cli {
     if (!loaded) return;
     const { name, issues, invalid } = loaded;
     this.printIssues(name, issues);
-    if (!loaded.ok) {
+    const error = graphError(loaded);
+    if (error) {
       // with --json the error goes to stdout, stderr still names it next to the issues
       if (invalid && this.options.json) console.error(`${name}: error ${invalid}`);
-      const error = invalid ?? issues.find((issue) => issue.severity === 'error')!.message;
       this.fail(name, error, issues);
       return;
     }
@@ -235,8 +215,7 @@ class Cli {
 
   private settings(graph: Graph) {
     const time = this.options.time === undefined ? {} : { 'time.t': Number(this.options.time) };
-    // a fixed seed makes runs comparable
-    return { ...graph.settings, ...this.sets.settings, ...time, seed: Number(this.options.seed) };
+    return runSettings(graph, { ...this.sets.settings, ...time }, Number(this.options.seed));
   }
 
   async check(targets: string[]) {
@@ -246,11 +225,7 @@ class Cli {
       const { name, issues, invalid, ok } = loaded;
       if (!ok) this.exitCode = 1;
       if (this.options.json) this.print({ name, ok, issues, invalid });
-      else {
-        this.printIssues(name, issues, console.log);
-        if (invalid) this.print(`${name}: error ${invalid}`);
-        if (!issues.length && !invalid) this.print(`${name}: no issues`);
-      }
+      else this.print(checkReport(name, loaded));
     }
   }
 
@@ -260,61 +235,23 @@ class Cli {
       if (!prepared) continue;
       const { name } = prepared;
       if (this.options['print-graph']) {
-        const { id, settings, ...rest } = placeNodes(prepared.graph);
-        const printed = {
-          id,
-          ...rest,
-          version: CURRENT_GRAPH_VERSION,
-          settings: { ...settings, ...this.sets.settings }
-        };
-        this.print(stringifyGraph(printed));
+        this.print(stringifyGraph(printedGraph(prepared.graph, this.sets.settings)));
         continue;
       }
 
-      const origins = new Map<number, number>();
-      const graph = this.options.timings ? expandGroups(prepared.graph, origins) : prepared.graph;
-      const runtime = new MemoryRuntimeExecutor(this.registry);
-      const started = performance.now();
       let ran;
       try {
-        ran = await runtime.run(graph, this.settings(graph));
+        ran = await runGraph(this.registry, prepared.graph, this.settings(prepared.graph), {
+          timings: this.options.timings
+        });
       } catch (error) {
         this.fail(name, error instanceof Error ? error.message : String(error));
         continue;
-      } finally {
-        runtime.releaseInstances();
       }
-      const ms = performance.now() - started;
-      const decoded = decodeResult(ran.result);
-      const { triangles } = collectTriangles(ran.result);
-      const { min, max } = bounds(triangles);
-      const empty = triangles.length === 0;
-      const summary = {
-        name,
-        vertices: decoded.vertexCount,
-        faces: decoded.faceCount,
-        instances: decoded.instances.reduce((sum, i) => sum + i.instanceCount, 0),
-        meshes: decoded.meshes.length,
-        min: empty ? undefined : min.map(round),
-        max: empty ? undefined : max.map(round),
-        height: empty ? undefined : round(max[1] - Math.min(min[1], 0)),
-        width: empty ? undefined : round(Math.max(max[0] - min[0], max[2] - min[2])),
-        ms: Math.round(ms * 10) / 10
-      };
-      const types = new Map(graph.nodes.map((node) => [node.id, node.type]));
-      const timings = Object.entries(ran.runTimings)
-        .filter(([id]) => types.has(Number(id)))
-        .map(([id, ms]) => ({
-          id: Number(id),
-          type: types.get(Number(id))!,
-          group: origins.get(Number(id)),
-          ms: Math.round(ms * 100) / 100,
-          bytes: ran.outputBytes?.[Number(id)] ?? 0
-        }))
-        .sort((a, b) => b.ms - a.ms);
-
+      const summary = { name, ...ran.summary };
+      const empty = summary.min === undefined;
       if (this.options.json) {
-        this.print(this.options.timings ? { ...summary, nodes: timings } : summary);
+        this.print(ran.nodes ? { ...summary, nodes: ran.nodes } : summary);
         continue;
       }
       const parts = [`${summary.vertices} vertices`, `${summary.faces} faces`];
@@ -328,8 +265,8 @@ class Cli {
         );
       }
       this.print(`  built in ${summary.ms} ms`);
-      if (this.options.timings) {
-        for (const t of timings) {
+      if (ran.nodes) {
+        for (const t of ran.nodes) {
           const node = `${t.type.split('/').pop()}#${t.id}${t.group ? ` in group#${t.group}` : ''}`;
           this.print(
             `  ${node.padEnd(36)} ${t.ms.toFixed(2).padStart(9)} ms ${
@@ -354,62 +291,24 @@ class Cli {
       const prepared = await this.prepare(target);
       if (!prepared) continue;
       const { name } = prepared;
-      let graph = prepared.graph;
       const nodeId = probe ? Number(probe[1]) : undefined;
-      const probed = nodeId === undefined ? undefined : graph.nodes.find((n) => n.id === nodeId);
-      if (nodeId !== undefined) {
-        if (!probed) {
-          const ids = graph.nodes.map((n) => `${n.id} ${n.type.split('/').pop()}`).join(', ');
-          this.fail(name, `the graph has no node ${nodeId}, it has the nodes ${ids}`);
-          continue;
-        }
-        // a debug node behind the node, in a copy of the graph, like the probe of the editor
-        const debugId = Math.max(0, ...graph.nodes.map((n) => n.id)) + 1;
-        graph = {
-          ...graph,
-          nodes: [...graph.nodes, { id: debugId, type: DEBUG_NODE, props: {} }],
-          edges: [...graph.edges, [nodeId, Number(probe![2] ?? 0), debugId, 'input']]
-        };
-      }
-
-      const runtime = new MemoryRuntimeExecutor(this.registry);
-      let data: Int32Array;
-      let shown: string | undefined;
+      let rendered;
       try {
-        const ran = await runtime.run(graph, this.settings(graph));
-        const entry = nodeId === undefined ? undefined : ran.debugData[nodeId];
-        if (nodeId !== undefined && !entry) throw new Error(`node ${nodeId} gave no output`);
-        data = entry?.data ?? ran.result;
-        shown = entry?.type;
+        rendered = await renderGraph(this.registry, prepared.graph, this.settings(prepared.graph), {
+          size: Number(this.options.size),
+          below: this.options.below,
+          focus,
+          node: probe ? { id: nodeId!, output: Number(probe[2] ?? 0) } : undefined
+        });
       } catch (error) {
         this.fail(name, error instanceof Error ? error.message : String(error));
-        continue;
-      } finally {
-        runtime.releaseInstances();
-      }
-
-      // values like floats and vectors are no geometry, whatever their first word is
-      const drawn = shown === undefined || DRAWN_TYPES.has(shown);
-      const rendered = drawn && renderToPng(data, {
-        size: Number(this.options.size),
-        below: this.options.below,
-        focus,
-        paths: nodeId !== undefined
-      });
-      if (!rendered) {
-        this.fail(
-          name,
-          probed
-            ? `${probed.type.split('/').pop()}#${nodeId} gives a ${shown}, there is nothing to draw`
-            : 'the graph produced no geometry'
-        );
         continue;
       }
       const screenshot = join(out, `${name}${nodeId === undefined ? '' : `-node${nodeId}`}.png`);
       await writeFile(screenshot, rendered.png);
       const line = {
         name,
-        ...(nodeId === undefined ? {} : { node: nodeId, type: shown }),
+        ...(nodeId === undefined ? {} : { node: nodeId, type: rendered.type }),
         screenshot,
         ...rendered.stats
       };
@@ -436,16 +335,7 @@ class Cli {
       const prepared = await this.prepare(target);
       if (!prepared) continue;
       const { name } = prepared;
-      // the app gives the project an id of its own and the title of the graph
-      const { version, meta, settings, nodes, edges, groups } = prepared.graph;
-      const link = await graphLink({
-        version,
-        meta: { title: meta?.title ?? name, unit: meta?.unit },
-        settings: { ...settings, ...this.sets.settings },
-        nodes,
-        edges,
-        groups
-      }, base);
+      const link = await linkGraph(prepared.graph, name, this.sets.settings, base);
       this.print(this.options.json ? { name, link, length: link.length } : link);
     }
   }
@@ -501,6 +391,26 @@ class Cli {
   }
 }
 
+const MCP_SDK_MISSING = 'nodarium mcp needs the MCP SDK: npm install @modelcontextprotocol/sdk, '
+  + 'or start it with npx -p @nodarium/runtime -p @modelcontextprotocol/sdk nodarium mcp';
+
+/** Starts the server of `nodarium mcp`, which keeps running after this returns */
+async function serveMcp(dir: string) {
+  let mcp;
+  try {
+    // the SDK is an optional peer dependency, only this command loads it
+    mcp = await import('../mcp/server');
+  } catch (error) {
+    const missing = (error as NodeJS.ErrnoException).code === 'ERR_MODULE_NOT_FOUND'
+      && String((error as Error).message).includes('@modelcontextprotocol/sdk');
+    if (!missing) throw error;
+    console.error(MCP_SDK_MISSING);
+    return 1;
+  }
+  await mcp.serveStdio(dir);
+  return 0;
+}
+
 /** Runs the command line `args` (without `node` and the script), returns the exit code */
 export async function main(args: string[]): Promise<number> {
   let parsed;
@@ -520,6 +430,8 @@ export async function main(args: string[]): Promise<number> {
     console.error(USAGE);
     return 1;
   }
+
+  if (command === 'mcp') return serveMcp(options.nodes ?? nodesDir);
 
   const cli = new Cli(options, options.nodes ?? nodesDir);
   // the runtime logs the migrations of a graph, a graph without a version gets a warning instead

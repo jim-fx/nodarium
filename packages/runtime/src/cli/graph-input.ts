@@ -41,25 +41,52 @@ function fileName(title: unknown) {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || undefined;
 }
 
+async function linkSource(link: string): Promise<GraphSource | undefined> {
+  const data = /^https?:\/\//.test(link) ? graphLinkData(link) : undefined;
+  if (data === undefined) return undefined;
+  const json = await decodeGraph(data);
+  return { name: graphName(json) ?? 'link', json };
+}
+
+async function templateSource(id: string, notFound: string): Promise<GraphSource> {
+  if ([...templates, ...unlistedTemplates].some((t) => t.id === id)) {
+    return { name: id, json: structuredClone(await loadTemplate(id)) };
+  }
+  const ids = templates.map((t) => t.id).join(', ');
+  throw new Error(`${notFound} (templates: ${ids})`);
+}
+
+/** The title of the graph of a project file or a bare graph as the name of a file */
+function graphName(json: unknown) {
+  const graph = writtenGraph(json) as { meta?: { title?: unknown } } | undefined;
+  return fileName(graph?.meta?.title);
+}
+
 /** A template id, the path of a graph or a project file, a link of the app, or `-` for stdin */
 export async function readGraphSource(target: string): Promise<GraphSource> {
   if (target === '-') return { name: 'stdin', json: parseJson(await readStdin(), 'stdin') };
-  const data = /^https?:\/\//.test(target) ? graphLinkData(target) : undefined;
-  if (data !== undefined) {
-    const json = await decodeGraph(data);
-    const graph = writtenGraph(json) as { meta?: { title?: unknown } } | undefined;
-    return { name: fileName(graph?.meta?.title) ?? 'link', json };
-  }
+  const linked = await linkSource(target);
+  if (linked) return linked;
   const file = resolve(target);
   if (existsSync(file)) {
     const name = basename(file).replace(/(\.nodarium)?\.json$/, '');
     return { name, file, json: parseJson(await readFile(file, 'utf8'), target) };
   }
-  if ([...templates, ...unlistedTemplates].some((t) => t.id === target)) {
-    return { name: target, json: structuredClone(await loadTemplate(target)) };
+  return templateSource(target, `there is no file ${target} and no template of that id`);
+}
+
+/**
+ * A graph handed over as it is: a project file or a bare graph, its JSON as text, a template id
+ * or a link of the app. Never reads a file.
+ */
+export async function graphSourceOf(graph: unknown): Promise<GraphSource> {
+  if (typeof graph !== 'string') return { name: graphName(graph) ?? 'graph', json: graph };
+  if (/^\s*[[{]/.test(graph)) {
+    const json = parseJson(graph, 'the graph');
+    return { name: graphName(json) ?? 'graph', json };
   }
-  const ids = templates.map((t) => t.id).join(', ');
-  throw new Error(`there is no file ${target} and no template of that id (templates: ${ids})`);
+  const id = graph.trim();
+  return (await linkSource(id)) ?? templateSource(id, `there is no template ${id}`);
 }
 
 /** The graph as it is written in a project file or on its own */
