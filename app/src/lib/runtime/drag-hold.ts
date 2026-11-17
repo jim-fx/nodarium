@@ -262,5 +262,16 @@ export function createDragHold({
     };
   }
 
-  return { request, measured, press, move, release, listen };
+  return {
+    request,
+    measured,
+    press,
+    move,
+    release,
+    listen,
+    /** A change waits for its build, until the drag rests or ends */
+    get holding() {
+      return held !== undefined;
+    }
+  };
 }

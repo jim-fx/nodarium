@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { humanizeNumber } from '#lib/helpers/index.ts';
   import { groupNode } from '#lib/node-registry/groupNode.ts';
   import { createAppRegistry } from '#lib/node-registry/index.ts';
+  import ResultStats from '#lib/result-viewer/ResultStats.svelte';
   import Viewer from '#lib/result-viewer/Viewer.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -126,10 +126,7 @@
   </nav>
   <main>
     <Viewer bind:scene bind:this={viewer} {perf} centerCamera />
-    <div class="stats">
-      <span>{humanizeNumber(vertices)} vertices</span>
-      <span>{humanizeNumber(faces)} faces</span>
-    </div>
+    <ResultStats {vertices} {faces} class="absolute right-4 bottom-4 items-end" />
     {#if hasTime}
       <div class="time">
         <label for="time">Time</label>
@@ -206,18 +203,6 @@
   main {
     position: relative;
     min-width: 0;
-  }
-  .stats {
-    position: absolute;
-    right: 16px;
-    bottom: 16px;
-    z-index: 2;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    font-size: 12px;
-    opacity: 0.7;
-    pointer-events: none;
   }
   .time {
     position: absolute;

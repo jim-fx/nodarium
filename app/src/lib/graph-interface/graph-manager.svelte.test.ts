@@ -1579,3 +1579,54 @@ describe('a change made of several changes', () => {
     expect(results).toHaveLength(1);
   });
 });
+
+describe('buildPending', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const graph: Graph = {
+    id: 1,
+    nodes: [{ id: 0, type: 'test/node/output', position: [0, 0] }],
+    edges: [],
+    groups: []
+  };
+
+  it('is set from the start of a load until its first result', async () => {
+    const manager = new GraphManager(createMockNodeRegistry([mockFloatOutputNode]));
+    const results: Graph[] = [];
+    manager.on('result', (g) => results.push(g));
+
+    const loading = manager.load(graph);
+    expect(manager.buildPending).toBe(true);
+    await loading;
+    expect(manager.buildPending).toBe(true);
+
+    vi.runAllTimers();
+    expect(results).toHaveLength(1);
+    expect(manager.buildPending).toBe(false);
+  });
+
+  it('stays set while a build waits for the throttle', async () => {
+    const manager = new GraphManager(createMockNodeRegistry([mockFloatOutputNode]));
+    await manager.load(graph);
+    vi.runAllTimers();
+
+    manager.execute();
+    expect(manager.buildPending).toBe(false);
+    manager.execute();
+    expect(manager.buildPending).toBe(true);
+    vi.advanceTimersByTime(10);
+    expect(manager.buildPending).toBe(false);
+  });
+
+  it('is cleared when a node type of the graph is missing', async () => {
+    const registry = createMockNodeRegistry([]);
+    registry.load = () => Promise.reject(new Error('gone'));
+    const manager = new GraphManager(registry);
+
+    await manager.load(graph);
+
+    expect(manager.status).toBe('error');
+    expect(manager.buildPending).toBe(false);
+  });
+});

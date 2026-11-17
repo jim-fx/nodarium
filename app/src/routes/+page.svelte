@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { AgentApiHost, BuildRecord } from '#lib/agent-api/agent-api.ts';
   import GraphInterface, { type GraphOptions } from '#lib/graph-interface/index.ts';
   import * as templates from '#lib/graph-templates/index.ts';
   import Grid from '#lib/grid/index.ts';
@@ -19,6 +20,7 @@
     type GizmoChange,
     probeSource
   } from '#lib/result-viewer/gizmos/gizmos.ts';
+  import ResultStats from '#lib/result-viewer/ResultStats.svelte';
   import Viewer from '#lib/result-viewer/Viewer.svelte';
   import { createDragHold } from '#lib/runtime/drag-hold.ts';
   import { errorLog } from '#lib/runtime/error-log.svelte.ts';
@@ -44,14 +46,18 @@
   import TitleBar from '#lib/title-bar/TitleBar.svelte';
   import { tutorialChecks } from '#lib/tutorial/tutorial-checks.ts';
   import { tutorialConfig } from '#lib/tutorial/tutorial-config.ts';
+  import { readUrlOptions } from '#lib/url-options.ts';
   import { Planty, type StepActionHook } from '@nodarium/planty';
   import { debugNode, MemoryRuntimeCache, MemoryRuntimeExecutor } from '@nodarium/runtime';
   import { loadTemplate } from '@nodarium/runtime/templates';
   import type { Edge, Graph } from '@nodarium/types';
   import { createKeyMap, Spinner, Toast, toast, unitSettings } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
-  import { untrack } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import type { Group } from 'three';
+  import { version } from '../../package.json';
+
+  const urlOptions = readUrlOptions(location.search);
 
   let performanceStore = createPerformanceStore();
   let planty = $state<ReturnType<typeof Planty>>();
@@ -120,6 +126,9 @@
   let debugData = $state<Record<number, { type: string; data: Int32Array }>>();
   let nodeTimings = $state<Record<number, number>>({});
   let errorNodeId = $state<number>();
+  let lastBuild = $state.raw<BuildRecord>();
+  /** Builds that were asked for and are not finished, the running one and the one waiting */
+  let buildsRunning = $state(0);
   const safePadding = $derived({ right: sidebarOpen ? 321 : undefined });
   // read one by one: a run that only brings new timings leaves what reads the theme alone
   const graphOptions: GraphOptions = {
@@ -226,7 +235,7 @@
     if (!manager) return;
     manager.setSetting('seed', Math.floor(Math.random() * 100000000));
     // the benchmark waits for this build
-    await handleUpdate(manager.serialize());
+    await build(manager.serialize());
   }
 
   let applicationKeymap = createKeyMap([
@@ -283,10 +292,11 @@
       isExecuting = true;
     }, 100);
     performanceStore.startRun();
+    const startedAt = performance.now();
     try {
-      const startedAt = performance.now();
       const run = await runtime.run(probed.graph, settings);
-      if (run.performance) mergeWorkerRun(run.performance, performance.now() - startedAt);
+      const waited = performance.now() - startedAt;
+      if (run.performance) mergeWorkerRun(run.performance, waited);
 
       probe = probed.sourceId === undefined
         ? undefined
@@ -300,7 +310,16 @@
       nodeTimings = run.nodeTimings;
       dragHold.measured(g, run.runTimings);
       errorNodeId = undefined;
-      viewerComponent?.update(run.result);
+      const shown = viewerComponent?.update(run.result);
+      lastBuild = {
+        graph: g,
+        result: run.result,
+        vertices: shown?.vertices ?? 0,
+        faces: shown?.faces ?? 0,
+        bounds: shown?.bounds,
+        ms: waited,
+        nodeTimings: run.nodeTimings
+      };
       pm.thumbnails.schedule(g, run.result);
       runs.succeeded(runKey);
     } catch (error) {
@@ -308,6 +327,15 @@
       // the viewer would keep showing the geometry of the previous graph otherwise
       viewerComponent?.update(new Int32Array());
       const info = errorInfo(error);
+      lastBuild = {
+        graph: g,
+        result: new Int32Array(),
+        error: info,
+        vertices: 0,
+        faces: 0,
+        ms: performance.now() - startedAt,
+        nodeTimings: {}
+      };
       errorNodeId = info.nodeId;
       errorLog.add(info);
       toast(info.message, 'error', 6000);
@@ -320,13 +348,59 @@
 
   const handleUpdate = debounceAsyncFunction(update);
 
+  async function build(g: Graph) {
+    buildsRunning++;
+    try {
+      await handleUpdate(g);
+    } finally {
+      buildsRunning--;
+    }
+  }
+
   // a build can't be stopped, on a slow graph one of an early value of a drag delays the last one
   const dragHold = createDragHold({
-    build: (g) => handleUpdate(g),
+    build,
     timings: () => nodeTimings,
     inputs: (type) => nodeRegistry.getNode(type)?.inputs
   });
   $effect(() => dragHold.listen(window));
+
+  // dragHold.holding is no $state, but it only changes together with buildPending or buildsRunning
+  function isIdle() {
+    const m = manager;
+    if (!m || pm.opening || buildsRunning > 0 || m.buildPending || dragHold.holding) return false;
+    if (m.status === 'error') return true;
+    return m.status === 'idle' && pm.graph?.id === m.id;
+  }
+
+  const agentApiHost: AgentApiHost = {
+    app: {
+      version,
+      get sha() {
+        return data.git?.sha ?? '';
+      }
+    },
+    manager: () => manager,
+    isIdle,
+    lastBuild: () => lastBuild,
+    build,
+    importGraph: (input, options) => pm.importGraph(input, options),
+    createProject: (graph, title) => pm.handleCreateProject(graph, title),
+    registry: nodeRegistry,
+    viewCenter: () => {
+      const [x, y] = graphInterface.state.camera.position;
+      return [x, y];
+    }
+  };
+  // only tools use it, the page doesn't wait for its code
+  const agentApi = import('#lib/agent-api/agent-api.ts').then(({ createAgentApi }) =>
+    window.nodarium = createAgentApi(agentApiHost)
+  );
+  onDestroy(() => {
+    agentApi.then((api) => {
+      if (window.nodarium === api) delete window.nodarium;
+    });
+  });
 
   function focusNode(nodeId: number) {
     const node = manager?.getNode(nodeId);
@@ -369,7 +443,7 @@
 <Planty
   bind:this={planty}
   config={tutorialConfig}
-  autoStart
+  autoStart={urlOptions.tutorial}
   actions={{
     'setup-default': async () => {
       const graph = structuredClone(await loadTemplate('default-plant'));
@@ -443,6 +517,14 @@
           centerCamera={appSettings.value.centerCamera}
           projectId={pm.activeId}
         />
+        {#if lastBuild}
+          <ResultStats
+            vertices={lastBuild.vertices}
+            faces={lastBuild.faces}
+            ms={lastBuild.ms}
+            class="absolute bottom-4 left-4"
+          />
+        {/if}
         {#if isExecuting}
           <div class="viewer-spinner" aria-label="Executing graph">
             <Spinner size={28} />
