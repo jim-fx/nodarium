@@ -17,6 +17,7 @@ Currently this visual programming language is used to develop <https://nodes.max
 # Table of contents
 
 - [Architecture](./docs/ARCHITECTURE.md)
+- [For agents and contributors](./AGENTS.md)
 - [Developing](#developing)
 - [Roadmap](#roadmap)
 
@@ -26,20 +27,15 @@ Currently this visual programming language is used to develop <https://nodes.max
 
 - [Node.js](https://nodejs.org/en/download)
 - [pnpm](https://pnpm.io/installation)
-- [rust](https://www.rust-lang.org/tools/install)
-- wasm-pack
+- [rust](https://www.rust-lang.org/tools/install) with the wasm target: `rustup target add wasm32-unknown-unknown`
 
-### Install dependencies
-
-```bash
-pnpm i
-```
-
-### Build the Nodes
+### Install dependencies and build the nodes
 
 ```bash
-pnpm build:nodes
+pnpm bootstrap
 ```
+
+After changing a node, build the nodes again with `pnpm build:nodes`.
 
 ### Start the dev server
 

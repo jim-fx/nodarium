@@ -4,7 +4,8 @@
   "scripts": {
     "_postinstall": "pnpm run -r --filter 'ui' build && pnpm run -r --filter 'planty' build",
     "lint": "pnpm run -r --parallel lint",
-    "qa": "pnpm lint && pnpm check && pnpm test",
+    "bootstrap": "sh scripts/bootstrap.sh",
+    "qa": "pnpm lint && pnpm format:check && pnpm check && pnpm test:unit",
     "format": "pnpm dprint fmt",
     "format:check": "pnpm dprint check",
     "test:e2e": "pnpm run -r --parallel test:e2e",

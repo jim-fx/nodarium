@@ -1,6 +1,6 @@
 # Plant Templates
 
-The plant templates in `packages/runtime/templates` each model a real species. This file describes the structure of each plant and how its template builds it, so a template can be tuned against the real plant. Render a template with `npm run render-graph <name>` in `app/`.
+The plant templates in `packages/runtime/templates` each model a real species. This file describes the structure of each plant and how its template builds it, so a template can be tuned against the real plant. Render a template with `pnpm render-graph <name>` in `app/`.
 
 Proportions are relative. The garden scales every plant to the same height, so only the ratios matter: leaf length to plant height, width to height, and so on.
 
@@ -34,7 +34,7 @@ This section is for anyone, person or LLM, who builds a new template. It collect
 
 1. Write the species section first: the parts of the plant, how they are arranged, and numbers from a flora (counts, lengths, ratios). A flora gives ranges such as "20–35 pairs of pinnae" or "leaves 1–6 cm". Use them, not a picture from memory.
 2. Go through the plant from the ground up and give every level of branching its own node: crown, main axes, side axes, then the organs on the last level. A `branch` adds a level of paths, an `instance` puts leaves or flowers on the deepest paths. Count the levels a flora names: once-pinnate is one `branch` for the fronds and one `instance` for the pinnae, 3-pinnate needs two more `branch` nodes.
-3. Render the template with `npm run render-graph <name> --out <dir>` and compare the front, side and top views with photos of the plant. Check the top view too: it shows whether the stems spread evenly and what outline the blade has.
+3. Render the template with `pnpm render-graph <name> --out <dir>` and compare the front, side and top views with photos of the plant. Check the top view too: it shows whether the stems spread evenly and what outline the blade has.
 4. Render one unit up close: copy the graph, set `amount` of the first `branch` to 1 to get a single frond or shoot, and give it a fixed `angle` of 90 with `noise` and `gravity` at 0 to see a flower head from above. The renderer frames the whole plant, so a small part only shows up when it is alone.
 5. Change one thing at a time, render again, and write down what the nodes can't do in the template section ("missing: ...").
 
@@ -44,7 +44,7 @@ This section is for anyone, person or LLM, who builds a new template. It collect
 - An instance is about `100 * leaf.size * instance.size * (thickness + 0.01)` long, so it depends on the thickness of the path it sits on. Work that out before guessing a leaf size: the daisy leaves started ten times too large because the crown is thick. When a crown or a stem gets thinner, everything instanced on it shrinks with it.
 - Organs on tapering paths get smaller toward the tip by themselves. For leaflets that stay the same size, set `taper` lower or put an `alpha -> curve` on the instance `size`.
 - One unit is one meter, so build the plant at its real size: a daisy 25 cm (0.25), a fern 90 cm, a palm 25 m. Take the heights from the flora. A plant under about a meter gets the unit `cm` in `projectTemplates`, so its lengths show in cm in the inputs.
-- To resize a plant, scale every length (`stem` and `branch` `length`, the `thickness` of the first `stem`, the `origin`, the `random` and `curve` nodes that feed them, the `radius` and position of a `force`), divide the `scale` of every `noise` by the factor and multiply its `strength` by it. Then correct every `instance` `size` by `factor * (t + 0.01) / (factor * t + 0.01)`, with `t` the thickness of the path it sits on, as `+ 0.01` does not scale. Render the plant with `npm run render-graph` before and after, the `leafArea` it prints has to change by the square of the factor.
+- To resize a plant, scale every length (`stem` and `branch` `length`, the `thickness` of the first `stem`, the `origin`, the `random` and `curve` nodes that feed them, the `radius` and position of a `force`), divide the `scale` of every `noise` by the factor and multiply its `strength` by it. Then correct every `instance` `size` by `factor * (t + 0.01) / (factor * t + 0.01)`, with `t` the thickness of the path it sits on, as `+ 0.01` does not scale. Render the plant with `pnpm render-graph` before and after, the `leafArea` it prints has to change by the square of the factor.
 - The garden scales every plant to the same height, so set ratios from the flora: frond to stipe, head diameter to scape length, leaf length to plant height.
 
 ### Patterns
