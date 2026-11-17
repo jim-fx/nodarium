@@ -2,8 +2,7 @@ import { type NodeInstance } from '@nodarium/types';
 import type { GraphManager } from '../graph-manager.svelte';
 import { type GraphState } from '../graph-state.svelte';
 import { animate, lerp, snapToGrid as snapPointToGrid } from '../helpers/index.ts';
-import { getNodeHeight } from '../helpers/nodeHelpers';
-import { maxZoom, minZoom, zoomSpeed } from './constants';
+import { boxesOverlap, nodeBox } from '../helpers/nodeBox';
 import { EdgeInteractionManager } from './edge.events';
 
 export class MouseEventManager {
@@ -39,7 +38,7 @@ export class MouseEventManager {
       activeNode.state = activeNode.state || {};
       activeNode.state.isMoving = false;
       if (this.state.options.snapToGrid) {
-        const snapLevel = this.state.getSnapLevel();
+        const snapLevel = this.state.camera.snapLevel();
         activeNode.position[0] = snapPointToGrid(
           activeNode?.state?.x ?? activeNode.position[0],
           5 / snapLevel
@@ -130,12 +129,12 @@ export class MouseEventManager {
       if (typeof this.state.activeSocket.index === 'number') {
         this.state.addMenuPosition = [
           this.state.mousePosition[0],
-          this.state.mousePosition[1] - 25 / this.state.cameraPosition[2]
+          this.state.mousePosition[1] - 25 / this.state.camera.position[2]
         ];
       } else {
         this.state.addMenuPosition = [
-          this.state.mousePosition[0] - 155 / this.state.cameraPosition[2],
-          this.state.mousePosition[1] - 25 / this.state.cameraPosition[2]
+          this.state.mousePosition[0] - 155 / this.state.camera.position[2],
+          this.state.mousePosition[1] - 25 / this.state.camera.position[2]
         ];
       }
       return;
@@ -144,8 +143,8 @@ export class MouseEventManager {
     if (
       clickedNodeId === -1
       && !this.state.boxSelection
-      && this.state.cameraDown[0] === this.state.cameraPosition[0]
-      && this.state.cameraDown[1] === this.state.cameraPosition[1]
+      && this.state.cameraDown[0] === this.state.camera.position[0]
+      && this.state.cameraDown[1] === this.state.camera.position[1]
       && this.state.isBodyFocused()
     ) {
       this.state.activeNodeId = -1;
@@ -200,8 +199,8 @@ export class MouseEventManager {
     const my = event.clientY - this.state.rect.y;
 
     this.state.mouseDown = [mx, my];
-    this.state.cameraDown[0] = this.state.cameraPosition[0];
-    this.state.cameraDown[1] = this.state.cameraPosition[1];
+    this.state.cameraDown[0] = this.state.camera.position[0];
+    this.state.cameraDown[1] = this.state.camera.position[1];
 
     const clickedNodeId = this.state.getNodeIdFromEvent(event);
     this.state.mouseDownNodeId = clickedNodeId;
@@ -264,7 +263,7 @@ export class MouseEventManager {
     const mx = event.clientX - this.state.rect.x;
     const my = event.clientY - this.state.rect.y;
 
-    this.state.mousePosition = this.state.projectScreenToWorld(mx, my);
+    this.state.mousePosition = this.state.camera.toWorld(mx, my);
     this.state.hoveredNodeId = this.state.getNodeIdFromEvent(event);
 
     if (!this.state.mouseDown) return;
@@ -300,20 +299,19 @@ export class MouseEventManager {
         requestAnimationFrame(() => {
           this.pendingSelectionFrame = false;
           if (!this.state.mouseDown) return;
-          const mouseD = this.state.projectScreenToWorld(
+          const mouseD = this.state.camera.toWorld(
             this.state.mouseDown[0],
             this.state.mouseDown[1]
           );
-          const x1 = Math.min(mouseD[0], this.state.mousePosition[0]);
-          const x2 = Math.max(mouseD[0], this.state.mousePosition[0]);
-          const y1 = Math.min(mouseD[1], this.state.mousePosition[1]);
-          const y2 = Math.max(mouseD[1], this.state.mousePosition[1]);
+          const selection = {
+            minX: Math.min(mouseD[0], this.state.mousePosition[0]),
+            maxX: Math.max(mouseD[0], this.state.mousePosition[0]),
+            minY: Math.min(mouseD[1], this.state.mousePosition[1]),
+            maxY: Math.max(mouseD[1], this.state.mousePosition[1])
+          };
           for (const node of this.graph.nodes.values()) {
             if (!node?.state) continue;
-            const x = node.position[0];
-            const y = node.position[1];
-            const height = getNodeHeight(this.graph.getNodeType(node)!);
-            if (x > x1 - 20 && x < x2 && y > y1 - height && y < y2) {
+            if (boxesOverlap(nodeBox(node, this.graph.getNodeType(node)), selection)) {
               this.state.selectedNodes?.add(node.id);
             } else {
               this.state.selectedNodes?.delete(node.id);
@@ -334,11 +332,11 @@ export class MouseEventManager {
       const oldX = node.state.downX || 0;
       const oldY = node.state.downY || 0;
 
-      let newX = oldX + (mx - this.state.mouseDown[0]) / this.state.cameraPosition[2];
-      let newY = oldY + (my - this.state.mouseDown[1]) / this.state.cameraPosition[2];
+      let newX = oldX + (mx - this.state.mouseDown[0]) / this.state.camera.position[2];
+      let newY = oldY + (my - this.state.mouseDown[1]) / this.state.camera.position[2];
 
       if (event.ctrlKey) {
-        const snapLevel = this.state.getSnapLevel();
+        const snapLevel = this.state.camera.snapLevel();
         if (this.state.options.snapToGrid) {
           newX = snapPointToGrid(newX, 5 / snapLevel);
           newY = snapPointToGrid(newY, 5 / snapLevel);
@@ -374,13 +372,11 @@ export class MouseEventManager {
     }
 
     this.state.isPanning = true;
-    const newX = this.state.cameraDown[0]
-      - (mx - this.state.mouseDown[0]) / this.state.cameraPosition[2];
-    const newY = this.state.cameraDown[1]
-      - (my - this.state.mouseDown[1]) / this.state.cameraPosition[2];
-
-    this.state.cameraPosition[0] = newX;
-    this.state.cameraPosition[1] = newY;
+    this.state.camera.pan(
+      this.state.cameraDown,
+      mx - this.state.mouseDown[0],
+      my - this.state.mouseDown[1]
+    );
   }
 
   handleMouseScroll(event: WheelEvent) {
@@ -389,28 +385,9 @@ export class MouseEventManager {
       || document?.activeElement?.id === 'graph';
     if (!bodyIsFocused) return;
 
-    const isNegative = event.deltaY < 0;
-    const normalizedDelta = Math.abs(event.deltaY * 0.01);
-    const delta = Math.pow(0.95, zoomSpeed * normalizedDelta);
-
-    const newZoom = Math.max(
-      minZoom,
-      Math.min(
-        maxZoom,
-        isNegative
-          ? this.state.cameraPosition[2] / delta
-          : this.state.cameraPosition[2] * delta
-      )
+    this.state.camera.zoomAt(
+      [this.state.mousePosition[0], this.state.mousePosition[1]],
+      event.deltaY
     );
-
-    const zoomRatio = newZoom / this.state.cameraPosition[2];
-
-    this.state.cameraPosition[0] = this.state.mousePosition[0]
-      - (this.state.mousePosition[0] - this.state.cameraPosition[0])
-        / zoomRatio;
-    this.state.cameraPosition[1] = this.state.mousePosition[1]
-      - (this.state.mousePosition[1] - this.state.cameraPosition[1])
-        / zoomRatio;
-    this.state.cameraPosition[2] = newZoom;
   }
 }

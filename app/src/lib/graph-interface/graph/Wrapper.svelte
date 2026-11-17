@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { Graph, NodeRegistry } from '@nodarium/types';
   import { createKeyMap } from '@nodarium/ui';
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
+  import { persistCamera } from '../camera.svelte';
   import { GraphManager } from '../graph-manager.svelte';
   import { GraphState, setGraphManager, setGraphState } from '../graph-state.svelte';
   import { setupKeymaps } from '../keymaps';
@@ -36,6 +37,8 @@
 
   export const state = new GraphState(manager, () => options);
   setGraphState(state);
+
+  onDestroy(persistCamera(state.camera, () => manager.id));
 
   setupKeymaps(keymap, manager, state, () => onhelp?.());
 

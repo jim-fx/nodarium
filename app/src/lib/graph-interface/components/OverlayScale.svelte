@@ -10,6 +10,6 @@
   // state as the HTML position and the canvas, instead of running a frame ahead.
   useTask(() => {
     if (!el) return;
-    el.style.transform = `scale(${graphState.cameraPosition[2] * 0.1})`;
+    el.style.transform = `scale(${graphState.camera.position[2] * 0.1})`;
   }, { autoInvalidate: false });
 </script>

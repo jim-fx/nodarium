@@ -1,15 +1,17 @@
 import { GROUP_INSTANCE } from '@nodarium/types';
 import type { NodeInstance, SerializedEdge, SerializedNode, Socket } from '@nodarium/types';
-import { createContext, untrack } from 'svelte';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { OrthographicCamera, Vector3 } from 'three';
+import { createContext } from 'svelte';
+import { SvelteSet } from 'svelte/reactivity';
+import type { Vector3 } from 'three';
+import { GraphCamera } from './camera.svelte';
 import type { GraphManager } from './graph-manager.svelte';
 import { ColorGenerator } from './graph/colors';
-import { maxZoom, minZoom } from './graph/constants';
-import { animate, debounce, lerp } from './helpers/index.ts';
+import { maxZoom } from './graph/constants';
+import { animate, easeInOut, lerp } from './helpers/index.ts';
+import { NODE_WIDTH } from './helpers/layoutGraph';
+import { boxContains, boxesOverlap, nodeBox } from './helpers/nodeBox';
 import {
   getInputSocketOffset,
-  getNodeHeight,
   getOutputSocketOffset,
   serializeEdge,
   serializeNode
@@ -66,84 +68,36 @@ const predefinedColors = {
 export class GraphState {
   colors = new ColorGenerator(predefinedColors);
 
-  constructor(private graph: GraphManager, private readOptions: () => GraphOptions) {
-    const storageKey = (id: number) => `node.cameraPosition.${id}`;
+  constructor(private graph: GraphManager, private readOptions: () => GraphOptions) {}
 
-    const saveCameraPosition = debounce(() => {
-      if (this.loadedCameraId === undefined) return;
-      localStorage.setItem(storageKey(this.loadedCameraId), JSON.stringify(this.cameraPosition));
-    }, 500);
-
-    $effect.root(() => {
-      $effect(() => {
-        const id = this.graph.id;
-        untrack(() => {
-          this.loadedCameraId = undefined;
-          const stored = localStorage.getItem(storageKey(id));
-          this.cameraPosition = [140, 100, 3.5];
-          if (stored) {
-            try {
-              const d = JSON.parse(stored);
-              this.cameraPosition[0] = d[0];
-              this.cameraPosition[1] = d[1];
-              this.cameraPosition[2] = d[2];
-            } catch (e) {
-              console.log('Failed to parsed stored camera position', e);
-            }
-          }
-          this.loadedCameraId = id;
-        });
-      });
-
-      $effect(() => {
-        // Read values to subscribe to reactivity, then flush lazily.
-        void this.cameraPosition[0];
-        void this.cameraPosition[1];
-        void this.cameraPosition[2];
-        saveCameraPosition();
-      });
-    });
-  }
-
-  private loadedCameraId: number | undefined;
+  camera = new GraphCamera();
 
   get options() {
     return this.readOptions();
   }
 
-  width = $state(100);
-  height = $state(100);
-
   hoveredEdgeId = $state<string | null>(null);
-  edges = new SvelteMap<string, EdgeData>();
+  /** Not reactive: written by the edges when they are drawn, read by the pointer */
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
+  edgeGeometry = new Map<string, EdgeData>();
 
   wrapper = $state<HTMLDivElement>(null!);
   rect: DOMRect = $derived(
-    (this.wrapper && this.width && this.height)
+    (this.wrapper && this.camera.width && this.camera.height)
       ? this.wrapper.getBoundingClientRect()
       : new DOMRect(0, 0, 0, 0)
   );
-
-  camera = $state<OrthographicCamera>(null!);
-  cameraPosition: [number, number, number] = $state([140, 100, 3.5]);
 
   clipboard: null | {
     nodes: SerializedNode[];
     edges: SerializedEdge[];
   } = null;
 
-  cameraBounds = $derived([
-    this.cameraPosition[0] - this.width / this.cameraPosition[2] / 2,
-    this.cameraPosition[0] + this.width / this.cameraPosition[2] / 2,
-    this.cameraPosition[1] - this.height / this.cameraPosition[2] / 2,
-    this.cameraPosition[1] + this.height / this.cameraPosition[2] / 2
-  ]);
-
   boxSelection = $state(false);
   edgeEndPosition = $state<[number, number] | null>();
   addMenuPosition = $state<[number, number] | null>(null);
 
-  cameraDown = [0, 0];
+  cameraDown: [number, number] = [0, 0];
   mouseDownNodeId = -1;
 
   isPanning = $state(false);
@@ -160,23 +114,11 @@ export class GraphState {
     new SvelteSet(this.possibleSockets.map((s) => `${s.node.id}-${s.index}`))
   );
 
-  getEdges() {
-    return $state.snapshot(this.edges);
-  }
-
   clearSelection() {
     this.selectedNodes.clear();
   }
 
   isBodyFocused = () => document?.activeElement?.nodeName !== 'INPUT';
-
-  setEdgeGeometry(edgeId: string, x1: number, y1: number, points: Vector3[]) {
-    this.edges.set(edgeId, { x1, y1, points });
-  }
-
-  removeEdgeGeometry(edgeId: string) {
-    this.edges.delete(edgeId);
-  }
 
   private _dirtyPositions = new SvelteSet<NodeInstance>();
   private _positionFlushPending = false;
@@ -215,18 +157,6 @@ export class GraphState {
     }
   }
 
-  getSnapLevel() {
-    const z = this.cameraPosition[2];
-    if (z > 66) {
-      return 8;
-    } else if (z > 55) {
-      return 4;
-    } else if (z > 11) {
-      return 2;
-    }
-    return 1;
-  }
-
   copyNodes() {
     if (this.activeNodeId === -1 && !this.selectedNodes?.size) {
       return;
@@ -259,67 +189,32 @@ export class GraphState {
     return this.graph.groupNodes([...this.selectedNodes.keys(), this.activeNodeId]);
   }
 
-  // Computes the camera [x, y, zoom] that fits the bounding box of the given nodes
-  // into the part of the view that is not covered by the safe padding.
-  private getFitCamera(nodes: NodeInstance[]): [number, number, number] | undefined {
+  // Fits the node (or all nodes) into the part of the view the safe padding leaves free
+  centerNode(node?: NodeInstance) {
+    const nodes = node ? [node] : [...this.graph.nodes.values()];
     if (!nodes.length) return;
 
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const node of nodes) {
-      const type = this.graph.getNodeType(node);
-      const x = node.state.x ?? node.position[0];
-      const y = node.state.y ?? node.position[1];
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x + 20);
-      maxY = Math.max(maxY, y + (type ? getNodeHeight(type) : 20));
+    const box = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+    for (const n of nodes) {
+      const b = nodeBox(n, this.graph.getNodeType(n));
+      box.minX = Math.min(box.minX, b.minX);
+      box.maxX = Math.max(box.maxX, b.maxX);
+      box.minY = Math.min(box.minY, b.minY);
+      box.maxY = Math.max(box.maxY, b.maxY);
     }
 
     const pad = this.options.safePadding;
-    const margin = 40; // px of breathing room around the box
-    const left = (pad?.left || 0) + margin;
-    const right = (pad?.right || 0) + margin;
-    const top = (pad?.top || 0) + margin;
-    const bottom = (pad?.bottom || 0) + margin;
+    const margin = 40;
+    const padding = {
+      left: (pad?.left || 0) + margin,
+      right: (pad?.right || 0) + margin,
+      top: (pad?.top || 0) + margin,
+      bottom: (pad?.bottom || 0) + margin
+    };
 
-    const availableWidth = Math.max(this.width - left - right, 1);
-    const availableHeight = Math.max(this.height - top - bottom, 1);
-
-    const boxWidth = maxX - minX;
-    const boxHeight = maxY - minY;
-
-    // A single node should not be blown up to fill the whole screen
-    const maxFitZoom = nodes.length === 1 ? 10 : maxZoom;
-    const zoom = Math.max(
-      minZoom,
-      Math.min(maxFitZoom, availableWidth / boxWidth, availableHeight / boxHeight)
-    );
-
-    // Shift the camera so the box center lands in the center of the available area
-    const x = (minX + maxX) / 2 - (left - right) / 2 / zoom;
-    const y = (minY + maxY) / 2 - (top - bottom) / 2 / zoom;
-    return [x, y, zoom];
-  }
-
-  // Fits the node (or all nodes) into the current view
-  centerNode(node?: NodeInstance) {
-    const target = this.getFitCamera(node ? [node] : [...this.graph.nodes.values()]);
-    if (!target) return;
-
-    const from = [...this.cameraPosition];
-    const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
-
-    // Position and zoom share one easing so the view stays consistent while animating
-    animate(500, (a: number) => {
-      const t = ease(a);
-      this.cameraPosition[0] = lerp(from[0], target[0], t);
-      this.cameraPosition[1] = lerp(from[1], target[1], t);
-      this.cameraPosition[2] = lerp(from[2], target[2], t);
-      if (this.mouseDown) return false;
-    });
+    // a single node should not be blown up to fill the whole view
+    const target = this.camera.fit(box, padding, nodes.length === 1 ? 10 : maxZoom);
+    this.camera.animateTo(target, () => !!this.mouseDown);
   }
 
   // lays out the nodes and lets them glide to their new positions
@@ -332,11 +227,11 @@ export class GraphState {
 
     this.graph.formatNodes();
 
-    const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
     animate(500, (a: number) => {
+      const t = easeInOut(a);
       nodes.forEach((node, i) => {
-        node.state.x = a === 1 ? node.position[0] : lerp(from[i][0], node.position[0], ease(a));
-        node.state.y = a === 1 ? node.position[1] : lerp(from[i][1], node.position[1], ease(a));
+        node.state.x = a === 1 ? node.position[0] : lerp(from[i][0], node.position[0], t);
+        node.state.y = a === 1 ? node.position[1] : lerp(from[i][1], node.position[1], t);
         this.updateNodePosition(node);
       });
     });
@@ -399,15 +294,6 @@ export class GraphState {
       });
   }
 
-  projectScreenToWorld(x: number, y: number): [number, number] {
-    return [
-      this.cameraPosition[0]
-      + (x - this.width / 2) / this.cameraPosition[2],
-      this.cameraPosition[1]
-      + (y - this.height / 2) / this.cameraPosition[2]
-    ];
-  }
-
   getNodeIdFromEvent(event: MouseEvent) {
     let clickedNodeId = -1;
 
@@ -424,13 +310,9 @@ export class GraphState {
       }
 
       if (clickedNodeId === -1) {
-        const [downX, downY] = this.projectScreenToWorld(mx, my);
+        const [downX, downY] = this.camera.toWorld(mx, my);
         for (const node of this.graph.nodes.values()) {
-          const x = node.position[0];
-          const y = node.position[1];
-          const nodeType = this.graph.getNodeType(node);
-          const height = nodeType ? getNodeHeight(nodeType) : 20;
-          if (downX > x && downX < x + 20 && downY > y && downY < y + height) {
+          if (boxContains(nodeBox(node, this.graph.getNodeType(node)), downX, downY)) {
             clickedNodeId = node.id;
             break;
           }
@@ -442,12 +324,7 @@ export class GraphState {
 
   isNodeInView(node: NodeInstance) {
     if (!node) return false;
-    const height = getNodeHeight(this.graph.getNodeType(node)!);
-    const width = 20;
-    return node.position[0] > this.cameraBounds[0] - width
-      && node.position[0] < this.cameraBounds[1]
-      && node.position[1] > this.cameraBounds[2] - height
-      && node.position[1] < this.cameraBounds[3];
+    return boxesOverlap(nodeBox(node, this.graph.getNodeType(node)), this.camera.bounds);
   }
 
   openNodePalette() {
@@ -478,7 +355,7 @@ export class GraphState {
   ): [number, number] {
     if (typeof index === 'number') {
       return [
-        (node?.state?.x ?? node.position[0]) + 20,
+        (node?.state?.x ?? node.position[0]) + NODE_WIDTH,
         (node?.state?.y ?? node.position[1]) + getOutputSocketOffset(node.type, index)
       ];
     } else {

@@ -70,8 +70,8 @@
   aria-label="Graph"
   role="button"
   tabindex="0"
-  bind:clientWidth={graphState.width}
-  bind:clientHeight={graphState.height}
+  bind:clientWidth={graphState.camera.width}
+  bind:clientHeight={graphState.camera.height}
   style:--padding-right="{safePadding?.right || 0}px"
   onkeydown={(ev) => keymap.handleKeyboardEvent(ev)}
   onmousedown={(ev) => mouseEvents.handleMouseDown(ev)}
@@ -91,33 +91,24 @@
   <GroupBreadcrumps />
 
   <Canvas shadows={false} renderMode="on-demand">
-    <Camera
-      bind:camera={graphState.camera}
-      position={graphState.cameraPosition}
-    />
+    <Camera position={graphState.camera.position} />
 
     {#if graphState.options.backgroundType !== 'none'}
       <Background
         type={graphState.options.backgroundType}
-        cameraPosition={graphState.cameraPosition}
+        cameraPosition={graphState.camera.position}
         {maxZoom}
         {minZoom}
-        width={graphState.width}
-        height={graphState.height}
+        width={graphState.camera.width}
+        height={graphState.camera.height}
       />
     {/if}
 
     {#if graphState.boxSelection && graphState.mouseDown}
+      {@const [x, y] = graphState.camera.toWorld(graphState.mouseDown[0], graphState.mouseDown[1])}
       <BoxSelection
-        cameraPosition={graphState.cameraPosition}
-        p1={{
-          x: graphState.cameraPosition[0]
-            + (graphState.mouseDown[0] - graphState.width / 2)
-              / graphState.cameraPosition[2],
-          y: graphState.cameraPosition[1]
-            + (graphState.mouseDown[1] - graphState.height / 2)
-              / graphState.cameraPosition[2]
-        }}
+        cameraPosition={graphState.camera.position}
+        p1={{ x, y }}
         p2={{ x: graphState.mousePosition[0], y: graphState.mousePosition[1] }}
       />
     {/if}
@@ -135,7 +126,7 @@
 
       {#if graphState.activeSocket}
         <EdgeEl
-          z={graphState.cameraPosition[2]}
+          z={graphState.camera.position[2]}
           inputType={getSocketType(graphState.activeSocket.node, graphState.activeSocket.index)}
           outputType={getSocketType(graphState.activeSocket.node, graphState.activeSocket.index)}
           x1={graphState.activeSocket.position[0]}
@@ -149,7 +140,7 @@
         {@const [x1, y1, x2, y2] = getEdgePosition(edge)}
         <EdgeEl
           id={graph.getEdgeId(edge)}
-          z={graphState.cameraPosition[2]}
+          z={graphState.camera.position[2]}
           inputType={getSocketType(edge[0], edge[1])}
           outputType={getSocketType(edge[2], edge[3])}
           {x1}

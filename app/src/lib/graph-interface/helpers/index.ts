@@ -6,6 +6,8 @@ export function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
 
+export const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
+
 export function animate(duration: number, callback: (progress: number) => void | false) {
   const start = performance.now();
   const loop = (time: number) => {
