@@ -95,3 +95,33 @@ test('?tutorial=0 keeps Planty closed and remembers nothing', async ({ page }) =
   await open(page, '');
   await expect(page.getByRole('dialog', { name: 'Planty' })).toBeVisible();
 });
+
+test('a page without animation frames still shows the result', async ({ page }) => {
+  // a window that is not visible gets no frames, as in a browser an agent drives
+  await page.addInitScript(() => {
+    window.requestAnimationFrame = () => 0;
+    window.cancelAnimationFrame = () => {};
+  });
+  await open(page);
+  await page.evaluate(() => window.nodarium!.graph.loadTemplate('fern'));
+
+  const viewer = page.locator('[data-planty="viewer"]');
+  const lit = async () => {
+    const shot = (await viewer.screenshot()).toString('base64');
+    return page.evaluate(async (png) => {
+      const blob = await (await fetch(`data:image/png;base64,${png}`)).blob();
+      const bitmap = await createImageBitmap(blob);
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const context = canvas.getContext('2d')!;
+      context.drawImage(bitmap, 0, 0);
+      const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+      let green = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 1] > 60 && data[i + 1] > data[i] + 20) green++;
+      }
+      return green / (data.length / 4);
+    }, shot);
+  };
+  // the grid is grey, only the fern is green
+  await expect.poll(lit, { timeout: 5000 }).toBeGreaterThan(0.05);
+});

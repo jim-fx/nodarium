@@ -1,7 +1,7 @@
 import { createAppRegistry } from '#lib/node-registry/index.ts';
 import { MemoryRuntimeExecutor } from '@nodarium/runtime';
 import type { Graph } from '@nodarium/types';
-import { loadMatcap, ThumbnailRenderer } from './thumbnail-renderer';
+import { loadMatcap, ThumbnailRenderer, type View } from './thumbnail-renderer';
 
 const executor = new MemoryRuntimeExecutor(createAppRegistry());
 
@@ -16,6 +16,11 @@ function getRenderer() {
 export async function renderResult(result: Int32Array, size: number) {
   const renderer = await getRenderer();
   return renderer.render(result, size);
+}
+
+export async function renderViews(result: Int32Array, size: number, views: View[]) {
+  const renderer = await getRenderer();
+  return renderer.renderViews(result, size, views);
 }
 
 export async function renderGraph(graph: Graph, size: number) {

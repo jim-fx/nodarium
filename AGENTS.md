@@ -49,7 +49,7 @@ pnpm nodarium render fern --node 14  # the same of what comes out of node 14
 - Comments only for reasons the code can't show. No comments that restate the code.
 - Nodes have few inputs. Variation and curves come from shaping an input with the random, curve and alpha nodes, not from extra inputs on every node. A generic node comes before a custom one.
 - A link carries exactly its type. No hidden values inside a list of another type (for example a hinge inside a path list).
-- A browser window that is not visible gets no animation frames, so the viewer stays black and looks broken. To check the app in a browser, drive it with a Playwright script through `window.nodarium` ([docs/AGENT_API.md](docs/AGENT_API.md)): load a graph, wait for the build, read the result. Open it with `?tutorial=0`. `nodarium render` above needs no browser.
+- A browser window that is not visible gets no animation frames: the viewer draws once on its own, the graph stays black. To check the app in a browser, drive it with a Playwright script through `window.nodarium` ([docs/AGENT_API.md](docs/AGENT_API.md)): load a graph, wait for the build, read the result, take a picture with `viewer.screenshot()`. Open it with `?tutorial=0`. `nodarium render` above needs no browser.
 
 ## Where the knowledge is
 

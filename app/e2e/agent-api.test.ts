@@ -269,6 +269,21 @@ test('benchmark builds with random seeds and leaves the graph as it was', async 
   expect(result?.ok).toBe(true);
 });
 
+test('viewer.screenshot takes a PNG of the views next to each other', async () => {
+  await loadPlant();
+  const image = await page.evaluate(async () => {
+    const blob = await window.nodarium!.viewer.screenshot({ size: 256, views: ['front', 'top'] });
+    const bitmap = await createImageBitmap(blob);
+    return { type: blob.type, width: bitmap.width, height: bitmap.height };
+  });
+  expect(image).toEqual({ type: 'image/png', width: 512, height: 256 });
+  await expect(
+    page.evaluate(() =>
+      window.nodarium!.viewer.screenshot({ views: ['below' as unknown as 'top'] })
+    )
+  ).rejects.toThrow(/views takes some of default, front, side, top/);
+});
+
 test('idle waits for a slow build', async () => {
   await page.evaluate(() => window.nodarium!.graph.loadTemplate('champignon-groomed'));
   const { waited, before, after } = await page.evaluate(async () => {

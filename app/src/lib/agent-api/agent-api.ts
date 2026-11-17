@@ -3,7 +3,7 @@ import type { RemoteNodeRegistry } from '#lib/node-registry/index.ts';
 import { type GraphIssue, type RuntimeErrorInfo, validateGraph } from '@nodarium/runtime';
 import { templates } from '@nodarium/runtime/templates';
 import { type Graph, inputAccepts, type NodeInstance } from '@nodarium/types';
-import type { BenchmarkResult, BuildResult, NodariumApi, Vec3 } from './types';
+import type { BenchmarkResult, BuildResult, NodariumApi, ScreenshotView, Vec3 } from './types';
 import { when } from './when.svelte';
 
 /** One build of the page, as `update()` of the page saw it */
@@ -36,7 +36,10 @@ export type AgentApiHost = {
   registry: RemoteNodeRegistry;
   /** the point of the graph in the middle of the editor */
   viewCenter(): [number, number];
+  renderViews(result: Int32Array, size: number, views: ScreenshotView[]): Promise<Blob | undefined>;
 };
+
+const VIEWS: ScreenshotView[] = ['default', 'front', 'side', 'top'];
 
 function label(node: { id: number; type: string }) {
   return `${node.type.split('/').pop()}#${node.id}`;
@@ -277,6 +280,27 @@ export function createAgentApi(host: AgentApiHost): NodariumApi {
         await host.build(manager().serialize());
       }
       return { samples, median: median(samples), stdev: stdev(samples) } satisfies BenchmarkResult;
+    },
+
+    viewer: {
+      async screenshot(
+        { size = 1024, views = ['default'] }: { size?: number; views?: ScreenshotView[] } = {}
+      ) {
+        const unknown = views.filter((view) => !VIEWS.includes(view));
+        if (unknown.length || views.length === 0) {
+          throw new Error(`views takes some of ${VIEWS.join(', ')}`);
+        }
+        if (!Number.isInteger(size) || size < 16 || size > 4096) {
+          throw new Error('size is a whole number of pixels from 16 to 4096');
+        }
+        await idle();
+        const build = host.lastBuild();
+        const blob = build && !build.error
+          ? await host.renderViews(build.result, size, views)
+          : undefined;
+        if (!blob) throw new Error('The last build shows nothing to take a picture of');
+        return blob;
+      }
     }
   };
   return api;

@@ -390,7 +390,8 @@
     viewCenter: () => {
       const [x, y] = graphInterface.state.camera.position;
       return [x, y];
-    }
+    },
+    renderViews: (result, size, views) => pm.thumbnails.renderViews(result, size, views)
   };
   // only tools use it, the page doesn't wait for its code
   const agentApi = import('#lib/agent-api/agent-api.ts').then(({ createAgentApi }) =>

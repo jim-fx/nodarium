@@ -22,6 +22,8 @@ export type BuildResult = {
   ms: { total: number; nodes: Record<number, number> };
 };
 
+export type ScreenshotView = 'default' | 'front' | 'side' | 'top';
+
 export type BenchmarkResult = { samples: number[]; median: number; stdev: number };
 
 /** `window.nodarium`, see docs/AGENT_API.md */
@@ -62,6 +64,11 @@ export interface NodariumApi {
   lastResult(): BuildResult | undefined;
   /** builds the open graph `runs` times with random seeds, the graph itself is not changed */
   benchmark(options?: { runs?: number; warmups?: number }): Promise<BenchmarkResult>;
+
+  viewer: {
+    /** a PNG of the last result, the views next to each other, `size` pixels each */
+    screenshot(options?: { size?: number; views?: ScreenshotView[] }): Promise<Blob>;
+  };
 }
 
 declare global {
