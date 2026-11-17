@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CURRENT_GRAPH_VERSION } from '../graph-migrations';
-import { main } from './main';
+import { main, stringifyGraph } from './main';
 
 const nodesDir = fileURLToPath(new URL('../../../../app/static/nodes', import.meta.url));
 
@@ -152,6 +152,24 @@ describe('nodarium', () => {
     expect(code).toBe(1);
     expect(JSON.parse(out).error).toContain('stem#1');
     expect(err).toContain('error');
+  });
+
+  it('writes a graph with every string as it was, lists of numbers and strings on one line', () => {
+    const graph = {
+      nodes: [{
+        id: 1,
+        position: [0, -2.5],
+        props: { label: 'a,  b', names: ['a,  b', '[ 1, 2 ]'], empty: [], nested: [[1, 2], [3]] }
+      }],
+      edges: [[1, 0, 2, 'plant']],
+      settings: {}
+    };
+    const text = stringifyGraph(graph);
+
+    expect(JSON.parse(text)).toEqual(graph);
+    expect(text).toContain('"position": [0, -2.5]');
+    expect(text).toContain('[1, 0, 2, "plant"]');
+    expect(text).toContain('"names": ["a,  b", "[ 1, 2 ]"]');
   });
 
   it('places the nodes that have no position', async () => {

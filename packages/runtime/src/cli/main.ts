@@ -86,12 +86,26 @@ class CliError extends Error {}
 const DRAWN_TYPES = new Set(['path', 'geometry', 'points', 'mesh', 'pattern']);
 
 /** Indented JSON with lists of numbers and strings, like positions and edges, on one line */
-export function stringifyGraph(value: unknown) {
-  return JSON.stringify(value, null, 2).replace(
-    /\[\s+((?:-?[\d.e+-]+|"[^"]*")(?:,\s+(?:-?[\d.e+-]+|"[^"]*"))*)\s+\]/g,
-    (_, items: string) => `[${items.split(/,\s+/).join(', ')}]`
+export function stringifyGraph(value: unknown, indent = ''): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  const inner = indent + '  ';
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '[]';
+    if (value.every((item) => typeof item === 'number' || typeof item === 'string')) {
+      return `[${value.map((item) => JSON.stringify(item)).join(', ')}]`;
+    }
+    return `[\n${value.map((item) => inner + stringifyGraph(item, inner)).join(',\n')}\n${indent}]`;
+  }
+  const entries = Object.entries(value).filter(([, item]) => item !== undefined);
+  if (entries.length === 0) return '{}';
+  const lines = entries.map(([key, item]) =>
+    `${inner}${JSON.stringify(key)}: ${stringifyGraph(item, inner)}`
   );
+  return `{\n${lines.join(',\n')}\n${indent}}`;
 }
+
+/** The name a target is reported under when it can't be read */
+const targetName = (target: string) => (target === '-' ? 'stdin' : target);
 
 function round(v: number) {
   return Math.round(v * 10000) / 10000;
@@ -192,7 +206,7 @@ class Cli {
     try {
       source = await readGraphSource(target);
     } catch (error) {
-      this.fail(target, error instanceof Error ? error.message : String(error));
+      this.fail(targetName(target), error instanceof Error ? error.message : String(error));
       return;
     }
     const { name } = source;
@@ -436,7 +450,7 @@ class Cli {
       try {
         source = await readGraphSource(target);
       } catch (error) {
-        this.fail(target, error instanceof Error ? error.message : String(error));
+        this.fail(targetName(target), error instanceof Error ? error.message : String(error));
         continue;
       }
       const written = writtenGraph(source.json) as Graph;
