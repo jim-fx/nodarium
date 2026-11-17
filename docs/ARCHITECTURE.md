@@ -9,7 +9,7 @@ The visual programming language consists of so called `Nodes` which are stored a
 ```typescript
 type Node = {
   id: string;
-  outputs: string[];
+  outputs: (string | { type: string; label?: string })[];
   inputs: {
     [key: string]: NodeInput;
   };
@@ -50,3 +50,29 @@ The runtime runs the graph bottom up and hands each node's result to the next no
 Every graph has a `version`. A graph without one is version 0. When the editor loads a graph, the runtime executes one, or a project is imported, `migrateGraph()` (`packages/runtime/src/graph-migrations`) runs every migration newer than the graph's version on a copy of it. The migrated graph is where the undo history starts, and the migration is only logged. A graph newer than the app fails to load with an error message.
 
 A change that breaks saved graphs, like renaming a node or an input, gets a migration at the end of `MIGRATIONS` with the next version. Released migrations never change. The helpers rename node types (`renameNodeType`), rename, convert or remove inputs (`renameInputs`, `mapInput`, `removeInputs`) and replace a node with several nodes or a group, with its edges moved onto them (`replaceNodes`). Each new version also gets a fixture in `graph-migrations/fixtures/v<version>.json`: the same plant as the other fixtures, saved in the new format. The tests check that every older fixture migrates to it. The bundled templates are kept at the current version.
+
+## How is the app put together?
+
+`app/src/routes/+page.svelte` wires the parts together. The node editor lives in `app/src/lib/graph-interface`:
+
+- `GraphManager` (`graph-manager.svelte.ts`) holds the graph: its nodes, edges, groups and settings. Every change ends in `commit()`, several changes that belong together run inside `transaction()` and become one undo step and one build. `ChangeRecorder` (`change-recorder.ts`) turns a commit into an undo step of the `HistoryManager` (jsondiffpatch deltas) and a save once the changes rest.
+- `GraphState` (`graph-state.svelte.ts`) holds the state of the editor UI: selection, hovered and active node and socket, mouse, clipboard, entering and leaving groups. The camera (position and zoom) is `GraphCamera` in `camera.svelte.ts`.
+- Both reach the components of the editor through Svelte context (`createContext` in `graph-state.svelte.ts`), not through props.
+
+`GraphManager` is an event emitter. On `save` the page stores the graph in IndexedDB through the `ProjectManager` (`app/src/lib/project-manager`). On `result` the page runs the graph: `runtime.run(graph, settings)` returns the result together with the debug data and the timings of every node, and the viewer (`app/src/lib/result-viewer`) draws it. The runtime is a `RuntimeExecutor` of `@nodarium/runtime`, in a web worker (`WorkerRuntimeExecutor` in `app/src/lib/runtime`) or, with a debug setting, on the main thread. Nodes come from the registry `createAppRegistry()` makes: a `RemoteNodeRegistry`, which is a `WasmNodeRegistry` of the runtime that fetches the `.wasm` files and caches them in IndexedDB.
+
+The app uses Svelte 5 runes (`$state`, `$derived`, `$effect`). Maps and sets that the UI reads are `SvelteMap` and `SvelteSet` from `svelte/reactivity`, so changing them updates the UI.
+
+## What are the key types?
+
+They are in `packages/types/src/types.ts`, as Zod schemas with the types inferred from them.
+
+- `Graph`: `id`, `version`, `meta`, `settings`, `nodes`, `edges` and `groups`. This is what is saved and what the runtime runs.
+- A node in a graph has an `id` (a number), a `type` (the node id, `<author>/<system>/<node>` like `max/plantarium/stem`), a `position`, and `props` with the values of its inputs. In the editor every node also has a `state` that is never saved: its definition, its position while dragged, its mesh.
+- An edge is `[fromNode, outputIndex, toNode, inputName]`. Saved, the nodes are ids; in the editor they are the node objects themselves.
+- A group (`GroupDefinition`) has its own `nodes` and `edges` and the `inputs` and `outputs` the group node shows. Ctrl+G groups the selected nodes, Tab enters a group. Before a run, the runtime migrates the graph and `expandGroups()` replaces every group node with the nodes inside it.
+- A `NodeDefinition` is a node's `definition.json` (see [NODE_DEFINITION.md](./NODE_DEFINITION.md)) plus `execute()`, which takes one value per input and returns one per output.
+
+The types an input or output can have are in `packages/types/src/inputs.ts`: `float`, `integer`, `boolean`, `select`, `seed`, `creator`, `vec3`, `color`, `shape`, `curve`, `geometry`, `path`, `force`, `points`, `mesh`, `pattern`, and `*`, which connects to anything. An input may list more types it takes in `accepts`, `areSocketsCompatible()` decides which output can connect to which input. How each type is encoded is described in [PLANTARIUM.md](./PLANTARIUM.md) and, for the Myzel types, in the module docs of `myzel_core` (`packages/myzel/src`).
+
+Nodes the app and the runtime bring along have ids under `__internal/`: the group node `__internal/group/instance`, the group's input and output nodes `__internal/group/input` and `__internal/group/output`, and the debug node `__internal/node/debug`.
