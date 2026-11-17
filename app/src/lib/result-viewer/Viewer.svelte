@@ -104,7 +104,10 @@
       faces: totalFaces,
       bounds: bounds.isEmpty()
         ? undefined
-        : { min: bounds.min.toArray(), max: bounds.max.toArray() }
+        : {
+          min: bounds.min.toArray() as [number, number, number],
+          max: bounds.max.toArray() as [number, number, number]
+        }
     };
   };
 </script>
