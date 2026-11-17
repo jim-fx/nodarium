@@ -51,8 +51,7 @@ export async function executeGraph(
   try {
     await nodeRegistry.load(graph.nodes.map((n) => n.type));
     performanceStore.startRun();
-    const run = await executor.run(graph, settings);
-    performanceStore.stopRun();
+    const run = await executor.run(graph, settings).finally(() => performanceStore.stopRun());
     const execution: WorkerExecution = {
       ok: true,
       ...run,

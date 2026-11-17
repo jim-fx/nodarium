@@ -118,6 +118,20 @@ describe('the answer of the runtime worker', () => {
     expect(answer).toMatchObject({ ok: false, error: { nodeId: 1, nodeType: nodes.leaf.id } });
   });
 
+  it('reports only its own time and points after a failed run', async () => {
+    vi.useFakeTimers({ toFake: ['performance'] });
+    try {
+      await answerOf(graphOf(nodes.leaf.id));
+      vi.advanceTimersByTime(300);
+      const execution = unwrapExecution(await answerOf(graphOf(nodes.stem.id)));
+
+      expect(execution.performance?.total).toEqual([0]);
+      expect(execution.performance?.['collect-metadata']).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('answers a graph that can not run with the reason', async () => {
     const answer = await answerOf({
       id: 0,
