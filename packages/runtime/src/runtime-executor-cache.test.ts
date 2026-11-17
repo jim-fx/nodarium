@@ -587,19 +587,25 @@ describe('runtime cache size', () => {
   });
 
   it('keeps the results of new seeds to twice those of one run', async () => {
-    const cache = new MemoryRuntimeCache();
-    const executor = new MemoryRuntimeExecutor(registry, cache);
+    // a run that measures slower than the others would outlive the seed before the last one
+    vi.useFakeTimers({ toFake: ['performance'] });
+    try {
+      const cache = new MemoryRuntimeCache();
+      const executor = new MemoryRuntimeExecutor(registry, cache);
 
-    for (let seed = 0; seed < 5; seed++) {
-      await executor.execute(singleNodeGraph(bigSeeded.id), { seed });
-      expect(cache.bytes).toBeLessThanOrEqual(2 * BIG_BYTES);
+      for (let seed = 0; seed < 5; seed++) {
+        await executor.execute(singleNodeGraph(bigSeeded.id), { seed });
+        expect(cache.bytes).toBeLessThanOrEqual(2 * BIG_BYTES);
+      }
+      expect(cache.maxBytes).toBe(2 * BIG_BYTES);
+
+      // the seed before the last one is still cached, so going back runs nothing
+      calls = {};
+      await executor.execute(singleNodeGraph(bigSeeded.id), { seed: 3 });
+      expect(calls[bigSeeded.id]).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
     }
-    expect(cache.maxBytes).toBe(2 * BIG_BYTES);
-
-    // the seed before the last one is still cached, so going back runs nothing
-    calls = {};
-    await executor.execute(singleNodeGraph(bigSeeded.id), { seed: 3 });
-    expect(calls[bigSeeded.id]).toBeUndefined();
   });
 
   it('keeps every result of a bigger graph than the last one', async () => {
