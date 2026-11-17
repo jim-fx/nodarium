@@ -70,7 +70,7 @@ describe.skipIf(import.meta.env.SSR)('the settings of the active node', () => {
     const { show, rest, steps, props } = await setup();
     const view = await show();
 
-    const depth = view.container.querySelector<HTMLInputElement>('input[type="number"]');
+    const depth = view.container.querySelector<HTMLInputElement>('input[inputmode="decimal"]');
     assert.isNotNull(depth);
     depth.value = '4';
     depth.dispatchEvent(new Event('change', { bubbles: true }));
@@ -83,7 +83,7 @@ describe.skipIf(import.meta.env.SSR)('the settings of the active node', () => {
   it('let undo get past the change while the node stays selected', async () => {
     const { manager, show, rest, steps, props } = await setup();
     const view = await show();
-    const depth = view.container.querySelector<HTMLInputElement>('input[type="number"]');
+    const depth = view.container.querySelector<HTMLInputElement>('input[inputmode="decimal"]');
     assert.isNotNull(depth);
     depth.value = '4';
     depth.dispatchEvent(new Event('change', { bubbles: true }));

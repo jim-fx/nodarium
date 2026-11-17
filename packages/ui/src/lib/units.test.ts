@@ -25,4 +25,13 @@ describe('units', () => {
     expect(parseLength('2,5', 'cm')).toBeCloseTo(0.025);
     expect(parseLength('abc', 'm')).toBeUndefined();
   });
+
+  it('calculates with typed lengths', () => {
+    expect(parseLength('10cm + 5mm', 'm')).toBeCloseTo(0.105);
+    expect(parseLength('10cm + 5', 'mm')).toBeCloseTo(0.105);
+    expect(parseLength('10cm * 2', 'm')).toBeCloseTo(0.2);
+    expect(parseLength('1m / 4', 'cm')).toBeCloseTo(0.25);
+    expect(parseLength('2 * 3', 'cm')).toBeCloseTo(0.06);
+    expect(parseLength('pi', 'cm')).toBeCloseTo(Math.PI / 100);
+  });
 });
