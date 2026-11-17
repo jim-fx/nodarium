@@ -88,6 +88,26 @@ test('#graph= opens the graph of the link once, a second visit opens the same pr
   expect(await countProjects(page)).toBe(projects + 1);
 });
 
+test('#graph= opens in a tab that has the app open, where only the fragment changes', async ({ page }) => {
+  const before = await open(page, `${APP}?tutorial=0`);
+  await page.goto(`${APP}#graph=${await encodeGraph(plant)}`);
+  await page.waitForFunction(
+    () => window.nodarium!.graph.get().meta?.title === 'Linked plant',
+    null,
+    { polling: 100 }
+  );
+  const opened = await page.evaluate(async () => {
+    await window.nodarium!.idle();
+    return {
+      id: window.nodarium!.graph.get().id,
+      ok: window.nodarium!.lastResult()?.ok,
+      address: location.pathname + location.search + location.hash
+    };
+  });
+  expect(opened).toMatchObject({ ok: true, address: '/' });
+  expect(opened.id).not.toBe(before.id);
+});
+
 test('a broken link says why and opens the app as it was', async ({ page }) => {
   const before = await open(page, `${APP}?tutorial=0`);
   const projects = await countProjects(page);

@@ -83,12 +83,24 @@
   memoryRuntime.perf = performanceStore;
   const pm = new ProjectManager(nodeRegistry, (pm) => openUrlProject(pm, urlOptions));
 
-  onMount(() => {
+  function removeUrlOptions() {
     const clean = withoutUrlOptions(new URL(location.href));
     if (clean !== undefined) {
       const path = resolve(`/${clean}`);
       void goto(path, { replace: true, shallow: true, state: page.state });
     }
+  }
+
+  // a link pasted into a tab that has the app open only changes the fragment, the page stays
+  function handleHashChange() {
+    const { graph } = readUrlOptions(new URL(location.href));
+    if (graph === undefined) return;
+    removeUrlOptions();
+    void openUrlProject(pm, { tutorial: true, graph });
+  }
+
+  onMount(() => {
+    removeUrlOptions();
     const panel = urlOptions.panel && panelState.panels[urlOptions.panel];
     if (panel && !panel.hidden) panelState.setActivePanel(urlOptions.panel!);
   });
@@ -453,7 +465,7 @@
 </script>
 
 <svelte:document onkeydown={applicationKeymap.handleKeyboardEvent} />
-<svelte:window onbeforeunload={handleBeforeUnload} />
+<svelte:window onbeforeunload={handleBeforeUnload} onhashchange={handleHashChange} />
 
 <Planty
   bind:this={planty}
