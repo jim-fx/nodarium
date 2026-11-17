@@ -1,4 +1,5 @@
 import type { Graph, SerializedEdge, SerializedNode } from '@nodarium/types';
+import { offsetPosition } from '../place-nodes';
 import {
   type InputSocket,
   removeInputs,
@@ -56,14 +57,13 @@ function replace(
   const varied = variationWired || variation > 0;
   if (!twisted && !varied) return undefined;
 
-  const [x, y] = old.position;
   let step = 0;
   const add = (type: string, nodeProps: NonNullable<SerializedNode['props']>) => {
     const id = nextId();
     nodes.push({
       id,
       type: type as SerializedNode['type'],
-      position: [x + STEP * ++step, y],
+      position: offsetPosition(old.position, STEP * ++step, 0),
       props: nodeProps
     });
     return id;

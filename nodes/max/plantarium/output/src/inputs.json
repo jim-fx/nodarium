@@ -1,9 +1,13 @@
 {
   "id": "max/plantarium/output",
+  "meta": {
+    "description": "The end of a plant graph: every path becomes a tube of its thickness, geometry and instances show as they are."
+  },
   "outputs": [],
   "inputs": {
     "input": {
       "type": "path",
+      "description": "The plant: paths, geometry and instances, for example from a join.",
       "accepts": [
         "geometry"
       ],
@@ -11,6 +15,7 @@
     },
     "resolution_circle": {
       "type": "integer",
+      "description": "How many segments a path has around, from the setting resolution.circle.",
       "value": 32,
       "min": 3,
       "max": 64,

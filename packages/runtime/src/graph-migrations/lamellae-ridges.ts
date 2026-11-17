@@ -1,4 +1,5 @@
 import type { Graph, SerializedEdge, SerializedNode } from '@nodarium/types';
+import { offsetPosition } from '../place-nodes';
 import {
   type InputSocket,
   type ReplaceContext,
@@ -83,7 +84,7 @@ function replace(
     delete kept.depth;
     const curve: SerializedNode = {
       id: nextId(),
-      position: [old.position[0] + OFFSET[0], old.position[1] + OFFSET[1]],
+      position: offsetPosition(old.position, OFFSET[0], OFFSET[1]),
       type: CURVE as SerializedNode['type'],
       props: wired.has('depth')
         ? { curve: shape, min: 0 }

@@ -1,21 +1,27 @@
 {
   "id": "max/plantarium/vec3",
+  "meta": {
+    "description": "A vector of three numbers, like the origin of stem. Each part can come from another node, like random or math."
+  },
   "outputs": [
     "vec3"
   ],
   "inputs": {
     "x": {
       "type": "float",
+      "description": "The x of the vector.",
       "value": 0,
       "label": ""
     },
     "y": {
       "type": "float",
+      "description": "The y of the vector, y is up.",
       "value": 0,
       "label": ""
     },
     "z": {
       "type": "float",
+      "description": "The z of the vector.",
       "value": 0,
       "label": ""
     }

@@ -48,3 +48,42 @@ test('an imported graph with mistakes names them and opens', async ({ page }) =>
     await expect(page.getByText(message, { exact: true }).last()).toBeVisible();
   }
 });
+
+// written by hand: no positions, the editor places the nodes in columns
+const unplaced = {
+  version: 13,
+  nodes: [
+    { id: 1, type: 'max/plantarium/stem', props: { length: 0.5 } },
+    { id: 2, type: 'max/plantarium/noise' },
+    { id: 3, type: 'max/plantarium/output' }
+  ],
+  edges: [[1, 0, 2, 'plant'], [2, 0, 3, 'input']]
+};
+
+test('an imported graph without positions shows its nodes left to right', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('planty:nodarium-tutorial:seen', 'e2e');
+  });
+  await page.goto('http://localhost:4173', { waitUntil: 'load' });
+
+  await page.getByRole('button', { name: 'File', exact: true }).click();
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('menuitem', { name: /^Import \.json/ }).click();
+  await (await chooser).setFiles({
+    name: 'unplaced.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(unplaced))
+  });
+
+  const node = (id: number) => page.locator(`div.wrapper[data-node-id="${id}"]`);
+  // the camera glides to the placed nodes
+  const leftToRight = async () => {
+    const boxes = await Promise.all([1, 2, 3].map((id) => node(id).boundingBox()));
+    return boxes.map((box) => box?.x ?? NaN);
+  };
+  await expect.poll(async () => {
+    const [stem, noise, output] = await leftToRight();
+    return stem < noise && noise < output;
+  }).toBe(true);
+  for (const id of [1, 2, 3]) await expect(node(id)).toBeVisible();
+});

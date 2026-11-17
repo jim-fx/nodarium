@@ -8,7 +8,8 @@
   ],
   "inputs": {
     "path": {
-      "type": "path"
+      "type": "path",
+      "description": "The paths to snap. Those of the layer depth, counted from the deepest, can break off, the others are passed on as they are."
     },
     "probability": {
       "type": "float",

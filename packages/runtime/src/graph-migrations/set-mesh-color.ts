@@ -1,4 +1,5 @@
 import type { Graph, SerializedEdge, SerializedNode } from '@nodarium/types';
+import { offsetPosition } from '../place-nodes';
 import { idAllocator, removeInputs, renameInputs, type Scope, scopes } from './helpers';
 
 const SET_COLOR = 'max/myzel/set_color';
@@ -42,7 +43,7 @@ function splitSetColor(scope: Scope, node: SerializedNode, nextId: () => number)
   const mesh: SerializedNode = {
     id: nextId(),
     type: SET_MESH_COLOR as SerializedNode['type'],
-    position: [node.position[0] + STEP, node.position[1]],
+    position: offsetPosition(node.position, STEP, 0),
     props: node.props?.color === undefined ? {} : { color: structuredClone(node.props.color) }
   };
   const exposed = node.exposed?.filter((input) => input === 'color' || input === 'mesh');

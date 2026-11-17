@@ -1,11 +1,15 @@
 {
   "id": "max/plantarium/instance",
+  "meta": {
+    "description": "Places copies of a geometry, like a leaf, along every path: they stick out sideways, turn around the path from one to the next and face up. Gives the paths with the instances after them."
+  },
   "outputs": [
     "path"
   ],
   "inputs": {
     "plant": {
-      "type": "path"
+      "type": "path",
+      "description": "The paths to place the instances on, only those of the deepest depth levels (the last level by default) get some. The paths are passed on with the instances after them."
     },
     "geometry": {
       "type": "geometry",
@@ -14,7 +18,8 @@
       "value": [0, 0, 0]
     },
     "amount": {
-      "type": "integer"
+      "type": "integer",
+      "description": "How many instances every path gets, spread evenly from lowest_instance to highest_instance along it, by default from halfway to the tip."
     },
     "lowest_instance": {
       "type": "float",
@@ -46,6 +51,7 @@
     },
     "size": {
       "type": "float",
+      "description": "The scale of every instance, times the thickness of the path where it sits plus 1 cm, so the instances get smaller toward a thin tip. Read for every instance, alpha is where it sits on the path.",
       "min": 0,
       "step": 0.05,
       "value": 1

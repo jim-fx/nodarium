@@ -1,4 +1,5 @@
 import type { SerializedEdge, SerializedNode } from '@nodarium/types';
+import { offsetPosition } from '../place-nodes';
 import type { InputSocket, ReplaceContext, Replacement } from './helpers';
 
 export const STRANDS = 'max/myzel/strands';
@@ -45,9 +46,8 @@ export function strandsThickness(
 
   const thickness = Number(props.thickness ?? OLD_THICKNESS);
   const thicknessWired = wired.has('thickness');
-  const [x, y] = old.position;
   let step = 0;
-  const place = (): [number, number] => [x - STEP * ++step, y + STEP];
+  const place = () => offsetPosition(old.position, -STEP * ++step, STEP);
 
   const strands: SerializedNode = {
     ...old,

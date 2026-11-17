@@ -53,6 +53,9 @@
 
   manager.on('save', (save) => onsave?.(save));
 
+  // after the camera of the graph is restored, which puts it where saved graphs have their nodes
+  manager.on('placed', () => setTimeout(() => state.centerNode()));
+
   onMount(() => {
     if (graph) {
       manager.load(graph);

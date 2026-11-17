@@ -15,6 +15,7 @@
     },
     "resolution_field": {
       "type": "integer",
+      "description": "How many cells the surface is built from along the longest side of the body, from the setting resolution.field. More is finer and slower.",
       "value": 64,
       "min": 16,
       "max": 256,

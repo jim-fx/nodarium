@@ -1,4 +1,4 @@
-import { debugNode, expandGroups } from '@nodarium/runtime';
+import { CURRENT_GRAPH_VERSION, debugNode, expandGroups } from '@nodarium/runtime';
 import type { Graph, NodeDefinition, NodeId, NodeInstance } from '@nodarium/types';
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GraphManager } from './graph-manager.svelte';
@@ -1179,6 +1179,72 @@ describe('loading the node types', () => {
     expect(collections).toEqual(['test/node']);
     expect(load).not.toHaveBeenCalled();
     expect(manager.status).not.toBe('error');
+  });
+});
+
+describe('loading a graph without positions', () => {
+  // input → output → output written by hand, only the last with a position, and a group
+  const graph = {
+    id: 0,
+    version: CURRENT_GRAPH_VERSION,
+    nodes: [
+      { id: 1, type: 'test/node/input' },
+      { id: 2, type: 'test/node/output' },
+      { id: 3, type: 'test/node/output', position: [40, 10] }
+    ],
+    edges: [[1, 0, 2, 'input'], [2, 0, 3, 'input']],
+    groups: [{
+      id: 7,
+      nodes: [{ id: 1, type: 'test/node/input' }, { id: 2, type: 'test/node/output' }],
+      edges: [[1, 0, 2, 'input']]
+    }]
+  } as Graph;
+
+  async function load(graph: Graph) {
+    const manager = new GraphManager(
+      createMockNodeRegistry([mockFloatOutputNode, mockFloatInputNode])
+    );
+    await manager.load(structuredClone(graph));
+    return manager;
+  }
+
+  it('places a node left of the nodes it feeds, one column per step', async () => {
+    const manager = await load(graph);
+    const [input, middle, output] = [1, 2, 3].map((id) => manager.getNode(id)!.position);
+    expect(output).toEqual([40, 10]);
+    expect(middle).toEqual([10, 10]);
+    expect(input).toEqual([-20, 10]);
+    expect(manager.serialize().nodes.map((node) => node.position)).toEqual([
+      [-20, 10],
+      [10, 10],
+      [40, 10]
+    ]);
+  });
+
+  it('places the nodes of its groups', async () => {
+    const manager = await load(graph);
+    const nodes = manager.serialize().groups[0].nodes;
+    expect(nodes.map((node) => node.position)).toEqual([[-30, 0], [0, 0]]);
+  });
+
+  it('tells that it placed nodes, so the camera can find them', async () => {
+    const placedGraphs: Graph[] = [];
+    const manager = new GraphManager(
+      createMockNodeRegistry([mockFloatOutputNode, mockFloatInputNode])
+    );
+    manager.on('placed', (placed) => placedGraphs.push(placed));
+    await manager.load(structuredClone(graph));
+    await manager.load(manager.serialize());
+    expect(placedGraphs).toHaveLength(1);
+  });
+
+  it('keeps the positions of a graph that has them', async () => {
+    const placed = structuredClone(graph);
+    placed.nodes.forEach((node, i) => (node.position = [i * 3, i * 5]));
+    placed.groups[0].nodes.forEach((node, i) => (node.position = [i * 7, 1]));
+    const serialized = (await load(placed)).serialize();
+    expect(serialized.nodes.map((node) => node.position)).toEqual([[0, 0], [3, 5], [6, 10]]);
+    expect(serialized.groups[0].nodes.map((node) => node.position)).toEqual([[0, 1], [7, 1]]);
   });
 });
 

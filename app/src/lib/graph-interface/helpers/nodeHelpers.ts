@@ -36,6 +36,11 @@ export function getParameterHeight(node: NodeDefinition, inputKey: string) {
   return 50;
 }
 
+/** Where a node sits. The editor places every node when it loads a graph, see placeNodes */
+export function positionOf(node: SerializedNode): [number, number] {
+  return node.position ?? [0, 0];
+}
+
 export function serializeNode(node: SerializedNode): SerializedNode {
   const serialized: SerializedNode = {
     id: node.id,

@@ -9,10 +9,12 @@
   "inputs": {
     "min": {
       "type": "integer",
+      "description": "The smallest number it gives.",
       "value": 1
     },
     "max": {
       "type": "integer",
+      "description": "The largest number it gives.",
       "value": 5
     },
     "seed": {

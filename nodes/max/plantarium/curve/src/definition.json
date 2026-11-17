@@ -9,6 +9,7 @@
   "inputs": {
     "curve": {
       "type": "curve",
+      "description": "The curve drawn on the node: points from 0 to 1 in x and y, sorted by x. Between them it is a smooth curve that never overshoots a point.",
       "internal": true,
       "label": "",
       "value": [
@@ -20,6 +21,7 @@
     },
     "value": {
       "type": "float",
+      "description": "Where the curve is read, from 0 to 1. Unconnected it reads alpha: where along the path, the leaf or the list of paths the input it goes into is read.",
       "external": true,
       "value": 0
     },

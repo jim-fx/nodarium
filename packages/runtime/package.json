@@ -12,6 +12,9 @@
   },
   "publishConfig": {
     "registry": "https://git.max-richter.dev/api/packages/max/npm/",
+    "bin": {
+      "nodarium": "./dist/cli.js"
+    },
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",

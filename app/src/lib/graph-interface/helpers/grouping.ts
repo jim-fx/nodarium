@@ -8,7 +8,7 @@ import {
 } from '@nodarium/types';
 import type { GroupDefinition, NodeInput, SerializedEdge, SerializedNode } from '@nodarium/types';
 import { toPlain } from './index.ts';
-import { serializeNode } from './nodeHelpers';
+import { positionOf, serializeNode } from './nodeHelpers';
 
 type Level = { nodes: SerializedNode[]; edges: SerializedEdge[] };
 
@@ -86,8 +86,8 @@ export function groupSelection(
     };
   });
 
-  const xs = nodes.map((n) => n.position[0]);
-  const ys = nodes.map((n) => n.position[1]);
+  const xs = nodes.map((n) => positionOf(n)[0]);
+  const ys = nodes.map((n) => positionOf(n)[1]);
   const middleY = (Math.min(...ys) + Math.max(...ys)) / 2;
 
   const groupInput: SerializedNode = {
@@ -164,15 +164,16 @@ export function ungroupInstance(
   const groupOutputId = group.nodes.find((n) => n.type === GROUP_OUTPUT)?.id;
 
   // The nodes keep their layout, their centre is where the instance was
-  const offsetX = inner.length ? instance.position[0] - mean(inner.map((n) => n.position[0])) : 0;
-  const offsetY = inner.length ? instance.position[1] - mean(inner.map((n) => n.position[1])) : 0;
+  const [x, y] = positionOf(instance);
+  const offsetX = inner.length ? x - mean(inner.map((n) => positionOf(n)[0])) : 0;
+  const offsetY = inner.length ? y - mean(inner.map((n) => positionOf(n)[1])) : 0;
 
   // A copy of everything a node carries, the group and its other instances keep their own
   const nodes = new Map(inner.map((n): [number, SerializedNode] => [n.id, {
     props: {},
     ...serializeNode(n),
     id: newIds.get(n.id)!,
-    position: [n.position[0] + offsetX, n.position[1] + offsetY]
+    position: [positionOf(n)[0] + offsetX, positionOf(n)[1] + offsetY]
   }]));
 
   const incoming = level.edges.filter((e) => e[2] === instance.id);

@@ -19,7 +19,7 @@ function legacySerialize(manager: GraphManager): Graph {
   const serializeNode = (node: SerializedNode | NodeInstance) => {
     return {
       id: node.id,
-      position: [...node.position],
+      position: [...node.position!],
       type: node.type,
       props: node.props ? JSON.parse(JSON.stringify(node.props)) : undefined,
       ...(node.exposed?.length ? { exposed: [...node.exposed] } : {}),

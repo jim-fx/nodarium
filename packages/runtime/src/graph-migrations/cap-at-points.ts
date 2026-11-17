@@ -1,4 +1,5 @@
 import type { Graph, GroupDefinition, SerializedEdge, SerializedNode } from '@nodarium/types';
+import { offsetPosition } from '../place-nodes';
 import { idAllocator, removeInputs, type Scope, scopes } from './helpers';
 
 const CAP = 'max/myzel/cap';
@@ -77,8 +78,8 @@ function lastEdgeInto(scope: Scope, node: number, input: string) {
   return scope.edges.filter((e) => e[2] === node && e[3] === input).at(-1);
 }
 
-function place(node: SerializedNode, offset: number[]): [number, number] {
-  return [node.position[0] + offset[0], node.position[1] + offset[1]];
+function place(node: SerializedNode, offset: number[]) {
+  return offsetPosition(node.position, offset[0], offset[1]);
 }
 
 function growAtPoints(

@@ -28,8 +28,10 @@ export type NodeRuntimeState = {
   isMoving?: boolean;
 };
 
+/** A node of the editor, which places every node before it shows it */
 export type NodeInstance = {
   state: NodeRuntimeState;
+  position: [number, number];
 } & SerializedNode;
 
 /**
@@ -82,7 +84,8 @@ export const NodeSchema = z.object({
       lastModified: z.string().optional()
     })
     .optional(),
-  position: z.tuple([z.number(), z.number()])
+  // where the node sits in the editor, a node without one is placed when the graph is loaded
+  position: z.tuple([z.number(), z.number()]).optional()
 });
 
 export type SerializedNode = z.infer<typeof NodeSchema>;

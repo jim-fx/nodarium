@@ -1,4 +1,5 @@
 import type { Graph, SerializedNode } from '@nodarium/types';
+import { offsetPosition } from '../place-nodes';
 import { idAllocator, removeInputs, renameInputs, type Scope, scopes } from './helpers';
 
 const OUTPUT = 'max/myzel/output';
@@ -68,10 +69,10 @@ function meshPaths(scope: Scope, output: SerializedNode, nextId: () => number) {
   const mesh: SerializedNode = {
     id: nextId(),
     type: HYPHAE_TO_MESH as SerializedNode['type'],
-    position: [output.position[0], output.position[1]],
+    position: offsetPosition(output.position, 0, 0),
     props: typeof blend === 'number' && blend !== DEFAULT_BLEND ? { blend } : {}
   };
-  output.position = [output.position[0] + STEP, output.position[1]];
+  output.position = offsetPosition(output.position, STEP, 0);
   scope.nodes.push(mesh);
   scope.edges = scope.edges.map((e) => (paths.includes(e) ? [e[0], e[1], mesh.id, 'paths'] : e));
   scope.edges.push([mesh.id, 0, output.id, 'field']);

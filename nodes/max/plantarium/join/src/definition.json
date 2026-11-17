@@ -9,18 +9,22 @@
   "inputs": {
     "a": {
       "type": "path",
+      "description": "Paths, geometry or instances, they come first in the list.",
       "accepts": ["geometry"]
     },
     "b": {
       "type": "path",
+      "description": "More paths, geometry or instances, after those of a.",
       "accepts": ["geometry"]
     },
     "c": {
       "type": "path",
+      "description": "More paths, geometry or instances, after those of b.",
       "accepts": ["geometry"]
     },
     "d": {
       "type": "path",
+      "description": "More paths, geometry or instances, after those of c.",
       "accepts": ["geometry"]
     }
   }

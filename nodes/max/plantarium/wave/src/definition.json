@@ -21,6 +21,7 @@
     },
     "value": {
       "type": "float",
+      "description": "Where the profile is read, from 0 to 1, the profile repeats count times on the way. Unconnected it reads alpha.",
       "external": true,
       "value": 0
     },
