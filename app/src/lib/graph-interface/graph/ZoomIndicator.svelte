@@ -17,7 +17,7 @@
   >
     ⊡
   </button>
-  <span>{Math.round(graphState.cameraPosition[2] * 10)}%</span>
+  <span>{Math.round(graphState.camera.position[2] * 10)}%</span>
 </div>
 
 <style>

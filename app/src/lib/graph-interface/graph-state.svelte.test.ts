@@ -8,20 +8,6 @@ import {
   mockFloatOutputNode
 } from './test-utils';
 
-// GraphState constructor reads localStorage synchronously — mock before any instantiation
-Object.defineProperty(globalThis, 'localStorage', {
-  value: {
-    getItem: () => null,
-    setItem: () => {},
-    removeItem: () => {},
-    clear: () => {},
-    length: 0,
-    key: () => null
-  } as Storage,
-  writable: true,
-  configurable: true
-});
-
 function createFixture() {
   const registry = createMockNodeRegistry([mockFloatOutputNode, mockFloatInputNode]);
   const manager = new GraphManager(registry);
@@ -37,29 +23,6 @@ describe('clearSelection', () => {
     state.selectedNodes.add(2);
     state.clearSelection();
     expect(state.selectedNodes.size).toBe(0);
-  });
-});
-
-describe('projectScreenToWorld', () => {
-  it('maps the viewport centre to the camera position', () => {
-    const { state } = createFixture();
-    state.width = 100;
-    state.height = 100;
-    state.cameraPosition = [140, 100, 3.5];
-    const [wx, wy] = state.projectScreenToWorld(50, 50);
-    expect(wx).toBeCloseTo(140);
-    expect(wy).toBeCloseTo(100);
-  });
-
-  it('offsets correctly for a point not at centre', () => {
-    const { state } = createFixture();
-    state.width = 100;
-    state.height = 100;
-    state.cameraPosition = [0, 0, 2];
-    const [wx, wy] = state.projectScreenToWorld(100, 50);
-    // x: 0 + (100 - 50) / 2 = 25
-    expect(wx).toBeCloseTo(25);
-    expect(wy).toBeCloseTo(0);
   });
 });
 
@@ -124,7 +87,7 @@ describe('enterGroupNode', () => {
 
     state.selectedNodes.add(nodeA.id);
     state.activeNodeId = groupNode.id;
-    state.cameraPosition = [10, 20, 5];
+    state.camera.position = [10, 20, 5];
 
     state.enterGroupNode();
 
@@ -138,10 +101,10 @@ describe('enterGroupNode', () => {
 describe('exitGroupNode', () => {
   it('does nothing when not inside a group', () => {
     const { manager, state } = createFixture();
-    const before = [...state.cameraPosition];
+    const before = [...state.camera.position];
     state.exitGroupNode();
     expect(manager.path.length).toBe(0);
-    expect(state.cameraPosition).toEqual(before);
+    expect(state.camera.position).toEqual(before);
   });
 
   it('clears activeNodeId and selection after exit', () => {

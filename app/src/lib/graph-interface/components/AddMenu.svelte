@@ -95,12 +95,12 @@
   function clampAddMenuPosition() {
     if (!graphState.addMenuPosition) return;
 
-    const camX = graphState.cameraPosition[0];
-    const camY = graphState.cameraPosition[1];
-    const zoom = graphState.cameraPosition[2];
+    const camX = graphState.camera.position[0];
+    const camY = graphState.camera.position[1];
+    const zoom = graphState.camera.position[2];
 
-    const halfViewportWidth = (graphState.width / 2) / zoom;
-    const halfViewportHeight = (graphState.height / 2) / zoom;
+    const halfViewportWidth = (graphState.camera.width / 2) / zoom;
+    const halfViewportHeight = (graphState.camera.height / 2) / zoom;
 
     const halfMenuWidth = (MENU_WIDTH / 2) / zoom;
     const halfMenuHeight = (MENU_HEIGHT / 2) / zoom;
@@ -126,9 +126,9 @@
 
   $effect(() => {
     const pos = graphState.addMenuPosition;
-    const zoom = graphState.cameraPosition[2];
-    const width = graphState.width;
-    const height = graphState.height;
+    const zoom = graphState.camera.position[2];
+    const width = graphState.camera.width;
+    const height = graphState.camera.height;
 
     if (pos && zoom && width && height) {
       clampAddMenuPosition();

@@ -58,11 +58,11 @@
   });
 
   $effect(() => {
-    if (id) graphState.setEdgeGeometry(id, x1, y1, points);
+    if (id) graphState.edgeGeometry.set(id, { x1, y1, points });
   });
 
   onDestroy(() => {
-    if (id) graphState.removeEdgeGeometry(id);
+    if (id) graphState.edgeGeometry.delete(id);
   });
 </script>
 

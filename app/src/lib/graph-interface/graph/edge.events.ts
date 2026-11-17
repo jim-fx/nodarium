@@ -16,19 +16,10 @@ export class EdgeInteractionManager {
   handleMouseDown() {
     this._boundingBoxes.clear();
 
-    const possibleEdges = this.graph
-      .getPossibleDropOnEdges(this.state.activeNodeId)
-      .map(e => this.graph.getEdgeId(e));
-
-    const edges = this.state.getEdges();
-    for (const edge of edges) {
-      const edgeId = edge[0];
-      if (!possibleEdges.includes(edgeId)) {
-        edges.delete(edgeId);
-      }
-    }
-
-    for (const [edgeId, data] of edges) {
+    for (const edge of this.graph.getPossibleDropOnEdges(this.state.activeNodeId)) {
+      const edgeId = this.graph.getEdgeId(edge);
+      const data = this.state.edgeGeometry.get(edgeId);
+      if (!data) continue;
       const points = data.points;
       let minX = points[0].x + data.x1;
       let maxX = points[0].x + data.x1;
@@ -59,8 +50,6 @@ export class EdgeInteractionManager {
     const [mouseX, mouseY] = this.state.mousePosition;
     const hoveredEdgeIds: string[] = [];
 
-    const edges = this.state.getEdges();
-
     for (const [edgeId, box] of this._boundingBoxes) {
       const isInside = mouseX >= box.minX
         && mouseX <= box.maxX
@@ -77,7 +66,8 @@ export class EdgeInteractionManager {
 
     const DENSITY = 10; // higher DENSITY = less points checked (yes density might not be the best name :-)
     for (const edgeId of hoveredEdgeIds) {
-      const edge = edges.get(edgeId)!;
+      const edge = this.state.edgeGeometry.get(edgeId);
+      if (!edge) continue;
       for (let i = 0; i < edge.points.length - DENSITY; i += DENSITY) {
         const pointAx = edge.points[i].x + edge.x1;
         const pointAy = edge.points[i].z + edge.y1;

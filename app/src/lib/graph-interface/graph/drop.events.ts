@@ -35,7 +35,7 @@ export class FileDropEventManager {
         }
       }
 
-      const pos = this.state.projectScreenToWorld(mx, my);
+      const pos = this.state.camera.toWorld(mx, my);
       this.graph.loadDefinitions([nodeId]).then(() => {
         this.graph.createNode({
           type: nodeId,
@@ -59,7 +59,7 @@ export class FileDropEventManager {
             this.graph.createNode({
               type: nodeType.id,
               props: {},
-              position: this.state.projectScreenToWorld(mx, my)
+              position: this.state.camera.toWorld(mx, my)
             });
           }
         };
