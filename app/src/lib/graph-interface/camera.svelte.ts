@@ -32,11 +32,9 @@ export class GraphCamera {
     ];
   }
 
-  /** How many grid steps per 5 graph units a node snaps to, finer when zoomed in */
+  /** How many grid steps per 5 graph units a node snaps to: 2 once the grid of 2.5 units is drawn, 1 before */
   snapLevel() {
     const z = this.position[2];
-    if (z > 66) return 8;
-    if (z > 55) return 4;
     if (z > 11) return 2;
     return 1;
   }
