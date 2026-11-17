@@ -39,11 +39,22 @@ describe('bounds', () => {
 });
 
 describe('snapLevel', () => {
-  it('gets finer at the zoom thresholds', () => {
-    const levels = [1, 11, 11.5, 55, 55.5, 66, 66.5].map((zoom) =>
+  it('is 1 up to zoom 11 and 2 above', () => {
+    const levels = [minZoom, 5, 11, 11.5, 25, maxZoom].map((zoom) =>
       createCamera([0, 0, zoom]).snapLevel()
     );
-    expect(levels).toEqual([1, 1, 2, 2, 4, 4, 8]);
+    expect(levels).toEqual([1, 1, 1, 2, 2, 2]);
+  });
+
+  it('takes every level the camera can zoom to', () => {
+    const camera = createCamera([0, 0, maxZoom]);
+    const levels = new Set<number>();
+    for (let i = 0; i < 200; i++) {
+      levels.add(camera.snapLevel());
+      camera.zoomAt([0, 0], 100);
+    }
+    expect(camera.position[2]).toBe(minZoom);
+    expect([...levels].sort()).toEqual([1, 2]);
   });
 });
 
