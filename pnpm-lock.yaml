@@ -20,6 +20,9 @@ importers:
       dprint:
         specifier: ^0.64.1
         version: 0.64.1
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
 
   app:
     dependencies:

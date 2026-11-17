@@ -7,7 +7,7 @@ Nodarium is a node editor for procedural 3D models that runs in the browser. Eve
 | path                                        | what                                                                                                                                                                  |
 | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `app/`                                      | the app: node editor in `app/src/lib/graph-interface`, viewer in `app/src/lib/result-viewer`, tools in `app/scripts`, bench in `app/benchmark`, e2e test in `app/e2e` |
-| `packages/runtime/`                         | runs graphs, migrates old ones, holds the templates; published as `@nodarium/runtime`                                                                                 |
+| `packages/runtime/`                         | runs graphs, migrates old ones, holds the templates and the `nodarium` command; published as `@nodarium/runtime`                                                      |
 | `packages/types/`, `packages/utils/`        | shared TypeScript types and helpers, and the Rust crates `nodarium_types` and `nodarium_utils`                                                                        |
 | `packages/macros/`                          | the Rust macros every node uses (`nodarium_definition_file!`, `#[nodarium_execute]`)                                                                                  |
 | `packages/myzel/`                           | `myzel_core`, the mesh and path formats of the Myzel nodes                                                                                                            |
@@ -27,7 +27,18 @@ pnpm bootstrap --reuse-nodes   # in a worktree: copies app/static/nodes from the
 
 `pnpm qa` runs `pnpm lint`, `pnpm format:check`, `pnpm check` and `pnpm test:unit`, about 25 s in all. The unit tests alone take about 1 s for the runtime and 6 s for the app. CI (`.gitea/workflows/release.yaml`, on every push and pull request) runs the same steps, then builds the app with `pnpm build` and runs the Playwright test (`pnpm test:e2e`). On every push, `.gitea/workflows/benchmark.yaml` also runs `pnpm -C app bench` (about 45 s on a desktop) and stores the numbers in the repository `max/nodarium-benchmarks`.
 
-To look at a graph without a browser: `pnpm -C app render-graph fern` writes front, side and top views to `screenshots/` in `app/` (templates by name, `templates` for all, or the path of a graph or project file). `pnpm -C app format-graph` lays out the nodes of a template. To measure: `pnpm -C app bench` for whole graphs, `pnpm -C app bench:paths` for the path nodes. Each script explains its flags at the top of its file in `app/scripts`.
+To look at a graph without a browser, use `pnpm nodarium` in the root (`packages/runtime/src/cli.ts`, the `nodarium` command of `@nodarium/runtime`). It takes a template id, the path of a graph or project file, or `-` for stdin, prints JSON with `--json` and exits with 1 on an error:
+
+```bash
+pnpm nodarium nodes                  # every node: its signature and the first sentence of its description
+pnpm nodarium nodes stem noise       # the inputs of these nodes, with their descriptions
+pnpm nodarium check plant.json       # every mistake validateGraph finds, with the fix
+pnpm nodarium run fern --timings     # size and bounds, and the ms and output bytes of every node
+pnpm nodarium render fern            # front, side and top view in screenshots/fern.png
+pnpm nodarium render fern --node 14  # the same of what comes out of node 14
+```
+
+`--set 4.length=0.3` changes an input and `--set resolution.curve=8` a setting for one run, `pnpm -s nodarium run fern --print-graph` prints a template to start a graph from. [docs/GRAPHS.md](docs/GRAPHS.md) explains the file. `pnpm -C app render-graph fern` is `render` that also knows the test graphs of the app (`templates` renders all of them), `pnpm -C app format-graph` lays out the nodes of a template like "Format nodes" of the editor. To measure: `pnpm -C app bench` for whole graphs, `pnpm -C app bench:paths` for the path nodes. Each script explains its flags at the top of its file in `app/scripts`.
 
 ## Rules
 
@@ -38,10 +49,11 @@ To look at a graph without a browser: `pnpm -C app render-graph fern` writes fro
 - Comments only for reasons the code can't show. No comments that restate the code.
 - Nodes have few inputs. Variation and curves come from shaping an input with the random, curve and alpha nodes, not from extra inputs on every node. A generic node comes before a custom one.
 - A link carries exactly its type. No hidden values inside a list of another type (for example a hinge inside a path list).
-- A browser window that is not visible gets no animation frames, so the viewer stays black and looks broken. To check the app in a browser, use a Playwright script as `app/e2e/main.test.ts` does, or `render-graph` above.
+- A browser window that is not visible gets no animation frames, so the viewer stays black and looks broken. To check the app in a browser, use a Playwright script as `app/e2e/main.test.ts` does, or `nodarium render` above.
 
 ## Where the knowledge is
 
+- `docs/GRAPHS.md`: how to write a graph by hand
 - `docs/ARCHITECTURE.md`: nodes, the runtime, migrations, how the app is put together, the key types
 - `docs/ABI.md`: how the runtime and a node's wasm talk to each other
 - `docs/NODE_DEFINITION.md` and `docs/DEVELOPING_NODES.md`: writing a node

@@ -163,6 +163,59 @@ try {
 }
 ```
 
+## The nodarium command
+
+The package has a command line, `nodarium`, to look at the nodes and at a graph without writing code. It needs Node 20 or later and nothing else:
+
+```sh
+npx @nodarium/runtime nodes stem
+npx @nodarium/runtime render my-plant.json --out .
+```
+
+In this repository it is `pnpm nodarium` in the root, with the nodes of `app/static/nodes`. Every command takes a template id (`fern`, `porcini`, ...), the path of a graph or of a `.nodarium.json` project, or `-` for stdin, prints JSON with `--json` and exits with 1 on an error.
+
+| command                       | does                                                                                                       |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `nodes [name...] [--type t]`  | every node with its signature and the first sentence of its description, or the inputs of named nodes      |
+| `check <graph...>`            | the issues of `validateGraph()`, see [Check a graph](#check-a-graph)                                       |
+| `run <graph...>`              | builds the graph, prints vertices, faces, instances and its bounds in meters                               |
+| `render <graph...>`           | front, side and top view in one PNG, `<out>/<name>.png`, and a line with its size                          |
+| `format <graph...> [--check]` | places the nodes without a position in columns, like loading the graph does, and writes them into the file |
+
+`run` and `render` check the graph first: its warnings go to stderr, a graph with an error doesn't run. They take `--seed n` (1 by default), `--time t` for the setting `time.t` and `--set key=value`, any number of times: a key with a dot after a node id sets an input of that node (`--set 4.length=0.3`), any other key a setting (`--set resolution.curve=8`). `run --timings` adds the ms and the output bytes of every node, `run --print-graph` prints the graph with a `version` and a position for every node instead of running it. `render` takes `--out dir` (`./screenshots`), `--size px` (512 per view), `--focus x,z,r` for a close-up, `--below` for a view from below, and `--node id[:output]` to draw what comes out of one node: a debug node behind it in a copy of the graph shows its geometry, its paths as tubes of their thickness and its points as dots. `--nodes dir` reads the nodes from another folder.
+
+`nodarium nodes` writes a node like this, `nodes <name>` adds the description of every input:
+
+```
+max/plantarium/noise (path) -> path
+  Bends paths with smooth noise, more toward the tip. Every segment keeps its length, the same seed gives the same bend.
+  plant: path
+  scale: float = 1 [0.1..10]
+  strength: float = 0.5 [0..1]
+  fix_bottom: float = 1 [0..1] (hidden)
+  seed: seed
+```
+
+In parentheses are the types of the data a node takes, after the arrow what it gives. An input shows its type, its default, its range and a unit, `hidden` ones are set in the templates, `not connectable` ones only on the node, and those with `setting` read a setting of the graph.
+
+The same is in the package: `listNodes()` gives the definitions of all nodes of the package (or of a folder), `formatNode()` and `formatNodeList()` write them as above, and `renderToPng(result, options)` rasterizes a result into a PNG with the size of what it shows, without any dependency but `node:zlib`. All of them are in `@nodarium/runtime/node`.
+
+```ts
+import { createRuntime, listNodes, renderToPng } from '@nodarium/runtime/node';
+import fern from '@nodarium/runtime/templates/fern';
+import { writeFile } from 'node:fs/promises';
+
+const nodes = await listNodes();
+const result = await createRuntime().execute(fern, { ...fern.settings, seed: 1 });
+const rendered = renderToPng(result, { size: 256 }); // null when there is nothing to draw
+if (rendered) await writeFile('fern.png', rendered.png);
+console.log(nodes.length, rendered?.stats.height);
+```
+
+## Graphs without positions
+
+`position` of a node is optional. A graph written by hand or by a program can leave it out, `placeNodes()` places such nodes in columns by their depth, the editor does that when it loads the graph. [docs/GRAPHS.md](https://git.max-richter.dev/max/nodarium/src/branch/main/docs/GRAPHS.md) explains how to write a graph.
+
 ## Node
 
 `@nodarium/runtime/node` reads the nodes from the package, `createRuntime()` needs no arguments:
@@ -273,7 +326,7 @@ The matrices of `instances` fit `InstancedMesh.instanceMatrix` as they are. Thre
 
 - `cache: true` in `createRuntime()` keeps the results of the nodes, so a run with a changed setting or seed only runs the nodes the change reaches. It keeps the results by the time they save per byte: a result over 1 MB that took less than 1 ms per MB to make, like a mesh a node only passes on, is made again instead.
 - A wasm memory never shrinks, so after every run the executor releases the instances of the nodes that left the graph. A process only has room for about 125 wasm memories, so once it holds more than `keepInstances` (40) it releases the biggest ones, those outside the latest graph first. `releaseInstancesOver` releases every instance with more bytes after every run (`Infinity` by default). When runs overlap, the last one to finish releases. A released node instantiates its compiled module again when it runs next. `releaseInstances()` releases all of them, for a graph that is built only once.
-- `run()` takes what `execute()` takes and returns a `RunResult`: the `result`, the `debugData` of the nodes a debug node is connected to and the time every node took in ms, `nodeTimings` for all nodes and `runTimings` for those that ran and were not read from the cache.
+- `run()` takes what `execute()` takes and returns a `RunResult`: the `result`, the `debugData` of the nodes a debug node is connected to and the time every node took in ms, `nodeTimings` for all nodes and `runTimings` for those that ran and were not read from the cache. `outputBytes` are the bytes of the outputs of the nodes that ran, the nodes inside a group under the ids `expandGroups()` gives them.
 - When a node fails, `execute()` throws a `NodeExecutionError`, its `info` names the node, the inputs it was missing and where a Rust panic happened. A runtime with `validate: true` throws a `GraphValidationError` before anything runs, see [Check a graph](#check-a-graph).
 - `MemoryRuntimeExecutor`, `MemoryRuntimeCache` and `WasmNodeRegistry` are the building blocks of `createRuntime()`. Subclass `WasmNodeRegistry` to load the nodes from somewhere else.
 - `migrateGraph()` and `CURRENT_GRAPH_VERSION` migrate graphs that don't come from a project file.

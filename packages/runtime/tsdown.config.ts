@@ -12,14 +12,19 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     node: 'src/node.ts',
+    cli: 'src/cli.ts',
     'templates/index': 'templates/index.ts'
   },
   format: 'esm',
   platform: 'neutral',
   target: 'es2022',
   // types and utils are workspace packages that are not published, their code and types go
-  // into the bundle, zod stays a dependency
-  deps: { alwaysBundle: ['@nodarium/types', '@nodarium/utils'], neverBundle: [/^node:/] },
+  // into the bundle, zod stays a dependency. The command line imports the templates of the
+  // package by its name
+  deps: {
+    alwaysBundle: ['@nodarium/types', '@nodarium/utils'],
+    neverBundle: [/^node:/, /^@nodarium\/runtime\//]
+  },
   // utils only has a main field, which the neutral platform ignores by default
   inputOptions: { resolve: { mainFields: ['module', 'main'] } },
   plugins: [

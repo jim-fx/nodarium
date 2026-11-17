@@ -14,6 +14,7 @@
     "build": "pnpm build:nodes && pnpm build:app",
     "build:app": "pnpm -r --filter 'app'... build",
     "build:nodes": "rm -f target/wasm32-unknown-unknown/release/*.wasm && cargo build --workspace --target wasm32-unknown-unknown --release && sh scripts/copy-node-wasm.sh",
+    "nodarium": "tsx packages/runtime/src/cli.ts --nodes app/static/nodes",
     "dev:nodes": "chokidar './nodes/**' --initial -i '/pkg/' -c 'pnpm build:nodes'",
     "dev:app_ui": "pnpm -r --parallel --filter 'app' --filter './packages/ui' dev",
     "dev_ui": "pnpm -r --filter 'ui' dev:ui",
@@ -22,6 +23,7 @@
   "packageManager": "pnpm@10.28.1+sha512.7d7dbbca9e99447b7c3bf7a73286afaaf6be99251eb9498baefa7d406892f67b879adb3a1d7e687fc4ccc1a388c7175fbaae567a26ab44d1067b54fcb0d6a316",
   "devDependencies": {
     "chokidar-cli": "catalog:",
-    "dprint": "^0.64.1"
+    "dprint": "^0.64.1",
+    "tsx": "^4.23.15"
   }
 }

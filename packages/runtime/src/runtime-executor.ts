@@ -63,6 +63,16 @@ function decideRuns(plan: Plan, cache: CacheRun): Runs {
   return { needed, cached };
 }
 
+function byteLength(values: NodeValue[]) {
+  let bytes = 0;
+  for (const value of values) {
+    bytes += value instanceof Int32Array
+      ? value.byteLength
+      : value.len * 4;
+  }
+  return bytes;
+}
+
 /** The nodes of a group run under ids the editor doesn't know, their group node shows the sum */
 function addGroupTimings(timings: Timings, origins: Map<number, number>) {
   for (const [id, origin] of origins) {
@@ -183,7 +193,12 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     this.instances.resetFor(definitions, run);
     const cache = startCacheRun(this.cache, plan.nodes.length);
     const runs = decideRuns(plan, cache);
-    const { result, debug, nodeTimings, runTimings } = this.runPlan(plan, runs, cache, origins);
+    const { result, debug, nodeTimings, runTimings, outputBytes } = this.runPlan(
+      plan,
+      runs,
+      cache,
+      origins
+    );
 
     // after the result is copied, a preview may run the output node once more
     debug.preview(definitions);
@@ -191,7 +206,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
     addGroupTimings(nodeTimings, origins);
     addGroupTimings(runTimings, origins);
-    this.last = { debugData: debug.data, nodeTimings, runTimings };
+    this.last = { debugData: debug.data, nodeTimings, runTimings, outputBytes };
 
     this.perf?.endPoint('runtime');
     return { result: result as unknown as Int32Array, ...this.last };
@@ -203,6 +218,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     const debug = new DebugCollector();
     const nodeTimings: Timings = {};
     const runTimings: Timings = {};
+    const outputBytes: Record<number, number> = {};
     const previousTimings = this.last?.nodeTimings ?? {};
 
     for (const node of plan.nodes) {
@@ -272,6 +288,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
         nodeTimings[node.id] = b - a;
         runTimings[node.id] = b - a;
+        outputBytes[node.id] = byteLength(results[node.id]);
         this.perf?.addPoint('node/' + definition.id, b - a);
         log.log('Result:', results[node.id]);
         log.groupEnd();
@@ -283,7 +300,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
     const outputResult = results[plan.output.id]?.[0];
     const result = outputResult && readNodeValue(outputResult);
-    return { result, debug, nodeTimings, runTimings };
+    return { result, debug, nodeTimings, runTimings, outputBytes };
   }
 
   getDebugData() {

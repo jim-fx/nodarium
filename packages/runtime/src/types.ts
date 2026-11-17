@@ -23,6 +23,11 @@ export type RunResult = {
   nodeTimings: Record<number, number>;
   /** the same, only of the nodes that ran and were not read from the cache */
   runTimings: Record<number, number>;
+  /**
+   * the bytes of the outputs of the nodes that ran, keyed by the id they ran under: the nodes
+   * inside a group by the ids `expandGroups()` gives them
+   */
+  outputBytes?: Record<number, number>;
 };
 
 type RuntimeState = {
