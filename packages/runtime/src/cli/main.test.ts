@@ -287,6 +287,12 @@ describe('nodarium', () => {
     expect(JSON.parse(await readFile(target, 'utf8')).settings['resolution.curve']).toBe(8);
 
     expect((await run('run', 'fern', 'daisy', '--write', join(dir, 'two.json'))).code).toBe(1);
+
+    const dangling = join(dir, 'dangling.json');
+    await symlink(join(dir, 'missing', 'fern.json'), dangling);
+    const failed = await run('run', 'fern', '--write', dangling, '--overwrite');
+    expect(failed.code).toBe(1);
+    expect(failed.err).toMatch(new RegExp(`^fern: error can't write ${dangling}: ENOENT[^\\n]*$`));
     expect(existsSync(join(dir, 'two.json'))).toBe(false);
   });
 

@@ -349,8 +349,13 @@ class Cli {
       const { name } = prepared;
       if (write !== undefined) {
         const text = stringifyGraph(printedGraph(prepared.graph, this.sets.settings)) + '\n';
-        await mkdir(dirname(write), { recursive: true });
-        await writeFile(write, text, { flag: this.options.overwrite ? 'w' : 'wx' });
+        try {
+          await mkdir(dirname(write), { recursive: true });
+          await writeFile(write, text, { flag: this.options.overwrite ? 'w' : 'wx' });
+        } catch (error) {
+          this.fail(name, `can't write ${this.options.write}: ${(error as Error).message}`);
+          continue;
+        }
         this.print(this.options.json ? { name, file: write } : `${name}: wrote ${write}`);
         continue;
       }
