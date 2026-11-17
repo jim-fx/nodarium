@@ -1,5 +1,7 @@
+import { collectSettings } from '#lib/graph-interface/index.ts';
 import * as templates from '#lib/graph-templates/index.ts';
 import { localState } from '#lib/helpers/localState.svelte.ts';
+import { hashGraph } from '#lib/thumbnails/graph-hash.ts';
 import { ThumbnailService } from '#lib/thumbnails/thumbnail-service.svelte.ts';
 import { type GraphIssue, parseProjectFile } from '@nodarium/runtime';
 import { loadTemplate } from '@nodarium/runtime/templates';
@@ -8,6 +10,7 @@ import FileSaver from 'file-saver';
 import { findImportIssues, reportImportIssues } from './import-issues';
 import * as db from './project-database.svelte';
 import { createProjectFile, previewToBlob } from './project-file';
+import { projectLink } from './project-link';
 
 export class ProjectManager {
   public graph = $state<Graph>();
@@ -40,9 +43,15 @@ export class ProjectManager {
     return this.activeProjectId.value;
   }
 
-  /** @param registry the nodes an imported graph is checked against */
-  constructor(private registry?: NodeRegistry) {
-    this.init();
+  /**
+   * @param registry the nodes an imported graph is checked against
+   * @param open opens a project before the last one is, like the graph of a link, and gives its id
+   */
+  constructor(
+    private registry?: NodeRegistry,
+    open?: (pm: ProjectManager) => Promise<number | undefined>
+  ) {
+    this.init(open);
   }
 
   async saveGraph(g: Graph) {
@@ -54,10 +63,16 @@ export class ProjectManager {
     this.projects = this.projects.map((p) => (p.id === g.id ? g : p));
   }
 
-  private async init() {
+  private async init(open?: (pm: ProjectManager) => Promise<number | undefined>) {
     await db.getDB();
     this.projects = await db.getGraphs();
     this.thumbnails.init(this.projects);
+
+    const opened = await open?.(this);
+    if (opened !== undefined) {
+      await this.handleSelectProject(opened);
+      if (this.graph) return;
+    }
 
     if (this.activeProjectId.value !== undefined) {
       const loadedGraph = await db.getGraph(this.activeProjectId.value);
@@ -156,7 +171,7 @@ export class ProjectManager {
   }
 
   public async handleSelectProject(id: number) {
-    if (this.activeProjectId.value !== id) {
+    if (this.activeProjectId.value !== id || this.graph?.id !== id) {
       this.thumbnails.flush();
       this.#opening++;
       try {
@@ -181,6 +196,13 @@ export class ProjectManager {
     );
   }
 
+  /** The link that opens the project as a new project in this app, see `graphLink()` */
+  public async projectLink(id: number) {
+    const graph = await db.getGraph(id);
+    if (!graph) return;
+    return projectLink(graph, location.origin);
+  }
+
   /**
    * Opens the project of the file as a new project. A graph with issues is opened all the same,
    * they are shown when a registry is given.
@@ -192,13 +214,21 @@ export class ProjectManager {
 
   /**
    * Opens a project file or a bare graph as a new project, as `importProject` does with a file.
-   * The title is `title`, else the one of the graph, else `fallbackTitle`.
+   * The title is `title`, else the one of the graph, else `fallbackTitle`. `settings` change
+   * those of the graph. With `reuse`, a project that has the same graph is opened instead, a
+   * link opened twice makes one project.
    */
   public async importGraph(
     input: unknown,
-    { title, fallbackTitle = 'New Project' }: { title?: string; fallbackTitle?: string } = {}
+    { title, fallbackTitle = 'New Project', settings, reuse = false }: {
+      title?: string;
+      fallbackTitle?: string;
+      settings?: Record<string, unknown>;
+      reuse?: boolean;
+    } = {}
   ): Promise<{ id: number; issues: GraphIssue[] }> {
     const { graph, preview } = parseProjectFile(input);
+    if (settings) graph.settings = { ...graph.settings, ...settings };
     let issues: GraphIssue[] = [];
     if (this.registry) {
       const written = (isProjectFile(input) ? input.graph : input) as Graph;
@@ -207,6 +237,18 @@ export class ProjectManager {
         return [];
       });
       reportImportIssues(written, issues);
+    }
+    if (reuse) {
+      // the editor fills in the settings of the graph, a project it saved has all of them
+      const definitions = [...graph.nodes, ...graph.groups.flatMap((g) => g.nodes)]
+        .flatMap((node) => this.registry?.getNode(node.type) ?? []);
+      graph.settings = collectSettings(definitions, graph.settings).values;
+      const hash = hashGraph(graph, { ignoreKeyOrder: true });
+      const same = this.sortedProjects.find((p) => hashGraph(p, { ignoreKeyOrder: true }) === hash);
+      if (same) {
+        await this.handleSelectProject(same.id);
+        return { id: same.id, issues };
+      }
     }
     const id = this.handleCreateProject(graph, title || graph.meta?.title || fallbackTitle);
     if (preview) {

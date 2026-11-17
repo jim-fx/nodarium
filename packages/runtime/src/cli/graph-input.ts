@@ -4,12 +4,16 @@ import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 // the package itself, so the bundle of the command line reads the templates of dist/templates
 import { loadTemplate, templates, unlistedTemplates } from '@nodarium/runtime/templates';
+import { decodeGraph, graphLinkData } from '../graph-link';
 import { parseProjectFile } from '../project-file';
 import { type GraphIssue, validateGraph } from '../validate-graph';
 
 /** A graph as the command line got it, before it is parsed */
 export type GraphSource = {
-  /** the name of the file without `.json` or `.nodarium.json`, the template id, or `stdin` */
+  /**
+   * the name of the file without `.json` or `.nodarium.json`, the template id, the title of the
+   * graph of a link (`link` without one), or `stdin`
+   */
   name: string;
   /** the file it was read from */
   file?: string;
@@ -31,9 +35,21 @@ function parseJson(text: string, from: string) {
   }
 }
 
-/** A template id, the path of a graph or a project file, or `-` for stdin */
+/** The title of a graph as the name of a file */
+function fileName(title: unknown) {
+  if (typeof title !== 'string') return undefined;
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || undefined;
+}
+
+/** A template id, the path of a graph or a project file, a link of the app, or `-` for stdin */
 export async function readGraphSource(target: string): Promise<GraphSource> {
   if (target === '-') return { name: 'stdin', json: parseJson(await readStdin(), 'stdin') };
+  const data = /^https?:\/\//.test(target) ? graphLinkData(target) : undefined;
+  if (data !== undefined) {
+    const json = await decodeGraph(data);
+    const graph = writtenGraph(json) as { meta?: { title?: unknown } } | undefined;
+    return { name: fileName(graph?.meta?.title) ?? 'link', json };
+  }
   const file = resolve(target);
   if (existsSync(file)) {
     const name = basename(file).replace(/(\.nodarium)?\.json$/, '');

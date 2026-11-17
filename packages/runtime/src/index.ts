@@ -12,6 +12,14 @@ export { debugNode } from './debug-node';
 export * from './errors';
 export { expandGroups } from './expand-groups';
 export {
+  decodeGraph,
+  encodeGraph,
+  GRAPH_LINK_BASE,
+  graphLink,
+  graphLinkData,
+  MAX_GRAPH_LINK_BYTES
+} from './graph-link';
+export {
   CURRENT_GRAPH_VERSION,
   GraphVersionError,
   migrateGraph,

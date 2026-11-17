@@ -37,3 +37,5 @@ Every template is one of three shapes:
 - **A mushroom**: Stipe, Cap and Gills groups, their strands joined into `hyphae_to_mesh`, the meshes into `join_meshes` and `max/myzel/output`. [MYZEL.md](./MYZEL.md) describes the groups, [PLANTARIUM.md](./PLANTARIUM.md) the data of paths, points and instances.
 
 Then the loop: `pnpm nodarium check plant.json` names every mistake with a fix, `pnpm nodarium render plant.json --out screenshots` draws it, `--node 2` draws what comes out of node 2 alone, and `pnpm nodarium run plant.json --set 2.strength=0.6 --timings` tries another value and shows what every node costs.
+
+To look at the graph in the editor, `pnpm nodarium link plant.json` prints a link that opens it in the app as a new project, `--base` points the link at another deployment, like `--base http://localhost:5173` for the dev server. The graph travels in the fragment of the link (`#graph=`), deflated and base64url, it is not sent to the server. A template opens with `/?template=fern`. [AGENT_API.md](./AGENT_API.md) lists the parameters of the address.

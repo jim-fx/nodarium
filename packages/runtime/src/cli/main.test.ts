@@ -172,6 +172,31 @@ describe('nodarium', () => {
     expect(text).toContain('"names": ["a,  b", "[ 1, 2 ]"]');
   });
 
+  it('prints a link of a graph and reads the graph of a link', async () => {
+    const graph = await file('hand.json', handWritten);
+    const { code, out } = await run('link', graph, '--set', 'resolution.curve=8');
+    expect(code).toBe(0);
+    expect(out).toMatch(/^https:\/\/nodes\.max-richter\.dev\/#graph=[\w-]+$/);
+
+    const linked = JSON.parse((await run('run', out, '--print-graph')).out);
+    expect(linked.meta.title).toBe('hand');
+    expect(linked.settings).toEqual({ 'resolution.curve': 8 });
+    expect(linked.nodes.map((n: { props: unknown }) => n.props)).toEqual(
+      handWritten.nodes.map((n) => n.props)
+    );
+    expect((await run('check', out)).out).toBe('hand: no issues');
+
+    const preview = JSON.parse(
+      (await run('link', 'fern', '--base', 'https://main.nodes.max-richter.dev/', '--json')).out
+    );
+    expect(preview.link).toMatch(/^https:\/\/main\.nodes\.max-richter\.dev\/#graph=/);
+    expect(preview.length).toBe(preview.link.length);
+
+    expect((await run('link', 'fern', '--base', 'nodes.dev')).code).toBe(1);
+    expect((await run('check', `${out.slice(0, 80)}`)).code).toBe(1);
+    expect(stderr.join()).toContain('the graph in the link is broken');
+  });
+
   it('places the nodes that have no position', async () => {
     const graph = await file('hand.json', handWritten);
     expect((await run('format', graph, '--check')).code).toBe(1);

@@ -36,6 +36,7 @@ pnpm nodarium check plant.json       # every mistake validateGraph finds, with t
 pnpm nodarium run fern --timings     # size and bounds, and the ms and output bytes of every node
 pnpm nodarium render fern            # front, side and top view in screenshots/fern.png
 pnpm nodarium render fern --node 14  # the same of what comes out of node 14
+pnpm nodarium link plant.json        # a link that opens the graph in the app
 ```
 
 `--set 4.length=0.3` changes an input and `--set resolution.curve=8` a setting for one run, `pnpm -s nodarium run fern --print-graph` prints a template to start a graph from. [docs/GRAPHS.md](docs/GRAPHS.md) explains the file. `pnpm -C app render-graph fern` is `render` that also knows the test graphs of the app (`templates` renders all of them), `pnpm -C app format-graph` lays out the nodes of a template like "Format nodes" of the editor. Each script explains its flags at the top of its file in `app/scripts`.
@@ -51,7 +52,7 @@ To measure: `pnpm -C app bench` runs whole graphs (the six of CI, or the templat
 - Comments only for reasons the code can't show. No comments that restate the code.
 - Nodes have few inputs. Variation and curves come from shaping an input with the random, curve and alpha nodes, not from extra inputs on every node. A generic node comes before a custom one.
 - A link carries exactly its type. No hidden values inside a list of another type (for example a hinge inside a path list).
-- A browser window that is not visible gets no animation frames: the viewer draws once on its own, the graph stays black. To check the app in a browser, drive it with a Playwright script through `window.nodarium` ([docs/AGENT_API.md](docs/AGENT_API.md)): load a graph, wait for the build, read the result, take a picture with `viewer.screenshot()`. Open it with `?tutorial=0`. `nodarium render` above needs no browser.
+- A browser window that is not visible gets no animation frames: the viewer draws once on its own, the graph stays black. To check the app in a browser, drive it with a Playwright script through `window.nodarium` ([docs/AGENT_API.md](docs/AGENT_API.md)): load a graph, wait for the build, read the result, take a picture with `viewer.screenshot()`. Open it with `?tutorial=0`, a template with `?template=fern` and a graph with the link of `nodarium link`. `nodarium render` above needs no browser.
 
 ## Where the knowledge is
 

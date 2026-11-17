@@ -172,17 +172,20 @@ npx @nodarium/runtime nodes stem
 npx @nodarium/runtime render my-plant.json --out .
 ```
 
-In this repository it is `pnpm nodarium` in the root, with the nodes of `app/static/nodes`. Every command takes a template id (`fern`, `porcini`, ...), the path of a graph or of a `.nodarium.json` project, or `-` for stdin, prints JSON with `--json` and exits with 1 on an error.
+In this repository it is `pnpm nodarium` in the root, with the nodes of `app/static/nodes`. Every command takes a template id (`fern`, `porcini`, ...), the path of a graph or of a `.nodarium.json` project, a link of the app, or `-` for stdin, prints JSON with `--json` and exits with 1 on an error.
 
-| command                       | does                                                                                                       |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `nodes [name...] [--type t]`  | every node with its signature and the first sentence of its description, or the inputs of named nodes      |
-| `check <graph...>`            | the issues of `validateGraph()`, see [Check a graph](#check-a-graph)                                       |
-| `run <graph...>`              | builds the graph, prints vertices, faces, instances and its bounds in meters                               |
-| `render <graph...>`           | front, side and top view in one PNG, `<out>/<name>.png`, and a line with its size                          |
-| `format <graph...> [--check]` | places the nodes without a position in columns, like loading the graph does, and writes them into the file |
+| command                        | does                                                                                                       |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `nodes [name...] [--type t]`   | every node with its signature and the first sentence of its description, or the inputs of named nodes      |
+| `check <graph...>`             | the issues of `validateGraph()`, see [Check a graph](#check-a-graph)                                       |
+| `run <graph...>`               | builds the graph, prints vertices, faces, instances and its bounds in meters                               |
+| `render <graph...>`            | front, side and top view in one PNG, `<out>/<name>.png`, and a line with its size                          |
+| `format <graph...> [--check]`  | places the nodes without a position in columns, like loading the graph does, and writes them into the file |
+| `link <graph...> [--base url]` | prints a link that opens the graph in the app as a new project, `https://nodes.max-richter.dev` by default |
 
 `run` and `render` check the graph first: its warnings go to stderr, a graph with an error doesn't run. They take `--seed n` (1 by default), `--time t` for the setting `time.t` and `--set key=value`, any number of times: a key with a dot after a node id sets an input of that node (`--set 4.length=0.3`), any other key a setting (`--set resolution.curve=8`). `run --timings` adds the ms and the output bytes of every node, `run --print-graph` prints the graph with a `version` and a position for every node instead of running it. `render` takes `--out dir` (`./screenshots`), `--size px` (512 per view), `--focus x,z,r` for a close-up, `--below` for a view from below, and `--node id[:output]` to draw what comes out of one node: a debug node behind it in a copy of the graph shows its geometry, its paths as tubes of their thickness and its points as dots. `--nodes dir` reads the nodes from another folder.
+
+`link` checks the graph like `run` and prints a link like `https://nodes.max-richter.dev/#graph=<data>`. `<data>` is the JSON of the graph, deflated and base64url; it is in the fragment, so the server never sees it. The app opens it as a new project, or the project that already has the same graph. `--base` points it at another deployment, a preview or `http://localhost:5173`. The other way round, a link given to `check`, `run` or `render` is read like a file. In code, `graphLink(graph, base)` makes a link, `graphLinkData(link)` takes the data out of one and `decodeGraph(data)` gives the JSON back, `encodeGraph(graph)` is the data alone. They are in the main entry and run in the browser and in Node; `decodeGraph` stops at `MAX_GRAPH_LINK_BYTES` (1 MB) of JSON.
 
 `nodarium nodes` writes a node like this, `nodes <name>` adds the description of every input:
 
