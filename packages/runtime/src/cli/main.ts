@@ -14,7 +14,15 @@ import { bounds, collectTriangles } from '../render/triangles';
 import { decodeResult } from '../result/decode-result';
 import { MemoryRuntimeExecutor } from '../runtime-executor';
 import type { GraphIssue } from '../validate-graph';
-import { checkGraph, type GraphSource, readGraphSource, writtenGraph } from './graph-input';
+import {
+  applySets,
+  checkGraph,
+  type GraphSets,
+  type GraphSource,
+  parseSets,
+  readGraphSource,
+  writtenGraph
+} from './graph-input';
 
 export const USAGE = `Usage: nodarium <command> [options]
 
@@ -115,28 +123,6 @@ function kilobytes(bytes: number) {
   return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} kB`;
 }
 
-/** `resolution.curve=16` sets a setting, `4.length=0.3` the input length of node 4 */
-function parseSets(sets: string[]) {
-  const settings: Record<string, unknown> = {};
-  const props: { node: number; input: string; value: unknown }[] = [];
-  for (const set of sets) {
-    const at = set.indexOf('=');
-    if (at < 1) throw new CliError(`--set ${set}: write key=value`);
-    const key = set.slice(0, at);
-    const text = set.slice(at + 1);
-    let value: unknown = text;
-    try {
-      value = JSON.parse(text);
-    } catch {
-      // a word stays a string, like the name of an option
-    }
-    const prop = key.match(/^(\d+)\.(.+)$/);
-    if (prop) props.push({ node: Number(prop[1]), input: prop[2], value });
-    else settings[key] = value;
-  }
-  return { settings, props };
-}
-
 function numbers(text: string, count: number, flag: string) {
   const values = text.split(',').map(Number);
   if (values.length !== count || values.some((v) => !Number.isFinite(v))) {
@@ -148,12 +134,16 @@ function numbers(text: string, count: number, flag: string) {
 class Cli {
   private definitions?: Map<string, NodeDefinition>;
   private readonly registry: FileNodeRegistry;
-  private readonly sets: ReturnType<typeof parseSets>;
+  private readonly sets: GraphSets;
   exitCode = 0;
 
   constructor(private readonly options: Options, private readonly dir: string) {
     this.registry = new FileNodeRegistry(dir);
-    this.sets = parseSets(options.set ?? []);
+    try {
+      this.sets = parseSets(options.set ?? []);
+    } catch (error) {
+      throw new CliError((error as Error).message);
+    }
   }
 
   private async allNodes() {
@@ -210,14 +200,11 @@ class Cli {
       return;
     }
     const { name } = source;
-    const written = writtenGraph(source.json) as Graph | undefined;
-    for (const { node, input, value } of this.sets.props) {
-      const found = written?.nodes?.find((n) => n.id === node);
-      if (!found) {
-        this.fail(name, `--set ${node}.${input}: the graph has no node ${node}`);
-        return;
-      }
-      found.props = { ...found.props, [input]: value as number };
+    try {
+      applySets(source.json, this.sets.props);
+    } catch (error) {
+      this.fail(name, (error as Error).message);
+      return;
     }
     return { name, source, ...checkGraph(source.json, await this.allNodes()) };
   }

@@ -38,7 +38,9 @@ pnpm nodarium render fern            # front, side and top view in screenshots/f
 pnpm nodarium render fern --node 14  # the same of what comes out of node 14
 ```
 
-`--set 4.length=0.3` changes an input and `--set resolution.curve=8` a setting for one run, `pnpm -s nodarium run fern --print-graph` prints a template to start a graph from. [docs/GRAPHS.md](docs/GRAPHS.md) explains the file. `pnpm -C app render-graph fern` is `render` that also knows the test graphs of the app (`templates` renders all of them), `pnpm -C app format-graph` lays out the nodes of a template like "Format nodes" of the editor. To measure: `pnpm -C app bench` for whole graphs, `pnpm -C app bench:paths` for the path nodes. Each script explains its flags at the top of its file in `app/scripts`.
+`--set 4.length=0.3` changes an input and `--set resolution.curve=8` a setting for one run, `pnpm -s nodarium run fern --print-graph` prints a template to start a graph from. [docs/GRAPHS.md](docs/GRAPHS.md) explains the file. `pnpm -C app render-graph fern` is `render` that also knows the test graphs of the app (`templates` renders all of them), `pnpm -C app format-graph` lays out the nodes of a template like "Format nodes" of the editor. Each script explains its flags at the top of its file in `app/scripts`.
+
+To measure: `pnpm -C app bench` runs whole graphs (the six of CI, or the templates and files you name, `--quick` for a tenth of the runs) and ends with the median, p95 and spread of each. `--save <name>` keeps the run in `app/benchmark/saved/<name>`, `--compare <name>` shows the change of every number, calls a change real only when it is larger than the spread of both runs and exits with 1 when something got slower by more than 10 %. `pnpm -C app bench:paths` measures the path nodes. All of them print their flags with `--help`.
 
 ## Rules
 
