@@ -98,6 +98,17 @@
     perf.addPoint('total-vertices', totalVertices);
     perf.addPoint('total-faces', totalFaces);
     sceneComponent?.invalidate();
+
+    return {
+      vertices: totalVertices,
+      faces: totalFaces,
+      bounds: bounds.isEmpty()
+        ? undefined
+        : {
+          min: bounds.min.toArray() as [number, number, number],
+          max: bounds.max.toArray() as [number, number, number]
+        }
+    };
   };
 </script>
 

@@ -1,7 +1,7 @@
 import * as templates from '#lib/graph-templates/index.ts';
 import { localState } from '#lib/helpers/localState.svelte.ts';
 import { ThumbnailService } from '#lib/thumbnails/thumbnail-service.svelte.ts';
-import { parseProjectFile } from '@nodarium/runtime';
+import { type GraphIssue, parseProjectFile } from '@nodarium/runtime';
 import { loadTemplate } from '@nodarium/runtime/templates';
 import type { Graph, NodeRegistry, ProjectUnit } from '@nodarium/types';
 import FileSaver from 'file-saver';
@@ -149,12 +149,23 @@ export class ProjectManager {
     return newId;
   }
 
+  #opening = $state(0);
+  /** A project is read from the database to be opened */
+  get opening() {
+    return this.#opening > 0;
+  }
+
   public async handleSelectProject(id: number) {
     if (this.activeProjectId.value !== id) {
       this.thumbnails.flush();
-      const project = await db.getGraph(id);
-      this.graph = project;
-      this.activeProjectId.value = id;
+      this.#opening++;
+      try {
+        const project = await db.getGraph(id);
+        this.graph = project;
+        this.activeProjectId.value = id;
+      } finally {
+        this.#opening--;
+      }
     }
   }
 
@@ -176,17 +187,35 @@ export class ProjectManager {
    */
   public async importProject(file: File) {
     const input = JSON.parse(await file.text());
+    await this.importGraph(input, { fallbackTitle: file.name.replace(/(\.nodarium)?\.json$/, '') });
+  }
+
+  /**
+   * Opens a project file or a bare graph as a new project, as `importProject` does with a file.
+   * The title is `title`, else the one of the graph, else `fallbackTitle`.
+   */
+  public async importGraph(
+    input: unknown,
+    { title, fallbackTitle = 'New Project' }: { title?: string; fallbackTitle?: string } = {}
+  ): Promise<{ id: number; issues: GraphIssue[] }> {
     const { graph, preview } = parseProjectFile(input);
+    let issues: GraphIssue[] = [];
     if (this.registry) {
-      const written = 'format' in input ? input.graph : input;
-      await findImportIssues(written, this.registry)
-        .then((issues) => reportImportIssues(written, issues))
-        .catch((error) => console.error('could not check the imported graph', error));
+      const written = (isProjectFile(input) ? input.graph : input) as Graph;
+      issues = await findImportIssues(written, this.registry).catch((error) => {
+        console.error('could not check the imported graph', error);
+        return [];
+      });
+      reportImportIssues(written, issues);
     }
-    const title = graph.meta?.title || file.name.replace(/(\.nodarium)?\.json$/, '');
-    const id = this.handleCreateProject(graph, title);
+    const id = this.handleCreateProject(graph, title || graph.meta?.title || fallbackTitle);
     if (preview) {
       await this.thumbnails.setPreview(id, await previewToBlob(preview));
     }
+    return { id, issues };
   }
+}
+
+function isProjectFile(input: unknown): input is { graph: unknown } {
+  return typeof input === 'object' && input !== null && 'format' in input;
 }

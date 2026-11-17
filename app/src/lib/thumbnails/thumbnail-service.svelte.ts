@@ -3,6 +3,7 @@ import type { Graph } from '@nodarium/types';
 import * as Comlink from 'comlink';
 import { SvelteMap } from 'svelte/reactivity';
 import { hashGraph } from './graph-hash';
+import type { View } from './thumbnail-renderer';
 import { createThumbnailWorker } from './thumbnail-worker';
 
 const THUMBNAIL_SIZE = 512;
@@ -56,6 +57,13 @@ export class ThumbnailService {
       );
     }
     return this.queue;
+  }
+
+  /** A PNG of the views of a result, next to each other, nothing is stored */
+  renderViews(result: Int32Array, size: number, views: View[]) {
+    // the viewer still holds views into the original buffer
+    const copy = result.slice();
+    return this.worker.renderViews(Comlink.transfer(copy, [copy.buffer]), size, views);
   }
 
   async getBlob(id: number) {

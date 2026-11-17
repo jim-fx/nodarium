@@ -3,8 +3,8 @@
   import { unitSettings } from '@nodarium/ui';
   import { T, useTask, useThrelte } from '@threlte/core';
   import { Environment, Grid } from '@threlte/extras';
-  import { untrack } from 'svelte';
-  import { Box3, type Group, Vector3 } from 'three';
+  import { onDestroy, untrack } from 'svelte';
+  import { Box3, type Group, type PerspectiveCamera, Vector2, Vector3 } from 'three';
   import { appSettings } from '../settings/app-settings.svelte';
   import { frameBounds, type Framing, gridSectionSize } from './camera/camera-framing';
   import Camera from './camera/Camera.svelte';
@@ -17,7 +17,14 @@
   import ScaleViewer from './scale/ScaleViewer.svelte';
   import { updateViewScale } from './scale/view-scale.svelte';
 
-  const { renderStage, invalidate: _invalidate, size, scene: threeScene } = useThrelte();
+  const {
+    renderStage,
+    invalidate: _invalidate,
+    size,
+    scene: threeScene,
+    renderer,
+    camera
+  } = useThrelte();
 
   const lights = createLights();
   threeScene.environmentIntensity = lighting.environment.intensity;
@@ -85,17 +92,44 @@
     });
   });
 
+  let lastFrame = 0;
   useTask(
     (delta) => {
+      lastFrame = performance.now();
       fps.push(1 / delta);
       fps = fps.slice(-100);
     },
     { stage: renderStage, autoInvalidate: false }
   );
 
+  /** A page that is not visible, or a browser driven by a tool, may give no frames at all */
+  const DRAW_WITHOUT_FRAME_MS = 500;
+  let drawTimer: ReturnType<typeof setTimeout> | undefined;
+
+  // the size and the aspect are set in a frame too, a page that never had one doesn't have them
+  function drawWithoutFrame() {
+    const { width, height } = size.current;
+    if (width <= 0 || height <= 0) return;
+    const drawn = renderer.getSize(new Vector2());
+    if (drawn.x !== width || drawn.y !== height) renderer.setSize(width, height);
+    const view = camera.current as PerspectiveCamera;
+    if (view.isPerspectiveCamera && view.aspect !== width / height) {
+      view.aspect = width / height;
+      view.updateProjectionMatrix();
+    }
+    renderer.render(threeScene, view);
+  }
+
+  onDestroy(() => clearTimeout(drawTimer));
+
   export const invalidate = function() {
     measure();
     _invalidate();
+    const asked = performance.now();
+    clearTimeout(drawTimer);
+    drawTimer = setTimeout(() => {
+      if (lastFrame < asked) drawWithoutFrame();
+    }, DRAW_WITHOUT_FRAME_MS);
   };
 </script>
 

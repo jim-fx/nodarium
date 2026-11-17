@@ -202,6 +202,16 @@ describe('createDragHold', () => {
     expect(builds[1].nodes[2].props!.max).toBe(4);
   });
 
+  it('says that it holds a change until the change is built', () => {
+    expect(hold.holding).toBe(false);
+    drag([2]);
+    expect(hold.holding).toBe(true);
+    hold.release();
+    vi.advanceTimersByTime(SETTLE_MS);
+    expect(hold.holding).toBe(false);
+    expect(builds).toHaveLength(2);
+  });
+
   it('takes the value that arrives just after the release', () => {
     drag([2, 3]);
     hold.release();

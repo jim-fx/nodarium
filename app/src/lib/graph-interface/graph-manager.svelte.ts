@@ -117,11 +117,20 @@ export class GraphManager extends EventEmitter<{
     return this.recorder.history;
   }
 
-  /** Asks for a build of the graph as it is now */
-  execute = throttle(() => {
+  /** A build was asked for or a load is under way, and its `result` is not emitted yet */
+  buildPending = $state(false);
+
+  private emitResult = throttle(() => {
+    this.buildPending = false;
     if (this.status !== 'idle') return;
     this.emit('result', this.serialize());
   }, 10);
+
+  /** Asks for a build of the graph as it is now */
+  execute = () => {
+    this.buildPending = true;
+    this.emitResult();
+  };
 
   // The changes of the running transactions, recorded once the outermost one ends
   private transactionDepth = 0;
@@ -524,6 +533,7 @@ export class GraphManager extends EventEmitter<{
   async load(graph: Graph) {
     const a = performance.now();
     this.flush();
+    this.buildPending = true;
 
     try {
       graph = migrateGraph(graph);
@@ -539,6 +549,7 @@ export class GraphManager extends EventEmitter<{
         'error'
       );
       this.status = 'error';
+      this.buildPending = false;
       return;
     }
 
@@ -578,6 +589,7 @@ export class GraphManager extends EventEmitter<{
         'error'
       );
       this.status = 'error';
+      this.buildPending = false;
       return;
     }
 

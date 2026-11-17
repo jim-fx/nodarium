@@ -261,7 +261,9 @@
     bind:this={importInput}
     type="file"
     accept=".json,application/json"
-    class="hidden"
+    class="sr-only"
+    tabindex="-1"
+    aria-label="Import a project file"
     onchange={handleImport}
   />
 </header>

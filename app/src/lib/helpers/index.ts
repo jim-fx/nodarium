@@ -59,34 +59,41 @@ export function humanizeDuration(durationInMilliseconds: number) {
   return durationString.trim();
 }
 
+/**
+ * Runs `asyncFn` once at a time. The calls that come while it runs are served by one run with
+ * the arguments of the last of them, and settle with that run.
+ */
 export function debounceAsyncFunction<T extends (...args: never[]) => Promise<unknown>>(
   asyncFn: T
 ): T {
-  let isRunning = false;
-  let latestArgs: Parameters<T> | null = null;
-  let resolveNext: (() => void) | null = null;
+  type Result = Awaited<ReturnType<T>>;
+  let running = false;
+  let queued:
+    | { args: Parameters<T>; result: Promise<Result>; settle: (run: Promise<Result>) => void }
+    | undefined;
 
-  return (async function serializedFunction(...args: Parameters<T>): Promise<ReturnType<T>> {
-    latestArgs = args;
+  function start(args: Parameters<T>): Promise<Result> {
+    running = true;
+    const run = asyncFn(...args) as Promise<Result>;
+    run.catch(() => {}).then(() => {
+      const next = queued;
+      queued = undefined;
+      // started in the same microtask, a call in between would run next to it
+      if (next) next.settle(start(next.args));
+      else running = false;
+    });
+    return run;
+  }
 
-    if (isRunning) {
-      await new Promise<void>((resolve) => {
-        resolveNext = resolve;
-      });
+  return ((...args: Parameters<T>) => {
+    if (!running) return start(args);
+    if (queued) {
+      queued.args = args;
+      return queued.result;
     }
-
-    isRunning = true;
-
-    try {
-      const result = await asyncFn(...latestArgs!);
-      return result as ReturnType<T>;
-    } finally {
-      isRunning = false;
-
-      if (resolveNext) {
-        resolveNext();
-        resolveNext = null;
-      }
-    }
+    let settle!: (run: Promise<Result>) => void;
+    const result = new Promise<Result>((resolve) => (settle = resolve));
+    queued = { args, result, settle };
+    return result;
   }) as T;
 }

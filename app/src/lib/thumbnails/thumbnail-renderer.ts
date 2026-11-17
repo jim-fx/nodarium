@@ -16,22 +16,30 @@ import {
 } from 'three';
 
 const FOV = 50;
-// Same viewing angle as the default camera of the viewer
-const CAMERA_DIRECTION = new Vector3(1, 1, 1).normalize();
 const PADDING = 1.08;
+
+/** Where the camera looks from: `default` is the angle of the viewer's own camera */
+export type View = 'default' | 'front' | 'side' | 'top';
+
+const VIEWS: Record<View, { direction: Vector3; up: Vector3 }> = {
+  default: { direction: new Vector3(1, 1, 1).normalize(), up: new Vector3(0, 1, 0) },
+  front: { direction: new Vector3(0, 0, 1), up: new Vector3(0, 1, 0) },
+  side: { direction: new Vector3(1, 0, 0), up: new Vector3(0, 1, 0) },
+  top: { direction: new Vector3(0, 1, 0), up: new Vector3(0, 0, -1) }
+};
 
 const right = new Vector3();
 const up = new Vector3();
 const corner = new Vector3();
 
 /**
- * Moves the camera along CAMERA_DIRECTION until all corners of the box are in view,
+ * Moves the camera along `direction` until all corners of the box are in view,
  * and centers the view on the projected box (tighter than fitting a bounding sphere)
  */
-function fitCameraToBox(camera: PerspectiveCamera, box: Box3) {
+function fitCameraToBox(camera: PerspectiveCamera, box: Box3, direction: Vector3) {
   const tan = Math.tan((FOV / 2) * (Math.PI / 180));
-  right.crossVectors(camera.up, CAMERA_DIRECTION).normalize();
-  up.crossVectors(CAMERA_DIRECTION, right);
+  right.crossVectors(camera.up, direction).normalize();
+  up.crossVectors(direction, right);
 
   const center = box.getCenter(new Vector3());
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -61,7 +69,7 @@ function fitCameraToBox(camera: PerspectiveCamera, box: Box3) {
       i & 2 ? box.max.y : box.min.y,
       i & 4 ? box.max.z : box.min.z
     ).sub(center);
-    const depth = corner.dot(CAMERA_DIRECTION);
+    const depth = corner.dot(direction);
     const x = Math.abs(corner.dot(right));
     const y = Math.abs(corner.dot(up));
     distance = Math.max(distance, depth + Math.max(x, y) / tan);
@@ -69,7 +77,7 @@ function fitCameraToBox(camera: PerspectiveCamera, box: Box3) {
   distance *= PADDING;
 
   const radius = Math.max(halfWidth, halfHeight, box.getSize(corner).length() / 2);
-  camera.position.copy(center).addScaledVector(CAMERA_DIRECTION, distance);
+  camera.position.copy(center).addScaledVector(direction, distance);
   camera.near = Math.max(distance - radius * 2, distance / 100);
   camera.far = distance + radius * 2;
   camera.lookAt(center);
@@ -133,7 +141,37 @@ export class ThumbnailRenderer {
     return { x: minX, y: size - 1 - maxY, width: maxX - minX + 1, height: maxY - minY + 1 };
   }
 
-  async render(result: Int32Array, size: number): Promise<Blob | undefined> {
+  /** Draws the box from `view` on the canvas, cropped to what was drawn. False when nothing was. */
+  private drawView(scene: Scene, box: Box3, view: View, size: number) {
+    const { direction, up } = VIEWS[view];
+    this.camera.up.copy(up);
+    this.camera.clearViewOffset();
+    fitCameraToBox(this.camera, box, direction);
+
+    this.renderer.setSize(size, size, false);
+    this.renderer.render(scene, this.camera);
+
+    // The box is only a rough fit, crop the view to the pixels that were actually drawn
+    const bounds = this.getContentBounds(size);
+    if (!bounds) return false;
+    const crop = Math.max(bounds.width, bounds.height) * PADDING;
+    this.camera.setViewOffset(
+      size,
+      size,
+      bounds.x + bounds.width / 2 - crop / 2,
+      bounds.y + bounds.height / 2 - crop / 2,
+      crop,
+      crop
+    );
+    this.renderer.render(scene, this.camera);
+    return true;
+  }
+
+  /** The result in a scene, handed to `draw`, and freed again afterwards */
+  private async withResult<T>(
+    result: Int32Array,
+    draw: (scene: Scene, box: Box3) => Promise<T | undefined>
+  ): Promise<T | undefined> {
     const scene = new Scene();
     const group = new Group();
     scene.add(group);
@@ -144,28 +182,7 @@ export class ThumbnailRenderer {
     try {
       const box = new Box3().setFromObject(group);
       if (box.isEmpty()) return;
-
-      fitCameraToBox(this.camera, box);
-
-      this.renderer.setSize(size, size, false);
-      this.camera.clearViewOffset();
-      this.renderer.render(scene, this.camera);
-
-      // The box is only a rough fit, crop the view to the pixels that were actually drawn
-      const bounds = this.getContentBounds(size);
-      if (!bounds) return;
-      const crop = Math.max(bounds.width, bounds.height) * PADDING;
-      this.camera.setViewOffset(
-        size,
-        size,
-        bounds.x + bounds.width / 2 - crop / 2,
-        bounds.y + bounds.height / 2 - crop / 2,
-        crop,
-        crop
-      );
-      this.renderer.render(scene, this.camera);
-
-      return await this.canvas.convertToBlob({ type: 'image/webp', quality: 0.85 });
+      return await draw(scene, box);
     } finally {
       group.traverse((child) => {
         if ('isInstancedMesh' in child) (child as InstancedMesh).dispose();
@@ -173,5 +190,24 @@ export class ThumbnailRenderer {
       });
       this.renderer.renderLists.dispose();
     }
+  }
+
+  render(result: Int32Array, size: number): Promise<Blob | undefined> {
+    return this.withResult(result, async (scene, box) => {
+      if (!this.drawView(scene, box, 'default', size)) return;
+      return this.canvas.convertToBlob({ type: 'image/webp', quality: 0.85 });
+    });
+  }
+
+  /** The views next to each other in one PNG, each `size` pixels square and fitted on its own */
+  renderViews(result: Int32Array, size: number, views: View[]): Promise<Blob | undefined> {
+    return this.withResult(result, async (scene, box) => {
+      const sheet = new OffscreenCanvas(size * views.length, size);
+      const context = sheet.getContext('2d')!;
+      views.forEach((view, i) => {
+        if (this.drawView(scene, box, view, size)) context.drawImage(this.canvas, i * size, 0);
+      });
+      return sheet.convertToBlob({ type: 'image/png' });
+    });
   }
 }
