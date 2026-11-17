@@ -54,7 +54,7 @@
   import { Planty, type StepActionHook } from '@nodarium/planty';
   import { debugNode, MemoryRuntimeCache, MemoryRuntimeExecutor } from '@nodarium/runtime';
   import { loadTemplate } from '@nodarium/runtime/templates';
-  import type { Edge, Graph } from '@nodarium/types';
+  import type { Edge, Graph, NodeDefinition } from '@nodarium/types';
   import { createKeyMap, Spinner, Toast, toast, unitSettings } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
   import { onDestroy, onMount, untrack } from 'svelte';
@@ -138,6 +138,11 @@
       workerRuntime.loadNodes(types);
     });
   });
+
+  // the worker and the registries of the thumbnails and the garden can't fetch a dropped node
+  async function registerDroppedNode(node: NodeDefinition, wasm: ArrayBuffer) {
+    await Promise.all([workerRuntime.registerNode(wasm), nodeRegistry.keepDropped(node, wasm)]);
+  }
 
   function handleBeforeUnload(e: BeforeUnloadEvent) {
     if (pendingSave) e.preventDefault();
@@ -574,6 +579,7 @@
               pendingSave = false;
             }}
             onresult={(result) => dragHold.request(result)}
+            onregister={(node, wasm) => registerDroppedNode(node, wasm)}
           />
         {/key}
       {/if}

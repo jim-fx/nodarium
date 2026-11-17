@@ -40,7 +40,9 @@ export class RemoteNodeRegistry extends WasmNodeRegistry {
   constructor(
     private url: string,
     public cache?: AsyncCache<ArrayBuffer | string>,
-    nodes: NodeDefinition[] = []
+    nodes: NodeDefinition[] = [],
+    /** The wasm files dropped onto the editor, by the id of their node */
+    private droppedNodes?: AsyncCache<ArrayBuffer>
   ) {
     super(nodes);
   }
@@ -121,8 +123,20 @@ export class RemoteNodeRegistry extends WasmNodeRegistry {
     return [...new Set(nodeIds.map((id) => id.replace(/\.wasm$/, '') as NodeId))];
   }
 
-  protected readWasm(id: NodeId) {
-    return this.fetchArrayBuffer(`nodes/${id}.wasm`);
+  // a node the site serves wins over a dropped file of it, which would hide its updates for good
+  protected async readWasm(id: NodeId) {
+    try {
+      return await this.fetchArrayBuffer(`nodes/${id}.wasm`);
+    } catch (error) {
+      const dropped = await this.droppedNodes?.get<ArrayBuffer>(id);
+      if (dropped) return dropped;
+      throw error;
+    }
+  }
+
+  /** Keeps a dropped wasm file, a project with its node opens again after a reload */
+  async keepDropped(node: NodeDefinition, wasm: ArrayBuffer) {
+    await this.droppedNodes?.set(node.id, wasm);
   }
 
   override load(nodeIds: NodeId[]) {

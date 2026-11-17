@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Graph, NodeRegistry } from '@nodarium/types';
+  import type { Graph, NodeDefinition, NodeRegistry } from '@nodarium/types';
   import { createKeyMap } from '@nodarium/ui';
   import { onDestroy, onMount } from 'svelte';
   import { persistCamera } from '../camera.svelte';
@@ -16,6 +16,8 @@
 
     onsave?: (save: Graph) => void;
     onresult?: (result: Graph) => void;
+    /** a wasm file was dropped, the node of it is placed once this resolves */
+    onregister?: (node: NodeDefinition, wasm: ArrayBuffer) => Promise<void> | void;
     /** the `?` shortcut */
     onhelp?: () => void;
   };
@@ -26,6 +28,7 @@
     options,
     onsave,
     onresult,
+    onregister,
     onhelp
   }: Props = $props();
 
@@ -52,6 +55,8 @@
   manager.on('result', (result) => onresult?.(result));
 
   manager.on('save', (save) => onsave?.(save));
+
+  manager.onregister = (node, wasm) => onregister?.(node, wasm);
 
   // after the camera of the graph is restored, which puts it where saved graphs have their nodes
   manager.on('placed', () => setTimeout(() => state.centerNode()));

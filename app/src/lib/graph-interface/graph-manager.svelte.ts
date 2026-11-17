@@ -189,6 +189,16 @@ export class GraphManager extends EventEmitter<{
     super();
   }
 
+  /** Takes the node of a dropped wasm file wherever else graphs are built, before it is placed */
+  onregister?: (node: NodeDefinition, wasm: ArrayBuffer) => Promise<void> | void;
+
+  /** The node of a wasm file dropped onto the editor */
+  async registerNode(wasm: ArrayBuffer) {
+    const node = await this.registry.register('', wasm);
+    await this.onregister?.(node, wasm);
+    return node;
+  }
+
   /** The editor only needs the definitions, the runtime loads the code of the nodes it runs */
   loadDefinitions(nodeIds: NodeId[]) {
     return this.registry.loadDefinitions?.(nodeIds) ?? this.registry.load(nodeIds);

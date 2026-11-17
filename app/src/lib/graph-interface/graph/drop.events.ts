@@ -53,14 +53,17 @@ export class FileDropEventManager {
         const reader = new FileReader();
         reader.onload = async (e) => {
           const buffer = e.target?.result;
-          if (buffer?.constructor === ArrayBuffer) {
-            const nodeType = await this.graph.registry.register(nodeId, buffer);
-
+          if (buffer?.constructor !== ArrayBuffer) return;
+          try {
+            const nodeType = await this.graph.registerNode(buffer);
             this.graph.createNode({
               type: nodeType.id,
               props: {},
               position: this.state.camera.toWorld(mx, my)
             });
+          } catch (e) {
+            toast('Failed to load node: invalid file', 'error');
+            console.error(e);
           }
         };
         reader.readAsArrayBuffer(file);
