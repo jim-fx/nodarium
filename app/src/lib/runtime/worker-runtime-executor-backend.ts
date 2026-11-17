@@ -1,17 +1,12 @@
-import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
-import {
-  debugNode,
-  getErrorInfo,
-  MemoryRuntimeCache,
-  MemoryRuntimeExecutor
-} from '@nodarium/runtime';
+import { createAppRegistry } from '#lib/node-registry/index.ts';
+import { getErrorInfo, MemoryRuntimeCache, MemoryRuntimeExecutor } from '@nodarium/runtime';
 import type { Graph, NodeId } from '@nodarium/types';
 import { createPerformanceStore } from '@nodarium/utils';
 import * as Comlink from 'comlink';
 import type { WorkerExecution } from './types';
 
-const indexDbCache = new IndexDBCache('node-registry');
-const nodeRegistry = new RemoteNodeRegistry('', indexDbCache, [debugNode]);
+const nodeRegistry = createAppRegistry();
+const indexDbCache = nodeRegistry.cache;
 
 const cache = new MemoryRuntimeCache();
 const executor = new MemoryRuntimeExecutor(nodeRegistry, cache);
@@ -35,6 +30,10 @@ export async function setUseRuntimeCache(useCache: boolean) {
   }
 }
 
+function nodeTypes(graph: Graph) {
+  return [...graph.nodes, ...(graph.groups ?? []).flatMap((g) => g.nodes)].map((n) => n.type);
+}
+
 /** Starts loading the nodes of a graph while the editor is still reading their definitions */
 export async function loadNodes(nodeIds: NodeId[]) {
   await nodeRegistry.load(nodeIds).catch(() => {});
@@ -49,7 +48,8 @@ export async function executeGraph(
   settings: Record<string, unknown>
 ): Promise<WorkerExecution> {
   try {
-    await nodeRegistry.load(graph.nodes.map((n) => n.type));
+    // the downloads of the first run of a graph are not part of its time
+    await nodeRegistry.load(nodeTypes(graph));
     performanceStore.startRun();
     const run = await executor.run(graph, settings).finally(() => performanceStore.stopRun());
     const execution: WorkerExecution = {

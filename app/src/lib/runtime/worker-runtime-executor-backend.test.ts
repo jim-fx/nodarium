@@ -25,26 +25,35 @@ const nodes = vi.hoisted(() => {
       throw new Error('index out of bounds');
     }
   } as unknown as NodeDefinition;
-  return { output, stem, leaf };
+  const twig = { ...stem, id: 'test/node/twig' } as NodeDefinition;
+  return { output, stem, leaf, twig };
 });
 
-// the registry of the worker fetches its nodes and keeps them in IndexedDB
-vi.mock('#lib/node-registry/index.ts', () => ({
-  IndexDBCache: class {},
-  RemoteNodeRegistry: class {
-    status = 'ready';
-    private nodes: Map<string, NodeDefinition>;
-    constructor(_url: string, _cache: unknown, builtin: NodeDefinition[]) {
-      this.nodes = new Map([...builtin, ...Object.values(nodes)].map((n) => [n.id, n]));
+// the registry of the worker fetches its nodes and keeps them in IndexedDB, a download takes 500ms
+vi.mock('#lib/node-registry/index.ts', async () => {
+  const { debugNode } = await import('@nodarium/runtime');
+  return {
+    createAppRegistry: (builtin: NodeDefinition[] = [debugNode]) => {
+      const all = new Map<string, NodeDefinition>(
+        [...builtin, ...Object.values(nodes)].map((n) => [n.id, n])
+      );
+      const loaded = new Map<string, NodeDefinition>(builtin.map((n) => [n.id, n]));
+      return {
+        status: 'loading',
+        async load(ids: string[]) {
+          for (const id of ids) {
+            const node = all.get(id);
+            if (!node || loaded.has(id)) continue;
+            if (vi.isFakeTimers()) vi.advanceTimersByTime(500);
+            loaded.set(id, node);
+          }
+          return ids.flatMap((id) => loaded.get(id) ?? []);
+        },
+        getNode: (id: string) => loaded.get(id)
+      };
     }
-    async load(ids: string[]) {
-      return ids.flatMap((id) => this.nodes.get(id) ?? []);
-    }
-    getNode(id: string) {
-      return this.nodes.get(id);
-    }
-  }
-}));
+  };
+});
 
 const { executeGraph } = await import('./worker-runtime-executor-backend');
 
@@ -127,6 +136,17 @@ describe('the answer of the runtime worker', () => {
 
       expect(execution.performance?.total).toEqual([0]);
       expect(execution.performance?.['collect-metadata']).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not count the downloads of the nodes in the time of the first run', async () => {
+    vi.useFakeTimers({ toFake: ['performance'] });
+    try {
+      const execution = unwrapExecution(await answerOf(graphOf(nodes.twig.id)));
+
+      expect(execution.performance?.total).toEqual([0]);
     } finally {
       vi.useRealTimers();
     }

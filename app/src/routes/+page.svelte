@@ -5,7 +5,7 @@
   import { debounceAsyncFunction } from '#lib/helpers/index.ts';
   import { localState } from '#lib/helpers/localState.svelte.ts';
   import { groupNode } from '#lib/node-registry/groupNode.ts';
-  import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
+  import { createAppRegistry } from '#lib/node-registry/index.ts';
   import { colors } from '#lib/theme/colors.svelte.ts';
 
   import PerformanceViewer from '#lib/performance/PerformanceViewer.svelte';
@@ -65,9 +65,8 @@
 
   const { data } = $props();
 
-  const registryCache = new IndexDBCache('node-registry');
-
-  const nodeRegistry = new RemoteNodeRegistry('', registryCache, [debugNode, groupNode]);
+  const nodeRegistry = createAppRegistry([debugNode, groupNode]);
+  const registryCache = nodeRegistry.cache;
   const workerRuntime = new WorkerRuntimeExecutor();
   const runtimeCache = new MemoryRuntimeCache();
   const memoryRuntime = new MemoryRuntimeExecutor(nodeRegistry, runtimeCache);

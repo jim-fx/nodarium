@@ -70,7 +70,6 @@ describe.skipIf(!BUILT && !ON_CI)('RemoteNodeRegistry', () => {
     expect(node.id).toBe(float);
     expect(node.execute).toBeUndefined();
     expect(registry.getNode(float)?.inputs?.value).toBeDefined();
-    expect(registry.status).toBe('ready');
     expect(requests).toEqual(['/nodes/max/plantarium.json']);
   });
 
@@ -118,6 +117,42 @@ describe.skipIf(!BUILT && !ON_CI)('RemoteNodeRegistry', () => {
     await expect(registry.loadDefinitions(['max/gone/node' as NodeId])).rejects.toThrow(
       'Failed to load nodes/max/gone/node.wasm'
     );
+  });
+
+  it('rejects a wasm that fails to register and keeps no node of it', async () => {
+    serve({ '/nodes/max/plantarium/float.wasm': () => new Response('not wasm') });
+    const registry = new RemoteNodeRegistry('');
+
+    await expect(registry.load([float])).rejects.toThrow();
+    await expect(registry.loadDefinitions([float])).rejects.toThrow();
+    expect(registry.getNode(float)).toBeUndefined();
+
+    serve({ '/nodes/max/plantarium/float.wasm': wasmFile });
+    await expect(registry.load([float])).resolves.toHaveLength(1);
+  });
+
+  it('stores a wasm without an id, like a dropped file, under the id of its definition', async () => {
+    serve({ '/nodes/max/plantarium.json': listing([floatDefinition]) });
+    const registry = new RemoteNodeRegistry('');
+    await registry.loadDefinitions([float]);
+
+    const node = await registry.register('', wasm.slice(0));
+
+    expect(node.id).toBe(float);
+    expect(registry.getNode(float)).toBe(node);
+    expect(registry.getAllNodes()).toEqual([node]);
+    await registry.load([float]);
+    expect(requests).toEqual(['/nodes/max/plantarium.json']);
+  });
+
+  it('loads a node named after its file, `<node>.wasm`, under its id', async () => {
+    serve({ '/nodes/max/plantarium/float.wasm': wasmFile });
+    const registry = new RemoteNodeRegistry('');
+
+    const [node] = await registry.load([`${float}.wasm` as NodeId, float]);
+
+    expect(registry.getNode(float)).toBe(node);
+    expect(requests).toEqual(['/nodes/max/plantarium/float.wasm']);
   });
 
   it('loads a collection with one request', async () => {

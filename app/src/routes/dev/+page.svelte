@@ -2,14 +2,13 @@
   import { NodePreview } from '#lib/graph-interface/index.ts';
   import Grid from '#lib/grid/index.ts';
   import { localState } from '#lib/helpers/localState.svelte.ts';
-  import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
+  import { createAppRegistry } from '#lib/node-registry/index.ts';
   import Panel from '#lib/sidebar/Panel.svelte';
   import Sidebar from '#lib/sidebar/Sidebar.svelte';
   import { type NodeId, type NodeInstance } from '@nodarium/types';
   import { createWasmWrapper, encodeNestedArray } from '@nodarium/utils';
 
-  const registryCache = new IndexDBCache('node-registry');
-  const nodeRegistry = new RemoteNodeRegistry('', registryCache);
+  const nodeRegistry = createAppRegistry();
 
   let activeNode = localState<NodeId | undefined>(
     'node.dev.activeNode',

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { humanizeNumber } from '#lib/helpers/index.ts';
   import { groupNode } from '#lib/node-registry/groupNode.ts';
-  import { IndexDBCache, RemoteNodeRegistry } from '#lib/node-registry/index.ts';
+  import { createAppRegistry } from '#lib/node-registry/index.ts';
   import Viewer from '#lib/result-viewer/Viewer.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -13,11 +13,7 @@
   import { createPerformanceStore } from '@nodarium/utils';
   import type { Group } from 'three';
 
-  const nodeRegistry = new RemoteNodeRegistry('', new IndexDBCache('node-registry'), [
-    debugNode,
-    groupNode
-  ]);
-  const runtime = new MemoryRuntimeExecutor(nodeRegistry);
+  const runtime = new MemoryRuntimeExecutor(createAppRegistry([debugNode, groupNode]));
   const perf = createPerformanceStore();
 
   const vertices = $derived($perf?.at(-1)?.['total-vertices']?.[0] || 0);
@@ -47,7 +43,6 @@
     isLoading = true;
     try {
       const loaded = structuredClone(await entry.load());
-      await nodeRegistry.load(loaded.nodes.map((n) => n.type));
       if (id !== selected) return;
       graph = loaded;
       time = Number(loaded.settings?.['time.t'] ?? 0.5);
