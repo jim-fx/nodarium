@@ -8,19 +8,19 @@ describe('InputVec3', () => {
     const value = $state([1.5, 2.5, 3.5]);
     render(InputVec3, { value });
 
-    const inputs = page.getByRole('spinbutton');
+    const inputs = page.getByRole('textbox');
     await expect.element(inputs.first()).toBeInTheDocument();
 
-    expect(inputs.nth(0)).toHaveValue(1.5);
-    expect(inputs.nth(1)).toHaveValue(2.5);
-    expect(inputs.nth(2)).toHaveValue(3.5);
+    expect(inputs.nth(0)).toHaveValue('1.5');
+    expect(inputs.nth(1)).toHaveValue('2.5');
+    expect(inputs.nth(2)).toHaveValue('3.5');
   });
 
   it('should have step attribute', async () => {
     const value = $state([0, 0, 0]);
     render(InputVec3, { value });
 
-    const input = page.getByRole('spinbutton').first();
+    const input = page.getByRole('textbox').first();
     await expect.element(input).toHaveAttribute('step', '0.01');
   });
 });

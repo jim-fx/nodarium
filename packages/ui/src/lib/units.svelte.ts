@@ -1,4 +1,5 @@
 import type { ProjectUnit } from '@nodarium/types';
+import { evaluate } from './expression';
 
 /** How many of each unit fit in one meter, values are stored in meters */
 export const UNIT_FACTORS: Record<ProjectUnit, number> = {
@@ -25,18 +26,21 @@ export function roundDisplay(value: number): number {
   return +value.toPrecision(10);
 }
 
-const LENGTH_PATTERN = /^(-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)\s*(mm|cm|m)?$/i;
-
 /**
- * Parses typed text like "10", "2,5cm" or "300 mm" to meters,
+ * Evaluates typed text like "10", "2,5cm", "300 mm" or "10cm + 5mm * 2" to meters,
  * a number without a unit is read in the project unit. Returns undefined if it is not a length.
  */
 export function parseLength(
   text: string,
   fallback: ProjectUnit = unitSettings.unit
 ): number | undefined {
-  const match = LENGTH_PATTERN.exec(text.trim().replace(',', '.'));
-  if (!match) return undefined;
-  const unit = (match[2]?.toLowerCase() as ProjectUnit | undefined) ?? fallback;
-  return fromDisplay(parseFloat(match[1]), unit);
+  // every number is brought to the fallback unit first, so "10cm * 2" is 20 cm in any project unit
+  const scale = UNIT_FACTORS[fallback];
+  const suffixes = Object.fromEntries(
+    Object.entries(UNIT_FACTORS).map((
+      [unit, factor]
+    ) => [unit, (value: number) => value * scale / factor])
+  );
+  const result = evaluate(text, suffixes);
+  return result === undefined ? undefined : fromDisplay(result, fallback);
 }

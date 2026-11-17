@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { evaluate } from '../expression';
   import { parseLength, roundDisplay, UNIT_FACTORS, unitSettings } from '../units.svelte';
 
   interface Props {
@@ -113,11 +114,11 @@
       : '20px'
   );
 
-  // length inputs are text, so "10cm" or "5mm" can be typed, a plain number is read in the project unit
+  // the input is text, so "10cm", "pi / 2" or "2 * 3" can be typed, a plain number is read in the project unit
   function onChange(e: Event & { currentTarget: HTMLInputElement }) {
     const text = e.currentTarget.value;
-    const parsed = unit ? parseLength(text) : parseFloat(text);
-    if (parsed !== undefined && Number.isFinite(parsed)) {
+    const parsed = unit ? parseLength(text) : evaluate(text);
+    if (parsed !== undefined) {
       value = parsed;
     }
     // show the parsed value in the project unit again, also when the text was invalid
@@ -162,11 +163,11 @@
       bind:this={inputEl}
       value={displayValue}
       onchange={onChange}
+      type="text"
       {id}
       step={step ? step * factor : step}
       min={min * factor}
       max={max * factor}
-      type={unit ? 'text' : 'number'}
       inputmode="decimal"
       onkeydown={onKeyDown}
       onmousedown={onMouseDown}
@@ -196,13 +197,13 @@
 </div>
 
 <style>
-  input[type="number"] {
+  input {
     -webkit-appearance: textfield;
     -moz-appearance: textfield;
     appearance: textfield;
   }
-  input[type="number"]::-webkit-inner-spin-button,
-  input[type="number"]::-webkit-outer-spin-button {
+  input::-webkit-inner-spin-button,
+  input::-webkit-outer-spin-button {
     -webkit-appearance: none;
   }
 </style>

@@ -8,7 +8,7 @@ describe('InputNumber', () => {
   it('should render input element', async () => {
     render(InputNumber, { value: 0.5 });
 
-    const input = page.getByRole('spinbutton');
+    const input = page.getByRole('textbox');
     await expect.element(input).toBeInTheDocument();
   });
 
@@ -32,14 +32,14 @@ describe('InputNumber', () => {
   it('should accept numeric value', async () => {
     render(InputNumber, { value: 42 });
 
-    const input = page.getByRole('spinbutton');
-    await expect.element(input).toHaveValue(42);
+    const input = page.getByRole('textbox');
+    await expect.element(input).toHaveValue('42');
   });
 
   it('should accept min and max bounds', async () => {
     render(InputNumber, { value: 5, min: 0, max: 10 });
 
-    const input = page.getByRole('spinbutton');
+    const input = page.getByRole('textbox');
     await expect.element(input).toHaveAttribute('min', '0');
     await expect.element(input).toHaveAttribute('max', '10');
   });
@@ -47,22 +47,22 @@ describe('InputNumber', () => {
   it('should not clamp value on init when value exceeds min/max', async () => {
     render(InputNumber, { value: 100, min: 0, max: 10 });
 
-    const input = page.getByRole('spinbutton');
-    await expect.element(input).toHaveValue(100);
+    const input = page.getByRole('textbox');
+    await expect.element(input).toHaveValue('100');
   });
 
   it('should not snap value to the step on init', async () => {
     render(InputNumber, { value: 0.002, step: 0.05 });
 
-    const input = page.getByRole('spinbutton');
-    await expect.element(input).toHaveValue(0.002);
+    const input = page.getByRole('textbox');
+    await expect.element(input).toHaveValue('0.002');
   });
 
   it('should not clamp value on init when value is below min', async () => {
     render(InputNumber, { value: -50, min: 0, max: 10 });
 
-    const input = page.getByRole('spinbutton');
-    await expect.element(input).toHaveValue(-50);
+    const input = page.getByRole('textbox');
+    await expect.element(input).toHaveValue('-50');
   });
 
   it('should show a length in the project unit', async () => {
@@ -99,11 +99,38 @@ describe('InputNumber', () => {
     }
   });
 
+  it('should calculate typed math', async () => {
+    render(InputNumber, { value: 1 });
+    const input = page.getByRole('textbox');
+    await input.fill('1 + 2 * 3');
+    await input.element().blur();
+    await expect.element(input).toHaveValue('7');
+    await input.fill('pi');
+    await input.element().blur();
+    await expect.element(input).toHaveValue('3.141592654');
+    await input.fill('2 +');
+    await input.element().blur();
+    await expect.element(input).toHaveValue('3.141592654');
+  });
+
+  it('should calculate with typed units', async () => {
+    unitSettings.unit = 'cm';
+    try {
+      render(InputNumber, { value: 0.25, unit: 'm' });
+      const input = page.getByRole('textbox');
+      await input.fill('1m / 4 + 5mm');
+      await input.element().blur();
+      await expect.element(input).toHaveValue('25.5');
+    } finally {
+      unitSettings.unit = 'm';
+    }
+  });
+
   it('should not convert or label inputs without a unit', async () => {
     unitSettings.unit = 'cm';
     try {
       render(InputNumber, { value: 0.25 });
-      await expect.element(page.getByRole('spinbutton')).toHaveValue(0.25);
+      await expect.element(page.getByRole('textbox')).toHaveValue('0.25');
       await expect.element(page.getByTestId('unit-label')).not.toBeInTheDocument();
     } finally {
       unitSettings.unit = 'm';
