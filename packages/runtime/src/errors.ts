@@ -1,5 +1,6 @@
 import type { NodeDefinition } from '@nodarium/types';
 import { WasmPanicError } from '@nodarium/utils';
+import type { GraphIssue } from './validate-graph';
 
 /** Plain description of a failed run, survives the transfer out of the worker */
 export type RuntimeErrorInfo = {
@@ -49,6 +50,19 @@ export class GraphCycleError extends Error {
     const names = nodes.map(n => `${n.type}#${n.id}`).join(' → ');
     super(`The graph has a cycle: ${names}`);
     this.name = 'GraphCycleError';
+  }
+}
+
+/** Thrown by a runtime made with `createRuntime({ validate: true })` for a graph with errors */
+export class GraphValidationError extends Error {
+  constructor(
+    /** every issue of the graph, its warnings too */
+    public readonly issues: GraphIssue[]
+  ) {
+    const errors = issues.filter(i => i.severity === 'error');
+    const more = errors.length > 1 ? ` (and ${errors.length - 1} more)` : '';
+    super(`The graph is not valid: ${errors[0]?.message}${more}`);
+    this.name = 'GraphValidationError';
   }
 }
 

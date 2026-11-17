@@ -3,8 +3,7 @@
   "version": 13,
   "groups": [],
   "settings": {
-    "resolution.circle": 54,
-    "resolution.curve": 20
+    "resolution.circle": 54
   },
   "meta": {
     "title": "New Project",

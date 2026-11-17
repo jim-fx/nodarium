@@ -13,7 +13,7 @@ export {
   isDebugNode,
   isOutputNode
 } from './internal-nodes';
-export { areSocketsCompatible } from './sockets';
+export { areSocketsCompatible, inputAccepts } from './sockets';
 export type {
   Box,
   Edge,

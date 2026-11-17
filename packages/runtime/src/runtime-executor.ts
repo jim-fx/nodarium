@@ -10,12 +10,18 @@ import { INTERNAL_PREFIX } from '@nodarium/types';
 import { createLogger, type PerformanceStore, readNodeValue } from '@nodarium/utils';
 import { type CacheRun, startCacheRun } from './cache-run';
 import { DebugCollector } from './debug-data';
-import { getErrorInfo, NodeExecutionError, type RuntimeErrorInfo } from './errors';
+import {
+  getErrorInfo,
+  GraphValidationError,
+  NodeExecutionError,
+  type RuntimeErrorInfo
+} from './errors';
 import { expandGroups } from './expand-groups';
 import { migrateGraph } from './graph-migrations';
 import { InstanceTracker } from './instances';
 import { buildPlan, type Plan, type PlanNode } from './plan';
 import type { RunResult } from './types';
+import { validateGraph } from './validate-graph';
 
 export { toCreatorId } from './inputs';
 
@@ -73,6 +79,12 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
   perf?: PerformanceStore;
 
+  /**
+   * Every graph is checked by {@link validateGraph} before it runs, a graph with an error throws
+   * a {@link GraphValidationError}
+   */
+  validate = false;
+
   constructor(
     private registry: NodeRegistry,
     public cache?: SyncCache<Int32Array[]>
@@ -113,6 +125,19 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     return typeMap;
   }
 
+  private async assertValid(graph: Graph) {
+    const types = [...graph.nodes, ...(graph.groups ?? []).flatMap(g => g.nodes)]
+      .map(node => node.type)
+      .filter(type => !type.startsWith(INTERNAL_PREFIX));
+    // a node type that doesn't exist is reported by the validation, not by the registry
+    await Promise.allSettled([...new Set(types)].map(type => this.registry.load([type])));
+    const definitions = new Map<string, NodeDefinition>(
+      this.registry.getAllNodes().map(definition => [definition.id, definition])
+    );
+    const issues = validateGraph(graph, definitions);
+    if (issues.some(issue => issue.severity === 'error')) throw new GraphValidationError(issues);
+  }
+
   async execute(graph: Graph, settings: Record<string, unknown>) {
     return (await this.run(graph, settings)).result;
   }
@@ -122,6 +147,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
     this.lastError = undefined;
     const run = this.instances.enterRun();
     try {
+      if (this.validate) await this.assertValid(graph);
       return await this.executeGraph(graph, settings, run);
     } catch (error) {
       this.lastError = getErrorInfo(error);

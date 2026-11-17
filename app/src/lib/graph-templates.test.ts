@@ -1,6 +1,6 @@
 import { grid } from '#lib/graph-templates/grid.ts';
 import { tree } from '#lib/graph-templates/tree.ts';
-import { CURRENT_GRAPH_VERSION } from '@nodarium/runtime';
+import { CURRENT_GRAPH_VERSION, validateGraph } from '@nodarium/runtime';
 import type { Graph, NodeDefinition } from '@nodarium/types';
 import { describe, expect, it } from 'vitest';
 
@@ -38,47 +38,21 @@ describe('bundled graphs', () => {
       import: 'default'
     })
   };
-  const definitions = Object.values(
-    import.meta.glob<NodeDefinition>('../../../nodes/*/*/*/src/definition.json', {
-      eager: true,
-      import: 'default'
-    })
+  // the definitions the nodes are compiled with, the output node keeps its own in inputs.json
+  const definitions = new Map(
+    Object.values(
+      import.meta.glob<NodeDefinition>('../../../nodes/*/*/*/src/{definition,inputs}.json', {
+        eager: true,
+        import: 'default'
+      })
+    ).map((d) => [d.id as string, d])
   );
-  const inputsOf = new Map(definitions.map((d) => [d.id as string, Object.keys(d.inputs ?? {})]));
 
   it.each(Object.entries(graphs))('%s is saved in the current version', (_, graph) => {
     expect(graph.version).toBe(CURRENT_GRAPH_VERSION);
   });
 
-  it.each(Object.entries(graphs))('%s only uses inputs its nodes have', (_, graph) => {
-    const unknown: string[] = [];
-    for (const scope of [graph, ...graph.groups]) {
-      const types = new Map(scope.nodes.map((n) => [n.id, n.type as string]));
-      const check = (id: number, input: string) => {
-        const inputs = inputsOf.get(types.get(id)!);
-        if (inputs && !inputs.includes(input)) unknown.push(`${types.get(id)} ${input}`);
-      };
-      for (const node of scope.nodes) {
-        for (const input of [...Object.keys(node.props ?? {}), ...(node.exposed ?? [])]) {
-          check(node.id, input);
-        }
-      }
-      for (const edge of scope.edges) check(edge[2], edge[3]);
-    }
-    expect([...new Set(unknown)]).toEqual([]);
-  });
-
-  const outputsOf = new Map(definitions.map((d) => [d.id as string, d.outputs?.length ?? 0]));
-
-  it.each(Object.entries(graphs))('%s only uses outputs its nodes have', (_, graph) => {
-    const unknown: string[] = [];
-    for (const scope of [graph, ...graph.groups]) {
-      const types = new Map(scope.nodes.map((n) => [n.id, n.type as string]));
-      for (const [from, output] of scope.edges) {
-        const count = outputsOf.get(types.get(from)!);
-        if (count !== undefined && output >= count) unknown.push(`${types.get(from)} ${output}`);
-      }
-    }
-    expect([...new Set(unknown)]).toEqual([]);
+  it.each(Object.entries(graphs))('%s has no issues', (_, graph) => {
+    expect(validateGraph(graph, definitions).map((issue) => issue.message)).toEqual([]);
   });
 });

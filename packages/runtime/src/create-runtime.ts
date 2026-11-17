@@ -10,9 +10,17 @@ export type RuntimeOptions = {
    * it changes. Off by default, `true` uses a cache that holds about two runs.
    */
   cache?: boolean | SyncCache<Int32Array[]>;
+  /**
+   * Checks every graph with `validateGraph()` before it runs: a graph with an error throws a
+   * `GraphValidationError` that lists all its issues. Off by default, it costs a fraction of a
+   * millisecond per run.
+   */
+  validate?: boolean;
 };
 
-export function createRuntime({ registry, cache }: RuntimeOptions) {
+export function createRuntime({ registry, cache, validate = false }: RuntimeOptions) {
   const runtimeCache = cache === true ? new MemoryRuntimeCache() : cache || undefined;
-  return new MemoryRuntimeExecutor(registry, runtimeCache);
+  const runtime = new MemoryRuntimeExecutor(registry, runtimeCache);
+  runtime.validate = validate;
+  return runtime;
 }

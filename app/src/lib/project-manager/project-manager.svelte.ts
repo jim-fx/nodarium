@@ -3,8 +3,9 @@ import { localState } from '#lib/helpers/localState.svelte.ts';
 import { ThumbnailService } from '#lib/thumbnails/thumbnail-service.svelte.ts';
 import { parseProjectFile } from '@nodarium/runtime';
 import { loadTemplate } from '@nodarium/runtime/templates';
-import type { Graph, ProjectUnit } from '@nodarium/types';
+import type { Graph, NodeRegistry, ProjectUnit } from '@nodarium/types';
 import FileSaver from 'file-saver';
+import { findImportIssues, reportImportIssues } from './import-issues';
 import * as db from './project-database.svelte';
 import { createProjectFile, previewToBlob } from './project-file';
 
@@ -39,7 +40,8 @@ export class ProjectManager {
     return this.activeProjectId.value;
   }
 
-  constructor() {
+  /** @param registry the nodes an imported graph is checked against */
+  constructor(private registry?: NodeRegistry) {
     this.init();
   }
 
@@ -168,8 +170,19 @@ export class ProjectManager {
     );
   }
 
+  /**
+   * Opens the project of the file as a new project. A graph with issues is opened all the same,
+   * they are shown when a registry is given.
+   */
   public async importProject(file: File) {
-    const { graph, preview } = parseProjectFile(JSON.parse(await file.text()));
+    const input = JSON.parse(await file.text());
+    const { graph, preview } = parseProjectFile(input);
+    if (this.registry) {
+      const written = 'format' in input ? input.graph : input;
+      await findImportIssues(written, this.registry)
+        .then((issues) => reportImportIssues(written, issues))
+        .catch((error) => console.error('could not check the imported graph', error));
+    }
     const title = graph.meta?.title || file.name.replace(/(\.nodarium)?\.json$/, '');
     const id = this.handleCreateProject(graph, title);
     if (preview) {

@@ -1,4 +1,4 @@
-export { areSocketsCompatible } from '@nodarium/types';
+export { areSocketsCompatible, inputAccepts } from '@nodarium/types';
 export type {
   Graph,
   NodeDefinition,
@@ -26,3 +26,4 @@ export * from './result/decode-result';
 export * from './runtime-executor';
 export * from './runtime-executor-cache';
 export type { DebugEntry, RunResult, RuntimeNode } from './types';
+export { type GraphIssue, type GraphIssueCode, validateGraph } from './validate-graph';
