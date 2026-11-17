@@ -4,6 +4,7 @@
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers/index.ts';
   import { getParameterHeight } from '../helpers/nodeHelpers';
+  import { connectionDescription, socketName } from '../helpers/socketNames';
   import NodeInputEl from './NodeInput.svelte';
 
   type Props = {
@@ -27,27 +28,30 @@
   // a hidden input that is shown on this node, see GraphManager.setInputExposed()
   const isExposed = $derived(node.state?.type?.inputs?.[id]?.hidden === true);
 
-  const socketId = $derived(`${node.id}-${id}`);
   const height = $derived(getParameterHeight(nodeType, id));
+
+  // the rows of the Group Input node are its outputs
+  const socketIndex = $derived(
+    node.type === GROUP_INPUT ? Object.keys(nodeType?.inputs ?? {}).indexOf(id) : id
+  );
+  const socketId = $derived(`${node.id}-${socketIndex}`);
+  const name = $derived(socketName(node, nodeType, socketIndex));
+  const socket = () => ({
+    node,
+    index: socketIndex,
+    position: graphState.getSocketPosition(node, socketIndex)
+  });
 
   function handleMouseDown(ev: MouseEvent) {
     ev.preventDefault();
     ev.stopPropagation();
+    graphState.pressSocket(socket(), ev);
+  }
 
-    if (node.type === GROUP_INPUT) {
-      const outputIndex = Object.entries(nodeType?.inputs ?? {}).findIndex(([key]) => key === id);
-      graphState.setDownSocket({
-        node,
-        index: outputIndex,
-        position: graphState.getSocketPosition(node, outputIndex)
-      });
-    } else {
-      graphState.setDownSocket({
-        node,
-        index: id,
-        position: graphState.getSocketPosition(node, id)
-      });
-    }
+  function handleKeyDown(ev: KeyboardEvent) {
+    if (ev.key !== 'Enter' && ev.key !== ' ') return;
+    ev.preventDefault();
+    graphState.activateSocket(socket());
   }
 
   const leftBump = $derived(
@@ -85,9 +89,13 @@
     return graph.getSocketType(s.node, s.index) || 'unknown';
   }
 
-  const socketType = $derived(getSocketType(graphState.activeSocket));
+  const socketType = $derived(getSocketType(graphState.connectingSocket));
   const hoverColor = $derived(graphState.colors.getColor(socketType));
-  const disabled = $derived(graph?.inputSockets?.has(socketId));
+  const edgeIn = $derived(graph?.inputSockets?.get(socketId));
+  const disabled = $derived(!!edgeIn);
+  const connection = $derived(
+    edgeIn && connectionDescription(edgeIn[0], graph.getNodeType(edgeIn[0]), edgeIn[1])
+  );
 </script>
 
 <div
@@ -123,13 +131,21 @@
       {/if}
     </div>
 
+    {#if connection}
+      <span id="{elementId}-connection" class="sr-only">{connection}</span>
+    {/if}
+
     {#if inputType?.internal !== true}
       <div
         data-node-socket
         class="target"
         onmousedown={handleMouseDown}
+        onkeydown={handleKeyDown}
         role="button"
         tabindex="0"
+        aria-label={name}
+        aria-describedby={connection ? `${elementId}-connection` : undefined}
+        aria-pressed={graphState?.isPicked(node, socketIndex)}
       >
       </div>
     {/if}

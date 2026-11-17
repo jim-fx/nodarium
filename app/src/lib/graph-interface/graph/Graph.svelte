@@ -55,6 +55,8 @@
 </script>
 
 <svelte:window
+  onmousedown={() => mouseEvents.handleWindowMouseDown()}
+  onkeydown={(ev) => ev.key === 'Escape' && graphState.unpickSocket()}
   onmousemove={(ev) => mouseEvents.handleWindowMouseMove(ev)}
   onmouseup={(ev) => mouseEvents.handleWindowMouseUp(ev)}
 />
@@ -156,9 +158,9 @@
 
       <HTML transform={false}>
         <div
-          role="tree"
+          role="group"
+          aria-label="Nodes"
           id="graph"
-          tabindex="0"
           class="wrapper"
           bind:this={overlayEl}
           class:hovering-sockets={graphState.activeSocket}

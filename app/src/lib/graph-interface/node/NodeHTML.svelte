@@ -2,6 +2,7 @@
   import { getOutputType, type NodeInstance } from '@nodarium/types';
   import MutedEdge from '../edges/MutedEdge.svelte';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
+  import { nodeLabel } from '../helpers/socketNames';
   import NodeHeader from './NodeHeader.svelte';
   import NodeOutput from './NodeOutput.svelte';
   import NodeParameter from './NodeParameter.svelte';
@@ -45,6 +46,8 @@
     ) || {}
   );
 
+  const label = $derived(nodeLabel(node, nodeType));
+
   const outputCount = $derived(nodeType?.outputs?.length ?? 0);
 
   const showMutedEdge = $derived.by(() => {
@@ -70,6 +73,8 @@
 
 <div
   class="node {position}"
+  role="group"
+  aria-label={label}
   class:active={isActive}
   class:muted={node.muted}
   style:--cz={z + zOffset}

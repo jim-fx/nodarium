@@ -2,6 +2,7 @@
   import { getOutputLabel, type NodeInstance, type Socket } from '@nodarium/types';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers/index.ts';
+  import { socketName } from '../helpers/socketNames';
 
   type Props = {
     node: NodeInstance;
@@ -17,15 +18,20 @@
   const nodeType = $derived(graph.getNodeType(node));
   const label = $derived(getOutputLabel(nodeType?.outputs?.[index]));
   const socketId = $derived(`${node.id}-${index}`);
+  const name = $derived(socketName(node, nodeType, index));
+
+  const socket = () => ({ node, index, position: graphState.getSocketPosition(node, index) });
 
   function handleMouseDown(ev: MouseEvent) {
     ev.preventDefault();
     ev.stopPropagation();
-    graphState.setDownSocket({
-      node,
-      index,
-      position: graphState.getSocketPosition(node, index)
-    });
+    graphState.pressSocket(socket(), ev);
+  }
+
+  function handleKeyDown(ev: KeyboardEvent) {
+    if (ev.key !== 'Enter' && ev.key !== ' ') return;
+    ev.preventDefault();
+    graphState.activateSocket(socket());
   }
 
   const cornerBottom = $derived(isLast ? 5 : 0);
@@ -43,7 +49,9 @@
     return graph.getSocketType(s.node, s.index) || 'unknown';
   }
 
-  const hoverColor = $derived(graphState.colors.getColor(getSocketType(graphState.activeSocket)));
+  const hoverColor = $derived(
+    graphState.colors.getColor(getSocketType(graphState.connectingSocket))
+  );
 </script>
 
 <div
@@ -58,8 +66,11 @@
     data-node-socket
     class="target"
     onmousedown={handleMouseDown}
+    onkeydown={handleKeyDown}
     role="button"
     tabindex="0"
+    aria-label={name}
+    aria-pressed={graphState?.isPicked(node, index)}
   >
   </div>
 

@@ -243,6 +243,23 @@ describe('getPossibleSockets', () => {
 
       expect(possibleSockets.map(([node]) => node.id)).not.toContain(floatInputNode.id);
     });
+
+    it('should return the outputs the input accepts, the same as from the outputs', () => {
+      const { manager, create } = createManager();
+      const geometryOutputNode = create('test/node/geometry');
+      const pathInputNode = create('test/node/path');
+      create('test/node/vec3');
+
+      const possibleSockets = manager.getPossibleSockets({
+        node: pathInputNode,
+        index: 'input',
+        position: [0, 0]
+      });
+
+      expect(possibleSockets.map(([node, index]) => [node.id, index])).toEqual([
+        [geometryOutputNode.id, 0]
+      ]);
+    });
   });
 });
 

@@ -4,22 +4,25 @@
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers/index.ts';
   import { getNodeHeight } from '../helpers/nodeHelpers';
+  import { socketName } from '../helpers/socketNames';
 
   const graphState = tryGetGraphState();
   const graph = tryGetGraphManager();
 
   const { node }: { node: NodeInstance } = $props();
 
+  const socket = () => ({ node, index: 0, position: graphState.getSocketPosition(node, 0) });
+
   function handleMouseDown(event: MouseEvent) {
     event.stopPropagation();
     event.preventDefault();
-    if ('state' in node) {
-      graphState.setDownSocket?.({
-        node,
-        index: 0,
-        position: graphState.getSocketPosition?.(node, 0)
-      });
-    }
+    if ('state' in node) graphState.pressSocket(socket(), event);
+  }
+
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    graphState.activateSocket(socket());
   }
 
   const cornerTop = 10;
@@ -69,12 +72,13 @@
   );
 
   const socketId = $derived(`${node.id}-${0}`);
+  const name = $derived(socketName(node, nodeType, 0));
 
   function getSocketType(s: Socket | null) {
     if (!s) return 'unknown';
     return graph.getSocketType(s.node, s.index) || 'unknown';
   }
-  const socketType = $derived(getSocketType(graphState.activeSocket));
+  const socketType = $derived(getSocketType(graphState.connectingSocket));
   const hoverColor = $derived(graphState.colors.getColor(socketType));
 
   const timing = $derived(graphState.options.nodeTimings[node.id]);
@@ -111,7 +115,10 @@
       class="target"
       role="button"
       tabindex="0"
+      aria-label={name}
+      aria-pressed={graphState?.isPicked(node, 0)}
       onmousedown={handleMouseDown}
+      onkeydown={handleKeyDown}
     >
     </div>
   {/if}

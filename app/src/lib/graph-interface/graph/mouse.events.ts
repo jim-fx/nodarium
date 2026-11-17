@@ -21,6 +21,9 @@ export class MouseEventManager {
     this.state.isPanning = false;
     if (!this.state.mouseDown) return;
 
+    const clickedSocket = this.state.releasedSocket(event);
+    const droppedOnSocket = !!this.state.hoveredSocket;
+
     const activeNode = this.graph.getNode(this.state.activeNodeId);
 
     const clickedNodeId = this.state.getNodeIdFromEvent(event);
@@ -157,6 +160,13 @@ export class MouseEventManager {
     this.state.possibleSockets = [];
     this.state.hoveredSocket = null;
     this.state.addMenuPosition = null;
+
+    if (clickedSocket && !droppedOnSocket) this.state.pickSocket(clickedSocket);
+  }
+
+  /** A press anywhere but on a socket leaves the state of a picked socket */
+  handleWindowMouseDown() {
+    this.state.unpickSocket();
   }
 
   private connectToDebugNode(nodeId: number) {
@@ -265,6 +275,7 @@ export class MouseEventManager {
 
     this.state.mousePosition = this.state.camera.toWorld(mx, my);
     this.state.hoveredNodeId = this.state.getNodeIdFromEvent(event);
+    this.state.movePointer(event);
 
     if (!this.state.mouseDown) return;
 

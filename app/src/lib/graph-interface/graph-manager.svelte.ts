@@ -94,10 +94,11 @@ export class GraphManager extends EventEmitter<{
   settingTypes: Record<string, NodeInput> = $state.raw({});
   settings: Record<string, unknown> = $state({});
 
+  /** The edge into each connected input, keyed by `${nodeId}-${inputKey}` */
   inputSockets = $derived.by(() => {
-    const s = new SvelteSet<string>();
+    const s = new SvelteMap<string, Edge>();
     for (const edge of this.edges) {
-      s.add(`${edge[2].id}-${edge[3]}`);
+      s.set(`${edge[2].id}-${edge[3]}`, edge);
     }
     return s;
   });
@@ -1189,7 +1190,8 @@ export class GraphManager extends EventEmitter<{
     const sockets: [NodeInstance, string | number][] = [];
 
     if (typeof index === 'string') {
-      if (!isInputConnectable(this.getNodeSockets(node).inputs[index])) return [];
+      const input = this.getNodeSockets(node).inputs[index];
+      if (!isInputConnectable(input)) return [];
       const children = new SvelteSet(this.getChildren(node).map((n) => n.id));
       const nodes = this.nodeArray.filter(
         (n) => n.id !== node.id && !children.has(n.id)
@@ -1198,7 +1200,7 @@ export class GraphManager extends EventEmitter<{
       for (const node of nodes) {
         const outputs = this.getNodeSockets(node).outputs;
         for (let index = 0; index < outputs.length; index++) {
-          if (outputs[index] === ownType) {
+          if (inputAccepts(input, outputs[index])) {
             sockets.push([node, index]);
           }
         }
