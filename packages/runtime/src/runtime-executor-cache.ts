@@ -17,6 +17,14 @@ export const ALWAYS_KEEP_BYTES = MB;
  * and copying them into the cache takes a good part of that on every build.
  */
 export const MIN_MS_PER_MB = 1;
+/**
+ * One time of a node that does little per byte can be up to this much too slow: its first run
+ * sets up its module, and a run that a collection or another process interrupts takes about twice
+ * as long. The skirt of the fly agaric makes 1.2 MB in 0.9–1.0 ms warm, in 1.1–1.3 ms on its
+ * first run and now and then in 1.9 ms. Kept by one time, it stayed out of the cache in some
+ * processes and got in in others, by the first run that happened to be slow.
+ */
+const TIME_SCATTER = 2;
 /** Times below this are noise, a page without cross-origin isolation measures in steps of it */
 const MIN_COST = 0.1;
 
@@ -26,7 +34,9 @@ type Entry = { value: unknown; bytes: number; cost: number; run: number };
  * Keeps values by the time they save per byte, under a byte budget.
  *
  * - A value over {@link ALWAYS_KEEP_BYTES} that took less than {@link MIN_MS_PER_MB} isn't
- *   kept, {@link keeps} tells the caller before it copies one.
+ *   kept, {@link keeps} tells the caller before it copies one. A value it turned away is
+ *   measured again when it is made again, the least of its times decides. One time decides only
+ *   when it is at least twice the limit, a time can be that much too slow.
  * - The values read or written since the last {@link startRun} are the current run, the next
  *   change starts from it. They are removed last.
  * - Of the older values, the one that saves the least time per byte, divided by the runs since
@@ -36,6 +46,8 @@ type Entry = { value: unknown; bytes: number; cost: number; run: number };
  */
 export class MemoryRuntimeCache implements SyncCache {
   private map = new Map<string, Entry>();
+  // the least time of the values turned away, so a slower time later doesn't let one in
+  private turnedAway = new Map<string, number>();
   private totalBytes = 0;
   private maxEntries: number;
   private byteLimit: number;
@@ -70,9 +82,27 @@ export class MemoryRuntimeCache implements SyncCache {
     return this.totalBytes;
   }
 
-  /** Whether {@link set} stores a value of `bytes` that took `cost` ms to make */
-  keeps(bytes: number, cost: number) {
-    return bytes <= ALWAYS_KEEP_BYTES || cost >= MIN_MS_PER_MB * bytes / MB;
+  /**
+   * Whether {@link set} stores a value of `bytes` that took `cost` ms to make. With the `key` of
+   * the value, a value it turns away counts as measured, the next time the least of its times
+   * decides.
+   */
+  keeps(bytes: number, cost: number, key?: string) {
+    if (bytes <= ALWAYS_KEEP_BYTES) return true;
+    const earlier = key === undefined ? undefined : this.turnedAway.get(key);
+    const least = Math.min(cost, earlier ?? Infinity);
+    const needed = MIN_MS_PER_MB * bytes / MB * (earlier === undefined ? TIME_SCATTER : 1);
+    if (least >= needed) return true;
+    if (key !== undefined) this.turnAway(key, least);
+    return false;
+  }
+
+  private turnAway(key: string, cost: number) {
+    this.turnedAway.delete(key);
+    this.turnedAway.set(key, cost);
+    if (this.turnedAway.size > this.maxEntries) {
+      this.turnedAway.delete(this.turnedAway.keys().next().value!);
+    }
   }
 
   startRun() {
@@ -95,14 +125,17 @@ export class MemoryRuntimeCache implements SyncCache {
   set<T>(key: string, value: T, cost?: number): void {
     this.delete(key);
     const bytes = byteSize(value);
-    if (cost !== undefined && !this.keeps(bytes, cost)) return;
-    this.map.set(key, { value, bytes, cost: cost ?? 0, run: this.run });
+    if (cost !== undefined && !this.keeps(bytes, cost, key)) return;
+    cost = Math.min(cost ?? 0, this.turnedAway.get(key) ?? Infinity);
+    this.turnedAway.delete(key);
+    this.map.set(key, { value, bytes, cost, run: this.run });
     this.totalBytes += bytes;
     this.evict();
   }
 
   clear(): void {
     this.map.clear();
+    this.turnedAway.clear();
     this.totalBytes = 0;
   }
 

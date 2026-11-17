@@ -384,6 +384,56 @@ describe('MemoryRuntimeCache', () => {
     expect(cache.bytes).toBe(65 * MB);
   });
 
+  it('keeps a big value on its first time only when it is twice the limit', () => {
+    const cache = new MemoryRuntimeCache();
+    cache.set('twice', bytes(4 * MB), 8);
+    cache.set('once', bytes(4 * MB), 6);
+
+    expect(cache.keeps(4 * MB, 6)).toBe(false);
+    expect(cache.get('twice')).toBeDefined();
+    expect(cache.get('once')).toBeUndefined();
+
+    cache.set('once', bytes(4 * MB), 5);
+    expect(cache.get('once')).toBeDefined();
+  });
+
+  it('decides a value it turned away by the least of its times', () => {
+    const cache = new MemoryRuntimeCache();
+    expect(cache.keeps(4 * MB, 3, 'a')).toBe(false);
+    expect(cache.keeps(4 * MB, 7, 'a')).toBe(false);
+    expect(cache.keeps(4 * MB, 9, 'a')).toBe(false);
+
+    cache.clear();
+    expect(cache.keeps(4 * MB, 9, 'a')).toBe(true);
+  });
+
+  it('makes the same decision whichever of a slow and a fast time comes first', () => {
+    // 4 MB that take 3 or 5 ms, and 7 ms in a run that is interrupted
+    const decide = (times: number[]) => {
+      const cache = new MemoryRuntimeCache();
+      for (const time of times) {
+        if (cache.get('a') === undefined) cache.set('a', bytes(4 * MB), time);
+      }
+      return cache.get('a') !== undefined;
+    };
+
+    expect(decide([3, 7])).toBe(false);
+    expect(decide([7, 3])).toBe(false);
+    expect(decide([7, 3, 7, 7])).toBe(false);
+    expect(decide([5, 7])).toBe(true);
+    expect(decide([7, 5])).toBe(true);
+  });
+
+  it('forgets the oldest values it turned away beyond its size', () => {
+    const cache = new MemoryRuntimeCache(2);
+    cache.keeps(4 * MB, 1, 'a');
+    cache.keeps(4 * MB, 1, 'b');
+    cache.keeps(4 * MB, 1, 'c');
+
+    expect(cache.keeps(4 * MB, 9, 'c')).toBe(false);
+    expect(cache.keeps(4 * MB, 9, 'a')).toBe(true);
+  });
+
   it('keeps the values of the current run over older ones', () => {
     const cache = new MemoryRuntimeCache();
     cache.startRun();
@@ -578,6 +628,70 @@ describe('runtime cache by cost', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('runtime cache by the times of a node', () => {
+  const MB_INTS = 2 ** 18;
+  let times: number[] = [];
+  // 4 MB in the next of `times` ms
+  const timed = {
+    id: 'test/cache/timed',
+    inputs: { value: { type: 'integer', value: 1 } },
+    outputs: ['float'],
+    execute: vi.fn((values: NodeValue[]) => {
+      calls['test/cache/timed'] = (calls['test/cache/timed'] ?? 0) + 1;
+      vi.advanceTimersByTime(times.shift() ?? 0);
+      return new Int32Array(4 * MB_INTS).fill((values[0] as Int32Array)[0]);
+    })
+  } as NodeDefinition;
+  // a mesh that is only passed on, never kept, so the node before it runs whenever it isn't kept
+  const passOn = {
+    id: 'test/cache/pass-on',
+    inputs: { input: { type: 'float' } },
+    outputs: ['float'],
+    execute: vi.fn((values: NodeValue[]) => new Int32Array(values[0] as Int32Array))
+  } as NodeDefinition;
+  const timedRegistry = createMockNodeRegistry([output, passOn, timed]);
+  // output <- pass on <- timed
+  const timedGraph = {
+    id: 0,
+    nodes: [
+      { id: 0, type: output.id, position: [0, 0] },
+      { id: 1, type: passOn.id, position: [0, 0] },
+      { id: 2, type: timed.id, position: [0, 0] }
+    ],
+    edges: [
+      [1, 0, 0, 'input'],
+      [2, 0, 1, 'input']
+    ]
+  } as Graph;
+
+  async function runsOf(nodeTimes: number[]) {
+    vi.useFakeTimers({ toFake: ['performance'] });
+    try {
+      calls = {};
+      times = [...nodeTimes];
+      const executor = new MemoryRuntimeExecutor(timedRegistry, new MemoryRuntimeCache());
+      for (let run = 0; run < 6; run++) await executor.execute(timedGraph, {});
+      return calls[timed.id];
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+
+  it('runs a node under the limit again in every run, whichever of its runs is slow', async () => {
+    // the skirt of the fly agaric: 0.93 ms for 1.2 MB, once in a while twice that long
+    for (let slow = 0; slow < 6; slow++) {
+      const nodeTimes = Array.from({ length: 6 }, (_, run) => (run === slow ? 7 : 3));
+      expect(await runsOf(nodeTimes)).toBe(6);
+    }
+  });
+
+  it('keeps a node over the limit from its second run, or its first when that took twice as long', async () => {
+    expect(await runsOf([5, 5, 5])).toBe(2);
+    expect(await runsOf([7, 5, 5])).toBe(2);
+    expect(await runsOf([9, 5, 5])).toBe(1);
   });
 });
 

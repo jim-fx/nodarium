@@ -44,7 +44,7 @@ export function startCacheRun(
     store(key, values, cost) {
       // asked before the values are copied out of the memory of their node
       const valueBytes = values.reduce((sum, value) => sum + nodeValueBytes(value), 0);
-      if (!(cache.keeps?.(valueBytes, cost) ?? true)) return;
+      if (!(cache.keeps?.(valueBytes, cost, key) ?? true)) return;
       bytes += valueBytes;
       // a bigger graph than the last one keeps all of its results
       cache.maxBytes = Math.max(cache.maxBytes ?? 0, bytes * 2);

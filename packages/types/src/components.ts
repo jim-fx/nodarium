@@ -31,8 +31,11 @@ export interface SyncCache<T = unknown> {
   get: (key: string) => T | undefined;
   /** @param cost the time it took to make the value in ms */
   set: (key: string, value: T, cost?: number) => void;
-  /** Whether a value of `bytes` that took `cost` ms to make would be stored, before it is copied */
-  keeps?: (bytes: number, cost: number) => boolean;
+  /**
+   * Whether a value of `bytes` that took `cost` ms to make would be stored, before it is copied.
+   * `key` is the key it would be stored under.
+   */
+  keeps?: (bytes: number, cost: number, key?: string) => boolean;
   /** The items read or written from now until the next call belong to one run */
   startRun?: () => void;
   clear: () => void;
