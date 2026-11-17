@@ -1,3 +1,152 @@
+# v1.2.0 (2026-11-17)
+
+## Features
+
+- Paths grow from their tip. `stem`, `branch` and `branch_from_points` have a hidden `growth` input: the length stays the full-grown length, the growth is the share of it that is there. Kinks, points, branches and instances stay where they are while the tip grows on, and `path_info` reads how long ago the tip passed a spot. The plant templates grow this way with time, and the template page has a time slider.
+- New template: clouded agaric (_Clitocybe nebularis_). The chanterelle is rebuilt: cap and stem are one body, the ridges fork and run down the stem, and the troop differs per seed and comes up one after another (#424, #425).
+- The random node can draw once per instance, so the size and the angle of one instance read the same value (#396).
+- Number inputs calculate what is typed, like `2 * pi` or `10cm + 5mm`.
+- `validateGraph(graph, definitions)` in `@nodarium/runtime` names every mistake of a graph and its groups at once, without running it, with a "did you mean" for a mistyped node type, input or prop. `createRuntime({ validate: true })` checks every graph before it runs. The app names the mistakes of an imported graph: a toast with the first and the count, all of them in the error log (#400).
+- `@nodarium/runtime` has a command line, `nodarium`: `nodes`, `check`, `run`, `render`, `format` and `link`, for a template, a file or stdin, with `--json` and exit code 1 on an error. `render --node id` draws the output of one node. Every node and every input that is shown has a description, `nodarium nodes` prints them as a catalog (#401).
+- `nodarium mcp` starts a local MCP server with the commands as tools, for agents without a shell. The tools take graphs as JSON and read or write no files (#406).
+- The position of a node is optional in a graph file. A graph without positions is placed in columns when it loads (#401).
+- `window.nodarium` in the app loads a graph, changes it, builds it, reads the result and takes a picture of it, documented in `docs/AGENT_API.md`. The viewer shows vertices, faces and the build time, and draws a result once when the page gets no animation frames. `?tutorial=0` keeps the tutorial closed for a visit (#403).
+- The app opens a template with `/?template=<id>` and a graph with `/#graph=<data>`. A link opened twice opens one project. File → Copy link copies a link to the open project, `nodarium link` prints one (#404).
+- The site serves `/llms.txt`, the node catalog (`/nodes/index.txt`, `/nodes/index.json`), the templates (`/templates/index.json`, `/templates/<id>.json`), `/graph.schema.json` and `/docs/graphs.md` (#404).
+- The sockets and connections of a graph can be read from the page: every socket and node has a name, a connected input says what feeds it. Two sockets connect with a click on each, or with Tab and Enter (#405).
+- `MemoryRuntimeExecutor.run()` returns the result with its debug data and timings as one `RunResult` (#380). `execute()` loads the nodes of a registry that has not loaded any yet, and `WasmNodeRegistry` has a protected `storageId()` for subclasses (#384). New in `@nodarium/runtime`: `inputAccepts`, `placeNodes`, `graphLink`, `encodeGraph`, `decodeGraph`, `graphFileJsonSchema`, `nodeSummary`; in `@nodarium/runtime/node`: `listNodes`, `renderToPng`, `formatNode`, `formatNodeList`, `readGraphSource`, `parseSets`, `applySets`.
+- For work on the repository: `AGENTS.md` is the entry point for agents, `pnpm bootstrap` sets up a checkout, `pnpm -C app bench` prints a summary and compares with a saved run, `pnpm -C app run profile` shows time and memory per node (#399, #402).
+
+## Fixes
+
+- Undo and redo bring the values of the graph settings back (#371).
+- A graph only shows and saves the settings its own nodes declare (#367).
+- The drag hold holds a dragged graph setting (#385).
+- Selecting a node no longer changes its props, and the widgets of a node only write a value the user changed. Both added undo steps nobody made.
+- A muted node stays muted when its group is ungrouped.
+- A group used twice is not a circular group reference (#389).
+- A held undo step whose end never came no longer wedges the history.
+- The runtime keeps big wasm instances while their node is in the graph, instead of setting them up again on every run (#392).
+- The performance data of a run no longer includes a failed run before it (#410).
+- A node whose wasm fails to register fails the load with a message, instead of going missing without a word (#384).
+- Dragging from an input highlights every output it accepts (#423).
+- Tab moves the focus inside a node. It enters a group only when the active node is one.
+- The fly agaric's ring hangs lower on the stipe (#366).
+
+## Upgrading
+
+- The templates `willow`, `foxglove` and `chestnut` are removed, `loadTemplate()` no longer finds them. `sulphur-tuft`, `false-chanterelle` and `bitter-bolete` are no longer listed, `loadTemplate()` still finds them.
+- The chanterelle template builds a different mushroom than in v1.1.0.
+- The header of a path has one more word (`grown`). A node built against an older `nodarium_utils` has to be built again.
+- `position` is optional on the nodes of a graph file (`NodeSchema`). Code that reads the position of a node from a file has to handle a node without one, or place the graph with `placeNodes()` first.
+- `nodarium mcp` needs `@modelcontextprotocol/sdk`, an optional peer dependency: `npx -y -p @nodarium/runtime -p @modelcontextprotocol/sdk nodarium mcp`.
+- Other origins can only read the new files of the site once the server sends `Access-Control-Allow-Origin` for `/nodes/`, `/templates/`, `/graph.schema.json` and `/llms.txt`.
+
+---
+
+- [97933b37](https://git.max-richter.dev/max/nodarium/commit/97933b373b2ea6a4c9ecf51b4da064d734269db9) Merge pull request 'feat(graph-interface): the connections and the sockets of a graph can be read from the page' (#434) from feat/405-readable-sockets into main
+- [745690c9](https://git.max-richter.dev/max/nodarium/commit/745690c92d24387af690a648f39240a05b9efd87) Merge pull request 'feat(runtime): nodarium mcp, the CLI as tools for agents without a shell' (#433) from feat/406-nodarium-mcp into main
+- [fd364ab8](https://git.max-richter.dev/max/nodarium/commit/fd364ab8a6940a6f461f435568a9cffca4158bb9) fix(runtime): nodarium mcp sends console.warn to stderr with the other logs
+- [15e92147](https://git.max-richter.dev/max/nodarium/commit/15e921474fb1768d756a9ede3899564bb21e55ba) feat(graph-interface): the connections and the sockets of a graph can be read from the page
+- [94837caa](https://git.max-richter.dev/max/nodarium/commit/94837caa31615650dbd0e1e31b5c35d0c2946465) feat(runtime): nodarium mcp, the CLI as tools for agents without a shell
+- [91aed9a7](https://git.max-richter.dev/max/nodarium/commit/91aed9a734be652f7fbea60de82f0da36931d0dd) Merge pull request 'feat(app): open a graph through the URL, and llms.txt, the templates and the graph schema as files on the site' (#432) from feat/404-graph-by-url into main
+- [75874638](https://git.max-richter.dev/max/nodarium/commit/75874638abdc9927af9fe4b0085bbada6dd0b714) fix(app): a graph link opens in a tab that has the app open
+- [8cc1e53a](https://git.max-richter.dev/max/nodarium/commit/8cc1e53af718808dfa6c0386b289754a6b4e316c) feat(app): llms.txt, the node catalog, the templates and the graph schema as files on the site
+- [33d887c6](https://git.max-richter.dev/max/nodarium/commit/33d887c64f12199f3814038bed5043a8cf60b652) feat(app): open a template or a graph through the URL, File → Copy link and nodarium link
+- [1f52b95a](https://git.max-richter.dev/max/nodarium/commit/1f52b95a50118de2eaeca92b6f249716f1c29609) Merge pull request 'feat(bench): pnpm bench prints a summary and compares runs, pnpm profile shows every node' (#428) from feat/402-bench-summary-profile into main
+- [1b13c384](https://git.max-richter.dev/max/nodarium/commit/1b13c384b074fe7e8296d27c44819761770d8688) fix(bench): --compare judges a change by the scatter between processes
+- [7cc665e2](https://git.max-richter.dev/max/nodarium/commit/7cc665e2bb76ed82a0050ec2cc5188822094c938) Merge pull request 'feat(app): window.nodarium to load a graph, build it, read the result and take a picture' (#431) from feat/403-window-nodarium into main
+- [4afe435c](https://git.max-richter.dev/max/nodarium/commit/4afe435c0ceda2c30173dd25861aa44afe49433b) fix(app): the bounds of a build are typed as the vectors they are
+- [a4839711](https://git.max-richter.dev/max/nodarium/commit/a4839711820968d31e003d588c04aaba8761030a) fix(app): a failed open ends the wait of window.nodarium, a failed load of its code stays quiet
+- [3ec0247d](https://git.max-richter.dev/max/nodarium/commit/3ec0247d41a12d107ad38dc77a946722e9b217dc) feat(app): a picture of the result without animation frames
+- [75cd0dc9](https://git.max-richter.dev/max/nodarium/commit/75cd0dc9c906c1cbe5857b3669d4f985b7997a74) feat(app): window.nodarium to load a graph, build it and read the result
+- [604bc099](https://git.max-richter.dev/max/nodarium/commit/604bc09975865a54ed6a2bf0888c89058dadd425) feat(bench): pnpm run profile shows every node, profile:node runs one alone
+- [b7953d09](https://git.max-richter.dev/max/nodarium/commit/b7953d09269ef017abfb497460dfa32c4140c96a) feat(bench): pnpm bench prints a summary, runs a part and compares with a saved run
+- [30d2e957](https://git.max-richter.dev/max/nodarium/commit/30d2e95754e7bb23e13cf09450f19029a87f9eb7) fix(runtime): nodarium format writes every string back as it was
+- [517df866](https://git.max-richter.dev/max/nodarium/commit/517df866efcdf9fc6647946faeb67642247889b4) Merge pull request 'feat(runtime): one nodarium command for nodes, check, run and render, with a node catalog an agent can read' (#427) from feat/401-nodarium-cli into main
+- [fa45e15f](https://git.max-richter.dev/max/nodarium/commit/fa45e15f61a69c546d9c6f56c4ddb8ccde90045a) feat(runtime): one nodarium command for nodes, check, run and render, with a node catalog an agent can read
+- [05b312ce](https://git.max-richter.dev/max/nodarium/commit/05b312ceae0275f182a89285ad0c774b5e349176) feat(runtime): the position of a node is optional, a graph without positions is placed when it loads
+- [08d9bfb9](https://git.max-richter.dev/max/nodarium/commit/08d9bfb9e8fd723cf15b6fb0ce51a3bf674a090c) feat(nodes): a description for every node and every input that is shown
+- [8513838a](https://git.max-richter.dev/max/nodarium/commit/8513838aa15fe31e379e69c07ef50e2f994bc736) Merge pull request 'feat(ui): number inputs calculate typed math like "2 * pi" or "10cm + 5mm"' (#426) from feat/number-input-math into main
+- [1b217084](https://git.max-richter.dev/max/nodarium/commit/1b2170847701fc5af313e1cfc9eb60d7df59255e) feat(ui): number inputs calculate typed math like "2 * pi" or "10cm + 5mm"
+- [b3e06e0a](https://git.max-richter.dev/max/nodarium/commit/b3e06e0a5adc8b5fb64256072aace609b9fa991e) test(ui): the component tests run in pnpm qa and in CI
+- [86b97e79](https://git.max-richter.dev/max/nodarium/commit/86b97e79d5a026bdc6e2dd91fa4f7ada5e85cf1c) Merge pull request 'feat(templates): the chanterelle looks like a chanterelle' (#425) from feat/chanterelle-template-rework into main
+- [da97633e](https://git.max-richter.dev/max/nodarium/commit/da97633e11db17427e5b8bab1c33399550914a38) feat(templates): the chanterelle looks like a chanterelle
+- [f4f55d97](https://git.max-richter.dev/max/nodarium/commit/f4f55d97b5d69602e1ad8d66c2df9914004f3169) fix(app): render-graph keeps its message for a project file without a graph
+- [6826e890](https://git.max-richter.dev/max/nodarium/commit/6826e8906484eacf4626fc91d61ede03ab9d3802) Merge pull request 'feat(runtime): validateGraph() names every mistake in a graph, instead of an empty result' (#422) from feat/400-validate-graph into main
+- [3661afdb](https://git.max-richter.dev/max/nodarium/commit/3661afdb2329d6513d6572ebea1a951ad8ea7d7a) Merge pull request 'feat(templates): clouded agaric (Clitocybe nebularis)' (#424) from feat/clouded-agaric-template into main
+- [59b5cd60](https://git.max-richter.dev/max/nodarium/commit/59b5cd60edca7ee239b2d1764e9c51951ef6137d) feat(templates): clouded agaric (Clitocybe nebularis)
+- [27f0bad1](https://git.max-richter.dev/max/nodarium/commit/27f0bad1146992d2eb014b77259fb4f10cc78459) feat(runtime): validateGraph() names every mistake in a graph, instead of an empty result
+- [6ddb672e](https://git.max-richter.dev/max/nodarium/commit/6ddb672ea5c1ecea6af49de9f61d0c78e4cb6693) Merge pull request 'docs: AGENTS.md as the one entry point for agents, instead of the stale docs/LLM.md' (#421) from docs/399-agents-md into main
+- [1807d52c](https://git.max-richter.dev/max/nodarium/commit/1807d52c04cdb9d4a3173fa3a5f59c6288922bd1) docs: AGENTS.md as the one entry point for agents, instead of the stale docs/LLM.md
+- [98defbcb](https://git.max-richter.dev/max/nodarium/commit/98defbcb0bddb016f35607b4f9d24a3522e88ac5) Merge pull request 'refactor(app): RemoteNodeRegistry builds on WasmNodeRegistry, the executor stops asking for the registry status' (#418) from refactor/384-shared-registry into main
+- [f31b0576](https://git.max-richter.dev/max/nodarium/commit/f31b0576c052689304909cb10987c859662296b7) refactor(app): RemoteNodeRegistry builds on WasmNodeRegistry, the executor stops asking for the registry status
+- [8a088051](https://git.max-richter.dev/max/nodarium/commit/8a088051a702693c2e00a59da78789e9da62b231) Merge pull request 'refactor(graph-interface): the camera leaves GraphState, node boxes and edge geometry get one helper each' (#416) from refactor/383-graph-camera into main
+- [56458437](https://git.max-richter.dev/max/nodarium/commit/56458437e1d7b65cc23f8cf9870f4b7b9b7a9edf) refactor(graph-interface): the camera leaves GraphState, node boxes and edge geometry get one helper each
+- [dc5f7574](https://git.max-richter.dev/max/nodarium/commit/dc5f75744911b7d7cfcecd401e258781e54fdb5b) fix(app): the performance data of a run no longer includes a failed run before it
+- [232ca0cc](https://git.max-richter.dev/max/nodarium/commit/232ca0cc95fd4faf8b62bc34632afba0bf164e41) test(runtime): the cache size test no longer depends on measured run times
+- [bfb1fe01](https://git.max-richter.dev/max/nodarium/commit/bfb1fe01d3ea5cbb943fd24d04bd8727982bba07) fix(e2e): the nodes of the default plant only have to be in the page
+- [27344a61](https://git.max-richter.dev/max/nodarium/commit/27344a618bbd51289427126529f023a389c316da) feat(templates): the plants grow with time, from their tips
+- [a946a147](https://git.max-richter.dev/max/nodarium/commit/a946a147158b7c99bf035ad4a170181778735f65) feat(nodes): paths grow from their tip, what sits on them stays in place
+- [49c1530d](https://git.max-richter.dev/max/nodarium/commit/49c1530d7e11abd2946d3ae20c4a3c8afdc712c0) Merge pull request 'feat(random): once per instance, one value for every input of an instance' (#414) from feat/396-random-per-instance into main
+- [4ca0a07c](https://git.max-richter.dev/max/nodarium/commit/4ca0a07c928bdb8f2a4987260b2acef959eb336d) feat(random): once per instance, one value for every input of an instance
+- [b42f523c](https://git.max-richter.dev/max/nodarium/commit/b42f523c3c260acdba50f1e6c02f72b056b95f3f) Merge pull request 'refactor(graph-interface): no imports from the app, index.ts is the only way in' (#412) from refactor/382-graph-interface-boundary into main
+- [72fe14ea](https://git.max-richter.dev/max/nodarium/commit/72fe14eaee12e36354b05f887e2ce4b7dd476ee6) chore(app): a lint rule keeps the boundary of graph-interface
+- [7fe8ccb7](https://git.max-richter.dev/max/nodarium/commit/7fe8ccb784304e101935e5b41c9df9d3e21ce22d) refactor(graph-interface): index.ts exports what the app uses, the app imports nothing else from it
+- [2de1ab34](https://git.max-richter.dev/max/nodarium/commit/2de1ab34ac8c8a82a258aa73f7ae597f989a26a3) refactor(graph-interface): a registry that cannot list a collection is not replaced by one of the app
+- [50e29f30](https://git.max-richter.dev/max/nodarium/commit/50e29f30620576143ba7bec713979b523f4d0e5f) refactor(ui): the keymap helper moves to @nodarium/ui, the editor asks for the help with a callback
+- [bff48a56](https://git.max-richter.dev/max/nodarium/commit/bff48a567e9caf1fa3a4c6d5946ac87dfb40bc87) refactor(app): the colours of the theme live in the app
+- [7d46270b](https://git.max-richter.dev/max/nodarium/commit/7d46270bd0ee4bbefcef90615e2f1985b77aa59e) refactor(graph-interface): the options of the editor are one object that is read where it is needed
+- [20141394](https://git.max-richter.dev/max/nodarium/commit/20141394fd2d6c35920129ff361ac28bdde7e209) Merge pull request 'refactor(graph-interface): the node types of groups and the group/ungroup rewiring become pure functions' (#411) from refactor/381-group-logic into main
+- [8d701905](https://git.max-richter.dev/max/nodarium/commit/8d7019052f1342d99a814b63a0dc21017e5fde67) fix(graph-interface): a muted node stays muted when its group is ungrouped
+- [3b5956e5](https://git.max-richter.dev/max/nodarium/commit/3b5956e56bae088d4f0eecc1b4bea6f11e6f476f) refactor(graph-interface): grouping and ungrouping work out the new nodes and edges as pure functions
+- [9b80bff2](https://git.max-richter.dev/max/nodarium/commit/9b80bff2604c9920d63b233cfc3744cb35717c7e) refactor(graph-interface): the node types of groups are pure functions, the rules of the group boundary are written once
+- [a0b45523](https://git.max-richter.dev/max/nodarium/commit/a0b45523d9d40113a4d927d2f40400c240e746ab) Merge pull request 'refactor(runtime): a run returns its debug data and timings with the result, the app reads one object' (#409) from refactor/380-run-result into main
+- [030c3e2c](https://git.max-richter.dev/max/nodarium/commit/030c3e2c2f9ca50c7a3789e8b40b3fb5807e33d1) refactor(app): the page reads one execution, a failed run of the worker answers with its error
+- [5c78d5c6](https://git.max-richter.dev/max/nodarium/commit/5c78d5c693b95d35ba3e22c58ed2e52e64f001e2) refactor(runtime): a run returns its debug data and timings with the result
+- [b70b8926](https://git.max-richter.dev/max/nodarium/commit/b70b8926ad2a650c54a98101c835b9cf8be586bc) Merge pull request 'fix(app): the drag hold holds a dragged graph setting' (#408) from fix/385-drag-hold-settings into main
+- [6ebb2a27](https://git.max-richter.dev/max/nodarium/commit/6ebb2a271e1373ea08ff2dfb2bc7d4cb444779d4) fix(app): the drag hold holds a dragged graph setting
+- [853282da](https://git.max-richter.dev/max/nodarium/commit/853282da5dc9693b872791bdc42adbf354fb604b) Merge pull request 'refactor(graph-interface): the manager owns the graph settings, the page reads and writes them there' (#407) from refactor/379-settings-owner into main
+- [9ad0fc99](https://git.max-richter.dev/max/nodarium/commit/9ad0fc9947a34cef50de27b211e38d5a808d31d0) test(app): the tests of the widgets skip a run without a browser
+- [cb12d43e](https://git.max-richter.dev/max/nodarium/commit/cb12d43e62f2370fe7f7c1ab7be8cae3f18e9dd8) fix(sidebar): selecting a node leaves its props as they are
+- [9ed37d4f](https://git.max-richter.dev/max/nodarium/commit/9ed37d4f891e9373574045fd51b38eda60cb36fa) fix(graph-interface): the widgets of a node only write a value the user changed
+- [0f5b1f26](https://git.max-richter.dev/max/nodarium/commit/0f5b1f26c411950e59b2e23487586859dacdda14) fix(ui): the checkbox shows 1 as checked without writing a boolean back
+- [c3c08233](https://git.max-richter.dev/max/nodarium/commit/c3c08233f7cdb3dcff2dddc2bfc945a199d67cdf) fix(graph-interface): undo and redo bring the values of the graph settings back
+- [7a5d1159](https://git.max-richter.dev/max/nodarium/commit/7a5d1159f73af8f43a98b0a258c8233bd4ccea1b) refactor(graph-interface): the manager owns the graph settings, the page reads and writes them there
+- [d17b2152](https://git.max-richter.dev/max/nodarium/commit/d17b2152ffc64612821c821befb16766e93c692f) feat(settings): NestedSettings reports a changed input through onchange
+- [1bdb0705](https://git.max-richter.dev/max/nodarium/commit/1bdb07059193a07234996054ee106cf539860c6b) Merge pull request 'refactor(graph-interface): every level of the graph has one owner, a path replaces the parent stack' (#395) from refactor/378-level-path into main
+- [3df4cf93](https://git.max-richter.dev/max/nodarium/commit/3df4cf9373d8bb0a9f9c61f35dcdf90bfa929cb3) refactor(graph-interface): every level of the graph has one owner, a path replaces the parent stack
+- [0dbc200a](https://git.max-richter.dev/max/nodarium/commit/0dbc200ab24d250bdc1e69656650c71b16b22666) Merge pull request 'refactor(graph-interface): one way to record a change, commit() and transaction()' (#394) from refactor/377-commit-transaction into main
+- [bc624f3d](https://git.max-richter.dev/max/nodarium/commit/bc624f3d6bd6fcfe9b6d369f17cc078e32a1a304) fix(graph-interface): a held undo step whose end never came no longer wedges the history
+- [3e5921b4](https://git.max-richter.dev/max/nodarium/commit/3e5921b4fd7e1f9cae3fd47fdca708ce11214c6e) refactor(graph-interface): a node from a socket drag and a new debug node are one change
+- [f9dbeb99](https://git.max-richter.dev/max/nodarium/commit/f9dbeb99077133e08449c6926e2e052a194efc4b) refactor(graph-interface): commit() and transaction() record a change
+- [b6fa9ca7](https://git.max-richter.dev/max/nodarium/commit/b6fa9ca78392f76d9189412b4f3257c03198fa8c) refactor(graph-interface): move the undo history and the save into ChangeRecorder
+- [645a6bfb](https://git.max-richter.dev/max/nodarium/commit/645a6bfbd2bb86424afced2f1c16109fe710bcdb) Merge pull request 'perf(runtime): keep big wasm instances while their node is in the graph' (#393) from perf/392-keep-big-instances into main
+- [d4b0abf3](https://git.max-richter.dev/max/nodarium/commit/d4b0abf3e4958f44fc1111b3167565a7e0f6d589) perf(runtime): keep big wasm instances while their node is in the graph
+- [82f4c3ef](https://git.max-richter.dev/max/nodarium/commit/82f4c3efe9a5d52b242f7f443efae33a715f4040) Merge pull request 'perf(bench): run the cached mushroom benches 50 times' (#391) from perf/bench-cached-iterations into main
+- [d2c187c0](https://git.max-richter.dev/max/nodarium/commit/d2c187c065a69698343c4efd234986bf579fbb29) perf(bench): run the cached mushroom benches 50 times
+- [e297e21d](https://git.max-richter.dev/max/nodarium/commit/e297e21d1b975c68beae50e1b7fb9c92d27dfa07) Merge pull request 'refactor(runtime): execute() builds a plan first, the state of a run stays in the run' (#390) from refactor/376-execute-plan into main
+- [eb1f8323](https://git.max-richter.dev/max/nodarium/commit/eb1f8323fe7197f79e92f169ee50e9a93b3b45e0) refactor(runtime): execute() builds a plan first, the state of a run stays in the run
+- [a1e57550](https://git.max-richter.dev/max/nodarium/commit/a1e5755022cb7a5f1a5a47add6cf7e66f4df003a) refactor(types): isOutputNode and isDebugNode name the suffix tests
+- [2cd5a8e5](https://git.max-richter.dev/max/nodarium/commit/2cd5a8e5044ccaf78c86b7643031b8b3a760864a) fix(runtime): a group used twice is not a circular group reference
+- [df8923e4](https://git.max-richter.dev/max/nodarium/commit/df8923e4be18e9e684ff0118b01caf3447578158) Merge pull request 'refactor(runtime): group expansion, instance release and the cache budget move out of runtime-executor.ts' (#388) from refactor/375-executor-moves into main
+- [cb2038f2](https://git.max-richter.dev/max/nodarium/commit/cb2038f2ae5ae58b8b9d6d808a4938245d3b517b) refactor(runtime): the cache budget of a run moves to startCacheRun
+- [4a828900](https://git.max-richter.dev/max/nodarium/commit/4a8289008a3db6df2d86dbc93e14ba804d77c1f3) refactor(runtime): the instance release moves to an InstanceTracker
+- [abf50f12](https://git.max-richter.dev/max/nodarium/commit/abf50f122945042482af0bd1189fc37354f86d57) refactor(runtime): expandGroups splits into a cycle check, bypass and inline
+- [da7d92eb](https://git.max-richter.dev/max/nodarium/commit/da7d92eb0d35cad525865c64546c57c943dcb17f) refactor(runtime): expandGroups moves to expand-groups.ts
+- [9afc6f73](https://git.max-richter.dev/max/nodarium/commit/9afc6f735e657a274d7cbc927c45cb6912f26fa0) Merge pull request 'refactor(graph-interface): parents and children are derived from the edges, muted has one home' (#387) from refactor/374-derived-relations into main
+- [18b435f1](https://git.max-richter.dev/max/nodarium/commit/18b435f1d61bbb47f2787ea81fbf15453ee94850) refactor(graph-interface): parents and children are derived from the edges, muted has one home
+- [455486de](https://git.max-richter.dev/max/nodarium/commit/455486de487cba554421792b6ed5aebbc0edfa17) Merge pull request 'refactor(graph-interface): remove code and fields that nothing uses' (#386) from refactor/373-remove-unused into main
+- [40f7c2b9](https://git.max-richter.dev/max/nodarium/commit/40f7c2b9ec33436e5f0a48d966ef2faeee41e216) refactor(graph-interface): remove code and fields that nothing uses
+- [6a1c2ae8](https://git.max-richter.dev/max/nodarium/commit/6a1c2ae8c939ed78367910e36f870fbd624e65ad) Merge pull request 'feat(templates): the daisy grows with time' (#372) from feat/time-daisy into main
+- [b2986cbd](https://git.max-richter.dev/max/nodarium/commit/b2986cbdf351de11b681db6e2245787a23db9bdc) feat(templates): the daisy grows with time
+- [2d05dab0](https://git.max-richter.dev/max/nodarium/commit/2d05dab0dca611308959b08b46cf1fe3408723b2) Merge pull request 'feat(templates): sage and maidenhair grow with time' (#369) from feat/time-sage-maidenhair into main
+- [ef628a3d](https://git.max-richter.dev/max/nodarium/commit/ef628a3db9182d26b68345fb41d0c94425b27ec4) feat(templates): sage and maidenhair grow with time
+- [b520becd](https://git.max-richter.dev/max/nodarium/commit/b520becd60aceef90ec4b3651a926e67dfc45b30) Merge pull request 'fix(graph): only show and save the settings the graph's own nodes declare' (#368) from fix/367-graph-settings-per-graph into main
+- [3592d58c](https://git.max-richter.dev/max/nodarium/commit/3592d58caddd81673a0110b6a699de02ab96e635) fix(graph): only show and save the settings the graph's own nodes declare
+- [3631c406](https://git.max-richter.dev/max/nodarium/commit/3631c4066240f4a42ff3f85d43384ddf071f74e4) Merge pull request 'fix(templates): the fly agaric's ring hangs lower on the stipe' (#366) from fix/fly-agaric-ring into main
+- [9b77185a](https://git.max-richter.dev/max/nodarium/commit/9b77185ab859d625184ae8feca97df06d2a230c6) fix(templates): the fly agaric's ring hangs lower on the stipe
+
 # v1.1.0 (2026-11-15)
 
 ## Features
