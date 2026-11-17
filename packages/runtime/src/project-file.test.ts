@@ -1,7 +1,10 @@
 import type { Graph } from '@nodarium/types';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import { CURRENT_GRAPH_VERSION } from './graph-migrations';
-import { parseProjectFile } from './project-file';
+import { graphFileJsonSchema, parseProjectFile } from './project-file';
 
 const graph: Graph = {
   id: 3,
@@ -64,5 +67,29 @@ describe('parseProjectFile', () => {
     expect(() => parseProjectFile({ format: 'nodarium-project', version: 2, graph })).toThrow(
       /version/
     );
+  });
+});
+
+describe('graphFileJsonSchema', () => {
+  // zod reads JSON Schema back, a validator of another library takes the same schema
+  const schema = z.fromJSONSchema(graphFileJsonSchema() as Parameters<typeof z.fromJSONSchema>[0]);
+  const dir = join(import.meta.dirname, '../templates');
+
+  it('accepts every template, a project file and a graph written by hand', () => {
+    for (const file of readdirSync(dir).filter((f) => f.endsWith('.json'))) {
+      const template = JSON.parse(readFileSync(join(dir, file), 'utf8'));
+      expect(schema.safeParse(template).success, file).toBe(true);
+    }
+    const preview = 'data:image/webp;base64,AAAA';
+    expect(schema.safeParse({ format: 'nodarium-project', version: 1, graph, preview }).success)
+      .toBe(true);
+    expect(schema.safeParse({ nodes: [{ id: 1, type: 'max/plantarium/stem' }], edges: [] }).success)
+      .toBe(true);
+  });
+
+  it('rejects what parseProjectFile rejects', () => {
+    expect(schema.safeParse({ nodes: [{ id: 1, type: 'stem' }], edges: [] }).success).toBe(false);
+    expect(schema.safeParse({ format: 'nodarium-project', version: 2, graph }).success).toBe(false);
+    expect(schema.safeParse({ edges: [] }).success).toBe(false);
   });
 });

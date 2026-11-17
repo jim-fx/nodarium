@@ -1,0 +1,28 @@
+# Nodarium
+
+> Nodarium is a node editor for procedural 3D models that runs in the browser. A model is a graph of nodes, and every node is a WebAssembly module written in Rust. Two sets of nodes come with it: Plantarium makes plants, Myzel makes mushrooms. The editor shows the result in 3D and exports it as GLB or OBJ.
+
+The app is at https://nodes.max-richter.dev and needs JavaScript and WebAssembly. It keeps the projects in the browser of the visitor: there is no account, and no server stores a graph. The files below are static and need no JavaScript.
+
+## Nodes and graphs
+
+- [Node catalog](/nodes/index.txt): every node with the types of the data it takes and gives, and the first sentence of its description
+- [Node catalog as JSON](/nodes/index.json): the same, with the address of the full definition of every node
+- [Collections](/nodes/users.json): the collections of nodes; `/nodes/<user>/<collection>.json` has the definitions of all nodes of a collection, with the type, default, range and description of every input
+- [Writing a graph](/docs/graphs.md): what a graph file looks like, with an example
+- [Graph schema](/graph.schema.json): the JSON Schema of a graph and of a project file
+- [Templates](/templates/index.json): the plants and mushrooms of the project browser; `/templates/<id>.json` is the graph of one
+
+## Opening a graph in the app
+
+- `/?template=fern` opens a template as a new project.
+- `/#graph=<data>` opens a graph as a new project. `<data>` is the JSON of the graph, deflated with `CompressionStream('deflate-raw')` and encoded as base64url. The fragment is not sent to the server. `nodarium link graph.json` prints such a link.
+- `&seed=7` sets the seed of the graph that is opened, `&tutorial=0` keeps the tutorial closed, `&panel=graph-settings` opens a panel of the sidebar.
+- A link opened a second time opens the project it made the first time.
+- [window.nodarium](https://git.max-richter.dev/max/nodarium/src/branch/main/docs/AGENT_API.md): the API of the app for a tool or an agent in a browser: load a graph, build it, read the result and take a picture of it
+
+## Without the app
+
+- [@nodarium/runtime](https://git.max-richter.dev/max/nodarium/src/branch/main/packages/runtime/README.md): runs a graph in Node or in the browser, with the compiled nodes and the templates. Its command `nodarium` lists the nodes, checks a graph, builds it, renders it into a PNG and prints a link that opens it in the app.
+- [The package in the registry](https://git.max-richter.dev/max/-/packages/npm/@nodarium%2Fruntime): `@nodarium:registry=https://git.max-richter.dev/api/packages/max/npm/` in `.npmrc`, then `npm install @nodarium/runtime`
+- [Repository](https://git.max-richter.dev/max/nodarium): the source code, MIT licensed

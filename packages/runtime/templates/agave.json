@@ -1,4 +1,5 @@
 {
+  "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
   "version": 13,
   "settings": { "time.t": 1, "resolution.circle": 64, "resolution.curve": 64 },

@@ -113,3 +113,17 @@ The viewer itself also draws once without a frame, 500 ms after a result arrived
 ## Without the API
 
 The viewer has a line of status with the vertices, the faces and the time of the last build, in an element with `role="status"`. The input File → Import uses is labelled "Import a project file", a tool can give it a file without the dialog of the menu.
+
+## Files on the site
+
+The site serves files that need no JavaScript, prerendered when the app is built. `/llms.txt` (`app/static/llms.txt`) says what Nodarium is and links the others:
+
+| path                                    | what                                                                                    |
+| --------------------------------------- | --------------------------------------------------------------------------------------- |
+| `/nodes/index.txt`, `/nodes/index.json` | every node with its data types and the first sentence of its description                |
+| `/nodes/<user>/<collection>.json`       | the definitions of the nodes of a collection, `/nodes/users.json` lists the collections |
+| `/templates/index.json`                 | the templates of the project browser, `/templates/<id>.json` is the graph of one        |
+| `/graph.schema.json`                    | the JSON Schema of a graph and of a project file, `graphFileJsonSchema()`               |
+| `/docs/graphs.md`                       | `docs/GRAPHS.md`                                                                        |
+
+`app/src/lib/site-files.ts` makes them, `app/e2e/site-files.test.ts` checks that every link of `llms.txt` is in the build.

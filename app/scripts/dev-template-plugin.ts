@@ -11,6 +11,7 @@ const RUNTIME_TEMPLATE_DIR = join(appDir, '../packages/runtime/templates');
 const TEMPLATE_DIRS = [RUNTIME_TEMPLATE_DIR, join(appDir, 'src/lib/graph-templates')];
 export const TEMPLATE_ENDPOINT = '/__dev/templates';
 const NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const TEMPLATE_SCHEMA = 'https://nodes.max-richter.dev/graph.schema.json';
 
 async function listTemplates() {
   const templates = new Map<string, string>();
@@ -75,10 +76,10 @@ export function devTemplatePlugin(): Plugin {
             return send(400, { error: 'Not a graph' });
           }
           const existing = (await listTemplates()).get(name);
-          await writeFile(
-            existing ?? join(RUNTIME_TEMPLATE_DIR, `${name}.json`),
-            JSON.stringify(graph, null, 2) + '\n'
-          );
+          const file = existing ?? join(RUNTIME_TEMPLATE_DIR, `${name}.json`);
+          // the editor knows nothing of the schema the templates of the runtime point to
+          const schema = file.startsWith(RUNTIME_TEMPLATE_DIR) ? { $schema: TEMPLATE_SCHEMA } : {};
+          await writeFile(file, JSON.stringify({ ...schema, ...graph }, null, 2) + '\n');
           if (!existing) await registerTemplate(name, graph);
           send(200, { ok: true, created: !existing });
         } catch (e) {

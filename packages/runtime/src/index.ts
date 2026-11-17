@@ -28,7 +28,7 @@ export {
 } from './graph-migrations';
 export { KEEP_INSTANCES, RELEASE_INSTANCES_OVER } from './instances';
 export { offsetPosition, type PlacedNode, placeNodes, type PlaceOptions } from './place-nodes';
-export { parseProjectFile } from './project-file';
+export { graphFileJsonSchema, parseProjectFile } from './project-file';
 export { FetchNodeRegistry } from './registry/fetch-node-registry';
 export { WasmNodeRegistry } from './registry/wasm-node-registry';
 export * from './result/decode-result';

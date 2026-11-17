@@ -7,7 +7,8 @@ import {
   formatNode,
   formatNodeList,
   nodeSignature,
-  nodesOfType
+  nodesOfType,
+  nodeSummary
 } from './catalog';
 import { listNodes } from './list-nodes';
 
@@ -52,6 +53,15 @@ describe('the catalog', () => {
     expect(nodeSignature(findNodes(nodes, 'max/plantarium/output')[0])).toBe(
       'max/plantarium/output (path)'
     );
+  });
+
+  it('sums a node up as data', () => {
+    expect(nodeSummary(noise())).toEqual({
+      id: 'max/plantarium/noise',
+      inputs: ['path'],
+      outputs: ['path'],
+      description: 'Bends paths with smooth noise, more toward the tip.'
+    });
   });
 
   it('gives a block per node with an input per line and its description', () => {

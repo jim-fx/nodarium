@@ -98,6 +98,8 @@ const porcini = withSubstrate(await loadTemplate('porcini'), {
 
 Open the plant or mushroom in the app and choose **File → Export .json**. The app saves it as `<title>.nodarium.json`. `parseProjectFile()` reads these files, and the bare graphs older versions of the app saved. It checks them and migrates them to the format of the runtime. A graph made with a newer version of the app than the package throws a `GraphVersionError`.
 
+`graphFileJsonSchema()` gives the JSON Schema of what `parseProjectFile()` reads, a project file or a bare graph; the site serves it as [/graph.schema.json](https://nodes.max-richter.dev/graph.schema.json), and the templates point to it with `"$schema"`, so an editor checks a graph while it is written. The schema says what the file looks like, `validateGraph()` below whether its nodes and edges make sense.
+
 ## Check a graph
 
 A graph written by hand or by a program can have mistakes the runtime doesn't name: an edge into an input the node doesn't have is left out, a prop with a typo is never read. `validateGraph()` finds all of them at once, in the graph and in its groups, without running anything. It takes the graph and the definitions of the nodes it may use by their id, the internal nodes (groups and the debug node) are known without them. It returns a list of `GraphIssue`, empty for a graph without mistakes.
@@ -201,7 +203,7 @@ max/plantarium/noise (path) -> path
 
 In parentheses are the types of the data a node takes, after the arrow what it gives. An input shows its type, its default, its range and a unit, `hidden` ones are set in the templates, `not connectable` ones only on the node, and those with `setting` read a setting of the graph.
 
-The same is in the package: `listNodes()` gives the definitions of all nodes of the package (or of a folder), `formatNode()` and `formatNodeList()` write them as above, and `renderToPng(result, options)` rasterizes a result into a PNG with the size of what it shows, without any dependency but `node:zlib`. `readGraphSource(target)` reads a graph as the commands do, from a template id, a file or `-`, `parseSets()` and `applySets()` read and apply `--set`. All of them are in `@nodarium/runtime/node`.
+The same is in the package: `listNodes()` gives the definitions of all nodes of the package (or of a folder), `formatNode()` and `formatNodeList()` write them as above, `nodeSummary()` gives the id, the data types and the first sentence of a node as an object, and `renderToPng(result, options)` rasterizes a result into a PNG with the size of what it shows, without any dependency but `node:zlib`. `readGraphSource(target)` reads a graph as the commands do, from a template id, a file, a link of the app or `-`, `parseSets()` and `applySets()` read and apply `--set`. All of them are in `@nodarium/runtime/node`.
 
 ```ts
 import { createRuntime, listNodes, renderToPng } from '@nodarium/runtime/node';
