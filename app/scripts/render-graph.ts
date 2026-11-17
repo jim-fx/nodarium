@@ -108,7 +108,10 @@ async function loadAllDefinitions() {
   return new Map(registry.getAllNodes().map((d) => [d.id as string, d]));
 }
 
-const definitions = await loadAllDefinitions();
+const definitions = await loadAllDefinitions().catch(() => {
+  console.error(`No nodes in ${nodesDir}, build them first: pnpm build:nodes`);
+  process.exit(1);
+});
 
 /**
  * The graph with the issues `validateGraph` finds in it as it is written. A file the format
@@ -117,7 +120,7 @@ const definitions = await loadAllDefinitions();
 async function loadGraph(file: string) {
   const input = JSON.parse(await readFile(file, 'utf8'));
   const written = input && typeof input === 'object' && 'format' in input ? input.graph : input;
-  const issues = validateGraph(written, definitions);
+  const issues = written && typeof written === 'object' ? validateGraph(written, definitions) : [];
   try {
     return { graph: parseProjectFile(input).graph, issues };
   } catch (error) {
