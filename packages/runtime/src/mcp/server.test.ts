@@ -48,11 +48,12 @@ describe('nodarium mcp', () => {
       'check_graph',
       'run_graph',
       'render_graph',
-      'graph_link'
+      'graph_link',
+      'get_docs'
     ]);
     const render = tools.find((t) => t.name === 'render_graph')!;
     expect(Object.keys(render.inputSchema.properties!)).toEqual(
-      ['graph', 'seed', 'settings', 'node', 'output', 'views', 'size', 'focus']
+      ['graph', 'seed', 'settings', 'node', 'output', 'views', 'size', 'focus', 'seeds', 'times']
     );
     expect(render.inputSchema.required).toEqual(['graph']);
     expect(tools.every((t) => t.annotations?.readOnlyHint && t.description)).toBe(true);
@@ -73,7 +74,9 @@ describe('nodarium mcp', () => {
   });
 
   it('lists the templates and gives the graph of one', async () => {
-    expect(textOf(await call('list_templates'))).toContain('fern: Fern (Plants, cm)');
+    expect(textOf(await call('list_templates'))).toContain(
+      'fern: Fern (Plants, cm)\n  Nephrolepis exaltata (Boston fern): 22 fronds'
+    );
     const fern = JSON.parse(textOf(await call('get_template', { id: 'fern' })));
     expect(fern.version).toBe(CURRENT_GRAPH_VERSION);
     expect(fern.nodes.every((n: { position?: number[] }) => n.position?.length === 2)).toBe(true);
@@ -160,6 +163,54 @@ describe('nodarium mcp', () => {
     expect(await call('render_graph', { graph: handWritten, size: 4096 })).toMatchObject({
       isError: true
     });
+  });
+
+  it('draws the views of a list, and a sheet of seeds and times', async () => {
+    const front = await call('render_graph', { graph: handWritten, size: 64, views: ['front'] });
+    const png = Buffer.from((front.content[0] as { data: string }).data, 'base64');
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([64, 64]);
+
+    const result = await call('render_graph', {
+      graph: handWritten,
+      size: 64,
+      views: ['side', 'top'],
+      seeds: [1, 2],
+      times: [0.5, 1]
+    });
+    const sheet = JSON.parse((result.content[1] as { text: string }).text);
+    expect(sheet).toMatchObject({ name: 'graph', columns: 2, rows: 2, cellWidth: 128 });
+    expect(sheet.cells.map((c: { seed: number; time: number }) => [c.seed, c.time])).toEqual([
+      [1, 0.5],
+      [2, 0.5],
+      [1, 1],
+      [2, 1]
+    ]);
+    const image = Buffer.from((result.content[0] as { data: string }).data, 'base64');
+    expect(image.readUInt32BE(16)).toBe(sheet.width);
+
+    expect(await call('render_graph', { graph: handWritten, views: ['back'] })).toMatchObject({
+      isError: true
+    });
+    const many = await call('render_graph', {
+      graph: handWritten,
+      seeds: [1, 2, 3, 4, 5],
+      times: [0.2, 0.4, 0.6, 0.8]
+    });
+    expect(textOf(many)).toContain('a sheet has at most 16 cells, not 20');
+    const large = await call('render_graph', {
+      graph: handWritten,
+      size: 1024,
+      seeds: [1, 2, 3, 4, 5, 6]
+    });
+    expect(textOf(large)).toContain('million pixels');
+  });
+
+  it('gives the docs of the package', async () => {
+    expect(textOf(await call('get_docs'))).toMatch(/^graphs +GRAPHS\.md/);
+    const plants = textOf(await call('get_docs', { topic: 'plant-templates' }));
+    expect(plants).toMatch(/^# Plant Templates/);
+    expect(plants).toContain('## Fern: _Nephrolepis exaltata_');
+    expect(await call('get_docs', { topic: 'gardening' })).toMatchObject({ isError: true });
   });
 
   it('gives a link that opens the graph in the app', async () => {

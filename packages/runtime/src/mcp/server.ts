@@ -1,7 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { templates } from '@nodarium/runtime/templates';
 import type { NodeDefinition } from '@nodarium/types';
 import { z } from 'zod';
 import { version } from '../../package.json';
@@ -13,19 +12,27 @@ import {
   linkGraph,
   printedGraph,
   renderGraph,
+  renderGraphSheet,
   runGraph,
   runSettings,
   stringifyGraph
 } from '../cli/graph-commands';
 import { checkGraph, graphSourceOf } from '../cli/graph-input';
+import { docList, docText, templateList } from '../docs';
 import { MAX_GRAPH_LINK_BYTES } from '../graph-link';
 import { listNodes } from '../list-nodes';
 import { nodesDir } from '../nodes-dir';
 import { FileNodeRegistry } from '../registry/file-node-registry';
-import { GRAPHS_DOC } from './graphs-doc';
+import { RENDER_VIEWS, type RenderView } from '../render';
 
 /** The largest view `render_graph` draws, in pixels; four views of it are 4096 × 1024 */
 export const MAX_RENDER_SIZE = 1024;
+
+/** The cells of a sheet of `render_graph` */
+export const MAX_SHEET_CELLS = 16;
+
+/** The pixels of a sheet of `render_graph`, 4096 × 4096 */
+const MAX_SHEET_PIXELS = 16_777_216;
 
 /** The views of `render_graph`, next to each other in one image */
 const VIEWS = { 'front-side-top': false, 'front-side-top-below': true } as const;
@@ -38,7 +45,8 @@ const INSTRUCTIONS = paragraph(
   'props, and edges between them. The tools work on graphs you pass as JSON, nothing is saved.',
   'The order that works: list_templates and get_template for a graph to start from, list_nodes',
   'and get_node for the nodes you use, check_graph before run_graph, render_graph to see it, and',
-  'graph_link for a link that opens it in the editor. The prompt write_graph explains the format.'
+  'graph_link for a link that opens it in the editor. The prompt write_graph explains the format,',
+  'get_docs gives the guides to the plant and mushroom nodes.'
 );
 
 const GRAPH = z.union([z.string(), z.record(z.string(), z.unknown())]).describe(
@@ -94,7 +102,7 @@ export function graphPrompt(request?: string) {
       '--set of an input is a change of the graph you pass, a --set of a setting goes into',
       '"settings".'
     ),
-    GRAPHS_DOC.trim()
+    docText('graphs')!.trim()
   ];
   if (request?.trim()) parts.push(`What to make: ${request.trim()}`);
   return parts.join('\n\n');
@@ -194,16 +202,12 @@ export function createServer(dir = nodesDir): McpServer {
 
   server.registerTool('list_templates', {
     title: 'List the templates',
-    description: 'The plants and mushrooms of the app, as "id: name (category, unit)". Every '
-      + 'template is a graph to start from, get_template gives it. The unit is the one the app '
-      + 'shows lengths in, the graph is in meters either way.',
+    description: 'The plants and mushrooms of the app, as "id: name (category, unit)", below it '
+      + 'the species a plant models and a line on how the template is built. Every template is a '
+      + 'graph to start from, get_template gives it. The unit is the one the app shows lengths '
+      + 'in, the graph is in meters either way.',
     annotations: READ_ONLY
-  }, () =>
-    answer(async () => ({
-      content: [
-        text(templates.map((t) => `${t.id}: ${t.name} (${t.category}, ${t.unit})`).join('\n'))
-      ]
-    })));
+  }, () => answer(async () => ({ content: [text(templateList())] })));
 
   server.registerTool('get_template', {
     title: 'Get a template',
@@ -252,66 +256,117 @@ export function createServer(dir = nodesDir): McpServer {
       return { content: [text(JSON.stringify(summary)), ...prepared.warnings] };
     }));
 
-  server.registerTool('render_graph', {
-    title: 'Render a graph',
-    description: 'Builds a graph and draws it: one PNG with a view from the front, from the '
-      + 'side and from above next to each other (and from below with views '
-      + '"front-side-top-below"), all at the same scale. Stems are brown, leaves green, Myzel '
-      + 'meshes in their colors. Answers with the image and JSON of what it shows: triangles, '
-      + 'instances, leaf area in m² and the bounds in meters. With "node" it draws what comes '
-      + 'out of that node instead, paths as tubes and points as dots.',
-    inputSchema: {
-      graph: GRAPH,
-      seed: SEED,
-      settings: SETTINGS,
-      node: z.number().int().optional().describe(
-        'The id of a node of the graph: draws its output instead of the result of the graph'
-      ),
-      output: z.number().int().min(0).optional().describe(
-        'Which output of that node, 0 by default'
-      ),
-      views: z.enum(Object.keys(VIEWS) as [keyof typeof VIEWS]).optional().describe(
-        'Which views, "front-side-top" by default'
-      ),
-      size: z.number().int().min(64).max(MAX_RENDER_SIZE).optional().describe(
-        `The size of one view in pixels, 512 by default, at most ${MAX_RENDER_SIZE}`
-      ),
-      focus: z.tuple([z.number(), z.number(), z.number().positive()]).optional().describe(
-        'A close-up from above: [x, z, r] draws only what lies within r meters of x, z'
-      )
+  server.registerTool(
+    'render_graph',
+    {
+      title: 'Render a graph',
+      description: 'Builds a graph and draws it: one PNG with a view from the front, from the '
+        + 'side and from above next to each other (and from below with views '
+        + '"front-side-top-below"), all at the same scale, or the views of a list like ["front"]. '
+        + 'Stems are brown, leaves green, Myzel meshes in their colors. Answers with the image and '
+        + 'JSON of what it shows: triangles, instances, leaf area in m² and the bounds in meters. '
+        + 'With "node" it draws what comes out of that node instead, paths as tubes and points as '
+        + 'dots. With "seeds" or "times" it draws a sheet: the graph once per seed and time, a row '
+        + 'per time and a column per seed, all at the same scale, each cell labelled "s<seed> '
+        + 't<time>", and the JSON lists the cells with their seed, time, place and numbers.',
+      inputSchema: {
+        graph: GRAPH,
+        seed: SEED,
+        settings: SETTINGS,
+        node: z.number().int().optional().describe(
+          'The id of a node of the graph: draws its output instead of the result of the graph'
+        ),
+        output: z.number().int().min(0).optional().describe(
+          'Which output of that node, 0 by default'
+        ),
+        views: z.union([
+          z.enum(Object.keys(VIEWS) as [keyof typeof VIEWS]),
+          z.array(z.enum(RENDER_VIEWS as [RenderView, ...RenderView[]])).min(1).max(4)
+        ]).optional().describe(
+          'Which views, "front-side-top" by default, or a list of "front", "side", "top" and '
+            + '"below" in the order to draw them'
+        ),
+        size: z.number().int().min(64).max(MAX_RENDER_SIZE).optional().describe(
+          `The size of one view in pixels, 512 by default and 256 in a sheet, at most ${MAX_RENDER_SIZE}`
+        ),
+        focus: z.tuple([z.number(), z.number(), z.number().positive()]).optional().describe(
+          'A close-up from above: [x, z, r] draws only what lies within r meters of x, z'
+        ),
+        seeds: z.array(z.number().int()).min(1).max(MAX_SHEET_CELLS).optional().describe(
+          'A sheet with a column per seed, like [1, 2, 3, 4], to see how much the seeds differ'
+        ),
+        times: z.array(z.number()).min(1).max(MAX_SHEET_CELLS).optional().describe(
+          'A sheet with the graph at every time.t, like [0.25, 0.5, 1], to see it grow: a row of '
+            + 'times, or a row per time with seeds'
+        )
+      },
+      annotations: READ_ONLY
     },
-    annotations: READ_ONLY
-  }, ({ graph, seed, settings, node, output, views, size, focus }) =>
-    answer(async () => {
-      const prepared = await prepare(graph);
-      const rendered = await renderGraph(
-        registry,
-        prepared.graph,
-        runSettings(prepared.graph, settings ?? {}, seed ?? 1),
-        {
-          size: size ?? 512,
-          below: VIEWS[views ?? 'front-side-top'],
+    ({ graph, seed, settings, node, output, views, size, focus, seeds, times }) =>
+      answer(async () => {
+        const prepared = await prepare(graph);
+        const shown = typeof views === 'string' || views === undefined
+          ? { below: VIEWS[views ?? 'front-side-top'] }
+          : { views };
+        const options = {
+          ...shown,
           focus,
           node: node === undefined ? undefined : { id: node, output }
+        };
+        const base = runSettings(prepared.graph, settings ?? {}, seed ?? 1);
+        let png: Uint8Array;
+        let about: object;
+        if (seeds || times) {
+          const seedList = seeds ?? [seed ?? 1];
+          const timeList = times ?? [undefined];
+          const cells = seedList.length * timeList.length;
+          if (cells > MAX_SHEET_CELLS) {
+            throw new Error(`a sheet has at most ${MAX_SHEET_CELLS} cells, not ${cells}`);
+          }
+          const viewCount = Array.isArray(views)
+            ? views.length
+            : views === 'front-side-top-below'
+            ? 4
+            : 3;
+          const pixels = cells * viewCount * (size ?? 256) ** 2;
+          if (pixels > MAX_SHEET_PIXELS) {
+            throw new Error(
+              `the sheet would have ${Math.round(pixels / 1e6)} million pixels, at most ${
+                MAX_SHEET_PIXELS / 1e6
+              } million: draw fewer views or cells, or a smaller size`
+            );
+          }
+          const rendered = await renderGraphSheet(
+            registry,
+            prepared.graph,
+            base,
+            timeList.flatMap((time) => seedList.map((s) => ({ seed: s, time }))),
+            { ...options, size: size ?? 256, columns: seeds ? seedList.length : timeList.length }
+          );
+          const { png: image, type, ...sheet } = rendered;
+          png = image;
+          about = { name: prepared.name, ...(node === undefined ? {} : { node, type }), ...sheet };
+        } else {
+          const rendered = await renderGraph(registry, prepared.graph, base, {
+            ...options,
+            size: size ?? 512
+          });
+          png = rendered.png;
+          about = {
+            name: prepared.name,
+            ...(node === undefined ? {} : { node, type: rendered.type }),
+            ...rendered.stats
+          };
         }
-      );
-      const shown = {
-        name: prepared.name,
-        ...(node === undefined ? {} : { node, type: rendered.type }),
-        ...rendered.stats
-      };
-      return {
-        content: [
-          {
-            type: 'image',
-            data: Buffer.from(rendered.png).toString('base64'),
-            mimeType: 'image/png'
-          },
-          text(JSON.stringify(shown)),
-          ...prepared.warnings
-        ]
-      };
-    }));
+        return {
+          content: [
+            { type: 'image', data: Buffer.from(png).toString('base64'), mimeType: 'image/png' },
+            text(JSON.stringify(about)),
+            ...prepared.warnings
+          ]
+        };
+      })
+  );
 
   server.registerTool('graph_link', {
     title: 'Link to a graph',
@@ -324,6 +379,29 @@ export function createServer(dir = nodesDir): McpServer {
     answer(async () => {
       const prepared = await prepare(graph);
       return { content: [text(await linkGraph(prepared.graph, prepared.name, {}))] };
+    }));
+
+  server.registerTool('get_docs', {
+    title: 'Read the docs',
+    description: 'The guides of Nodarium as markdown: "graphs" (how to write a graph), '
+      + '"plant-templates" (what the plant nodes can express and how every plant template is '
+      + 'built), "plantarium" (the data of the plant nodes), "myzel" (the mushroom nodes and '
+      + 'their groups), "templates" (the list_templates list). Without a topic, the list of '
+      + 'topics. The guides name the commands of the `nodarium` command line: `nodes` is '
+      + 'list_nodes and get_node, `check` check_graph, `run` run_graph, `render` render_graph, '
+      + '`link` graph_link.',
+    inputSchema: {
+      topic: z.string().optional().describe('A topic like "plant-templates", or a file name')
+    },
+    annotations: READ_ONLY
+  }, ({ topic }) =>
+    answer(async () => {
+      if (!topic) return { content: [text(docList())] };
+      const doc = docText(topic);
+      if (doc === undefined) {
+        throw new Error(`there is no doc ${topic}, the topics are:\n${docList()}`);
+      }
+      return { content: [text(doc)] };
     }));
 
   server.registerPrompt('write_graph', {

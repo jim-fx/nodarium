@@ -3,7 +3,13 @@ import { expandGroups } from '../expand-groups';
 import { graphLink } from '../graph-link';
 import { CURRENT_GRAPH_VERSION } from '../graph-migrations';
 import { placeNodes } from '../place-nodes';
-import { type RenderOptions, type RenderStats, renderToPng } from '../render';
+import {
+  type RenderedSheet,
+  type RenderOptions,
+  renderSheetToPng,
+  type RenderStats,
+  renderToPng
+} from '../render';
 import { bounds, collectTriangles } from '../render/triangles';
 import { decodeResult } from '../result/decode-result';
 import { MemoryRuntimeExecutor } from '../runtime-executor';
@@ -156,6 +162,49 @@ export type RenderedGraph = {
   type?: string;
 };
 
+/** A copy of the graph with a debug node behind `node`, like the probe of the editor */
+function probedGraph(graph: Graph, node?: RenderGraphOptions['node']) {
+  if (!node) return { graph };
+  const probed = graph.nodes.find((n) => n.id === node.id);
+  if (!probed) {
+    const ids = graph.nodes.map((n) => `${n.id} ${n.type.split('/').pop()}`).join(', ');
+    throw new Error(`the graph has no node ${node.id}, it has the nodes ${ids}`);
+  }
+  const debugId = Math.max(0, ...graph.nodes.map((n) => n.id)) + 1;
+  return {
+    probed,
+    graph: {
+      ...graph,
+      nodes: [...graph.nodes, { id: debugId, type: DEBUG_NODE, props: {} }],
+      edges: [...graph.edges, [node.id, node.output ?? 0, debugId, 'input']]
+    } as Graph
+  };
+}
+
+/** What a run gives to draw: the result, or the output of `node` with its type */
+async function drawable(
+  runtime: MemoryRuntimeExecutor,
+  graph: Graph,
+  settings: Record<string, unknown>,
+  node?: RenderGraphOptions['node']
+) {
+  const ran = await runtime.run(graph, settings);
+  const entry = node && ran.debugData[node.id];
+  if (node && !entry) throw new Error(`node ${node.id} gave no output`);
+  const type = entry ? entry.type : undefined;
+  // values like floats and vectors are no geometry, whatever their first word is
+  const drawn = type === undefined || DRAWN_TYPES.has(type);
+  return { data: entry ? entry.data : ran.result, type, drawn };
+}
+
+function nothingToDraw(probed: Graph['nodes'][number] | undefined, id?: number, type?: string) {
+  return new Error(
+    probed
+      ? `${probed.type.split('/').pop()}#${id} gives a ${type}, there is nothing to draw`
+      : 'the graph produced no geometry'
+  );
+}
+
 /**
  * Builds a graph and draws front, side and top view of its result, or of the output of one of
  * its nodes. Throws when the graph fails or there is nothing to draw.
@@ -166,45 +215,78 @@ export async function renderGraph(
   settings: Record<string, unknown>,
   { node, ...options }: RenderGraphOptions = {}
 ): Promise<RenderedGraph> {
-  const probed = node && graph.nodes.find((n) => n.id === node.id);
-  if (node && !probed) {
-    const ids = graph.nodes.map((n) => `${n.id} ${n.type.split('/').pop()}`).join(', ');
-    throw new Error(`the graph has no node ${node.id}, it has the nodes ${ids}`);
-  }
-  if (node) {
-    // a debug node behind the node, in a copy of the graph, like the probe of the editor
-    const debugId = Math.max(0, ...graph.nodes.map((n) => n.id)) + 1;
-    graph = {
-      ...graph,
-      nodes: [...graph.nodes, { id: debugId, type: DEBUG_NODE, props: {} }],
-      edges: [...graph.edges, [node.id, node.output ?? 0, debugId, 'input']]
-    };
-  }
-
+  const probe = probedGraph(graph, node);
   const runtime = new MemoryRuntimeExecutor(registry);
-  let data: Int32Array;
-  let type: string | undefined;
+  let built;
   try {
-    const ran = await runtime.run(graph, settings);
-    const entry = node && ran.debugData[node.id];
-    if (node && !entry) throw new Error(`node ${node.id} gave no output`);
-    data = entry ? entry.data : ran.result;
-    type = entry ? entry.type : undefined;
+    built = await drawable(runtime, probe.graph, settings, node);
   } finally {
     runtime.releaseInstances();
   }
+  const rendered = built.drawn
+    && renderToPng(built.data, { ...options, paths: node !== undefined });
+  if (!rendered) throw nothingToDraw(probe.probed, node?.id, built.type);
+  return { ...rendered, type: built.type };
+}
 
-  // values like floats and vectors are no geometry, whatever their first word is
-  const drawn = type === undefined || DRAWN_TYPES.has(type);
-  const rendered = drawn && renderToPng(data, { ...options, paths: node !== undefined });
-  if (!rendered) {
-    throw new Error(
-      probed
-        ? `${probed.type.split('/').pop()}#${node!.id} gives a ${type}, there is nothing to draw`
-        : 'the graph produced no geometry'
-    );
+/** A cell of a sheet: the seed and the time it is built with */
+export type SheetRun = { seed: number; time?: number };
+
+export type RenderedGraphSheet = Omit<RenderedSheet, 'cells'> & {
+  cells: (
+    & SheetRun
+    & Omit<RenderedSheet['cells'][number], 'stats'>
+    & Partial<RenderStats>
+    & { empty?: true }
+  )[];
+  type?: string;
+};
+
+/**
+ * Builds a graph once per cell, with the seed and the time of that cell on `settings`, and draws
+ * them all into one sheet at the same scale, `columns` cells in a row. A cell labelled
+ * `s<seed> t<time>` that drew nothing stays empty. Throws when the graph fails or no cell drew
+ * anything.
+ */
+export async function renderGraphSheet(
+  registry: NodeRegistry,
+  graph: Graph,
+  settings: Record<string, unknown>,
+  runs: SheetRun[],
+  { node, columns, ...options }: RenderGraphOptions & { columns?: number }
+): Promise<RenderedGraphSheet> {
+  const probe = probedGraph(graph, node);
+  const runtime = new MemoryRuntimeExecutor(registry);
+  const cells = [];
+  let type: string | undefined;
+  try {
+    for (const run of runs) {
+      const time = run.time === undefined ? {} : { 'time.t': run.time };
+      const built = await drawable(
+        runtime,
+        probe.graph,
+        { ...settings, ...time, seed: run.seed },
+        node
+      );
+      type = built.type;
+      if (!built.drawn) throw nothingToDraw(probe.probed, node?.id, built.type);
+      const label = `s${run.seed}${run.time === undefined ? '' : ` t${run.time}`}`;
+      cells.push({ result: built.data, label });
+    }
+  } finally {
+    runtime.releaseInstances();
   }
-  return { ...rendered, type };
+  const sheet = renderSheetToPng(cells, { ...options, columns, paths: node !== undefined });
+  if (!sheet) throw nothingToDraw(probe.probed, node?.id, type);
+  return {
+    ...sheet,
+    type,
+    cells: sheet.cells.map(({ stats, ...at }, i) => ({
+      ...runs[i],
+      ...at,
+      ...(stats ?? { empty: true as const })
+    }))
+  };
 }
 
 /** The link that opens a graph in the app, titled `name` when it has no title of its own */

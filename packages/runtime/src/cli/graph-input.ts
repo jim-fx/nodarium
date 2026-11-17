@@ -62,12 +62,18 @@ function graphName(json: unknown) {
   return fileName(graph?.meta?.title);
 }
 
-/** A template id, the path of a graph or a project file, a link of the app, or `-` for stdin */
-export async function readGraphSource(target: string): Promise<GraphSource> {
+/**
+ * A template id, the path of a graph or a project file, a link of the app, or `-` for stdin.
+ * `resolvePath` turns a path into the file it names, it may throw to refuse one.
+ */
+export async function readGraphSource(
+  target: string,
+  resolvePath: (path: string) => string = resolve
+): Promise<GraphSource> {
   if (target === '-') return { name: 'stdin', json: parseJson(await readStdin(), 'stdin') };
   const linked = await linkSource(target);
   if (linked) return linked;
-  const file = resolve(target);
+  const file = resolvePath(target);
   if (existsSync(file)) {
     const name = basename(file).replace(/(\.nodarium)?\.json$/, '');
     return { name, file, json: parseJson(await readFile(file, 'utf8'), target) };

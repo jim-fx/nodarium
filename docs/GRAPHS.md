@@ -1,6 +1,6 @@
 # Writing a graph by hand
 
-A graph is a JSON file. The quickest start is a template: `pnpm -s nodarium run fern --print-graph > fern.json` (`-s` keeps the lines of pnpm out of the file) prints the fern with every field filled in, `pnpm nodarium nodes` lists the nodes and `pnpm nodarium nodes stem noise` shows their inputs. Outside the repository, `npx @nodarium/runtime` is the same command (see `packages/runtime/README.md`), and `nodarium mcp` gives its commands to an agent without a shell as MCP tools.
+A graph is a JSON file. The quickest start is a template: `pnpm -s nodarium run fern --print-graph > fern.json` (`-s` keeps the lines of pnpm out of the file) prints the fern with every field filled in, `--write fern.json` instead of the `>` writes it into a new file, `pnpm nodarium nodes` lists the nodes and `pnpm nodarium nodes stem noise` shows their inputs. Outside the repository, `npx @nodarium/runtime` is the same command (see `packages/runtime/README.md`), and `nodarium mcp` gives its commands to an agent without a shell as MCP tools.
 
 A small plant, a stem bent by gravity with eight leaves:
 
@@ -36,6 +36,6 @@ Every template is one of three shapes:
 - **A plant with leaves**: a `shape` into `leaf` (or the veins into `leaf_surface`) is the geometry of an `instance`, which places it along the paths, and the `instance` goes into the `output`.
 - **A mushroom**: Stipe, Cap and Gills groups, their strands joined into `hyphae_to_mesh`, the meshes into `join_meshes` and `max/myzel/output`. [MYZEL.md](./MYZEL.md) describes the groups, [PLANTARIUM.md](./PLANTARIUM.md) the data of paths, points and instances.
 
-Then the loop: `pnpm nodarium check plant.json` names every mistake with a fix, `pnpm nodarium render plant.json --out screenshots` draws it, `--node 2` draws what comes out of node 2 alone, and `pnpm nodarium run plant.json --set 2.strength=0.6 --timings` tries another value and shows what every node costs.
+Then the loop: `pnpm nodarium check plant.json` names every mistake with a fix, `pnpm nodarium render plant.json --out screenshots` draws it, `--node 2` draws what comes out of node 2 alone, `--seeds 1,2,3,4` draws four seeds side by side in one sheet (`--times 0.25,0.5,1` the growth, `--views front` one view), and `pnpm nodarium run plant.json --set 2.strength=0.6 --timings` tries another value and shows what every node costs.
 
 To look at the graph in the editor, `pnpm nodarium link plant.json` prints a link that opens it in the app as a new project, `--base` points the link at another deployment, like `--base http://localhost:5173` for the dev server. The graph travels in the fragment of the link (`#graph=`), deflated and base64url, it is not sent to the server. A template opens with `/?template=fern`. [AGENT_API.md](./AGENT_API.md) lists the parameters of the address.

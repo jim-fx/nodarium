@@ -1,13 +1,16 @@
 import type { Graph, NodeDefinition } from '@nodarium/types';
+import { lstatSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { findNodes, formatNode, formatNodeList, nodesOfType } from '../catalog';
+import { DOC_TOPICS, docList, docText } from '../docs';
 import { GRAPH_LINK_BASE } from '../graph-link';
 import { listNodes } from '../list-nodes';
 import { nodesDir } from '../nodes-dir';
 import { placeNodes } from '../place-nodes';
 import { FileNodeRegistry } from '../registry/file-node-registry';
+import { RENDER_VIEWS, type RenderView } from '../render';
 import type { GraphIssue } from '../validate-graph';
 import {
   checkReport,
@@ -16,6 +19,8 @@ import {
   linkGraph,
   printedGraph,
   renderGraph,
+  type RenderGraphOptions,
+  renderGraphSheet,
   runGraph,
   runSettings,
   stringifyGraph
@@ -29,33 +34,45 @@ import {
   readGraphSource,
   writtenGraph
 } from './graph-input';
+import { OutsideRootError, PathRule } from './root';
 
 export const USAGE = `Usage: nodarium <command> [options]
 
   nodes [name...] [--type t]   the nodes: a list, or the inputs of the named nodes
   check <graph...>             lists the mistakes in a graph, exits with 1 on an error
   run <graph...>               builds a graph and prints its size
-      [--seed n] [--time t] [--set key=value]... [--timings] [--print-graph]
+      [--seed n] [--time t] [--set key=value]... [--timings]
+      [--print-graph [--write file [--overwrite]]]
   render <graph...>            renders front, side and top view into a PNG
-      [--out dir] [--size px] [--seed n] [--time t] [--set key=value]...
-      [--focus x,z,r] [--below] [--node id[:output]]
+      [--out dir] [--name name] [--size px] [--seed n] [--time t] [--set key=value]...
+      [--views v,...] [--focus x,z,r] [--below] [--node id[:output]]
+      [--seeds n,...] [--times t,...]
   format <graph...> [--check]  places the nodes that have no position
   link <graph...> [--base url] prints a link that opens the graph in the app
+  docs [topic]                 the guides that come with the package, a list without a topic
   mcp                          starts an MCP server on stdio with these commands as tools
 
   <graph>        a template id (fern, porcini, ...), the path of a graph or of a
                  .nodarium.json project, a link of the app, or - for stdin
   --json         prints JSON
+  --root dir     keeps every path inside dir: relative paths start there, a path that
+                 leads outside is refused, and so are --nodes and mcp
   --nodes dir    the folder of the compiled nodes, the nodes of the package by default
   --seed n       the seed of the random nodes, 1 by default
   --time t       sets the setting time.t, from 0 to 1
   --set k=v      sets a setting (resolution.curve=16) or the input of a node (4.length=0.3)
   --timings      the ms and output bytes of every node
   --print-graph  prints the graph with the changes of --set instead of running it
+  --write file   writes the graph of --print-graph into a new file instead of printing it
+  --overwrite    lets --write replace a file that exists
   --out dir      where render writes <name>.png, ./screenshots by default
-  --size px      the size of one view, 512 by default
+  --name name    the name of the PNG of render without .png, the graph's name by default
+  --size px      the size of one view, 512 by default, 256 in a sheet
+  --views v,...  which views in which order: ${RENDER_VIEWS.join(', ')}; front,side,top by default
   --focus x,z,r  only what lies within r (m) of x, z seen from above
   --below        adds a view from below
+  --seeds n,...  a sheet, <name>-sheet.png: the graph with every seed, in a row
+  --times t,...  a sheet: the graph at every time.t, in a row, or a row per time with --seeds
   --node id      renders the output of that node instead of the graph's
   --check        format only reports the graphs with nodes that have no position
   --base url     the app a link opens, ${GRAPH_LINK_BASE} by default
@@ -63,6 +80,7 @@ export const USAGE = `Usage: nodarium <command> [options]
 
 const OPTIONS = {
   json: { type: 'boolean' },
+  root: { type: 'string', multiple: true },
   nodes: { type: 'string' },
   type: { type: 'string' },
   seed: { type: 'string', default: '1' },
@@ -70,8 +88,14 @@ const OPTIONS = {
   set: { type: 'string', multiple: true },
   timings: { type: 'boolean' },
   'print-graph': { type: 'boolean' },
+  write: { type: 'string' },
+  overwrite: { type: 'boolean' },
   out: { type: 'string' },
-  size: { type: 'string', default: '512' },
+  name: { type: 'string' },
+  size: { type: 'string' },
+  views: { type: 'string' },
+  seeds: { type: 'string' },
+  times: { type: 'string' },
   focus: { type: 'string' },
   below: { type: 'boolean' },
   node: { type: 'string' },
@@ -82,6 +106,7 @@ const OPTIONS = {
 
 type Options = {
   json?: boolean;
+  root?: string[];
   nodes?: string;
   type?: string;
   seed: string;
@@ -89,8 +114,14 @@ type Options = {
   set?: string[];
   timings?: boolean;
   'print-graph'?: boolean;
+  write?: string;
+  overwrite?: boolean;
   out?: string;
-  size: string;
+  name?: string;
+  size?: string;
+  views?: string;
+  seeds?: string;
+  times?: string;
   focus?: string;
   below?: boolean;
   node?: string;
@@ -116,13 +147,55 @@ function numbers(text: string, count: number, flag: string) {
   return values;
 }
 
+/** A list of numbers separated by commas, whole numbers with `integers` */
+function numberList(text: string | undefined, flag: string, integers = false) {
+  if (text === undefined) return undefined;
+  const values = text.split(',').map((v) => (v.trim() === '' ? NaN : Number(v)));
+  if (values.some((v) => !Number.isFinite(v) || (integers && !Number.isInteger(v)))) {
+    throw new CliError(
+      `--${flag} takes ${integers ? 'whole numbers' : 'numbers'} separated by commas, not ${text}`
+    );
+  }
+  return values;
+}
+
+function viewList(text: string | undefined) {
+  if (text === undefined) return undefined;
+  const views = text.split(',');
+  if (views.some((view) => !RENDER_VIEWS.includes(view as RenderView))) {
+    throw new CliError(`--views takes ${RENDER_VIEWS.join(', ')} separated by commas, not ${text}`);
+  }
+  return views as RenderView[];
+}
+
+/** The name of --name: a file name without a folder */
+function baseName(name: string) {
+  if (!name || name === '.' || name === '..' || /[\\/\0]/.test(name)) {
+    throw new CliError(`--name takes the name of a file without a folder, not ${name}`);
+  }
+  return name;
+}
+
+function exists(path: string) {
+  try {
+    lstatSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 class Cli {
   private definitions?: Map<string, NodeDefinition>;
   private readonly registry: FileNodeRegistry;
   private readonly sets: GraphSets;
   exitCode = 0;
 
-  constructor(private readonly options: Options, private readonly dir: string) {
+  constructor(
+    private readonly options: Options,
+    private readonly dir: string,
+    private readonly paths: PathRule
+  ) {
     this.registry = new FileNodeRegistry(dir);
     try {
       this.sets = parseSets(options.set ?? []);
@@ -154,6 +227,20 @@ class Cli {
     else console.error(`${name}: error ${error}`);
   }
 
+  /** A path of the command line, as `--root` allows it */
+  private path(path: string) {
+    try {
+      return this.paths.resolve(path);
+    } catch (error) {
+      if (error instanceof OutsideRootError) throw new CliError(error.message);
+      throw error;
+    }
+  }
+
+  private read(target: string) {
+    return readGraphSource(target, (path) => this.paths.resolve(path));
+  }
+
   private printIssues(name: string, issues: GraphIssue[]) {
     for (const line of issueLines(name, issues)) console.error(line);
   }
@@ -179,7 +266,7 @@ class Cli {
   private async load(target: string) {
     let source: GraphSource;
     try {
-      source = await readGraphSource(target);
+      source = await this.read(target);
     } catch (error) {
       this.fail(targetName(target), error instanceof Error ? error.message : String(error));
       return;
@@ -218,6 +305,20 @@ class Cli {
     return runSettings(graph, { ...this.sets.settings, ...time }, Number(this.options.seed));
   }
 
+  docs(topics: string[]) {
+    if (topics.length > 1) throw new CliError(`docs takes one topic\n\n${docList()}`);
+    const [topic] = topics;
+    if (topic === undefined) {
+      this.print(this.options.json ? DOC_TOPICS : docList());
+      return;
+    }
+    const text = docText(topic);
+    if (text === undefined) {
+      throw new CliError(`there is no doc ${topic}, the topics are:\n${docList()}`);
+    }
+    this.print(this.options.json ? { topic, text } : text.trimEnd());
+  }
+
   async check(targets: string[]) {
     for (const target of targets) {
       const loaded = await this.load(target);
@@ -229,11 +330,30 @@ class Cli {
     }
   }
 
+  /** The file of --write, checked before anything runs */
+  private writeTarget(targets: string[]) {
+    if (this.options.write === undefined) return undefined;
+    if (targets.length > 1) throw new CliError('--write writes one graph, run got several');
+    const file = this.path(this.options.write);
+    if (!this.options.overwrite && exists(file)) {
+      throw new CliError(`${this.options.write} exists, --overwrite replaces it`);
+    }
+    return file;
+  }
+
   async run(targets: string[]) {
+    const write = this.writeTarget(targets);
     for (const target of targets) {
       const prepared = await this.prepare(target);
       if (!prepared) continue;
       const { name } = prepared;
+      if (write !== undefined) {
+        const text = stringifyGraph(printedGraph(prepared.graph, this.sets.settings)) + '\n';
+        await mkdir(dirname(write), { recursive: true });
+        await writeFile(write, text, { flag: this.options.overwrite ? 'w' : 'wx' });
+        this.print(this.options.json ? { name, file: write } : `${name}: wrote ${write}`);
+        continue;
+      }
       if (this.options['print-graph']) {
         this.print(stringifyGraph(printedGraph(prepared.graph, this.sets.settings)));
         continue;
@@ -279,12 +399,23 @@ class Cli {
   }
 
   async render(targets: string[]) {
-    const out = this.options.out ?? join(process.cwd(), 'screenshots');
+    const out = this.paths.root === undefined
+      ? this.options.out ?? join(process.cwd(), 'screenshots')
+      : this.path(this.options.out ?? 'screenshots');
     const focus = this.options.focus
       ? (numbers(this.options.focus, 3, 'focus') as [number, number, number])
       : undefined;
     const probe = this.options.node?.match(/^(\d+)(?::(\d+))?$/);
     if (this.options.node && !probe) throw new CliError(`--node takes a node id, like 4 or 4:1`);
+    const views = viewList(this.options.views);
+    const seeds = numberList(this.options.seeds, 'seeds', true);
+    const times = numberList(this.options.times, 'times');
+    const sheet = seeds !== undefined || times !== undefined;
+    if (this.options.name !== undefined) {
+      baseName(this.options.name);
+      if (targets.length > 1) throw new CliError('--name names one PNG, render got several graphs');
+    }
+    const size = Number(this.options.size ?? (sheet ? 256 : 512));
     await mkdir(out, { recursive: true });
 
     for (const target of targets) {
@@ -292,19 +423,29 @@ class Cli {
       if (!prepared) continue;
       const { name } = prepared;
       const nodeId = probe ? Number(probe[1]) : undefined;
+      const node = probe ? { id: nodeId!, output: Number(probe[2] ?? 0) } : undefined;
+      const file = this.options.name
+        ?? `${name}${nodeId === undefined ? '' : `-node${nodeId}`}${sheet ? '-sheet' : ''}`;
+      const screenshot = join(out, `${file}.png`);
+      // a link of that name inside the folder would lead the PNG elsewhere
+      if (this.paths.root !== undefined) this.path(screenshot);
+      const options = { size, below: this.options.below, views, focus, node };
+      if (sheet) {
+        await this.renderSheet(prepared, screenshot, options, seeds, times);
+        continue;
+      }
       let rendered;
       try {
-        rendered = await renderGraph(this.registry, prepared.graph, this.settings(prepared.graph), {
-          size: Number(this.options.size),
-          below: this.options.below,
-          focus,
-          node: probe ? { id: nodeId!, output: Number(probe[2] ?? 0) } : undefined
-        });
+        rendered = await renderGraph(
+          this.registry,
+          prepared.graph,
+          this.settings(prepared.graph),
+          options
+        );
       } catch (error) {
         this.fail(name, error instanceof Error ? error.message : String(error));
         continue;
       }
-      const screenshot = join(out, `${name}${nodeId === undefined ? '' : `-node${nodeId}`}.png`);
       await writeFile(screenshot, rendered.png);
       const line = {
         name,
@@ -324,6 +465,39 @@ class Cli {
         );
       }
     }
+  }
+
+  /** A row per time, a column per seed, the --time and --seed of the command for the one missing */
+  private async renderSheet(
+    { name, graph }: { name: string; graph: Graph },
+    screenshot: string,
+    options: RenderGraphOptions,
+    seeds?: number[],
+    times?: number[]
+  ) {
+    const timeList = times
+      ?? [this.options.time === undefined ? undefined : Number(this.options.time)];
+    const seedList = seeds ?? [Number(this.options.seed)];
+    const runs = timeList.flatMap((time) => seedList.map((seed) => ({ seed, time })));
+    let rendered;
+    try {
+      rendered = await renderGraphSheet(this.registry, graph, this.settings(graph), runs, {
+        ...options,
+        columns: seeds ? seedList.length : timeList.length
+      });
+    } catch (error) {
+      this.fail(name, error instanceof Error ? error.message : String(error));
+      return;
+    }
+    const { png, cells, type, ...layout } = rendered;
+    await writeFile(screenshot, png);
+    const node = options.node === undefined ? {} : { node: options.node.id, type };
+    if (this.options.json) {
+      this.print({ name, ...node, screenshot, ...layout, cells });
+      return;
+    }
+    this.print(`${name}: ${screenshot}, a sheet of ${layout.columns} × ${layout.rows} cells`);
+    this.print({ cells });
   }
 
   async link(targets: string[]) {
@@ -353,7 +527,7 @@ class Cli {
     for (const target of targets) {
       let source: GraphSource;
       try {
-        source = await readGraphSource(target);
+        source = await this.read(target);
       } catch (error) {
         this.fail(targetName(target), error instanceof Error ? error.message : String(error));
         continue;
@@ -411,6 +585,18 @@ async function serveMcp(dir: string) {
   return 0;
 }
 
+/** The rule for the paths of a command, with what `--root` refuses */
+function rootOf(options: Options, command: string) {
+  const roots = options.root ?? [];
+  if (roots.length === 0) return new PathRule();
+  if (roots.length > 1) throw new CliError('--root is given once');
+  // the nodes are the code that runs, under --root they are those of the package
+  if (options.nodes !== undefined) throw new CliError('--nodes is not allowed with --root');
+  // mcp takes no paths, and a server on stdin is nothing a command in a folder starts
+  if (command === 'mcp') throw new CliError('mcp is not allowed with --root');
+  return new PathRule(roots[0]);
+}
+
 /** Runs the command line `args` (without `node` and the script), returns the exit code */
 export async function main(args: string[]): Promise<number> {
   let parsed;
@@ -431,9 +617,18 @@ export async function main(args: string[]): Promise<number> {
     return 1;
   }
 
+  let paths;
+  try {
+    paths = rootOf(options, command);
+  } catch (error) {
+    if (!(error instanceof CliError || error instanceof OutsideRootError)) throw error;
+    console.error(error.message);
+    return 1;
+  }
+
   if (command === 'mcp') return serveMcp(options.nodes ?? nodesDir);
 
-  const cli = new Cli(options, options.nodes ?? nodesDir);
+  const cli = new Cli(options, options.nodes ?? nodesDir, paths);
   // the runtime logs the migrations of a graph, a graph without a version gets a warning instead
   const info = console.info;
   console.info = () => {};
@@ -441,6 +636,9 @@ export async function main(args: string[]): Promise<number> {
     switch (command) {
       case 'nodes':
         await cli.nodes(rest);
+        break;
+      case 'docs':
+        cli.docs(rest);
         break;
       case 'check':
       case 'run':
