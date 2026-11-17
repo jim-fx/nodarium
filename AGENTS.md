@@ -25,7 +25,7 @@ pnpm bootstrap --reuse-nodes   # in a worktree: copies app/static/nodes from the
 
 ## The loop
 
-`pnpm qa` runs `pnpm lint`, `pnpm format:check`, `pnpm check` and `pnpm test:unit`, about 25 s in all. The unit tests alone take about 1 s for the runtime and 6 s for the app. CI (`.gitea/workflows/release.yaml`, on every push and pull request) runs the same steps, then builds the app with `pnpm build` and runs the Playwright test (`pnpm test:e2e`). On every push, `.gitea/workflows/benchmark.yaml` also runs `pnpm -C app bench` (about 45 s on a desktop) and stores the numbers in the repository `max/nodarium-benchmarks`.
+`pnpm qa` runs `pnpm lint`, `pnpm format:check`, `pnpm check` and `pnpm test:unit`, about 25 s in all. The unit tests alone take about 1 s for the runtime, 6 s for the app and 7 s for `packages/ui`, whose component tests run in a headless Firefox (once: `pnpm -C packages/ui exec playwright install firefox`). CI (`.gitea/workflows/release.yaml`, on every push and pull request) runs the same steps, then builds the app with `pnpm build` and runs the Playwright test (`pnpm test:e2e`). On every push, `.gitea/workflows/benchmark.yaml` also runs `pnpm -C app bench` (about 45 s on a desktop) and stores the numbers in the repository `max/nodarium-benchmarks`.
 
 To look at a graph without a browser: `pnpm -C app render-graph fern` writes front, side and top views to `screenshots/` in `app/` (templates by name, `templates` for all, or the path of a graph or project file). `pnpm -C app format-graph` lays out the nodes of a template. To measure: `pnpm -C app bench` for whole graphs, `pnpm -C app bench:paths` for the path nodes. Each script explains its flags at the top of its file in `app/scripts`.
 

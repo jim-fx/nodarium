@@ -14,6 +14,7 @@
     "prepublishOnly": "npm run package",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test": "vitest",
+    "test:unit": "vitest run",
     "format": "dprint fmt -c '../../.dprint.jsonc' .",
     "format:check": "dprint check -c '../../.dprint.jsonc' .",
     "lint": "eslint .",

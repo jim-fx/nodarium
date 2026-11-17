@@ -22,6 +22,6 @@ describe('InputSelect', () => {
     render(InputSelect, { options: ['first', 'second', 'third'], value: 1 });
 
     const select = page.getByRole('combobox');
-    await expect.element(select).toHaveTextContent('second');
+    await expect.element(select).toHaveDisplayValue('second');
   });
 });
