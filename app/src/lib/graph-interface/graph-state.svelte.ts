@@ -37,6 +37,8 @@ export {
   tryGetGraphState
 };
 
+type PointerPosition = Pick<MouseEvent, 'clientX' | 'clientY'>;
+
 type EdgeData = {
   x1: number;
   y1: number;
@@ -114,6 +116,22 @@ export class GraphState {
   possibleSocketIds = $derived(
     new SvelteSet(this.possibleSockets.map((s) => `${s.node.id}-${s.index}`))
   );
+  /**
+   * The socket a click (or Enter) picked to connect from without a drag. The sockets it can
+   * connect to stay highlighted until one of them is clicked.
+   */
+  pickedSocket = $state.raw<Socket | null>(null);
+  /** Where the pointer pressed a socket, to tell a click from a drag */
+  private socketPressedAt: [number, number] | null = null;
+
+  isPicked(node: NodeInstance, index: number | string) {
+    return this.pickedSocket?.node.id === node.id && this.pickedSocket.index === index;
+  }
+
+  /** The socket an edge is dragged or picked from */
+  get connectingSocket() {
+    return this.activeSocket ?? this.pickedSocket;
+  }
 
   clearSelection() {
     this.selectedNodes.clear();
@@ -284,15 +302,92 @@ export class GraphState {
       position
     };
 
-    this.possibleSockets = this.graph
-      .getPossibleSockets(this.activeSocket)
-      .map(([node, index]) => {
-        return {
-          node,
-          index,
-          position: this.getSocketPosition(node, index)
-        };
-      });
+    this.possibleSockets = this.socketsToConnect(this.activeSocket);
+  }
+
+  private socketsToConnect(socket: Socket): Socket[] {
+    return this.graph.getPossibleSockets(socket).map(([node, index]) => ({
+      node,
+      index,
+      position: this.getSocketPosition(node, index)
+    }));
+  }
+
+  pickSocket(socket: Socket) {
+    this.pickedSocket = socket;
+    this.possibleSockets = this.socketsToConnect(socket);
+  }
+
+  unpickSocket() {
+    if (!this.pickedSocket) return;
+    this.pickedSocket = null;
+    this.possibleSockets = [];
+  }
+
+  private isPickedSocket(socket: Socket) {
+    return this.isPicked(socket.node, socket.index);
+  }
+
+  /**
+   * Connects the picked socket to `socket` if that is one of the highlighted sockets, and
+   * leaves the picked state. Returns false if `socket` is not highlighted.
+   */
+  private connectPicked(socket: Socket): boolean {
+    const picked = this.pickedSocket;
+    const fits = this.possibleSockets.some((s) =>
+      s.node.id === socket.node.id && s.index === socket.index
+    );
+    if (!picked || !fits) return false;
+    this.unpickSocket();
+    const [from, to] = typeof picked.index === 'number' ? [picked, socket] : [socket, picked];
+    // the picked node may be gone or replaced since, e.g. by an undo
+    const fromNode = this.graph.getNode(from.node.id);
+    const toNode = this.graph.getNode(to.node.id);
+    if (fromNode && toNode) {
+      this.graph.createEdge(fromNode, from.index as number, toNode, to.index as string);
+    }
+    return true;
+  }
+
+  /**
+   * A mouse press on a socket: connects to the picked socket, or starts dragging an edge as
+   * before. Released without a drag, the press picks the socket, see releasedSocket().
+   */
+  pressSocket(socket: Socket, event: PointerPosition) {
+    this.socketPressedAt = null;
+    if (this.connectPicked(socket)) return;
+    const wasPicked = this.isPickedSocket(socket);
+    this.unpickSocket();
+    this.setDownSocket(socket);
+    // a press on the picked socket unpicks it, and a press on a connected input drags its edge
+    // away: neither picks
+    const dragsOwnSocket = this.activeSocket?.node.id === socket.node.id
+      && this.activeSocket.index === socket.index;
+    if (dragsOwnSocket && !wasPicked) this.socketPressedAt = [event.clientX, event.clientY];
+  }
+
+  /** A press that moves further than a click turns into a drag */
+  movePointer(event: PointerPosition) {
+    const at = this.socketPressedAt;
+    if (at && Math.hypot(event.clientX - at[0], event.clientY - at[1]) > 4) {
+      this.socketPressedAt = null;
+    }
+  }
+
+  /** The socket the mouse pressed and released without dragging, see pressSocket() */
+  releasedSocket(event: PointerPosition): Socket | null {
+    this.movePointer(event);
+    const pressed = this.socketPressedAt && this.activeSocket;
+    this.socketPressedAt = null;
+    return pressed || null;
+  }
+
+  /** Enter or Space on a socket: connects to the picked socket, or picks it, or unpicks it */
+  activateSocket(socket: Socket) {
+    if (this.connectPicked(socket)) return;
+    const wasPicked = this.isPickedSocket(socket);
+    this.unpickSocket();
+    if (!wasPicked) this.pickSocket(socket);
   }
 
   getNodeIdFromEvent(event: MouseEvent) {
@@ -332,15 +427,16 @@ export class GraphState {
     this.addMenuPosition = [this.mousePosition[0], this.mousePosition[1]];
   }
 
-  enterGroupNode() {
-    if (this.activeNodeId === -1) return;
+  enterGroupNode(): boolean {
+    if (this.activeNodeId === -1) return false;
     const node = this.graph.getNode(this.activeNodeId);
-    if (!node || node.type !== GROUP_INSTANCE) return;
+    if (!node || node.type !== GROUP_INSTANCE) return false;
     const ok = this.graph.enterGroup(this.activeNodeId);
     if (ok) {
       this.activeNodeId = -1;
       this.clearSelection();
     }
+    return !!ok;
   }
 
   exitGroupNode() {

@@ -49,6 +49,10 @@ export function setupKeymaps(
     key: 'Escape',
     description: 'Deselect nodes',
     callback: () => {
+      if (graphState.pickedSocket) {
+        graphState.unpickSocket();
+        return;
+      }
       if (graph.isInsideGroup) {
         graphState.exitGroupNode();
         return;
@@ -89,9 +93,12 @@ export function setupKeymaps(
 
   keymap.addShortcut({
     key: 'Tab',
-    preventDefault: true,
     description: 'Enter selected node group',
-    callback: () => graphState.enterGroupNode()
+    callback: (event) => {
+      // inside a node, and without a group to enter, Tab moves the focus as usual
+      if ((event.target as Element | null)?.closest?.('.node')) return;
+      if (graphState.enterGroupNode()) event.preventDefault();
+    }
   });
 
   keymap.addShortcut({

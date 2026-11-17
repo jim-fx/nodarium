@@ -228,3 +228,99 @@ describe('copyNodes / pasteNodes', () => {
     expect(manager.nodes.size).toBe(countBefore);
   });
 });
+
+describe('connecting without a drag', () => {
+  function setup() {
+    const { manager, state } = createFixture();
+    const from = manager.createNode({ type: 'test/node/output', position: [0, 0], props: {} });
+    const to = manager.createNode({ type: 'test/node/input', position: [50, 0], props: {} });
+    assert.isDefined(from);
+    assert.isDefined(to);
+    const output = { node: from, index: 0, position: [0, 0] as [number, number] };
+    const input = { node: to, index: 'value', position: [0, 0] as [number, number] };
+    const at = (x: number) => ({ clientX: x, clientY: 10 });
+    const edges = () => manager.serialize().edges;
+    return { manager, state, from, to, output, input, at, edges };
+  }
+
+  it('a click on an output picks it and keeps the inputs it fits highlighted', () => {
+    const { state, to, output, at } = setup();
+    state.pressSocket(output, at(10));
+    const clicked = state.releasedSocket(at(11));
+    assert.isNotNull(clicked);
+    state.pickSocket(clicked);
+
+    expect(state.isPicked(output.node, 0)).toBe(true);
+    expect(state.possibleSocketIds.has(`${to.id}-value`)).toBe(true);
+  });
+
+  it('a drag does not pick, also when it ends where it started', () => {
+    const { state, output, at } = setup();
+    state.pressSocket(output, at(10));
+    expect(state.releasedSocket(at(80))).toBeNull();
+
+    state.pressSocket(output, at(10));
+    state.movePointer(at(80));
+    expect(state.releasedSocket(at(10))).toBeNull();
+  });
+
+  it('a click on the picked socket unpicks it, a drag from it still drags', () => {
+    const { state, output, at } = setup();
+    state.pickSocket(output);
+    state.pressSocket(output, at(10));
+    expect(state.pickedSocket).toBeNull();
+    expect(state.activeSocket?.node.id).toBe(output.node.id);
+    expect(state.releasedSocket(at(10))).toBeNull();
+  });
+
+  it('a click on a highlighted input then makes the edge and leaves the picked state', () => {
+    const { state, from, to, output, input, at, edges } = setup();
+    state.pickSocket(output);
+    state.pressSocket(input, at(10));
+
+    expect(edges()).toEqual([[from.id, 0, to.id, 'value']]);
+    expect(state.pickedSocket).toBeNull();
+    expect(state.possibleSockets).toEqual([]);
+    expect(state.activeSocket).toBeNull();
+  });
+
+  it('pressing a connected input drags its edge away as before and picks nothing', () => {
+    const { manager, state, from, to, input, at, edges } = setup();
+    manager.createEdge(from, 0, to, 'value');
+    state.pressSocket(input, at(10));
+
+    expect(edges()).toEqual([]);
+    expect(state.releasedSocket(at(10))).toBeNull();
+  });
+
+  it('Enter on an output and then on an input makes the edge', () => {
+    const { state, from, to, output, input, edges } = setup();
+    state.activateSocket(output);
+    state.activateSocket(input);
+    expect(edges()).toEqual([[from.id, 0, to.id, 'value']]);
+  });
+
+  it('Enter on an input and then on an output makes the edge', () => {
+    const { state, from, to, output, input, edges } = setup();
+    state.activateSocket(input);
+    expect(state.possibleSocketIds.has(`${from.id}-0`)).toBe(true);
+    state.activateSocket(output);
+    expect(edges()).toEqual([[from.id, 0, to.id, 'value']]);
+  });
+
+  it('Enter on the picked socket again leaves the picked state', () => {
+    const { state, output, edges } = setup();
+    state.activateSocket(output);
+    state.activateSocket(output);
+    expect(state.pickedSocket).toBeNull();
+    expect(state.possibleSockets).toEqual([]);
+    expect(edges()).toEqual([]);
+  });
+
+  it('a socket that does not fit is picked instead', () => {
+    const { state, from, output } = setup();
+    state.activateSocket(output);
+    state.activateSocket({ node: from, index: 'input', position: [0, 0] });
+    expect(state.isPicked(from, 'input')).toBe(true);
+  });
+});
