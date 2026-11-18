@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 14,
+  "version": 15,
   "meta": {
     "unit": "cm"
   },
@@ -1212,7 +1212,7 @@
       },
       "outputs": [
         {
-          "type": "mesh",
+          "type": "path",
           "label": "Tubes"
         }
       ],
@@ -1342,7 +1342,7 @@
         {
           "id": 211,
           "position": [-30, 0],
-          "type": "max/myzel/set_mesh_color",
+          "type": "max/plantarium/set_color",
           "props": {}
         }
       ],
@@ -1447,7 +1447,7 @@
           208,
           0,
           211,
-          "mesh"
+          "plant"
         ],
         [
           210,
@@ -1468,7 +1468,8 @@
       "name": "Reticulation",
       "inputs": {
         "mesh": {
-          "type": "mesh",
+          "type": "geometry",
+          "accepts": ["path"],
           "label": "Body",
           "external": true
         },
@@ -1510,7 +1511,7 @@
       },
       "outputs": [
         {
-          "type": "mesh",
+          "type": "geometry",
           "label": "Body"
         }
       ],
@@ -1623,7 +1624,7 @@
           221,
           0,
           227,
-          "mesh"
+          "geometry"
         ],
         [
           221,
@@ -1785,7 +1786,7 @@
     {
       "id": 59,
       "position": [0, 0],
-      "type": "max/myzel/join_meshes",
+      "type": "max/plantarium/join",
       "props": {}
     },
     {
@@ -2055,7 +2056,7 @@
       59,
       0,
       0,
-      "mesh"
+      "input"
     ],
     [
       3001,

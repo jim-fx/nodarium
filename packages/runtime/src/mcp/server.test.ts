@@ -63,7 +63,9 @@ describe('nodarium mcp', () => {
   it('lists the nodes and shows one', async () => {
     const all = textOf(await call('list_nodes'));
     expect(all).toContain('max/plantarium/noise (path) -> path\n  Bends paths with smooth noise');
-    expect(textOf(await call('list_nodes', { type: 'mesh' }))).toContain('max/myzel/join_meshes');
+    expect(textOf(await call('list_nodes', { type: 'geometry' }))).toContain(
+      'max/myzel/hyphae_to_mesh'
+    );
     const leaves = textOf(await call('list_nodes', { query: 'LEAF' }));
     expect(leaves).toContain('max/plantarium/leaf');
     expect(leaves).not.toContain('max/plantarium/stem');

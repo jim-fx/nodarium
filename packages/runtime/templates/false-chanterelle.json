@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 14,
+  "version": 15,
   "meta": {
     "unit": "cm"
   },
@@ -1588,7 +1588,7 @@
         {
           "id": 318,
           "position": [-30, 0],
-          "type": "max/myzel/set_mesh_color"
+          "type": "max/plantarium/set_color"
         }
       ],
       "edges": [
@@ -1632,7 +1632,7 @@
           62,
           0,
           318,
-          "mesh"
+          "plant"
         ],
         [
           630,
@@ -1692,7 +1692,7 @@
       },
       "outputs": [
         {
-          "type": "mesh",
+          "type": "path",
           "label": "Gills"
         }
       ]
@@ -1766,7 +1766,7 @@
     {
       "id": 317,
       "position": [-30, 0],
-      "type": "max/myzel/join_meshes"
+      "type": "max/plantarium/join"
     },
     {
       "id": 7001,
@@ -1926,7 +1926,7 @@
       317,
       0,
       0,
-      "mesh"
+      "input"
     ],
     [
       7001,

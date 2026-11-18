@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-use crate::mesh::Mesh;
+use crate::Mesh;
 use crate::spatial::{distance_sq_to_segment, larger, smaller, TubeTree};
 
 const BLOCK: usize = 8;

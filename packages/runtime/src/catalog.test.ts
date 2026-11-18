@@ -101,8 +101,8 @@ describe('the catalog', () => {
   });
 
   it('finds the nodes that take or give a type', () => {
-    const meshes = nodesOfType(nodes, 'mesh').map((node) => node.id);
-    expect(meshes).toContain('max/myzel/join_meshes');
+    const meshes = nodesOfType(nodes, 'geometry').map((node) => node.id);
+    expect(meshes).toContain('max/myzel/hyphae_to_mesh');
     expect(meshes).toContain('max/myzel/output');
     expect(meshes).not.toContain('max/plantarium/stem');
   });

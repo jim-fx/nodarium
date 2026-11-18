@@ -62,8 +62,8 @@ describe('readPathLink', () => {
 
 describe('readGeometryPathId', () => {
   it('reads the path the geometry was made from', () => {
-    expect(readGeometryPathId(Int32Array.of(1, 3, 1, 42))).toBe(42);
-    expect(readGeometryPathId(Int32Array.of(1, 3, 1, NO_PATH))).toBe(NO_PATH);
+    expect(readGeometryPathId(Int32Array.of(1, 3, 1, 42, 0))).toBe(42);
+    expect(readGeometryPathId(Int32Array.of(1, 3, 1, NO_PATH, 0))).toBe(NO_PATH);
   });
 });
 

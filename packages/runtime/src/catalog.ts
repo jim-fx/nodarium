@@ -1,7 +1,7 @@
 import { getOutputType, type NodeDefinition, type NodeInput } from '@nodarium/types';
 
 /** The input types that carry data from another node, the rest are values set on the node */
-const DATA_TYPES = new Set(['path', 'geometry', 'force', 'points', 'mesh', 'pattern', 'shape']);
+const DATA_TYPES = new Set(['path', 'geometry', 'force', 'points', 'pattern', 'shape']);
 
 /** The first sentence of a description, a sentence ends with a stop before a capital */
 export function firstSentence(text: string) {

@@ -7,7 +7,7 @@ pub fn is_collapsed(transform: &Mat4) -> bool {
 }
 
 pub fn transform_geometry(mut geometry: Vec<i32>, matrix: Mat4) -> Vec<i32> {
-    let (_header, rest) = geometry.split_at_mut(5);
+    let (_header, rest) = geometry.split_at_mut(super::GEOMETRY_HEAD);
 
     let vertices_amount = _header[3] as usize;
     let face_amount = _header[4] as usize;

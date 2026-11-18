@@ -147,15 +147,6 @@ mod tests {
     }
 
     #[test]
-    fn parses_mesh_sockets() {
-        let def = definition(
-            r#"{"id":"max/myzel/to_mesh","inputs":{"base":{"type":"mesh","accepts":["pattern"]}},"outputs":["mesh"]}"#,
-        );
-        let inputs = def.inputs.unwrap();
-        assert!(matches!(inputs["base"], nodarium_types::NodeInput::mesh(_)));
-    }
-
-    #[test]
     fn parses_pattern_sockets() {
         let def = definition(
             r#"{"id":"max/myzel/lamellae","inputs":{"pattern":{"type":"pattern","external":true}},"outputs":["pattern"]}"#,

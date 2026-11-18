@@ -472,6 +472,19 @@ fn wave(u: f32, shape: i32) -> f32 {
     }
 }
 
+/// Whether an input reads the place it is read at: alpha, across, the vein or a field of the
+/// path. One that doesn't has the same value at every point of a path and every vertex.
+pub fn reads_place(arg: &[i32]) -> bool {
+    if arg.len() <= 1 {
+        return false;
+    }
+    let parts = split_args_inline(arg);
+    match parts.as_slice() {
+        [[2], _] | [[5], _] => true,
+        parts => parts.iter().any(|part| part.len() > 1 && reads_place(part)),
+    }
+}
+
 /// Reads the curve through `points` (`x0, y0, x1, y1, ...`, sorted by x) at `x`. Between two
 /// points it is a monotone cubic (Steffen), so it never overshoots the points.
 pub fn curve(points: &[f32], x: f32) -> f32 {
@@ -859,6 +872,22 @@ mod tests {
 
         assert_eq!(alone, after_a);
         assert_ne!(of_a, after_a);
+    }
+
+    #[test]
+    fn knows_the_inputs_that_read_the_place() {
+        let alpha = concat_args(vec![&[2], &[0]]);
+        let across = concat_args(vec![&[2], &[1]]);
+        let age = concat_args(vec![&[5], &[4]]);
+        let random = concat_args(vec![&[1], &[encode_float(0.0)], &[encode_float(1.0)], &[7]]);
+        let mix = |factor: &[i32]| concat_args(vec![&[MIX_COLOR], &[0, 4, 2, 5, 9, 1, 1], &[0, 4, 5, 2, 2, 1, 1], factor]);
+        let curve_of = |value: &[i32]| concat_args(vec![&[3], value, &[encode_float(0.0)], &[encode_float(1.0)]]);
+        for arg in [&alpha, &across, &age, &mix(&alpha), &mix(&curve_of(&age)), &concat_args(vec![&mix(&across)])] {
+            assert!(reads_place(arg), "{:?}", arg);
+        }
+        for arg in [vec![encode_float(2.0)], random.clone(), mix(&random), mix(&curve_of(&random)), vec![0, 4, 2, 5, 9, 1, 1]] {
+            assert!(!reads_place(&arg), "{:?}", arg);
+        }
     }
 
     #[test]

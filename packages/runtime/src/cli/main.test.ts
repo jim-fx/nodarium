@@ -88,8 +88,8 @@ describe('nodarium', () => {
     expect(stem.out.split('\n')[0]).toBe('max/plantarium/stem (points) -> path');
     expect(stem.out).toContain('  amount: integer = 1 [1..1000]\n    The amount of stems');
 
-    const meshes = JSON.parse((await run('nodes', '--type', 'mesh', '--json')).out);
-    expect(meshes.map((n: { id: string }) => n.id)).toContain('max/myzel/join_meshes');
+    const meshes = JSON.parse((await run('nodes', '--type', 'geometry', '--json')).out);
+    expect(meshes.map((n: { id: string }) => n.id)).toContain('max/myzel/hyphae_to_mesh');
 
     expect((await run('nodes', 'stme')).code).toBe(1);
   });

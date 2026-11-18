@@ -2,7 +2,8 @@
 //! their border. They stay sharp at any mesh resolution, where paths need to be a few field
 //! cells thick to mesh at all.
 
-use crate::mesh::{sections, MeshBuild, MeshWriter};
+use crate::{MeshBuild, MeshWriter};
+use nodarium_utils::geometry::geometry_sections as sections;
 use crate::Mesh;
 use glam::Vec3;
 use nodarium_utils::abi::{self, Output};

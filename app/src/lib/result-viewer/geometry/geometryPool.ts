@@ -1,4 +1,4 @@
-import { readGeometry, readInstances, readMesh, sortResultItems } from '@nodarium/runtime';
+import { readGeometry, readInstances, sortResultItems } from '@nodarium/runtime';
 import { readGeometryPathId, readInstancePathIds } from '@nodarium/utils';
 import {
   Box3,
@@ -128,7 +128,7 @@ export function takeGroups<T extends Material>(material: T) {
 /**
  * The material to show meshes that bring their own colors with, the material as it is unless it
  * takes colors (see takeVertexColors). Vertices without a color of their own (alpha 0, `NO_COLOR`
- * of myzel_core) keep the look of the material, the matcap tint is left out where they have one.
+ * of nodarium_utils) keep the look of the material, the matcap tint is left out where they have one.
  * Lit materials light and tone map a color so it looks close to its value.
  */
 export function withVertexColors(material: Material) {
@@ -235,7 +235,7 @@ type Slot<T> = { object: T; key: string; used: boolean };
 
 /**
  * The plants show and hide paths with every seed, their objects are far smaller than this and stay
- * for reuse. A hidden Myzel mesh would keep tens of MB in the page and on the GPU.
+ * for reuse. A hidden mushroom would keep tens of MB in the page and on the GPU.
  */
 const FREE_HIDDEN_BYTES = 1 << 20;
 
@@ -435,17 +435,16 @@ function materialFor(geometry: BufferGeometry, material: Material) {
   return geometry.getAttribute('color') ? withVertexColors(material) : material;
 }
 
-export function createGeometryPool(
-  parentScene: Group,
-  material: Material,
-  layout: 'geometry' | 'mesh' = 'geometry'
-) {
-  const read = layout === 'mesh' ? readMesh : readGeometry;
+/**
+ * Geometry: one per path of a plant, highlighted and picked by its path, or a geometry with
+ * groups like a mushroom, highlighted and picked by the creators of its groups
+ */
+export function createGeometryPool(parentScene: Group, material: Material) {
   let keepGroups = false;
 
   const pool = createSlotPool<Mesh>(parentScene, {
-    // the id of the path the geometry was made from, meshes have none and keep their order
-    key: (data) => layout === 'mesh' ? 'mesh' : String(readGeometryPathId(data)),
+    // the id of the path the geometry was made from, others keep their order
+    key: (data) => String(readGeometryPathId(data)),
     fill: (existing, data, stats) => {
       const mesh = existing ?? new Mesh(new BufferGeometry(), material);
       const geometry = mesh.geometry;
@@ -457,18 +456,18 @@ export function createGeometryPool(
         positions,
         normals,
         colors,
-        groups: meshGroups,
-        creators
-      } = read(data);
+        groups: ownGroups,
+        creators,
+        pathId
+      } = readGeometry(data);
       stats.totalVertices += vertexCount;
       stats.totalFaces += faceCount;
-      if (layout === 'geometry') mesh.userData.pathId = readGeometryPathId(data);
-      else mesh.userData.myzel = true;
-      // by group, the graph node that made it: what leads from a tissue of a Myzel mesh to its node
+      mesh.userData.pathId = pathId;
+      mesh.userData.grouped = !!ownGroups;
+      // by group, the graph node that made it: what leads from a tissue of a mushroom to its node
       mesh.userData.creators = creators;
-      // plant geometry is grouped by the path it was made from
-      const groups = meshGroups
-        ?? new Int32Array(vertexCount).fill(readGeometryPathId(data));
+      // a geometry without groups is one, the one of its path
+      const groups = ownGroups ?? new Int32Array(vertexCount).fill(pathId);
 
       const colorAttribute = geometry.getAttribute('color') as BufferAttribute | undefined;
       const colorsShown = colors ? sameColors(colorAttribute, bits(colors)) : !colorAttribute;
@@ -490,7 +489,7 @@ export function createGeometryPool(
           groups: groupsShown ? shownGroups : groups.slice()
         };
       }
-      writeGroups(geometry, material, !groupsShown, keepGroups);
+      writeGroups(geometry, material, !groupsShown, keepGroups && !!ownGroups);
       mesh.material = materialFor(geometry, material);
 
       stats.bounds.union(geometry.boundingBox!);
@@ -498,10 +497,10 @@ export function createGeometryPool(
     }
   });
 
-  const kind = layout === 'mesh' ? 'mesh' : 'geometry';
-
   function rewriteGroups() {
-    pool.forEach((mesh) => writeGroups(mesh.geometry, material, false, keepGroups));
+    pool.forEach((mesh) =>
+      writeGroups(mesh.geometry, material, false, keepGroups && mesh.userData.grouped)
+    );
   }
 
   return {
@@ -510,28 +509,35 @@ export function createGeometryPool(
       rewriteGroups();
       pool.forEach((mesh) => mesh.material = materialFor(mesh.geometry, material));
     },
-    /** Keeps the groups on the GPU whatever the material, a pick or a hover reads them there */
+    /**
+     * Keeps the groups of the geometry with groups on the GPU whatever the material, a pick or a
+     * hover reads them there
+     */
     setKeepGroups(keep: boolean) {
       if (keep === keepGroups) return;
       keepGroups = keep;
       rewriteGroups();
     },
     update: pool.update,
-    /** Shows every mesh in the mode of its path, as it came out of `update` without a highlight */
+    /**
+     * Shows a geometry in the mode of its path, one with groups in the modes of their creators, as
+     * it came out of `update` without a highlight
+     */
     setHighlight(highlight: PartHighlight | undefined) {
       pool.forEachUsed((mesh) => {
+        const grouped: boolean = mesh.userData.grouped;
         const mode = highlight
           ? highlight.paths.get(mesh.userData.pathId) ?? highlight.rest
           : HIGHLIGHT.none;
-        const byGroup = kind === 'mesh' && !!highlight && !!mesh.userData.creators
+        const byGroup = grouped && !!highlight && !!mesh.userData.creators
           && !!mesh.geometry.getAttribute('group');
         let groupModes: GroupModes | undefined = mesh.userData.groupModes;
-        if (kind === 'mesh') {
+        if (grouped) {
           groupModes ??= mesh.userData.groupModes = createGroupModes();
           setGroupModes(groupModes, mesh.userData.creators, byGroup ? highlight : undefined);
         }
         const shown = materialFor(mesh.geometry, material);
-        // by group the mesh stays, the shader leaves out the groups the local view hides
+        // by group the geometry stays, the shader leaves out the groups the local view hides
         mesh.material = byGroup && groupModes
           ? withGroupHighlight(shown, groupModes)
           : mode === HIGHLIGHT.none
@@ -542,13 +548,17 @@ export function createGeometryPool(
     },
     collectPickables(out: Pickable[]) {
       pool.forEachUsed((object) => {
-        if (object.visible) out.push({ object, kind });
+        if (object.visible) {
+          out.push({ object, kind: object.userData.grouped ? 'groups' : 'geometry' });
+        }
       });
     },
-    /** Grows `bounds` by the meshes whose path is in `pathIds` */
+    /** Grows `bounds` by the geometry whose path is in `pathIds` */
     unionBounds(pathIds: Set<number>, bounds: Box3) {
       pool.forEachUsed((mesh) => {
-        if (pathIds.has(mesh.userData.pathId)) bounds.union(mesh.geometry.boundingBox!);
+        if (!mesh.userData.grouped && pathIds.has(mesh.userData.pathId)) {
+          bounds.union(mesh.geometry.boundingBox!);
+        }
       });
     },
     /** Grows `bounds` by the vertices of the groups that one of `creators` made */
@@ -567,12 +577,12 @@ export function createGeometryPool(
         }
       });
     },
-    /** Adds the creators that made at least one vertex of a mesh to `out` */
+    /** Adds the creators that made at least one vertex of a geometry with groups to `out` */
     collectCreators(out: Set<number>) {
       pool.forEachUsed((mesh) => {
         const creators: Int32Array | undefined = mesh.userData.creators;
         const groups: Int32Array | undefined = mesh.geometry.userData.groups;
-        if (!creators || !groups) return;
+        if (!mesh.userData.grouped || !creators || !groups) return;
         const used = new Uint8Array(creators.length);
         for (let v = 0; v < groups.length; v++) used[groups[v]] = 1;
         for (let group = 0; group < creators.length; group++) {
@@ -700,7 +710,7 @@ export function createInstancedGeometryPool(
 
 const point = new Vector3();
 
-/** The groups of a Myzel mesh that one of `creators` made */
+/** The groups of a geometry that one of `creators` made */
 function usedGroups(mesh: Mesh, creators: Set<number>) {
   const made = new Set<number>();
   const table: Int32Array | undefined = mesh.userData.creators;
@@ -762,37 +772,34 @@ export function exportGeometry(geometry: BufferGeometry) {
 }
 
 /**
- * Shows a whole result: Plantarium geometry and instances, Myzel meshes, some of which bring their
- * own colors, and Myzel paths as lines. Items of other kinds are skipped.
+ * Shows a whole result: geometry, some of which brings its own colors and groups, instances and
+ * Myzel paths as lines. Items of other kinds are skipped.
  */
 export function createResultPools(parentScene: Group, material: Material) {
   const geometries = createGeometryPool(parentScene, material);
   const instances = createInstancedGeometryPool(parentScene, material);
-  const meshes = createGeometryPool(parentScene, material, 'mesh');
   const lines = createLinesPool(parentScene);
 
   let highlight: PartHighlight | undefined;
   let picking = false;
 
   /**
-   * The Myzel meshes keep their groups on the GPU from the first pick or highlight on, 4 bytes
+   * The geometry with groups keeps them on the GPU from the first pick or highlight on, 4 bytes
    * per vertex. Until then a result is shown as without the link.
    */
   function keepGroups() {
-    if (picking) meshes.setKeepGroups(true);
+    if (picking) geometries.setKeepGroups(true);
   }
 
   function applyHighlight() {
     geometries.setHighlight(highlight);
     instances.setHighlight(highlight);
-    meshes.setHighlight(highlight);
   }
 
   return {
     setMaterial(newMaterial: Material) {
       geometries.setMaterial(newMaterial);
       instances.setMaterial(newMaterial);
-      meshes.setMaterial(newMaterial);
       if (highlight) applyHighlight();
     },
     /** `undefined` shows the result as it is, and nothing is done for it on the next updates */
@@ -805,7 +812,7 @@ export function createResultPools(parentScene: Group, material: Material) {
     /** Whether parts are picked at all, see `keepGroups` */
     setPicking(on: boolean) {
       picking = on;
-      if (!on) meshes.setKeepGroups(false);
+      if (!on) geometries.setKeepGroups(false);
     },
     /** The objects a pick can hit, in the order of their slots */
     pickables() {
@@ -813,7 +820,6 @@ export function createResultPools(parentScene: Group, material: Material) {
       const out: Pickable[] = [];
       geometries.collectPickables(out);
       instances.collectPickables(out);
-      meshes.collectPickables(out);
       return out;
     },
     /**
@@ -824,13 +830,13 @@ export function createResultPools(parentScene: Group, material: Material) {
       const bounds = new Box3();
       geometries.unionBounds(paths, bounds);
       instances.unionBounds(instancePaths, bounds);
-      meshes.unionTissueBounds(creators, bounds);
+      geometries.unionTissueBounds(creators, bounds);
       return bounds;
     },
-    /** The graph nodes, by creator id, that made a tissue of the Myzel meshes shown */
+    /** The graph nodes, by creator id, that made a group of the geometry shown */
     meshCreators() {
       const creators = new Set<number>();
-      meshes.collectCreators(creators);
+      geometries.collectCreators(creators);
       return creators;
     },
     update(items: Int32Array[]) {
@@ -838,7 +844,6 @@ export function createResultPools(parentScene: Group, material: Material) {
       const stats = [
         geometries.update(sorted.geometries),
         instances.update(sorted.instances),
-        meshes.update(sorted.meshes),
         lines.update(sorted.lines)
       ];
       const bounds = new Box3();

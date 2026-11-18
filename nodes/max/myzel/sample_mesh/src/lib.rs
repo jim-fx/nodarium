@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use glam::Vec3;
-use myzel_core::Mesh;
+use myzel_core::{read_mesh, Mesh};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     encode_points,
@@ -142,8 +142,8 @@ pub fn sample(mesh: &Mesh, amount: usize, spacing: f32, facing_up: f32, seed: i3
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
-    // an input nothing is connected to is not a mesh
-    let Some(mesh) = Mesh::try_decode(args[0]) else {
+    // an input nothing is connected to brings no geometry
+    let Some(mesh) = read_mesh(args[0]) else {
         return encode_points(&[]);
     };
     let mut ctx = Ctx::default();

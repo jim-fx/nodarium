@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 14,
+  "version": 15,
   "meta": { "unit": "cm" },
   "settings": {
     "time.t": 1,
@@ -1316,7 +1316,7 @@
         {
           "id": 54,
           "position": [-30, 0],
-          "type": "max/myzel/set_mesh_color"
+          "type": "max/plantarium/set_color"
         }
       ],
       "edges": [
@@ -1396,7 +1396,7 @@
           30,
           0,
           54,
-          "mesh"
+          "plant"
         ],
         [
           53,
@@ -1473,7 +1473,7 @@
       },
       "outputs": [
         {
-          "type": "mesh",
+          "type": "path",
           "label": "Plates"
         }
       ]
@@ -1642,13 +1642,13 @@
         {
           "id": 76,
           "position": [-60, 0],
-          "type": "max/myzel/join_meshes",
+          "type": "max/plantarium/join",
           "props": {}
         },
         {
           "id": 55,
           "position": [-30, 0],
-          "type": "max/myzel/set_mesh_color"
+          "type": "max/plantarium/set_color"
         }
       ],
       "edges": [
@@ -1728,7 +1728,7 @@
           76,
           0,
           55,
-          "mesh"
+          "plant"
         ],
         [
           31,
@@ -1834,7 +1834,7 @@
       },
       "outputs": [
         {
-          "type": "mesh",
+          "type": "path",
           "label": "Skin"
         }
       ]
@@ -2074,7 +2074,7 @@
           78,
           0,
           109,
-          "mesh"
+          "geometry"
         ],
         [
           78,
@@ -2109,7 +2109,8 @@
       ],
       "inputs": {
         "mesh": {
-          "type": "mesh",
+          "type": "geometry",
+          "accepts": ["path"],
           "label": "Body",
           "external": true
         },
@@ -2172,7 +2173,7 @@
       },
       "outputs": [
         {
-          "type": "mesh",
+          "type": "geometry",
           "label": "Body"
         }
       ]
@@ -2223,7 +2224,7 @@
       },
       "outputs": [
         {
-          "type": "mesh",
+          "type": "path",
           "label": "Rims"
         }
       ],
@@ -2316,7 +2317,7 @@
         {
           "id": 116,
           "position": [-30, 0],
-          "type": "max/myzel/set_mesh_color",
+          "type": "max/plantarium/set_color",
           "props": {}
         }
       ],
@@ -2385,7 +2386,7 @@
           115,
           0,
           116,
-          "mesh"
+          "plant"
         ],
         [
           111,
@@ -2522,7 +2523,7 @@
     {
       "id": 59,
       "position": [0, 0],
-      "type": "max/myzel/join_meshes",
+      "type": "max/plantarium/join",
       "props": {}
     },
     {
@@ -2838,7 +2839,7 @@
       59,
       0,
       0,
-      "mesh"
+      "input"
     ],
     [
       45,

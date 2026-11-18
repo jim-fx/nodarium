@@ -386,7 +386,7 @@ class Cli {
       }
       const parts = [`${summary.vertices} vertices`, `${summary.faces} faces`];
       if (summary.instances) parts.push(`${summary.instances} instances`);
-      if (summary.meshes) parts.push(`${summary.meshes} meshes`);
+      if (summary.geometries) parts.push(`${summary.geometries} geometries`);
       this.print(`${name}: ${parts.join(', ')}`);
       if (!empty) {
         this.print(

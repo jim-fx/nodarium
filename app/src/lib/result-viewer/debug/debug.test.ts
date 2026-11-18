@@ -172,21 +172,23 @@ describe('updateDebugScene', () => {
     expect(group.children).toHaveLength(0);
   });
 
-  it('draws a Myzel mesh and the preview of a pattern, but not a raw pattern', () => {
-    // [14, vertices, faces, flags, ...faces, ...positions, ...normals, ...groups] with one triangle
-    const mesh = new Int32Array(4 + 3 + 21);
-    mesh.set([14, 3, 1, 0, 0, 1, 2]);
-    new Float32Array(mesh.buffer).set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1], 7);
+  it('draws a geometry with groups and the preview of a pattern, but not a raw pattern', () => {
+    // [1, vertices, faces, path id, flags, ...faces, ...positions, ...normals, ...groups] with
+    // one triangle, in its brackets
+    const inner = new Int32Array(5 + 3 + 21);
+    inner.set([1, 3, 1, -1, 4, 0, 1, 2]);
+    new Float32Array(inner.buffer).set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1], 8);
+    const mesh = wrap(inner);
     const meshes = (group: Group) =>
       group.children.flatMap((g) => g.children.flatMap((pool) => pool.children as Mesh[]));
 
     const group = new Group();
-    updateDebugScene(group, { 1: { type: 'mesh', data: mesh } });
+    updateDebugScene(group, { 1: { type: 'geometry', data: mesh } });
     expect(meshes(group)).toHaveLength(1);
     expect(meshes(group)[0].geometry.getAttribute('position').count).toBe(3);
 
     // the runtime turns a pattern into the list of the output node
-    updateDebugScene(group, { 1: { type: 'pattern', data: wrap(mesh) } });
+    updateDebugScene(group, { 1: { type: 'pattern', data: Int32Array.of(0, 1, ...mesh, 1, 1) } });
     expect(meshes(group)).toHaveLength(1);
 
     updateDebugScene(group, { 1: { type: 'pattern', data: Int32Array.of(15, 0, 0) } });
@@ -277,14 +279,15 @@ describe('the amount of the debug node', () => {
     expect(shown.length / 2).toBeLessThan(60);
   });
 
-  it('draws a share of the faces of a mesh', () => {
+  it('draws a share of the faces of a geometry with groups', () => {
     const faces = 300;
-    const mesh = new Int32Array(4 + faces * 3 + 3 * 7);
-    mesh.set([14, 3, faces, 0]);
-    for (let f = 0; f < faces; f++) mesh.set([0, 1, 2], 4 + f * 3);
+    const inner = new Int32Array(5 + faces * 3 + 3 * 7);
+    inner.set([1, 3, faces, -1, 4]);
+    for (let f = 0; f < faces; f++) inner.set([0, 1, 2], 5 + f * 3);
+    const mesh = wrap(inner);
     const drawn = (amount: number) => {
       const group = new Group();
-      updateDebugScene(group, { 1: { type: 'mesh', data: mesh, amount } });
+      updateDebugScene(group, { 1: { type: 'geometry', data: mesh, amount } });
       const [m] = group.children.flatMap((g) => g.children.flatMap((p) => p.children as Mesh[]));
       return m.geometry.index!.count / 3;
     };

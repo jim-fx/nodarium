@@ -2,7 +2,7 @@ use glam::Vec3;
 
 use crate::color::{linear_rgba, pack_linear, NO_COLOR};
 use crate::density::{surface_in, Frame, Meshing, Segment, TissueField};
-use crate::mesh::Mesh;
+use crate::Mesh;
 use crate::noise::value_noise;
 use crate::paths::{group_creators, group_numbers, path_segments, MeshPath, PathStyle};
 use crate::spatial::{distance_sq_to_segment, TubeTree};

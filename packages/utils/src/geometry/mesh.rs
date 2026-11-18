@@ -1,33 +1,47 @@
+use super::NO_PATH;
+use crate::{decode_float, encode_float, NO_COLOR};
 use glam::Vec3;
-use nodarium_utils::{decode_float, encode_float};
+use std::borrow::Cow;
 
-pub const MESH_TAG: i32 = 14;
-const HEADER_LEN: usize = 4;
+/// The type word of a geometry, after its opening bracket
+pub const GEOMETRY_TAG: i32 = 1;
 
-/// Bits of the flags word in the mesh header
-pub mod mesh_flags {
+/// The words before the faces of an encoded geometry: the opening bracket and the header
+/// `[1, v, f, path id, flags]`
+pub const GEOMETRY_HEAD: usize = 7;
+
+/// The closing bracket after the last section
+const TAIL: usize = 2;
+
+/// Bits of the flags word in the header of a geometry
+pub mod geometry_flags {
     /// One RGBA8 color per vertex follows the normals
     pub const COLORS: i32 = 1;
     /// The groups are followed by how many there are and, for every group, the graph node that
-    /// made it, see [`super::Mesh::creators`]
+    /// made it, see [`super::Mesh::creators`]. Only with [`GROUPS`].
     pub const CREATORS: i32 = 2;
+    /// One group per vertex follows the colors. Without it the geometry is one group
+    pub const GROUPS: i32 = 4;
 }
+
+use geometry_flags::{COLORS, CREATORS, GROUPS};
 
 /// The creator of a group that no graph node is known for
 pub const NO_CREATOR: i32 = i32::MIN;
 
-/// Triangle mesh with a material group and optionally a color per vertex, see the crate docs for the format
+/// A geometry with a material group and optionally a color per vertex, decoded from its words,
+/// see [`crate::geometry`] for the format. It is encoded without a path id.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Mesh {
     pub faces: Vec<u32>,
     pub positions: Vec<f32>,
     pub normals: Vec<f32>,
-    /// Empty or one color per vertex, [`crate::NO_COLOR`] where the vertex has none of its own
+    /// Empty or one color per vertex, [`NO_COLOR`] where the vertex has none of its own
     pub colors: Vec<u32>,
     /// One group per vertex, other programs can give each group its own material
     pub groups: Vec<u32>,
     /// Empty, or for every group the creator id of the graph node that made it ([`NO_CREATOR`]
-    /// for none), so the viewer can lead from a part of the mesh to its node
+    /// for none), so the viewer can lead from a part of the geometry to its node
     pub creators: Vec<i32>,
 }
 
@@ -37,10 +51,11 @@ pub fn pack_rgba(r: f32, g: f32, b: f32, a: f32) -> u32 {
     byte(r) | byte(g) << 8 | byte(b) << 16 | byte(a) << 24
 }
 
-/// The words of a mesh up to the end of its groups, the table of its creators follows them
-fn encoded_len(v: usize, f: usize, flags: i32) -> usize {
-    let colors = if flags & mesh_flags::COLORS != 0 { v } else { 0 };
-    HEADER_LEN + f * 3 + v * 7 + colors
+/// The words of a geometry up to the end of its groups, the table of its creators and the
+/// closing bracket follow them
+fn sections_len(v: usize, f: usize, flags: i32) -> usize {
+    let per_vertex = 6 + usize::from(flags & COLORS != 0) + usize::from(flags & GROUPS != 0);
+    GEOMETRY_HEAD + f * 3 + v * per_vertex
 }
 
 /// The words of the table of `creators`: how many there are, then each of them. No creators, no
@@ -49,19 +64,27 @@ fn table_len(creators: usize) -> usize {
     if creators == 0 { 0 } else { 1 + creators }
 }
 
-/// The groups a mesh with these groups numbers: one more than the highest
+/// The groups a geometry with these groups numbers: one more than the highest
 fn group_count(groups: impl Iterator<Item = u32>) -> usize {
     groups.max().map_or(0, |g| g as usize + 1)
 }
 
-/// The table of an encoded mesh whose words up to the end of its groups are `base` long: its
-/// creators, empty without the flag. `None` when the words don't end with the table.
+/// The table of an encoded geometry whose sections are `base` long: its creators, empty without
+/// the flag. `None` when the words after the sections aren't the table and the closing bracket.
 fn read_table(words: &[i32], base: usize, flags: i32) -> Option<&[i32]> {
-    if flags & mesh_flags::CREATORS == 0 {
-        return (words.len() == base).then_some(&words[..0]);
+    let end = words.len().checked_sub(TAIL)?;
+    if flags & CREATORS == 0 {
+        return (end == base).then_some(&words[..0]);
     }
     let n = usize::try_from(*words.get(base)?).ok()?;
-    (words.len() as u64 == base as u64 + 1 + n as u64).then(|| &words[base + 1..])
+    (end as u64 == base as u64 + 1 + n as u64).then(|| &words[base + 1..end])
+}
+
+/// The opening bracket and the header of a geometry of `len` words, and its closing bracket
+fn put_frame(words: &mut [i32], v: usize, f: usize, path_id: i32, flags: i32) {
+    let len = words.len();
+    words[..GEOMETRY_HEAD].copy_from_slice(&[0, len as i32 - 3, GEOMETRY_TAG, v as i32, f as i32, path_id, flags]);
+    words[len - TAIL..].copy_from_slice(&[1, 1]);
 }
 
 impl Mesh {
@@ -93,10 +116,12 @@ impl Mesh {
         let (v, f) = (self.vertex_count(), self.face_count());
         assert!(self.colors.is_empty() || self.colors.len() == v, "{} colors for {} vertices", self.colors.len(), v);
         assert_eq!(self.groups.len(), v, "every vertex needs a group");
-        let colors = if self.colors.is_empty() { 0 } else { mesh_flags::COLORS };
-        let creators = if self.creators.is_empty() { 0 } else { mesh_flags::CREATORS };
-        let mut words = Vec::with_capacity(encoded_len(v, f, colors) + table_len(self.creators.len()));
-        words.extend([MESH_TAG, v as i32, f as i32, colors | creators]);
+        let colors = if self.colors.is_empty() { 0 } else { COLORS };
+        let creators = if self.creators.is_empty() { 0 } else { CREATORS };
+        let flags = GROUPS | colors | creators;
+        let len = sections_len(v, f, flags) + table_len(self.creators.len()) + TAIL;
+        let mut words = Vec::with_capacity(len);
+        words.extend([0, len as i32 - 3, GEOMETRY_TAG, v as i32, f as i32, NO_PATH, flags]);
         words.extend(self.faces.iter().map(|&i| i as i32));
         words.extend(self.positions.iter().map(|&p| encode_float(p)));
         words.extend(self.normals.iter().map(|&n| encode_float(n)));
@@ -106,11 +131,12 @@ impl Mesh {
             words.push(self.creators.len() as i32);
             words.extend(&self.creators);
         }
+        words.extend([1, 1]);
         words
     }
 
     /// Adds another mesh to this one, its groups numbered from `first_group` on. When only one of
-    /// them has colors, the vertices of the other get [`crate::NO_COLOR`].
+    /// them has colors, the vertices of the other get [`NO_COLOR`].
     pub fn append(&mut self, other: &Mesh, first_group: u32) {
         let offset = self.vertex_count() as u32;
         if !self.creators.is_empty() || !other.creators.is_empty() {
@@ -120,9 +146,9 @@ impl Mesh {
             self.creators.extend((0..groups).map(|g| other.creators.get(g).copied().unwrap_or(NO_CREATOR)));
         }
         if !self.colors.is_empty() || !other.colors.is_empty() {
-            self.colors.resize(self.vertex_count(), crate::NO_COLOR);
+            self.colors.resize(self.vertex_count(), NO_COLOR);
             if other.colors.is_empty() {
-                self.colors.extend(std::iter::repeat_n(crate::NO_COLOR, other.vertex_count()));
+                self.colors.extend(std::iter::repeat_n(NO_COLOR, other.vertex_count()));
             } else {
                 self.colors.extend(&other.colors);
             }
@@ -133,47 +159,38 @@ impl Mesh {
         self.groups.extend(other.groups.iter().map(|&g| g + first_group));
     }
 
+    /// The geometry of `words`, a geometry without groups is one group 0. Panics on anything
+    /// else, see [`Mesh::try_decode`].
     pub fn decode(words: &[i32]) -> Mesh {
-        assert!(
-            words.len() >= HEADER_LEN && words[0] == MESH_TAG,
-            "expected a mesh [14, v, f, flags, ...], got {} words starting with {:?}",
-            words.len(),
-            words.first()
-        );
-        let (v, f, flags) = (words[1] as usize, words[2] as usize, words[3]);
-        let len = encoded_len(v, f, flags);
-        assert!(
-            read_table(words, len, flags).is_some(),
-            "mesh with {} vertices, {} faces and flags {} needs {} words and the table of its creators, got {}",
-            v,
-            f,
-            flags,
-            len,
-            words.len()
-        );
-        Self::decode_unchecked(words)
+        Self::try_decode(words).unwrap_or_else(|| {
+            panic!(
+                "expected a geometry [0, n, 1, v, f, path id, flags, ...] whose sections fill its {} words, got one starting with {:?}",
+                words.len(),
+                &words[..words.len().min(GEOMETRY_HEAD)]
+            )
+        })
     }
 
-    /// The mesh when `words` are one, `None` for anything else, see [`MeshWords::read`]
+    /// The geometry when `words` are one, `None` for anything else, see [`MeshWords::read`]
     pub fn try_decode(words: &[i32]) -> Option<Mesh> {
-        MeshWords::read(words).map(|mesh| Self::decode_unchecked(mesh.words))
+        MeshWords::read(words).map(|mesh| mesh.to_mesh())
     }
+}
 
-    fn decode_unchecked(words: &[i32]) -> Mesh {
-        let (v, f, flags) = (words[1] as usize, words[2] as usize, words[3]);
-        let mut rest = &words[HEADER_LEN..];
-        let mut take = |n: usize| {
-            let (head, tail) = rest.split_at(n);
-            rest = tail;
-            head
-        };
-        let faces = take(f * 3).iter().map(|&i| i as u32).collect();
-        let positions = take(v * 3).iter().map(|&w| decode_float(w)).collect();
-        let normals = take(v * 3).iter().map(|&w| decode_float(w)).collect();
-        let colors = if flags & mesh_flags::COLORS != 0 { take(v).iter().map(|&c| c as u32).collect() } else { Vec::new() };
-        let groups = take(v).iter().map(|&g| g as u32).collect();
-        let creators = if flags & mesh_flags::CREATORS != 0 { rest[1..].to_vec() } else { Vec::new() };
-        Mesh { faces, positions, normals, colors, groups, creators }
+/// The geometry an input brings: a geometry, or the geometries of a list, like the one of `join`,
+/// joined into one, see [`MeshWords::join`]. `None` when it brings none.
+pub fn geometry_input(arg: &[i32]) -> Option<Cow<'_, [i32]>> {
+    if MeshWords::read(arg).is_some() {
+        return Some(Cow::Borrowed(arg));
+    }
+    if arg.len() < 4 || arg[0] != 0 {
+        return None;
+    }
+    let items: Vec<MeshWords> = super::split_items(arg).into_iter().filter_map(MeshWords::read).collect();
+    match items.as_slice() {
+        [] => None,
+        [one] => Some(Cow::Borrowed(one.words)),
+        _ => Some(Cow::Owned(MeshWords::join(&items))),
     }
 }
 
@@ -181,7 +198,7 @@ impl Mesh {
 /// straight into the encoded words
 pub trait MeshBuild {
     fn vertex_count(&self) -> usize;
-    /// Adds a vertex with a zero normal, see [`crate::smooth_normals`]
+    /// Adds a vertex with a zero normal, see `smooth_normals` of `myzel_core`
     fn push_vertex(&mut self, position: Vec3, group: u32);
     fn push_face(&mut self, face: [u32; 3]);
     /// Drops the vertices from `vertices` on, before a face uses them
@@ -210,9 +227,9 @@ impl MeshBuild for Mesh {
     }
 }
 
-/// A mesh without colors written straight into its encoded words, by a builder that counts its
-/// vertices and faces before it adds them. A [`Mesh`] that is encoded is in memory twice, as the
-/// mesh and as its words.
+/// A geometry with groups and without colors written straight into its encoded words, by a
+/// builder that counts its vertices and faces before it adds them. A [`Mesh`] that is encoded is
+/// in memory twice, as the mesh and as its words.
 ///
 /// The writer has room for the counted vertices and faces, a builder that adds more panics. One
 /// that adds fewer leaves a gap after the faces and after the vertices, which [`MeshWriter::finish`]
@@ -228,9 +245,9 @@ pub struct MeshWriter<'a> {
 }
 
 impl<'a> MeshWriter<'a> {
-    /// The words of a mesh of `vertices` and `faces` without colors
+    /// The words of a geometry of `vertices` and `faces` with groups and without colors
     pub fn len(vertices: usize, faces: usize) -> usize {
-        encoded_len(vertices, faces, 0)
+        sections_len(vertices, faces, GROUPS) + TAIL
     }
 
     /// A writer for up to `vertices` and `faces` into `words`, which are zero and at least
@@ -240,36 +257,38 @@ impl<'a> MeshWriter<'a> {
         MeshWriter { words, vertices, faces, v: 0, f: 0 }
     }
 
-    /// The words a mesh of `vertices` and `faces` needs with the table of `creators` after it, see
-    /// [`MeshWriter::finish_with`]
+    /// The words a geometry of `vertices` and `faces` needs with the table of `creators` after
+    /// it, see [`MeshWriter::finish_with`]
     pub fn len_with(vertices: usize, faces: usize, creators: usize) -> usize {
         Self::len(vertices, faces) + table_len(creators)
     }
 
-    /// Closes the gaps of what wasn't added and writes the header, returns the words of the mesh.
-    /// The normals are zero.
+    /// Closes the gaps of what wasn't added and writes the header, returns the words of the
+    /// geometry. The normals are zero.
     pub fn finish(self) -> usize {
         self.finish_with(&[])
     }
 
-    /// [`MeshWriter::finish`] with the creator of every group after the mesh. The words have
-    /// room for them, see [`MeshWriter::len_with`]. A mesh without vertices gets no table.
+    /// [`MeshWriter::finish`] with the creator of every group after the groups. The words have
+    /// room for them, see [`MeshWriter::len_with`]. A geometry without vertices gets no table.
     pub fn finish_with(self, creators: &[i32]) -> usize {
         let MeshWriter { words, vertices, faces, v, f } = self;
-        let (positions, groups) = (HEADER_LEN + faces * 3, HEADER_LEN + faces * 3 + vertices * 6);
+        let head = GEOMETRY_HEAD;
+        let (positions, groups) = (head + faces * 3, head + faces * 3 + vertices * 6);
         // every section only moves towards the front, past the end of the one before it
-        words.copy_within(positions..positions + v * 3, HEADER_LEN + f * 3);
-        words[HEADER_LEN + f * 3 + v * 3..HEADER_LEN + f * 3 + v * 6].fill(0);
-        words.copy_within(groups..groups + v, HEADER_LEN + f * 3 + v * 6);
-        words[..HEADER_LEN].copy_from_slice(&[MESH_TAG, v as i32, f as i32, 0]);
-        let len = Self::len(v, f);
-        if creators.is_empty() || v == 0 {
-            return len;
+        words.copy_within(positions..positions + v * 3, head + f * 3);
+        words[head + f * 3 + v * 3..head + f * 3 + v * 6].fill(0);
+        words.copy_within(groups..groups + v, head + f * 3 + v * 6);
+        let base = sections_len(v, f, GROUPS);
+        let creators = if v == 0 { &[] } else { creators };
+        let flags = GROUPS | if creators.is_empty() { 0 } else { CREATORS };
+        if !creators.is_empty() {
+            words[base] = creators.len() as i32;
+            words[base + 1..base + 1 + creators.len()].copy_from_slice(creators);
         }
-        words[3] = mesh_flags::CREATORS;
-        words[len] = creators.len() as i32;
-        words[len + 1..len + 1 + creators.len()].copy_from_slice(creators);
-        len + table_len(creators.len())
+        let len = base + table_len(creators.len()) + TAIL;
+        put_frame(&mut words[..len], v, f, NO_PATH, flags);
+        len
     }
 }
 
@@ -280,15 +299,15 @@ impl MeshBuild for MeshWriter<'_> {
 
     fn push_vertex(&mut self, position: Vec3, group: u32) {
         assert!(self.v < self.vertices, "more than the {} vertices counted", self.vertices);
-        let at = HEADER_LEN + self.faces * 3 + self.v * 3;
+        let at = GEOMETRY_HEAD + self.faces * 3 + self.v * 3;
         self.words[at..at + 3].copy_from_slice(&position.to_array().map(encode_float));
-        self.words[HEADER_LEN + self.faces * 3 + self.vertices * 6 + self.v] = group as i32;
+        self.words[GEOMETRY_HEAD + self.faces * 3 + self.vertices * 6 + self.v] = group as i32;
         self.v += 1;
     }
 
     fn push_face(&mut self, face: [u32; 3]) {
         assert!(self.f < self.faces, "more than the {} faces counted", self.faces);
-        let at = HEADER_LEN + self.f * 3;
+        let at = GEOMETRY_HEAD + self.f * 3;
         self.words[at..at + 3].copy_from_slice(&face.map(|i| i as i32));
         self.f += 1;
     }
@@ -298,17 +317,17 @@ impl MeshBuild for MeshWriter<'_> {
     }
 }
 
-/// The faces, positions and normals of an encoded mesh, the normals to change
-pub(crate) struct Sections<'a> {
+/// The faces, positions and normals of an encoded geometry, the normals to change
+pub struct Sections<'a> {
     pub faces: &'a [u32],
     pub positions: &'a [f32],
     pub normals: &'a mut [f32],
 }
 
-/// The sections of the words of a mesh, see [`MeshWords::read`] for what they must be
-pub(crate) fn sections(words: &mut [i32]) -> Sections<'_> {
-    let (v, f) = (words[1] as usize, words[2] as usize);
-    let (faces, rest) = words[HEADER_LEN..].split_at_mut(f * 3);
+/// The sections of the words of a geometry, see [`MeshWords::read`] for what they must be
+pub fn geometry_sections(words: &mut [i32]) -> Sections<'_> {
+    let (v, f) = (words[3] as usize, words[4] as usize);
+    let (faces, rest) = words[GEOMETRY_HEAD..].split_at_mut(f * 3);
     let (positions, rest) = rest.split_at_mut(v * 3);
     // SAFETY: u32 and f32 are as large and aligned as i32, and any of their bits are a value
     unsafe {
@@ -354,100 +373,135 @@ impl<'a> Words<'a> {
     }
 }
 
-/// A mesh read in place from its words. Nodes that only pass meshes on build their output from
-/// these, a decoded [`Mesh`] would be one more copy of every mesh in the node's memory.
+/// A geometry read in place from its words. Nodes that only pass geometry on build their output
+/// from these, a decoded [`Mesh`] would be one more copy of every geometry in the node's memory.
 #[derive(Clone, Copy, Debug)]
 pub struct MeshWords<'a> {
     words: &'a [i32],
     v: usize,
     f: usize,
-    /// The creator of every group, empty when the mesh has no table of them
+    flags: i32,
+    /// The creator of every group, empty when the geometry has no table of them
     creators: &'a [i32],
 }
 
 impl<'a> MeshWords<'a> {
-    /// The mesh when `words` are one, `None` for anything else: counts that don't match the
-    /// length, unknown flags or a face with a vertex that isn't there
+    /// The geometry when `words` are one, brackets included, `None` for anything else: counts
+    /// that don't match the length, unknown flags or a face with a vertex that isn't there
     pub fn read(words: &'a [i32]) -> Option<Self> {
-        if words.len() < HEADER_LEN || words[0] != MESH_TAG {
+        let n = words.len();
+        if n < GEOMETRY_HEAD + TAIL || words[0] != 0 || words[2] != GEOMETRY_TAG || words[n - TAIL] != 1 {
             return None;
         }
-        let (v, f, flags) = (usize::try_from(words[1]).ok()?, usize::try_from(words[2]).ok()?, words[3]);
-        if flags & !(mesh_flags::COLORS | mesh_flags::CREATORS) != 0 {
+        if words[1] as i64 != n as i64 - 3 {
+            return None;
+        }
+        let (v, f, flags) = (usize::try_from(words[3]).ok()?, usize::try_from(words[4]).ok()?, words[6]);
+        if flags & !(COLORS | CREATORS | GROUPS) != 0 || (flags & CREATORS != 0 && flags & GROUPS == 0) {
             return None;
         }
         // in u64, so counts up to i32::MAX can't overflow on wasm32
-        let per_vertex = 7 + u64::from(flags & mesh_flags::COLORS != 0);
-        let base = HEADER_LEN as u64 + f as u64 * 3 + v as u64 * per_vertex;
-        if base > words.len() as u64 {
+        let per_vertex = 6 + u64::from(flags & COLORS != 0) + u64::from(flags & GROUPS != 0);
+        let base = GEOMETRY_HEAD as u64 + f as u64 * 3 + v as u64 * per_vertex;
+        if base + TAIL as u64 > n as u64 {
             return None;
         }
         let creators = read_table(words, base as usize, flags)?;
-        if words[HEADER_LEN..HEADER_LEN + f * 3].iter().any(|&i| i < 0 || i as usize >= v) {
+        if words[GEOMETRY_HEAD..GEOMETRY_HEAD + f * 3].iter().any(|&i| i < 0 || i as usize >= v) {
             return None;
         }
-        Some(MeshWords { words, v, f, creators })
+        Some(MeshWords { words, v, f, flags, creators })
     }
 
-    /// The creator of every group, empty when the mesh doesn't know them
+    /// The words of the geometry, brackets included
+    pub fn words(&self) -> &'a [i32] {
+        self.words
+    }
+
+    /// The decoded geometry, a geometry without groups is one group 0
+    pub fn to_mesh(&self) -> Mesh {
+        let floats = |section: &[i32]| section.iter().map(|&w| decode_float(w)).collect();
+        Mesh {
+            faces: self.faces().iter().map(|&i| i as u32).collect(),
+            positions: floats(self.positions()),
+            normals: floats(self.normals()),
+            colors: self.colors().map_or_else(Vec::new, |c| c.iter().map(|&c| c as u32).collect()),
+            groups: self.groups().map_or_else(|| vec![0; self.v], |g| g.iter().map(|&g| g as u32).collect()),
+            creators: self.creators.to_vec(),
+        }
+    }
+
+    /// The creator of every group, empty when the geometry doesn't know them
     pub fn creators(&self) -> &'a [i32] {
         self.creators
     }
 
-    /// The words of the mesh up to the end of its groups
+    /// The id of the path the geometry was made from, [`NO_PATH`] for none
+    pub fn path_id(&self) -> i32 {
+        self.words[5]
+    }
+
+    /// Whether the geometry brings a group per vertex, without them it is one group
+    pub fn has_groups(&self) -> bool {
+        self.flags & GROUPS != 0
+    }
+
+    /// The words of the geometry up to the end of its groups
     fn base_len(&self) -> usize {
-        self.words.len() - table_len(self.creators.len())
+        sections_len(self.v, self.f, self.flags)
     }
 
     /// The table of the creators as it follows the groups: their number and each of them
     fn table(&self) -> &'a [i32] {
-        &self.words[self.base_len()..]
-    }
-
-    fn flags(&self, colors: bool) -> i32 {
-        let colors = if colors { mesh_flags::COLORS } else { 0 };
-        colors | (self.words[3] & mesh_flags::CREATORS)
+        &self.words[self.base_len()..self.words.len() - TAIL]
     }
 
     pub fn vertex_count(&self) -> usize {
         self.v
     }
 
-    /// The words of the header and the faces, the vertices follow them
+    pub fn face_count(&self) -> usize {
+        self.f
+    }
+
+    /// The words of the brackets, the header and the faces, the vertices follow them
     pub fn faces_end(&self) -> usize {
-        HEADER_LEN + self.f * 3
+        GEOMETRY_HEAD + self.f * 3
     }
 
     fn section(&self, start: usize, len: usize) -> &'a [i32] {
-        &self.words[HEADER_LEN + start..HEADER_LEN + start + len]
+        &self.words[GEOMETRY_HEAD + start..GEOMETRY_HEAD + start + len]
     }
 
-    fn faces(&self) -> &'a [i32] {
+    pub fn faces(&self) -> &'a [i32] {
         self.section(0, self.f * 3)
     }
 
-    fn positions(&self) -> &'a [i32] {
+    /// The bits of the f32 positions, x, y and z per vertex
+    pub fn positions(&self) -> &'a [i32] {
         self.section(self.f * 3, self.v * 3)
     }
 
-    fn normals(&self) -> &'a [i32] {
+    /// The bits of the f32 normals, x, y and z per vertex
+    pub fn normals(&self) -> &'a [i32] {
         self.section(self.f * 3 + self.v * 3, self.v * 3)
     }
 
-    fn colors(&self) -> Option<&'a [i32]> {
-        (self.words[3] & mesh_flags::COLORS != 0).then(|| self.section(self.f * 3 + self.v * 6, self.v))
+    pub fn colors(&self) -> Option<&'a [i32]> {
+        (self.flags & COLORS != 0).then(|| self.section(self.f * 3 + self.v * 6, self.v))
     }
 
-    fn groups(&self) -> &'a [i32] {
-        &self.words[self.base_len() - self.v..self.base_len()]
+    pub fn groups(&self) -> Option<&'a [i32]> {
+        self.has_groups().then(|| &self.words[self.base_len() - self.v..self.base_len()])
     }
 
     /// The words of [`MeshWords::painted`]
     pub fn painted_len(&self) -> usize {
-        encoded_len(self.v, self.f, if self.v > 0 { mesh_flags::COLORS } else { 0 }) + self.table().len()
+        let colors = if self.v > 0 { COLORS } else { 0 };
+        sections_len(self.v, self.f, (self.flags & !COLORS) | colors) + self.table().len() + TAIL
     }
 
-    /// The encoded mesh with every vertex in `color`
+    /// The encoded geometry with every vertex in `color`
     pub fn painted(&self, color: u32) -> Vec<i32> {
         let mut words = vec![0; self.painted_len()];
         self.paint_into(color, &mut words);
@@ -456,32 +510,37 @@ impl<'a> MeshWords<'a> {
 
     /// Writes [`MeshWords::painted`] into `words`, which are [`MeshWords::painted_len`] long
     pub fn paint_into(&self, color: u32, words: &mut [i32]) {
-        let mut out = Words::new(words);
-        out.put(&[MESH_TAG, self.v as i32, self.f as i32, self.flags(self.v > 0)]);
+        let colors = if self.v > 0 { COLORS } else { 0 };
+        put_frame(words, self.v, self.f, self.path_id(), (self.flags & !COLORS) | colors);
+        let len = words.len();
+        let mut out = Words::new(&mut words[GEOMETRY_HEAD..len - TAIL]);
         out.put(self.faces());
         out.put(self.positions());
         out.put(self.normals());
         out.fill(self.v, color as i32);
-        out.put(self.groups());
+        out.put(self.groups().unwrap_or(&[]));
         out.put(self.table());
         out.done();
     }
 
-    /// Paints the mesh at the start of `words` like [`MeshWords::paint_into`], where it is. A mesh
-    /// without colors needs a word more per vertex, `words` has them after it.
+    /// Paints the geometry that `words` are like [`MeshWords::paint_into`], where it is. A
+    /// geometry without colors needs a word more per vertex, `words` has them after it.
     pub fn paint_in_place(words: &mut [i32], color: u32) {
-        let (v, f, flags) = (words[1] as usize, words[2] as usize, words[3]);
-        let painted = if v > 0 { mesh_flags::COLORS } else { 0 };
-        let colors = HEADER_LEN + f * 3 + v * 6;
-        // the groups and the table of the creators follow the colors
-        let tail = colors + if flags & mesh_flags::COLORS != 0 { v } else { 0 };
-        let table = if flags & mesh_flags::CREATORS != 0 { table_len(words[tail + v] as usize) } else { 0 };
-        assert_eq!(words.len(), encoded_len(v, f, painted) + table, "no room to paint a mesh in place");
-        if flags & mesh_flags::COLORS == 0 {
-            words.copy_within(tail..tail + v + table, colors + v);
+        let (v, f, flags) = (words[3] as usize, words[4] as usize, words[6]);
+        let painted = (flags & !COLORS) | if v > 0 { COLORS } else { 0 };
+        let colors = GEOMETRY_HEAD + f * 3 + v * 6;
+        // the groups, the table of the creators and the closing bracket follow the colors
+        let tail = colors + if flags & COLORS != 0 { v } else { 0 };
+        let groups = if flags & GROUPS != 0 { v } else { 0 };
+        let table = if flags & CREATORS != 0 { table_len(words[tail + groups] as usize) } else { 0 };
+        let rest = groups + table + TAIL;
+        assert_eq!(words.len(), sections_len(v, f, painted) + table + TAIL, "no room to paint a geometry in place");
+        if flags & COLORS == 0 {
+            words.copy_within(tail..tail + rest, colors + v);
         }
         words[colors..colors + v].fill(color as i32);
-        words[3] = painted | (flags & mesh_flags::CREATORS);
+        words[1] = words.len() as i32 - 3;
+        words[6] = painted;
     }
 
     /// The words of [`MeshWords::join`]
@@ -491,16 +550,21 @@ impl<'a> MeshWords<'a> {
             meshes.iter().fold((0, 0, false), |(v, f, colored), m| (v + m.v, f + m.f, colored || m.colors().is_some()));
         let creators =
             if meshes.iter().any(|m| !m.creators.is_empty()) { meshes.iter().map(|m| m.group_count()).sum() } else { 0 };
-        encoded_len(v, f, if colored { mesh_flags::COLORS } else { 0 }) + table_len(creators)
+        sections_len(v, f, GROUPS | if colored { COLORS } else { 0 }) + table_len(creators) + TAIL
     }
 
-    fn group_count(&self) -> usize {
-        group_count(self.groups().iter().map(|&g| g as u32))
+    /// The groups this geometry numbers, one for a geometry without groups
+    pub fn group_count(&self) -> usize {
+        match self.groups() {
+            Some(groups) => group_count(groups.iter().map(|&g| g as u32)),
+            None => usize::from(self.v > 0),
+        }
     }
 
-    /// The encoded meshes one after the other, the groups of each numbered after those of the
-    /// meshes before it. Meshes without vertices are left out. When only some of them have
-    /// colors, the vertices of the others get [`crate::NO_COLOR`].
+    /// The encoded geometries one after the other as one, the groups of each numbered after
+    /// those of the geometries before it, a geometry without groups as one group. Geometries
+    /// without vertices are left out. When only some of them have colors, the vertices of the
+    /// others get [`NO_COLOR`]. The joined geometry was made from no path.
     pub fn join(meshes: &[MeshWords]) -> Vec<i32> {
         let mut words = vec![0; Self::join_len(meshes)];
         Self::join_into(meshes, &mut words);
@@ -514,9 +578,10 @@ impl<'a> MeshWords<'a> {
         let f = meshes.iter().map(|m| m.f).sum::<usize>();
         let colored = meshes.iter().any(|m| m.colors().is_some());
         let with_creators = meshes.iter().any(|m| !m.creators.is_empty());
-        let flags = if colored { mesh_flags::COLORS } else { 0 } | if with_creators { mesh_flags::CREATORS } else { 0 };
-        let mut out = Words::new(words);
-        out.put(&[MESH_TAG, v as i32, f as i32, flags]);
+        let flags = GROUPS | if colored { COLORS } else { 0 } | if with_creators { CREATORS } else { 0 };
+        put_frame(words, v, f, NO_PATH, flags);
+        let len = words.len();
+        let mut out = Words::new(&mut words[GEOMETRY_HEAD..len - TAIL]);
         let mut offset = 0u32;
         for mesh in &meshes {
             out.extend(mesh.faces().iter().map(|&i| (i as u32 + offset) as i32));
@@ -532,19 +597,22 @@ impl<'a> MeshWords<'a> {
             for mesh in &meshes {
                 match mesh.colors() {
                     Some(colors) => out.put(colors),
-                    None => out.fill(mesh.v, crate::NO_COLOR as i32),
+                    None => out.fill(mesh.v, NO_COLOR as i32),
                 }
             }
         }
         let mut next = 0u32;
         let mut counts = Vec::with_capacity(meshes.len());
         for mesh in &meshes {
-            out.extend(mesh.groups().iter().map(|&g| (g as u32 + next) as i32));
+            match mesh.groups() {
+                Some(groups) => out.extend(groups.iter().map(|&g| (g as u32 + next) as i32)),
+                None => out.fill(mesh.v, next as i32),
+            }
             counts.push(mesh.group_count());
             next += counts[counts.len() - 1] as u32;
         }
         if with_creators {
-            // the groups of every mesh keep their creators, behind those of the meshes before it
+            // the groups of every geometry keep their creators, behind those of the ones before it
             out.put(&[next as i32]);
             for (mesh, &count) in meshes.iter().zip(&counts) {
                 out.extend((0..count).map(|g| mesh.creators.get(g).copied().unwrap_or(NO_CREATOR)));
@@ -557,6 +625,7 @@ impl<'a> MeshWords<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{concat_args, split_args};
 
     fn triangle() -> Mesh {
         Mesh {
@@ -574,19 +643,36 @@ mod tests {
         Mesh { creators: vec![40, NO_CREATOR, -7], ..triangle() }
     }
 
+    /// A geometry of a plant node: no groups, made from the path 33
+    fn plain(colored: bool) -> Vec<i32> {
+        let mut words = vec![0, 0, GEOMETRY_TAG, 3, 1, 33, if colored { COLORS } else { 0 }, 0, 1, 2];
+        words.extend([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0f32].map(encode_float));
+        words.extend([0.0, 0.0, 1.0f32].repeat(3).into_iter().map(encode_float));
+        if colored {
+            words.extend([5, 6, 7]);
+        }
+        words.extend([1, 1]);
+        words[1] = words.len() as i32 - 3;
+        words
+    }
+
     #[test]
     fn the_creators_follow_the_groups() {
         let words = made().encode();
-        assert_eq!(words[3], mesh_flags::COLORS | mesh_flags::CREATORS);
-        assert_eq!(&words[words.len() - 7..], &[0, 2, 2, 3, 40, NO_CREATOR, -7]);
+        assert_eq!(words[6], COLORS | CREATORS | GROUPS);
+        assert_eq!(&words[words.len() - 9..], &[0, 2, 2, 3, 40, NO_CREATOR, -7, 1, 1]);
         assert_eq!(Mesh::decode(&words), made());
-        // but for the flag, the words before them are the mesh as it was before meshes knew their creators
-        assert_eq!(words[4..words.len() - 4], Mesh { creators: Vec::new(), ..made() }.encode()[4..]);
         assert_eq!(MeshWords::read(&words).unwrap().creators(), &[40, NO_CREATOR, -7]);
         assert_eq!(MeshWords::read(&triangle().encode()).unwrap().creators(), &[] as &[i32]);
         // a table that is shorter or longer than it says
-        assert_eq!(Mesh::try_decode(&words[..words.len() - 1]), None);
-        assert_eq!(Mesh::try_decode(&[words.clone(), vec![0]].concat()), None);
+        let mut short = words.clone();
+        short.remove(short.len() - 3);
+        short[1] -= 1;
+        assert_eq!(Mesh::try_decode(&short), None);
+        let mut long = words.clone();
+        long.insert(long.len() - 2, 0);
+        long[1] += 1;
+        assert_eq!(Mesh::try_decode(&long), None);
     }
 
     #[test]
@@ -596,12 +682,28 @@ mod tests {
     }
 
     #[test]
-    fn encodes_and_decodes() {
+    fn encodes_a_geometry_with_groups_in_brackets() {
         let mesh = triangle();
         let words = mesh.encode();
-        assert_eq!(&words[..4], &[MESH_TAG, 3, 1, mesh_flags::COLORS]);
-        assert_eq!(&words[words.len() - 3..], &[0, 2, 2]);
+        assert_eq!(&words[..GEOMETRY_HEAD], &[0, words.len() as i32 - 3, GEOMETRY_TAG, 3, 1, NO_PATH, COLORS | GROUPS]);
+        assert_eq!(&words[words.len() - 5..], &[0, 2, 2, 1, 1]);
         assert_eq!(Mesh::decode(&words), mesh);
+        // it is one item of a list, like the geometry of a plant node
+        let list = concat_args(vec![&words, &plain(false)]);
+        assert_eq!(split_args(&list), vec![words.as_slice(), plain(false).as_slice()]);
+    }
+
+    #[test]
+    fn a_geometry_without_groups_is_one_group() {
+        let words = plain(true);
+        let read = MeshWords::read(&words).unwrap();
+        assert!(!read.has_groups());
+        assert_eq!(read.group_count(), 1);
+        assert_eq!(read.path_id(), 33);
+        let mesh = Mesh::decode(&words);
+        assert_eq!(mesh.groups, vec![0; 3]);
+        assert_eq!(mesh.colors, vec![5, 6, 7]);
+        assert_eq!(mesh.positions, triangle().positions);
     }
 
     #[test]
@@ -613,7 +715,7 @@ mod tests {
         assert_eq!(mesh.groups, vec![0, 2, 2, 3, 5, 5]);
         // the vertices without colors keep the material
         let red = pack_rgba(1.0, 0.0, 0.0, 1.0);
-        assert_eq!(mesh.colors, [[crate::NO_COLOR; 3], [red; 3]].concat());
+        assert_eq!(mesh.colors, [[NO_COLOR; 3], [red; 3]].concat());
         let mut plain = Mesh { colors: Vec::new(), ..triangle() };
         plain.append(&Mesh { colors: Vec::new(), ..triangle() }, 0);
         assert!(plain.colors.is_empty());
@@ -626,8 +728,8 @@ mod tests {
     fn colors_are_optional() {
         let mesh = Mesh { colors: Vec::new(), ..triangle() };
         let words = mesh.encode();
-        assert_eq!(&words[..4], &[MESH_TAG, 3, 1, 0]);
-        assert_eq!(words.len(), 4 + 3 + 3 * 7);
+        assert_eq!(&words[2..GEOMETRY_HEAD], &[GEOMETRY_TAG, 3, 1, NO_PATH, GROUPS]);
+        assert_eq!(words.len(), GEOMETRY_HEAD + 3 + 3 * 7 + 2);
         assert_eq!(Mesh::decode(&words), mesh);
     }
 
@@ -638,23 +740,32 @@ mod tests {
     }
 
     #[test]
-    fn try_decode_takes_only_whole_meshes() {
+    fn try_decode_takes_only_whole_geometries() {
         let words = triangle().encode();
         assert_eq!(Mesh::try_decode(&words), Some(triangle()));
         assert_eq!(Mesh::try_decode(&Mesh::default().encode()), Some(Mesh::default()));
         assert_eq!(Mesh::try_decode(&[]), None);
-        assert_eq!(Mesh::try_decode(&[MESH_TAG]), None);
+        assert_eq!(Mesh::try_decode(&[0, 1, 1, 1]), None);
         assert_eq!(Mesh::try_decode(&words[..words.len() - 1]), None);
-        assert_eq!(Mesh::try_decode(&[words.clone(), vec![0]].concat()), None);
-        // a 14 in front of other words, like the index of a path
-        assert_eq!(Mesh::try_decode(&[MESH_TAG, 2, 0, 0, 5, 9]), None);
-        assert_eq!(Mesh::try_decode(&[MESH_TAG, -1, 0, 0]), None);
-        assert_eq!(Mesh::try_decode(&[MESH_TAG, i32::MAX, i32::MAX, 0]), None);
+        let mut longer = words.clone();
+        longer.insert(GEOMETRY_HEAD, 0);
+        assert_eq!(Mesh::try_decode(&longer), None);
+        longer[1] += 1;
+        assert_eq!(Mesh::try_decode(&longer), None);
+        assert_eq!(Mesh::try_decode(&[0, 6, GEOMETRY_TAG, -1, 0, NO_PATH, 0, 1, 1]), None);
+        assert_eq!(Mesh::try_decode(&[0, 6, GEOMETRY_TAG, i32::MAX, i32::MAX, NO_PATH, 0, 1, 1]), None);
         let mut unknown_flag = words.clone();
-        unknown_flag[3] |= 8;
+        unknown_flag[6] |= 8;
         assert_eq!(Mesh::try_decode(&unknown_flag), None);
+        // creators without groups
+        let mut no_groups = plain(false);
+        let end = no_groups.len() - 2;
+        no_groups.splice(end..end, [1, 5]);
+        no_groups[1] += 2;
+        no_groups[6] = CREATORS;
+        assert_eq!(Mesh::try_decode(&no_groups), None);
         let mut missing_vertex = words.clone();
-        missing_vertex[HEADER_LEN + 2] = 3;
+        missing_vertex[GEOMETRY_HEAD + 2] = 3;
         assert_eq!(Mesh::try_decode(&missing_vertex), None);
     }
 
@@ -663,7 +774,7 @@ mod tests {
             faces: vec![0, 1, 2, 2, 1, 3],
             positions: vec![0.5, 0.0, 0.0, 1.5, 0.0, 0.0, 0.5, 1.0, 0.0, 1.5, 1.0, -0.0],
             normals: vec![0.0, 0.0, -1.0, 0.0, f32::NAN, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
-            colors: if colored { vec![1, 2, 3, crate::NO_COLOR] } else { Vec::new() },
+            colors: if colored { vec![1, 2, 3, NO_COLOR] } else { Vec::new() },
             groups: vec![1, 0, 4, 1],
             creators: Vec::new(),
         }
@@ -697,6 +808,27 @@ mod tests {
     }
 
     #[test]
+    fn a_geometry_without_groups_joins_as_one_group() {
+        let (a, b) = (plain(true), made().encode());
+        let words = [MeshWords::read(&a).unwrap(), MeshWords::read(&b).unwrap()];
+        let joined = Mesh::decode(&MeshWords::join(&words));
+        assert_eq!(joined.groups, vec![0, 0, 0, 1, 3, 3]);
+        assert_eq!(joined.creators, vec![NO_CREATOR, 40, NO_CREATOR, -7]);
+        assert_eq!(&joined.colors[..3], &[5, 6, 7]);
+    }
+
+    #[test]
+    fn an_input_brings_a_geometry_or_the_geometries_of_a_list_joined() {
+        let (a, b) = (made().encode(), plain(false));
+        assert_eq!(geometry_input(&a).as_deref(), Some(a.as_slice()));
+        assert_eq!(geometry_input(&concat_args(vec![&a])).as_deref(), Some(a.as_slice()));
+        let joined = MeshWords::join(&[MeshWords::read(&a).unwrap(), MeshWords::read(&b).unwrap()]);
+        assert_eq!(geometry_input(&concat_args(vec![&a, &b])).as_deref(), Some(joined.as_slice()));
+        assert_eq!(geometry_input(&[0, 1, 1, 1]), None);
+        assert_eq!(geometry_input(&[]), None);
+    }
+
+    #[test]
     fn paints_the_words_like_the_mesh() {
         let color = pack_rgba(0.2, 0.4, 0.6, 1.0);
         for mesh in [Mesh::default(), triangle(), other(false), other(true), made(), other(false).made_by(4)] {
@@ -704,23 +836,25 @@ mod tests {
             let painted = Mesh { colors: vec![color; mesh.vertex_count()], ..mesh };
             assert_eq!(MeshWords::read(&words).unwrap().painted(color), painted.encode());
         }
+        // a geometry without groups keeps its path and gets none
+        let painted = MeshWords::read(&plain(false)).unwrap().painted(9);
+        let mut expected = plain(true);
+        expected[GEOMETRY_HEAD + 3 + 18..GEOMETRY_HEAD + 3 + 21].fill(9);
+        assert_eq!(painted, expected);
     }
 
     #[test]
     fn paints_the_words_in_place_like_the_mesh() {
         let color = pack_rgba(0.2, 0.4, 0.6, 1.0);
         let colored = Mesh { colors: vec![7; 3], ..triangle() };
-        for mesh in [Mesh::default(), triangle(), other(false), other(true), colored, made(), other(false).made_by(4)] {
-            let mut words = mesh.encode();
+        let meshes = [Mesh::default(), triangle(), other(false), other(true), colored, made(), other(false).made_by(4)];
+        for mut words in meshes.iter().map(Mesh::encode).chain([plain(false), plain(true)]) {
             let painted = MeshWords::read(&words).unwrap().painted(color);
             // the room for the colors holds what was there before
             words.resize(painted.len(), -1);
             MeshWords::paint_in_place(&mut words, color);
             assert_eq!(words, painted);
         }
-        let mut words = vec![MESH_TAG, 0, 0, mesh_flags::COLORS];
-        MeshWords::paint_in_place(&mut words, color);
-        assert_eq!(words, Mesh::default().encode());
     }
 
     /// What a builder adds: two triangles, and two vertices it takes back
@@ -777,9 +911,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "needs")]
-    fn rejects_truncated_meshes() {
-        Mesh::decode(&[MESH_TAG, 3, 1, 0, 0, 1]);
+    #[should_panic(expected = "expected a geometry")]
+    fn rejects_truncated_geometry() {
+        let words = triangle().encode();
+        Mesh::decode(&words[..words.len() - 3]);
     }
 
     #[test]

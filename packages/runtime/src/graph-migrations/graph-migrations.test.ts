@@ -1750,7 +1750,8 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
     );
 
   it('places the membrane with a points_on_path at along and drops the other inputs', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      13,
       veil({ along: 0.7, attachment: 0.5, thickness: 0.002, sag: 0.1, flare: [0, 1, 1, 1] })
     );
     const [membrane] = byType(migrated, MEMBRANE);
@@ -1770,7 +1771,7 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
   });
 
   it('wires an along from a node into the lowest and highest point', () => {
-    const migrated = migrateGraph(veil({}, [[5, 0, 3, 'along']]));
+    const migrated = migrateTo(13, veil({}, [[5, 0, 3, 'along']]));
     const [points] = byType(migrated, POINTS);
     expect(points.props).toEqual({ amount: 1 });
     expect(points.exposed).toEqual(['lowest_point', 'highest_point']);
@@ -1783,7 +1784,7 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
   });
 
   it('holds an anchor by dividing it by the length of the path', () => {
-    const migrated = migrateGraph(veil({ anchor: 0.025 }));
+    const migrated = migrateTo(13, veil({ anchor: 0.025 }));
     const [points] = byType(migrated, POINTS);
     const [share] = byType(migrated, MATH);
     const [length] = byType(migrated, 'max/plantarium/path_info');
@@ -1800,7 +1801,7 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
   });
 
   it('leaves a membrane alone whose b is a ring of points, along and anchor were no-ops there', () => {
-    const migrated = migrateGraph({
+    const migrated = migrateTo(13, {
       ...veil({ along: 0.7, anchor: 0.02, sag: 0.1 }),
       nodes: [
         node(1, 'max/plantarium/points_on_path'),
@@ -1818,7 +1819,7 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
 
   it('places the membrane on the paths from the second output of separate, not on the kinks of trunk_kink', () => {
     const fedBy = (type: string) =>
-      migrateGraph({
+      migrateTo(13, {
         ...v12(
           [
             node(1, type),
@@ -1841,7 +1842,7 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
   });
 
   it('hangs the ring of a torn membrane from the points in b instead of placing a spot', () => {
-    const migrated = migrateGraph({
+    const migrated = migrateTo(13, {
       ...veil({ tear: 0.5, torn_length: 0.01 }),
       nodes: [
         node(1, 'max/plantarium/points_on_path'),
@@ -1858,14 +1859,15 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
   });
 
   it('leaves a membrane without along or anchor on its path, level with a', () => {
-    const migrated = migrateGraph(veil({ attachment: -0.5, sag: 0.2 }));
+    const migrated = migrateTo(13, veil({ attachment: -0.5, sag: 0.2 }));
     expect(byType(migrated, POINTS)).toHaveLength(0);
     expect(byType(migrated, MEMBRANE)[0].props).toEqual({ sag: 0.2 });
     expect(migrated.edges).toEqual([[1, 0, 3, 'b'], [2, 0, 3, 'a'], [3, 0, 4, 'mesh']]);
   });
 
   it('hangs a ring and a fringe from a tear that comes from a node, the membrane goes at the switch', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      13,
       veil(
         { along: 0.75, thickness: 0.0006, tear_position: 0.9, torn_length: 0.011, seed: 4 },
         [[5, 0, 3, 'tear']]
@@ -1915,7 +1917,7 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
   });
 
   it('gives a membrane torn all round only its skirts, hanging at their flare', () => {
-    const migrated = migrateGraph(veil({ along: 0.75, tear: 1, tear_position: 0.5 }));
+    const migrated = migrateTo(13, veil({ along: 0.75, tear: 1, tear_position: 0.5 }));
     expect(byType(migrated, MEMBRANE)).toHaveLength(0);
     const skirts = byType(migrated, SKIRT);
     // as long as a span of 1 cm made them, without a torn length
@@ -1933,7 +1935,7 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
   });
 
   it('leaves out a fringe the tear left too short, and places the ring when the membrane followed a', () => {
-    const migrated = migrateGraph(veil({ tear: 0.5, tear_position: 0.99 }));
+    const migrated = migrateTo(13, veil({ tear: 0.5, tear_position: 0.99 }));
     const skirts = byType(migrated, SKIRT);
     expect(skirts).toHaveLength(1);
     const [points] = byType(migrated, POINTS);
@@ -1952,7 +1954,7 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
   it('drops the exposed inputs that are gone', () => {
     const membrane = node(1, MEMBRANE, { torn_length: 0.01 });
     membrane.exposed = ['torn_length', 'sag'];
-    const migrated = migrateGraph(v12([membrane]));
+    const migrated = migrateTo(13, v12([membrane]));
     expect(byType(migrated, MEMBRANE)[0].exposed).toEqual(['sag']);
   });
 
@@ -1976,7 +1978,7 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
         ]
       } as unknown as NonNullable<Graph['groups']>[number]
     ];
-    const migrated = migrateGraph(old);
+    const migrated = migrateTo(13, old);
     const [group] = migrated.groups!;
     const ids = [1, group.id, ...group.nodes.map((n) => n.id)];
     expect(new Set(ids).size).toBe(ids.length);
@@ -1990,5 +1992,100 @@ describe('version 13: membrane wraps around a point, skirts hang the ring and th
         [join.id, 0, 11, 'out_0']
       ])
     );
+  });
+});
+
+describe('version 15: Myzel meshes are geometry', () => {
+  const v14 = (nodes: SerializedNode[], edges: Graph['edges'] = []): Graph => ({
+    ...graph(nodes, edges),
+    version: 14
+  });
+
+  it('joins with join and paints with set_color, the mesh inputs get their new names', () => {
+    const migrated = migrateGraph(v14(
+      [
+        node(1, 'max/myzel/hyphae_to_mesh'),
+        node(2, 'max/myzel/lamellae'),
+        {
+          ...node(3, 'max/myzel/set_mesh_color', { color: [1, 2, 3] }),
+          exposed: ['mesh', 'color']
+        },
+        node(4, 'max/myzel/cap_pattern', { relief: 0.001 }),
+        node(5, 'max/myzel/join_meshes'),
+        node(6, 'max/myzel/output'),
+        node(7, 'max/myzel/sample_mesh', { amount: 3 })
+      ],
+      [
+        [2, 0, 3, 'mesh'],
+        [1, 0, 4, 'mesh'],
+        [4, 0, 5, 'a'],
+        [3, 0, 5, 'b'],
+        [5, 0, 6, 'mesh'],
+        [5, 0, 7, 'mesh']
+      ]
+    ));
+    expect(migrated.nodes.map((n) => n.type)).toEqual([
+      'max/myzel/hyphae_to_mesh',
+      'max/myzel/lamellae',
+      'max/plantarium/set_color',
+      'max/myzel/cap_pattern',
+      'max/plantarium/join',
+      'max/myzel/output',
+      'max/myzel/sample_mesh'
+    ]);
+    expect(migrated.nodes[2]).toMatchObject({
+      props: { color: [1, 2, 3] },
+      exposed: ['plant', 'color']
+    });
+    expect(migrated.edges).toEqual([
+      [2, 0, 3, 'plant'],
+      [1, 0, 4, 'geometry'],
+      [4, 0, 5, 'a'],
+      [3, 0, 5, 'b'],
+      [5, 0, 6, 'input'],
+      [5, 0, 7, 'geometry']
+    ]);
+  });
+
+  it('gives the mesh sockets of groups geometry, or the path list of join and set_color', () => {
+    const old = v14([]);
+    old.groups = [
+      {
+        id: 10,
+        nodes: [
+          node(11, '__internal/group/input'),
+          node(12, '__internal/group/output'),
+          node(13, 'max/myzel/lamellae'),
+          node(14, 'max/myzel/set_mesh_color'),
+          node(15, 'max/myzel/cap_pattern')
+        ],
+        edges: [
+          [13, 0, 14, 'mesh'],
+          [14, 0, 12, 'out_0'],
+          [13, 0, 12, 'out_1'],
+          [11, 0, 15, 'mesh'],
+          [15, 0, 12, 'out_2']
+        ],
+        inputs: { body: { type: 'mesh', label: 'Body' } },
+        outputs: [{ type: 'mesh', label: 'Gills' }, { type: 'mesh' }, { type: 'mesh' }]
+      },
+      {
+        id: 20,
+        nodes: [
+          node(21, '__internal/group/output'),
+          node(22, '__internal/group/instance', { groupId: 10 })
+        ],
+        edges: [[22, 0, 21, 'out_0'], [22, 1, 21, 'out_1']],
+        outputs: [{ type: 'mesh' }, { type: 'mesh' }]
+      }
+    ] as unknown as Graph['groups'];
+    const [inner, outer] = migrateGraph(old).groups;
+    expect(inner.inputs).toEqual({ body: { type: 'geometry', label: 'Body', accepts: ['path'] } });
+    expect(inner.outputs).toEqual([
+      { type: 'path', label: 'Gills' },
+      { type: 'geometry' },
+      { type: 'geometry' }
+    ]);
+    expect(outer.outputs).toEqual([{ type: 'path' }, { type: 'geometry' }]);
   });
 });

@@ -44,13 +44,20 @@ const DEFINITIONS = [
   definition('p/leaf', ['shape']),
   definition('p/curve', ['float']),
   definition('p/random', ['float'], { creator }),
-  definition('p/output', [], { input: { type: 'path', accepts: ['mesh'] } }),
+  definition('p/output', [], { input: { type: 'path', accepts: ['geometry'] } }),
   definition('m/strands', ['path'], { stem: { type: 'path' }, creator }),
   definition('m/cap', ['path'], { stem: { type: 'path' }, creator }),
-  definition('m/lamellae', ['mesh'], { cap: { type: 'path' }, creator }),
-  definition('m/skirt', ['mesh'], { stem: { type: 'path' }, length: { type: 'float' }, creator }),
-  definition('m/hyphae_to_mesh', ['mesh'], { paths: { type: 'path' } }),
-  definition('m/join_meshes', ['mesh'], { a: { type: 'mesh' }, b: { type: 'mesh' } })
+  definition('m/lamellae', ['geometry'], { cap: { type: 'path' }, creator }),
+  definition('m/skirt', ['geometry'], {
+    stem: { type: 'path' },
+    length: { type: 'float' },
+    creator
+  }),
+  definition('m/hyphae_to_mesh', ['geometry'], { paths: { type: 'path' } }),
+  definition('p/join', ['path'], {
+    a: { type: 'path', accepts: ['geometry'] },
+    b: { type: 'path', accepts: ['geometry'] }
+  })
 ];
 const byType = new Map(DEFINITIONS.map((d) => [d.id as string, d]));
 const traits = nodeTraits((type) => byType.get(type));
@@ -177,7 +184,7 @@ describe('the parts of a mushroom', () => {
       [3, 'm/skirt'],
       [12, 'm/cap'],
       [13, 'm/lamellae'],
-      [4, 'm/join_meshes'],
+      [4, 'p/join'],
       [5, 'p/output'],
       [11, 'p/random']
     ],
@@ -219,9 +226,9 @@ describe('the parts of a mushroom', () => {
   });
 
   it('leads from a tissue to the node its creator id names', () => {
-    expect(nodeOfPart(index, result, { kind: 'mesh', pathId: 0, creator: 13 })).toBe(13);
-    expect(nodeOfPart(index, result, { kind: 'mesh', pathId: 0 })).toBeUndefined();
-    expect(nodeOfPart(index, result, { kind: 'mesh', pathId: 0, creator: -(2 ** 31) }))
+    expect(nodeOfPart(index, result, { kind: 'groups', pathId: 0, creator: 13 })).toBe(13);
+    expect(nodeOfPart(index, result, { kind: 'groups', pathId: 0 })).toBeUndefined();
+    expect(nodeOfPart(index, result, { kind: 'groups', pathId: 0, creator: -(2 ** 31) }))
       .toBeUndefined();
   });
 });
@@ -374,7 +381,7 @@ describe('nodeTraits', () => {
     expect(traits.isMainInput('p/separate', 'mask')).toBe(false);
     expect(traits.isMainInput('p/output', 'input')).toBe(true);
     // a join works on every input alike
-    expect(traits.isMainInput('m/join_meshes', 'b')).toBe(true);
+    expect(traits.isMainInput('p/join', 'b')).toBe(true);
   });
 
   it('knows the nodes the runtime gives a creator id', () => {

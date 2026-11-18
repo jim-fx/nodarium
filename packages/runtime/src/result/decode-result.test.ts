@@ -2,34 +2,33 @@ import { encodeNestedArray } from '@nodarium/utils';
 import { describe, expect, it } from 'vitest';
 import {
   decodeResult,
-  MESH_HAS_CREATORS,
+  GEOMETRY_FLAGS,
   NO_CREATOR,
   readGeometry,
   readInstances,
-  readMesh,
   sortResultItems
 } from './decode-result';
 
-// [14, vertices, faces, flags, ...faces, ...positions, ...normals, ...colors?, ...groups] with a
-// single triangle, without colors when `color` is null
-function myzelMesh(color: number | null = 0xff00_80ff, x = 0, groups = [0, 0, 0]) {
+// [1, vertices, faces, path id, flags, ...faces, ...positions, ...normals, ...colors?,
+// ...groups?] with a single triangle, without colors when `color` is null and without groups
+// when `groups` is null
+function geometry(
+  {
+    pathId = -1,
+    color = 0xff00_80ff as number | null,
+    x = 0,
+    groups = [0, 0, 0] as number[] | null
+  } = {}
+) {
   const colors = color === null ? [] : [color, color, color];
-  const data = new Int32Array(4 + 3 + 3 * 6 + colors.length + 3);
-  data.set([14, 3, 1, color === null ? 0 : 1, 0, 1, 2]);
+  const flags = (color === null ? 0 : GEOMETRY_FLAGS.colors)
+    | (groups === null ? 0 : GEOMETRY_FLAGS.groups);
+  const data = new Int32Array(5 + 3 + 3 * 6 + colors.length + (groups?.length ?? 0));
+  data.set([1, 3, 1, pathId, flags, 0, 1, 2]);
   const floats = new Float32Array(data.buffer);
-  floats.set([x, 0, 0, x + 1, 0, 0, x, 1, 0], 7);
-  floats.set([0, 0, 1, 0, 0, 1, 0, 0, 1], 16);
-  data.set([...colors, ...groups], 25);
-  return data;
-}
-
-// [1, vertices, faces, path id, ...faces, ...positions, ...normals, ...colors?] with a single
-// triangle
-function plantGeometry(pathId: number, colors: number[] = []) {
-  const data = new Int32Array(4 + 3 + 3 * 6 + colors.length);
-  data.set([1, 3, 1, pathId, 0, 1, 2]);
-  new Float32Array(data.buffer).set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1], 7);
-  data.set(colors, 25);
+  floats.set([x, 0, 0, x + 1, 0, 0, x, 1, 0], 8);
+  floats.set([0, 0, 1, 0, 0, 1, 0, 0, 1], 17);
+  data.set([...colors, ...(groups ?? [])], 26);
   return data;
 }
 
@@ -50,53 +49,46 @@ function instances(count: number, pathIds: number[] = [], colors: number[] = [])
 
 describe('sortResultItems', () => {
   it('sorts items by tag and skips unknown ones', () => {
-    const geometry = Int32Array.of(1, 0, 0, 0);
+    const plain = geometry({ groups: null });
     const instance = Int32Array.of(2, 0, 0, 0, 0);
-    const mesh = myzelMesh();
+    const grouped = geometry();
     const unknown = Int32Array.of(10, 0, 0, 0, 0, 0, 0, 0);
     const path = Int32Array.of(0, 1, 2);
-    const sorted = sortResultItems([path, mesh, geometry, unknown, instance]);
-    expect(sorted.geometries).toEqual([geometry]);
+    const sorted = sortResultItems([path, grouped, plain, unknown, instance]);
+    expect(sorted.geometries).toEqual([grouped, plain]);
     expect(sorted.instances).toEqual([instance]);
-    expect(sorted.meshes).toEqual([mesh]);
   });
 });
 
-describe('readMesh', () => {
-  it('reads faces, positions, normals, colors and groups', () => {
-    const mesh = readMesh(myzelMesh(0x1122_3344, 0, [0, 5, 5]));
-    expect(mesh.vertexCount).toBe(3);
-    expect(mesh.faceCount).toBe(1);
-    expect([...mesh.faces]).toEqual([0, 1, 2]);
-    expect([...mesh.positions]).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0]);
-    expect([...mesh.normals]).toEqual([0, 0, 1, 0, 0, 1, 0, 0, 1]);
-    // red is the lowest byte
-    expect([...mesh.colors!.subarray(0, 4)]).toEqual([0x44, 0x33, 0x22, 0x11]);
-    expect([...mesh.groups!]).toEqual([0, 5, 5]);
+describe('readGeometry', () => {
+  it('reads the colors and the groups when the flags say so', () => {
+    const read = readGeometry(geometry({ color: 0x1122_3344, groups: [0, 5, 5] }));
+    expect([...read.colors!.subarray(0, 4)]).toEqual([0x44, 0x33, 0x22, 0x11]);
+    expect([...read.groups!]).toEqual([0, 5, 5]);
+    expect([...read.positions]).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0]);
+    expect(read.creators).toBeUndefined();
   });
 
-  it('reads meshes without colors', () => {
-    const mesh = readMesh(myzelMesh(null, 0, [1, 2, 3]));
-    expect(mesh.colors).toBeUndefined();
-    expect([...mesh.groups!]).toEqual([1, 2, 3]);
+  it('reads a plant geometry without groups as one, with its path', () => {
+    const read = readGeometry(geometry({ pathId: 5, color: null, groups: null }));
+    expect(read.pathId).toBe(5);
+    expect(read.colors).toBeUndefined();
+    expect(read.groups).toBeUndefined();
   });
 
-  it('rejects data of the wrong length', () => {
-    expect(() => readMesh(myzelMesh().subarray(0, 20))).toThrow(/needs 31 words/);
-    expect(() => readMesh(myzelMesh(null).subarray(0, 20))).toThrow(/needs 28 words/);
+  it('throws when the words are not as many as the flags need', () => {
+    expect(() => readGeometry(geometry().subarray(0, 20))).toThrow(/needs 32 words/);
+    expect(() => readGeometry(geometry({ color: null }).subarray(0, 20))).toThrow(/needs 29 words/);
   });
 
-  it('reads the creators of the groups when the mesh brings them', () => {
-    const plain = myzelMesh(null, 0, [0, 1, 1]);
-    expect(readMesh(plain).creators).toBeUndefined();
-
+  it('reads the creators of the groups after them', () => {
+    const plain = geometry({ color: null, groups: [0, 1, 1] });
     const made = Int32Array.of(...plain, 2, 40, NO_CREATOR);
-    made[3] |= MESH_HAS_CREATORS;
-    const mesh = readMesh(made);
-    expect([...mesh.groups!]).toEqual([0, 1, 1]);
-    expect([...mesh.creators!]).toEqual([40, NO_CREATOR]);
-    // the table is as long as it says
-    expect(() => readMesh(made.subarray(0, made.length - 1))).toThrow(/needs 31 words, got 30/);
+    made[4] |= GEOMETRY_FLAGS.creators;
+    const read = readGeometry(made);
+    expect([...read.groups!]).toEqual([0, 1, 1]);
+    expect([...read.creators!]).toEqual([40, NO_CREATOR]);
+    expect(() => readGeometry(made.subarray(0, made.length - 1))).toThrow(/needs 32 words, got 31/);
   });
 });
 
@@ -137,29 +129,20 @@ describe('readInstances', () => {
   });
 });
 
-describe('readGeometry', () => {
-  it('reads a color per vertex when there is one', () => {
-    expect(readGeometry(plantGeometry(5)).colors).toBeUndefined();
-    const read = readGeometry(plantGeometry(5, [0x11223344, 0x11223344, -1]));
-    expect([...read.colors!.subarray(0, 4)]).toEqual([0x44, 0x33, 0x22, 0x11]);
-    expect([...read.positions]).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0]);
-  });
-});
-
 describe('decodeResult', () => {
   it('decodes every kind of item of a result', () => {
     const result = Int32Array.from(
       encodeNestedArray([
-        [...plantGeometry(5)],
+        [...geometry({ pathId: 5, color: null, groups: null })],
         [...instances(3, [5, 5, 6])],
-        [...myzelMesh(null, 0, [1, 2, 3])],
+        [...geometry({ color: null, groups: [1, 2, 3] })],
         [12, 0]
       ])
     );
     const decoded = decodeResult(result);
-    expect(decoded.geometries.map(g => g.pathId)).toEqual([5]);
+    expect(decoded.geometries.map(g => g.pathId)).toEqual([5, -1]);
     expect(decoded.instances.map(i => i.instanceCount)).toEqual([3]);
-    expect([...decoded.meshes[0].groups!]).toEqual([1, 2, 3]);
+    expect([...decoded.geometries[1].groups!]).toEqual([1, 2, 3]);
     expect(decoded.vertexCount).toBe(3 + 3 * 3 + 3);
     expect(decoded.faceCount).toBe(1 + 3 + 1);
   });
@@ -168,7 +151,6 @@ describe('decodeResult', () => {
     expect(decodeResult(new Int32Array())).toMatchObject({
       geometries: [],
       instances: [],
-      meshes: [],
       vertexCount: 0
     });
   });

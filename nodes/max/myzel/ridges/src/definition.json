@@ -4,7 +4,7 @@
     "description": "Hangs false gills under a cap where a pattern has stripes, like a chanterelle: every stripe of reaction_diffusion becomes a low fold with a round back, never deeper than wide, that forks and starts between others where the stripes do. With decurrent they run on down the stipe. For thin gills use lamellae. Gives the folds as a mesh, which keeps them blunt at any mesh resolution."
   },
   "outputs": [
-    "mesh"
+    "geometry"
   ],
   "inputs": {
     "cap": {

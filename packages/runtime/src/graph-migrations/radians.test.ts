@@ -58,7 +58,7 @@ describe('every angle in radians (graph version 14)', () => {
 
   it('builds a graph of version 13 as it was built with degrees', async () => {
     const migrated = parseProjectFile(structuredClone(v13)).graph;
-    expect(migrated.version).toBe(14);
+    expect(migrated.version).toBeGreaterThanOrEqual(14);
     expectSame(
       await build(migrated),
       (before as Record<string, GeometrySummary>)['fixtures/v13'],

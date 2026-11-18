@@ -7,6 +7,7 @@ import { lamellaeRidges } from './lamellae-ridges';
 import { lopsidedByRadius } from './lopsided-by-radius';
 import { marginCurveRandom } from './margin-curve-random';
 import { membraneSkirts } from './membrane-skirts';
+import { oneSurfaceType } from './one-surface-type';
 import { outputMesh } from './output-mesh';
 import { radians } from './radians';
 import { setMeshColor } from './set-mesh-color';
@@ -148,6 +149,12 @@ export const MIGRATIONS: Migration[] = [
     description:
       'every angle is in radians: the angles and rotations of branch, branch_from_points, trunk_kink, instance, instance_from_points and points_on_path, the opening of umbel, the fan of stem and the angles of leaf_growth took degrees, the amount of deform turns',
     migrate: radians
+  },
+  {
+    version: 15,
+    description:
+      'Myzel meshes are geometry: join joins them instead of join_meshes, set_color paints them instead of set_mesh_color, the mesh inputs of cap_pattern and sample_mesh are called geometry and the one of the Myzel output input',
+    migrate: oneSurfaceType
   }
 ];
 

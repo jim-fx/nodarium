@@ -468,6 +468,6 @@ fn the_inputs_are_few() {
     assert!(inputs.len() <= 8);
     let mut keys: Vec<&String> = inputs.keys().collect();
     keys.sort();
-    assert_eq!(keys, ["cap", "color", "mesh", "opacity", "pattern", "relief", "slide"]);
+    assert_eq!(keys, ["cap", "color", "geometry", "opacity", "pattern", "relief", "slide"]);
 }
 

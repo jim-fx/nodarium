@@ -188,12 +188,14 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     let vertex_amount = positions.len();
     let face_amount = mesh.triangles.len();
-    let mut out = Vec::with_capacity(4 + face_amount * 3 + vertex_amount * 6);
+    let mut out = Vec::with_capacity(5 + face_amount * 3 + vertex_amount * 6);
     out.push(1);
     out.push(vertex_amount as i32);
     out.push(face_amount as i32);
     // not made from a path
     out.push(NO_PATH);
+    // no colors, no groups
+    out.push(0);
     for t in &mesh.triangles {
         out.extend(t.iter().map(|&i| i as i32));
     }
@@ -257,10 +259,10 @@ mod tests {
         fn read(out: &[i32]) -> Self {
             let geometry = &out[2..out.len() - 2];
             let (vertices, faces) = (geometry[1] as usize, geometry[2] as usize);
-            let positions = &geometry[4 + faces * 3..4 + faces * 3 + vertices * 3];
+            let positions = &geometry[5 + faces * 3..5 + faces * 3 + vertices * 3];
             Leaf {
                 path_id: geometry[3],
-                triangles: geometry[4..4 + faces * 3]
+                triangles: geometry[5..5 + faces * 3]
                     .chunks(3)
                     .map(|t| [t[0] as usize, t[1] as usize, t[2] as usize])
                     .collect(),

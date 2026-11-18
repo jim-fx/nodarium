@@ -1,26 +1,55 @@
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
+    abi::{self, Output},
     concat_arg_vecs,
     geometry::{
         is_geometry, split_items, vertex_places, with_geometry_colors, with_path_colors, wrap_path,
-        DeepestPaths,
+        DeepestPaths, MeshWords,
     },
-    decode_float, opaque, Ctx,
+    decode_float, opaque, reads_place, Ctx,
 };
 
 nodarium_definition_file!("src/definition.json");
 
 fn color_geometry(ctx: &mut Ctx, geometry: &[i32], color: &[i32]) -> Vec<i32> {
-    let (v, f) = (geometry[3] as usize, geometry[4] as usize);
-    let start = 6 + f * 3;
-    let positions: Vec<f32> = geometry[start..start + v * 3].iter().map(|&w| decode_float(w)).collect();
+    let positions: Vec<f32> = match MeshWords::read(geometry) {
+        Some(words) => words.positions().iter().map(|&w| decode_float(w)).collect(),
+        None => return geometry.to_vec(),
+    };
     let colors: Vec<u32> = ctx.colors_at(color, vertex_places(&positions)).into_iter().map(opaque).collect();
     with_geometry_colors(geometry, &colors)
 }
 
-#[nodarium_execute]
-pub fn execute(args: &[&[i32]]) -> Vec<i32> {
+/// A geometry in one color, its groups and everything else as they are. In place when it is an
+/// input the host copied in, like the large surface of a mushroom.
+fn paint(input: &[i32], geometry: MeshWords, color: u32) -> Output {
+    let more = geometry.painted_len() - input.len();
+    let in_place = if more == 0 { abi::frame_input(input, &[], &[]) } else { abi::extend_input(input, more) };
+    match in_place {
+        Some(mut words) => {
+            // SAFETY: the input isn't read again
+            MeshWords::paint_in_place(unsafe { words.words_mut() }, color);
+            words.into()
+        }
+        None => abi::write_result(geometry.painted_len(), |words| {
+            geometry.paint_into(color, words);
+            words.len()
+        })
+        .into(),
+    }
+}
+
+#[nodarium_execute(arena)]
+pub fn execute(args: &[&[i32]]) -> Output {
     let mut ctx = Ctx::default();
+    // a single geometry stays one, it is no list
+    if let Some(geometry) = MeshWords::read(args[0]) {
+        if !reads_place(args[1]) {
+            return paint(args[0], geometry, opaque(ctx.color(args[1])));
+        }
+        return color_geometry(&mut ctx, args[0], args[1]).into();
+    }
+
     let items = split_items(args[0]);
     let depth = ctx.int(args[2]);
     let selected = DeepestPaths::new(&items, depth);
@@ -44,25 +73,25 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             }
         })
         .collect();
-
-    // a single geometry stays one, it is no list
-    if is_geometry(args[0]) {
-        return colored.into_iter().next().unwrap();
-    }
-    concat_arg_vecs(colored)
+    concat_arg_vecs(colored).into()
 }
 
 #[cfg(test)]
 mod tests {
     use super::__nodarium_execute_inner;
     use nodarium_utils::{
+        abi::{self, Output},
         concat_args, encode_color, encode_float,
         geometry::{
             create_multiple_paths, extrude_path, is_path, wrap_geometry_data, wrap_multiple_paths,
-            wrap_path, COLORED_PATH, NO_PATH,
+            wrap_path, Mesh, COLORED_PATH, NO_PATH,
         },
-        mix_colors, opaque, split_args, wrap_arg, MIX_COLOR,
+        mix_colors, opaque, split_args, wrap_arg, MIX_COLOR, NO_COLOR,
     };
+    use std::sync::Mutex;
+
+    /// The buffers of the ABI are global, tests that use them take turns
+    static STATE: Mutex<()> = Mutex::new(());
 
     const GREEN: [u8; 3] = [60, 140, 50];
     const BROWN: [u8; 3] = [110, 80, 50];
@@ -79,7 +108,7 @@ mod tests {
 
     /// A leaf of two triangles: its base at the origin, its tip at z -2, 1 wide at z -1
     fn leaf() -> Vec<i32> {
-        let mut data = vec![1, 4, 2, NO_PATH, 0, 1, 2, 1, 3, 2];
+        let mut data = vec![1, 4, 2, NO_PATH, 0, 0, 1, 2, 1, 3, 2];
         let positions = [0.0, 0.0, 0.0, -0.5, 0.0, -1.0, 0.5, 0.0, -1.0, 0.0, 0.0, -2.0f32];
         data.extend(positions.iter().map(|&p| encode_float(p)));
         data.extend([0.0, 1.0, 0.0f32].repeat(4).iter().map(|&n| encode_float(n)));
@@ -91,7 +120,8 @@ mod tests {
     }
 
     fn run(input: &[i32], color: &[i32]) -> Vec<i32> {
-        __nodarium_execute_inner(&[input, color, &[1]])
+        let _turn = STATE.lock().unwrap_or_else(|e| e.into_inner());
+        unsafe { __nodarium_execute_inner(&[input, color, &[1]]).words() }.to_vec()
     }
 
     #[test]
@@ -156,5 +186,101 @@ mod tests {
     #[test]
     fn nothing_connected_gives_nothing() {
         assert_eq!(run(&[0, 1, 1, 1], &encode_color(GREEN)), vec![0, 1, 1, 1]);
+    }
+
+    /// A plate of a Myzel node, three groups made by two nodes
+    fn plate() -> Mesh {
+        Mesh {
+            faces: vec![0, 1, 2],
+            positions: vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+            normals: vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
+            colors: Vec::new(),
+            groups: vec![0, 1, 1],
+            creators: vec![21, 22],
+        }
+    }
+
+    #[test]
+    fn a_geometry_with_groups_keeps_them() {
+        let mesh = Mesh::decode(&run(&plate().encode(), &encode_color(BROWN)));
+        assert_eq!(mesh.colors, vec![opaque(BROWN); 3]);
+        assert_eq!(Mesh { colors: Vec::new(), ..mesh }, plate());
+        // colors that were there are replaced
+        let before = Mesh { colors: vec![NO_COLOR, opaque(GREEN), NO_COLOR], ..plate() };
+        assert_eq!(Mesh::decode(&run(&before.encode(), &encode_color(BROWN))).colors, vec![opaque(BROWN); 3]);
+        // and a gradient keeps them too
+        let mesh = Mesh::decode(&run(&plate().encode(), &gradient()));
+        assert_eq!((mesh.groups, mesh.creators), (plate().groups, plate().creators));
+    }
+
+    #[test]
+    fn a_color_that_reads_no_place_is_the_one_of_every_vertex() {
+        let half = concat_args(vec![&[MIX_COLOR], &encode_color(BROWN), &encode_color(GREEN), &[encode_float(0.5)]]);
+        let mut out = run(&leaf(), &half);
+        assert_eq!(wrap_geometry_data(&mut out).colors, &[opaque(mix_colors(BROWN, GREEN, 0.5)); 4]);
+        let mut out = run(&leaf(), &encode_color(GREEN));
+        assert_eq!(out.len(), leaf().len() + 4);
+        assert_eq!(wrap_geometry_data(&mut out).colors, &[opaque(GREEN); 4]);
+    }
+
+    /// A geometry larger than a page, so the host's buffer of it is in the arena
+    fn large(colors: bool) -> Mesh {
+        let v = 3000;
+        Mesh {
+            faces: (0..v as u32 - 2).flat_map(|i| [i, i + 1, i + 2]).collect(),
+            positions: (0..v * 3).map(|i| i as f32 * 0.25).collect(),
+            normals: [0.0, 0.0, 1.0].repeat(v),
+            colors: if colors { (0..v as u32).collect() } else { Vec::new() },
+            groups: (0..v as u32).map(|i| i % 3).collect(),
+            creators: vec![1, 2, 3],
+        }
+    }
+
+    /// What the host does: allocates a buffer and writes `words` into it
+    fn host_input(words: &[i32]) -> &'static [i32] {
+        let ptr = abi::alloc(words.len() * 4);
+        unsafe {
+            std::ptr::copy_nonoverlapping(words.as_ptr(), ptr, words.len());
+            std::slice::from_raw_parts(ptr, words.len())
+        }
+    }
+
+    #[test]
+    fn a_geometry_the_host_copied_in_is_painted_where_it_is() {
+        let _turn = STATE.lock().unwrap_or_else(|e| e.into_inner());
+        abi::use_arena();
+        let white = [240, 236, 228];
+        for colors in [false, true] {
+            abi::reset();
+            let mesh = large(colors).encode();
+            let input = host_input(&mesh);
+            let color = host_input(&encode_color(white));
+            let painted = __nodarium_execute_inner(&[input, color, &[1]]);
+            assert!(matches!(painted, Output::InPlace(_)));
+            let words = unsafe { painted.words() };
+            assert_eq!(words.as_ptr(), input.as_ptr());
+            assert_eq!(words, Mesh { colors: vec![opaque(white); 3000], ..large(false) }.encode());
+            abi::store_result(painted);
+        }
+        abi::reset();
+    }
+
+    #[test]
+    fn a_result_passed_back_in_is_painted_into_a_new_geometry() {
+        let _turn = STATE.lock().unwrap_or_else(|e| e.into_inner());
+        abi::use_arena();
+        abi::reset();
+        let input = host_input(&large(false).encode());
+        let Output::InPlace(first) = __nodarium_execute_inner(&[input, &encode_color([1, 2, 3]), &[1]]) else {
+            panic!("the input wasn't painted in place");
+        };
+        abi::store_result(Output::from(first));
+        let before = unsafe { first.words() }.to_vec();
+        // other nodes may still read the first result
+        let second = __nodarium_execute_inner(&[unsafe { first.words() }, &encode_color([4, 5, 6]), &[1]]);
+        assert_ne!(unsafe { second.words() }.as_ptr(), unsafe { first.words() }.as_ptr());
+        assert_eq!(unsafe { first.words() }, before);
+        assert_eq!(Mesh::decode(unsafe { second.words() }).colors, vec![opaque([4, 5, 6]); 3000]);
+        abi::reset();
     }
 }

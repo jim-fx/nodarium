@@ -1,23 +1,14 @@
 //! Shared core of the Myzel nodes: meshes, paths, colors and the settings that shape them.
 //!
-//! # Mesh `[14, v, f, flags, ...faces, ...positions, ...normals, ...colors, ...groups, n, ...creators]`
+//! # Meshes
 //!
-//! `faces` are `3f` vertex indices (counter-clockwise seen from outside),
-//! `positions` and `normals` are `3v` f32. `colors` is only there when `flags`
-//! has [`mesh_flags::COLORS`] set and then holds one sRGB RGBA8 word per vertex, red
-//! in the lowest byte. Meshes without colors are shown with the viewer's
-//! material, and so are vertices whose alpha is 0 ([`NO_COLOR`]); in between
-//! the alpha is how much of the vertex color shows over the material. `groups` holds one small integer per vertex that tells which
-//! material group it belongs to: for meshes made from paths the graph node that
-//! made the path, numbered by [`group_numbers`], 0 for meshes made from a pattern. When `flags`
-//! has [`mesh_flags::CREATORS`] set, the groups are followed by their number `n` and the creator
-//! id of the graph node that made each of them ([`NO_CREATOR`] for none), so the viewer can lead
-//! from a part of the mesh to its node. `join_meshes` numbers the groups of every mesh after
-//! those of the meshes before it and keeps their creators.
-//! Thin closed sheets like gill plates and veils, which stay
-//! sharp at any mesh resolution, are built with [`add_sheet`]. The gills of `lamellae` and
-//! `ridges` come from [`gills`], the tubes of `pores` from [`pores`], the veil of `membrane`
-//! and the skins of `skirt` from [`veil`].
+//! A Myzel node makes its surface as a geometry with groups and the creators of its groups, see
+//! `nodarium_utils::geometry`: [`Mesh`], [`MeshWords`] and [`MeshWriter`] live there and are
+//! re-exported here. For meshes made from paths a group is the graph node that made the path,
+//! numbered by [`group_numbers`], 0 for meshes made from a pattern. Thin closed sheets like gill
+//! plates and veils, which stay sharp at any mesh resolution, are built with [`add_sheet`]. The
+//! gills of `lamellae` and `ridges` come from [`gills`], the tubes of `pores` from [`pores`], the
+//! veil of `membrane` and the skins of `skirt` from [`veil`].
 //!
 //! # Paths
 //!
@@ -50,7 +41,6 @@ mod density;
 mod gills;
 mod hyphae_mesh;
 mod inputs;
-mod mesh;
 mod noise;
 mod paths;
 mod pores;
@@ -75,7 +65,7 @@ pub use paths::{
     PathStyle, LINES_TAG,
 };
 pub use inputs::{read_float, read_floats, read_int, read_mesh};
-pub use mesh::{mesh_flags, pack_rgba, Mesh, MeshBuild, MeshWords, MeshWriter, MESH_TAG, NO_CREATOR};
+pub use nodarium_utils::geometry::{geometry_flags, geometry_input, pack_rgba, Mesh, MeshBuild, MeshWords, MeshWriter, NO_CREATOR};
 pub use noise::value_noise;
 pub use settings::{
     apply_settings, color_value, read_settings, with_setting, PathSettings, Setting, SettingItem, SETTING_TAG,

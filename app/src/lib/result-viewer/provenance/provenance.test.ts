@@ -100,12 +100,12 @@ describe('partHit', () => {
   });
 
   it('is the group of a Myzel mesh and the node that made it, when the mesh knows it', () => {
-    expect(partHit('mesh', { creators: Int32Array.of(40, 41) }, 1)).toEqual({
-      kind: 'mesh',
+    expect(partHit('groups', { creators: Int32Array.of(40, 41) }, 1)).toEqual({
+      kind: 'groups',
       pathId: NO_PATH,
       group: 1,
       creator: 41
     });
-    expect(partHit('mesh', {}, 1).creator).toBeUndefined();
+    expect(partHit('groups', {}, 1).creator).toBeUndefined();
   });
 });

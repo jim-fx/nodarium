@@ -105,7 +105,7 @@ mod tests {
 
     fn triangle() -> Vec<i32> {
         concat_args(vec![&[
-            1, 3, 1, NO_PATH, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            1, 3, 1, NO_PATH, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]])
     }
 
@@ -338,7 +338,7 @@ mod tests {
 
     /// A geometry of `vertices` points at the origin and a single face.
     fn geometry(vertices: i32) -> Vec<i32> {
-        let mut data = vec![1, vertices, 1, NO_PATH, 0, 1, 2];
+        let mut data = vec![1, vertices, 1, NO_PATH, 0, 0, 1, 2];
         data.extend(vec![0; vertices as usize * 6]);
         wrap_arg(&data)
     }

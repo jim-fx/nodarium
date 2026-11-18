@@ -63,7 +63,7 @@ mod tests {
     };
 
     fn triangle() -> Vec<i32> {
-        let mut data = vec![1, 3, 1, NO_PATH, 0, 1, 2];
+        let mut data = vec![1, 3, 1, NO_PATH, 0, 0, 1, 2];
         data.extend(vec![0; 18]);
         wrap_arg(&data)
     }

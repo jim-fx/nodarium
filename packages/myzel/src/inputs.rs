@@ -1,6 +1,6 @@
 use nodarium_utils::decode_float;
 
-use crate::mesh::Mesh;
+use crate::Mesh;
 
 /// A float input. The host sends a value set on the node as one f32 word, a connected float or
 /// time node sends it in brackets of its own, `[0, 2, value, 1, 1]`.
@@ -38,8 +38,10 @@ pub fn read_floats(arg: &[i32]) -> Vec<f32> {
     frame[2..frame.len() - 2].iter().map(|&w| decode_float(w)).collect()
 }
 
-pub fn read_mesh(arg: &[i32]) -> Mesh {
-    Mesh::decode(arg)
+/// The geometry of an input, the geometries of a list joined into one, see
+/// [`crate::geometry_input`]. `None` when it brings none, like an input nothing is connected to.
+pub fn read_mesh(arg: &[i32]) -> Option<Mesh> {
+    crate::geometry_input(arg).map(|words| Mesh::decode(&words))
 }
 
 #[cfg(test)]

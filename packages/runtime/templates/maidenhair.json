@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 14,
+  "version": 15,
   "meta": { "unit": "cm" },
   "settings": { "resolution.circle": 8, "resolution.curve": 64, "time.t": 1 },
   "groups": [],

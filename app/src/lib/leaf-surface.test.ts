@@ -21,7 +21,7 @@ function readLeaf(data: Int32Array): Leaf {
     ? [data.subarray(2)]
     : splitNestedArray(data).filter((i) => i[0] === 1);
   const [vertices, faces] = [item[1], item[2]];
-  const floats = new Float32Array(item.buffer, item.byteOffset + (4 + faces * 3) * 4, vertices * 6);
+  const floats = new Float32Array(item.buffer, item.byteOffset + (5 + faces * 3) * 4, vertices * 6);
   const vec3s = (from: number) =>
     Array.from(
       { length: vertices },

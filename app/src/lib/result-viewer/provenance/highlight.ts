@@ -16,7 +16,7 @@ export type HighlightMode = (typeof HIGHLIGHT)[keyof typeof HIGHLIGHT];
 
 /**
  * Which parts of the result are highlighted. Paths are meshes of their own, instances are told
- * apart by the path they sit on, the tissues of a Myzel mesh by the graph node that made them.
+ * apart by the path they sit on, the tissues of a geometry with groups by the graph node that made them.
  */
 export type PartHighlight = {
   /** by path id, for the geometry of the path */
@@ -27,7 +27,7 @@ export type PartHighlight = {
   rest: HighlightMode;
   /** names what is selected, the tint of a selection that fades starts over when it changes */
   selection?: string;
-  /** by creator id, for the vertex groups of the Myzel meshes that the creator made */
+  /** by creator id, for the vertex groups of the geometries with groups that the creator made */
   creators: Map<number, HighlightMode>;
 };
 
@@ -46,11 +46,11 @@ export function visibleParts(highlight: PartHighlight) {
   };
 }
 
-/** The groups of a Myzel mesh that can be told apart, groups above share the mode of the last */
+/** The groups of a geometry with groups that can be told apart, groups above share the mode of the last */
 export const MAX_GROUPS = 128;
 
 /**
- * The mode of every vertex group of one Myzel mesh, a uniform of the materials that highlight it
+ * The mode of every vertex group of one geometry with groups, a uniform of the materials that highlight it
  * by group and of the id pass, which leaves out what the local view hides. Every mesh has its own,
  * the groups of two meshes are numbered by different tables of creators.
  */

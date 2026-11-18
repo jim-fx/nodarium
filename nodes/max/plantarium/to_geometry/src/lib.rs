@@ -3,7 +3,7 @@ use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_args, encode_float,
     geometry::{
-        extrude_path, geometry_path_id, is_collapsed, path_link, colors_at_lengths, split_items,
+        extrude_path, geometry_flags, geometry_path_id, is_collapsed, path_link, colors_at_lengths, split_items,
         wrap_geometry_data, wrap_instance_data, wrap_path, PathData, PathStructure, COLORED_PATH,
         NO_PATH,
     },
@@ -56,8 +56,8 @@ impl Mesh {
         self.path_ids.push(path_id);
     }
 
-    /// `[1, vertex_amount, face_amount, path_id, ...faces, ...positions, ...normals]` in brackets.
-    /// The path id is kept when every part comes from the same path.
+    /// `[1, vertex_amount, face_amount, path_id, flags, ...faces, ...positions, ...normals,
+    /// ...colors?]` in brackets. The path id is kept when every part comes from the same path.
     fn encode(self) -> Vec<i32> {
         let path_id = match self.path_ids.split_first() {
             Some((first, rest)) if rest.iter().all(|id| id == first) => *first,
@@ -68,6 +68,7 @@ impl Mesh {
             (self.positions.len() / 3) as i32,
             (self.faces.len() / 3) as i32,
             path_id,
+            if self.colors.is_empty() { 0 } else { geometry_flags::COLORS },
         ];
         out.extend(self.faces);
         out.extend(self.positions.iter().map(|&f| encode_float(f)));
@@ -285,7 +286,7 @@ mod tests {
 
     /// A triangle along +x and +y, its normals look along +z.
     fn triangle(path_id: i32) -> Vec<i32> {
-        let mut data = vec![1, 3, 1, path_id, 0, 1, 2];
+        let mut data = vec![1, 3, 1, path_id, 0, 0, 1, 2];
         let positions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0f32];
         let normals = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0f32];
         data.extend(positions.iter().chain(&normals).map(|f| f.to_bits() as i32));

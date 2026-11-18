@@ -21,6 +21,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         3,          // 3 vertices
         1,          // 1 face
         -1,         // not made from a path
+        0,          // no colors, no groups
         // the indices of the face
         0, 2, 1,
         //

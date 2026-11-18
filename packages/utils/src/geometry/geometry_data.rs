@@ -1,13 +1,15 @@
 use crate::log;
 
-use super::NO_PARENT;
+use super::{geometry_flags, NO_PARENT};
 
-static GEOMETRY_HEADER_SIZE: usize = 4;
+static GEOMETRY_HEADER_SIZE: usize = 5;
 // 0: geometry type = 1
 // 1: vertex amount
 // 2: face amount
 // 3: id of the path the geometry was made from, `NO_PATH` if it doesn't come from a path
-// followed by the faces, positions and normals, and optionally an RGBA8 color per vertex
+// 4: flags, see `geometry_flags`
+// followed by the faces, positions and normals, optionally an RGBA8 color per vertex and
+// optionally a group per vertex and the creators of the groups, see `MeshWords`
 
 /// The path id of geometry that wasn't made from a path.
 pub const NO_PATH: i32 = NO_PARENT;
@@ -46,7 +48,7 @@ impl GeometryData<'_> {
 
 /// Length of an encoded geometry, brackets included.
 pub fn geometry_data_len(vertex_amount: usize, face_amount: usize) -> usize {
-    GEOMETRY_HEADER_SIZE // definition (type, vertex_amount, face_amount, path id)
+    GEOMETRY_HEADER_SIZE // definition (type, vertex_amount, face_amount, path id, flags)
       + 4 // opening and closing brackets
       + vertex_amount * 3  // positions
       + vertex_amount * 3  // normals
@@ -110,6 +112,7 @@ fn append_geometry(
     geo[3] = vertex_amount as i32;
     geo[4] = face_amount as i32;
     geo[5] = NO_PATH;
+    geo[6] = if colored { geometry_flags::COLORS } else { 0 };
     if colored {
         let colors = amount - 2 - vertex_amount;
         geo[colors..amount - 2].fill(crate::NO_COLOR as i32);
@@ -120,11 +123,9 @@ fn append_geometry(
     start..start + amount
 }
 
-/// Whether an encoded geometry (brackets included) has a color per vertex: it does when its
-/// colors follow the normals.
+/// Whether an encoded geometry (brackets included) has a color per vertex after its normals
 pub fn has_geometry_colors(geometry: &[i32]) -> bool {
-    let (v, f) = (geometry[3] as usize, geometry[4] as usize);
-    geometry.len() == colored_geometry_data_len(v, f)
+    geometry[6] & geometry_flags::COLORS != 0
 }
 
 /// The id of the path an encoded geometry was made from, brackets included.
@@ -197,16 +198,18 @@ pub fn wrap_geometry_data(geometry: &mut [i32]) -> GeometryData<'_> {
 }
 
 /// A copy of an encoded geometry (brackets included) with the given color per vertex, colors it
-/// had are replaced.
+/// had are replaced. Its groups stay.
 pub fn with_geometry_colors(geometry: &[i32], colors: &[u32]) -> Vec<i32> {
     let (v, f) = (geometry[3] as usize, geometry[4] as usize);
     assert_eq!(colors.len(), v, "one color per vertex");
     let plain = 2 + GEOMETRY_HEADER_SIZE + f * 3 + v * 6;
-    let mut out = Vec::with_capacity(colored_geometry_data_len(v, f));
+    let rest = plain + if has_geometry_colors(geometry) { v } else { 0 };
+    let mut out = Vec::with_capacity(plain + v + geometry.len() - rest);
     out.extend_from_slice(&geometry[..plain]);
-    out[1] = (colored_geometry_data_len(v, f) - 3) as i32;
     out.extend(colors.iter().map(|&c| c as i32));
-    out.extend_from_slice(&[1, 1]);
+    out.extend_from_slice(&geometry[rest..]);
+    out[1] = out.len() as i32 - 3;
+    out[6] |= geometry_flags::COLORS;
     out
 }
 
@@ -249,7 +252,7 @@ mod tests {
     use crate::{concat_args, wrap_arg};
 
     fn geometry(vertices: i32) -> Vec<i32> {
-        let mut data = vec![1, vertices, 1, NO_PATH, 0, 1, 2];
+        let mut data = vec![1, vertices, 1, NO_PATH, 0, 0, 1, 2];
         data.extend(vec![0; vertices as usize * 6]);
         wrap_arg(&data)
     }

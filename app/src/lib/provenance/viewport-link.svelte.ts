@@ -203,8 +203,8 @@ export class ViewportLink {
 
     const nodeId = this.select(chain);
     if (nodeId === undefined) return;
-    if (hit.kind === 'mesh') {
-      // a tissue is as fine as a Myzel mesh tells its parts apart
+    if (hit.kind === 'groups') {
+      // a tissue is as fine as a geometry tells its groups apart
       const creators = hit.creator === undefined ? [] : [hit.creator];
       this.picked = { nodeId, paths: [], creators, instancesOnly: false };
       return;
