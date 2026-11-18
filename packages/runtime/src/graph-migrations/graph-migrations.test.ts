@@ -2354,7 +2354,23 @@ describe('version 19: one set_color, hyphae_to_mesh reads the colors of the poin
       edges: [[12, 0, 11, 'paths']]
     }] as unknown as Graph['groups'];
     const [group] = migrateGraph(old).groups!;
-    expect(group.nodes[0]).toEqual(node(11, 'max/plantarium/set_color', { depth: 10 }));
+    expect(group.nodes[0]).toEqual(
+      node(11, 'max/plantarium/set_color', { color: [240, 236, 228], depth: 10 })
+    );
     expect(group.edges).toEqual([[12, 0, 11, 'plant']]);
+  });
+
+  it('keeps the default color of the Myzel node where nothing sets one', () => {
+    const old = v18(
+      [
+        node(1, 'max/myzel/set_color'),
+        node(2, 'max/myzel/set_color'),
+        node(3, 'max/core/mix_color')
+      ],
+      [[3, 0, 2, 'color']]
+    );
+    const migrated = migrateGraph(old);
+    expect(migrated.nodes[0].props).toEqual({ color: [240, 236, 228], depth: 10 });
+    expect(migrated.nodes[1].props).toEqual({ depth: 10 });
   });
 });
