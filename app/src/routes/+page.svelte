@@ -7,7 +7,7 @@
   import { localState } from '#lib/helpers/localState.svelte.ts';
   import { groupNode } from '#lib/node-registry/groupNode.ts';
   import { createAppRegistry } from '#lib/node-registry/index.ts';
-  import { colors } from '#lib/theme/colors.svelte.ts';
+  import { colors, systemColors } from '#lib/theme/colors.svelte.ts';
 
   import PerformanceViewer from '#lib/performance/PerformanceViewer.svelte';
   import { createRepeatGuard } from '#lib/performance/run-values.ts';
@@ -185,6 +185,7 @@
       return appSettings.value.theme;
     },
     colors,
+    systemColors,
     get safePadding() {
       return safePadding;
     },

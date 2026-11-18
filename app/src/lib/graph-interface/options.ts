@@ -15,6 +15,8 @@ export type GraphOptions = {
   /** the name of the theme, the colours are read again when it changes */
   theme: string;
   colors: ThemeColors;
+  /** CSS colour of the bar on the node header per collection, `max/plantarium`; a collection without one gets no bar */
+  systemColors?: Record<string, string>;
   safePadding?: { left?: number; right?: number; bottom?: number; top?: number };
   nodeTimings: Record<number, number>;
   /** Node that made the last execution fail */
