@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 14,
+  "version": 15,
   "settings": {
     "time.t": 1,
     "resolution.field": 128,
@@ -1126,7 +1126,7 @@
         {
           "id": 54,
           "position": [-30, -5],
-          "type": "max/myzel/set_mesh_color"
+          "type": "max/plantarium/set_color"
         }
       ],
       "edges": [
@@ -1206,7 +1206,7 @@
           30,
           0,
           54,
-          "mesh"
+          "plant"
         ],
         [
           53,
@@ -1283,7 +1283,7 @@
       },
       "outputs": [
         {
-          "type": "mesh",
+          "type": "path",
           "label": "Plates"
         }
       ]
@@ -1477,13 +1477,13 @@
         {
           "id": 76,
           "position": [-50, 10],
-          "type": "max/myzel/join_meshes",
+          "type": "max/plantarium/join",
           "props": {}
         },
         {
           "id": 55,
           "position": [-25, 0],
-          "type": "max/myzel/set_mesh_color"
+          "type": "max/plantarium/set_color"
         },
         {
           "id": 77,
@@ -1642,7 +1642,7 @@
           76,
           0,
           55,
-          "mesh"
+          "plant"
         ],
         [
           31,
@@ -1802,7 +1802,7 @@
       },
       "outputs": [
         {
-          "type": "mesh",
+          "type": "path",
           "label": "Skin"
         }
       ]
@@ -1928,7 +1928,7 @@
     {
       "id": 59,
       "position": [0, 0],
-      "type": "max/myzel/join_meshes",
+      "type": "max/plantarium/join",
       "props": {}
     }
   ],
@@ -2027,7 +2027,7 @@
       59,
       0,
       0,
-      "mesh"
+      "input"
     ]
   ]
 }

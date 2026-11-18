@@ -116,26 +116,29 @@ describe('createInstancedGeometryPool', () => {
   });
 });
 
-// [14, vertices, faces, flags, ...faces, ...positions, ...normals, ...colors?, ...groups] with a
-// single triangle, without colors when `color` is null
+const COLORS = 1;
+const GROUPS = 4;
+
+// [1, vertices, faces, path id, flags, ...faces, ...positions, ...normals, ...colors?, ...groups]
+// with a single triangle and groups, like a mushroom, without colors when `color` is null
 function myzelMesh(color: number | null = 0xff00_80ff, x = 0, groups = [0, 0, 0]) {
   const colors = color === null ? [] : [color, color, color];
-  const data = new Int32Array(4 + 3 + 3 * 6 + colors.length + 3);
-  data.set([14, 3, 1, color === null ? 0 : 1, 0, 1, 2]);
+  const data = new Int32Array(5 + 3 + 3 * 6 + colors.length + 3);
+  data.set([1, 3, 1, -1, GROUPS | (color === null ? 0 : COLORS), 0, 1, 2]);
   const floats = new Float32Array(data.buffer);
-  floats.set([x, 0, 0, x + 1, 0, 0, x, 1, 0], 7);
-  floats.set([0, 0, 1, 0, 0, 1, 0, 0, 1], 16);
-  data.set([...colors, ...groups], 25);
+  floats.set([x, 0, 0, x + 1, 0, 0, x, 1, 0], 8);
+  floats.set([0, 0, 1, 0, 0, 1, 0, 0, 1], 17);
+  data.set([...colors, ...groups], 26);
   return data;
 }
 
-// [1, vertices, faces, path id, ...faces, ...positions, ...normals, ...colors?] with a single
-// triangle
+// [1, vertices, faces, path id, flags, ...faces, ...positions, ...normals, ...colors?] with a
+// single triangle, like a plant
 function plantGeometry(pathId: number, colors: number[] = []) {
-  const data = new Int32Array(4 + 3 + 3 * 6 + colors.length);
-  data.set([1, 3, 1, pathId, 0, 1, 2]);
-  new Float32Array(data.buffer).set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1], 7);
-  data.set(colors, 25);
+  const data = new Int32Array(5 + 3 + 3 * 6 + colors.length);
+  data.set([1, 3, 1, pathId, colors.length ? COLORS : 0, 0, 1, 2]);
+  new Float32Array(data.buffer).set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1], 8);
+  data.set(colors, 26);
   return data;
 }
 
@@ -271,6 +274,15 @@ describe('createResultPools', () => {
     expect([...shownMeshes(group)[0].geometry.getAttribute('group').array]).toEqual([1, 1, 1]);
   });
 
+  it('picks a geometry with groups by its groups and one without by its path', () => {
+    const pools = createResultPools(new Group(), new MeshBasicMaterial());
+    pools.setPicking(true);
+    pools.update([plantGeometry(5), myzelMesh(null, 0, [0, 1, 1])]);
+    expect(pools.pickables().map((p) => p.kind)).toEqual(['geometry', 'groups']);
+    expect(pools.pickables()[1].object.geometry.getAttribute('group')).toBeDefined();
+    expect(pools.pickables()[0].object.geometry.getAttribute('group')).toBeUndefined();
+  });
+
   it('groups plant geometry by its path, keeping 24 bits of the id', () => {
     const group = new Group();
     const pools = createResultPools(group, takeGroups(new MeshBasicMaterial()));
@@ -391,13 +403,13 @@ describe('the vertex format', () => {
   });
 });
 
-// a mesh of `vertexCount` vertices without colors, `x` for every coordinate
+// a geometry with groups of `vertexCount` vertices without colors, `x` for every coordinate
 function bigMesh(vertexCount: number, x = 0) {
   const faceCount = vertexCount;
-  const data = new Int32Array(4 + faceCount * 3 + vertexCount * 7);
-  data.set([14, vertexCount, faceCount, 0]);
-  for (let i = 0; i < faceCount * 3; i++) data[4 + i] = i % vertexCount;
-  new Float32Array(data.buffer, (4 + faceCount * 3) * 4, vertexCount * 3).fill(x);
+  const data = new Int32Array(5 + faceCount * 3 + vertexCount * 7);
+  data.set([1, vertexCount, faceCount, -1, GROUPS]);
+  for (let i = 0; i < faceCount * 3; i++) data[5 + i] = i % vertexCount;
+  new Float32Array(data.buffer, (5 + faceCount * 3) * 4, vertexCount * 3).fill(x);
   return data;
 }
 
@@ -405,7 +417,7 @@ describe('freeing hidden objects', () => {
   it('frees a hidden mesh of more than a MB and its buffers', () => {
     const group = new Group();
     const pools = createResultPools(group, new MeshBasicMaterial());
-    pools.update([bigMesh(40_000)]);
+    pools.update([bigMesh(40_000), plantGeometry(5)]);
     const big = shownMeshes(group)[0];
     const freed = vi.fn();
     big.geometry.addEventListener('dispose', freed);

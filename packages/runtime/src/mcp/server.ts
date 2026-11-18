@@ -168,7 +168,7 @@ export function createServer(dir = nodesDir): McpServer {
         'Only the nodes whose id or description contains this word, like "leaf" or "cap"'
       ),
       type: z.string().optional().describe(
-        'Only the nodes that take or give data of this type, like "path", "geometry" or "mesh"'
+        'Only the nodes that take or give data of this type, like "path", "geometry" or "pattern"'
       )
     },
     annotations: READ_ONLY
@@ -241,7 +241,7 @@ export function createServer(dir = nodesDir): McpServer {
   server.registerTool('run_graph', {
     title: 'Run a graph',
     description: 'Builds the 3D model of a graph and answers with JSON: its vertices, faces, '
-      + 'instances and meshes, its bounds in meters (min, max, height, width), the ms it took, '
+      + 'instances and geometries, its bounds in meters (min, max, height, width), the ms it took, '
       + '"instancers", how many instances every instance node placed and how long and wide they '
       + 'are in meters, and "nodes", the ms and output bytes of every node, slowest first. A '
       + 'mushroom takes a '
@@ -298,7 +298,7 @@ export function createServer(dir = nodesDir): McpServer {
       description: 'Builds a graph and draws it: one PNG with a view from the front, from the '
         + 'side and from above next to each other (and from below with views '
         + '"front-side-top-below"), all at the same scale, or the views of a list like ["front"]. '
-        + 'Stems are brown, leaves green, Myzel meshes in their colors. Answers with the image and '
+        + 'Stems are brown, leaves green, geometry in its colors. Answers with the image and '
         + 'JSON of what it shows: triangles, instances, leaf area in m² and the bounds in meters. '
         + 'With "node" it draws what comes out of that node instead, paths as tubes and points as '
         + 'dots. With "seeds" or "times" it draws a sheet: the graph once per seed and time, a row '

@@ -34,7 +34,7 @@ import porcini from '@nodarium/runtime/templates/porcini';
 
 const runtime = createRuntime();
 const result = await runtime.execute(porcini, { ...porcini.settings, seed: 7 });
-const { meshes } = decodeResult(result);
+const { geometries } = decodeResult(result);
 ```
 
 ```ts
@@ -84,7 +84,7 @@ The ids stay, a template that is improved keeps its id. To add a template in thi
 
 ### Substrates
 
-The mushroom templates come without a substrate. `withSubstrate(graph, substrate)` returns a copy of a mushroom graph that grows on one: a Substrate group with the `max/myzel/mesh` node joins its scan into the last input of the `join_meshes` before the `output`, so it is the highest material group of the mesh, and gives the places of `sample_mesh` on it to the `points` of the Stipe group. Its instance is the one node with a `substrate` prop. `substrates` keeps the substrate `porcini`, `chanterelle`, `honey-fungus`, `sulphur-tuft`, `false-chanterelle` and `bitter-bolete` grew on before, `loadTemplate(id, { substrate: true })` loads a template with it.
+The mushroom templates come without a substrate. `withSubstrate(graph, substrate)` returns a copy of a mushroom graph that grows on one: a Substrate group with the `max/myzel/mesh` node joins its scan into the last input of the `join` before the `output`, so it is the highest material group of the geometry, and gives the places of `sample_mesh` on it to the `points` of the Stipe group. Its instance is the one node with a `substrate` prop. `substrates` keeps the substrate `porcini`, `chanterelle`, `honey-fungus`, `sulphur-tuft`, `false-chanterelle` and `bitter-bolete` grew on before, `loadTemplate(id, { substrate: true })` loads a template with it.
 
 ```ts
 import { loadTemplate, substrates, withSubstrate } from '@nodarium/runtime/templates';
@@ -314,7 +314,7 @@ const { graph } = parseProjectFile(JSON.parse(await readFile('fern.nodarium.json
 
 const runtime = createRuntime();
 const result = await runtime.execute(graph, { ...graph.settings, seed: 7 });
-const { geometries, instances, meshes, vertexCount, faceCount } = decodeResult(result);
+const { geometries, instances, vertexCount, faceCount } = decodeResult(result);
 ```
 
 `graph.settings` are the settings of the project as the app shows them, with the seed. Settings that are missing take the default of their node.
@@ -337,7 +337,7 @@ const runtime = createRuntime({ registry: new FetchNodeRegistry('/nodes') });
 
 const file = await fetch('/models/champignon.nodarium.json').then(r => r.json());
 const { graph } = parseProjectFile(file);
-const { meshes } = decodeResult(await runtime.execute(graph, graph.settings));
+const { geometries } = decodeResult(await runtime.execute(graph, graph.settings));
 ```
 
 The registry fetches `<baseUrl>/<user>/<collection>/<node>.wasm`, like `/nodes/max/myzel/output.wasm`. In a SvelteKit or Vite project, copy the folder into `static` (or `public`) once it is installed, for example with a `postinstall` script:
@@ -362,9 +362,8 @@ On the server (SvelteKit `+page.server.ts`, an API route), use `@nodarium/runtim
 
 ```ts
 type DecodedResult = {
-  geometries: GeometryData[]; // Plantarium geometry, one per path
+  geometries: GeometryData[]; // one per path of a plant, one with groups for a mushroom
   instances: InstancesData[]; // Plantarium instances like leaves
-  meshes: MeshData[]; // Myzel meshes
   vertexCount: number; // of everything, every instance counted
   faceCount: number;
 };
@@ -375,8 +374,9 @@ type MeshData = {
   faces: Int32Array; // three vertex indices per face
   positions: Float32Array; // x, y, z per vertex
   normals: Float32Array; // x, y, z per vertex
-  colors?: Uint8Array; // Myzel only: RGBA8 per vertex in sRGB, alpha 0 where a vertex has no color
-  groups?: Int32Array; // Myzel only: the material group (tissue) of every vertex
+  colors?: Uint8Array; // RGBA8 per vertex in sRGB, alpha how much of it shows over the material
+  groups?: Int32Array; // the material group (tissue) of every vertex, none: one group
+  creators?: Int32Array; // by group, the creator id of the node that made it, NO_CREATOR for none
 };
 
 type GeometryData = MeshData & { pathId: number }; // the path the geometry was made from
@@ -389,9 +389,11 @@ type InstancesData = MeshData & {
 };
 ```
 
-Plants come out as `geometries` and `instances`, mushrooms as `meshes`. A Myzel mesh carries the colors of nodes like `set_color` and a group for every vertex, so a viewer can give every tissue its own material. Vertices without a color of their own have alpha 0 and take the color of the material.
+Plants come out as `geometries`, one per path, and `instances`, a mushroom as one geometry with `groups`. Its colors come from nodes like `set_color`, and its group for every vertex lets a viewer give every tissue its own material. Alpha is how much of a color shows over the material: vertices without a color of their own have alpha 0 and take the color of the material.
 
-With three.js, a mesh becomes a `BufferGeometry`:
+Up to version 1.2 mushrooms came out as `meshes`, read by `readMesh()`, and the graphs of version 14 and before had nodes and links of the type `mesh`. Since 2.0 they are `geometries` with `groups`: read a mushroom with `decodeResult(result).geometries` or `readGeometry()`, the flags of the header are `GEOMETRY_FLAGS`. Old graphs are migrated when they load.
+
+With three.js, a geometry becomes a `BufferGeometry`:
 
 ```ts
 import { BufferAttribute, BufferGeometry } from 'three';

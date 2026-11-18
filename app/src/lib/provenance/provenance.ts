@@ -8,7 +8,7 @@ import { getOutputType, type Graph, type NodeDefinition } from '@nodarium/types'
 import { pathLineage, type PathLink } from '@nodarium/utils';
 
 /**
- * Which node made which part of the result. A path and a tissue of a Myzel mesh carry the creator
+ * Which node made which part of the result. A path and a tissue of a geometry with groups carry the creator
  * id of the node that made them, the index leads from that id back to the node as the editor
  * shows it, also through groups.
  */
@@ -40,13 +40,13 @@ type Reader = { node: number; flow: 'main' | 'side' | 'value' };
 export type ResultParts = {
   /** the links of its paths, by path id */
   links: Map<number, PathLink>;
-  /** the creator ids of the nodes that made a tissue of its Myzel meshes */
+  /** the creator ids of the nodes that made a tissue of its geometries with groups */
   tissues: Set<number>;
 };
 
 /**
  * Parts of a result: the geometry of paths and what sits on paths, both by path id, and the
- * tissues of Myzel meshes by the creator id of the node that made them
+ * tissues of geometries with groups by the creator id of the node that made them
  */
 export type Parts = { paths: Set<number>; instances: Set<number>; creators: Set<number> };
 
@@ -67,7 +67,7 @@ export function isEmpty(parts: Parts) {
 
 /** What the index reads of the definition of a node type */
 export type NodeTraits = {
-  /** whether an output sends paths, points or a mesh, the things parts are made of */
+  /** whether an output sends paths, points or geometry, the things parts are made of */
   isPartOutput: (type: string, output: number) => boolean;
   /** whether `input` is the one the node works on, not one it only looks at */
   isMainInput: (type: string, input: string) => boolean;
@@ -76,9 +76,9 @@ export type NodeTraits = {
 };
 
 /** The socket types that carry parts of the result from node to node */
-const PART_TYPES = ['path', 'points', 'mesh'];
+const PART_TYPES = ['path', 'points', 'geometry'];
 const isPartType = (type?: string) => !!type && PART_TYPES.includes(type);
-const JOIN_TYPES = /\/join(_meshes)?$/;
+const JOIN_TYPES = /\/join$/;
 
 /** The traits of the node types `getNode` defines */
 export function nodeTraits(getNode: (type: string) => NodeDefinition | undefined): NodeTraits {
@@ -279,16 +279,16 @@ export function partsOfRunning(
 }
 
 /**
- * The node that runs and made the part. A tissue of a Myzel mesh names its creator. An instance
+ * The node that runs and made the part. A group of a geometry names its creator. An instance
  * only knows the path it sits on: it leads to the instance node when exactly one instance node
  * gets the paths of that creator, else to the creator of the path.
  */
 export function nodeOfPart(
   index: ProvenanceIndex,
   result: ResultParts,
-  hit: { kind: 'geometry' | 'instances' | 'mesh'; pathId: number; creator?: number }
+  hit: { kind: 'geometry' | 'instances' | 'groups'; pathId: number; creator?: number }
 ) {
-  if (hit.kind === 'mesh') {
+  if (hit.kind === 'groups') {
     return hit.creator === undefined ? undefined : index.creators.get(hit.creator);
   }
   const link = result.links.get(hit.pathId);

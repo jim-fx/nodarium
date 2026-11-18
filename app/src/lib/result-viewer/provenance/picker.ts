@@ -21,10 +21,10 @@ import {
 
 export type Pickable = {
   object: Mesh | InstancedMesh;
-  kind: 'geometry' | 'instances' | 'mesh';
+  kind: 'geometry' | 'instances' | 'groups';
 };
 
-/** What is under a pixel: the object and its instance, or its vertex group for a Myzel mesh */
+/** What is under a pixel: the object and its instance, or its vertex group for a geometry with groups */
 export type Pick = Pickable & { index: number };
 
 /**
@@ -105,7 +105,7 @@ const FRAGMENT = /* glsl */ `
 function idMaterial(kind: Pickable['kind'], format: PickFormat) {
   const defines: Record<string, string> = {};
   if (kind === 'instances') defines.PICK_INSTANCES = '';
-  if (kind === 'mesh') defines.PICK_GROUPS = '';
+  if (kind === 'groups') defines.PICK_GROUPS = '';
   if (format === 'bytes') defines.PICK_BYTES = '';
   return new RawShaderMaterial({
     glslVersion: GLSL3,
@@ -171,7 +171,7 @@ export function createPicker(renderer: WebGLRenderer, format: PickFormat = 'inte
   const materials = {
     geometry: idMaterial('geometry', format),
     instances: idMaterial('instances', format),
-    mesh: idMaterial('mesh', format)
+    groups: idMaterial('groups', format)
   };
   const pickCamera = new PerspectiveCamera();
   const pixel = format === 'integer' ? new Uint32Array(4) : new Uint8Array(4);

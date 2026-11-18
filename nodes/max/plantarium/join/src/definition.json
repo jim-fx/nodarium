@@ -1,7 +1,7 @@
 {
   "id": "max/plantarium/join",
   "meta": {
-    "description": "Joins multiple paths or geometries into one list, for example to add roots to a plant or to give an instance node several leaves to pick from"
+    "description": "Joins multiple paths or geometries into one list, for example to add roots to a plant or to give an instance node several leaves to pick from. Geometries with groups, like the body, the gills and the veil of a mushroom, become one geometry, the groups of each numbered after those of the ones before it."
   },
   "outputs": [
     "path"
@@ -10,22 +10,30 @@
     "a": {
       "type": "path",
       "description": "Paths, geometry or instances, they come first in the list.",
-      "accepts": ["geometry"]
+      "accepts": [
+        "geometry"
+      ]
     },
     "b": {
       "type": "path",
       "description": "More paths, geometry or instances, after those of a.",
-      "accepts": ["geometry"]
+      "accepts": [
+        "geometry"
+      ]
     },
     "c": {
       "type": "path",
       "description": "More paths, geometry or instances, after those of b.",
-      "accepts": ["geometry"]
+      "accepts": [
+        "geometry"
+      ]
     },
     "d": {
       "type": "path",
       "description": "More paths, geometry or instances, after those of c.",
-      "accepts": ["geometry"]
+      "accepts": [
+        "geometry"
+      ]
     }
   }
 }

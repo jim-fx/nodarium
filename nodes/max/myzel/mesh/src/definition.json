@@ -1,11 +1,11 @@
 {
   "id": "max/myzel/mesh",
   "meta": {
-    "description": "A substrate to grow mushrooms on, a scanned mesh in real size baked into the node: a stump with the forest floor around it, a cushion of moss, pine needle litter or leaf litter. sample_mesh gives points on it where stipes can start, join_meshes shows it with the mushrooms."
+    "description": "A substrate to grow mushrooms on, a scanned mesh in real size baked into the node: a stump with the forest floor around it, a cushion of moss, pine needle litter or leaf litter. sample_mesh gives points on it where stipes can start, join shows it with the mushrooms."
   },
   "outputs": [
     {
-      "type": "mesh",
+      "type": "geometry",
       "label": "mesh"
     }
   ],
@@ -13,7 +13,12 @@
     "substrate": {
       "type": "select",
       "label": "Substrate",
-      "options": ["stump", "moss", "needles", "leaves"],
+      "options": [
+        "stump",
+        "moss",
+        "needles",
+        "leaves"
+      ],
       "value": 0,
       "description": "stump: a pine stump about 33 cm across on a mound of forest floor, 56 cm across. moss: a cushion of moss and forest floor, 23 cm across. needles: pine needle litter, 29 cm across. leaves: leaf litter with twigs, 29 cm across. Each sits on y = 0 at its rim, centred on the axis"
     },

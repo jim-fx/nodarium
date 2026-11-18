@@ -4,7 +4,7 @@
     "description": "A thin closed skin between two attachments, like the veil between the cap margin and the stipe before it tears. Gives the skin as a thin sheet mesh, which stays sharp at any mesh resolution. Once it has torn, two skirt nodes hang the ring from the stipe and the fringe from the margin."
   },
   "outputs": [
-    "mesh"
+    "geometry"
   ],
   "inputs": {
     "a": {

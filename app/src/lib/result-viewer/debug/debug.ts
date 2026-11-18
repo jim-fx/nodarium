@@ -1,4 +1,4 @@
-import { RESULT_TAGS } from '@nodarium/runtime';
+import { GEOMETRY_FLAGS, RESULT_TAGS } from '@nodarium/runtime';
 import { isPath, pathPointCount, splitNestedArray } from '@nodarium/utils';
 import {
   ArrowHelper,
@@ -36,7 +36,7 @@ const RING_SEGMENTS = 12;
 // drawn on top of the result
 const RENDER_ORDER = 999;
 
-const DRAWN_TYPES = new Set(['path', 'geometry', 'points', 'mesh', 'pattern']);
+const DRAWN_TYPES = new Set(['path', 'geometry', 'points', 'pattern']);
 // a 2D pattern, see nodarium_utils::pattern
 const PATTERN_TAG = 15;
 
@@ -141,19 +141,23 @@ export function selectLines(data: Int32Array, amount = 1, clip = 1) {
   return Int32Array.from([LINES_TAG, words.length / LINE_WORDS, ...words]);
 }
 
-/** A Myzel mesh with `amount` of its faces, its vertices stay as they are */
+/** The words of a geometry before its faces: type, vertices, faces, path id and flags */
+const GEOMETRY_HEADER = 5;
+
+/** A geometry with groups with `amount` of its faces, its vertices stay as they are */
 function selectFaces(data: Int32Array, amount = 1) {
   if (amount >= 1) return data;
   const faces = data[2];
   const kept: number[] = [];
   for (let f = 0; f < faces; f++) {
-    if (isShown(itemKey(f), amount)) kept.push(...data.subarray(4 + f * 3, 7 + f * 3));
+    const at = GEOMETRY_HEADER + f * 3;
+    if (isShown(itemKey(f), amount)) kept.push(...data.subarray(at, at + 3));
   }
   const result = new Int32Array(data.length - (faces * 3 - kept.length));
-  result.set(data.subarray(0, 4));
+  result.set(data.subarray(0, GEOMETRY_HEADER));
   result[2] = kept.length / 3;
-  result.set(kept, 4);
-  result.set(data.subarray(4 + faces * 3), 4 + kept.length);
+  result.set(kept, GEOMETRY_HEADER);
+  result.set(data.subarray(GEOMETRY_HEADER + faces * 3), GEOMETRY_HEADER + kept.length);
   return result;
 }
 
@@ -264,8 +268,8 @@ function createPathDebug(paths: Int32Array[], clip = 1) {
   return group;
 }
 
-/** geometries, or Myzel meshes, as a wireframe */
-function createGeometryDebug(geometries: Int32Array[], layout: 'geometry' | 'mesh' = 'geometry') {
+/** geometries as a wireframe */
+function createGeometryDebug(geometries: Int32Array[]) {
   const group = new Group();
   const material = new MeshBasicMaterial({
     color: '#4dd2ff',
@@ -275,7 +279,7 @@ function createGeometryDebug(geometries: Int32Array[], layout: 'geometry' | 'mes
     depthTest: false
   });
 
-  createGeometryPool(group, material, layout).update(geometries);
+  createGeometryPool(group, material).update(geometries);
   group.traverse((child) => {
     (child as Mesh).renderOrder = RENDER_ORDER;
   });
@@ -421,21 +425,19 @@ export function updateDebugScene(group: Group, data: Record<number, DebugEntry>)
     // single values like floats and vectors have nothing to draw
     if (!DRAWN_TYPES.has(type) || !(value instanceof Int32Array)) continue;
 
-    // a mesh is a single item without brackets, a pattern only arrives as its preview
-    // mesh, which the output node wraps in a list. One that could not be previewed is skipped.
-    if (value[0] === RESULT_TAGS.mesh) {
-      group.add(createGeometryDebug([selectFaces(value, amount)], 'mesh'));
-      continue;
-    }
+    // a pattern only arrives as its preview geometry, which the output node wraps in a list.
+    // One that could not be previewed is skipped.
     if (value[0] === PATTERN_TAG) continue;
 
     // a path output can carry geometry and instances along, e.g. from the instance node
     const items = splitItems(value);
     const paths = items.filter((item) => isPath(item));
-    const geometries = items.filter((item) => item[0] === 1);
+    // a geometry with groups, like a mushroom, shows a share of its faces, the others by path
+    const grouped = (item: Int32Array) => (item[4] & GEOMETRY_FLAGS.groups) !== 0;
+    const geometries = items.filter((item) => item[0] === RESULT_TAGS.geometry && !grouped(item));
+    const meshes = items.filter((item) => item[0] === RESULT_TAGS.geometry && grouped(item));
     const instances = items.filter((item) => item[0] === 2);
     const points = items.filter((item) => item[0] === 4);
-    const meshes = items.filter((item) => item[0] === RESULT_TAGS.mesh);
     const lines = items.filter((item) => item[0] === RESULT_TAGS.lines);
 
     const shownPaths = pick(paths, idKeys(paths, (p) => p[2]), amount);
@@ -447,7 +449,7 @@ export function updateDebugScene(group: Group, data: Record<number, DebugEntry>)
     if (instances.length) group.add(createInstanceDebug(instances, amount));
     if (shownPoints.length) group.add(createPointsDebug(shownPoints));
     if (meshes.length) {
-      group.add(createGeometryDebug(meshes.map((m) => selectFaces(m, amount)), 'mesh'));
+      group.add(createGeometryDebug(meshes.map((m) => selectFaces(m, amount))));
     }
     if (lines.length) group.add(createLinesDebug(lines.map((l) => selectLines(l, amount, clip))));
   }

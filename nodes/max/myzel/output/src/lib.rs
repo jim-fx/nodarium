@@ -1,7 +1,11 @@
-use myzel_core::{pack_rgba, path_lines, read_paths, Mesh, PathStyle, MESH_TAG};
+use myzel_core::{pack_rgba, path_lines, read_paths, Mesh, MeshWords, PathStyle};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::abi::{self, Output};
-use nodarium_utils::{geometry::orthogonal_to, Pattern, PATTERN_TAG};
+use nodarium_utils::{
+    concat_args,
+    geometry::{is_geometry, orthogonal_to, split_items},
+    wrap_arg, Pattern, PATTERN_TAG,
+};
 use std::f32::consts::TAU;
 
 nodarium_definition_file!("src/definition.json");
@@ -44,61 +48,60 @@ fn pattern_mesh(pattern: &Pattern) -> Mesh {
     mesh
 }
 
-/// Wraps items in the list the viewer reads: [0, 1, [0, n + 1, ...item, 1, 1]..., 1, 1]
-fn list(items: &[&[i32]]) -> Vec<i32> {
-    let mut output = Vec::with_capacity(items.iter().map(|i| i.len() + 4).sum::<usize>() + 4);
-    output.extend([0, 1]);
-    for item in items {
-        output.extend([0, item.len() as i32 + 1]);
-        output.extend_from_slice(item);
-        output.extend([1, 1]);
+/// The list the viewer reads of a single geometry, `[0, 1, ...geometry, 1, 1]`: framed in place
+/// when it is an input the host copied in, the largest result of a build would otherwise be in
+/// memory twice
+fn geometry_list(geometry: &[i32]) -> Output {
+    match abi::frame_input(geometry, &[0, 1], &[1, 1]) {
+        Some(framed) => framed.into(),
+        None => concat_args(vec![geometry]).into(),
     }
-    output.extend([1, 1]);
-    output
 }
 
-/// The list of one mesh: framed in place when it is an input the host copied in, the largest
-/// result of a build would otherwise be in memory twice
-fn mesh_list(mesh: &[i32]) -> Output {
-    let prefix = [0, 1, 0, mesh.len() as i32 + 1];
-    match abi::frame_input(mesh, &prefix, &[1, 1, 1, 1]) {
-        Some(framed) => framed.into(),
-        None => list(&[mesh]).into(),
+/// A list of geometry, like the one of `join`, goes to the viewer as it is, its paths as lines
+fn show_list(list: &[i32]) -> Output {
+    let items = split_items(list);
+    let paths = read_paths(list, PathStyle::BODY);
+    let geometry: Vec<&[i32]> = items.iter().copied().filter(|item| is_geometry(item)).collect();
+    if paths.is_empty() && geometry.len() == items.len() && !items.is_empty() {
+        return abi::frame_input(list, &[], &[]).map_or_else(|| list.to_vec().into(), Output::from);
     }
+    let lines = (!paths.is_empty()).then(|| wrap_arg(&path_lines(&paths)));
+    concat_args(geometry.into_iter().chain(lines.as_deref()).collect()).into()
 }
 
 #[nodarium_execute(arena)]
 pub fn execute(args: &[&[i32]]) -> Output {
-    match args[0].first() {
-        Some(&MESH_TAG) => mesh_list(args[0]),
-        Some(&PATTERN_TAG) => match Pattern::decode(args[0]) {
-            Some(pattern) => list(&[&pattern_mesh(&pattern).encode()]).into(),
-            None => list(&[]).into(),
-        },
-        _ => {
-            let paths = read_paths(args[0], PathStyle::BODY);
-            if paths.is_empty() {
-                return list(&[]).into();
-            }
-            list(&[&path_lines(&paths)]).into()
-        }
+    if MeshWords::read(args[0]).is_some() {
+        return geometry_list(args[0]);
     }
+    if args[0].first() == Some(&PATTERN_TAG) {
+        return match Pattern::decode(args[0]) {
+            Some(pattern) => concat_args(vec![&pattern_mesh(&pattern).encode()]).into(),
+            None => concat_args(vec![]).into(),
+        };
+    }
+    if args[0].len() < 4 {
+        return concat_args(vec![]).into();
+    }
+    show_list(args[0])
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{__nodarium_execute_inner, list, Output};
+    use super::{__nodarium_execute_inner, Output};
     use glam::Vec3;
     use myzel_core::{Mesh, LINES_TAG};
     use nodarium_utils::{
-        concat_arg_vecs,
+        concat_arg_vecs, concat_args,
         geometry::{create_multiple_paths, wrap_multiple_paths},
         split_args,
     };
 
+    /// The items of the list the viewer reads, brackets included
     fn run(input: &[i32]) -> Vec<Vec<i32>> {
         let output = __nodarium_execute_inner(&[input]);
-        split_args(unsafe { output.words() }).iter().map(|item| item[2..item.len() - 2].to_vec()).collect()
+        split_args(unsafe { output.words() }).iter().map(|item| item.to_vec()).collect()
     }
 
     fn paths() -> Vec<i32> {
@@ -115,20 +118,19 @@ mod tests {
     fn shows_paths_as_lines_without_a_surface() {
         let items = run(&paths());
         assert_eq!(items.len(), 1);
-        assert_eq!(&items[0][..2], &[LINES_TAG, 4]);
+        assert_eq!(&items[0][2..4], &[LINES_TAG, 4]);
     }
 
     #[test]
     fn colors_the_lines_by_the_group_of_their_creator() {
         let input = concat_arg_vecs(vec![paths(), create_multiple_paths(1, 2, 1, 4)]);
         let lines = &run(&input)[0];
-        let groups: Vec<i32> = lines[2..].chunks_exact(7).map(|l| l[6]).collect();
+        let groups: Vec<i32> = lines[4..lines.len() - 2].chunks_exact(7).map(|l| l[6]).collect();
         assert_eq!(groups, [1, 1, 1, 1, 0]);
     }
 
-    #[test]
-    fn passes_a_mesh_through() {
-        let mesh = Mesh {
+    fn triangle() -> Vec<i32> {
+        Mesh {
             faces: vec![0, 1, 2],
             positions: vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
             normals: vec![0.0, 0.0, 1.0].repeat(3),
@@ -136,7 +138,12 @@ mod tests {
             groups: vec![0; 3],
             creators: vec![12],
         }
-        .encode();
+        .encode()
+    }
+
+    #[test]
+    fn passes_a_geometry_through() {
+        let mesh = triangle();
         assert_eq!(run(&mesh), vec![mesh.clone()]);
         // a mesh the host copied in is framed where it is, as the copy would be
         nodarium_utils::abi::reset();
@@ -147,8 +154,19 @@ mod tests {
         };
         let framed = __nodarium_execute_inner(&[input]);
         assert!(matches!(framed, Output::InPlace(_)));
-        assert_eq!(unsafe { framed.words() }, list(&[&mesh]));
+        assert_eq!(unsafe { framed.words() }, concat_args(vec![&mesh]));
         nodarium_utils::abi::reset();
+    }
+
+    #[test]
+    fn passes_a_list_of_geometry_through_and_shows_its_paths_as_lines() {
+        let list = concat_args(vec![&triangle(), &triangle()]);
+        assert_eq!(unsafe { __nodarium_execute_inner(&[&list]).words() }, &list[..]);
+        let mixed = concat_arg_vecs(vec![triangle(), paths()]);
+        let items = run(&mixed);
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0], triangle());
+        assert_eq!(&items[1][2..4], &[LINES_TAG, 4]);
     }
 
     #[test]

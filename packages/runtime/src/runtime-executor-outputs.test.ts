@@ -171,7 +171,7 @@ describe('nodes with several outputs', () => {
       }) as unknown as NodeDefinition;
     const myzelOutput = {
       id: 'max/myzel/output',
-      inputs: { mesh: { type: 'path', accepts: ['mesh', 'path', 'pattern'] } },
+      inputs: { input: { type: 'path', accepts: ['geometry', 'pattern'] } },
       outputs: [],
       execute: vi.fn(([p]: Int32Array[]) => Int32Array.of(p[0], 99))
     } as unknown as NodeDefinition;
@@ -183,7 +183,7 @@ describe('nodes with several outputs', () => {
       await runtime.execute(
         graph(
           [node(0, source.id), node(1, debug.id), node(2, myzelOutput.id)],
-          [[0, 0, 1, 'input'], [0, 0, 2, 'mesh']]
+          [[0, 0, 1, 'input'], [0, 0, 2, 'input']]
         ),
         {}
       );
@@ -195,9 +195,9 @@ describe('nodes with several outputs', () => {
       expect(entry).toEqual({ type: 'pattern', output: 0, data: Int32Array.of(15, 99) });
     });
 
-    it('draws a debugged mesh as it is', async () => {
-      const entry = await debugged(maker('max/myzel/join_meshes', 'mesh', [14, 1, 2]));
-      expect(entry).toEqual({ type: 'mesh', output: 0, data: Int32Array.of(14, 1, 2) });
+    it('draws a debugged geometry as it is', async () => {
+      const entry = await debugged(maker('max/myzel/pores', 'geometry', [1, 1, 2]));
+      expect(entry).toEqual({ type: 'geometry', output: 0, data: Int32Array.of(1, 1, 2) });
     });
 
     it('draws debugged paths as they are', async () => {

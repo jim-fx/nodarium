@@ -124,16 +124,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "myzel_join_meshes"
-version = "0.1.0"
-dependencies = [
- "myzel_core",
- "nodarium_macros",
- "nodarium_utils",
- "serde_json",
-]
-
-[[package]]
 name = "myzel_lamellae"
 version = "0.1.0"
 dependencies = [
@@ -262,16 +252,6 @@ dependencies = [
 
 [[package]]
 name = "myzel_set_fill"
-version = "0.1.0"
-dependencies = [
- "myzel_core",
- "nodarium_macros",
- "nodarium_utils",
- "serde_json",
-]
-
-[[package]]
-name = "myzel_set_mesh_color"
 version = "0.1.0"
 dependencies = [
  "myzel_core",

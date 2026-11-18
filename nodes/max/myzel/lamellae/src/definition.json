@@ -4,7 +4,7 @@
     "description": "Hangs thin gills under a cap where a pattern has stripes, like Agaricus: every stripe of reaction_diffusion becomes a plate that forks and starts between others where the stripes do. Free of the stipe, or with decurrent running on down it like Pleurotus. For the blunt false gills of a chanterelle use ridges. Gives the gills as a mesh, which keeps the plates thin at any mesh resolution."
   },
   "outputs": [
-    "mesh"
+    "geometry"
   ],
   "inputs": {
     "cap": {

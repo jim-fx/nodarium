@@ -129,6 +129,7 @@ export const NodeInputPointsSchema = z.object({
   value: z.array(z.number()).optional()
 });
 
+/** Only the group inputs of graphs before version 15, their migration makes them geometry */
 export const NodeInputMeshSchema = z.object({
   ...DefaultOptionsSchema.shape,
   type: z.literal('mesh'),

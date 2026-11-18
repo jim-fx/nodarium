@@ -112,7 +112,6 @@ export type DataSummary = {
   /** extents along x, y and z of every geometry, in the units of the geometry */
   geometries?: { count: number; vertices: number; faces: number; size: Spread[] };
   points?: number;
-  meshes?: { count: number; vertices: number; faces: number };
 };
 
 function pathLength(path: Int32Array) {
@@ -146,7 +145,7 @@ export function summarizeData(data: Int32Array): DataSummary {
       (summary.instances ??= []).push(instanceBlock(item));
     } else if (item[0] === RESULT_TAGS.geometry) {
       const [, vertices, faces] = item;
-      const positions = floatsOf(item, 4 + faces * 3, vertices * 3);
+      const positions = floatsOf(item, 5 + faces * 3, vertices * 3);
       const geometries = summary.geometries ??= { count: 0, vertices: 0, faces: 0, size: [] };
       geometries.count++;
       geometries.vertices += vertices;
@@ -161,11 +160,6 @@ export function summarizeData(data: Int32Array): DataSummary {
       }
     } else if (item[0] === POINTS_TAG) {
       summary.points = (summary.points ?? 0) + 1;
-    } else if (item[0] === RESULT_TAGS.mesh) {
-      const meshes = summary.meshes ??= { count: 0, vertices: 0, faces: 0 };
-      meshes.count++;
-      meshes.vertices += item[1];
-      meshes.faces += item[2];
     }
   }
   if (summary.geometries) summary.geometries.size = sizes.map((s) => spread(s)!).filter(Boolean);
@@ -469,11 +463,6 @@ function dataLines(data: DataSummary) {
     );
   }
   if (data.points !== undefined) lines.push(`${data.points} points`);
-  if (data.meshes) {
-    lines.push(
-      `${data.meshes.count} meshes, ${data.meshes.vertices} vertices, ${data.meshes.faces} faces`
-    );
-  }
   return lines.length ? lines : ['nothing'];
 }
 

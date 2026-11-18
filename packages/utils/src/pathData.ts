@@ -60,7 +60,7 @@ export function readPathLink(path: Int32Array): PathLink {
   };
 }
 
-/** The id of the path an extruded geometry was made from, `NO_PATH` for other geometry. */
+/** The id of the path a geometry `[1, v, f, path id, flags, ...]` was made from, `NO_PATH` for none. */
 export function readGeometryPathId(geometry: Int32Array) {
   return geometry[3];
 }

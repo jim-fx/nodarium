@@ -2,7 +2,7 @@
 // allocator grows the memory before and after them. It must never hand out the arena's pages:
 // the compiled `output` node takes a large list of paths into the arena and builds its lines and
 // their list with the allocator, which has to grow the memory past the arena. See docs/ABI.md.
-// `set_mesh_color` paints the mesh the host copied in where it is, and lengthens it in the arena
+// `set_color` paints the geometry the host copied in where it is, and lengthens it in the arena
 // when it has no colors yet.
 import type { WasmSlice } from '@nodarium/types';
 import { createWasmWrapper } from '@nodarium/utils';
@@ -19,7 +19,7 @@ type Exports = {
 
 const ON_CI = !!(process.env.CI || process.env.GITEA_ACTIONS);
 const NODE = resolve('static/nodes/max/myzel/output.wasm');
-const PAINT = resolve('static/nodes/max/myzel/set_mesh_color.wasm');
+const PAINT = resolve('static/nodes/max/plantarium/set_color.wasm');
 const BUILT = existsSync(NODE) && existsSync(PAINT);
 
 const LINES_TAG = 12;
@@ -109,42 +109,50 @@ describe.skipIf(!BUILT && !ON_CI)('the arena of a node', () => {
   });
 });
 
-const MESH_TAG = 14;
+const GEOMETRY_HEAD = 7;
 const COLORS = 1;
+const GROUPS = 4;
 
-/** A strip of `v` vertices, with one color per vertex when `colored` */
+/**
+ * A strip of `v` vertices with groups, like a mushroom, with one color per vertex when
+ * `colored`: `[0, n, 1, v, f, path id, flags, ...faces, ...positions, ...normals, ...colors?,
+ * ...groups, 1, 1]`
+ */
 function mesh(v: number, colored: boolean) {
   const f = v - 2;
-  const words = new Int32Array(4 + f * 3 + v * (colored ? 8 : 7));
-  words.set([MESH_TAG, v, f, colored ? COLORS : 0]);
-  for (let i = 0; i < f; i++) words.set([i, i + 1, i + 2], 4 + i * 3);
-  const vertices = 4 + f * 3;
+  const words = new Int32Array(GEOMETRY_HEAD + f * 3 + v * (colored ? 8 : 7) + 2);
+  words.set([0, words.length - 3, 1, v, f, -1, GROUPS | (colored ? COLORS : 0)]);
+  for (let i = 0; i < f; i++) words.set([i, i + 1, i + 2], GEOMETRY_HEAD + i * 3);
+  const vertices = GEOMETRY_HEAD + f * 3;
   new Float32Array(words.buffer, vertices * 4, v * 6).set(
     Float32Array.from({ length: v * 6 }, (_, i) => i * 0.5)
   );
   for (let i = 0; i < v; i++) {
     if (colored) words[vertices + v * 6 + i] = i;
-    words[words.length - v + i] = i % 5;
+    words[words.length - 2 - v + i] = i % 5;
   }
+  words.set([1, 1], words.length - 2);
   return words;
 }
 
 /** What painting `words` in `[r, g, b]` gives */
 function painted(words: Int32Array, [r, g, b]: number[]) {
-  const [, v, f, flags] = words;
-  const colors = 4 + f * 3 + v * 6;
-  const out = new Int32Array(colors + v * 2);
+  const [, , , v, f, , flags] = words;
+  const colors = GEOMETRY_HEAD + f * 3 + v * 6;
+  const out = new Int32Array(colors + v * 2 + 2);
   out.set(words.subarray(0, colors));
-  out[3] = COLORS;
+  out[1] = out.length - 3;
+  out[6] = flags | COLORS;
   out.fill(r | g << 8 | b << 16 | 0xff000000, colors, colors + v);
   out.set(words.subarray(flags & COLORS ? colors + v : colors), colors + v);
   return out;
 }
 
 const color = (rgb: number[]) => Int32Array.of(0, 4, ...rgb, 1, 1);
+const depth = Int32Array.of(1);
 
-describe.skipIf(!BUILT && !ON_CI)('set_mesh_color', () => {
-  it('paints a mesh the host copied in where it is', () => {
+describe.skipIf(!BUILT && !ON_CI)('set_color on a geometry', () => {
+  it('paints a geometry the host copied in where it is', () => {
     const { exports, panic } = instantiate(PAINT);
     const memory = exports.memory;
     for (
@@ -157,34 +165,38 @@ describe.skipIf(!BUILT && !ON_CI)('set_mesh_color', () => {
       const rgb = color([run, 2, 3]);
       const colorPtr = exports.nodarium_alloc(rgb.byteLength);
       new Int32Array(memory.buffer, colorPtr, rgb.length).set(rgb);
-      const tablePtr = exports.nodarium_alloc(16);
-      new Uint32Array(memory.buffer, tablePtr, 4).set([
+      const depthPtr = exports.nodarium_alloc(4);
+      new Int32Array(memory.buffer, depthPtr, 1).set(depth);
+      const tablePtr = exports.nodarium_alloc(24);
+      new Uint32Array(memory.buffer, tablePtr, 6).set([
         inputPtr,
         input.length,
         colorPtr,
-        rgb.length
+        rgb.length,
+        depthPtr,
+        1
       ]);
 
       let resultPtr: number;
       try {
-        resultPtr = exports.nodarium_execute(tablePtr, 2);
+        resultPtr = exports.nodarium_execute(tablePtr, 3);
       } catch (error) {
-        throw new Error(`set_mesh_color panicked: ${panic()}`, { cause: error });
+        throw new Error(`set_color panicked: ${panic()}`, { cause: error });
       }
       const [ptr, len] = new Uint32Array(memory.buffer, resultPtr, 2);
       expect(ptr, `run ${run}: painted where the input is`).toBe(inputPtr);
       const expected = painted(input, [run, 2, 3]);
       expect(len).toBe(expected.length);
       const result = new Int32Array(memory.buffer, ptr, len);
-      expect(changed(result, (i) => expected[i]), `run ${run}: the painted mesh`).toBe(-1);
+      expect(changed(result, (i) => expected[i]), `run ${run}: the painted geometry`).toBe(-1);
     }
   });
 
-  it('holds a mesh once, and reads the length of the longer result', () => {
+  it('holds a geometry once, and reads the length of the longer result', () => {
     const wasm = createWasmWrapper(readFileSync(PAINT) as unknown as ArrayBuffer);
     const input = mesh(200_000, false);
     wasm.reset();
-    const result = wasm.execute([input, color([9, 8, 7])]) as WasmSlice;
+    const result = wasm.execute([input, color([9, 8, 7]), depth]) as WasmSlice;
     const expected = painted(input, [9, 8, 7]);
     expect(result.len).toBe(expected.length);
     const words = new Int32Array(result.memory.buffer, result.ptr, result.len);
@@ -192,13 +204,13 @@ describe.skipIf(!BUILT && !ON_CI)('set_mesh_color', () => {
     expect(result.memory.buffer.byteLength).toBeLessThan(expected.byteLength * 1.5);
   });
 
-  it('paints its own result, which other nodes may still read, into a new mesh', () => {
+  it('paints its own result, which other nodes may still read, into a new geometry', () => {
     const wasm = createWasmWrapper(readFileSync(PAINT) as unknown as ArrayBuffer);
     const input = mesh(50_000, false);
     wasm.reset();
-    const first = wasm.execute([input, color([1, 2, 3])]) as WasmSlice;
+    const first = wasm.execute([input, color([1, 2, 3]), depth]) as WasmSlice;
     const before = new Int32Array(first.memory.buffer, first.ptr, first.len).slice();
-    const second = wasm.execute([first, color([4, 5, 6])]) as WasmSlice;
+    const second = wasm.execute([first, color([4, 5, 6]), depth]) as WasmSlice;
     expect(second.ptr).not.toBe(first.ptr);
     const kept = new Int32Array(first.memory.buffer, first.ptr, first.len);
     expect(changed(kept, (i) => before[i]), 'the first result changed').toBe(-1);

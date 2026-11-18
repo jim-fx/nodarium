@@ -1,16 +1,15 @@
 {
   "id": "max/myzel/output",
   "meta": {
-    "description": "Shows a mesh, paths as lines or a pattern as a disc"
+    "description": "Shows geometry, paths as lines or a pattern as a disc"
   },
   "outputs": [],
   "inputs": {
-    "mesh": {
+    "input": {
       "type": "path",
-      "description": "What to show: a mesh, paths (drawn as lines) or a pattern (drawn as a disc).",
+      "description": "What to show: geometry, like the list of a join, paths (drawn as lines) or a pattern (drawn as a disc).",
       "accepts": [
-        "mesh",
-        "path",
+        "geometry",
         "pattern"
       ],
       "external": true

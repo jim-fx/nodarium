@@ -93,7 +93,7 @@ function load(name: string): Run {
       if (input.type === 'creator') return Int32Array.of(id);
       if (key in props) return encode(input.type, props[key]);
       if (input.type === 'seed') return Int32Array.of(0);
-      if (['path', 'force', 'points', 'pattern', 'mesh'].includes(input.type)) {
+      if (['path', 'geometry', 'force', 'points', 'pattern'].includes(input.type)) {
         return new Int32Array(0);
       }
       if (input.type === 'vec3') return encode('vec3', input.value ?? [0, 0, 0]);

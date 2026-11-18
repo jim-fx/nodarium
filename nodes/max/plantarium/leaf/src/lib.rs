@@ -79,7 +79,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let vertex_amount = position_amount * layers;
 
     let out_length = 
-        4  // metadata
+        5  // metadata
         + face_amount * 3 // indices
         + vertex_amount * 3  // positions
         + vertex_amount * 3; // normals
@@ -93,7 +93,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     out[2] = face_amount.try_into().unwrap();
     // not made from a path
     out[3] = NO_PATH;
-    let mut offset = 4;
+    // no colors, no groups
+    out[4] = 0;
+    let mut offset = 5;
 
     let mut idx = 0;
     for layer in 0..layers {

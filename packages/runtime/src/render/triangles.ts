@@ -1,5 +1,5 @@
 import { isPath, PATH_HEADER_SIZE, pathPointCount, splitNestedArray } from '@nodarium/utils';
-import { RESULT_TAGS } from '../result/decode-result';
+import { GEOMETRY_FLAGS, RESULT_TAGS } from '../result/decode-result';
 
 export type Vec3 = [number, number, number];
 /** `color` is the mean sRGB color of its vertices, over the default color by their alpha */
@@ -31,34 +31,10 @@ function blend(colors: Uint8Array | undefined, corners: number[], fallback: numb
   ) as Vec3;
 }
 
-function addMesh(part: Int32Array, triangles: Triangle[]) {
-  // [14, vertices, faces, flags, ...faces, ...positions, ...normals, ...colors?, ...groups,
-  //   n?, ...creators?], only what comes before the groups is read
-  const [vertexCount, faceCount] = [part[1], part[2]];
-  const faces = part.subarray(4, 4 + faceCount * 3);
-  const positions = floats(part, 4 + faceCount * 3, vertexCount * 3);
-  const vertex = (
-    v: number
-  ): Vec3 => [positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]];
-  const colorStart = 4 + faceCount * 3 + vertexCount * 6;
-  const colors = part[3] & 1
-    ? new Uint8Array(part.buffer, part.byteOffset + colorStart * 4, vertexCount * 4)
-    : undefined;
-  for (let f = 0; f < faceCount; f++) {
-    const corners = [faces[f * 3], faces[f * 3 + 1], faces[f * 3 + 2]];
-    triangles.push({
-      a: vertex(corners[0]),
-      b: vertex(corners[1]),
-      c: vertex(corners[2]),
-      instanced: false,
-      color: blend(colors, corners, STEM_COLOR)
-    });
-  }
-}
-
-/** Plantarium geometry and instances, returns the number of instances */
+/** Geometry and instances, returns the number of instances */
 function addGeometry(part: Int32Array, triangles: Triangle[]) {
-  // geometry: [1, vertices, faces, path id, ...faces, ...positions, ...normals, ...colors?]
+  // geometry: [1, vertices, faces, path id, flags, ...faces, ...positions, ...normals,
+  //   ...colors?, ...groups?, n?, ...creators?], only what comes before the groups is read
   // instances: [2, vertices, faces, instances, depth, ...faces, ...positions, ...normals,
   //   ...matrices, ...path ids, ...colors?]
   const instanced = part[0] === RESULT_TAGS.instances;
@@ -66,15 +42,18 @@ function addGeometry(part: Int32Array, triangles: Triangle[]) {
   const vertexCount = part[index++];
   const faceCount = part[index++];
   const instanceCount = instanced ? part[index++] : 1;
-  // the depth of instances, the path id of geometry
-  index++;
+  // the depth of instances, the path id and the flags of geometry
+  index += instanced ? 1 : 2;
   const faces = part.subarray(index, index + faceCount * 3);
   index += faceCount * 3;
   const positions = floats(part, index, vertexCount * 3);
   index += vertexCount * 6;
   const matrices = instanced ? floats(part, index, instanceCount * 16) : undefined;
   const colorStart = index + (instanced ? instanceCount * 17 : 0);
-  const colors = vertexCount > 0 && part.length === colorStart + vertexCount
+  const colored = instanced
+    ? part.length === colorStart + vertexCount
+    : (part[4] & GEOMETRY_FLAGS.colors) !== 0;
+  const colors = vertexCount > 0 && colored
     ? new Uint8Array(part.buffer, part.byteOffset + colorStart * 4, vertexCount * 4)
     : undefined;
   const fallback = instanced ? INSTANCE_COLOR : STEM_COLOR;
@@ -201,9 +180,9 @@ function addDot({ p, r }: Dot, triangles: Triangle[]) {
   }
 }
 
-/** The items of a value: a list, or a single mesh or lines as a node gives them on their own */
+/** The items of a value: a list, or a single item or lines as a node gives them on their own */
 export function itemsOf(data: Int32Array) {
-  if (data[0] === RESULT_TAGS.mesh || data[0] === RESULT_TAGS.lines) return [data];
+  if (data[0] === RESULT_TAGS.lines) return [data];
   const items = splitNestedArray(data);
   // a single encoded item is not wrapped in an outer list
   if (items.length === 0 && data[0] === 0 && data.length > 4) return [data.slice(2, -2)];
@@ -211,7 +190,7 @@ export function itemsOf(data: Int32Array) {
 }
 
 /**
- * The triangles of the geometry, the instances and the Myzel meshes in a result. With `paths`
+ * The triangles of the geometry and the instances in a result. With `paths`
  * also paths and Myzel lines as tubes of their thickness and points as small dots, for the
  * output of a node in the middle of a graph.
  */
@@ -222,8 +201,7 @@ export function collectTriangles(result: Int32Array, paths = false) {
   let instances = 0;
 
   for (const part of paths ? itemsOf(result) : splitNestedArray(result)) {
-    if (part[0] === RESULT_TAGS.mesh) addMesh(part, triangles);
-    else if (part[0] === RESULT_TAGS.geometry || part[0] === RESULT_TAGS.instances) {
+    if (part[0] === RESULT_TAGS.geometry || part[0] === RESULT_TAGS.instances) {
       instances += addGeometry(part, triangles);
     } else if (!paths) continue;
     else if (isPath(part)) pathSegments(part, segments);

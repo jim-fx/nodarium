@@ -4,7 +4,7 @@
     "description": "Fills the underside of a cap with tubes that open in pores, the sponge of a Boletus. The walls between the tubes are where a pattern is 1, the pores where it is 0: the cells of cracks are round pores, the stripes of reaction_diffusion long ones. The layer follows the cap as it opens, like lamellae. Gives the tubes as a mesh."
   },
   "outputs": [
-    "mesh"
+    "geometry"
   ],
   "inputs": {
     "cap": {

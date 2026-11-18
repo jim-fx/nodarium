@@ -4,7 +4,7 @@
     "description": "Turns paths into the surface around them with a fibrous relief along them. Every node that made paths is its own material group. Paths from set_color bring their color, the color goes over smoothly where paths of two colors meet."
   },
   "outputs": [
-    "mesh"
+    "geometry"
   ],
   "inputs": {
     "paths": {

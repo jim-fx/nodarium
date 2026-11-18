@@ -55,7 +55,7 @@ function substrateGroup(id: number, substrate: Substrate): GroupDefinition {
       [input, 1, mesh, 'colored'],
       [input, 2, sample, 'amount'],
       [input, 3, sample, 'spacing'],
-      [mesh, 0, sample, 'mesh'],
+      [mesh, 0, sample, 'geometry'],
       [mesh, 0, output, 'out_0'],
       [sample, 0, output, 'out_1']
     ],
@@ -94,13 +94,13 @@ function substrateGroup(id: number, substrate: Substrate): GroupDefinition {
         description: 'How far apart the places keep at least'
       }
     },
-    outputs: [{ type: 'mesh', label: 'Substrate' }, { type: 'points', label: 'Places' }]
+    outputs: [{ type: 'geometry', label: 'Substrate' }, { type: 'points', label: 'Places' }]
   };
 }
 
 /**
  * A copy of a mushroom graph that grows on a substrate. A Substrate group joins its mesh into
- * the last input of the `join_meshes` before the `output`, so the substrate is the highest
+ * the last input of the `join` before the `output`, so the substrate is the highest
  * material group of the mesh, and gives its places to the `points` of every group that takes
  * them, like the Stipe group of the mushroom templates. Its instance is the one node with a
  * `substrate` prop.
@@ -108,13 +108,13 @@ function substrateGroup(id: number, substrate: Substrate): GroupDefinition {
 export function withSubstrate(template: Graph, substrate: Substrate): Graph {
   const graph = structuredClone(template);
   const output = graph.nodes.find((n) => n.type === 'max/myzel/output');
-  const joinId = graph.edges.find(([, , to, input]) => to === output?.id && input === 'mesh')?.[0];
+  const joinId = graph.edges.find(([, , to, input]) => to === output?.id && input === 'input')?.[0];
   const join = graph.nodes.find((n) => n.id === joinId);
-  if (join?.type !== 'max/myzel/join_meshes') {
-    throw new Error('The graph has no join_meshes before its output');
+  if (join?.type !== 'max/plantarium/join') {
+    throw new Error('The graph has no join before its output');
   }
   if (graph.edges.some(([, , to, input]) => to === join.id && input === 'd')) {
-    throw new Error('The last input of join_meshes is taken');
+    throw new Error('The last input of join is taken');
   }
 
   const takesPoints = new Set(

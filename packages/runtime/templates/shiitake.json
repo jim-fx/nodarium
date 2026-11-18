@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 14,
+  "version": 15,
   "meta": { "unit": "cm" },
   "settings": {
     "time.t": 1,
@@ -1448,7 +1448,7 @@
             -30,
             -5
           ],
-          "type": "max/myzel/set_mesh_color"
+          "type": "max/plantarium/set_color"
         }
       ],
       "edges": [
@@ -1528,7 +1528,7 @@
           30,
           0,
           54,
-          "mesh"
+          "plant"
         ],
         [
           53,
@@ -1605,7 +1605,7 @@
       },
       "outputs": [
         {
-          "type": "mesh",
+          "type": "path",
           "label": "Plates"
         }
       ]
@@ -1894,7 +1894,7 @@
           78,
           0,
           105,
-          "mesh"
+          "geometry"
         ],
         [
           78,
@@ -1972,7 +1972,7 @@
           105,
           0,
           111,
-          "mesh"
+          "geometry"
         ],
         [
           78,
@@ -2001,7 +2001,8 @@
       ],
       "inputs": {
         "mesh": {
-          "type": "mesh",
+          "type": "geometry",
+          "accepts": ["path"],
           "label": "Body",
           "external": true
         },
@@ -2055,7 +2056,7 @@
       },
       "outputs": [
         {
-          "type": "mesh",
+          "type": "geometry",
           "label": "Body"
         }
       ]
@@ -2193,7 +2194,7 @@
         0,
         0
       ],
-      "type": "max/myzel/join_meshes",
+      "type": "max/plantarium/join",
       "props": {}
     },
     {
@@ -2487,7 +2488,7 @@
       59,
       0,
       0,
-      "mesh"
+      "input"
     ],
     [
       45,

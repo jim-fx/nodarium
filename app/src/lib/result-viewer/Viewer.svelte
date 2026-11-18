@@ -105,7 +105,7 @@
   let creators: Set<number> | undefined;
 
   /**
-   * The creator ids of the graph nodes that made a tissue of the Myzel meshes in the result,
+   * The creator ids of the graph nodes that made a tissue of the geometries with groups in the result,
    * read from the meshes when they are asked for first
    */
   export function meshCreators() {

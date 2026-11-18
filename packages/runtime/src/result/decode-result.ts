@@ -6,21 +6,19 @@ import {
 } from '@nodarium/utils';
 
 /** The first word of every item in a result says what it holds */
-export const RESULT_TAGS = { geometry: 1, instances: 2, lines: 12, mesh: 14 } as const;
+export const RESULT_TAGS = { geometry: 1, instances: 2, lines: 12 } as const;
 
 /** Sorts the items of a result by their tag, items of other tags are left out */
 export function sortResultItems(items: Int32Array[]) {
   const geometries: Int32Array[] = [];
   const instances: Int32Array[] = [];
-  const meshes: Int32Array[] = [];
   const lines: Int32Array[] = [];
   for (const item of items) {
     if (item[0] === RESULT_TAGS.geometry) geometries.push(item);
     else if (item[0] === RESULT_TAGS.instances) instances.push(item);
-    else if (item[0] === RESULT_TAGS.mesh) meshes.push(item);
     else if (item[0] === RESULT_TAGS.lines) lines.push(item);
   }
-  return { geometries, instances, meshes, lines };
+  return { geometries, instances, lines };
 }
 
 /** Indexed triangles, all arrays are views into the data they were read from */
@@ -35,7 +33,7 @@ export type MeshData = {
   normals: Float32Array;
   /** RGBA8 per vertex in sRGB, red first, alpha 0 where a vertex has no color of its own */
   colors?: Uint8Array;
-  /** material group per vertex */
+  /** material group per vertex, a geometry without them is one group */
   groups?: Int32Array;
   /** by group, the creator id of the graph node that made it, `NO_CREATOR` for none */
   creators?: Int32Array;
@@ -61,53 +59,44 @@ function colorsAt(data: Int32Array, start: number, vertexCount: number) {
   return new Uint8Array(data.buffer, data.byteOffset + start * 4, vertexCount * 4);
 }
 
-/**
- * Plantarium geometry: `[1, v, f, path id, ...faces, ...positions, ...normals, ...colors?]`, the
- * colors are there when the length leaves room for one per vertex
- */
-export function readGeometry(data: Int32Array) {
-  const geometry = readLayout(data, 4);
-  const colorsStart = 4 + geometry.faceCount * 3 + geometry.vertexCount * 6;
-  if (geometry.vertexCount > 0 && data.length === colorsStart + geometry.vertexCount) {
-    geometry.colors = colorsAt(data, colorsStart, geometry.vertexCount);
-  }
-  return geometry;
-}
+/** The bits of the flags word of a geometry, the fifth word of its header */
+export const GEOMETRY_FLAGS = {
+  /** one RGBA8 color per vertex follows the normals */
+  colors: 1,
+  /** the groups are followed by their number and the creator of every group */
+  creators: 2,
+  /** one group per vertex follows the colors, without them the geometry is one group */
+  groups: 4
+} as const;
 
-/** Set in the flags word of a Myzel mesh when it brings one color per vertex */
-export const MESH_HAS_COLORS = 1;
-
-/** Set in the flags word of a Myzel mesh when the creators of its groups follow the groups */
-export const MESH_HAS_CREATORS = 2;
-
-/** The creator of a group of a Myzel mesh that no graph node is known for */
+/** The creator of a group that no graph node is known for */
 export const NO_CREATOR = -(2 ** 31);
 
 /**
- * Myzel mesh: `[14, v, f, flags, ...faces, ...positions, ...normals, ...colors?, ...groups, n?,
- * ...creators?]`. With `MESH_HAS_CREATORS` the groups are followed by their number and the
- * creator id of the graph node that made each of them. Meshes of nodes built before that have
- * neither the flag nor the table and are read as before.
+ * Geometry: `[1, v, f, path id, flags, ...faces, ...positions, ...normals, ...colors?,
+ * ...groups?, n?, ...creators?]`, the flags (`GEOMETRY_FLAGS`) say which of the optional
+ * sections follow. The alpha of a color is how much of it shows over the material, 0 where a
+ * vertex has no color of its own. With creators the groups are followed by their number and the
+ * creator id of the graph node that made each of them.
  */
-export function readMesh(data: Int32Array) {
-  const mesh = readLayout(data, 4);
-  const withColors = (data[3] & MESH_HAS_COLORS) !== 0;
-  const withCreators = (data[3] & MESH_HAS_CREATORS) !== 0;
-  const colorsStart = 4 + mesh.faceCount * 3 + mesh.vertexCount * 6;
-  const groupsStart = colorsStart + (withColors ? mesh.vertexCount : 0);
-  const groupsEnd = groupsStart + mesh.vertexCount;
+export function readGeometry(data: Int32Array): GeometryData {
+  const geometry = readLayout(data, 5);
+  const { vertexCount, faceCount } = geometry;
+  const flags = data[4];
+  const colorsStart = 5 + faceCount * 3 + vertexCount * 6;
+  const groupsStart = colorsStart + (flags & GEOMETRY_FLAGS.colors ? vertexCount : 0);
+  const groupsEnd = groupsStart + (flags & GEOMETRY_FLAGS.groups ? vertexCount : 0);
+  const withCreators = (flags & GEOMETRY_FLAGS.creators) !== 0;
   const expected = withCreators ? groupsEnd + 1 + Math.max(data[groupsEnd] ?? 0, 0) : groupsEnd;
   if (data.length !== expected) {
     throw new Error(
-      `A mesh with ${mesh.vertexCount} vertices, ${mesh.faceCount} faces and flags ${
-        data[3]
-      } needs ${expected} words, got ${data.length}`
+      `A geometry with ${vertexCount} vertices, ${faceCount} faces and flags ${flags} needs ${expected} words, got ${data.length}`
     );
   }
-  if (withColors) mesh.colors = colorsAt(data, colorsStart, mesh.vertexCount);
-  mesh.groups = data.subarray(groupsStart, groupsEnd);
-  if (withCreators) mesh.creators = data.subarray(groupsEnd + 1, expected);
-  return mesh;
+  if (flags & GEOMETRY_FLAGS.colors) geometry.colors = colorsAt(data, colorsStart, vertexCount);
+  if (flags & GEOMETRY_FLAGS.groups) geometry.groups = data.subarray(groupsStart, groupsEnd);
+  if (withCreators) geometry.creators = data.subarray(groupsEnd + 1, expected);
+  return { ...geometry, pathId: readGeometryPathId(data) };
 }
 
 export type InstancesData = MeshData & {
@@ -154,12 +143,10 @@ export type GeometryData = MeshData & {
 };
 
 export type DecodedResult = {
-  /** Plantarium geometry, one per path */
+  /** Geometry: one per path of a plant, or the surface of a mushroom with its groups */
   geometries: GeometryData[];
   /** Plantarium instances like leaves, one shape and a matrix per instance */
   instances: InstancesData[];
-  /** Myzel meshes with material groups and, for some, colors */
-  meshes: MeshData[];
   /** of everything, instances counted once per instance */
   vertexCount: number;
   /** of everything, instances counted once per instance */
@@ -172,16 +159,12 @@ export type DecodedResult = {
  */
 export function decodeResult(result: Int32Array): DecodedResult {
   const sorted = sortResultItems(splitNestedArray(result));
-  const geometries = sorted.geometries.map(data => ({
-    ...readGeometry(data),
-    pathId: readGeometryPathId(data)
-  }));
+  const geometries = sorted.geometries.map(readGeometry);
   const instances = sorted.instances.map(readInstances);
-  const meshes = sorted.meshes.map(readMesh);
 
   let vertexCount = 0;
   let faceCount = 0;
-  for (const item of [...geometries, ...meshes]) {
+  for (const item of geometries) {
     vertexCount += item.vertexCount;
     faceCount += item.faceCount;
   }
@@ -189,5 +172,5 @@ export function decodeResult(result: Int32Array): DecodedResult {
     vertexCount += item.vertexCount * item.instanceCount;
     faceCount += item.faceCount * item.instanceCount;
   }
-  return { geometries, instances, meshes, vertexCount, faceCount };
+  return { geometries, instances, vertexCount, faceCount };
 }

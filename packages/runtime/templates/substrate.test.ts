@@ -23,7 +23,7 @@ describe('withSubstrate', () => {
       const mesh = out.filter(([, output]) => output === 0);
       expect(mesh).toHaveLength(1);
       expect(mesh[0][3]).toBe('d');
-      expect(graph.nodes.find((n) => n.id === mesh[0][2])?.type).toBe('max/myzel/join_meshes');
+      expect(graph.nodes.find((n) => n.id === mesh[0][2])?.type).toBe('max/plantarium/join');
 
       const places = out.filter(([, output]) => output === 1);
       expect(places.length).toBeGreaterThan(0);
@@ -46,9 +46,9 @@ describe('withSubstrate', () => {
     await expect(loadTemplate('fern', { substrate: true })).rejects.toThrow('has no substrate');
   });
 
-  it('throws for a graph without join_meshes', async () => {
+  it('throws for a graph without a join before its output', async () => {
     const fern = await loadTemplate('fern');
-    expect(() => withSubstrate(fern, substrates.porcini!)).toThrow('join_meshes');
+    expect(() => withSubstrate(fern, substrates.porcini!)).toThrow('no join');
   });
 
   it('throws when the graph already has a substrate', async () => {

@@ -241,10 +241,16 @@ The curve of `leaf` (`y_curve`, `x_curve`, `y_twist`) does the same for its own 
 ## Geometry
 
 ```
-[1, vertex_amount, face_amount, path_id, ...faces, ...positions, ...normals, ...colors?]
+[1, vertex_amount, face_amount, path_id, flags, ...faces, ...positions, ...normals, ...colors?, ...groups?, n?, ...creators?]
 ```
 
-Faces are three vertex indices each, positions and normals three floats each. A geometry with colors has an RGBA8 color for every vertex after its normals, its length tells whether it has them. `path_id` is the `id` of the path an extruded geometry was made from (`output` extrudes every path), `-1` (`NO_PATH`) for geometry that doesn't come from a path, like a leaf or a box. The viewer finds the header of the path (creator, parent) with this id.
+The one surface type of every node system: the leaves and stems of a plant and the body, gills and veil of a mushroom are geometry. Faces are three vertex indices each (counter-clockwise seen from outside), positions and normals three floats each. `path_id` is the `id` of the path an extruded geometry was made from (`output` extrudes every path), `-1` (`NO_PATH`) for geometry that doesn't come from a path, like a leaf, a box or a mushroom. The viewer finds the header of the path (creator, parent) with this id. `flags` says which optional sections follow the normals (`geometry_flags` in `nodarium_utils::geometry`, `GEOMETRY_FLAGS` in `@nodarium/runtime`):
+
+- 1, colors: an RGBA8 color for every vertex, see Colors.
+- 4, groups: a material group for every vertex, a small integer. Other programs can give every group its own material, the "Groups" material of the viewer a color of its own. A geometry without groups is one group, the one of its path, so a plant is grouped by its paths.
+- 2, creators (only with groups): the number `n` of groups and, for every group, the creator id of the graph node that made it (`NO_CREATOR`, `i32::MIN`, for none), so the viewport link leads from a part of the geometry to its node.
+
+Plant nodes make geometry without groups, the Myzel nodes with groups and their creators. `MeshWords` reads a geometry in place, `Mesh` is one decoded and `MeshWriter` writes one straight into a result, all in `nodarium_utils::geometry`. `join` joins every geometry with groups of its inputs into one: the groups of each are numbered after those of the ones before it, they keep their creators, and a geometry without colors gets `NO_COLOR` where another has them. Paths, instances and geometry without groups stay items of the list. Before graph version 15 the Myzel surfaces were a link type of their own, `mesh`, that `join_meshes` joined and `set_mesh_color` painted.
 
 ## Instances
 
@@ -256,15 +262,15 @@ The colors of the geometry, one per vertex, come last when it has them. One 4x4 
 
 ## Colors
 
-A color on a path, a geometry or instances is an RGBA8 word, sRGB with red in the lowest byte, like the colors of a Myzel mesh. Paths and geometry without colors are encoded as they were, the viewer shows them in its material, and so are vertices whose alpha is 0 (`NO_COLOR`).
+A color on a path, a geometry or instances is an RGBA8 word, sRGB with red in the lowest byte. Alpha is how much of the color shows over the viewer's material: 255 shows the color alone, 0 (`NO_COLOR`) the material, as for paths and geometry without colors, and a value in between mixes them, like the patterns `cap_pattern` lays over a cap with its `opacity`. The color nodes give opaque colors.
 
 `leaf_surface` reads a color input the same way at every vertex of the blade, with alpha vein besides, see Leaves.
 
-`set_color` gives the paths of the `depth` deepest levels (1, the deepest, by default) a color at every point, and every geometry in its input a color at every vertex. It reads the `color` input for every path after `ctx.set_path`, with alpha going along the path from 0 at its base to 1 at its tip, so a `random` with `per_path` gives every path its own color, a `path_info` into the factor of a `mix_color` one by the age of the path, and a curve of alpha a gradient along it. A plain `random` is drawn once per path, like the thickness. On a geometry alpha goes from its base, where an instance places it, to the vertex farthest from it, measured without x, the width of a leaf, so a leaf that curls up or down still ends at its tip. Alpha `across` (the `alpha` node set to across) goes from the middle of the geometry, x = 0, to its edge at the same place along, like from the midrib of a leaf to its margin, everywhere else it is 0. A leaf therefore gets its own gradient, margin or spots, and several `set_color` nodes on the same leaf, joined, let an `instance` pick a color for every leaf, at random or by its `index`, for example by `alpha` or the age of the path it sits on.
+`set_color` gives the paths of the `depth` deepest levels (1, the deepest, by default) a color at every point, and every geometry in its input a color at every vertex, its groups stay. It reads the `color` input for every path after `ctx.set_path`, with alpha going along the path from 0 at its base to 1 at its tip, so a `random` with `per_path` gives every path its own color, a `path_info` into the factor of a `mix_color` one by the age of the path, and a curve of alpha a gradient along it. A plain `random` is drawn once per path, like the thickness. On a geometry alpha goes from its base, where an instance places it, to the vertex farthest from it, measured without x, the width of a leaf, so a leaf that curls up or down still ends at its tip. Alpha `across` (the `alpha` node set to across) goes from the middle of the geometry, x = 0, to its edge at the same place along, like from the midrib of a leaf to its margin, everywhere else it is 0. A leaf therefore gets its own gradient, margin or spots, and several `set_color` nodes on the same leaf, joined, let an `instance` pick a color for every leaf, at random or by its `index`, for example by `alpha` or the age of the path it sits on. A color that reads no place (no alpha and no `path_info`, like a plain color or a `mix_color` by time) is the same at every vertex: a single geometry gets it at once, the large one of a mushroom where the host copied it in, see [ABI.md](./ABI.md).
 
 `output` and `to_geometry` give the extruded geometry of a path with colors the color of its point at every ring, the cap the color of its tip. `instance` and `instance_from_points` keep the colors of their geometry, `to_geometry` bakes them, and the vertices of parts without colors get `NO_COLOR` there. `trunk_kink`, `random_break` and the resampling of `to_geometry` keep the colors where they were along the length of the path. Other nodes that make paths, like `branch`, `umbel` or `fill_gaps`, make them without colors, so a `set_color` goes after the node that makes a level of paths and the nodes that shape it.
 
-`mix_color` of the Myzel nodes gives a plain color when both colors and the factor are plain, and the expression otherwise, so the node that reads the color evaluates it where it uses it. The Myzel nodes read it once, without a path and with alpha 0, as before.
+`mix_color` of the Myzel nodes gives a plain color when both colors and the factor are plain, and the expression otherwise, so the node that reads the color evaluates it where it uses it. The Myzel nodes read it once, without a path and with alpha 0, `set_color` at every vertex of a geometry.
 
 ## Lists
 

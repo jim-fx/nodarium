@@ -4,12 +4,15 @@
     "description": "Puts a pattern on the top of a cap, as a relief, as a color or both: the cracks of an old cap, scales, or the fibrils of reaction_diffusion. The pattern is measured along the rays of the cap from its axis, like the gills, so it stays on the same spot of the tissue as the cap opens. A path that bears no cap, like a stipe on its own, gets the pattern around its side instead, like a cloth laid over its tip: the net on the stipe of a porcini. Only the top of the cap or the side of the path changes, its faces get as fine as the pattern, the rest of the mesh stays as it is."
   },
   "outputs": [
-    "mesh"
+    "geometry"
   ],
   "inputs": {
-    "mesh": {
-      "type": "mesh",
-      "description": "The mesh with the cap in it, usually the body from hyphae_to_mesh",
+    "geometry": {
+      "type": "geometry",
+      "accepts": [
+        "path"
+      ],
+      "description": "The geometry with the cap in it, usually the body from hyphae_to_mesh",
       "external": true
     },
     "cap": {

@@ -1,14 +1,17 @@
 {
   "id": "max/myzel/sample_mesh",
   "meta": {
-    "description": "Spreads points over the surface of a mesh, like a substrate from the mesh node, for the stipes of a troop or a cluster to start at. Every point lies on the surface and points along its normal, out of the wood or the ground. The points only depend on the mesh and the seed, a larger amount adds points and keeps the ones before."
+    "description": "Spreads points over the surface of a geometry, like a substrate from the mesh node, for the stipes of a troop or a cluster to start at. Every point lies on the surface and points along its normal, out of the wood or the ground. The points only depend on the mesh and the seed, a larger amount adds points and keeps the ones before."
   },
   "outputs": [
     "points"
   ],
   "inputs": {
-    "mesh": {
-      "type": "mesh",
+    "geometry": {
+      "type": "geometry",
+      "accepts": [
+        "path"
+      ],
       "description": "The surface to spread the points over, like a substrate from the mesh node.",
       "label": "Mesh",
       "external": true

@@ -33,8 +33,9 @@
 //! stands free, like the upturned scales of a shaggy inkcap.
 
 use glam::{Vec2, Vec3};
+use std::borrow::Cow;
 use myzel_core::{
-    linear_rgba, mesh_flags, opaque, pack_linear, read_color, AlongRay, Cap, CapFrame, Mesh, MeshWords, NO_COLOR,
+    geometry_flags, geometry_input, linear_rgba, opaque, pack_linear, read_color, AlongRay, Cap, CapFrame, Mesh, MeshWords, NO_COLOR,
 };
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
@@ -612,38 +613,44 @@ fn paint(mesh: &mut Mesh, tops: &[Surface], pattern: &Pattern, color: [u8; 3]) -
     any_moved || painted
 }
 
-/// The input mesh as it is: in place when it is an input the host copied in
-fn unchanged(input: &[i32]) -> Output {
-    abi::frame_input(input, &[], &[]).map_or_else(|| input.to_vec().into(), Output::from)
+/// The input geometry as it is: in place when it is an input the host copied in
+fn unchanged(input: Cow<[i32]>) -> Output {
+    match input {
+        Cow::Borrowed(words) => abi::frame_input(words, &[], &[]).map_or_else(|| words.to_vec().into(), Output::from),
+        Cow::Owned(words) => words.into(),
+    }
 }
 
-/// The input mesh again, from its header and faces and the vertices of the mesh it was decoded
-/// into, which are the first ones of the mesh and unchanged
+/// The input geometry again, from its brackets, header and faces and the vertices of the mesh it
+/// was decoded into, which are the first ones of the mesh and unchanged
 fn unchanged_from(head: &[i32], mesh: &Mesh) -> Vec<i32> {
-    let (v, colors) = (head[1] as usize, head[3] & mesh_flags::COLORS != 0);
-    let mut words = Vec::with_capacity(head.len() + v * if colors { 8 } else { 7 } + mesh.creators.len() + 1);
+    let (v, flags) = (head[3] as usize, head[6]);
+    let mut words = Vec::with_capacity(head[1] as usize + 3);
     words.extend_from_slice(head);
     words.extend(mesh.positions[..v * 3].iter().map(|&p| encode_float(p)));
     words.extend(mesh.normals[..v * 3].iter().map(|&n| encode_float(n)));
-    if colors {
+    if flags & geometry_flags::COLORS != 0 {
         words.extend(mesh.colors[..v].iter().map(|&c| c as i32));
     }
-    words.extend(mesh.groups[..v].iter().map(|&g| g as i32));
+    if flags & geometry_flags::GROUPS != 0 {
+        words.extend(mesh.groups[..v].iter().map(|&g| g as i32));
+    }
     if !mesh.creators.is_empty() {
         words.push(mesh.creators.len() as i32);
         words.extend(&mesh.creators);
     }
+    words.extend([1, 1]);
     words
 }
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Output {
-    // an input nothing is connected to is not a mesh
-    let Some(faces_end) = MeshWords::read(args[0]).map(|mesh| mesh.faces_end()) else {
+    // an input nothing is connected to brings no geometry
+    let Some(input) = geometry_input(args[0]) else {
         return Mesh::default().encode().into();
     };
     let Some(pattern) = Pattern::decode(args[2]) else {
-        return unchanged(args[0]);
+        return unchanged(input);
     };
     let items = split_args(args[1]);
     let caps = Cap::all(&items);
@@ -677,15 +684,21 @@ pub fn execute(args: &[&[i32]]) -> Output {
     }
     tops.retain(|top| !top.reads().is_zero());
     if tops.is_empty() {
-        return unchanged(args[0]);
+        return unchanged(input);
     }
-    let mut mesh = Mesh::decode(args[0]);
-    // the vertices are decoded, of the input only its header and faces are read again, when
-    // nothing changes. The rest of it would be in memory next to the mesh while it is refined.
-    // SAFETY: `args[0]` isn't read again
-    let head = unsafe { abi::shrink_input(args[0], faces_end) }.unwrap_or(&args[0][..faces_end]);
+    let mut mesh = Mesh::decode(&input);
+    let faces_end = MeshWords::read(&input).map_or(0, |words| words.faces_end());
+    // the vertices are decoded, of the input only its brackets, header and faces are read again,
+    // when nothing changes. The rest of it would be in memory next to the mesh while it is refined.
+    let head: Cow<[i32]> = match input {
+        // SAFETY: `args[0]` isn't read again
+        Cow::Borrowed(words) if std::ptr::eq(words, args[0]) => {
+            Cow::Borrowed(unsafe { abi::shrink_input(args[0], faces_end) }.unwrap_or(&args[0][..faces_end]))
+        }
+        other => Cow::Owned(other[..faces_end].to_vec()),
+    };
     if !paint(&mut mesh, &tops, &pattern, read_color(args[5])) {
-        return unchanged_from(head, &mesh).into();
+        return unchanged_from(&head, &mesh).into();
     }
     mesh.encode().into()
 }

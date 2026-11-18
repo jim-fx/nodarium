@@ -21,7 +21,7 @@ import { instancers, type InstancerSummary } from './probe';
 // give the same answer for the same graph.
 
 /** The outputs `--node` can draw, like the debug view of the app */
-const DRAWN_TYPES = new Set(['path', 'geometry', 'points', 'mesh', 'pattern']);
+const DRAWN_TYPES = new Set(['path', 'geometry', 'points', 'pattern']);
 
 /** Indented JSON with lists of numbers and strings, like positions and edges, on one line */
 export function stringifyGraph(value: unknown, indent = ''): string {
@@ -81,7 +81,8 @@ export type RunSummary = {
   vertices: number;
   faces: number;
   instances: number;
-  meshes: number;
+  /** a plant has one per path, a mushroom one with its groups */
+  geometries: number;
   /** the bounds in meters, left out when the graph made nothing */
   min?: number[];
   max?: number[];
@@ -131,7 +132,7 @@ export async function runGraph(
     vertices: decoded.vertexCount,
     faces: decoded.faceCount,
     instances: decoded.instances.reduce((sum, i) => sum + i.instanceCount, 0),
-    meshes: decoded.meshes.length,
+    geometries: decoded.geometries.length,
     min: empty ? undefined : min.map(round),
     max: empty ? undefined : max.map(round),
     height: empty ? undefined : round(max[1] - Math.min(min[1], 0)),

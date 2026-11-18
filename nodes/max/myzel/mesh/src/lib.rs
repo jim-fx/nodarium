@@ -1,8 +1,9 @@
-use myzel_core::{mesh_flags, opaque, read_int, smooth_normals_in_words, MESH_TAG};
+use myzel_core::{geometry_flags, opaque, read_int, smooth_normals_in_words};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     abi::{self, Output},
     encode_float,
+    geometry::{GEOMETRY_HEAD, GEOMETRY_TAG, NO_PATH},
 };
 
 nodarium_definition_file!("src/definition.json");
@@ -60,19 +61,20 @@ impl<'a> Baked<'a> {
         self.u16_at(Self::HEADER + self.vertices * 9 + i * 2)
     }
 
-    /// The words of the mesh, see `myzel_core`
+    /// The words of the geometry, see `nodarium_utils::geometry`
     fn len(&self, colored: bool) -> usize {
-        4 + self.faces * 3 + self.vertices * (7 + colored as usize)
+        GEOMETRY_HEAD + self.faces * 3 + self.vertices * (7 + colored as usize) + 2
     }
 
     fn write(&self, colored: bool, words: &mut [i32]) {
-        let (v, f) = (self.vertices, self.faces);
-        let flags = if colored { mesh_flags::COLORS } else { 0 };
-        words[..4].copy_from_slice(&[MESH_TAG, v as i32, f as i32, flags]);
+        let (v, f, len) = (self.vertices, self.faces, words.len());
+        let flags = geometry_flags::GROUPS | if colored { geometry_flags::COLORS } else { 0 };
+        words[..GEOMETRY_HEAD].copy_from_slice(&[0, len as i32 - 3, GEOMETRY_TAG, v as i32, f as i32, NO_PATH, flags]);
+        words[len - 2..].copy_from_slice(&[1, 1]);
         for i in 0..f * 3 {
-            words[4 + i] = self.corner(i) as i32;
+            words[GEOMETRY_HEAD + i] = self.corner(i) as i32;
         }
-        let positions = 4 + f * 3;
+        let positions = GEOMETRY_HEAD + f * 3;
         for i in 0..v * 3 {
             words[positions + i] = encode_float(self.position(i / 3, i % 3));
         }

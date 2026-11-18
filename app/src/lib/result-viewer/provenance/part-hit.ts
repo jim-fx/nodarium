@@ -2,12 +2,12 @@ import { isPath, NO_PATH, type PathLink, readPathLink } from '@nodarium/utils';
 
 /** A part of the result under the pointer */
 export type PartHit = {
-  kind: 'geometry' | 'instances' | 'mesh';
+  kind: 'geometry' | 'instances' | 'groups';
   /** the path the geometry was made from or the instance sits on, `NO_PATH` without one */
   pathId: number;
-  /** the vertex group under the pointer, for a Myzel mesh */
+  /** the vertex group under the pointer, for a geometry with groups */
   group?: number;
-  /** the creator id of the graph node that made that group, when the mesh knows it */
+  /** the creator id of the graph node that made that group, when the geometry knows it */
   creator?: number;
 };
 
@@ -28,7 +28,7 @@ type PickedObjectData = {
   pathId?: number;
   /** of every instance, the path it sits on */
   pathIds?: ArrayLike<number>;
-  /** of a Myzel mesh that knows them, by group the creator id of its node */
+  /** of a geometry with groups that knows them, by group the creator id of its node */
   creators?: ArrayLike<number>;
 };
 
