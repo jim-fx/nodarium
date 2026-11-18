@@ -16,6 +16,8 @@ export interface NodeRegistry {
   loadCollection?: (collectionId: `${string}/${string}`) => Promise<NodeDefinition[]>;
   /** The collections every graph offers, whichever nodes it has, like `max/core` */
   baseCollections?: `${string}/${string}`[];
+  /** Every collection the registry can load, an editor offers all of them in every graph */
+  listCollections?: () => Promise<`${string}/${string}`[]>;
   getNode: (id: NodeId | string) => NodeDefinition | undefined;
   getAllNodes: () => NodeDefinition[];
   register: (id: string, wasmBuffer: ArrayBuffer) => Promise<NodeDefinition>;

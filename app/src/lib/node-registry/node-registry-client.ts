@@ -99,6 +99,11 @@ export class RemoteNodeRegistry extends WasmNodeRegistry {
     return this.fetchJson(`nodes/users.json`);
   }
 
+  async listCollections(): Promise<`${string}/${string}`[]> {
+    const users: { collections: { id: `${string}/${string}` }[] }[] = await this.fetchUsers();
+    return users.flatMap((user) => user.collections.map((c) => c.id));
+  }
+
   async fetchUser(userId: `${string}`) {
     return this.fetchJson(`nodes/${userId}.json`);
   }

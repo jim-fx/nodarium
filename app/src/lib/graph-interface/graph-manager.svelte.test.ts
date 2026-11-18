@@ -1173,6 +1173,31 @@ describe('getNodeDefinitions', () => {
     expect(loaded).toEqual(['test/other', 'test/node']);
   });
 
+  it('offers and loads every collection the registry lists, whichever nodes the graph has', async () => {
+    const myzel: NodeDefinition = { ...mockFloatInputNode, id: 'test/myzel/input' };
+    const dropped: NodeDefinition = { ...mockFloatInputNode, id: 'test/dropped/input' };
+    const registry = createMockNodeRegistry([mockFloatOutputNode, myzel, dropped]);
+    const loaded: string[] = [];
+    registry.listCollections = async () => ['test/node', 'test/myzel'];
+    registry.loadCollection = async (id) => {
+      loaded.push(id);
+      return [];
+    };
+    const manager = new GraphManager(registry);
+
+    await manager.load({
+      id: 1,
+      nodes: [{ id: 0, type: 'test/node/output', position: [0, 0] }],
+      edges: [],
+      groups: []
+    });
+    await vi.waitFor(() => expect(loaded).toEqual(['test/node', 'test/myzel']));
+
+    const ids = manager.getNodeDefinitions().map((d) => d.id);
+    expect(ids).toContain('test/myzel/input');
+    expect(ids).not.toContain('test/dropped/input');
+  });
+
   it('fails to load a graph with a node type that does not exist any more, without throwing', async () => {
     const registry = createMockNodeRegistry([mockFloatOutputNode]);
     registry.load = async () => {

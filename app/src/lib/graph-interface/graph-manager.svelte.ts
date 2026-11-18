@@ -269,7 +269,7 @@ export class GraphManager extends EventEmitter<{
     return serialized;
   }
 
-  /** the collections the loaded graph uses, like `max/plantarium` */
+  /** the collections the add menu offers, like `max/plantarium` */
   private collections: ReadonlySet<string> = new SvelteSet<string>();
 
   /** A value changed in the settings panel */
@@ -304,8 +304,9 @@ export class GraphManager extends EventEmitter<{
   }
 
   /**
-   * The definitions of the collections the graph uses. The registry keeps every node it ever
-   * loaded, so after opening a graph of another collection its nodes would show up here too.
+   * The definitions of every collection the registry lists, and of the collections the graph
+   * uses. The registry keeps every node it ever loaded, a dropped node of an earlier graph is
+   * left out.
    */
   getNodeDefinitions() {
     const all = this.registry.getAllNodes();
@@ -624,10 +625,20 @@ export class GraphManager extends EventEmitter<{
       allCollections.add(`${user}/${collection}`);
     }
     this.collections = allCollections;
-    for (const collection of allCollections) {
+    const loadCollection = (collection: `${string}/${string}`) => {
       this.registry.loadCollection?.(collection)
         .catch((error) => log.error(`failed to load the collection ${collection}`, error));
-    }
+    };
+    for (const collection of allCollections) loadCollection(collection);
+    this.registry.listCollections?.()
+      .then((listed) => {
+        for (const collection of listed) {
+          if (allCollections.has(collection)) continue;
+          allCollections.add(collection);
+          loadCollection(collection);
+        }
+      })
+      .catch((error) => log.error('failed to list the collections', error));
 
     log.info('loaded node types', this.registry.getAllNodes());
 

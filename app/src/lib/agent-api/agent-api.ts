@@ -62,10 +62,8 @@ function plain<T>(value: T): T {
 
 /** The definitions of every collection of every user, from their listings, no wasm */
 async function loadAllDefinitions(registry: RemoteNodeRegistry) {
-  const users: { collections: { id: `${string}/${string}` }[] }[] = await registry.fetchUsers();
-  await Promise.all(
-    users.flatMap((user) => user.collections.map((c) => registry.loadCollection(c.id)))
-  );
+  const collections = await registry.listCollections();
+  await Promise.all(collections.map((id) => registry.loadCollection(id)));
 }
 
 export function createAgentApi(host: AgentApiHost): NodariumApi {
