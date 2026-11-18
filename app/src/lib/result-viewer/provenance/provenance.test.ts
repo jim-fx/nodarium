@@ -9,7 +9,7 @@ import {
   setGroupModes,
   visibleParts
 } from './highlight';
-import { partHit } from './part-hit';
+import { partHit, readPathLinks } from './part-hit';
 import { decodePixel } from './picker';
 
 function highlight(
@@ -86,6 +86,40 @@ describe('decodePixel', () => {
       slot: 0x0102,
       index: 0x0304
     });
+  });
+});
+
+describe('readPathLinks', () => {
+  const float = (f: number) => new Int32Array(Float32Array.of(f).buffer)[0];
+  // [0, depth, id, parent, alpha, creator, index, grown, ...one point]
+  const path = Int32Array.of(0, 1, 7, -1, 0, 40, 0, float(1), 0, 0, 0, 0);
+  // a triangle with one group made by 40, and the links of the paths 7 and 8
+  const tubes = Int32Array.of(
+    1,
+    3,
+    1,
+    -1,
+    2 | 4 | 8,
+    0,
+    1,
+    2,
+    ...new Array(18).fill(0),
+    0,
+    0,
+    0,
+    1,
+    40,
+    2,
+    ...[7, -1, 0, 40, 0, float(1)],
+    ...[8, 7, float(0.5), 41, 0, float(1)]
+  );
+
+  it('reads the paths among the items and the links a geometry carries', () => {
+    const links = readPathLinks([path]);
+    expect([...links.keys()]).toEqual([7]);
+    const carried = readPathLinks([tubes]);
+    expect([...carried.keys()]).toEqual([7, 8]);
+    expect(carried.get(8)).toMatchObject({ parentId: 7, parentAlpha: 0.5, creator: 41 });
   });
 });
 

@@ -1,6 +1,6 @@
 //! Paths, geometry and instances: the data the Plantarium and Myzel nodes pass between them.
 //!
-//! # Geometry `[0, n, 1, v, f, path id, flags, ...faces, ...positions, ...normals, ...colors?, ...groups?, k?, ...creators?, 1, 1]`
+//! # Geometry `[0, n, 1, v, f, path id, flags, ...faces, ...positions, ...normals, ...colors?, ...groups?, k?, ...creators?, m?, ...paths?, 1, 1]`
 //!
 //! The one surface type, in its brackets like every item of a list. `faces` are `3f` vertex
 //! indices (counter-clockwise seen from outside), `positions` and `normals` are `3v` f32. The
@@ -15,6 +15,10 @@
 //! - `CREATORS` (only with `GROUPS`): the number `k` of groups and, for every group, the creator
 //!   id of the graph node that made it ([`NO_CREATOR`] for none), so the viewer can lead from a
 //!   part of the geometry to its node.
+//! - `PATHS`: the number `m` of paths the geometry was made from and the link of each of them,
+//!   [`PATH_LINK_WORDS`] words: id, parent id, parent alpha, creator, index and grown, as in the
+//!   header of the path. `to_geometry` writes them for the paths it turns into tubes, so the
+//!   viewer can still lead from an instance on a path to the path and its node.
 //!
 //! [`MeshWords`] reads a geometry in place, [`Mesh`] is one decoded, [`MeshWriter`] writes one
 //! straight into its words. `join` joins the geometries with groups of its inputs into one, the

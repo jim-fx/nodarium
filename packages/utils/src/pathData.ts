@@ -50,13 +50,30 @@ export function readPathColors(path: Int32Array) {
 }
 
 export function readPathLink(path: Int32Array): PathLink {
+  return linkAt(path, 2);
+}
+
+/** The words of a link in the table of paths of a geometry, see `GEOMETRY_FLAGS.paths` */
+export const PATH_LINK_WORDS = 6;
+
+/** The links of a table of paths: id, parent id, parent alpha, creator, index and grown each */
+export function readPathLinkTable(table: Int32Array): PathLink[] {
+  const links: PathLink[] = [];
+  for (let at = 0; at + PATH_LINK_WORDS <= table.length; at += PATH_LINK_WORDS) {
+    links.push(linkAt(table, at));
+  }
+  return links;
+}
+
+function linkAt(words: Int32Array, at: number): PathLink {
+  const float = (i: number) => new Float32Array(words.buffer, words.byteOffset + i * 4, 1)[0];
   return {
-    id: path[2],
-    parentId: path[3],
-    parentAlpha: new Float32Array(path.buffer, path.byteOffset + 4 * 4, 1)[0],
-    creator: path[5],
-    index: path[6],
-    grown: new Float32Array(path.buffer, path.byteOffset + 7 * 4, 1)[0]
+    id: words[at],
+    parentId: words[at + 1],
+    parentAlpha: float(at + 2),
+    creator: words[at + 3],
+    index: words[at + 4],
+    grown: float(at + 5)
   };
 }
 

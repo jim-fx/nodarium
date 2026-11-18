@@ -1,4 +1,5 @@
-import { isPath, NO_PATH, type PathLink, readPathLink } from '@nodarium/utils';
+import { GEOMETRY_FLAGS, readGeometry, RESULT_TAGS } from '@nodarium/runtime';
+import { isPath, NO_PATH, type PathLink, readPathLink, readPathLinkTable } from '@nodarium/utils';
 
 /** A part of the result under the pointer */
 export type PartHit = {
@@ -11,13 +12,20 @@ export type PartHit = {
   creator?: number;
 };
 
-/** The links of the paths among the items of a result, by path id */
+/**
+ * The links of the paths of a result, by path id: those among its items, and those a geometry
+ * carries of the paths it was made from, which `to_geometry` writes
+ */
 export function readPathLinks(items: Int32Array[]) {
   const links = new Map<number, PathLink>();
   for (const item of items) {
-    if (!isPath(item)) continue;
-    const link = readPathLink(item);
-    links.set(link.id, link);
+    if (isPath(item)) {
+      const link = readPathLink(item);
+      links.set(link.id, link);
+    } else if (item[0] === RESULT_TAGS.geometry && item[4] & GEOMETRY_FLAGS.paths) {
+      const table = readGeometry(item).paths;
+      for (const link of table ? readPathLinkTable(table) : []) links.set(link.id, link);
+    }
   }
   return links;
 }

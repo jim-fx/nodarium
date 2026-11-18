@@ -1,5 +1,6 @@
 import {
   NO_PATH,
+  PATH_LINK_WORDS,
   readGeometryPathId,
   readInstancePathIds,
   splitNestedArray
@@ -39,6 +40,16 @@ export type MeshData = {
   creators?: Int32Array;
 };
 
+export type GeometryData = MeshData & {
+  /** the id of the path the geometry was made from, `NO_PATH` (-1) for none */
+  pathId: number;
+  /**
+   * the links of the paths it was made from, `PATH_LINK_WORDS` words each, see
+   * `readPathLinkTable`. `to_geometry` writes them, so what sits on its paths leads to them.
+   */
+  paths?: Int32Array;
+};
+
 function readLayout(data: Int32Array, headerLength: number): MeshData {
   const vertexCount = data[1];
   const faceCount = data[2];
@@ -66,7 +77,12 @@ export const GEOMETRY_FLAGS = {
   /** the groups are followed by their number and the creator of every group */
   creators: 2,
   /** one group per vertex follows the colors, without them the geometry is one group */
-  groups: 4
+  groups: 4,
+  /**
+   * the tables are followed by the number of paths the geometry was made from and their links,
+   * `PATH_LINK_WORDS` words each, as in the header of a path
+   */
+  paths: 8
 } as const;
 
 /** The creator of a group that no graph node is known for */
@@ -87,7 +103,11 @@ export function readGeometry(data: Int32Array): GeometryData {
   const groupsStart = colorsStart + (flags & GEOMETRY_FLAGS.colors ? vertexCount : 0);
   const groupsEnd = groupsStart + (flags & GEOMETRY_FLAGS.groups ? vertexCount : 0);
   const withCreators = (flags & GEOMETRY_FLAGS.creators) !== 0;
-  const expected = withCreators ? groupsEnd + 1 + Math.max(data[groupsEnd] ?? 0, 0) : groupsEnd;
+  const creatorsEnd = withCreators ? groupsEnd + 1 + Math.max(data[groupsEnd] ?? 0, 0) : groupsEnd;
+  const withPaths = (flags & GEOMETRY_FLAGS.paths) !== 0;
+  const expected = withPaths
+    ? creatorsEnd + 1 + Math.max(data[creatorsEnd] ?? 0, 0) * PATH_LINK_WORDS
+    : creatorsEnd;
   if (data.length !== expected) {
     throw new Error(
       `A geometry with ${vertexCount} vertices, ${faceCount} faces and flags ${flags} needs ${expected} words, got ${data.length}`
@@ -95,8 +115,9 @@ export function readGeometry(data: Int32Array): GeometryData {
   }
   if (flags & GEOMETRY_FLAGS.colors) geometry.colors = colorsAt(data, colorsStart, vertexCount);
   if (flags & GEOMETRY_FLAGS.groups) geometry.groups = data.subarray(groupsStart, groupsEnd);
-  if (withCreators) geometry.creators = data.subarray(groupsEnd + 1, expected);
-  return { ...geometry, pathId: readGeometryPathId(data) };
+  if (withCreators) geometry.creators = data.subarray(groupsEnd + 1, creatorsEnd);
+  const paths = withPaths ? data.subarray(creatorsEnd + 1, expected) : undefined;
+  return { ...geometry, pathId: readGeometryPathId(data), ...(paths && { paths }) };
 }
 
 export type InstancesData = MeshData & {
@@ -137,13 +158,11 @@ export function readInstances(data: Int32Array): InstancesData {
   return { ...shape, instanceCount, depth: data[4], matrices, pathIds };
 }
 
-export type GeometryData = MeshData & {
-  /** the id of the path the geometry was made from, `NO_PATH` (-1) for none */
-  pathId: number;
-};
-
 export type DecodedResult = {
-  /** Geometry: one per path of a plant, or the surface of a mushroom with its groups */
+  /**
+   * Geometry: the tubes of a plant with a group per node that made them and the links of its
+   * paths, the surface of a mushroom with its groups, geometry like a box as it is
+   */
   geometries: GeometryData[];
   /** Plantarium instances like leaves, one shape and a matrix per instance */
   instances: InstancesData[];
