@@ -108,15 +108,23 @@ const ABOUT: Record<string, About> = {
   },
   dandelion: {
     species: 'Taraxacum officinale (common dandelion)',
-    notes: 'A rosette of runcinate leaf_surface leaves on a short crown, 3–6 leafless scapes, each '
-      + 'with a revolved bud that nods and opens into a head of three rings of ligules at its own '
-      + 'time.'
+    notes: 'A taproot, a rosette of 5–10 runcinate leaf_surface leaves, 2–5 leaning scapes, each '
+      + 'with a bud of bracts and ligules that opens into five rings of ligules at its own time.'
   },
   yarrow: {
     species: 'Achillea millefolium (common yarrow)',
-    notes:
-      '2–5 upright stems with feathery leaves, three levels of branches cut at one height into '
-      + 'a flat-topped corymb of small white heads.'
+    notes: '1–3 upright stems with feathery leaves of paths, flat-topped clusters of small white '
+      + 'heads on an umbel at the tip of the stem and of up to five side branches.'
+  },
+  mullein: {
+    species: 'Verbascum thapsus (great mullein)',
+    notes: 'A rosette of woolly leaf_surface leaves, a stem of 1.2–1.9 m with clasping leaves '
+      + 'and decurrent wings, and a spike of 200–260 bud clusters with a band of open flowers.'
+  },
+  plantain: {
+    species: 'Plantago lanceolata (ribwort plantain)',
+    notes: 'A rosette of 9–24 narrow, striped leaves and 4–14 scapes, each with a spike '
+      + 'that flowers from the base up, a ring of anthers between its brown and green part.'
   },
   'champignon-groomed': { notes: 'The Stipe, Cap, Gills and Veil groups, grown by time.' },
   'fly-agaric': { notes: 'As the champignon, with a Cuticle and a Volva group.' },
@@ -183,6 +191,8 @@ export const templates: Template[] = [
   plant('wild-carrot', 'Wild Carrot', 'cm', () => import('./wild-carrot.json')),
   plant('dandelion', 'Dandelion', 'cm', () => import('./dandelion.json')),
   plant('yarrow', 'Yarrow', 'cm', () => import('./yarrow.json')),
+  plant('mullein', 'Great Mullein', 'm', () => import('./mullein.json')),
+  plant('plantain', 'Ribwort Plantain', 'cm', () => import('./plantain.json')),
   mushroom('champignon-groomed', 'Champignon', 'cm', () => import('./champignon-groomed.json')),
   mushroom('fly-agaric', 'Fly agaric', 'cm', () => import('./fly-agaric.json')),
   mushroom('porcini', 'Porcini', 'cm', () => import('./porcini.json')),

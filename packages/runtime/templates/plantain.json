@@ -1,0 +1,2531 @@
+{
+  "version": 14,
+  "meta": {
+    "title": "Ribwort Plantain",
+    "unit": "cm"
+  },
+  "settings": {
+    "resolution.curve": 16,
+    "resolution.circle": 8,
+    "time.t": 1
+  },
+  "nodes": [
+    {
+      "id": 2,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0,
+        "max": 1,
+        "uniform": 1,
+        "once": 1
+      },
+      "position": [
+        -840,
+        0
+      ]
+    },
+    {
+      "id": 60,
+      "type": "max/plantarium/stem",
+      "props": {
+        "length": 0.07,
+        "thickness": 0.0005,
+        "taper": 0.8
+      },
+      "position": [
+        -900,
+        380
+      ]
+    },
+    {
+      "id": 63,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 2.2,
+        "max": 2.8,
+        "per_path": 1
+      },
+      "position": [
+        -860,
+        420
+      ]
+    },
+    {
+      "id": 61,
+      "type": "max/plantarium/rotate",
+      "props": {
+        "axis": 0
+      },
+      "position": [
+        -840,
+        380
+      ]
+    },
+    {
+      "id": 141,
+      "type": "max/plantarium/gravity",
+      "props": {
+        "strength": 0.55,
+        "elasticity": 0.9
+      },
+      "position": [
+        -810,
+        380
+      ]
+    },
+    {
+      "id": 142,
+      "type": "max/plantarium/random_int",
+      "props": {
+        "min": 7,
+        "max": 13
+      },
+      "position": [
+        -930,
+        430
+      ]
+    },
+    {
+      "id": 62,
+      "type": "max/plantarium/set_color",
+      "props": {
+        "color": [
+          214,
+          204,
+          188
+        ]
+      },
+      "position": [
+        -780,
+        380
+      ]
+    },
+    {
+      "id": 32,
+      "type": "max/plantarium/deform",
+      "props": {
+        "mode": 0
+      },
+      "position": [
+        -500,
+        0
+      ]
+    },
+    {
+      "id": 33,
+      "type": "max/plantarium/stem",
+      "props": {
+        "length": 0.004,
+        "thickness": 0.002,
+        "taper": 0.5
+      },
+      "position": [
+        -460,
+        0
+      ]
+    },
+    {
+      "id": 140,
+      "type": "max/plantarium/set_color",
+      "props": {
+        "color": [
+          120,
+          96,
+          70
+        ]
+      },
+      "position": [
+        -445,
+        0
+      ]
+    },
+    {
+      "id": 34,
+      "type": "max/plantarium/instance",
+      "props": {
+        "lowest_instance": 0,
+        "highest_instance": 1,
+        "rotation": 2.4,
+        "face": 0
+      },
+      "position": [
+        -420,
+        0
+      ]
+    },
+    {
+      "id": 35,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          1,
+          1,
+          0
+        ],
+        "min": 9,
+        "max": 24
+      },
+      "position": [
+        -450,
+        60
+      ]
+    },
+    {
+      "id": 36,
+      "type": "max/plantarium/round",
+      "position": [
+        -430,
+        60
+      ]
+    },
+    {
+      "id": 38,
+      "type": "max/plantarium/alpha",
+      "position": [
+        -450,
+        110
+      ]
+    },
+    {
+      "id": 39,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0,
+          1,
+          1
+        ],
+        "min": 0.35,
+        "max": 1.25
+      },
+      "position": [
+        -430,
+        110
+      ]
+    },
+    {
+      "id": 37,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": -0.25,
+        "max": 0.25,
+        "per_instance": 1
+      },
+      "position": [
+        -430,
+        160
+      ]
+    },
+    {
+      "id": 40,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 0
+      },
+      "position": [
+        -400,
+        130
+      ]
+    },
+    {
+      "id": 44,
+      "type": "max/plantarium/alpha",
+      "position": [
+        -450,
+        210
+      ]
+    },
+    {
+      "id": 45,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0.55,
+          0.6,
+          1,
+          1,
+          0.9
+        ],
+        "min": 0,
+        "max": 0.16
+      },
+      "position": [
+        -430,
+        210
+      ]
+    },
+    {
+      "id": 41,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.85,
+        "max": 1.15,
+        "per_instance": 1
+      },
+      "position": [
+        -430,
+        260
+      ]
+    },
+    {
+      "id": 42,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      },
+      "position": [
+        -400,
+        230
+      ]
+    },
+    {
+      "id": 47,
+      "type": "max/myzel/time",
+      "position": [
+        -500,
+        300
+      ]
+    },
+    {
+      "id": 48,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2,
+        "b": 2.1
+      },
+      "position": [
+        -480,
+        300
+      ]
+    },
+    {
+      "id": 49,
+      "type": "max/plantarium/alpha",
+      "position": [
+        -500,
+        350
+      ]
+    },
+    {
+      "id": 50,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0.35,
+          1,
+          0
+        ],
+        "min": 0,
+        "max": 0.6
+      },
+      "position": [
+        -480,
+        350
+      ]
+    },
+    {
+      "id": 51,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0,
+        "max": 0.35,
+        "per_instance": 1
+      },
+      "position": [
+        -480,
+        400
+      ]
+    },
+    {
+      "id": 52,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 0
+      },
+      "position": [
+        -450,
+        370
+      ]
+    },
+    {
+      "id": 55,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 1
+      },
+      "position": [
+        -430,
+        330
+      ]
+    },
+    {
+      "id": 56,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0,
+          0.3,
+          0.25,
+          1,
+          1
+        ],
+        "min": 0,
+        "max": 1
+      },
+      "position": [
+        -410,
+        330
+      ]
+    },
+    {
+      "id": 46,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      },
+      "position": [
+        -370,
+        260
+      ]
+    },
+    {
+      "id": 70,
+      "type": "max/plantarium/stem",
+      "props": {
+        "thickness": 0.0016,
+        "taper": 0.3
+      },
+      "position": [
+        -300,
+        0
+      ]
+    },
+    {
+      "id": 71,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          1,
+          1,
+          0
+        ],
+        "min": 4,
+        "max": 14
+      },
+      "position": [
+        -330,
+        60
+      ]
+    },
+    {
+      "id": 72,
+      "type": "max/plantarium/round",
+      "position": [
+        -310,
+        60
+      ]
+    },
+    {
+      "id": 73,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          1,
+          1,
+          0
+        ],
+        "min": 0.14,
+        "max": 0.34
+      },
+      "position": [
+        -360,
+        110
+      ]
+    },
+    {
+      "id": 74,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.75,
+        "max": 1.2,
+        "per_path": 1
+      },
+      "position": [
+        -360,
+        160
+      ]
+    },
+    {
+      "id": 76,
+      "type": "max/myzel/time",
+      "position": [
+        -420,
+        210
+      ]
+    },
+    {
+      "id": 77,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2,
+        "b": 1.6
+      },
+      "position": [
+        -400,
+        210
+      ]
+    },
+    {
+      "id": 78,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0,
+        "max": 0.45,
+        "per_path": 1
+      },
+      "position": [
+        -400,
+        260
+      ]
+    },
+    {
+      "id": 79,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 1
+      },
+      "position": [
+        -370,
+        230
+      ]
+    },
+    {
+      "id": 80,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0,
+          0.72,
+          0,
+          0.86,
+          0.45,
+          1,
+          1
+        ],
+        "min": 0,
+        "max": 1
+      },
+      "position": [
+        -340,
+        230
+      ]
+    },
+    {
+      "id": 81,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      },
+      "position": [
+        -330,
+        130
+      ]
+    },
+    {
+      "id": 75,
+      "type": "max/plantarium/rotate",
+      "props": {
+        "axis": 0
+      },
+      "position": [
+        -270,
+        0
+      ]
+    },
+    {
+      "id": 83,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0,
+        "max": 0.35,
+        "per_path": 1
+      },
+      "position": [
+        -270,
+        60
+      ]
+    },
+    {
+      "id": 84,
+      "type": "max/plantarium/rotate",
+      "props": {
+        "axis": 1,
+        "angle": 6.28,
+        "spread": 1
+      },
+      "position": [
+        -240,
+        0
+      ]
+    },
+    {
+      "id": 85,
+      "type": "max/plantarium/noise",
+      "props": {
+        "scale": 6,
+        "strength": 0.004
+      },
+      "position": [
+        -210,
+        0
+      ]
+    },
+    {
+      "id": 86,
+      "type": "max/plantarium/gravity",
+      "props": {
+        "strength": 0.06
+      },
+      "position": [
+        -180,
+        0
+      ]
+    },
+    {
+      "id": 88,
+      "type": "max/plantarium/alpha",
+      "position": [
+        -180,
+        60
+      ]
+    },
+    {
+      "id": 89,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          1,
+          0.3,
+          0.25,
+          0.6,
+          0
+        ],
+        "min": 0,
+        "max": 1
+      },
+      "position": [
+        -160,
+        60
+      ]
+    },
+    {
+      "id": 90,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0,
+        "max": 0.7,
+        "per_path": 1
+      },
+      "position": [
+        -160,
+        110
+      ]
+    },
+    {
+      "id": 91,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      },
+      "position": [
+        -130,
+        80
+      ]
+    },
+    {
+      "id": 92,
+      "type": "max/myzel/mix_color",
+      "props": {
+        "a": [
+          112,
+          132,
+          84
+        ],
+        "b": [
+          128,
+          98,
+          78
+        ]
+      },
+      "position": [
+        -100,
+        80
+      ]
+    },
+    {
+      "id": 87,
+      "type": "max/plantarium/set_color",
+      "position": [
+        -150,
+        0
+      ]
+    },
+    {
+      "id": 93,
+      "type": "max/plantarium/branch",
+      "props": {
+        "amount": 1,
+        "lowest_branch": 1,
+        "highest_branch": 1,
+        "thickness": 0.9,
+        "taper": 0.5,
+        "angle": 1.35,
+        "growth": 1
+      },
+      "position": [
+        -90,
+        0
+      ]
+    },
+    {
+      "id": 95,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          1,
+          1,
+          0
+        ],
+        "min": 0.014,
+        "max": 0.032
+      },
+      "position": [
+        -90,
+        160
+      ]
+    },
+    {
+      "id": 96,
+      "type": "max/plantarium/shape",
+      "props": {
+        "shape": [
+          50,
+          100,
+          34,
+          85,
+          24,
+          55,
+          26,
+          25,
+          43,
+          6,
+          50,
+          0
+        ]
+      },
+      "position": [
+        -60,
+        220
+      ]
+    },
+    {
+      "id": 97,
+      "type": "max/plantarium/leaf",
+      "props": {
+        "size": 0.011,
+        "x_resolution": 5,
+        "x_curve": 0.3,
+        "y_curve": 0.25
+      },
+      "position": [
+        -40,
+        220
+      ]
+    },
+    {
+      "id": 98,
+      "type": "max/plantarium/set_color",
+      "props": {
+        "color": [
+          84,
+          96,
+          56
+        ]
+      },
+      "position": [
+        -20,
+        220
+      ]
+    },
+    {
+      "id": 99,
+      "type": "max/plantarium/leaf",
+      "props": {
+        "size": 0.011,
+        "x_resolution": 5,
+        "x_curve": 0.45,
+        "y_curve": 0.25
+      },
+      "position": [
+        -40,
+        280
+      ]
+    },
+    {
+      "id": 100,
+      "type": "max/plantarium/set_color",
+      "props": {
+        "color": [
+          104,
+          80,
+          58
+        ]
+      },
+      "position": [
+        -20,
+        280
+      ]
+    },
+    {
+      "id": 101,
+      "type": "max/plantarium/join",
+      "position": [
+        0,
+        250
+      ]
+    },
+    {
+      "id": 105,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": -0.12,
+        "max": 0.12,
+        "per_path": 1
+      },
+      "position": [
+        -20,
+        410
+      ]
+    },
+    {
+      "id": 130,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      },
+      "position": [
+        -140,
+        440
+      ]
+    },
+    {
+      "id": 132,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 1,
+        "b": -1.6,
+        "a": 1.7
+      },
+      "position": [
+        -110,
+        450
+      ]
+    },
+    {
+      "id": 136,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 0
+      },
+      "position": [
+        -50,
+        430
+      ]
+    },
+    {
+      "id": 135,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2,
+        "b": 2.6
+      },
+      "position": [
+        110,
+        350
+      ]
+    },
+    {
+      "id": 108,
+      "type": "max/plantarium/instance",
+      "props": {
+        "amount": 90,
+        "lowest_instance": 0,
+        "highest_instance": 1,
+        "rotation": 2.4,
+        "face": 1,
+        "pick": 1,
+        "angle": 1.2
+      },
+      "position": [
+        30,
+        0
+      ]
+    },
+    {
+      "id": 109,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.85,
+        "max": 1.15,
+        "per_instance": 1
+      },
+      "position": [
+        10,
+        60
+      ]
+    },
+    {
+      "id": 125,
+      "type": "max/plantarium/alpha",
+      "position": [
+        10,
+        110
+      ]
+    },
+    {
+      "id": 126,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0.6,
+          0.15,
+          1,
+          0.85,
+          1,
+          1,
+          0.65
+        ],
+        "min": 0,
+        "max": 1
+      },
+      "position": [
+        30,
+        110
+      ]
+    },
+    {
+      "id": 127,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      },
+      "position": [
+        50,
+        90
+      ]
+    },
+    {
+      "id": 117,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": -0.2,
+        "max": 0.5,
+        "per_instance": 1
+      },
+      "position": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": 118,
+      "type": "max/plantarium/alpha",
+      "position": [
+        150,
+        110
+      ]
+    },
+    {
+      "id": 119,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0,
+          0.12,
+          0,
+          0.3,
+          1,
+          1,
+          0.9
+        ],
+        "min": 0,
+        "max": 1
+      },
+      "position": [
+        170,
+        110
+      ]
+    },
+    {
+      "id": 121,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0,
+          0.25,
+          0,
+          0.45,
+          1,
+          0.75,
+          1,
+          1,
+          0
+        ],
+        "min": 0,
+        "max": 1
+      },
+      "position": [
+        170,
+        160
+      ]
+    },
+    {
+      "id": 120,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      },
+      "position": [
+        200,
+        130
+      ]
+    },
+    {
+      "id": 123,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0.5,
+        "max": 1.1,
+        "per_instance": 1
+      },
+      "position": [
+        200,
+        180
+      ]
+    },
+    {
+      "id": 122,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      },
+      "position": [
+        220,
+        150
+      ]
+    },
+    {
+      "id": 145,
+      "type": "max/plantarium/join",
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "id": 146,
+      "type": "max/plantarium/output",
+      "position": [
+        290,
+        0
+      ]
+    },
+    {
+      "id": 160,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": -2.0,
+        "max": -0.8,
+        "per_path": 1
+      },
+      "position": [
+        -600,
+        520
+      ]
+    },
+    {
+      "id": 161,
+      "type": "max/plantarium/rotate",
+      "props": {
+        "axis": 1,
+        "angle": 6.28,
+        "spread": 1
+      },
+      "position": [
+        -600,
+        600
+      ]
+    },
+    {
+      "id": 162,
+      "type": "max/plantarium/noise",
+      "props": {
+        "scale": 8,
+        "strength": 0.006
+      },
+      "position": [
+        -570,
+        600
+      ]
+    },
+    {
+      "id": 163,
+      "type": "max/plantarium/alpha",
+      "props": {},
+      "position": [
+        -640,
+        560
+      ]
+    },
+    {
+      "id": 164,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0.1,
+          0.5,
+          0.6,
+          1,
+          1
+        ],
+        "min": 0,
+        "max": 1
+      },
+      "position": [
+        -620,
+        560
+      ]
+    },
+    {
+      "id": 165,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      },
+      "position": [
+        -600,
+        560
+      ]
+    },
+    {
+      "id": 166,
+      "type": "max/plantarium/deform",
+      "props": {
+        "mode": 2
+      },
+      "position": [
+        -560,
+        480
+      ]
+    },
+    {
+      "id": 167,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": -0.7,
+        "max": 0.7,
+        "per_path": 1
+      },
+      "position": [
+        -600,
+        480
+      ]
+    },
+    {
+      "id": 168,
+      "type": "max/plantarium/deform",
+      "props": {
+        "mode": 1,
+        "amount": 0.35
+      },
+      "position": [
+        -580,
+        440
+      ]
+    },
+    {
+      "id": 200,
+      "type": "max/plantarium/alpha",
+      "props": {
+        "direction": 1
+      },
+      "position": [
+        -900,
+        700
+      ]
+    },
+    {
+      "id": 201,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          1,
+          0.12,
+          0,
+          0.22,
+          0,
+          0.333,
+          1,
+          0.45,
+          0,
+          0.55,
+          0,
+          0.667,
+          1,
+          0.78,
+          0,
+          1,
+          0
+        ],
+        "min": 0,
+        "max": 1
+      },
+      "position": [
+        -870,
+        700
+      ]
+    },
+    {
+      "id": 202,
+      "type": "max/myzel/mix_color",
+      "props": {
+        "a": [
+          108,
+          148,
+          78
+        ],
+        "b": [
+          40,
+          68,
+          34
+        ]
+      },
+      "position": [
+        -840,
+        700
+      ]
+    },
+    {
+      "id": 203,
+      "type": "max/plantarium/shape",
+      "props": {
+        "shape": [
+          50.0,
+          0,
+          49.15,
+          4,
+          47.45,
+          12,
+          45.33,
+          25,
+          44.05,
+          40,
+          44.48,
+          55,
+          45.75,
+          70,
+          47.45,
+          85,
+          48.3,
+          95,
+          48.64,
+          100
+        ]
+      },
+      "position": [
+        -900,
+        760
+      ]
+    },
+    {
+      "id": 204,
+      "type": "max/plantarium/leaf",
+      "props": {
+        "size": 0.92,
+        "x_resolution": 13,
+        "x_curve": 0.3,
+        "thickness": 0.5
+      },
+      "position": [
+        -870,
+        760
+      ]
+    },
+    {
+      "id": 205,
+      "type": "max/plantarium/set_color",
+      "props": {},
+      "position": [
+        -840,
+        760
+      ]
+    },
+    {
+      "id": 206,
+      "type": "max/plantarium/shape",
+      "props": {
+        "shape": [
+          50.0,
+          0,
+          49.32,
+          4,
+          47.96,
+          12,
+          46.26,
+          25,
+          45.24,
+          40,
+          45.58,
+          55,
+          46.6,
+          70,
+          47.96,
+          85,
+          48.64,
+          95,
+          48.91,
+          100
+        ]
+      },
+      "position": [
+        -900,
+        820
+      ]
+    },
+    {
+      "id": 207,
+      "type": "max/plantarium/leaf",
+      "props": {
+        "size": 0.92,
+        "x_resolution": 13,
+        "x_curve": 0.3,
+        "thickness": 0.5
+      },
+      "position": [
+        -870,
+        820
+      ]
+    },
+    {
+      "id": 208,
+      "type": "max/plantarium/set_color",
+      "props": {},
+      "position": [
+        -840,
+        820
+      ]
+    },
+    {
+      "id": 209,
+      "type": "max/plantarium/shape",
+      "props": {
+        "shape": [
+          50.0,
+          0,
+          49.02,
+          5,
+          47.07,
+          15,
+          45.11,
+          30,
+          43.16,
+          50,
+          43.64,
+          65,
+          45.11,
+          78,
+          46.87,
+          88,
+          48.05,
+          96,
+          48.44,
+          100
+        ]
+      },
+      "position": [
+        -900,
+        880
+      ]
+    },
+    {
+      "id": 210,
+      "type": "max/plantarium/leaf",
+      "props": {
+        "size": 0.92,
+        "x_resolution": 13,
+        "x_curve": 0.3,
+        "thickness": 0.5
+      },
+      "position": [
+        -870,
+        880
+      ]
+    },
+    {
+      "id": 211,
+      "type": "max/plantarium/set_color",
+      "props": {},
+      "position": [
+        -840,
+        880
+      ]
+    },
+    {
+      "id": 212,
+      "type": "max/plantarium/shape",
+      "props": {
+        "shape": [
+          50.0,
+          0,
+          49.23,
+          5,
+          47.7,
+          15,
+          46.17,
+          30,
+          44.65,
+          50,
+          45.03,
+          65,
+          46.17,
+          78,
+          47.55,
+          88,
+          48.47,
+          96,
+          48.78,
+          100
+        ]
+      },
+      "position": [
+        -900,
+        940
+      ]
+    },
+    {
+      "id": 213,
+      "type": "max/plantarium/leaf",
+      "props": {
+        "size": 0.92,
+        "x_resolution": 13,
+        "x_curve": 0.3,
+        "thickness": 0.5
+      },
+      "position": [
+        -870,
+        940
+      ]
+    },
+    {
+      "id": 214,
+      "type": "max/plantarium/set_color",
+      "props": {},
+      "position": [
+        -840,
+        940
+      ]
+    },
+    {
+      "id": 215,
+      "type": "max/plantarium/join",
+      "props": {},
+      "position": [
+        -810,
+        800
+      ]
+    },
+    {
+      "id": 300,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0,
+          0.42,
+          0,
+          0.7,
+          1,
+          1,
+          1
+        ],
+        "min": 0,
+        "max": 1
+      },
+      "position": [
+        -300,
+        700
+      ]
+    },
+    {
+      "id": 301,
+      "type": "max/plantarium/random",
+      "props": {
+        "min": 0,
+        "max": 0.35,
+        "per_path": 1
+      },
+      "position": [
+        -1100,
+        500
+      ]
+    },
+    {
+      "id": 302,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2,
+        "b": 2.2
+      },
+      "position": [
+        -1100,
+        420
+      ]
+    },
+    {
+      "id": 303,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 1
+      },
+      "position": [
+        -1000,
+        450
+      ]
+    },
+    {
+      "id": 304,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0.02,
+          1,
+          1
+        ],
+        "min": 0,
+        "max": 1
+      },
+      "position": [
+        -1000,
+        380
+      ]
+    },
+    {
+      "id": 305,
+      "type": "max/plantarium/curve",
+      "props": {
+        "curve": [
+          0,
+          0.25,
+          0.7,
+          0.3,
+          0.9,
+          1,
+          1,
+          1
+        ],
+        "min": 0,
+        "max": 1
+      },
+      "position": [
+        -200,
+        800
+      ]
+    },
+    {
+      "id": 306,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      },
+      "position": [
+        -100,
+        820
+      ]
+    },
+    {
+      "id": 307,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2
+      },
+      "position": [
+        -100,
+        880
+      ]
+    },
+    {
+      "id": 311,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2,
+        "b": 0.012
+      },
+      "position": [
+        300,
+        900
+      ]
+    },
+    {
+      "id": 310,
+      "type": "max/plantarium/branch",
+      "props": {
+        "amount": 110,
+        "lowest_branch": 0.05,
+        "highest_branch": 1,
+        "rotation": 2.4,
+        "thickness": 0.25,
+        "taper": 0,
+        "growth": 1
+      },
+      "position": [
+        400,
+        900
+      ]
+    },
+    {
+      "id": 318,
+      "type": "max/plantarium/gravity",
+      "props": {
+        "strength": 0.5,
+        "elasticity": 0.4
+      },
+      "position": [
+        500,
+        900
+      ]
+    },
+    {
+      "id": 312,
+      "type": "max/plantarium/set_color",
+      "props": {
+        "color": [
+          226,
+          222,
+          200
+        ]
+      },
+      "position": [
+        600,
+        900
+      ]
+    },
+    {
+      "id": 313,
+      "type": "max/plantarium/shape",
+      "props": {
+        "shape": [
+          50,
+          100,
+          22,
+          80,
+          18,
+          40,
+          32,
+          10,
+          50,
+          0
+        ]
+      },
+      "position": [
+        400,
+        1000
+      ]
+    },
+    {
+      "id": 314,
+      "type": "max/plantarium/revolve",
+      "props": {
+        "size": 0.0035
+      },
+      "position": [
+        500,
+        1000
+      ]
+    },
+    {
+      "id": 315,
+      "type": "max/plantarium/set_color",
+      "props": {
+        "color": [
+          246,
+          244,
+          232
+        ]
+      },
+      "position": [
+        600,
+        1000
+      ]
+    },
+    {
+      "id": 316,
+      "type": "max/plantarium/path_info",
+      "props": {
+        "info": 5
+      },
+      "position": [
+        500,
+        1080
+      ]
+    },
+    {
+      "id": 317,
+      "type": "max/plantarium/math",
+      "props": {
+        "op_type": 2,
+        "b": 80
+      },
+      "position": [
+        600,
+        1080
+      ]
+    },
+    {
+      "id": 116,
+      "type": "max/plantarium/instance",
+      "props": {
+        "amount": 1,
+        "lowest_instance": 1,
+        "highest_instance": 1,
+        "face": 1,
+        "angle": 1.5708
+      },
+      "position": [
+        700,
+        950
+      ]
+    }
+  ],
+  "edges": [
+    [
+      60,
+      0,
+      61,
+      "plant"
+    ],
+    [
+      63,
+      0,
+      61,
+      "angle"
+    ],
+    [
+      141,
+      0,
+      62,
+      "plant"
+    ],
+    [
+      142,
+      0,
+      60,
+      "amount"
+    ],
+    [
+      33,
+      0,
+      140,
+      "plant"
+    ],
+    [
+      140,
+      0,
+      34,
+      "plant"
+    ],
+    [
+      32,
+      0,
+      34,
+      "geometry"
+    ],
+    [
+      35,
+      0,
+      36,
+      "value"
+    ],
+    [
+      36,
+      0,
+      34,
+      "amount"
+    ],
+    [
+      38,
+      0,
+      39,
+      "value"
+    ],
+    [
+      39,
+      0,
+      40,
+      "a"
+    ],
+    [
+      37,
+      0,
+      40,
+      "b"
+    ],
+    [
+      40,
+      0,
+      34,
+      "angle"
+    ],
+    [
+      44,
+      0,
+      45,
+      "value"
+    ],
+    [
+      45,
+      0,
+      42,
+      "a"
+    ],
+    [
+      41,
+      0,
+      42,
+      "b"
+    ],
+    [
+      47,
+      0,
+      48,
+      "a"
+    ],
+    [
+      49,
+      0,
+      50,
+      "value"
+    ],
+    [
+      50,
+      0,
+      52,
+      "a"
+    ],
+    [
+      51,
+      0,
+      52,
+      "b"
+    ],
+    [
+      48,
+      0,
+      55,
+      "a"
+    ],
+    [
+      52,
+      0,
+      55,
+      "b"
+    ],
+    [
+      55,
+      0,
+      56,
+      "value"
+    ],
+    [
+      42,
+      0,
+      46,
+      "a"
+    ],
+    [
+      56,
+      0,
+      46,
+      "b"
+    ],
+    [
+      46,
+      0,
+      34,
+      "size"
+    ],
+    [
+      71,
+      0,
+      72,
+      "value"
+    ],
+    [
+      72,
+      0,
+      70,
+      "amount"
+    ],
+    [
+      73,
+      0,
+      81,
+      "a"
+    ],
+    [
+      74,
+      0,
+      81,
+      "b"
+    ],
+    [
+      76,
+      0,
+      77,
+      "a"
+    ],
+    [
+      77,
+      0,
+      79,
+      "a"
+    ],
+    [
+      78,
+      0,
+      79,
+      "b"
+    ],
+    [
+      79,
+      0,
+      80,
+      "value"
+    ],
+    [
+      70,
+      0,
+      75,
+      "plant"
+    ],
+    [
+      83,
+      0,
+      75,
+      "angle"
+    ],
+    [
+      75,
+      0,
+      84,
+      "plant"
+    ],
+    [
+      84,
+      0,
+      85,
+      "plant"
+    ],
+    [
+      85,
+      0,
+      86,
+      "plant"
+    ],
+    [
+      86,
+      0,
+      87,
+      "plant"
+    ],
+    [
+      88,
+      0,
+      89,
+      "value"
+    ],
+    [
+      89,
+      0,
+      91,
+      "a"
+    ],
+    [
+      90,
+      0,
+      91,
+      "b"
+    ],
+    [
+      91,
+      0,
+      92,
+      "factor"
+    ],
+    [
+      92,
+      0,
+      87,
+      "color"
+    ],
+    [
+      87,
+      0,
+      93,
+      "plant"
+    ],
+    [
+      2,
+      0,
+      95,
+      "value"
+    ],
+    [
+      2,
+      0,
+      35,
+      "value"
+    ],
+    [
+      2,
+      0,
+      71,
+      "value"
+    ],
+    [
+      2,
+      0,
+      73,
+      "value"
+    ],
+    [
+      96,
+      0,
+      97,
+      "shape"
+    ],
+    [
+      97,
+      0,
+      98,
+      "plant"
+    ],
+    [
+      96,
+      0,
+      99,
+      "shape"
+    ],
+    [
+      99,
+      0,
+      100,
+      "plant"
+    ],
+    [
+      98,
+      0,
+      101,
+      "a"
+    ],
+    [
+      100,
+      0,
+      101,
+      "b"
+    ],
+    [
+      132,
+      0,
+      130,
+      "a"
+    ],
+    [
+      80,
+      0,
+      130,
+      "b"
+    ],
+    [
+      130,
+      0,
+      136,
+      "a"
+    ],
+    [
+      105,
+      0,
+      136,
+      "b"
+    ],
+    [
+      136,
+      0,
+      108,
+      "index"
+    ],
+    [
+      93,
+      0,
+      108,
+      "plant"
+    ],
+    [
+      101,
+      0,
+      108,
+      "geometry"
+    ],
+    [
+      109,
+      0,
+      127,
+      "a"
+    ],
+    [
+      126,
+      0,
+      127,
+      "b"
+    ],
+    [
+      125,
+      0,
+      126,
+      "value"
+    ],
+    [
+      118,
+      0,
+      119,
+      "value"
+    ],
+    [
+      119,
+      0,
+      120,
+      "a"
+    ],
+    [
+      118,
+      0,
+      135,
+      "a"
+    ],
+    [
+      121,
+      0,
+      120,
+      "b"
+    ],
+    [
+      120,
+      0,
+      122,
+      "a"
+    ],
+    [
+      123,
+      0,
+      122,
+      "b"
+    ],
+    [
+      34,
+      0,
+      145,
+      "a"
+    ],
+    [
+      62,
+      0,
+      145,
+      "c"
+    ],
+    [
+      145,
+      0,
+      146,
+      "input"
+    ],
+    [
+      135,
+      0,
+      132,
+      "b"
+    ],
+    [
+      130,
+      0,
+      121,
+      "value"
+    ],
+    [
+      61,
+      0,
+      161,
+      "plant"
+    ],
+    [
+      161,
+      0,
+      162,
+      "plant"
+    ],
+    [
+      162,
+      0,
+      141,
+      "plant"
+    ],
+    [
+      163,
+      0,
+      164,
+      "value"
+    ],
+    [
+      164,
+      0,
+      165,
+      "a"
+    ],
+    [
+      160,
+      0,
+      165,
+      "b"
+    ],
+    [
+      165,
+      0,
+      32,
+      "amount"
+    ],
+    [
+      167,
+      0,
+      166,
+      "amount"
+    ],
+    [
+      166,
+      0,
+      32,
+      "geometry"
+    ],
+    [
+      168,
+      0,
+      166,
+      "geometry"
+    ],
+    [
+      200,
+      0,
+      201,
+      "value"
+    ],
+    [
+      201,
+      0,
+      202,
+      "factor"
+    ],
+    [
+      203,
+      0,
+      204,
+      "shape"
+    ],
+    [
+      204,
+      0,
+      205,
+      "plant"
+    ],
+    [
+      202,
+      0,
+      205,
+      "color"
+    ],
+    [
+      206,
+      0,
+      207,
+      "shape"
+    ],
+    [
+      207,
+      0,
+      208,
+      "plant"
+    ],
+    [
+      202,
+      0,
+      208,
+      "color"
+    ],
+    [
+      209,
+      0,
+      210,
+      "shape"
+    ],
+    [
+      210,
+      0,
+      211,
+      "plant"
+    ],
+    [
+      202,
+      0,
+      211,
+      "color"
+    ],
+    [
+      212,
+      0,
+      213,
+      "shape"
+    ],
+    [
+      213,
+      0,
+      214,
+      "plant"
+    ],
+    [
+      202,
+      0,
+      214,
+      "color"
+    ],
+    [
+      205,
+      0,
+      215,
+      "a"
+    ],
+    [
+      208,
+      0,
+      215,
+      "b"
+    ],
+    [
+      211,
+      0,
+      215,
+      "c"
+    ],
+    [
+      214,
+      0,
+      215,
+      "d"
+    ],
+    [
+      215,
+      0,
+      168,
+      "geometry"
+    ],
+    [
+      81,
+      0,
+      70,
+      "length"
+    ],
+    [
+      79,
+      0,
+      300,
+      "value"
+    ],
+    [
+      300,
+      0,
+      70,
+      "growth"
+    ],
+    [
+      47,
+      0,
+      302,
+      "a"
+    ],
+    [
+      302,
+      0,
+      303,
+      "a"
+    ],
+    [
+      301,
+      0,
+      303,
+      "b"
+    ],
+    [
+      303,
+      0,
+      304,
+      "value"
+    ],
+    [
+      304,
+      0,
+      60,
+      "growth"
+    ],
+    [
+      79,
+      0,
+      305,
+      "value"
+    ],
+    [
+      95,
+      0,
+      306,
+      "a"
+    ],
+    [
+      305,
+      0,
+      306,
+      "b"
+    ],
+    [
+      306,
+      0,
+      93,
+      "length"
+    ],
+    [
+      127,
+      0,
+      307,
+      "a"
+    ],
+    [
+      305,
+      0,
+      307,
+      "b"
+    ],
+    [
+      307,
+      0,
+      108,
+      "size"
+    ],
+    [
+      122,
+      0,
+      311,
+      "a"
+    ],
+    [
+      108,
+      0,
+      310,
+      "plant"
+    ],
+    [
+      311,
+      0,
+      310,
+      "length"
+    ],
+    [
+      117,
+      0,
+      310,
+      "angle"
+    ],
+    [
+      310,
+      0,
+      318,
+      "plant"
+    ],
+    [
+      318,
+      0,
+      312,
+      "plant"
+    ],
+    [
+      313,
+      0,
+      314,
+      "shape"
+    ],
+    [
+      314,
+      0,
+      315,
+      "plant"
+    ],
+    [
+      316,
+      0,
+      317,
+      "a"
+    ],
+    [
+      312,
+      0,
+      116,
+      "plant"
+    ],
+    [
+      315,
+      0,
+      116,
+      "geometry"
+    ],
+    [
+      317,
+      0,
+      116,
+      "size"
+    ],
+    [
+      116,
+      0,
+      145,
+      "b"
+    ]
+  ]
+}
