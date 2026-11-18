@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 15,
+  "version": 16,
   "meta": { "unit": "cm" },
   "groups": [],
   "settings": { "resolution.circle": 6, "resolution.curve": 16, "time.t": 1 },
@@ -22,31 +22,31 @@
     {
       "id": 4,
       "position": [-300, -98.09],
-      "type": "max/plantarium/random",
+      "type": "max/core/random",
       "props": { "min": 0.0, "max": 0.4 }
     },
     {
       "id": 17,
       "position": [-390, -124.47],
-      "type": "max/plantarium/random",
+      "type": "max/core/random",
       "props": { "min": 0.28098, "max": 0.42816 }
     },
     {
       "id": 18,
       "position": [-330, -178.72],
-      "type": "max/plantarium/vec3",
+      "type": "max/core/vec3",
       "props": { "x": 0, "y": 0.0, "z": 0 }
     },
     {
       "id": 19,
       "position": [-360, -191.47],
-      "type": "max/plantarium/random",
+      "type": "max/core/random",
       "props": { "min": -0.04683, "max": 0.04683 }
     },
     {
       "id": 20,
       "position": [-360, -161.47],
-      "type": "max/plantarium/random",
+      "type": "max/core/random",
       "props": { "min": -0.04683, "max": 0.04683 }
     },
     {
@@ -112,7 +112,7 @@
     {
       "id": 12,
       "position": [-120, 41.88],
-      "type": "max/plantarium/random_int",
+      "type": "max/core/random_int",
       "props": { "min": 9, "max": 12 }
     },
     {
@@ -124,7 +124,7 @@
     {
       "id": 15,
       "position": [-120, 6.88],
-      "type": "max/plantarium/curve",
+      "type": "max/core/curve",
       "props": {
         "curve": [
           0,
@@ -154,31 +154,31 @@
       "type": "max/plantarium/gravity",
       "props": { "strength": 0.15, "elasticity": 0.5 }
     },
-    { "id": 21, "position": [-270, -56.84], "type": "max/plantarium/alpha", "props": {} },
+    { "id": 21, "position": [-270, -56.84], "type": "max/core/alpha", "props": {} },
     {
       "id": 22,
       "position": [-240, -76.84],
-      "type": "max/plantarium/curve",
+      "type": "max/core/curve",
       "props": { "curve": [0, 0, 0.2, 1, 1, 1], "min": 0, "max": 1 }
     },
     {
       "id": 23,
       "position": [-210, -99.34],
-      "type": "max/myzel/mix_color",
+      "type": "max/core/mix_color",
       "props": { "a": [110, 124, 74], "b": [80, 118, 52] }
     },
     { "id": 24, "position": [-180, -107.69], "type": "max/plantarium/set_color", "props": {} },
-    { "id": 25, "position": [-240, 58.66], "type": "max/plantarium/alpha", "props": {} },
+    { "id": 25, "position": [-240, 58.66], "type": "max/core/alpha", "props": {} },
     {
       "id": 26,
       "position": [-210, 38.66],
-      "type": "max/plantarium/curve",
+      "type": "max/core/curve",
       "props": { "curve": [0, 0, 0.45, 0.1, 0.8, 1, 1, 1], "min": 0, "max": 1 }
     },
     {
       "id": 27,
       "position": [-180, -9.69],
-      "type": "max/myzel/mix_color",
+      "type": "max/core/mix_color",
       "props": { "a": [168, 174, 130], "b": [36, 28, 24] }
     },
     { "id": 28, "position": [-150, -36.79], "type": "max/plantarium/set_color", "props": {} },
@@ -188,41 +188,41 @@
       "type": "max/plantarium/set_color",
       "props": { "color": [84, 116, 56] }
     },
-    { "id": 30, "position": [-390, -56.47], "type": "max/myzel/time", "props": {} },
+    { "id": 30, "position": [-390, -56.47], "type": "max/core/time", "props": {} },
     {
       "id": 37,
       "position": [-120, 71.88],
-      "type": "max/plantarium/curve",
+      "type": "max/core/curve",
       "props": { "curve": [0, 0.02, 0.3, 0.02, 0.55, 0.4, 0.8, 0.9, 1, 1], "min": 0, "max": 1 }
     },
     {
       "id": 39,
       "position": [-330, -153.72],
-      "type": "max/plantarium/random_int",
+      "type": "max/core/random_int",
       "props": { "min": 3, "max": 8 }
     },
     {
       "id": 40,
       "position": [-390, -94.47],
-      "type": "max/plantarium/random",
+      "type": "max/core/random",
       "props": { "min": 0.75, "max": 1.25, "uniform": 1, "once": 1 }
     },
     {
       "id": 41,
       "position": [-150, 56.21],
-      "type": "max/plantarium/random",
+      "type": "max/core/random",
       "props": { "min": 0.08, "max": 0.14, "uniform": 1, "once": 1 }
     },
     {
       "id": 42,
       "position": [-180, 116.71],
-      "type": "max/plantarium/random",
+      "type": "max/core/random",
       "props": { "min": 0, "max": 0.2, "uniform": 1 }
     },
     {
       "id": 43,
       "position": [-150, 94.21],
-      "type": "max/plantarium/math",
+      "type": "max/core/math",
       "props": { "op_type": 1, "a": 0, "b": 0 }
     },
     {
@@ -234,7 +234,7 @@
     {
       "id": 45,
       "position": [-330, -83.72],
-      "type": "max/plantarium/curve",
+      "type": "max/core/curve",
       "props": {
         "curve": [0.0, 0.02, 0.188, 0.15, 0.375, 0.375, 0.525, 0.48, 0.637, 0.5, 0.75, 0.5, 1, 1],
         "min": 0,
@@ -244,37 +244,37 @@
     {
       "id": 46,
       "position": [-360, -83.47],
-      "type": "max/plantarium/curve",
+      "type": "max/core/curve",
       "props": { "curve": [0, 0, 1, 1], "min": 0.75, "max": 1 }
     },
     {
       "id": 47,
       "position": [-360, -123.47],
-      "type": "max/plantarium/math",
+      "type": "max/core/math",
       "props": { "op_type": 2, "a": 0, "b": 0 }
     },
     {
       "id": 48,
       "position": [-330, -123.72],
-      "type": "max/plantarium/math",
+      "type": "max/core/math",
       "props": { "op_type": 2, "a": 0, "b": 0 }
     },
     {
       "id": 49,
       "position": [-180, -82.69],
-      "type": "max/plantarium/math",
+      "type": "max/core/math",
       "props": { "op_type": 2, "a": 0, "b": 3.0 }
     },
     {
       "id": 50,
       "position": [-180, 38.31],
-      "type": "max/plantarium/curve",
+      "type": "max/core/curve",
       "props": { "curve": [0, 0, 0.3, 1, 1, 1], "min": 0, "max": 1 }
     },
     {
       "id": 51,
       "position": [-150, -11.79],
-      "type": "max/plantarium/math",
+      "type": "max/core/math",
       "props": { "op_type": 2, "a": 0.008763, "b": 0 }
     }
   ],

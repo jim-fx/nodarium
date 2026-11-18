@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 15,
+  "version": 16,
   "settings": {
     "time.t": 1,
     "resolution.field": 160,
@@ -35,7 +35,7 @@
             -210,
             10
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -65,7 +65,7 @@
             -240,
             92.5
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -87,7 +87,7 @@
             -210,
             65
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -141,7 +141,7 @@
             -145,
             35
           ],
-          "type": "max/plantarium/random",
+          "type": "max/core/random",
           "props": {
             "min": 0.0007,
             "max": 0.0014,
@@ -440,7 +440,7 @@
             -300,
             -8.75
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -470,7 +470,7 @@
             -330,
             73.75
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -492,7 +492,7 @@
             -300,
             46.25
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -538,7 +538,7 @@
             -240,
             11.25
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -569,7 +569,7 @@
             -235,
             12.5
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -605,7 +605,7 @@
             -210,
             32.5
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -655,7 +655,7 @@
             -175,
             23.75
           ],
-          "type": "max/plantarium/random",
+          "type": "max/core/random",
           "props": {
             "min": 0.0007,
             "max": 0.0014,
@@ -704,7 +704,7 @@
             -30,
             35
           ],
-          "type": "max/plantarium/math",
+          "type": "max/core/math",
           "props": {
             "op_type": 2,
             "b": 1.25
@@ -716,7 +716,7 @@
             -90,
             46.25
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -734,7 +734,7 @@
             -60,
             23.75
           ],
-          "type": "max/myzel/mix_color"
+          "type": "max/core/mix_color"
         },
         {
           "id": 51,
@@ -1253,7 +1253,7 @@
             -210,
             -10
           ],
-          "type": "max/plantarium/math",
+          "type": "max/core/math",
           "props": {
             "op_type": 2,
             "b": 0.28
@@ -1265,7 +1265,7 @@
             -210,
             30
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -1286,7 +1286,7 @@
             -150,
             20
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -1313,7 +1313,7 @@
             -150,
             55
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -1346,7 +1346,7 @@
             -120,
             70
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -1366,7 +1366,7 @@
             -90,
             50
           ],
-          "type": "max/myzel/mix_color",
+          "type": "max/core/mix_color",
           "props": {}
         },
         {
@@ -1585,7 +1585,7 @@
             -160,
             -10
           ],
-          "type": "max/plantarium/math",
+          "type": "max/core/math",
           "props": {
             "op_type": 2,
             "b": 0.24
@@ -1597,7 +1597,7 @@
             -120,
             20
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -1620,7 +1620,7 @@
             -120,
             55
           ],
-          "type": "max/plantarium/curve",
+          "type": "max/core/curve",
           "props": {
             "curve": [
               0,
@@ -1734,7 +1734,7 @@
         -180,
         -58.75
       ],
-      "type": "max/myzel/time",
+      "type": "max/core/time",
       "props": {}
     },
     {

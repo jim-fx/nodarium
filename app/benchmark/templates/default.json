@@ -1,5 +1,5 @@
 {
-  "version": 15,
+  "version": 16,
   "groups": [],
   "settings": { "resolution.circle": 26, "resolution.curve": 39 },
   "nodes": [
@@ -35,13 +35,13 @@
     {
       "id": 16,
       "position": [70, 80],
-      "type": "max/plantarium/vec3",
+      "type": "max/core/vec3",
       "props": { "x": 0, "y": 0, "z": 0 }
     },
     {
       "id": 17,
       "position": [45, 80],
-      "type": "max/plantarium/random",
+      "type": "max/core/random",
       "props": { "min": -2, "max": 2 }
     },
     {
@@ -71,7 +71,7 @@
     {
       "id": 20,
       "position": [70, 120],
-      "type": "max/plantarium/random",
+      "type": "max/core/random",
       "props": { "min": 0.073, "max": 0.15 }
     }
   ],
