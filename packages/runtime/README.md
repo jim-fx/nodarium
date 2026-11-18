@@ -66,6 +66,8 @@ Every template is a `Graph` of the current graph version, `parseProjectFile()` i
 | `devils-backbone`    | Devil's Backbone  | Plants    | cm   |
 | `knotweed`           | Japanese Knotweed | Plants    | m    |
 | `wild-carrot`        | Wild Carrot       | Plants    | cm   |
+| `dandelion`          | Dandelion         | Plants    | cm   |
+| `yarrow`             | Yarrow            | Plants    | cm   |
 | `champignon-groomed` | Champignon        | Mushrooms | cm   |
 | `fly-agaric`         | Fly agaric        | Mushrooms | cm   |
 | `porcini`            | Porcini           | Mushrooms | cm   |
