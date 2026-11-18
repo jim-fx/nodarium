@@ -3,6 +3,7 @@
   import { HTML } from '@threlte/extras';
   import type { Attachment } from 'svelte/attachments';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
+  import { groupNodes, nodeLabel, searchNodes, sortByLabel } from '../helpers/addMenu';
 
   type Props = {
     paddingLeft?: number;
@@ -25,33 +26,27 @@
   const graph = getGraphManager();
   const graphState = getGraphState();
 
-  let value = $state<string>();
-  let activeNodeId = $state<NodeId>();
+  let value = $state('');
+  let pickedNodeId = $state<NodeId>();
 
-  const MENU_WIDTH = 150;
-  const MENU_HEIGHT = 350;
+  const MENU_WIDTH = 220;
+  const MENU_HEIGHT = 470;
 
-  const allNodes = graphState.activeSocket
-    ? graph.getPossibleNodes(graphState.activeSocket)
-    : graph.getNodeDefinitions();
+  const allNodes = sortByLabel(
+    graphState.activeSocket
+      ? graph.getPossibleNodes(graphState.activeSocket)
+      : graph.getNodeDefinitions()
+  );
 
-  function filterNodes() {
-    return allNodes.filter((node) => node.id.includes(value ?? ''));
-  }
+  const sections = $derived(groupNodes(searchNodes(allNodes, value)));
+  const nodes = $derived(sections.flatMap((section) => section.nodes));
+  const activeNodeId = $derived(
+    nodes.some((node) => node.id === pickedNodeId) ? pickedNodeId : nodes[0]?.id
+  );
 
-  const nodes = $derived(value === '' ? allNodes : filterNodes());
-  $effect(() => {
-    if (nodes) {
-      if (activeNodeId === undefined) {
-        activeNodeId = nodes?.[0]?.id;
-      } else if (nodes.length) {
-        const node = nodes.find((node) => node.id === activeNodeId);
-        if (!node) {
-          activeNodeId = nodes[0].id;
-        }
-      }
-    }
-  });
+  const scrollWhenActive = (id: NodeId): Attachment<HTMLElement> => (el) => {
+    if (id === activeNodeId) el.scrollIntoView({ block: 'nearest' });
+  };
 
   function handleNodeCreation(nodeType: NodeInstance['type']) {
     if (!graphState.addMenuPosition) return;
@@ -73,14 +68,16 @@
     }
 
     if (event.key === 'ArrowDown') {
+      event.preventDefault();
       const index = nodes.findIndex((node) => node.id === activeNodeId);
-      activeNodeId = nodes[(index + 1) % nodes.length].id;
+      pickedNodeId = nodes[(index + 1) % nodes.length]?.id;
       return;
     }
 
     if (event.key === 'ArrowUp') {
+      event.preventDefault();
       const index = nodes.findIndex((node) => node.id === activeNodeId);
-      activeNodeId = nodes[(index - 1 + nodes.length) % nodes.length].id;
+      pickedNodeId = nodes[(index - 1 + nodes.length) % nodes.length]?.id;
       return;
     }
 
@@ -141,10 +138,12 @@
   };
 </script>
 
+<!-- the nodes are an HTML element of their own, the menu has to stay above them -->
 <HTML
   position.x={graphState.addMenuPosition?.[0]}
   position.z={graphState.addMenuPosition?.[1]}
   transform={false}
+  zIndexRange={[16777272, 16777272]}
 >
   <div class="add-menu-wrapper">
     <div class="header">
@@ -154,34 +153,32 @@
         aria-label="Search for a node type"
         role="searchbox"
         placeholder="Search..."
+        autocomplete="off"
+        spellcheck="false"
         onkeydown={handleKeyDown}
+        oninput={() => (pickedNodeId = undefined)}
         bind:value
         {@attach focusOnMount}
       />
     </div>
 
-    <div class="content">
-      {#each nodes as node (node.id)}
-        <div
-          class="result"
-          role="treeitem"
-          tabindex="0"
-          aria-selected={node.id === activeNodeId}
-          onkeydown={(event) => {
-            if (event.key === 'Enter') {
-              handleNodeCreation(node.id);
-            }
-          }}
-          onmousedown={() => handleNodeCreation(node.id)}
-          onfocus={() => {
-            activeNodeId = node.id;
-          }}
-          class:selected={node.id === activeNodeId}
-          onmouseover={() => {
-            activeNodeId = node.id;
-          }}
-        >
-          {node.meta?.title ?? node.id.split('/').at(-1)}
+    <div class="content" role="tree" aria-label="Node types">
+      {#each sections as section (section.id)}
+        <div role="group" aria-label={section.title}>
+          <div class="section-title" aria-hidden="true"><span>{section.title}</span></div>
+          {#each section.nodes as node (node.id)}
+            <div
+              class="result"
+              role="treeitem"
+              tabindex="-1"
+              aria-selected={node.id === activeNodeId}
+              onmousedown={() => handleNodeCreation(node.id)}
+              onpointermove={() => (pickedNodeId = node.id)}
+              {@attach scrollWhenActive(node.id)}
+            >
+              {nodeLabel(node)}
+            </div>
+          {/each}
         </div>
       {:else}
         <div class="no-results">No results for "{value}"</div>
@@ -193,6 +190,7 @@
 <style>
   .header {
     padding: 5px;
+    border-bottom: solid 1px var(--color-layer-2);
   }
 
   input {
@@ -219,22 +217,39 @@
     border-radius: 7px;
     overflow: hidden;
     border: solid 2px var(--color-layer-2);
-    width: 150px;
+    width: 220px;
   }
+
   .content {
-    min-height: none;
     width: 100%;
     color: var(--text-color);
-    max-height: 300px;
+    max-height: 420px;
     overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .section-title {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 0.7em 0.9em 0.35em;
+    background: var(--color-layer-1);
+    border-bottom: solid 1px var(--color-layer-2);
+    font-size: 0.75em;
+  }
+
+  /* on the title itself, the opacity would let the rows show through its background */
+  .section-title span {
+    opacity: 0.5;
   }
 
   .result {
-    padding: 1em 0.9em;
-    border-bottom: solid 1px var(--color-layer-2);
+    padding: 0.45em 0.9em;
     opacity: 0.7;
-    font-size: 0.9em;
+    font-size: 0.85em;
     cursor: pointer;
+    /* the sticky title covers a row scrolled to the top otherwise */
+    scroll-margin-top: 2.2em;
   }
 
   .result[aria-selected="true"] {

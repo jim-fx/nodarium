@@ -136,7 +136,7 @@ export class MouseEventManager {
         ];
       } else {
         this.state.addMenuPosition = [
-          this.state.mousePosition[0] - 155 / this.state.camera.position[2],
+          this.state.mousePosition[0] - 225 / this.state.camera.position[2],
           this.state.mousePosition[1] - 25 / this.state.camera.position[2]
         ];
       }
