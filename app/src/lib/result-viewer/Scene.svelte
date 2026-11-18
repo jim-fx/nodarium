@@ -51,7 +51,6 @@
     ongizmoend?: () => void;
     /** hovering and clicking the result tells what is under the pointer */
     picking?: boolean;
-    pickFormat?: PickFormat;
     pickables?: () => Pickable[];
     onpick?: (pick: Pick | undefined, kind: 'hover' | 'click', event?: PointerEvent) => void;
   };
@@ -69,7 +68,6 @@
     ongizmostart,
     ongizmoend,
     picking = false,
-    pickFormat = 'integer',
     pickables,
     onpick
   }: Props = $props();
@@ -97,19 +95,8 @@
   }
 
   let picker: ReturnType<typeof createPicker> | undefined;
-  export function pickStats() {
-    return picker?.stats;
-  }
-
-  // svelte-ignore state_referenced_locally
-  let usedFormat = pickFormat;
-  $effect(() => {
-    usedFormat = pickFormat;
-    return () => {
-      picker?.dispose();
-      picker = undefined;
-    };
-  });
+  let usedFormat: PickFormat = 'integer';
+  onDestroy(() => picker?.dispose());
 
   let pending: { x: number; y: number; click?: PointerEvent } | undefined;
   let pickFrame = 0;

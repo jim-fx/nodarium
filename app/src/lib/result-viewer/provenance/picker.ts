@@ -1,4 +1,4 @@
-import { groupModes, MAX_GROUPS } from './highlight';
+import { createGroupModes, type GroupModes, MAX_GROUPS } from './highlight';
 
 import {
   type Camera,
@@ -32,21 +32,6 @@ export type Pick = Pickable & { index: number };
  * for the object and 16 for the instance, for browsers that can't read integer targets back
  */
 export type PickFormat = 'integer' | 'bytes';
-
-export type PickStats = {
-  format: PickFormat;
-  picks: number;
-  /** ms on the main thread: swapping materials, the draw and starting the readback */
-  lastSync: number;
-  /** ms until the pixel arrived */
-  lastTotal: number;
-  /** draw calls of the last id pass */
-  lastCalls: number;
-  syncSamples: number[];
-  totalSamples: number[];
-  /** the part of `syncSamples` that the draw took */
-  drawSamples: number[];
-};
 
 const VERTEX = /* glsl */ `
   precision highp float;
@@ -128,14 +113,20 @@ function idMaterial(kind: Pickable['kind'], format: PickFormat) {
     fragmentShader: FRAGMENT,
     side: DoubleSide,
     defines,
-    uniforms: { uSlot: { value: 0 }, uGroupModes: groupModes }
+    uniforms: { uSlot: { value: 0 }, uGroupModes: createGroupModes() }
   });
 }
 
 /** Only the objects of a pick are on this layer, so the id pass draws nothing else of the scene */
 const PICK_LAYER = 7;
 
-/** The slot of an object is written into the uniform right before it is drawn */
+/** Every group shown, for a mesh that was never highlighted */
+const NO_MODES = createGroupModes();
+
+/**
+ * The slot of an object and the modes of its groups are written into the uniforms right before
+ * it is drawn
+ */
 function writeSlot(
   this: Object3D,
   _renderer: unknown,
@@ -146,7 +137,19 @@ function writeSlot(
 ) {
   const id = material as RawShaderMaterial;
   id.uniforms.uSlot.value = this.userData.pickSlot;
+  id.uniforms.uGroupModes.value = (this.userData.groupModes as GroupModes | undefined ?? NO_MODES)
+    .value;
   id.uniformsNeedUpdate = true;
+}
+
+/**
+ * The slot (1 for the first pickable, 0 for nothing) and the instance or group a pixel of the id
+ * pass holds. `bytes` packs 16 bits of each into the four channels.
+ */
+export function decodePixel(format: PickFormat, pixel: ArrayLike<number>) {
+  return format === 'integer'
+    ? { slot: pixel[0], index: pixel[1] }
+    : { slot: pixel[0] | (pixel[1] << 8), index: pixel[2] | (pixel[3] << 8) };
 }
 
 /**
@@ -173,17 +176,6 @@ export function createPicker(renderer: WebGLRenderer, format: PickFormat = 'inte
   const pickCamera = new PerspectiveCamera();
   const pixel = format === 'integer' ? new Uint32Array(4) : new Uint8Array(4);
   const clearColor = new Color();
-
-  const stats: PickStats = {
-    format,
-    picks: 0,
-    lastSync: 0,
-    lastTotal: 0,
-    lastCalls: 0,
-    syncSamples: [],
-    totalSamples: [],
-    drawSamples: []
-  };
 
   let busy = false;
 
@@ -214,20 +206,13 @@ export function createPicker(renderer: WebGLRenderer, format: PickFormat = 'inte
     const previousTarget = renderer.getRenderTarget();
     const previousAlpha = renderer.getClearAlpha();
     renderer.getClearColor(clearColor);
-    const calls = renderer.info.render.calls;
-    const autoReset = renderer.info.autoReset;
-    renderer.info.autoReset = false;
     try {
-      const startedAt = performance.now();
       renderer.setRenderTarget(target);
       renderer.setClearColor(0x000000, 0);
       renderer.clear();
       renderer.render(scene, pickCamera);
-      stats.lastCalls = renderer.info.render.calls - calls;
-      const draw = performance.now() - startedAt;
-      return { draw, read: renderer.readRenderTargetPixelsAsync(target, 0, 0, 1, 1, pixel) };
+      return renderer.readRenderTargetPixelsAsync(target, 0, 0, 1, 1, pixel);
     } finally {
-      renderer.info.autoReset = autoReset;
       renderer.setRenderTarget(previousTarget);
       renderer.setClearColor(clearColor, previousAlpha);
       for (let i = 0; i < pickables.length; i++) {
@@ -255,38 +240,18 @@ export function createPicker(renderer: WebGLRenderer, format: PickFormat = 'inte
     if (busy || !(camera instanceof PerspectiveCamera)) return;
     busy = true;
     try {
-      const startedAt = performance.now();
-      const { draw, read } = drawIds(scene, camera, pickables, x, y, width, height);
-      const sync = performance.now() - startedAt;
-      await read;
-      record(sync, performance.now() - startedAt, draw);
+      await drawIds(scene, camera, pickables, x, y, width, height);
     } finally {
       busy = false;
     }
 
-    const slot = format === 'integer' ? pixel[0] : pixel[0] | (pixel[1] << 8);
-    const index = format === 'integer' ? pixel[1] : pixel[2] | (pixel[3] << 8);
+    const { slot, index } = decodePixel(format, pixel);
     const hit = pickables[slot - 1];
     return hit && { ...hit, index };
   }
 
-  function record(sync: number, total: number, draw: number) {
-    stats.picks++;
-    stats.lastSync = sync;
-    stats.lastTotal = total;
-    stats.syncSamples.push(sync);
-    stats.totalSamples.push(total);
-    stats.drawSamples.push(draw);
-    if (stats.syncSamples.length > 500) {
-      stats.syncSamples.shift();
-      stats.totalSamples.shift();
-      stats.drawSamples.shift();
-    }
-  }
-
   return {
     pick,
-    stats,
     get busy() {
       return busy;
     },

@@ -1,7 +1,7 @@
 <script lang="ts">
   import SmallPerformanceViewer from '#lib/performance/SmallPerformanceViewer.svelte';
   import { appSettings } from '#lib/settings/app-settings.svelte.ts';
-  import { NO_PATH, type PathLink, splitNestedArray } from '@nodarium/utils';
+  import { type PathLink, splitNestedArray } from '@nodarium/utils';
   import type { PerformanceStore } from '@nodarium/utils';
   import { Canvas } from '@threlte/core';
   import { untrack } from 'svelte';
@@ -10,8 +10,8 @@
   import type { Gizmo, GizmoChange, GizmoMode } from './gizmos/gizmos';
   import { getMaterial, matcapLoaded, setHeightRange } from './materials/materials';
   import { type PartHighlight, setSelectedStrength, visibleParts } from './provenance/highlight';
-  import { type PartHit, readPathLinks } from './provenance/part-hit';
-  import type { Pick, PickFormat } from './provenance/picker';
+  import { type PartHit, partHit, readPathLinks } from './provenance/part-hit';
+  import type { Pick } from './provenance/picker';
   import Scene from './Scene.svelte';
 
   // created on first use, switching back and forth keeps the compiled shaders
@@ -73,7 +73,6 @@
     ongizmoend?: () => void;
     /** Whether hovering and clicking the result reports the part under the pointer */
     picking?: boolean;
-    pickFormat?: PickFormat;
     onparthover?: (hit: PartHit | undefined) => void;
     onpartclick?: (hit: PartHit | undefined, event: PointerEvent) => void;
     /** The parts to tint, dim or hide. Without it the result is shown as it is. */
@@ -93,7 +92,6 @@
     ongizmostart,
     ongizmoend,
     picking = false,
-    pickFormat = 'integer',
     onparthover,
     onpartclick,
     highlight,
@@ -118,22 +116,8 @@
     return links ??= readPathLinks(items);
   }
 
-  /** for measuring: how often the highlight was applied to the objects and how long it took */
-  const highlightStats = { applies: 0, lastApply: 0 };
-
-  export function provenanceStats() {
-    return { pick: sceneComponent?.pickStats(), highlight: highlightStats };
-  }
-
-  function toHit({ object, kind, index }: Pick): PartHit {
-    if (kind === 'geometry') return { kind, pathId: object.userData.pathId ?? NO_PATH };
-    if (kind === 'instances') return { kind, pathId: object.userData.pathIds?.[index] ?? NO_PATH };
-    // which graph node made the tissue, for a mesh that brings the creators of its groups
-    return { kind, pathId: NO_PATH, group: index, creator: object.userData.creators?.[index] };
-  }
-
   function handlePick(pick: Pick | undefined, kind: 'hover' | 'click', event?: PointerEvent) {
-    const hit = pick && toHit(pick);
+    const hit = pick && partHit(pick.kind, pick.object.userData, pick.index);
     if (kind === 'hover') onparthover?.(hit);
     else if (event) onpartclick?.(hit, event);
   }
@@ -195,10 +179,7 @@
     untrack(() => {
       updateFade(next, fade);
       if (!pools) return;
-      const startedAt = performance.now();
       pools.setHighlight(next);
-      highlightStats.applies++;
-      highlightStats.lastApply = performance.now() - startedAt;
       updateFocus();
       sceneComponent?.invalidate();
     });
@@ -259,7 +240,6 @@
       {ongizmostart}
       {ongizmoend}
       {picking}
-      {pickFormat}
       pickables={() => pools?.pickables() ?? []}
       onpick={handlePick}
       bind:scene

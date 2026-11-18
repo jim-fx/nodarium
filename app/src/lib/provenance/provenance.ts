@@ -4,7 +4,7 @@ import {
   type PartHighlight
 } from '#lib/result-viewer/provenance/highlight.ts';
 import { expandWithChains, toCreatorId } from '@nodarium/runtime';
-import type { Graph } from '@nodarium/types';
+import { getOutputType, type Graph, type NodeDefinition } from '@nodarium/types';
 import { pathLineage, type PathLink } from '@nodarium/utils';
 
 /**
@@ -74,6 +74,28 @@ export type NodeTraits = {
   /** whether the runtime gives the node a creator id */
   hasCreator: (type: string) => boolean;
 };
+
+/** The socket types that carry parts of the result from node to node */
+const PART_TYPES = ['path', 'points', 'mesh'];
+const isPartType = (type?: string) => !!type && PART_TYPES.includes(type);
+const JOIN_TYPES = /\/join(_meshes)?$/;
+
+/** The traits of the node types `getNode` defines */
+export function nodeTraits(getNode: (type: string) => NodeDefinition | undefined): NodeTraits {
+  return {
+    isPartOutput: (type, output) => isPartType(getOutputType(getNode(type)?.outputs?.[output])),
+    isMainInput: (type, input) => {
+      // a join works on all of its inputs alike
+      if (JOIN_TYPES.test(type)) return true;
+      const first = Object.entries(getNode(type)?.inputs ?? {}).find(([, i]) =>
+        isPartType(i.type) || ('accepts' in i && i.accepts?.some(isPartType))
+      );
+      return first?.[0] === input;
+    },
+    hasCreator: (type) =>
+      Object.values(getNode(type)?.inputs ?? {}).some((input) => input.type === 'creator')
+  };
+}
 
 export function buildIndex(graph: Graph, traits: NodeTraits): ProvenanceIndex {
   const { graph: expanded, chains } = expandWithChains(graph);
@@ -171,7 +193,7 @@ function merge(into: Parts, from: Parts) {
   for (const id of from.creators) into.creators.add(id);
 }
 
-function isInstanceNode(index: ProvenanceIndex, id: number) {
+export function isInstanceNode(index: ProvenanceIndex, id: number) {
   return INSTANCE_TYPES.test(index.types.get(id) ?? '');
 }
 

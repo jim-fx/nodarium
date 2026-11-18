@@ -18,10 +18,13 @@ import {
   Vector3
 } from 'three';
 import {
+  createGroupModes,
+  type GroupModes,
   HIGHLIGHT,
   type HighlightMode,
   type PartHighlight,
   setGroupModes,
+  withGroupHighlight,
   withHighlight
 } from '../provenance/highlight';
 import type { Pickable } from '../provenance/picker';
@@ -522,12 +525,15 @@ export function createGeometryPool(
           : HIGHLIGHT.none;
         const byGroup = kind === 'mesh' && !!highlight && !!mesh.userData.creators
           && !!mesh.geometry.getAttribute('group');
-        // one Myzel mesh per result: the modes are shared by every mesh that is drawn by group
-        if (kind === 'mesh') setGroupModes(mesh.userData.creators, byGroup ? highlight : undefined);
+        let groupModes: GroupModes | undefined = mesh.userData.groupModes;
+        if (kind === 'mesh') {
+          groupModes ??= mesh.userData.groupModes = createGroupModes();
+          setGroupModes(groupModes, mesh.userData.creators, byGroup ? highlight : undefined);
+        }
         const shown = materialFor(mesh.geometry, material);
         // by group the mesh stays, the shader leaves out the groups the local view hides
-        mesh.material = byGroup
-          ? withHighlight(shown, HIGHLIGHT.none, true)
+        mesh.material = byGroup && groupModes
+          ? withGroupHighlight(shown, groupModes)
           : mode === HIGHLIGHT.none
           ? shown
           : withHighlight(shown, mode);

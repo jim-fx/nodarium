@@ -50,27 +50,32 @@ export function visibleParts(highlight: PartHighlight) {
 export const MAX_GROUPS = 128;
 
 /**
- * The mode of every vertex group of the Myzel mesh that is drawn, read by the materials that
- * highlight by group and by the id pass, which leaves out what the local view hides
+ * The mode of every vertex group of one Myzel mesh, a uniform of the materials that highlight it
+ * by group and of the id pass, which leaves out what the local view hides. Every mesh has its own,
+ * the groups of two meshes are numbered by different tables of creators.
  */
-export const groupModes = { value: new Float32Array(MAX_GROUPS) };
+export type GroupModes = { value: Float32Array };
+
+export function createGroupModes(): GroupModes {
+  return { value: new Float32Array(MAX_GROUPS) };
+}
 
 /**
  * Sets the mode of every group of a mesh whose groups were made by `creators`. Without a
  * highlight every group is shown as it is.
  */
 export function setGroupModes(
+  modes: GroupModes,
   creators: Int32Array | undefined,
   highlight: PartHighlight | undefined
 ) {
-  const modes = groupModes.value;
-  if (!highlight || !creators) {
-    modes.fill(highlight?.rest ?? HIGHLIGHT.none);
+  if (!highlight || !creators?.length) {
+    modes.value.fill(highlight?.rest ?? HIGHLIGHT.none);
     return;
   }
   for (let group = 0; group < MAX_GROUPS; group++) {
     const creator = creators[Math.min(group, creators.length - 1)];
-    modes[group] = highlight.creators.get(creator) ?? highlight.rest;
+    modes.value[group] = highlight.creators.get(creator) ?? highlight.rest;
   }
 }
 
@@ -159,29 +164,45 @@ function endOfMain(source: string, code: string) {
   return `${source.slice(0, end)}${code}\n${source.slice(end)}`;
 }
 
-const variants = new WeakMap<Material, Map<string, Material>>();
+const variants = new WeakMap<Material, Map<HighlightMode, Material>>();
+const groupVariants = new WeakMap<GroupModes, WeakMap<Material, Material>>();
 
 /**
  * `material` showing everything drawn with it in `mode`, instances in the mode of their
  * `instanceHighlight` attribute. The same pattern as `withVertexColors`: a clone whose shader gets
  * a chunk more, the variants of a material share one program and differ in a uniform.
- * With `byGroup` every vertex is in the mode of its group, see `setGroupModes`, the geometry
- * needs the `group` attribute for it.
  */
-export function withHighlight(material: Material, mode: HighlightMode, byGroup = false) {
+export function withHighlight(material: Material, mode: HighlightMode) {
   let modes = variants.get(material);
   if (!modes) variants.set(material, modes = new Map());
-  const key = `${mode}:${byGroup}`;
-  let variant = modes.get(key);
-  if (variant) return variant;
+  let variant = modes.get(mode);
+  if (!variant) modes.set(mode, variant = highlightVariant(material, mode));
+  return variant;
+}
 
-  variant = material.clone();
+/**
+ * `material` showing every vertex in the mode of its group, see `setGroupModes`. The geometry
+ * needs the `group` attribute for it.
+ */
+export function withGroupHighlight(material: Material, groupModes: GroupModes) {
+  let byMaterial = groupVariants.get(groupModes);
+  if (!byMaterial) groupVariants.set(groupModes, byMaterial = new WeakMap());
+  let variant = byMaterial.get(material);
+  if (!variant) {
+    byMaterial.set(material, variant = highlightVariant(material, HIGHLIGHT.none, groupModes));
+  }
+  return variant;
+}
+
+function highlightVariant(material: Material, mode: HighlightMode, groupModes?: GroupModes) {
+  const byGroup = !!groupModes;
+  const variant = material.clone();
   const uniforms = {
     uHighlight: { value: mode },
     uHoverTint: hoverTint,
     uSelectedTint: selectedTint,
     uSelectedStrength: selectedStrength,
-    uGroupModes: groupModes
+    ...(groupModes && { uGroupModes: groupModes })
   };
   if (variant instanceof ShaderMaterial && material instanceof ShaderMaterial) {
     // the uniforms of the material stay shared, the height range is set on the material itself
@@ -205,6 +226,5 @@ export function withHighlight(material: Material, mode: HighlightMode, byGroup =
     );
   };
   variant.customProgramCacheKey = () => `${material.customProgramCacheKey()}:highlight:${byGroup}`;
-  modes.set(key, variant);
   return variant;
 }

@@ -1,4 +1,4 @@
-import { isPath, type PathLink, readPathLink } from '@nodarium/utils';
+import { isPath, NO_PATH, type PathLink, readPathLink } from '@nodarium/utils';
 
 /** A part of the result under the pointer */
 export type PartHit = {
@@ -20,4 +20,25 @@ export function readPathLinks(items: Int32Array[]) {
     links.set(link.id, link);
   }
   return links;
+}
+
+/** What the pool keeps in the `userData` of an object that a pick can hit */
+type PickedObjectData = {
+  /** of the geometry of a path */
+  pathId?: number;
+  /** of every instance, the path it sits on */
+  pathIds?: ArrayLike<number>;
+  /** of a Myzel mesh that knows them, by group the creator id of its node */
+  creators?: ArrayLike<number>;
+};
+
+/** The part an object of the result shows at `index`, its instance or its vertex group */
+export function partHit(
+  kind: PartHit['kind'],
+  data: PickedObjectData,
+  index: number
+): PartHit {
+  if (kind === 'geometry') return { kind, pathId: data.pathId ?? NO_PATH };
+  if (kind === 'instances') return { kind, pathId: data.pathIds?.[index] ?? NO_PATH };
+  return { kind, pathId: NO_PATH, group: index, creator: data.creators?.[index] };
 }

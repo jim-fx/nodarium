@@ -6,6 +6,7 @@ import {
   composeHighlight,
   downstream,
   isEmpty,
+  isInstanceNode,
   lineageOf,
   nodeOfPart,
   type NodeTraits,
@@ -41,8 +42,6 @@ type LocalView = {
   picked?: Picked;
 };
 
-const INSTANCE_TYPES = /\/instance(_from_points)?$/;
-
 /**
  * Links the parts of the result in the viewer to the nodes in the editor, both ways. Nothing is
  * computed while it is off, or while nothing is selected or hovered.
@@ -56,9 +55,6 @@ export class ViewportLink {
   private picked = $state.raw<Picked>();
   private requestedLocal = $state.raw<LocalView>();
 
-  /** for measuring: how often and how long the highlight was worked out */
-  readonly stats = { highlights: 0, lastHighlight: 0, indexes: 0, lastIndex: 0 };
-
   constructor(private sources: Sources) {}
 
   private enabled = $derived.by(() => this.sources.enabled());
@@ -66,11 +62,7 @@ export class ViewportLink {
   private index = $derived.by(() => {
     const manager = this.sources.manager();
     if (!manager || manager.status !== 'idle') return;
-    const startedAt = performance.now();
-    const index = buildIndex(manager.serialize(), this.sources.traits);
-    this.stats.indexes++;
-    this.stats.lastIndex = performance.now() - startedAt;
-    return index;
+    return buildIndex(manager.serialize(), this.sources.traits);
   });
 
   private result = $derived.by(() => {
@@ -111,10 +103,6 @@ export class ViewportLink {
     const index = this.index;
     return index && nodeOfPart(index, this.result, hit);
   });
-
-  private isInstanceNode(id: number) {
-    return INSTANCE_TYPES.test(this.index?.types.get(id) ?? '');
-  }
 
   private hoveredParts(): Parts | undefined {
     const index = this.index;
@@ -159,10 +147,9 @@ export class ViewportLink {
     if (!local && !selected.length && !hovering) return;
     if (!this.index) return;
 
-    const startedAt = performance.now();
     const isolated = this.isolated;
     const picked = this.activePicked;
-    const highlight = composeHighlight({
+    return composeHighlight({
       selected: isolated ? undefined : this.partsOfNodes(selected, this.entered),
       picked: picked && !isolated ? partsOfPicked(this.result.links, picked) : undefined,
       hovered: this.hoveredParts(),
@@ -171,9 +158,6 @@ export class ViewportLink {
         picked?.creators.join() ?? ''
       }`
     });
-    this.stats.highlights++;
-    this.stats.lastHighlight = performance.now() - startedAt;
-    return highlight;
   });
 
   /** The nodes the editor points out: what made the hovered part, the chain of the local view */
@@ -225,7 +209,7 @@ export class ViewportLink {
       this.picked = { nodeId, paths: [], creators, instancesOnly: false };
       return;
     }
-    const instancesOnly = hit.kind === 'instances' && this.isInstanceNode(creator);
+    const instancesOnly = hit.kind === 'instances' && isInstanceNode(index, creator);
     if (!event.altKey) {
       this.picked = { nodeId, paths: [hit.pathId], creators: [], instancesOnly };
       return;
