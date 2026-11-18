@@ -46,31 +46,8 @@ type EdgeData = {
   points: Vector3[];
 };
 
-const predefinedColors = {
-  path: {
-    hue: 80,
-    lightness: 20,
-    saturation: 80
-  },
-  float: {
-    hue: 70,
-    lightness: 10,
-    saturation: 0
-  },
-  geometry: {
-    hue: 0,
-    lightness: 50,
-    saturation: 70
-  },
-  '*': {
-    hue: 200,
-    lightness: 20,
-    saturation: 100
-  }
-} as const;
-
 export class GraphState {
-  colors = new ColorGenerator(predefinedColors);
+  colors = new ColorGenerator();
 
   constructor(private graph: GraphManager, private readOptions: () => GraphOptions) {}
 
