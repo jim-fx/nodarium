@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 test.use({ viewport: { width: 1920, height: 1080 } });
 
 // the float node under an id the site doesn't serve, the definition is JSON in a custom section
-const elsewhere = 'drop/elsewhere/float';
+// whose length is written before it, so the id keeps the length of max/core/float
+const elsewhere = 'drop/far/float';
 const droppedWasm = Buffer.from(
   readFileSync('static/nodes/max/core/float.wasm')
     .toString('latin1')
