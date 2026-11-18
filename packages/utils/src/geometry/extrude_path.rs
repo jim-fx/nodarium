@@ -1,6 +1,6 @@
 use super::{
     append_colored_geometry_data, append_geometry_data, colored_geometry_data_len,
-    geometry_data_len, set_geometry_path_id, wrap_geometry_data, PathData,
+    geometry_data_len, set_geometry_path_id, wrap_geometry_data, GeometryData, PathData,
 };
 use glam::{Quat, Vec3};
 
@@ -15,7 +15,7 @@ fn create_circle(res: usize) -> Vec<f32> {
 }
 
 /// Vertex and face amount of the tube `extrude_path` makes from a path of `point_amount` points.
-fn extruded_size(point_amount: usize, res_x: usize) -> (usize, usize) {
+pub fn extruded_size(point_amount: usize, res_x: usize) -> (usize, usize) {
     // a single point has no direction and nothing to extrude
     if point_amount < 2 || res_x == 0 {
         return (0, 0);
@@ -54,8 +54,16 @@ pub fn extrude_path_into(input_path: PathData, res_x: usize, out: &mut Vec<i32>)
     };
     let geometry_data = &mut out[range];
     set_geometry_path_id(geometry_data, input_path.link.id);
+    extrude_path_sections(&input_path, res_x, wrap_geometry_data(geometry_data));
+}
 
-    if vertices_amount == 0 {
+/// Writes the tube of `input_path` into the sections of a geometry that has room for exactly
+/// [`extruded_size`] vertices and faces, its faces numbered from 0. `colors` are empty or get the
+/// color of a point at its ring.
+pub fn extrude_path_sections(input_path: &PathData, res_x: usize, geometry: GeometryData) {
+    let point_amount = input_path.points.len() / 4;
+    let colored = !input_path.colors.is_empty();
+    if extruded_size(point_amount, res_x).0 == 0 {
         return;
     }
 
@@ -65,8 +73,6 @@ pub fn extrude_path_into(input_path: PathData, res_x: usize, out: &mut Vec<i32>)
     let tube_faces = (point_amount - 1) * res_x * 2;
 
     let circle = create_circle(res_x);
-
-    let geometry = wrap_geometry_data(geometry_data);
 
     let normals = geometry.normals;
     let positions = geometry.positions;

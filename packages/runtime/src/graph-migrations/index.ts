@@ -15,6 +15,7 @@ import { setMeshColor } from './set-mesh-color';
 import { splitCap, wiredCapInputs } from './split-cap';
 import { STRANDS, strandsThickness } from './strands-thickness';
 import { strandsTubeOnly } from './strands-tube-only';
+import { toGeometryBake } from './to-geometry-bake';
 
 export * from './helpers';
 
@@ -162,6 +163,12 @@ export const MIGRATIONS: Migration[] = [
     description:
       'the value nodes float, math, random, random_int, round, curve, alpha, wave and vec3 of Plantarium and time and mix_color of Myzel moved to the collection max/core',
     migrate: coreCollection
+  },
+  {
+    version: 17,
+    description:
+      'to_geometry passes instances on, only with bake on it bakes them into its geometry as it did before',
+    migrate: toGeometryBake
   }
 ];
 

@@ -1,7 +1,7 @@
 {
   "id": "max/plantarium/to_geometry",
   "meta": {
-    "description": "Turns paths, geometry and instances into one geometry, for example to place a whole umbel with its flowers with an instance node. With variants on, every stem becomes its own geometry."
+    "description": "Turns paths into geometry, the step before the output: every path becomes a tube of its thickness, geometry and instances are passed on. With bake on everything becomes one geometry, for example to place a whole umbel with its flowers with an instance node."
   },
   "outputs": [
     "geometry"
@@ -12,12 +12,12 @@
       "accepts": [
         "geometry"
       ],
-      "description": "The paths, geometry and instances to bake into one geometry.",
+      "description": "The paths, geometry and instances, for example from a join.",
       "external": true
     },
     "resolution_circle": {
       "type": "integer",
-      "description": "How many segments a baked path has around, from the setting resolution.circle. max_circle_segments lowers it.",
+      "description": "How many segments a path has around, from the setting resolution.circle. max_circle_segments lowers it.",
       "value": 32,
       "min": 3,
       "max": 64,
@@ -25,17 +25,23 @@
     },
     "max_circle_segments": {
       "type": "integer",
-      "description": "The most segments around a baked path, lower it for small parts. 0 uses the circle resolution setting.",
+      "description": "The most segments around a path, lower it for small parts. 0 uses the circle resolution setting.",
       "value": 0,
       "min": 0,
       "max": 64
     },
     "max_points": {
       "type": "integer",
-      "description": "The most points along a baked path, longer paths are resampled to this many. 0 keeps all points.",
+      "description": "The most points along a path, longer paths are resampled to this many. 0 keeps all points.",
       "value": 0,
       "min": 0,
       "max": 64
+    },
+    "bake": {
+      "type": "boolean",
+      "internal": true,
+      "value": false,
+      "description": "Bake the instances too and give everything as one geometry, so an instance node can place the whole part like a leaf. Off, the instances stay instances, which draw faster."
     },
     "variants": {
       "type": "boolean",
