@@ -4,12 +4,15 @@
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers/index.ts';
   import { getNodeHeight } from '../helpers/nodeHelpers';
+  import { nodeSystem, systemColor } from '../helpers/nodeSystem';
   import { socketName } from '../helpers/socketNames';
 
   const graphState = tryGetGraphState();
   const graph = tryGetGraphManager();
 
   const { node }: { node: NodeInstance } = $props();
+  const uid = $props.id();
+  const clipId = `header-${uid}`;
 
   const socket = () => ({ node, index: 0, position: graphState.getSocketPosition(node, 0) });
 
@@ -31,6 +34,9 @@
     !!nodeType?.outputs?.length && node.type !== GROUP_INPUT
   );
   const title = $derived(nodeType?.meta?.title || node.type?.split('/').pop());
+  const system = $derived(nodeSystem(node.type));
+  const tooltip = $derived(system ? `${title} · ${system.name}` : title);
+  const barColor = $derived(systemColor(node.type, graphState?.options.systemColors));
   const outputLabel = $derived(
     (nodeType?.outputs?.length ?? 0) > 1 ? getOutputLabel(nodeType?.outputs?.[0]) : undefined
   );
@@ -97,7 +103,7 @@
   style:--socket-color={hoverColor}
   class:possible-socket={graphState?.possibleSocketIds.has(socketId)}
 >
-  <div class="content" class:pr-4={rightBump} {title}>
+  <div class="content" class:pr-4={rightBump} title={tooltip}>
     {#if graphState?.options.showDebugInfo}
       <span class="shrink-0 bg-white text-black! mr-2 px-1 rounded-sm opacity-30">{node.id}</span>
     {/if}
@@ -133,7 +139,29 @@
       --hover-path: path("${pathHover}");
     `}
   >
-    <path vector-effect="non-scaling-stroke" stroke="white" stroke-width="0.1"></path>
+    <path
+      class:fill-only={!!barColor}
+      vector-effect="non-scaling-stroke"
+      stroke="white"
+      stroke-width="0.1"
+    >
+    </path>
+    {#if barColor}
+      <clipPath id={clipId}><path></path></clipPath>
+      <!-- 8px wide on the edge, clipped to the inside and under the outline, leaves 3px -->
+      <line
+        x1="0"
+        y1="0"
+        x2="0"
+        y2="100"
+        stroke={barColor}
+        stroke-width="8"
+        vector-effect="non-scaling-stroke"
+        clip-path="url(#{clipId})"
+      >
+      </line>
+      <path class="stroke-only" vector-effect="non-scaling-stroke"></path>
+    {/if}
   </svg>
 </div>
 
@@ -208,6 +236,14 @@
     align-items: center;
     padding-left: 20px;
     height: 100%;
+  }
+
+  svg path.fill-only {
+    stroke: none;
+  }
+
+  svg path.stroke-only {
+    fill: none;
   }
 
   svg:hover path {

@@ -20,6 +20,12 @@ function getColor(variable: (typeof variables)[number]) {
   return new Color().setStyle(color, LinearSRGBColorSpace);
 }
 
+/** The bar on the header of a node of these collections; core nodes belong everywhere and get none */
+export const systemColors: Record<string, string> = {
+  'max/plantarium': '#6f8a52',
+  'max/myzel': '#9a7650'
+};
+
 export const colors = Object.fromEntries(
   variables.map((v) => [v, getColor(v)])
 ) as Record<(typeof variables)[number], Color>;
