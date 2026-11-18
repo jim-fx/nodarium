@@ -55,6 +55,7 @@ pub fn execute(args: &[&[i32]]) -> Output {
     let selected = DeepestPaths::new(&items, depth);
     let count = selected.count(&items);
     let mut rank = 0;
+    let along = reads_place(args[1]);
 
     let colored: Vec<Vec<i32>> = items
         .iter()
@@ -63,8 +64,13 @@ pub fn execute(args: &[&[i32]]) -> Output {
                 ctx.set_path(item, rank, count);
                 rank += 1;
                 let points = wrap_path(item).length;
-                let alphas = (0..points).map(|i| (i as f32 / (points - 1).max(1) as f32, 0.0));
-                let colors: Vec<u32> = ctx.colors_at(args[1], alphas).into_iter().map(opaque).collect();
+                let colors: Vec<u32> = if along {
+                    let alphas = (0..points).map(|i| (i as f32 / (points - 1).max(1) as f32, 0.0));
+                    ctx.colors_at(args[1], alphas).into_iter().map(opaque).collect()
+                } else {
+                    // the strands of a mushroom are many, a color that is the same along a path is read once
+                    vec![opaque(ctx.colors_at(args[1], [(0.0, 0.0)])[0]); points]
+                };
                 with_path_colors(item, &colors)
             } else if is_geometry(item) {
                 color_geometry(&mut ctx, item, args[1])
