@@ -29,7 +29,8 @@ function instantiate(path = NODE) {
   let panic: [number, number] | undefined;
   const env = {
     nodarium_panic: (ptr: number, len: number) => (panic = [ptr, len]),
-    nodarium_log: () => {}
+    nodarium_log: () => {},
+    nodarium_probe: () => {}
   };
   const instance = new WebAssembly.Instance(new WebAssembly.Module(readFileSync(path)), { env });
   const exports = instance.exports as unknown as Exports;

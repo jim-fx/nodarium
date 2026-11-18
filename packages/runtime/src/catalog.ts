@@ -31,7 +31,11 @@ function formatValue(input: NodeInput) {
     const selected = typeof value === 'string'
       ? value
       : names[typeof value === 'number' ? value : 0];
-    return selected === undefined ? '' : ` = ${selected} (${names.join(', ')})`;
+    // a graph names an option or gives its number
+    const options = (input.options ?? [])
+      .map((o, i) => (typeof o === 'string' ? `${i} ${o}` : `${o.value} ${o.label}`))
+      .join(', ');
+    return selected === undefined ? '' : ` = ${selected} (${options})`;
   }
   if (DATA_TYPES.has(input.type) || value === undefined) return '';
   if (Array.isArray(value)) {

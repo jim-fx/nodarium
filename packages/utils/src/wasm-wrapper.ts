@@ -46,6 +46,19 @@ export class WasmPanicError extends Error {
   }
 }
 
+/** Gets the values of the probe expressions the nodes read: the tag, the value, the path id */
+export type ProbeListener = (tag: number, value: number, path: number) => void;
+
+let probeListener: ProbeListener | undefined;
+
+/**
+ * Every value a node reads from a probe expression (`[9, tag, value]`, see `nodarium probe`) goes
+ * to `listener`, in every module, until it is set again. Undefined stops it.
+ */
+export function setProbeListener(listener: ProbeListener | undefined) {
+  probeListener = listener;
+}
+
 export function createWasmWrapper(buffer: ArrayBuffer) {
   let memory: WebAssembly.Memory | undefined;
   let lastPanic: string | undefined;
@@ -67,7 +80,9 @@ export function createWasmWrapper(buffer: ArrayBuffer) {
       nodarium_panic: logPanic,
       nodarium_log: log,
       host_log_panic: logPanic,
-      host_log: log
+      host_log: log,
+      nodarium_probe: (tag: number, value: number, path: number) =>
+        probeListener?.(tag, value, path)
     }
   };
 

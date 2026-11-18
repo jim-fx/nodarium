@@ -129,6 +129,62 @@ describe('nodarium', () => {
     expect((await run('run', graph, '--set', '9.length=1')).code).toBe(1);
   });
 
+  it('sets a list with --set, in place of an edge into the input', async () => {
+    const graph = await file('curved.json', {
+      ...handWritten,
+      nodes: [
+        ...handWritten.nodes,
+        { id: 4, type: 'max/plantarium/curve', props: { max: 0.5 } },
+        { id: 5, type: 'max/plantarium/random', props: { min: 0.1, max: 0.2 } }
+      ],
+      edges: [...handWritten.edges, [4, 0, 1, 'length'], [5, 0, 4, 'value']]
+    });
+    const printed = await run('run', graph, '--print-graph', '--set', '4.curve=0,1,1,1');
+    expect(printed.code).toBe(0);
+    expect(JSON.parse(printed.out).nodes.find((n: { id: number }) => n.id === 4).props.curve)
+      .toEqual([0, 1, 1, 1]);
+    const set = await run('run', graph, '--json', '--set', '1.length=0.2');
+    expect(set.err).toContain('curved: --set 1.length replaces the edge from curve#4');
+    expect(JSON.parse(set.out).height).toBeCloseTo(0.2, 1);
+  });
+
+  it('takes the names of the options of a select', async () => {
+    const graph = await file('named.json', {
+      ...handWritten,
+      nodes: [...handWritten.nodes, {
+        id: 4,
+        type: 'max/plantarium/math',
+        props: { op_type: 'multiply' }
+      }]
+    });
+    expect((await run('run', graph, '--print-graph')).out).toContain('"op_type": 2');
+    const wrong = await run('check', graph, '--set', '4.op_type=times');
+    expect(wrong.code).toBe(1);
+    expect(wrong.out).toContain(
+      'math#4 "op_type" is "times", it takes the number or the name of an option: 0 "add", 1 '
+    );
+  });
+
+  it('probes the values of a node and the paths of another', async () => {
+    const graph = await file('probed.json', {
+      ...handWritten,
+      nodes: [
+        ...handWritten.nodes,
+        { id: 4, type: 'max/plantarium/random', props: { min: 0.01, max: 0.02 } }
+      ],
+      edges: [...handWritten.edges, [4, 0, 2, 'strength']]
+    });
+    const values = await run('probe', graph, '4');
+    expect(values.code).toBe(0);
+    expect(values.out).toMatch(
+      /^probed: random#4\n {2}output 0 \(float\): read \d+ times\n {4}into noise#2 strength: /
+    );
+    const paths = await run('probe', graph, '1', '--json');
+    expect(JSON.parse(paths.out).outputs[0].data.paths[0]).toMatchObject({ depth: 1, count: 1 });
+    expect((await run('probe', graph, '9')).code).toBe(1);
+    expect((await run('probe', graph)).code).toBe(1);
+  });
+
   it('prints the graph with a version and a position for every node', async () => {
     const graph = await file('hand.json', { ...handWritten, version: undefined });
     const { code, out, err } = await run(

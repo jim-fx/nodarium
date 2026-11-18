@@ -34,6 +34,7 @@ import {
   readGraphSource,
   writtenGraph
 } from './graph-input';
+import { instancerLine, probeGraph, probeLines } from './probe';
 import { OutsideRootError, PathRule } from './root';
 
 export const USAGE = `Usage: nodarium <command> [options]
@@ -43,6 +44,9 @@ export const USAGE = `Usage: nodarium <command> [options]
   run <graph...>               builds a graph and prints its size
       [--seed n] [--time t] [--set key=value]... [--timings]
       [--print-graph [--write file [--overwrite]]]
+  probe <graph> <node id>      what comes out of a node: the values the nodes read from it,
+      [--seed n] [--time t]    or its paths, instances and geometry with their sizes
+      [--set key=value]...
   render <graph...>            renders front, side and top view into a PNG
       [--out dir] [--name name] [--size px] [--seed n] [--time t] [--set key=value]...
       [--views v,...] [--focus x,z,r] [--below] [--node id[:output]]
@@ -60,7 +64,8 @@ export const USAGE = `Usage: nodarium <command> [options]
   --nodes dir    the folder of the compiled nodes, the nodes of the package by default
   --seed n       the seed of the random nodes, 1 by default
   --time t       sets the setting time.t, from 0 to 1
-  --set k=v      sets a setting (resolution.curve=16) or the input of a node (4.length=0.3)
+  --set k=v      sets a setting (resolution.curve=16) or the input of a node (4.length=0.3,
+                 77.curve=0,0,1,1, 6.face=path), in place of an edge that goes into it
   --timings      the ms and output bytes of every node
   --print-graph  prints the graph with the changes of --set instead of running it
   --write file   writes the graph of --print-graph into a new file instead of printing it
@@ -273,7 +278,7 @@ class Cli {
     }
     const { name } = source;
     try {
-      applySets(source.json, this.sets.props);
+      for (const line of applySets(source.json, this.sets.props)) console.error(`${name}: ${line}`);
     } catch (error) {
       this.fail(name, (error as Error).message);
       return;
@@ -390,6 +395,7 @@ class Cli {
         );
       }
       this.print(`  built in ${summary.ms} ms`);
+      for (const placed of summary.instancers ?? []) this.print(`  ${instancerLine(placed)}`);
       if (ran.nodes) {
         for (const t of ran.nodes) {
           const node = `${t.type.split('/').pop()}#${t.id}${t.group ? ` in group#${t.group}` : ''}`;
@@ -401,6 +407,28 @@ class Cli {
         }
       }
     }
+  }
+
+  async probe([target, id, ...rest]: string[]) {
+    if (!target || id === undefined || rest.length || !/^\d+$/.test(id)) {
+      throw new CliError(`probe takes a graph and the id of one of its nodes\n\n${USAGE}`);
+    }
+    const prepared = await this.prepare(target);
+    if (!prepared) return;
+    let report;
+    try {
+      report = await probeGraph(
+        this.registry,
+        prepared.graph,
+        this.settings(prepared.graph),
+        Number(id)
+      );
+    } catch (error) {
+      this.fail(prepared.name, error instanceof Error ? error.message : String(error));
+      return;
+    }
+    if (this.options.json) this.print({ name: prepared.name, ...report });
+    else this.print(probeLines(prepared.name, report).join('\n'));
   }
 
   async render(targets: string[]) {
@@ -641,6 +669,9 @@ export async function main(args: string[]): Promise<number> {
     switch (command) {
       case 'nodes':
         await cli.nodes(rest);
+        break;
+      case 'probe':
+        await cli.probe(rest);
         break;
       case 'docs':
         cli.docs(rest);

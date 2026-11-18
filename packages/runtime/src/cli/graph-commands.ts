@@ -15,6 +15,7 @@ import { decodeResult } from '../result/decode-result';
 import { MemoryRuntimeExecutor } from '../runtime-executor';
 import type { GraphIssue } from '../validate-graph';
 import type { CheckedGraph } from './graph-input';
+import { instancers, type InstancerSummary } from './probe';
 
 // What `nodarium check/run/render/link` and the tools of `nodarium mcp` do with a graph, so both
 // give the same answer for the same graph.
@@ -87,6 +88,8 @@ export type RunSummary = {
   height?: number;
   width?: number;
   ms: number;
+  /** every instance node with how many instances it placed and their size in m */
+  instancers?: InstancerSummary[];
 };
 
 export type NodeTiming = {
@@ -135,6 +138,8 @@ export async function runGraph(
     width: empty ? undefined : round(Math.max(max[0] - min[0], max[2] - min[2])),
     ms: Math.round(ms * 10) / 10
   };
+  const placed = await instancers(registry, graph, settings);
+  if (placed.length) Object.assign(summary, { instancers: placed });
   if (!timings) return { summary };
   const types = new Map(run.nodes.map((node) => [node.id, node.type]));
   const nodes = Object.entries(ran.runTimings)

@@ -110,7 +110,8 @@ export type GraphSets = {
 
 /**
  * `resolution.curve=16` sets a setting, `4.length=0.3` the input length of node 4. A value is
- * read as JSON, a word stays a string. Throws for an entry without `=`.
+ * read as JSON, numbers separated by commas are a list (`77.curve=0,0,1,1`), a word stays a
+ * string. Throws for an entry without `=`.
  */
 export function parseSets(sets: string[]): GraphSets {
   const settings: Record<string, unknown> = {};
@@ -125,6 +126,8 @@ export function parseSets(sets: string[]): GraphSets {
       value = JSON.parse(text);
     } catch {
       // a word stays a string, like the name of an option
+      const list = text.split(',').map((v) => (v.trim() === '' ? NaN : Number(v)));
+      if (list.length > 1 && list.every(Number.isFinite)) value = list;
     }
     const prop = key.match(/^(\d+)\.(.+)$/);
     if (prop) props.push({ node: Number(prop[1]), input: prop[2], value });
@@ -135,15 +138,29 @@ export function parseSets(sets: string[]): GraphSets {
 
 /**
  * Sets the inputs of {@link parseSets} on the nodes of a project file or a bare graph as they
- * are written, before it is parsed. Throws for a node the graph doesn't have.
+ * are written, before it is parsed. An edge into an input that is set is taken out, the value
+ * replaces it. Gives a line for every edge it took out. Throws for a node the graph doesn't
+ * have.
  */
 export function applySets(json: unknown, props: GraphSets['props']) {
   const written = writtenGraph(json) as Graph | undefined;
+  const replaced: string[] = [];
   for (const { node, input, value } of props) {
     const found = written?.nodes?.find((n) => n.id === node);
     if (!found) throw new Error(`--set ${node}.${input}: the graph has no node ${node}`);
     found.props = { ...found.props, [input]: value as number };
+    if (!Array.isArray(written!.edges)) continue;
+    written!.edges = written!.edges.filter((edge) => {
+      const into = Array.isArray(edge) && edge[2] === node && edge[3] === input;
+      if (into) {
+        const from = written!.nodes.find((n) => n.id === edge[0]);
+        const name = from ? `${from.type.split('/').pop()}#${from.id}` : `node ${edge[0]}`;
+        replaced.push(`--set ${node}.${input} replaces the edge from ${name}`);
+      }
+      return !into;
+    });
   }
+  return replaced;
 }
 
 export type CheckedGraph = {
@@ -158,11 +175,43 @@ export type CheckedGraph = {
 };
 
 /**
+ * Turns the names of the options of select inputs into their numbers, in the nodes of a graph
+ * as it is written and in those of its groups. A name the input doesn't have stays, for
+ * `validateGraph` to report.
+ */
+export function selectsByNumber(written: unknown, definitions: Map<string, NodeDefinition>) {
+  const graph = written as Partial<Graph> | undefined;
+  if (!graph || typeof graph !== 'object') return;
+  const levels = [graph, ...(Array.isArray(graph.groups) ? graph.groups : [])];
+  for (const level of levels) {
+    for (const node of Array.isArray(level?.nodes) ? level.nodes : []) {
+      const inputs = definitions.get(node?.type)?.inputs;
+      if (!inputs || !node.props || typeof node.props !== 'object') continue;
+      for (const [key, value] of Object.entries(node.props as Record<string, unknown>)) {
+        const input = inputs[key];
+        if (input?.type !== 'select' || typeof value !== 'string') continue;
+        const options = input.options ?? [];
+        const index = options.findIndex((option) =>
+          (typeof option === 'string' ? option : option.label) === value
+        );
+        if (index < 0) continue;
+        const option = options[index];
+        (node.props as Record<string, unknown>)[key] = typeof option === 'string'
+          ? index
+          : option.value;
+      }
+    }
+  }
+}
+
+/**
  * Parses a project file or a bare graph and checks it with `validateGraph` as it is written. A
- * file the format check rejects has no graph but its issues all the same.
+ * file the format check rejects has no graph but its issues all the same. The options of select
+ * inputs may be named, they are turned into their numbers first.
  */
 export function checkGraph(json: unknown, definitions: Map<string, NodeDefinition>): CheckedGraph {
   const written = writtenGraph(json);
+  selectsByNumber(written, definitions);
   const issues = written && typeof written === 'object'
     ? validateGraph(written as Graph, definitions)
     : [];
