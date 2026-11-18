@@ -1,12 +1,13 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 17,
+  "version": 18,
   "settings": { "time.t": 1, "resolution.circle": 64, "resolution.curve": 64 },
   "meta": { "title": "Agave", "lastModified": "2026-10-21T13:00:00.703Z" },
   "groups": [],
   "nodes": [
-    { "id": 10, "position": [330, 80], "type": "max/plantarium/output", "props": {} },
+    { "id": 10, "position": [360, 80], "type": "max/core/output", "props": {} },
+    { "id": 66, "position": [330, 80], "type": "max/plantarium/to_geometry", "props": {} },
     {
       "id": 11,
       "position": [210, -95.58],
@@ -351,7 +352,8 @@
     [39, 0, 14, "geometry"],
     [14, 0, 16, "plant"],
     [49, 0, 16, "geometry"],
-    [16, 0, 10, "input"],
+    [16, 0, 66, "input"],
+    [66, 0, 10, "input"],
     [17, 0, 18, "value"],
     [18, 0, 25, "a"],
     [25, 0, 14, "size"],

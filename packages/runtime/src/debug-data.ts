@@ -1,16 +1,17 @@
-import type { NodeDefinition, NodeValue } from '@nodarium/types';
+import type { NodeValue } from '@nodarium/types';
 import { getOutputType } from '@nodarium/types';
-import { createLogger, decodeFloat, readNodeValue } from '@nodarium/utils';
+import { decodeFloat, readNodeValue } from '@nodarium/utils';
+import { patternPreview } from './pattern-preview';
 import type { PlanNode } from './plan';
 import type { DebugEntry } from './types';
 
-const log = createLogger('runtime-executor');
-log.mute();
-
-/** The node that turns a value of this socket type into something the debug view can draw */
-const DEBUG_PREVIEWS: Record<string, { node: string }> = {
+/**
+ * Turns a value of this socket type into geometry the debug view can draw, undefined when the
+ * words aren't one. The output shows only geometry, these are views for the debug node.
+ */
+const DEBUG_PREVIEWS: Record<string, (words: Int32Array) => Int32Array | undefined> = {
   // a flat disc colored by the pattern
-  pattern: { node: 'max/myzel/output' }
+  pattern: patternPreview
 };
 
 /** What the debug nodes of one run show */
@@ -47,21 +48,11 @@ export class DebugCollector {
     }
   }
 
-  /**
-   * Values the viewer can't draw as they are get turned into something it can, by a node of the
-   * graph's own collection. A pattern is only numbers, its preview is the mesh of the output node.
-   */
-  preview(definitions: Map<string, NodeDefinition>) {
+  /** Values the viewer can't draw as they are get turned into geometry it can draw */
+  preview() {
     for (const entry of Object.values(this.data)) {
-      const preview = DEBUG_PREVIEWS[entry.type];
-      const node = preview && definitions.get(preview.node);
-      if (!node) continue;
-      try {
-        const result = node.execute([entry.data]);
-        entry.data = readNodeValue(Array.isArray(result) ? result[0] : result);
-      } catch (e) {
-        log.warn(`could not preview the ${entry.type} for debugging`, e);
-      }
+      const preview = DEBUG_PREVIEWS[entry.type]?.(entry.data);
+      if (preview) entry.data = preview;
     }
   }
 }

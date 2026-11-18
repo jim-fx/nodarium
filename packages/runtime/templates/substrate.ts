@@ -100,16 +100,19 @@ function substrateGroup(id: number, substrate: Substrate): GroupDefinition {
 
 /**
  * A copy of a mushroom graph that grows on a substrate. A Substrate group joins its mesh into
- * the last input of the `join` before the `output`, so the substrate is the highest
- * material group of the mesh, and gives its places to the `points` of every group that takes
- * them, like the Stipe group of the mushroom templates. Its instance is the one node with a
+ * the last input of the `join` before the `to_geometry` and the `output`, so the substrate is the
+ * highest material group of the mesh, and gives its places to the `points` of every group that
+ * takes them, like the Stipe group of the mushroom templates. Its instance is the one node with a
  * `substrate` prop.
  */
 export function withSubstrate(template: Graph, substrate: Substrate): Graph {
   const graph = structuredClone(template);
-  const output = graph.nodes.find((n) => n.type === 'max/myzel/output');
-  const joinId = graph.edges.find(([, , to, input]) => to === output?.id && input === 'input')?.[0];
-  const join = graph.nodes.find((n) => n.id === joinId);
+  const source = (id?: number) => {
+    const from = graph.edges.find(([, , to, input]) => to === id && input === 'input')?.[0];
+    return graph.nodes.find((n) => n.id === from);
+  };
+  let join = source(graph.nodes.find((n) => n.type === 'max/core/output')?.id);
+  if (join?.type === 'max/plantarium/to_geometry') join = source(join.id);
   if (join?.type !== 'max/plantarium/join') {
     throw new Error('The graph has no join before its output');
   }

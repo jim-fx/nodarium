@@ -22,9 +22,16 @@ pub mod geometry_flags {
     pub const CREATORS: i32 = 2;
     /// One group per vertex follows the colors. Without it the geometry is one group
     pub const GROUPS: i32 = 4;
+    /// The tables are followed by how many paths the geometry was made from and the link of each
+    /// of them, [`super::PATH_LINK_WORDS`] words, see [`super::Mesh::paths`]
+    pub const PATHS: i32 = 8;
 }
 
-use geometry_flags::{COLORS, CREATORS, GROUPS};
+use geometry_flags::{COLORS, CREATORS, GROUPS, PATHS};
+
+/// The words of the link of a path in the table of paths of a geometry: its id, parent id, parent
+/// alpha, creator, index and grown, as they are in the header of the path
+pub const PATH_LINK_WORDS: usize = 6;
 
 /// The creator of a group that no graph node is known for
 pub const NO_CREATOR: i32 = i32::MIN;
@@ -43,6 +50,9 @@ pub struct Mesh {
     /// Empty, or for every group the creator id of the graph node that made it ([`NO_CREATOR`]
     /// for none), so the viewer can lead from a part of the geometry to its node
     pub creators: Vec<i32>,
+    /// Empty, or the links of the paths the geometry was made from, [`PATH_LINK_WORDS`] words
+    /// each, so the viewer can lead from what sits on a path to the path and its node
+    pub paths: Vec<i32>,
 }
 
 /// Packs a color with components in [0, 1] into one RGBA8 word, red in the lowest byte
@@ -64,20 +74,34 @@ fn table_len(creators: usize) -> usize {
     if creators == 0 { 0 } else { 1 + creators }
 }
 
+/// The words of the table of paths with the `words` of their links
+fn paths_len(words: usize) -> usize {
+    if words == 0 { 0 } else { 1 + words }
+}
+
 /// The groups a geometry with these groups numbers: one more than the highest
 fn group_count(groups: impl Iterator<Item = u32>) -> usize {
     groups.max().map_or(0, |g| g as usize + 1)
 }
 
-/// The table of an encoded geometry whose sections are `base` long: its creators, empty without
-/// the flag. `None` when the words after the sections aren't the table and the closing bracket.
-fn read_table(words: &[i32], base: usize, flags: i32) -> Option<&[i32]> {
+/// The tables of an encoded geometry whose sections are `base` long: its creators and the links
+/// of its paths, each empty without its flag. `None` when the words after the sections aren't the
+/// tables and the closing bracket.
+fn read_tables(words: &[i32], base: usize, flags: i32) -> Option<(&[i32], &[i32])> {
     let end = words.len().checked_sub(TAIL)?;
-    if flags & CREATORS == 0 {
-        return (end == base).then_some(&words[..0]);
+    let (creators, at) = read_table(words, base, end, flags & CREATORS != 0, 1)?;
+    let (paths, at) = read_table(words, at, end, flags & PATHS != 0, PATH_LINK_WORDS)?;
+    (at == end).then_some((creators, paths))
+}
+
+/// The entries of `size` words of the table at `at`, before `end`, and where the next one starts
+fn read_table(words: &[i32], at: usize, end: usize, present: bool, size: usize) -> Option<(&[i32], usize)> {
+    if !present {
+        return Some((&words[..0], at));
     }
-    let n = usize::try_from(*words.get(base)?).ok()?;
-    (end as u64 == base as u64 + 1 + n as u64).then(|| &words[base + 1..end])
+    let n = usize::try_from(*words.get(at)?).ok()?;
+    let stop = (at + 1).checked_add(n.checked_mul(size)?)?;
+    (stop <= end).then(|| (&words[at + 1..stop], stop))
 }
 
 /// The opening bracket and the header of a geometry of `len` words, and its closing bracket
@@ -118,8 +142,10 @@ impl Mesh {
         assert_eq!(self.groups.len(), v, "every vertex needs a group");
         let colors = if self.colors.is_empty() { 0 } else { COLORS };
         let creators = if self.creators.is_empty() { 0 } else { CREATORS };
-        let flags = GROUPS | colors | creators;
-        let len = sections_len(v, f, flags) + table_len(self.creators.len()) + TAIL;
+        let paths = if self.paths.is_empty() { 0 } else { PATHS };
+        assert_eq!(self.paths.len() % PATH_LINK_WORDS, 0, "{} words for the links of paths", self.paths.len());
+        let flags = GROUPS | colors | creators | paths;
+        let len = sections_len(v, f, flags) + table_len(self.creators.len()) + paths_len(self.paths.len()) + TAIL;
         let mut words = Vec::with_capacity(len);
         words.extend([0, len as i32 - 3, GEOMETRY_TAG, v as i32, f as i32, NO_PATH, flags]);
         words.extend(self.faces.iter().map(|&i| i as i32));
@@ -130,6 +156,10 @@ impl Mesh {
         if !self.creators.is_empty() {
             words.push(self.creators.len() as i32);
             words.extend(&self.creators);
+        }
+        if !self.paths.is_empty() {
+            words.push((self.paths.len() / PATH_LINK_WORDS) as i32);
+            words.extend(&self.paths);
         }
         words.extend([1, 1]);
         words
@@ -157,6 +187,7 @@ impl Mesh {
         self.positions.extend(&other.positions);
         self.normals.extend(&other.normals);
         self.groups.extend(other.groups.iter().map(|&g| g + first_group));
+        self.paths.extend(&other.paths);
     }
 
     /// The geometry of `words`, a geometry without groups is one group 0. Panics on anything
@@ -383,6 +414,8 @@ pub struct MeshWords<'a> {
     flags: i32,
     /// The creator of every group, empty when the geometry has no table of them
     creators: &'a [i32],
+    /// The links of its paths, empty when the geometry has no table of them
+    paths: &'a [i32],
 }
 
 impl<'a> MeshWords<'a> {
@@ -397,7 +430,7 @@ impl<'a> MeshWords<'a> {
             return None;
         }
         let (v, f, flags) = (usize::try_from(words[3]).ok()?, usize::try_from(words[4]).ok()?, words[6]);
-        if flags & !(COLORS | CREATORS | GROUPS) != 0 || (flags & CREATORS != 0 && flags & GROUPS == 0) {
+        if flags & !(COLORS | CREATORS | GROUPS | PATHS) != 0 || (flags & CREATORS != 0 && flags & GROUPS == 0) {
             return None;
         }
         // in u64, so counts up to i32::MAX can't overflow on wasm32
@@ -406,11 +439,11 @@ impl<'a> MeshWords<'a> {
         if base + TAIL as u64 > n as u64 {
             return None;
         }
-        let creators = read_table(words, base as usize, flags)?;
+        let (creators, paths) = read_tables(words, base as usize, flags)?;
         if words[GEOMETRY_HEAD..GEOMETRY_HEAD + f * 3].iter().any(|&i| i < 0 || i as usize >= v) {
             return None;
         }
-        Some(MeshWords { words, v, f, flags, creators })
+        Some(MeshWords { words, v, f, flags, creators, paths })
     }
 
     /// The words of the geometry, brackets included
@@ -428,12 +461,19 @@ impl<'a> MeshWords<'a> {
             colors: self.colors().map_or_else(Vec::new, |c| c.iter().map(|&c| c as u32).collect()),
             groups: self.groups().map_or_else(|| vec![0; self.v], |g| g.iter().map(|&g| g as u32).collect()),
             creators: self.creators.to_vec(),
+            paths: self.paths.to_vec(),
         }
     }
 
     /// The creator of every group, empty when the geometry doesn't know them
     pub fn creators(&self) -> &'a [i32] {
         self.creators
+    }
+
+    /// The links of the paths the geometry was made from, [`PATH_LINK_WORDS`] words each, empty
+    /// when the geometry doesn't know them
+    pub fn paths(&self) -> &'a [i32] {
+        self.paths
     }
 
     /// The id of the path the geometry was made from, [`NO_PATH`] for none
@@ -451,7 +491,7 @@ impl<'a> MeshWords<'a> {
         sections_len(self.v, self.f, self.flags)
     }
 
-    /// The table of the creators as it follows the groups: their number and each of them
+    /// The tables as they follow the groups: the creators and the paths, each with their number
     fn table(&self) -> &'a [i32] {
         &self.words[self.base_len()..self.words.len() - TAIL]
     }
@@ -532,7 +572,10 @@ impl<'a> MeshWords<'a> {
         // the groups, the table of the creators and the closing bracket follow the colors
         let tail = colors + if flags & COLORS != 0 { v } else { 0 };
         let groups = if flags & GROUPS != 0 { v } else { 0 };
-        let table = if flags & CREATORS != 0 { table_len(words[tail + groups] as usize) } else { 0 };
+        let mut table = if flags & CREATORS != 0 { table_len(words[tail + groups] as usize) } else { 0 };
+        if flags & PATHS != 0 {
+            table += paths_len(words[tail + groups + table] as usize * PATH_LINK_WORDS);
+        }
         let rest = groups + table + TAIL;
         assert_eq!(words.len(), sections_len(v, f, painted) + table + TAIL, "no room to paint a geometry in place");
         if flags & COLORS == 0 {
@@ -550,7 +593,8 @@ impl<'a> MeshWords<'a> {
             meshes.iter().fold((0, 0, false), |(v, f, colored), m| (v + m.v, f + m.f, colored || m.colors().is_some()));
         let creators =
             if meshes.iter().any(|m| !m.creators.is_empty()) { meshes.iter().map(|m| m.group_count()).sum() } else { 0 };
-        sections_len(v, f, GROUPS | if colored { COLORS } else { 0 }) + table_len(creators) + TAIL
+        let paths = meshes.iter().map(|m| m.paths.len()).sum();
+        sections_len(v, f, GROUPS | if colored { COLORS } else { 0 }) + table_len(creators) + paths_len(paths) + TAIL
     }
 
     /// The groups this geometry numbers, one for a geometry without groups
@@ -578,7 +622,11 @@ impl<'a> MeshWords<'a> {
         let f = meshes.iter().map(|m| m.f).sum::<usize>();
         let colored = meshes.iter().any(|m| m.colors().is_some());
         let with_creators = meshes.iter().any(|m| !m.creators.is_empty());
-        let flags = GROUPS | if colored { COLORS } else { 0 } | if with_creators { CREATORS } else { 0 };
+        let paths = meshes.iter().map(|m| m.paths.len()).sum::<usize>();
+        let flags = GROUPS
+            | if colored { COLORS } else { 0 }
+            | if with_creators { CREATORS } else { 0 }
+            | if paths > 0 { PATHS } else { 0 };
         put_frame(words, v, f, NO_PATH, flags);
         let len = words.len();
         let mut out = Words::new(&mut words[GEOMETRY_HEAD..len - TAIL]);
@@ -618,6 +666,12 @@ impl<'a> MeshWords<'a> {
                 out.extend((0..count).map(|g| mesh.creators.get(g).copied().unwrap_or(NO_CREATOR)));
             }
         }
+        if paths > 0 {
+            out.put(&[(paths / PATH_LINK_WORDS) as i32]);
+            for mesh in &meshes {
+                out.put(mesh.paths);
+            }
+        }
         out.done();
     }
 }
@@ -635,6 +689,7 @@ mod tests {
             colors: vec![pack_rgba(1.0, 0.0, 0.0, 1.0); 3],
             groups: vec![0, 2, 2],
             creators: Vec::new(),
+            paths: Vec::new(),
         }
     }
 
@@ -673,6 +728,43 @@ mod tests {
         long.insert(long.len() - 2, 0);
         long[1] += 1;
         assert_eq!(Mesh::try_decode(&long), None);
+    }
+
+    /// [`made`] with the links of two paths
+    fn with_paths() -> Mesh {
+        Mesh { paths: vec![5, -1, 0, 40, 0, 1, 6, 5, 7, 40, 1, 2], ..made() }
+    }
+
+    #[test]
+    fn the_links_of_the_paths_follow_the_creators() {
+        let words = with_paths().encode();
+        assert_eq!(words[6], COLORS | CREATORS | GROUPS | PATHS);
+        assert_eq!(&words[words.len() - 19..words.len() - 2], &[3, 40, NO_CREATOR, -7, 2, 5, -1, 0, 40, 0, 1, 6, 5, 7, 40, 1, 2]);
+        assert_eq!(Mesh::decode(&words), with_paths());
+        let read = MeshWords::read(&words).unwrap();
+        assert_eq!(read.paths(), &with_paths().paths[..]);
+        assert_eq!(read.creators(), &[40, NO_CREATOR, -7]);
+        // without creators
+        let plain = Mesh { creators: Vec::new(), ..with_paths() };
+        assert_eq!(Mesh::decode(&plain.encode()), plain);
+        // a table that says it has more links than there are words
+        let mut short = words.clone();
+        short.remove(short.len() - 3);
+        short[1] -= 1;
+        assert_eq!(Mesh::try_decode(&short), None);
+    }
+
+    #[test]
+    fn joining_and_painting_keep_the_links_of_the_paths() {
+        let (a, b) = (with_paths().encode(), Mesh { paths: vec![9, 5, 0, 41, 0, 1], ..triangle() }.encode());
+        let joined = Mesh::decode(&MeshWords::join(&[MeshWords::read(&a).unwrap(), MeshWords::read(&b).unwrap()]));
+        assert_eq!(joined.paths, [with_paths().paths, vec![9, 5, 0, 41, 0, 1]].concat());
+        let painted = MeshWords::read(&a).unwrap().painted(3);
+        assert_eq!(Mesh::decode(&painted).paths, with_paths().paths);
+        let mut uncolored = Mesh { colors: Vec::new(), ..with_paths() }.encode();
+        uncolored.resize(painted.len(), -1);
+        MeshWords::paint_in_place(&mut uncolored, 3);
+        assert_eq!(uncolored, painted);
     }
 
     #[test]
@@ -755,7 +847,7 @@ mod tests {
         assert_eq!(Mesh::try_decode(&[0, 6, GEOMETRY_TAG, -1, 0, NO_PATH, 0, 1, 1]), None);
         assert_eq!(Mesh::try_decode(&[0, 6, GEOMETRY_TAG, i32::MAX, i32::MAX, NO_PATH, 0, 1, 1]), None);
         let mut unknown_flag = words.clone();
-        unknown_flag[6] |= 8;
+        unknown_flag[6] |= 16;
         assert_eq!(Mesh::try_decode(&unknown_flag), None);
         // creators without groups
         let mut no_groups = plain(false);
@@ -777,6 +869,7 @@ mod tests {
             colors: if colored { vec![1, 2, 3, NO_COLOR] } else { Vec::new() },
             groups: vec![1, 0, 4, 1],
             creators: Vec::new(),
+            paths: Vec::new(),
         }
     }
 

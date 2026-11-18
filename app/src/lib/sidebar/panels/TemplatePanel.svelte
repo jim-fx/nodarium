@@ -5,6 +5,7 @@
   import { matchTemplate, nodeSignatures, type TemplateSummary } from './template-match';
 
   const ENDPOINT = '/__dev/templates';
+  const CATEGORIES = ['Plants', 'Mushrooms'];
 
   const { graph }: { graph?: Graph } = $props();
 
@@ -12,6 +13,7 @@
   let loaded = $state(false);
   const names = $derived(templates.map((t) => t.name));
   let newName = $state('');
+  let category = $state(0);
   let pending = $state(false);
 
   const graphId = $derived(graph?.id);
@@ -42,7 +44,7 @@
     try {
       const res = await fetch(ENDPOINT, {
         method: 'POST',
-        body: JSON.stringify({ name, graph })
+        body: JSON.stringify({ name, graph, category: CATEGORIES[category] })
       });
       if (!res.ok) throw new Error((await res.json()).error);
       const { created } = await res.json();
@@ -68,6 +70,7 @@
       placeholder="template-name"
       bind:value={newName}
     />
+    <InputSelect options={CATEGORIES} bind:value={category} />
   {/if}
   <Button
     variant="primary"

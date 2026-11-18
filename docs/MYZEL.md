@@ -17,7 +17,7 @@ Myzel nodes pass `path`, `points`, `pattern`, `geometry` and `color` between the
  strands         strands      geom  geom
    │                │          │     │
    └─────▶ join ◀───┘          ▼     ▼
-            │                  join ──────▶ output
+            │                  join ──▶ to_geometry ──▶ output
             ▼                   ▲
      hyphae_to_mesh ───geometry─┘
 ```
@@ -35,7 +35,7 @@ Every mushroom template is built from the same groups:
 - **Ring** (only where the veil leaves no more than a ring low on the stipe): a `skirt` around a point on every stipe. Gives geometry.
 - **Substrate** (what the mushrooms grow on, not part of the templates, `withSubstrate()` of `@nodarium/runtime/templates` adds it): a `mesh` of a stump, moss or litter and the places on it from `sample_mesh`. Gives the substrate as geometry for the `join` and the places as points for the `stem` in the Stipe group.
 
-A group takes outcome inputs, like lengths, radii, colors and the time or the age, and gives paths or geometry. At the top level the strands of stipe and cap are joined and go through `hyphae_to_mesh`, a second `join` joins that body with the gills and the veil into one geometry, the groups of each numbered after those of the ones before it, and `output` shows it.
+A group takes outcome inputs, like lengths, radii, colors and the time or the age, and gives paths or geometry. At the top level the strands of stipe and cap are joined and go through `hyphae_to_mesh`, a second `join` joins that body with the gills and the veil into one geometry, the groups of each numbered after those of the ones before it, and the `output` of [Core](./CORE.md) shows it, through a `to_geometry` that passes it on as it is.
 
 | template             | top level                                                                                                                                                                                                                                                | Stipe                                                                                                                                                                                                                                                                                                                                                                                                      | Cap                                                                                                                                                                                                                  | Gills                                                                                                                                              | Veil                                                                                                                                                                                                         |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -88,9 +88,7 @@ Substrates:
 - `mesh`: → a substrate in real size, baked into the node: `stump` (33 cm across on a mound of forest floor 56 cm across), `moss` (a cushion 23 cm across), `needles` and `leaves` (litter 29 cm across), each with the colors of its scan or, with `colored` off, without them. See `nodes/max/myzel/mesh/bake/SOURCES.md`.
 - `sample_mesh`: geometry → points on its surface, pointing along its normal. `amount`, `spacing`, `facing_up`.
 
-Output:
-
-- `output`: geometry, like the list of a `join` → what the app shows. Paths show as lines in the colors of their groups, a pattern as a disc, for debugging.
+The mushrooms end in the one `output` of [Core](./CORE.md), which takes only geometry. A debug node shows paths as lines and a pattern as a disc. Up to graph version 17 Myzel had an output of its own that did both.
 
 The Plantarium nodes the templates use besides `stem`: `trunk_kink`, `rotate` and `keep_apart` pose and space the stipes, `points_on_path` places the cap and the veil, `separate` takes the rays apart from the stipe so the cap gets its own `strands`, `twist`, `random_break`, `clump` and `neighbour_sensing` give the strands their grown look, and `path_info` reads the stipe. The values come from the nodes of [Core](./CORE.md): `time` and `mix_color` (Myzel nodes up to graph version 15), `curve`, `random`, `math`, `round`, `random_int` and `vec3`.
 
@@ -98,7 +96,7 @@ The Plantarium nodes the templates use besides `stem`: `trunk_kink`, `rotate` an
 
 These came out of the milestone "Myzel cleanup" (#212 to #224).
 
-**One job per node.** A node does one thing and has at most 8 inputs. What another node can do moves out: the `twist` and the length variation of `strands` became the Plantarium `twist` and `random_break`, the lopsided cap became a `curve` into the cap radius, the torn parts of the veil became `skirt`. `set_color` colors paths, Plantarium's `set_color` geometry. `hyphae_to_mesh` meshes paths, `join` joins geometry, `output` only shows.
+**One job per node.** A node does one thing and has at most 8 inputs. What another node can do moves out: the `twist` and the length variation of `strands` became the Plantarium `twist` and `random_break`, the lopsided cap became a `curve` into the cap radius, the torn parts of the veil became `skirt`. `set_color` colors paths, Plantarium's `set_color` geometry. `hyphae_to_mesh` meshes paths, `join` joins geometry, the `output` only shows.
 
 **Shape with `curve`, `random` and `alpha`.** A node has no inputs that shape another of its inputs (no `reach`, `irregularity`, `depth_curve` or `flare` curve). A `curve` into the input draws the profile, a `random` varies it, `alpha` (or a `curve` without a value) reads where the node is. Where a `curve` would only scale a `random`, the `random` goes into the `min` or `max` of the curve, so no `math` node is needed: how far the margin of a chanterelle waves is a `curve` of its age up to a `random` per mushroom between 0.07 and 0.17.
 

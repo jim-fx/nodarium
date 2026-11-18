@@ -1,0 +1,14 @@
+{
+  "id": "max/core/output",
+  "meta": {
+    "description": "The end of every graph: shows the geometry and the instances that reach it. Paths become geometry in a to_geometry before it."
+  },
+  "outputs": [],
+  "inputs": {
+    "input": {
+      "type": "geometry",
+      "description": "What to show: a geometry, or the list of geometry and instances of a to_geometry.",
+      "external": true
+    }
+  }
+}

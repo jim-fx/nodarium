@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 17,
+  "version": 18,
   "meta": {
     "unit": "cm"
   },
@@ -2385,10 +2385,11 @@
   "nodes": [
     {
       "id": 0,
-      "position": [0, 0],
-      "type": "max/myzel/output",
+      "position": [30, 0],
+      "type": "max/core/output",
       "props": {}
     },
+    { "id": 1017, "position": [0, 0], "type": "max/plantarium/to_geometry", "props": {} },
     {
       "id": 1000,
       "position": [-300, -24.92],
@@ -2791,11 +2792,7 @@
       1016,
       "b"
     ],
-    [
-      1016,
-      0,
-      0,
-      "input"
-    ]
+    [1016, 0, 1017, "input"],
+    [1017, 0, 0, "input"]
   ]
 }

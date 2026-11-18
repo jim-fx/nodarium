@@ -7,7 +7,7 @@ use nodarium_utils::{
         colors_at_lengths, extrude_path, extrude_path_sections, extruded_size, geometry_flags,
         geometry_path_id, is_collapsed, is_geometry, is_path, path_link, split_items,
         wrap_geometry_data, wrap_instance_data, wrap_path, GeometryData, PathData,
-        PathStructure, GEOMETRY_HEAD, GEOMETRY_TAG, NO_PATH,
+        PathStructure, GEOMETRY_HEAD, GEOMETRY_TAG, NO_PATH, PATH_LINK_WORDS,
     },
     int, wrap_arg, NO_COLOR,
 };
@@ -281,13 +281,23 @@ fn tubes_len(paths: &[PathData], circle_segments: usize) -> (usize, usize, bool,
     (vertices, faces, colored, creators)
 }
 
+/// The words of a path item that are its link: id, parent id, parent alpha, creator, index and
+/// grown, after the brackets, the type and the depth
+fn link_words(item: &[i32]) -> &[i32] {
+    &item[4..4 + PATH_LINK_WORDS]
+}
+
 /// The tubes of `paths` as one geometry written into `words`, which have exactly the room for it:
-/// a group for the paths of every creator, the colors of the paths that have them
-fn write_tubes(paths: &[PathData], circle_segments: usize, words: &mut [i32]) {
+/// a group for the paths of every creator, the colors of the paths that have them, and `links`,
+/// the links of every path of the input, also the ones that aren't drawn
+fn write_tubes(paths: &[PathData], links: &[i32], circle_segments: usize, words: &mut [i32]) {
     let (vertices, faces, colored, creators) = tubes_len(paths, circle_segments);
     let mut flags = geometry_flags::GROUPS | geometry_flags::CREATORS;
     if colored {
         flags |= geometry_flags::COLORS;
+    }
+    if !links.is_empty() {
+        flags |= geometry_flags::PATHS;
     }
     let path_ids: Vec<i32> = paths.iter().map(|path| path.link.id).collect();
     let len = words.len();
@@ -307,8 +317,13 @@ fn write_tubes(paths: &[PathData], circle_segments: usize, words: &mut [i32]) {
     let (normals, rest) = rest.split_at_mut(vertices * 3);
     let (colors, rest) = rest.split_at_mut(if colored { vertices } else { 0 });
     let (groups, table) = rest.split_at_mut(vertices);
+    let (table, paths_table) = table.split_at_mut(1 + creators.len());
     table[0] = creators.len() as i32;
     table[1..].copy_from_slice(&creators);
+    if !links.is_empty() {
+        paths_table[0] = (links.len() / PATH_LINK_WORDS) as i32;
+        paths_table[1..].copy_from_slice(links);
+    }
     colors.fill(NO_COLOR as i32);
 
     let positions = as_f32(positions);
@@ -352,6 +367,9 @@ fn keep_instances(input: &[i32], items: &[&[i32]], circle_segments: usize, max_p
         .filter(|item| is_geometry(item) || item.get(2) == Some(&INSTANCES_TAG))
         .collect();
     let drawn: Vec<&[i32]> = items.iter().copied().filter(|item| is_drawn(item)).collect();
+    // buds too: an instance may sit on one
+    let links: Vec<i32> =
+        items.iter().filter(|item| is_path(item)).flat_map(|item| link_words(item)).copied().collect();
 
     if drawn.is_empty() {
         if kept.is_empty() {
@@ -378,12 +396,13 @@ fn keep_instances(input: &[i32], items: &[&[i32]], circle_segments: usize, max_p
         0
     } else {
         let (v, f, colored, creators) = tubes_len(&paths, circle_segments);
-        // a group per vertex, the number of creators and each of them, the closing bracket
-        GEOMETRY_HEAD + f * 3 + v * (7 + usize::from(colored)) + 1 + creators.len() + 2
+        // a group per vertex, the number of creators and each of them, the links of the paths, the
+        // closing bracket
+        GEOMETRY_HEAD + f * 3 + v * (7 + usize::from(colored)) + 1 + creators.len() + 1 + links.len() + 2
     };
     if kept.is_empty() {
         return abi::write_result(tubes, |words| {
-            write_tubes(&paths, circle_segments, words);
+            write_tubes(&paths, &links, circle_segments, words);
             tubes
         })
         .into();
@@ -398,7 +417,7 @@ fn keep_instances(input: &[i32], items: &[&[i32]], circle_segments: usize, max_p
         words[..2].copy_from_slice(&[0, 1]);
         let mut at = 2;
         if tubes > 0 {
-            write_tubes(&paths, circle_segments, &mut words[at..at + tubes]);
+            write_tubes(&paths, &links, circle_segments, &mut words[at..at + tubes]);
             at += tubes;
         }
         for item in &kept {
@@ -439,7 +458,7 @@ mod tests {
             create_instance_data, create_multiple_paths, create_path, extrude_path, geometry_path_id,
             has_geometry_colors, is_geometry, path_link, set_path_link, split_items, with_geometry_colors,
             with_path_colors, wrap_geometry_data, wrap_instance_data, wrap_multiple_paths, wrap_path,
-            wrap_path_mut, Mesh, MeshWords, PathLink, NO_PATH,
+            wrap_path_mut, Mesh, MeshWords, PathLink, NO_PATH, PATH_LINK_WORDS,
         },
         split_args, wrap_arg, NO_COLOR,
     };
@@ -482,6 +501,7 @@ mod tests {
             colors: Vec::new(),
             groups: vec![0, 0, 0, 1, 1, 1],
             creators: vec![41, 42],
+            paths: Vec::new(),
         }
         .encode()
     }
@@ -578,6 +598,31 @@ mod tests {
         assert_eq!(result.positions, expected.positions);
         assert_eq!(result.normals, expected.normals);
         assert!(result.colors.is_empty());
+    }
+
+    #[test]
+    fn the_tubes_carry_the_links_of_every_path_buds_included() {
+        let paths = stems(2, 5);
+        let stem = path_link(split_args(&paths)[0]);
+        let mut bud = a_branch_on(stem.id);
+        set_path_link(&mut bud, PathLink { grown: 0.0, ..PathLink::child(9, stem.id, 0.5, 1) });
+        let branch = a_branch_on(stem.id);
+        let input = concat_args(split_args(&paths).into_iter().chain([bud.as_slice(), branch.as_slice()]).collect());
+
+        let links: Vec<PathLink> = mesh(&output(&input))
+            .paths
+            .chunks_exact(PATH_LINK_WORDS)
+            .map(|words| {
+                let mut header = vec![0, 0, 0, 0];
+                header.extend_from_slice(words);
+                path_link(&header)
+            })
+            .collect();
+
+        let expected: Vec<PathLink> = split_args(&input).into_iter().map(path_link).collect();
+        assert_eq!(links, expected);
+        assert_eq!(links[2].grown, 0.0);
+        assert_eq!(links[3].parent_id, stem.id);
     }
 
     #[test]

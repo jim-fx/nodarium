@@ -12,7 +12,6 @@ export const LINK_COLORS: Record<string, Color> = {
   points: { hue: 214, saturation: 100, lightness: 60 }, // #7cc4ff
   force: { hue: 237, saturation: 100, lightness: 63 }, // #8c96ff
   geometry: { hue: 0, saturation: 70, lightness: 50 }, // #ed6c6c
-  mesh: { hue: 335, saturation: 100, lightness: 63 }, // #ff8cc6
   pattern: { hue: 264, saturation: 100, lightness: 63 }, // #c58cff
   '*': { hue: 200, saturation: 100, lightness: 20 } // #008daa
 };

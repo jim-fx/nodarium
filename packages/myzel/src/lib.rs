@@ -14,10 +14,6 @@
 //!
 //! Myzel meshes Plantarium paths, see `nodarium_utils::geometry`.
 //!
-//! # Lines `[12, n, ...n × (x0, y0, z0, x1, y1, z1, group)]`
-//!
-//! Paths as line segments for the viewer, in the groups of their mesh, see [`path_lines`].
-//!
 //! # Settings `[13, setting, value, ...creators]`
 //!
 //! A value of `hyphae_to_mesh` for every path of the graph nodes `creators`: `setting` 1 is the
@@ -61,8 +57,7 @@ pub use gills::{gills, write_gills, GillInputs, GillProfile, Gills};
 pub use hyphae_mesh::{paths_mesh, HyphaeMeshParams};
 pub use pores::{pores, write_pores, PoreInputs};
 pub use paths::{
-    group_creators, group_numbers, path_lines, path_segments, read_paths, MeshPath, PathGroup,
-    PathStyle, LINES_TAG,
+    group_creators, group_numbers, path_segments, read_paths, MeshPath, PathGroup, PathStyle,
 };
 pub use inputs::{read_float, read_floats, read_int, read_mesh};
 pub use nodarium_utils::geometry::{geometry_flags, geometry_input, pack_rgba, Mesh, MeshBuild, MeshWords, MeshWriter, NO_CREATOR};

@@ -8,6 +8,7 @@ import { lamellaeRidges } from './lamellae-ridges';
 import { lopsidedByRadius } from './lopsided-by-radius';
 import { marginCurveRandom } from './margin-curve-random';
 import { membraneSkirts } from './membrane-skirts';
+import { oneOutput } from './one-output';
 import { oneSurfaceType } from './one-surface-type';
 import { outputMesh } from './output-mesh';
 import { radians } from './radians';
@@ -169,6 +170,12 @@ export const MIGRATIONS: Migration[] = [
     description:
       'to_geometry passes instances on, only with bake on it bakes them into its geometry as it did before',
     migrate: toGeometryBake
+  },
+  {
+    version: 18,
+    description:
+      'one output node, max/core/output, takes the place of the Plantarium and the Myzel output and takes only geometry: a to_geometry before it draws the paths that reached it, a pattern goes to a debug node',
+    migrate: oneOutput
   }
 ];
 

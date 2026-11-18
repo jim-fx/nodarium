@@ -11,7 +11,7 @@ function node(type: string) {
 const stem = node('max/plantarium/stem');
 const noise = node('max/plantarium/noise');
 const random = node('max/core/random');
-const output = node('max/plantarium/output');
+const output = node('max/plantarium/to_geometry');
 
 describe('tutorialConfig', () => {
   it('has no dangling links or unreachable nodes', () => {

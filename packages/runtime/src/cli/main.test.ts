@@ -23,9 +23,10 @@ const handWritten = {
   nodes: [
     { id: 1, type: 'max/plantarium/stem', props: { length: 0.5, thickness: 0.02 } },
     { id: 2, type: 'max/plantarium/noise', props: { strength: 0.01 } },
-    { id: 3, type: 'max/plantarium/output' }
+    { id: 3, type: 'max/core/output' },
+    { id: 7, type: 'max/plantarium/to_geometry' }
   ],
-  edges: [[1, 0, 2, 'plant'], [2, 0, 3, 'input']]
+  edges: [[1, 0, 2, 'plant'], [2, 0, 7, 'input'], [7, 0, 3, 'input']]
 };
 
 let dir: string;
@@ -223,7 +224,7 @@ describe('nodarium', () => {
     expect(node).toMatchObject({ node: 1, type: 'path', screenshot: join(dir, 'hand-node1.png') });
     expect(node.triangles).toBeGreaterThan(0);
 
-    expect((await run('render', graph, '--node', '7', '--out', dir)).code).toBe(1);
+    expect((await run('render', graph, '--node', '9', '--out', dir)).code).toBe(1);
   });
 
   it('does not run a graph with an error', async () => {
@@ -283,12 +284,13 @@ describe('nodarium', () => {
   it('places the nodes that have no position', async () => {
     const graph = await file('hand.json', handWritten);
     expect((await run('format', graph, '--check')).code).toBe(1);
-    expect((await run('format', graph)).out).toBe('hand: placed 3 nodes');
+    expect((await run('format', graph)).out).toBe('hand: placed 4 nodes');
     const formatted = JSON.parse(await readFile(graph, 'utf8'));
     expect(formatted.nodes.map((n: { position: number[] }) => n.position[0])).toEqual([
+      -90,
       -60,
-      -30,
-      0
+      0,
+      -30
     ]);
     expect((await run('format', graph, '--check')).code).toBe(0);
   });
@@ -393,7 +395,7 @@ describe('nodarium', () => {
       nodes: [
         ...handWritten.nodes.slice(0, 1),
         { id: 2, type: 'max/plantarium/noise', props: { strength: 0.3 } },
-        handWritten.nodes[2]
+        ...handWritten.nodes.slice(2)
       ]
     });
     const { code, out } = await run(

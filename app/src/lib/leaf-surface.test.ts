@@ -48,7 +48,7 @@ const graph = {
   settings: {},
   groups: [],
   nodes: [
-    { id: OUTPUT, type: 'max/plantarium/output', position: [0, 0], props: {} },
+    { id: OUTPUT, type: 'max/core/output', position: [0, 0], props: {} },
     {
       id: STEM,
       type: 'max/plantarium/stem',

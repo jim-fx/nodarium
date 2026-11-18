@@ -162,8 +162,10 @@ export function createServer(dir = nodesDir): McpServer {
     description: 'Lists the nodes a graph can use, one entry per node: '
       + '"id (types of the data it takes) -> type it gives", then the first sentence of what it '
       + 'does. Core nodes (max/core/...) give and shape values, like float, math, random, curve '
-      + 'and time, Plantarium nodes (max/plantarium/...) make plants, Myzel nodes (max/myzel/...) '
-      + 'make mushrooms. Call get_node for the inputs of the nodes you use.',
+      + 'and time, and max/core/output, the end of every graph, takes only geometry. Plantarium '
+      + 'nodes (max/plantarium/...) make plants, a to_geometry turns their paths into the geometry '
+      + 'of the output, Myzel nodes (max/myzel/...) make mushrooms. Call get_node for the inputs '
+      + 'of the nodes you use.',
     inputSchema: {
       query: z.string().optional().describe(
         'Only the nodes whose id or description contains this word, like "leaf" or "cap"'

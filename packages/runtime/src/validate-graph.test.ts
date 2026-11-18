@@ -27,7 +27,8 @@ function nodeDefinition(
 
 const definitions = new Map(
   [
-    nodeDefinition('output', 'inputs.json'),
+    nodeDefinition('output', 'definition.json', 'core'),
+    nodeDefinition('to_geometry'),
     nodeDefinition('stem'),
     nodeDefinition('noise'),
     nodeDefinition('float', 'definition.json', 'core'),
@@ -35,23 +36,24 @@ const definitions = new Map(
   ].map(d => [d.id as string, d])
 );
 
-/** stem → noise → output, as written by hand */
+/** stem → noise → to_geometry → output, as written by hand */
 function threeNodes(): Graph {
   return {
     id: 0,
     version: CURRENT_GRAPH_VERSION,
     settings: { 'resolution.circle': 12, 'resolution.curve': 16 },
     nodes: [
-      { id: 0, type: 'max/plantarium/output', position: [200, 0], props: {} },
+      { id: 0, type: 'max/core/output', position: [300, 0], props: {} },
       {
         id: 1,
         type: 'max/plantarium/stem',
         position: [0, 0],
         props: { length: 2, thickness: 0.1 }
       },
-      { id: 2, type: 'max/plantarium/noise', position: [100, 0], props: { strength: 0.5 } }
+      { id: 2, type: 'max/plantarium/noise', position: [100, 0], props: { strength: 0.5 } },
+      { id: 9, type: 'max/plantarium/to_geometry', position: [200, 0], props: {} }
     ],
-    edges: [[1, 0, 2, 'plant'], [2, 0, 0, 'input']],
+    edges: [[1, 0, 2, 'plant'], [2, 0, 9, 'input'], [9, 0, 0, 'input']],
     groups: []
   } as Graph;
 }
@@ -69,7 +71,7 @@ function codes(issues: GraphIssue[]) {
 const mistakes: Record<string, (graph: Graph) => void> = {
   'no version': (g) => delete g.version,
   'node type max/plantarium/nois': (g) => (g.nodes[2].type = 'max/plantarium/nois'),
-  'edge into the input inputt of the output': (g) => (g.edges[1][3] = 'inputt'),
+  'edge into the input inputt of the output': (g) => (g.edges[2][3] = 'inputt'),
   'prop thicknes on the stem': (g) => (g.nodes[1].props = { length: 2, thicknes: 0.1 }),
   'strength 99999 on noise': (g) => (g.nodes[2].props = { strength: 99999 }),
   'a float into the plant input of noise': (g) => {
@@ -145,7 +147,7 @@ describe('validateGraph', () => {
       withMistake(mistakes['edge into the input inputt of the output']),
       definitions
     );
-    expect(edge).toMatchObject({ nodeId: 0, edge: [2, 0, 0, 'inputt'], suggestion: 'input' });
+    expect(edge).toMatchObject({ nodeId: 0, edge: [9, 0, 0, 'inputt'], suggestion: 'input' });
     const [type] = validateGraph(
       withMistake(mistakes['node type max/plantarium/nois']),
       definitions
@@ -204,14 +206,43 @@ describe('validateGraph', () => {
   it('names nodes that share an id, inputs connected twice and several outputs', () => {
     const graph = withMistake((g) => {
       g.nodes.push({ id: 2, type: 'max/plantarium/stem', position: [0, 0] });
-      g.nodes.push({ id: 5, type: 'max/plantarium/output', position: [0, 0] });
-      g.edges.push([1, 0, 0, 'input']);
+      g.nodes.push({ id: 5, type: 'max/core/output', position: [0, 0] });
+      g.edges.push([2, 0, 0, 'input']);
     });
-    expect(codes(validateGraph(graph, definitions))).toEqual([
+    expect(codes(validateGraph(graph, definitions)).sort()).toEqual([
       'error duplicate-id',
+      'error incompatible-edge',
       'error input-connected-twice',
       'error several-outputs'
     ]);
+  });
+
+  it('suggests a to_geometry for paths that go into the output', () => {
+    const graph = withMistake((g) => {
+      g.nodes.pop();
+      g.edges = [[1, 0, 2, 'plant'], [2, 0, 0, 'input']];
+      g.settings = { 'resolution.curve': 16 };
+    });
+    expect(validateGraph(graph, definitions)).toEqual([
+      {
+        severity: 'error',
+        code: 'incompatible-edge',
+        message:
+          'output#0 "input" takes geometry, output 0 of noise#2 is path, add a max/plantarium/to_geometry between them',
+        nodeId: 0,
+        edge: [2, 0, 0, 'input'],
+        suggestion: 'max/plantarium/to_geometry'
+      }
+    ]);
+  });
+
+  it('names the one output when there is none', () => {
+    const [issue] = validateGraph(withMistake(mistakes['no output node']), definitions);
+    expect(issue).toMatchObject({
+      code: 'no-output',
+      message: 'the graph has no output node, add max/core/output',
+      suggestion: 'max/core/output'
+    });
   });
 
   it('names a cycle', () => {
@@ -362,7 +393,7 @@ describe('validateGraph', () => {
 
 describe('createRuntime({ validate: true })', () => {
   const output = {
-    id: 'max/plantarium/output',
+    id: 'max/core/output',
     inputs: { input: { type: 'path' } },
     outputs: [],
     execute: (inputs: NodeValue[]) => inputs[0]

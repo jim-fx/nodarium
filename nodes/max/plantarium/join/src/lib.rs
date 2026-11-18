@@ -215,6 +215,7 @@ mod tests {
             colors: if colored { vec![opaque([80, 52, 40]); 3] } else { Vec::new() },
             groups: groups.to_vec(),
             creators: Vec::new(),
+            paths: Vec::new(),
         }
     }
 

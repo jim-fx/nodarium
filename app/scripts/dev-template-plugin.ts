@@ -34,13 +34,17 @@ async function summarizeTemplates() {
   ).then((summaries) => summaries.sort((a, b) => a.name.localeCompare(b.name)));
 }
 
-// adds `plant('<name>', '<Name>', '<unit>', () => import('./<name>.json')),` to the end of the list
+const CATEGORIES = ['Plants', 'Mushrooms'];
+
+// adds `plant('<name>', '<Name>', '<unit>', () => import('./<name>.json')),` to the end of the list,
+// `mushroom(…)` for the category Mushrooms
 async function registerTemplate(
   name: string,
-  graph: { nodes: { type: string }[]; meta?: { unit?: string } }
+  category: string,
+  graph: { meta?: { unit?: string } }
 ) {
   const indexFile = join(RUNTIME_TEMPLATE_DIR, 'index.ts');
-  const kind = graph.nodes.some((n) => n.type === 'max/myzel/output') ? 'mushroom' : 'plant';
+  const kind = category === 'Mushrooms' ? 'mushroom' : 'plant';
   const title = name.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase());
   const unit = graph.meta?.unit ?? 'm';
   const line = `  ${kind}('${name}', '${title}', '${unit}', () => import('./${name}.json'))`;
@@ -68,19 +72,22 @@ export function devTemplatePlugin(): Plugin {
 
           let raw = '';
           for await (const chunk of req) raw += chunk;
-          const { name, graph } = JSON.parse(raw);
+          const { name, graph, category = 'Plants' } = JSON.parse(raw);
           if (typeof name !== 'string' || !NAME_PATTERN.test(name)) {
             return send(400, { error: 'Use lowercase letters, digits and dashes for the name' });
           }
           if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) {
             return send(400, { error: 'Not a graph' });
           }
+          if (!CATEGORIES.includes(category)) {
+            return send(400, { error: `The category is one of ${CATEGORIES.join(', ')}` });
+          }
           const existing = (await listTemplates()).get(name);
           const file = existing ?? join(RUNTIME_TEMPLATE_DIR, `${name}.json`);
           // the editor knows nothing of the schema the templates of the runtime point to
           const schema = file.startsWith(RUNTIME_TEMPLATE_DIR) ? { $schema: TEMPLATE_SCHEMA } : {};
           await writeFile(file, JSON.stringify({ ...schema, ...graph }, null, 2) + '\n');
-          if (!existing) await registerTemplate(name, graph);
+          if (!existing) await registerTemplate(name, category, graph);
           send(200, { ok: true, created: !existing });
         } catch (e) {
           send(500, { error: e instanceof Error ? e.message : String(e) });

@@ -1,5 +1,5 @@
 {
-  "version": 17,
+  "version": 18,
   "meta": {
     "title": "Dandelion",
     "unit": "cm"
@@ -1827,13 +1827,14 @@
     },
     {
       "id": 116,
-      "type": "max/plantarium/output",
+      "type": "max/core/output",
       "props": {},
       "position": [
-        150,
+        180,
         100
       ]
     },
+    { "id": 603, "position": [150, 100], "type": "max/plantarium/to_geometry", "props": {} },
     {
       "id": 171,
       "type": "max/core/math",
@@ -3196,12 +3197,8 @@
       115,
       "a"
     ],
-    [
-      115,
-      0,
-      116,
-      "input"
-    ],
+    [115, 0, 603, "input"],
+    [603, 0, 116, "input"],
     [
       125,
       0,

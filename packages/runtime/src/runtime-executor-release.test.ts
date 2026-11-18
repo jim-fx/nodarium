@@ -238,10 +238,11 @@ describe.skipIf(!BUILT && !ON_CI)('releasing instances of compiled nodes', () =>
   const graph = {
     id: 0,
     nodes: [
-      { id: 0, type: 'max/plantarium/output', position: [0, 0] },
-      { id: 1, type: 'max/plantarium/stem', position: [0, 0] }
+      { id: 0, type: 'max/core/output', position: [0, 0] },
+      { id: 1, type: 'max/plantarium/stem', position: [0, 0] },
+      { id: 2, type: 'max/plantarium/to_geometry', position: [0, 0] }
     ],
-    edges: [[1, 0, 0, 'input']],
+    edges: [[1, 0, 2, 'input'], [2, 0, 0, 'input']],
     groups: []
   } as unknown as Graph;
 
@@ -255,7 +256,7 @@ describe.skipIf(!BUILT && !ON_CI)('releasing instances of compiled nodes', () =>
     executor.releaseInstancesOver = 0;
     const second = await executor.execute(graph, {});
     expect(stem.memoryBytes!()).toBe(0);
-    expect(registry.getNode('max/plantarium/output')!.memoryBytes!()).toBe(0);
+    expect(registry.getNode('max/core/output')!.memoryBytes!()).toBe(0);
 
     const third = await executor.execute(graph, {});
     expect(first.length).toBeGreaterThan(0);

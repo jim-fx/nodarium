@@ -2,16 +2,12 @@ use std::borrow::Cow;
 
 use glam::Vec3;
 use nodarium_utils::{
-    encode_float,
     geometry::{is_path, wrap_path},
     split_args,
 };
 
 use crate::density::Segment;
 use crate::settings::PathSettings;
-
-pub const LINES_TAG: i32 = 12;
-const LINE_WORDS: usize = 7;
 
 /// How the surface around a path looks
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -125,23 +121,6 @@ pub fn path_segments(points: &[f32]) -> Vec<Segment> {
         .collect()
 }
 
-/// The paths as line segments for the viewer `[12, n, ...n × (x0, y0, z0, x1, y1, z1, group)]`,
-/// in the groups a mesh of the same paths has
-pub fn path_lines(paths: &[MeshPath]) -> Vec<i32> {
-    let groups = group_numbers(paths);
-    let n: usize = paths.iter().map(|p| p.len().saturating_sub(1)).sum();
-    let mut words = Vec::with_capacity(2 + n * LINE_WORDS);
-    words.extend([LINES_TAG, n as i32]);
-    for (path, &group) in paths.iter().zip(&groups) {
-        for i in 1..path.len() {
-            let (a, b) = (path.point(i - 1), path.point(i));
-            words.extend([a.x, a.y, a.z, b.x, b.y, b.z].map(encode_float));
-            words.push(group as i32);
-        }
-    }
-    words
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -177,16 +156,5 @@ mod tests {
         let words = concat_arg_vecs(vec![list(1, 900), list(2, -3), list(1, 42)]);
         let paths = read_paths(&words, PathStyle::BODY);
         assert_eq!(group_numbers(&paths), vec![2, 0, 0, 1]);
-    }
-
-    #[test]
-    fn lines_carry_the_groups_of_the_mesh() {
-        let words = concat_arg_vecs(vec![list(1, 8), list(1, 3)]);
-        let paths = read_paths(&words, PathStyle::BODY);
-        let words = path_lines(&paths);
-        assert_eq!(&words[..2], &[LINES_TAG, 4]);
-        assert_eq!(words.len(), 2 + 4 * LINE_WORDS);
-        assert_eq!(words[2 + LINE_WORDS - 1], 1);
-        assert_eq!(words[2 + 3 * LINE_WORDS - 1], 0);
     }
 }

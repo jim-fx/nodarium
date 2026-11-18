@@ -54,6 +54,9 @@ export type GraphIssue = {
   suggestion?: string;
 };
 
+const OUTPUT = 'max/core/output';
+const TO_GEOMETRY = 'max/plantarium/to_geometry';
+
 const WARNINGS = new Set<GraphIssueCode>([
   'value-out-of-range',
   'unknown-setting',
@@ -534,12 +537,14 @@ class GraphValidator {
       }
       const outputType = fromSockets.outputs[output];
       if (!inputAccepts(input, outputType)) {
+        // paths and what sits on them become geometry for the output in a to_geometry
+        const toGeometry = isRootOutput(to.type) && outputType === 'path';
         report(
           'incompatible-edge',
           `${target} takes ${describeTypes(input)}, output ${output} of ${
             nodeName(from)
-          } is ${outputType}`,
-          { nodeId: to.id, edge }
+          } is ${outputType}${toGeometry ? `, add a ${TO_GEOMETRY} between them` : ''}`,
+          { nodeId: to.id, edge, suggestion: toGeometry ? TO_GEOMETRY : undefined }
         );
       }
     }
@@ -645,13 +650,9 @@ class GraphValidator {
   private checkOutputs(root: Scope) {
     const outputs = root.nodes.filter(node => isRootOutput(node.type));
     if (outputs.length === 0) {
-      this.issue(
-        'no-output',
-        'the graph has no output node, add max/plantarium/output or max/myzel/output',
-        {
-          suggestion: 'max/plantarium/output'
-        }
-      );
+      this.issue('no-output', `the graph has no output node, add ${OUTPUT}`, {
+        suggestion: OUTPUT
+      });
     } else if (outputs.length > 1) {
       this.issue(
         'several-outputs',

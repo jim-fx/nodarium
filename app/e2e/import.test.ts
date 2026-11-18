@@ -2,11 +2,12 @@ import { expect, type Page, test } from '@playwright/test';
 
 test.use({ viewport: { width: 1920, height: 1080 } });
 
-// stem → noise → output, with three mistakes
+// stem → noise → output, with three mistakes. The edge into the output misses its input, so no
+// to_geometry reads the circle resolution, the graph has none.
 const graph = {
   id: 0,
   version: 13,
-  settings: { 'resolution.circle': 12, 'resolution.curve': 16 },
+  settings: { 'resolution.curve': 16 },
   nodes: [
     { id: 0, type: 'max/plantarium/output', position: [200, 0], props: {} },
     { id: 1, type: 'max/plantarium/stem', position: [0, 0], props: { thicknes: 0.1 } },

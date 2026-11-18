@@ -4,7 +4,7 @@ export function tree(depth: number): Graph {
   const nodes: SerializedNode[] = [
     {
       id: 0,
-      type: 'max/plantarium/output',
+      type: 'max/core/output',
       position: [0, 0]
     },
     {

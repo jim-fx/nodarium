@@ -84,7 +84,7 @@ The ids stay, a template that is improved keeps its id. To add a template in thi
 
 ### Substrates
 
-The mushroom templates come without a substrate. `withSubstrate(graph, substrate)` returns a copy of a mushroom graph that grows on one: a Substrate group with the `max/myzel/mesh` node joins its scan into the last input of the `join` before the `output`, so it is the highest material group of the geometry, and gives the places of `sample_mesh` on it to the `points` of the Stipe group. Its instance is the one node with a `substrate` prop. `substrates` keeps the substrate `porcini`, `chanterelle`, `honey-fungus`, `sulphur-tuft`, `false-chanterelle` and `bitter-bolete` grew on before, `loadTemplate(id, { substrate: true })` loads a template with it.
+The mushroom templates come without a substrate. `withSubstrate(graph, substrate)` returns a copy of a mushroom graph that grows on one: a Substrate group with the `max/myzel/mesh` node joins its scan into the last input of the `join` before the `to_geometry` and the `output`, so it is the highest material group of the geometry, and gives the places of `sample_mesh` on it to the `points` of the Stipe group. Its instance is the one node with a `substrate` prop. `substrates` keeps the substrate `porcini`, `chanterelle`, `honey-fungus`, `sulphur-tuft`, `false-chanterelle` and `bitter-bolete` grew on before, `loadTemplate(id, { substrate: true })` loads a template with it.
 
 ```ts
 import { loadTemplate, substrates, withSubstrate } from '@nodarium/runtime/templates';
@@ -340,7 +340,7 @@ const { graph } = parseProjectFile(file);
 const { geometries } = decodeResult(await runtime.execute(graph, graph.settings));
 ```
 
-The registry fetches `<baseUrl>/<user>/<collection>/<node>.wasm`, like `/nodes/max/myzel/output.wasm`. In a SvelteKit or Vite project, copy the folder into `static` (or `public`) once it is installed, for example with a `postinstall` script:
+The registry fetches `<baseUrl>/<user>/<collection>/<node>.wasm`, like `/nodes/max/core/output.wasm`. In a SvelteKit or Vite project, copy the folder into `static` (or `public`) once it is installed, for example with a `postinstall` script:
 
 ```json
 {
@@ -364,7 +364,7 @@ On the server (SvelteKit `+page.server.ts`, an API route), use `@nodarium/runtim
 
 ```ts
 type DecodedResult = {
-  geometries: GeometryData[]; // one per path of a plant, one with groups for a mushroom
+  geometries: GeometryData[]; // the tubes of a plant, the surface of a mushroom, both with groups
   instances: InstancesData[]; // Plantarium instances like leaves
   vertexCount: number; // of everything, every instance counted
   faceCount: number;
@@ -381,7 +381,10 @@ type MeshData = {
   creators?: Int32Array; // by group, the creator id of the node that made it, NO_CREATOR for none
 };
 
-type GeometryData = MeshData & { pathId: number }; // the path the geometry was made from
+type GeometryData = MeshData & {
+  pathId: number; // the path the geometry was made from, NO_PATH for none
+  paths?: Int32Array; // the links of the paths of a to_geometry, readPathLinkTable() reads them
+};
 
 type InstancesData = MeshData & {
   instanceCount: number;
@@ -391,9 +394,11 @@ type InstancesData = MeshData & {
 };
 ```
 
-Plants come out as `geometries`, one per path, and `instances`, a mushroom as one geometry with `groups`. Its colors come from nodes like `set_color`, and its group for every vertex lets a viewer give every tissue its own material. Alpha is how much of a color shows over the material: vertices without a color of their own have alpha 0 and take the color of the material.
+Every graph ends in the one output, `max/core/output`, which takes only geometry: a plant comes out of its `to_geometry` as one geometry of tubes with a group for every node that made them, and `instances`, a mushroom as one geometry with `groups`. The tubes carry the links of their paths in `paths` (id, parent, creator, …, see `readPathLinkTable()` of `@nodarium/utils`), an instance names the path it sits on in `pathIds`. Its colors come from nodes like `set_color`, and its group for every vertex lets a viewer give every tissue its own material. Alpha is how much of a color shows over the material: vertices without a color of their own have alpha 0 and take the color of the material.
 
 Up to version 1.2 mushrooms came out as `meshes`, read by `readMesh()`, and the graphs of version 14 and before had nodes and links of the type `mesh`. Since 2.0 they are `geometries` with `groups`: read a mushroom with `decodeResult(result).geometries` or `readGeometry()`, the flags of the header are `GEOMETRY_FLAGS`. Old graphs are migrated when they load.
+
+Up to graph version 17 Plantarium and Myzel had an output node each, `max/plantarium/output` and `max/myzel/output`, and the result held the paths, a geometry for every path and Myzel lines. Since graph version 18 there is one, `max/core/output`, and a `to_geometry` before it turns the paths into tubes: the result holds no paths and no lines, the tubes of a plant are one geometry with groups, and code that read the path links from the paths of the result reads them from `paths` of that geometry. A graph written by hand ends `… → max/plantarium/to_geometry → max/core/output`, `validateGraph` suggests the `to_geometry` when paths go into the output. Saved graphs are migrated when they load.
 
 With three.js, a geometry becomes a `BufferGeometry`:
 

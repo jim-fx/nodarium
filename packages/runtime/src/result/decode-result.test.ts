@@ -1,4 +1,4 @@
-import { encodeNestedArray } from '@nodarium/utils';
+import { encodeNestedArray, readPathLinkTable } from '@nodarium/utils';
 import { describe, expect, it } from 'vitest';
 import {
   decodeResult,
@@ -89,6 +89,39 @@ describe('readGeometry', () => {
     expect([...read.groups!]).toEqual([0, 1, 1]);
     expect([...read.creators!]).toEqual([40, NO_CREATOR]);
     expect(() => readGeometry(made.subarray(0, made.length - 1))).toThrow(/needs 32 words, got 31/);
+  });
+
+  it('reads the links of the paths after the creators', () => {
+    const plain = geometry({ color: null, groups: [0, 0, 0] });
+    const alpha = new Int32Array(Float32Array.of(0.5).buffer)[0];
+    const grown = new Int32Array(Float32Array.of(1).buffer)[0];
+    const made = Int32Array.of(
+      ...plain,
+      1,
+      40,
+      2,
+      7,
+      -1,
+      0,
+      40,
+      0,
+      grown,
+      8,
+      7,
+      alpha,
+      41,
+      2,
+      grown
+    );
+    made[4] |= GEOMETRY_FLAGS.creators | GEOMETRY_FLAGS.paths;
+    const read = readGeometry(made);
+    expect([...read.creators!]).toEqual([40]);
+    expect(readPathLinkTable(read.paths!)).toEqual([
+      { id: 7, parentId: -1, parentAlpha: 0, creator: 40, index: 0, grown: 1 },
+      { id: 8, parentId: 7, parentAlpha: 0.5, creator: 41, index: 2, grown: 1 }
+    ]);
+    expect(() => readGeometry(made.subarray(0, made.length - 1))).toThrow(/needs 44 words, got 43/);
+    expect(readGeometry(plain).paths).toBeUndefined();
   });
 });
 

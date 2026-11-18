@@ -1,6 +1,6 @@
 {
   "id": 451,
-  "version": 17,
+  "version": 18,
   "meta": {
     "title": "Fern on a stump",
     "unit": "cm"
@@ -15,12 +15,13 @@
     {
       "id": 10,
       "position": [
-        360,
+        390,
         80
       ],
-      "type": "max/plantarium/output",
+      "type": "max/core/output",
       "props": {}
     },
+    { "id": 104, "position": [360, 80], "type": "max/plantarium/to_geometry", "props": {} },
     {
       "id": 12,
       "position": [
@@ -1289,11 +1290,7 @@
       103,
       "b"
     ],
-    [
-      103,
-      0,
-      10,
-      "input"
-    ]
+    [103, 0, 104, "input"],
+    [104, 0, 10, "input"]
   ]
 }
