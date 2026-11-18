@@ -8,6 +8,7 @@ import { lopsidedByRadius } from './lopsided-by-radius';
 import { marginCurveRandom } from './margin-curve-random';
 import { membraneSkirts } from './membrane-skirts';
 import { outputMesh } from './output-mesh';
+import { radians } from './radians';
 import { setMeshColor } from './set-mesh-color';
 import { splitCap, wiredCapInputs } from './split-cap';
 import { STRANDS, strandsThickness } from './strands-thickness';
@@ -141,6 +142,12 @@ export const MIGRATIONS: Migration[] = [
     description:
       'membrane is the closed skin and wraps around a point in b, a points_on_path places it, and skirt nodes hang the ring and the fringe once it has torn',
     migrate: membraneSkirts
+  },
+  {
+    version: 14,
+    description:
+      'every angle is in radians: the angles and rotations of branch, branch_from_points, trunk_kink, instance, instance_from_points and points_on_path, the opening of umbel, the fan of stem and the angles of leaf_growth took degrees, the amount of deform turns',
+    migrate: radians
   }
 ];
 

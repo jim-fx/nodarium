@@ -40,19 +40,19 @@
     },
     "angle": {
       "type": "float",
-      "description": "How far the path bends at every kink, in degrees. Everything above the kink turns by it.",
-      "min": -90,
-      "max": 90,
-      "step": 1,
-      "value": 15
+      "description": "How far the path bends at every kink, in radians. Everything above the kink turns by it.",
+      "min": -1.5708,
+      "max": 1.5708,
+      "step": 0.01,
+      "value": 0.2618
     },
     "rotation": {
       "type": "float",
-      "description": "How far every kink is turned around the path from the one before it, in degrees. 180 bends left and right in turn, 137.5 makes a spiral.",
+      "description": "How far every kink is turned around the path from the one before it, in radians. 3.1416 bends left and right in turn, 2.3998 makes a spiral.",
       "min": 0,
-      "max": 360,
-      "step": 0.5,
-      "value": 180
+      "max": 6.2832,
+      "step": 0.01,
+      "value": 3.1416
     },
     "depth": {
       "type": "integer",

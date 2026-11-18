@@ -60,7 +60,7 @@
     },
     "y_twist": {
       "type": "float",
-      "description": "Twist around the leaf's spine. Combined with y_curve, produces a 3D spiral.",
+      "description": "Twists the leaf around its midrib, in radians at the tip. Combined with y_curve, produces a 3D spiral.",
       "min": -6.28,
       "max": 6.28,
       "step": 0.05,

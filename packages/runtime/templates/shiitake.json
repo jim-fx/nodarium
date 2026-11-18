@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 13,
+  "version": 14,
   "meta": { "unit": "cm" },
   "settings": {
     "time.t": 1,
@@ -153,7 +153,7 @@
           "type": "max/plantarium/trunk_kink",
           "props": {
             "amount": 2,
-            "angle": 5,
+            "angle": 0.0872665,
             "rotation": 0,
             "lowest_kink": 0.15,
             "highest_kink": 0.6
@@ -237,7 +237,7 @@
           "type": "max/plantarium/random",
           "props": {
             "min": 0,
-            "max": 16
+            "max": 0.2792527
           }
         },
         {
@@ -248,8 +248,8 @@
           ],
           "type": "max/plantarium/random",
           "props": {
-            "min": -90,
-            "max": 90
+            "min": -1.5707963,
+            "max": 1.5707963
           }
         },
         {

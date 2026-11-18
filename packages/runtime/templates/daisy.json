@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 11,
-  "version": 13,
+  "version": 14,
   "settings": {
     "resolution.circle": 10,
     "resolution.curve": 24,
@@ -203,7 +203,7 @@
         "lowest_instance": 0,
         "highest_instance": 0.03,
         "rotation": 2.4,
-        "angle": 38,
+        "angle": 0.6632251,
         "plant": 0,
         "geometry": [
           0,
@@ -226,7 +226,7 @@
         "highest_branch": 1,
         "length": 0.00012,
         "thickness": 1,
-        "angle": 90,
+        "angle": 1.5707963,
         "rotation": 0,
         "taper": 0
       }
@@ -285,7 +285,7 @@
         "lowest_instance": 0,
         "highest_instance": 1,
         "rotation": 0.5236,
-        "angle": 51,
+        "angle": 0.8901179,
         "size": 0.6,
         "plant": 0,
         "geometry": [
@@ -363,7 +363,7 @@
         "lowest_instance": 0,
         "highest_instance": 1,
         "rotation": 2.4,
-        "angle": 3,
+        "angle": 0.0523599,
         "plant": 0,
         "geometry": [
           0,
@@ -398,7 +398,7 @@
         "lowest_instance": 0,
         "highest_instance": 1,
         "rotation": 2.4,
-        "angle": 12,
+        "angle": 0.2094395,
         "plant": 0,
         "geometry": [
           0,
@@ -582,8 +582,8 @@
         "highest_branch": 0.95,
         "length": 0.05,
         "thickness": 0.53,
-        "angle": 41.46,
-        "rotation": 137.5,
+        "angle": 0.7236135,
+        "rotation": 2.3998277,
         "taper": 1,
         "depth": 1,
         "offset_single": 0
@@ -1413,7 +1413,7 @@
           0
         ],
         "min": 0,
-        "max": 70
+        "max": 1.2217305
       }
     },
     {
@@ -1493,8 +1493,8 @@
           1,
           0
         ],
-        "min": 3,
-        "max": 80
+        "min": 0.0523599,
+        "max": 1.3962634
       }
     },
     {
@@ -1528,8 +1528,8 @@
           1,
           0
         ],
-        "min": 12,
-        "max": 80
+        "min": 0.2094395,
+        "max": 1.3962634
       }
     },
     {
@@ -1758,8 +1758,8 @@
       ],
       "type": "max/plantarium/random",
       "props": {
-        "min": 30,
-        "max": 60
+        "min": 0.5235988,
+        "max": 1.0471976
       }
     },
     {

@@ -66,7 +66,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             ctx.alpha = point.alpha;
             ctx.set_instance(point.index);
             let size = (point.scale + 0.01) * ctx.float(args[3]);
-            let angle = ctx.float(args[4]).to_radians();
+            let angle = ctx.float(args[4]);
             let pick = pick_input.map_or(0.0, |p| ctx.float(p));
             // the path has not grown up to this point yet, it reads its inputs like the others
             // so their random values stay
@@ -172,7 +172,7 @@ mod tests {
             &encode_points(&[point]),
             &triangle(),
             &[encode_float(10.0)],
-            &[encode_float(90.0)],
+            &[encode_float(90f32.to_radians())],
         ]);
 
         let mut instance_data = split_args(&result)[1].to_vec();
@@ -304,7 +304,7 @@ mod tests {
             .collect();
         // what the size and the angle inputs gave every instance, read back from its transform
         let read = |points: &[Point], per_instance: i32| -> Vec<(f32, f32)> {
-            let (min, max) = ([encode_float(10.0)], [encode_float(80.0)]);
+            let (min, max) = ([encode_float(0.2)], [encode_float(1.4)]);
             let random = concat_args(vec![&[1], &min, &max, &[7], &[1], &[0], &[5], &[0], &[per_instance]]);
             let result = __nodarium_execute_inner(&[&plant, &encode_points(points), &triangle(), &random, &random]);
             let mut instance_data = split_args(&result)[1].to_vec();
@@ -313,7 +313,7 @@ mod tests {
                 .chunks_exact(16)
                 .map(|m| {
                     let out = -Mat4::from_cols_slice(m).z_axis.truncate();
-                    (out.length() / 0.1, (out.y / out.length()).asin().to_degrees())
+                    (out.length() / 0.1, (out.y / out.length()).asin())
                 })
                 .collect()
         };
@@ -321,10 +321,10 @@ mod tests {
         let instances = read(&points, 1);
         assert_eq!(instances.len(), 6);
         for (i, (size, angle)) in instances.iter().enumerate() {
-            assert!((10.0..=80.0).contains(size), "{instances:?}");
-            assert!((size - angle).abs() < 0.01, "{instances:?}");
+            assert!((0.2..=1.4).contains(size), "{instances:?}");
+            assert!((size - angle).abs() < 1e-4, "{instances:?}");
             for (other, _) in &instances[..i] {
-                assert!((size - other).abs() > 0.01, "{instances:?}");
+                assert!((size - other).abs() > 1e-4, "{instances:?}");
             }
         }
 
@@ -333,7 +333,7 @@ mod tests {
 
         // without the option the two inputs draw one after the other
         let drawn = read(&points, 0);
-        assert!(drawn.iter().all(|(size, angle)| (size - angle).abs() > 0.01), "{drawn:?}");
+        assert!(drawn.iter().all(|(size, angle)| (size - angle).abs() > 1e-4), "{drawn:?}");
     }
 
     /// A geometry of `vertices` points at the origin and a single face.

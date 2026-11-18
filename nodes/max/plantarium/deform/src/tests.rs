@@ -51,18 +51,19 @@ fn vertices(geometry: &[i32]) -> (Vec<Vec3>, Vec<Vec3>) {
     (read(data.positions), read(data.normals))
 }
 
-fn plain(v: f32) -> Vec<i32> {
-    vec![encode_float(v)]
+/// An amount of `turns` turns, in radians
+fn plain(turns: f32) -> Vec<i32> {
+    vec![encode_float(turns * std::f32::consts::TAU)]
 }
 
 fn alpha(field: i32) -> Vec<i32> {
     concat_args(vec![&[2], &[field]])
 }
 
-/// A curve of `value` from 0 to `top`, 0 up to `from` and `top` beyond `to`
+/// A curve of `value` from 0 to `top` turns, 0 up to `from` and `top` beyond `to`
 fn ramp(value: &[i32], from: f32, to: f32, top: f32) -> Vec<i32> {
     let points = [0.0, 0.0, from, 0.0, to, 1.0, 1.0, 1.0].map(encode_float);
-    let (bottom, top) = ([encode_float(0.0)], [encode_float(top)]);
+    let (bottom, top) = ([encode_float(0.0)], [encode_float(top * std::f32::consts::TAU)]);
     let mut parts: Vec<&[i32]> = vec![&[3], value, &bottom, &top];
     parts.extend(points.iter().map(std::slice::from_ref));
     concat_args(parts)

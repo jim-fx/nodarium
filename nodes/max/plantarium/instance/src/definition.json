@@ -37,9 +37,9 @@
     },
     "rotation": {
       "type": "float",
-      "description": "How far every instance turns around the path from the one before it, in radians (branch takes degrees): 2.4 is the golden angle, 3.14 puts them in two ranks, 1.57 with a second instance node two steps lower makes decussate pairs. Read for every instance.",
+      "description": "How far every instance turns around the path from the one before it, in radians: 2.3998 is the golden angle, 3.1416 puts them in two ranks, 1.5708 with a second instance node two steps lower makes decussate pairs. Read for every instance.",
       "min": 0,
-      "max": 6.28,
+      "max": 6.2832,
       "step": 0.01,
       "value": 0.5,
       "hidden": true
@@ -60,10 +60,10 @@
     },
     "angle": {
       "type": "float",
-      "description": "Tilts every instance from sticking straight out of the path, in degrees: positive toward the tip of the path, negative toward its base, 90 along it. Read for every instance, so a curve of alpha or a random gives every instance its own.",
-      "min": -90,
-      "max": 90,
-      "step": 1,
+      "description": "Tilts every instance from sticking straight out of the path, in radians: positive toward the tip of the path, negative toward its base, 1.5708 along it. Read for every instance, so a curve of alpha or a random gives every instance its own.",
+      "min": -1.5708,
+      "max": 1.5708,
+      "step": 0.01,
       "value": 0,
       "hidden": true
     },

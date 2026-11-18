@@ -31,10 +31,10 @@
     },
     "angle": {
       "type": "float",
-      "description": "Tilts every instance from the direction of its point, in degrees: positive toward the tip of the path, negative toward its base, 90 along it. Read for every instance.",
-      "min": -90,
-      "max": 90,
-      "step": 1,
+      "description": "Tilts every instance from the direction of its point, in radians: positive toward the tip of the path, negative toward its base, 1.5708 along it. Read for every instance.",
+      "min": -1.5708,
+      "max": 1.5708,
+      "step": 0.01,
       "value": 0,
       "hidden": true
     },

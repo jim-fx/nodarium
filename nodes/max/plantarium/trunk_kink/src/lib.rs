@@ -165,7 +165,7 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
                 let a = i as f32 / (amount - 1).max(1) as f32;
                 let alpha = (lowest + a * (highest - lowest)).clamp(0.0, 1.0);
                 ctx.alpha = alpha;
-                let angle = ctx.float(args[4]).to_radians();
+                let angle = ctx.float(args[4]);
                 // a kink the path has not grown up to yet waits at the tip and bends nothing,
                 // so the kinks below it and their points are the same as on the full-grown path
                 let spot = link.spot(alpha);
@@ -176,7 +176,7 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
                     angle: if spot.is_some() { angle } else { 0.0 },
                     turn,
                 };
-                turn += ctx.float(args[5]).to_radians();
+                turn += ctx.float(args[5]);
                 kink
             })
             .collect();
@@ -231,6 +231,7 @@ mod tests {
         stems
     }
 
+    /// `angle` and `rotation` in degrees, the node takes radians
     fn run(
         plant: &[i32],
         amount: i32,
@@ -243,8 +244,8 @@ mod tests {
             &[amount],
             &[encode_float(range.0)],
             &[encode_float(range.1)],
-            &[encode_float(angle)],
-            &[encode_float(rotation)],
+            &[encode_float(angle.to_radians())],
+            &[encode_float(rotation.to_radians())],
             &[1],
         ])
     }
@@ -416,7 +417,7 @@ mod tests {
             &[1],
             &[encode_float(0.5)],
             &[encode_float(0.5)],
-            &[encode_float(90.0)],
+            &[encode_float(90f32.to_radians())],
             &[encode_float(0.0)],
             &[2],
         ]);

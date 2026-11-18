@@ -79,7 +79,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             let around = Quat::from_axis_angle(tangent, turn) * base;
             turn += ctx.float(args[5]);
             // the angle tilts it along the path, positive toward the tip
-            let angle = ctx.float(args[8]).to_radians();
+            let angle = ctx.float(args[8]);
             let pick = if by_index {
                 ctx.float(args[11])
             } else {
@@ -387,7 +387,7 @@ mod tests {
             .map(|m| {
                 // the geometry grows along -z, on an upright stem the angle lifts that axis
                 let out = -Mat4::from_cols_slice(m).z_axis.truncate();
-                (out.length() / 0.11, (out.y / out.length()).asin().to_degrees())
+                (out.length() / 0.11, (out.y / out.length()).asin())
             })
             .collect()
     }
@@ -395,7 +395,7 @@ mod tests {
     #[test]
     fn a_random_per_instance_gives_size_and_angle_the_same_value() {
         let random = |per_instance: i32| {
-            let (min, max) = ([encode_float(10.0)], [encode_float(80.0)]);
+            let (min, max) = ([encode_float(0.2)], [encode_float(1.4)]);
             concat_args(vec![&[1], &min, &max, &[7], &[1], &[0], &[5], &[0], &[per_instance]])
         };
         let stems = stems();
@@ -403,10 +403,10 @@ mod tests {
         let instances = sizes_and_angles(&stems, &random(1), &random(1));
         assert_eq!(instances.len(), 8);
         for (i, (size, angle)) in instances.iter().enumerate() {
-            assert!((10.0..=80.0).contains(size), "{:?}", instances);
-            assert!((size - angle).abs() < 0.01, "{:?}", instances);
+            assert!((0.2..=1.4).contains(size), "{:?}", instances);
+            assert!((size - angle).abs() < 1e-4, "{:?}", instances);
             for (other, _) in &instances[..i] {
-                assert!((size - other).abs() > 0.01, "{:?}", instances);
+                assert!((size - other).abs() > 1e-4, "{:?}", instances);
             }
         }
 
@@ -416,7 +416,7 @@ mod tests {
 
         // without the option the two inputs draw one after the other
         let drawn = sizes_and_angles(&stems, &random(0), &random(0));
-        assert!(drawn.iter().all(|(size, angle)| (size - angle).abs() > 0.01), "{:?}", drawn);
+        assert!(drawn.iter().all(|(size, angle)| (size - angle).abs() > 1e-4), "{:?}", drawn);
     }
 
     /// The face of the one instance on a path that lies along +x, with the face input `face`
@@ -457,7 +457,7 @@ mod tests {
         assert!((face_on_a_lying_path(1, 0.0) - glam::Vec3::X).length() < 1e-5);
         // tilted toward the tip it faces the tip and the inside of the ring, the path, where the
         // instance sticks out along +z
-        let face = face_on_a_lying_path(1, 60.0);
+        let face = face_on_a_lying_path(1, 60f32.to_radians());
         assert!((face - glam::Vec3::new(0.5, 0.0, -(0.75f32).sqrt())).length() < 1e-5);
     }
 

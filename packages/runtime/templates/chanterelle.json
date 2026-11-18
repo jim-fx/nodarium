@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 13,
+  "version": 14,
   "meta": {
     "unit": "cm"
   },
@@ -552,7 +552,7 @@
           "type": "max/plantarium/random",
           "props": {
             "min": 0.0,
-            "max": 12.0,
+            "max": 0.2094395,
             "uniform": 1
           }
         },
@@ -561,8 +561,8 @@
           "position": [-330, -6.28],
           "type": "max/plantarium/random",
           "props": {
-            "min": 160,
-            "max": 200,
+            "min": 2.7925268,
+            "max": 3.4906585,
             "uniform": 1
           }
         },

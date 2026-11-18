@@ -5,7 +5,6 @@ use nodarium_utils::{
     geometry::{is_geometry, split_items, wrap_geometry_data},
     int, Ctx,
 };
-use std::f32::consts::TAU;
 
 nodarium_definition_file!("src/definition.json");
 
@@ -38,7 +37,7 @@ fn turned(rates: &[f32]) -> Vec<f32> {
     let step = 1.0 / (rates.len() - 1) as f32;
     let mut angle = vec![0.0f32; rates.len()];
     for k in 1..rates.len() {
-        angle[k] = angle[k - 1] + TAU * 0.5 * (rates[k - 1] + rates[k]) * step;
+        angle[k] = angle[k - 1] + 0.5 * (rates[k - 1] + rates[k]) * step;
     }
     angle
 }

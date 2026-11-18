@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 13,
+  "version": 14,
   "settings": {
     "resolution.circle": 6,
     "resolution.curve": 24,
@@ -55,8 +55,8 @@
         "highest_branch": 0.85,
         "length": 0.3,
         "thickness": 0.65,
-        "rotation": 137.5,
-        "angle": 32,
+        "rotation": 2.3998277,
+        "angle": 0.5585054,
         "taper": 0.6,
         "depth": 1
       }
@@ -177,7 +177,7 @@
         "lowest_instance": 1,
         "highest_instance": 1,
         "rotation": 0,
-        "angle": 90,
+        "angle": 1.5707963,
         "size": 1,
         "depth": 2,
         "pick": 1,
@@ -287,7 +287,7 @@
         "amount": 24,
         "length": 0.065,
         "length_variation": 0.15,
-        "opening": 85,
+        "opening": 1.4835299,
         "shape": 0.15,
         "thickness": 0.0005,
         "depth": 2,
@@ -357,7 +357,7 @@
         "lowest_instance": 1,
         "highest_instance": 1,
         "rotation": 1.2566,
-        "angle": 20,
+        "angle": 0.3490659,
         "size": 0.16,
         "depth": 1
       }
@@ -372,8 +372,8 @@
         "highest_branch": 1,
         "length": 0.045,
         "thickness": 0.5,
-        "rotation": 137.5,
-        "angle": -10,
+        "rotation": 2.3998277,
+        "angle": -0.1745329,
         "taper": 0.8,
         "depth": 1
       }
@@ -388,8 +388,8 @@
         "highest_branch": 0.85,
         "length": 0.012,
         "thickness": 0.6,
-        "rotation": 180,
-        "angle": 30,
+        "rotation": 3.1415927,
+        "angle": 0.5235988,
         "taper": 0.8,
         "depth": 1
       }
@@ -470,7 +470,7 @@
         "amount": 16,
         "length": 0.018,
         "length_variation": 0.1,
-        "opening": 22,
+        "opening": 0.3839724,
         "shape": 1,
         "thickness": 0.0005,
         "depth": 2,
@@ -486,7 +486,7 @@
         "lowest_instance": 1,
         "highest_instance": 1,
         "rotation": 1.2566,
-        "angle": 40,
+        "angle": 0.6981317,
         "size": 0.12,
         "depth": 1
       }
@@ -501,8 +501,8 @@
         "highest_branch": 1,
         "length": 0.028,
         "thickness": 0.5,
-        "rotation": 137.5,
-        "angle": 50,
+        "rotation": 2.3998277,
+        "angle": 0.8726646,
         "taper": 0.8,
         "depth": 1
       }
@@ -517,8 +517,8 @@
         "highest_branch": 0.85,
         "length": 0.01,
         "thickness": 0.6,
-        "rotation": 180,
-        "angle": 30,
+        "rotation": 3.1415927,
+        "angle": 0.5235988,
         "taper": 0.8,
         "depth": 1
       }
@@ -566,8 +566,8 @@
         "highest_branch": 1,
         "length": 0.22,
         "thickness": 0.5,
-        "rotation": 137.5,
-        "angle": 30,
+        "rotation": 2.3998277,
+        "angle": 0.5235988,
         "taper": 0.7,
         "depth": 1
       }
@@ -595,8 +595,8 @@
       "position": [190, -295.47],
       "type": "max/plantarium/random",
       "props": {
-        "min": 15,
-        "max": 50
+        "min": 0.2617994,
+        "max": 0.8726646
       }
     },
     {
@@ -609,8 +609,8 @@
         "highest_branch": 0.78,
         "length": 0.1,
         "thickness": 0.35,
-        "rotation": 137.5,
-        "angle": 35,
+        "rotation": 2.3998277,
+        "angle": 0.6108652,
         "taper": 0.7,
         "depth": 1
       }
@@ -662,8 +662,8 @@
       "position": [190, -192.47],
       "type": "max/plantarium/random",
       "props": {
-        "min": 25,
-        "max": 55
+        "min": 0.4363323,
+        "max": 0.9599311
       }
     },
     {
@@ -710,8 +710,8 @@
         "highest_branch": 0.97,
         "length": 0.05,
         "thickness": 0.5,
-        "rotation": 180,
-        "angle": 40,
+        "rotation": 3.1415927,
+        "angle": 0.6981317,
         "taper": 0.7,
         "depth": 1,
         "offset_single": 1
@@ -772,8 +772,8 @@
       "position": [340, -178.8],
       "type": "max/plantarium/random",
       "props": {
-        "min": 35,
-        "max": 55
+        "min": 0.6108652,
+        "max": 0.9599311
       }
     },
     {
@@ -846,7 +846,7 @@
         "lowest_instance": 0,
         "highest_instance": 0,
         "rotation": 0,
-        "angle": 90,
+        "angle": 1.5707963,
         "size": 1,
         "depth": 1
       }
@@ -1330,7 +1330,7 @@
         "lowest_instance": 1,
         "highest_instance": 1,
         "rotation": 0,
-        "angle": 90,
+        "angle": 1.5707963,
         "depth": 1
       }
     },
@@ -1564,6 +1564,12 @@
         "a": 85,
         "b": 1
       }
+    },
+    {
+      "id": 181,
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "b": 0.017453292519943295 },
+      "position": [235, -37.239999999999995]
     },
     {
       "id": 172,
@@ -2475,12 +2481,8 @@
       171,
       "b"
     ],
-    [
-      171,
-      0,
-      22,
-      "opening"
-    ],
+    [181, 0, 22, "opening"],
+    [171, 0, 181, "a"],
     [
       172,
       0,

@@ -82,11 +82,11 @@
     },
     "vein_angle": {
       "type": "float",
-      "description": "Angle between the side veins and the vein they branch from, in degrees. Small angles give narrow leaves, large ones broad leaves with a pointed outline.",
-      "min": 10,
-      "max": 85,
-      "step": 1,
-      "value": 50,
+      "description": "Angle between the side veins and the vein they branch from, in radians. Small angles give narrow leaves, large ones broad leaves with a pointed outline.",
+      "min": 0.1745,
+      "max": 1.4835,
+      "step": 0.01,
+      "value": 0.8727,
       "hidden": true
     },
     "vein_depth": {
@@ -109,19 +109,19 @@
     },
     "x_curve": {
       "type": "float",
-      "description": "Fold the leaf along its midrib, in degrees. 0 = flat, 90 = U-shape.",
-      "min": -180,
-      "max": 180,
-      "step": 1,
+      "description": "Fold the leaf along its midrib, in radians. 0 = flat, 1.5708 = U-shape.",
+      "min": -3.1416,
+      "max": 3.1416,
+      "step": 0.01,
       "value": 0,
       "hidden": true
     },
     "y_curve": {
       "type": "float",
-      "description": "Curl the leaf upward along its length, in degrees. 0 = flat, 90 = the tip points straight up.",
-      "min": -180,
-      "max": 180,
-      "step": 1,
+      "description": "Curl the leaf upward along its length, in radians. 0 = flat, 1.5708 = the tip points straight up.",
+      "min": -3.1416,
+      "max": 3.1416,
+      "step": 0.01,
       "value": 0,
       "hidden": true
     },

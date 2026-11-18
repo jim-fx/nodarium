@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 13,
+  "version": 14,
   "meta": { "unit": "cm" },
   "groups": [],
   "settings": { "time.t": 1, "resolution.circle": 24, "resolution.curve": 40 },
@@ -94,8 +94,8 @@
         "highest_branch": 1,
         "length": 5,
         "thickness": 0.6,
-        "rotation": 137.5,
-        "angle": 55,
+        "rotation": 2.3998277,
+        "angle": 0.9599311,
         "taper": 0.6
       }
     },
@@ -104,6 +104,12 @@
       "position": [120, -31.44],
       "type": "max/plantarium/math",
       "props": { "op_type": 0, "a": 1, "b": 1 }
+    },
+    {
+      "id": 89,
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "b": 0.017453292519943295 },
+      "position": [135, -57.17]
     },
     {
       "id": 29,
@@ -148,7 +154,7 @@
       "id": 46,
       "position": [240, 155.83],
       "type": "max/plantarium/curve",
-      "props": { "curve": [0, 0.3, 0.5, 0.55, 1, 0.9], "min": 35, "max": 62 }
+      "props": { "curve": [0, 0.3, 0.5, 0.55, 1, 0.9], "min": 0.6108652, "max": 1.0821041 }
     },
     {
       "id": 47,
@@ -342,7 +348,8 @@
     [30, 0, 29, "value"],
     [29, 0, 28, "a"],
     [31, 0, 28, "b"],
-    [28, 0, 27, "angle"],
+    [89, 0, 27, "angle"],
+    [28, 0, 89, "a"],
     [27, 0, 13, "plant"],
     [12, 0, 40, "a"],
     [41, 0, 42, "value"],

@@ -22,7 +22,7 @@ export type Gizmo =
     /** the direction of the path and a vector orthogonal to it, where the branch starts */
     direction: Vec3;
     orthogonal: Vec3;
-    /** degrees, how far the branch leans from the orthogonal towards the direction of the path */
+    /** radians, how far the branch leans from the orthogonal towards the direction of the path */
     angle: number;
     length: number;
   };
@@ -45,7 +45,7 @@ export const BRANCH_NODE_TYPE = 'max/plantarium/branch';
 
 export const MIN_GIZMO_RADIUS = 0.05;
 export const MIN_LENGTH = 0.05;
-export const MAX_BRANCH_ANGLE = 90;
+export const MAX_BRANCH_ANGLE = Math.PI / 2;
 
 type DefaultValue = (node: NodeInstance, input: string) => unknown;
 type EdgeLike = Edge | Graph['edges'][number];

@@ -5,7 +5,6 @@ use nodarium_utils::{
     geometry::{interpolate_along_path, rotate_vector_by_angle, wrap_path, DeepestPaths},
     split_args, Ctx, Point,
 };
-use std::f32::consts::PI;
 
 nodarium_definition_file!("src/definition.json");
 
@@ -61,7 +60,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             let spot = path.link.spot_or_tip(alpha);
             let (position, orthogonal, tangent) = interpolate_along_path(path.points, spot);
             let direction = rotate_vector_by_angle(orthogonal, tangent, turn);
-            turn += ctx.float(args[4]) * PI / 180.0;
+            turn += ctx.float(args[4]);
 
             points.push(Point {
                 position: Vec3::new(position.x, position.y, position.z),
@@ -107,13 +106,14 @@ mod tests {
         run_with(paths, amount, rotation, 0.0, 1)
     }
 
+    /// `rotation` in degrees, the node takes radians
     fn run_with(paths: &[i32], amount: i32, rotation: f32, offset: f32, depth: i32) -> Vec<i32> {
         __nodarium_execute_inner(&[
             paths,
             &[amount],
             &[encode_float(0.0)],
             &[encode_float(1.0)],
-            &[encode_float(rotation)],
+            &[encode_float(rotation.to_radians())],
             &[encode_float(offset)],
             &[depth],
         ])
