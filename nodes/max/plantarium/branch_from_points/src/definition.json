@@ -36,11 +36,12 @@
     },
     "angle": {
       "type": "float",
-      "description": "Tilts every branch from the direction of its point, in radians: 0 sticks straight out, positive toward the tip of the path, negative toward its base, 1.5708 along it. Read for every branch.",
+      "description": "Tilts every branch from the direction of its point, in radians: 0 sticks straight out, positive toward the tip of the path, negative toward its base, 1.5708 rad along it. Read for every branch.",
       "min": -1.5708,
       "max": 1.5708,
       "step": 0.01,
-      "value": 0
+      "value": 0,
+      "unit": "rad"
     },
     "taper": {
       "type": "float",
