@@ -1,5 +1,5 @@
 export type { AsyncCache, NodeRegistry, RuntimeExecutor, SyncCache } from './components';
-export type { NodeInput } from './inputs';
+export type { InputUnit, NodeInput } from './inputs';
 export {
   DEBUG_NODE,
   GROUP_INPUT,

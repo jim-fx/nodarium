@@ -109,6 +109,7 @@
     showScaleViewer: boolean;
     centerCamera: boolean;
     showUnits: boolean;
+    angleUnit: string;
     theme: string;
     nodeInterface: { snapToGrid: boolean };
   };
@@ -177,6 +178,14 @@
             label: unit,
             checked: (pm.activeProject?.meta?.unit ?? 'm') === unit,
             onselect: withActive((id) => pm.setProjectUnit(id, unit))
+          }))
+        },
+        {
+          label: 'Angles',
+          items: (['deg', 'rad'] as const).map((unit) => ({
+            label: unit === 'deg' ? 'degrees' : 'radians',
+            checked: settings.angleUnit === unit,
+            onselect: () => (settings.angleUnit = unit)
           }))
         },
         'separator',

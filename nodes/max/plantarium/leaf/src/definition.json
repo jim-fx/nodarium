@@ -51,12 +51,13 @@
     },
     "y_curve": {
       "type": "float",
-      "description": "Bends the leaf along its length, in radians: positive bends it down, away from its face (+y), negative up toward it. 0 = flat, 1.57 turns the tip by 90°. The face is the side instance turns up to the sky, or toward the tip of the path with face path.",
+      "description": "Bends the leaf along its length, in radians: positive bends it down, away from its face (+y), negative up toward it. 0 = flat, 1.5708 rad turns the tip by a right angle. The face is the side instance turns up to the sky, or toward the tip of the path with face path.",
       "min": -3.14,
       "max": 3.14,
       "step": 0.05,
       "value": 0,
-      "hidden": true
+      "hidden": true,
+      "unit": "rad"
     },
     "y_twist": {
       "type": "float",
@@ -65,16 +66,18 @@
       "max": 6.28,
       "step": 0.05,
       "value": 0,
-      "hidden": true
+      "hidden": true,
+      "unit": "rad"
     },
     "x_curve": {
       "type": "float",
-      "description": "Curls every cross-section into an arc, mirrored at the midrib, in radians: positive raises the margins into a channel open to the face, negative rolls them under. 0 = flat, 1.57 = a U.",
+      "description": "Curls every cross-section into an arc, mirrored at the midrib, in radians: positive raises the margins into a channel open to the face, negative rolls them under. 0 = flat, 1.5708 rad = a U.",
       "min": -3.14,
       "max": 3.14,
       "step": 0.05,
       "value": 0,
-      "hidden": true
+      "hidden": true,
+      "unit": "rad"
     }
   }
 }

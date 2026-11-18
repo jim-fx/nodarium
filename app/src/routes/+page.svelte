@@ -55,7 +55,7 @@
   import { debugNode, MemoryRuntimeCache, MemoryRuntimeExecutor } from '@nodarium/runtime';
   import { loadTemplate } from '@nodarium/runtime/templates';
   import type { Edge, Graph, NodeDefinition } from '@nodarium/types';
-  import { createKeyMap, Spinner, Toast, toast, unitSettings } from '@nodarium/ui';
+  import { type AngleUnit, createKeyMap, Spinner, Toast, toast, unitSettings } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
   import { onDestroy, onMount, untrack } from 'svelte';
   import type { Group } from 'three';
@@ -245,9 +245,10 @@
     if (manager) manager.meta = { ...manager.meta, unit };
   };
 
-  // number inputs and the viewer show lengths in the unit of the project
+  // number inputs and the viewer show lengths in the unit of the project, angles as the user chose
   $effect(() => {
     unitSettings.unit = manager?.meta?.unit ?? 'm';
+    unitSettings.angle = appSettings.value.angleUnit as AngleUnit;
     unitSettings.show = appSettings.value.showUnits;
   });
 

@@ -1,7 +1,11 @@
 import { z } from 'zod';
 
-/** The unit an input is measured in, values are always stored in this unit */
-export const InputUnitSchema = z.literal('m');
+/**
+ * The unit an input is measured in, values are always stored in this unit: `m` for lengths, shown
+ * in the unit of the project, and `rad` for angles, shown in degrees or radians as the user chooses
+ */
+export const InputUnitSchema = z.enum(['m', 'rad']);
+export type InputUnit = z.infer<typeof InputUnitSchema>;
 
 const DefaultOptionsSchema = z.object({
   internal: z.boolean().optional(),

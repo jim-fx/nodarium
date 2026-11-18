@@ -26,7 +26,8 @@
       "max": 12.5664,
       "step": 0.01,
       "value": 0,
-      "description": "How far it turns, in radians: a constant amount turns the tip (or for curl the edge) by that much, 1.5708 is a right angle. It is read along the geometry as how fast it turns there, so a curve of alpha that is 0 at first bends only the end. Positive bends and curls toward the face (+y), negative away from it, positive twists the edge at +x up."
+      "description": "How far it turns, in radians: a constant amount turns the tip (or for curl the edge) by that much, 1.5708 rad is a right angle. It is read along the geometry as how fast it turns there, so a curve of alpha that is 0 at first bends only the end. Positive bends and curls toward the face (+y), negative away from it, positive twists the edge at +x up.",
+      "unit": "rad"
     }
   }
 }

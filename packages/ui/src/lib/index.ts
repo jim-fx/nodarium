@@ -23,7 +23,14 @@ export { default as Spinner } from './Spinner.svelte';
 export { default as Tabs } from './Tabs.svelte';
 export { default as Toast } from './Toast.svelte';
 export { toast } from './toast.svelte';
-export { fromDisplay, toDisplay, UNIT_FACTORS, unitSettings } from './units.svelte';
+export {
+  type AngleUnit,
+  describeAngles,
+  fromDisplay,
+  toDisplay,
+  UNIT_FACTORS,
+  unitSettings
+} from './units.svelte';
 
 import Input from './Input.svelte';
 export default Input;

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { GROUP_INPUT } from '@nodarium/types';
   import type { NodeInput, NodeInstance, Socket } from '@nodarium/types';
+  import { describeAngles } from '@nodarium/ui';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers/index.ts';
   import { getParameterHeight } from '../helpers/nodeHelpers';
@@ -112,7 +113,9 @@
       {#if isExposed}
         <div class="flex items-center justify-between gap-2">
           {#if inputType?.label !== ''}
-            <label for={elementId} title={input.description}>{input.label || id}</label>
+            <label for={elementId} title={input.description && describeAngles(input.description)}>{
+              input.label || id
+            }</label>
           {/if}
           <button
             type="button"
@@ -124,7 +127,9 @@
           </button>
         </div>
       {:else if inputType?.label !== ''}
-        <label for={elementId} title={input.description}>{input.label || id}</label>
+        <label for={elementId} title={input.description && describeAngles(input.description)}>{
+          input.label || id
+        }</label>
       {/if}
       {#if inputType?.external !== true}
         <NodeInputEl {graph} {elementId} bind:node {input} {id} />

@@ -125,3 +125,50 @@ test('a page without animation frames still shows the result', async ({ page }) 
   // the grid is grey, only the fern is green
   await expect.poll(lit, { timeout: 5000 }).toBeGreaterThan(0.05);
 });
+
+test('angles show in degrees or in radians, the graph keeps radians', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() =>
+    window.nodarium!.graph.load({
+      version: 14,
+      nodes: [
+        { id: 1, type: 'max/plantarium/stem' },
+        { id: 2, type: 'max/plantarium/branch', props: { angle: 0.5236 } },
+        { id: 3, type: 'max/plantarium/output' }
+      ],
+      edges: [[1, 0, 2, 'plant'], [2, 0, 3, 'input']]
+    }, { title: 'angles' })
+  );
+  const graph = () => page.evaluate(() => window.nodarium!.graph.get());
+  const angle = page.locator(
+    'div.wrapper[data-node-type="max/plantarium/branch"][data-node-input="angle"]'
+  );
+  const field = angle.locator('input');
+  await expect(field).toHaveValue('0.5236');
+  await expect(angle.getByTestId('unit-label')).toHaveText('rad');
+  const before = await graph();
+
+  const chooseAngles = async (name: string) => {
+    await page.getByRole('button', { name: 'View', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Angles' }).click();
+    await page.getByRole('menuitemcheckbox', { name }).click();
+  };
+
+  await chooseAngles('degrees');
+  await expect(field).toHaveValue('30');
+  await expect(angle.getByTestId('unit-label')).toHaveText('°');
+  await expect(angle.locator('label')).toHaveAttribute('title', /in degrees: .*90° along it/);
+  expect(await graph()).toEqual(before);
+
+  await field.fill('45');
+  await field.press('Enter');
+  await expect(field).toHaveValue('45');
+  await expect.poll(async () => (await graph()).nodes[1].props?.angle).toBeCloseTo(
+    Math.PI / 4,
+    12
+  );
+
+  await chooseAngles('radians');
+  await expect(field).toHaveValue('0.7853981634');
+  expect((await graph()).nodes[1].props?.angle).toBeCloseTo(Math.PI / 4, 12);
+});

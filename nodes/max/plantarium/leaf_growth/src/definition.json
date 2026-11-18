@@ -87,7 +87,8 @@
       "max": 1.4835,
       "step": 0.01,
       "value": 0.8727,
-      "hidden": true
+      "hidden": true,
+      "unit": "rad"
     },
     "vein_depth": {
       "type": "float",
@@ -109,21 +110,23 @@
     },
     "x_curve": {
       "type": "float",
-      "description": "Fold the leaf along its midrib, in radians. 0 = flat, 1.5708 = U-shape.",
+      "description": "Fold the leaf along its midrib, in radians. 0 = flat, 1.5708 rad = U-shape.",
       "min": -3.1416,
       "max": 3.1416,
       "step": 0.01,
       "value": 0,
-      "hidden": true
+      "hidden": true,
+      "unit": "rad"
     },
     "y_curve": {
       "type": "float",
-      "description": "Curl the leaf upward along its length, in radians. 0 = flat, 1.5708 = the tip points straight up.",
+      "description": "Curl the leaf upward along its length, in radians. 0 = flat, 1.5708 rad = the tip points straight up.",
       "min": -3.1416,
       "max": 3.1416,
       "step": 0.01,
       "value": 0,
-      "hidden": true
+      "hidden": true,
+      "unit": "rad"
     },
     "resolution": {
       "type": "integer",

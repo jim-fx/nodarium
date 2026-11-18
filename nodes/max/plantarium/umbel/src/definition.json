@@ -45,7 +45,8 @@
       "min": 0,
       "max": 3.1416,
       "step": 0.01,
-      "value": 0.8727
+      "value": 0.8727,
+      "unit": "rad"
     },
     "shape": {
       "type": "float",

@@ -42,6 +42,8 @@ The first output sits on the header of the node, every other output gets its own
 }
 ```
 
+A `float` or `vec3` that is a length gets `"unit": "m"` and one that is an angle `"unit": "rad"`. The node always gets meters and radians, the editor shows lengths in the unit of the project and angles in degrees or radians, as the user chose under View → Angles. Write the angles in the description of a node or an input as `1.5708 rad` and say `in radians`, the editor shows them as `90°` and `in degrees` then.
+
 Saved graphs refer to inputs by their name. When you rename or remove an input, add a migration in `packages/runtime/src/graph-migrations` so graphs that use the old name keep their values and links.
 
 ## meta (optional)

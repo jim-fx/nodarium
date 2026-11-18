@@ -39,12 +39,13 @@
     },
     "rotation": {
       "type": "float",
-      "description": "How far every point is turned around the path from the one before it, in radians. 3.1416 alternates sides, 2.3998 makes a spiral.",
+      "description": "How far every point is turned around the path from the one before it, in radians. 3.1416 rad alternates sides, 2.3998 rad makes a spiral.",
       "hidden": true,
       "min": 0,
       "max": 6.2832,
       "step": 0.01,
-      "value": 2.3998
+      "value": 2.3998,
+      "unit": "rad"
     },
     "offset_single": {
       "type": "float",

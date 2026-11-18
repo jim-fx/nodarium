@@ -44,15 +44,17 @@
       "min": -1.5708,
       "max": 1.5708,
       "step": 0.01,
-      "value": 0.2618
+      "value": 0.2618,
+      "unit": "rad"
     },
     "rotation": {
       "type": "float",
-      "description": "How far every kink is turned around the path from the one before it, in radians. 3.1416 bends left and right in turn, 2.3998 makes a spiral.",
+      "description": "How far every kink is turned around the path from the one before it, in radians. 3.1416 rad bends left and right in turn, 2.3998 rad makes a spiral.",
       "min": 0,
       "max": 6.2832,
       "step": 0.01,
-      "value": 3.1416
+      "value": 3.1416,
+      "unit": "rad"
     },
     "depth": {
       "type": "integer",
