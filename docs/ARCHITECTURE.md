@@ -55,7 +55,7 @@ The nodes are grouped into collections, the second part of their id (`max/<colle
 | `max/plantarium` | paths, points, leaves, geometry, instances: the plants                                                                   | [PLANTARIUM.md](./PLANTARIUM.md) |
 | `max/myzel`      | caps, strands, gills, veils, substrates: the mushrooms                                                                   | [MYZEL.md](./MYZEL.md)           |
 
-All nodes are compatible: Myzel works on the paths of Plantarium, and its surfaces are the same `geometry` as the plant nodes'. A node that both systems use lives in the lower one, the value nodes in Core, `path_info`, `join` and `set_color` in Plantarium. Core has no data of its own beyond numbers, vectors and colors (see Expressions in [CORE.md](./CORE.md)), so it depends on no system.
+All nodes are compatible: Myzel works on the paths of Plantarium, and its surfaces are the same `geometry` as the plant nodes'. A node that both systems use lives in the lower one, the value nodes in Core, `path_info`, `join`, `set_color` and `to_geometry` in Plantarium. Core has no data of its own beyond numbers, vectors and colors (see Expressions in [CORE.md](./CORE.md)), so it depends on no system.
 
 Every graph has Core. The editor offers the nodes of the collections the graph uses and those of `baseCollections` of the registry, which the app sets to `max/core` (`CORE_COLLECTION` of `@nodarium/types`), so a graph of plant nodes alone can still add a `random`. A Cargo crate is named `<collection>_<node>` (`core_random`), `scripts/copy-node-wasm.sh` copies it to `app/static/nodes/max/<collection>/<node>.wasm` by that prefix, and `@nodarium/runtime` ships every collection that folder holds.
 

@@ -2137,7 +2137,7 @@ describe('version 16: the value nodes live in max/core', () => {
       ],
       [[1, 0, 2, 'a'], [20, 0, 21, 'thickness']]
     );
-    const migrated = migrateGraph(old);
+    const migrated = migrateTo(16, old);
     expect(migrated.version).toBe(16);
     expect(migrated.nodes.map((n) => n.type)).toEqual([
       'max/core/float',
@@ -2168,5 +2168,42 @@ describe('version 16: the value nodes live in max/core', () => {
     const [group] = migrateGraph(old).groups!;
     expect(group.nodes.map((n) => n.type)).toEqual(['max/core/time', 'max/core/curve']);
     expect(group.edges).toEqual([[11, 0, 12, 'max']]);
+  });
+});
+
+describe('version 17: to_geometry bakes instances only with bake on', () => {
+  const v16 = (nodes: SerializedNode[], edges: Graph['edges'] = []): Graph => ({
+    ...graph(nodes, edges),
+    version: 16
+  });
+
+  it('turns bake on for every to_geometry and keeps its other props and edges', () => {
+    const old = v16(
+      [
+        node(1, 'max/plantarium/to_geometry', { max_points: 5, variants: 1 }),
+        node(2, 'max/plantarium/to_geometry'),
+        node(3, 'max/plantarium/output')
+      ],
+      [[1, 0, 2, 'input'], [2, 0, 3, 'input']]
+    );
+    const migrated = migrateGraph(old);
+    expect(migrated.version).toBe(17);
+    expect(migrated.nodes.map((n) => n.props)).toEqual([
+      { max_points: 5, variants: 1, bake: 1 },
+      { bake: 1 },
+      {}
+    ]);
+    expect(migrated.edges).toEqual(old.edges);
+  });
+
+  it('turns bake on inside groups', () => {
+    const old = v16([node(1, '__internal/group/instance', { groupId: 10 })]);
+    old.groups = [{
+      id: 10,
+      nodes: [node(11, 'max/plantarium/to_geometry')],
+      edges: []
+    }] as unknown as Graph['groups'];
+    const [group] = migrateGraph(old).groups!;
+    expect(group.nodes[0].props).toEqual({ bake: 1 });
   });
 });
