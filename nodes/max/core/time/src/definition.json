@@ -1,0 +1,20 @@
+{
+  "id": "max/core/time",
+  "meta": {
+    "description": "The time of the graph from 0 to 1, set in the graph settings"
+  },
+  "outputs": [
+    "float"
+  ],
+  "inputs": {
+    "t": {
+      "type": "float",
+      "description": "The time from 0 to 1, read from the setting time.t of the graph, so one setting moves every node it goes into. The value here is used when the graph has no such setting.",
+      "value": 0.5,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "setting": "time.t"
+    }
+  }
+}

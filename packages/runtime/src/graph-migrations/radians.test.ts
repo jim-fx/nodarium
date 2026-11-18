@@ -151,7 +151,7 @@ describe('every angle in radians (graph version 14)', () => {
     }] as unknown as Graph['groups'];
     const group = migrateGraph(old).groups![0];
     expect(group.nodes.find((n) => n.id === 13)!.props).toEqual({ rotation: 3.1415927 });
-    const math = group.nodes.find((n) => n.type === 'max/plantarium/math')!;
+    const math = group.nodes.find((n) => n.type === 'max/core/math')!;
     expect(math.id).toBeGreaterThan(13);
     expect(group.edges).toEqual([[math.id, 0, 12, 'angle'], [11, 0, math.id, 'a']]);
   });

@@ -41,6 +41,7 @@ test('ready: the first build is done and every node is known', async () => {
       version: nodarium.version,
       app: nodarium.app,
       built: nodarium.lastResult() !== undefined,
+      core: ids.filter((id) => id.startsWith('max/core/')).length,
       plantarium: ids.filter((id) => id.startsWith('max/plantarium/')).length,
       myzel: ids.filter((id) => id.startsWith('max/myzel/')).length
     };
@@ -49,6 +50,7 @@ test('ready: the first build is done and every node is known', async () => {
   expect(state.app.version).toMatch(/^\d+\.\d+\.\d+$/);
   expect(typeof state.app.sha).toBe('string');
   expect(state.built).toBe(true);
+  expect(state.core).toBe(11);
   expect(state.plantarium).toBeGreaterThan(10);
   expect(state.myzel).toBeGreaterThan(10);
 });

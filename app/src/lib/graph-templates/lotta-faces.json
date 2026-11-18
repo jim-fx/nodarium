@@ -1,5 +1,5 @@
 {
-  "version": 15,
+  "version": 16,
   "groups": [],
   "settings": { "resolution.circle": 64, "resolution.curve": 64 },
   "nodes": [
@@ -25,13 +25,13 @@
     {
       "id": 21,
       "position": [140, 0],
-      "type": "max/plantarium/vec3",
+      "type": "max/core/vec3",
       "props": { "x": 0.39, "y": 0, "z": 0.41 }
     },
     {
       "id": 22,
       "position": [110, 5],
-      "type": "max/plantarium/random",
+      "type": "max/core/random",
       "props": { "min": -2, "max": 2 }
     }
   ],

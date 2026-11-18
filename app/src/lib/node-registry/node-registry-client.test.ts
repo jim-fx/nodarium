@@ -6,11 +6,11 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { getCollection } from '../node-registry.ts';
 import { RemoteNodeRegistry } from './node-registry-client.ts';
 
-const WASM = resolve('static/nodes/max/plantarium/float.wasm');
+const WASM = resolve('static/nodes/max/core/float.wasm');
 const BUILT = existsSync(WASM);
 const ON_CI = !!process.env.CI;
 
-const float = 'max/plantarium/float' as NodeId;
+const float = 'max/core/float' as NodeId;
 const floatDefinition = {
   id: float,
   outputs: ['float'],
@@ -48,7 +48,7 @@ function serve(files: Record<string, () => Response>) {
 }
 
 const listing = (definitions?: unknown[]) => () =>
-  Response.json({ id: 'max/plantarium', nodes: [{ id: float }], definitions });
+  Response.json({ id: 'max/core', nodes: [{ id: float }], definitions });
 const wasmFile = () => new Response(wasm.slice(0));
 
 describe.skipIf(!BUILT && !ON_CI)('RemoteNodeRegistry', () => {
@@ -62,7 +62,7 @@ describe.skipIf(!BUILT && !ON_CI)('RemoteNodeRegistry', () => {
   });
 
   it('takes the definitions from the collection listing without loading wasm', async () => {
-    serve({ '/nodes/max/plantarium.json': listing([floatDefinition]) });
+    serve({ '/nodes/max/core.json': listing([floatDefinition]) });
     const registry = new RemoteNodeRegistry('');
 
     const [node] = await registry.loadDefinitions([float]);
@@ -70,13 +70,13 @@ describe.skipIf(!BUILT && !ON_CI)('RemoteNodeRegistry', () => {
     expect(node.id).toBe(float);
     expect(node.execute).toBeUndefined();
     expect(registry.getNode(float)?.inputs?.value).toBeDefined();
-    expect(requests).toEqual(['/nodes/max/plantarium.json']);
+    expect(requests).toEqual(['/nodes/max/core.json']);
   });
 
   it('loads the wasm of a node that is only defined when it is loaded to run', async () => {
     serve({
-      '/nodes/max/plantarium.json': listing([floatDefinition]),
-      '/nodes/max/plantarium/float.wasm': wasmFile
+      '/nodes/max/core.json': listing([floatDefinition]),
+      '/nodes/max/core/float.wasm': wasmFile
     });
     const registry = new RemoteNodeRegistry('');
     await registry.loadDefinitions([float]);
@@ -90,19 +90,19 @@ describe.skipIf(!BUILT && !ON_CI)('RemoteNodeRegistry', () => {
 
   it('falls back to the wasm when the listing has no definitions', async () => {
     serve({
-      '/nodes/max/plantarium.json': listing(),
-      '/nodes/max/plantarium/float.wasm': wasmFile
+      '/nodes/max/core.json': listing(),
+      '/nodes/max/core/float.wasm': wasmFile
     });
     const registry = new RemoteNodeRegistry('');
 
     const [node] = await registry.loadDefinitions([float]);
 
     expect(node.execute).toBeTypeOf('function');
-    expect(requests).toContain('/nodes/max/plantarium/float.wasm');
+    expect(requests).toContain('/nodes/max/core/float.wasm');
   });
 
   it('falls back to the wasm when there is no listing', async () => {
-    serve({ '/nodes/max/plantarium/float.wasm': wasmFile });
+    serve({ '/nodes/max/core/float.wasm': wasmFile });
     const registry = new RemoteNodeRegistry('');
 
     const [node] = await registry.loadDefinitions([float]);
@@ -120,19 +120,19 @@ describe.skipIf(!BUILT && !ON_CI)('RemoteNodeRegistry', () => {
   });
 
   it('rejects a wasm that fails to register and keeps no node of it', async () => {
-    serve({ '/nodes/max/plantarium/float.wasm': () => new Response('not wasm') });
+    serve({ '/nodes/max/core/float.wasm': () => new Response('not wasm') });
     const registry = new RemoteNodeRegistry('');
 
     await expect(registry.load([float])).rejects.toThrow();
     await expect(registry.loadDefinitions([float])).rejects.toThrow();
     expect(registry.getNode(float)).toBeUndefined();
 
-    serve({ '/nodes/max/plantarium/float.wasm': wasmFile });
+    serve({ '/nodes/max/core/float.wasm': wasmFile });
     await expect(registry.load([float])).resolves.toHaveLength(1);
   });
 
   it('stores a wasm without an id, like a dropped file, under the id of its definition', async () => {
-    serve({ '/nodes/max/plantarium.json': listing([floatDefinition]) });
+    serve({ '/nodes/max/core.json': listing([floatDefinition]) });
     const registry = new RemoteNodeRegistry('');
     await registry.loadDefinitions([float]);
 
@@ -142,7 +142,7 @@ describe.skipIf(!BUILT && !ON_CI)('RemoteNodeRegistry', () => {
     expect(registry.getNode(float)).toBe(node);
     expect(registry.getAllNodes()).toEqual([node]);
     await registry.load([float]);
-    expect(requests).toEqual(['/nodes/max/plantarium.json']);
+    expect(requests).toEqual(['/nodes/max/core.json']);
   });
 
   it('loads a kept dropped file in a new registry when the site does not serve its node', async () => {
@@ -157,43 +157,43 @@ describe.skipIf(!BUILT && !ON_CI)('RemoteNodeRegistry', () => {
     expect(node.execute).toBeTypeOf('function');
 
     dropped.values.set(float, new ArrayBuffer(8));
-    serve({ '/nodes/max/plantarium/float.wasm': wasmFile });
+    serve({ '/nodes/max/core/float.wasm': wasmFile });
     await expect(new RemoteNodeRegistry('', undefined, [], dropped).load([float])).resolves
       .toHaveLength(1);
   });
 
   it('loads a node named after its file, `<node>.wasm`, under its id', async () => {
-    serve({ '/nodes/max/plantarium/float.wasm': wasmFile });
+    serve({ '/nodes/max/core/float.wasm': wasmFile });
     const registry = new RemoteNodeRegistry('');
 
     const [node] = await registry.load([`${float}.wasm` as NodeId, float]);
 
     expect(registry.getNode(float)).toBe(node);
-    expect(requests).toEqual(['/nodes/max/plantarium/float.wasm']);
+    expect(requests).toEqual(['/nodes/max/core/float.wasm']);
   });
 
   it('loads a collection with one request', async () => {
-    serve({ '/nodes/max/plantarium.json': listing([floatDefinition]) });
+    serve({ '/nodes/max/core.json': listing([floatDefinition]) });
     const registry = new RemoteNodeRegistry('');
 
     await registry.loadDefinitions([float]);
-    const nodes = await registry.loadCollection('max/plantarium');
+    const nodes = await registry.loadCollection('max/core');
 
     expect(nodes.map((n) => n.id)).toEqual([float]);
-    expect(requests).toEqual(['/nodes/max/plantarium.json']);
+    expect(requests).toEqual(['/nodes/max/core.json']);
   });
 
   it('does not write unchanged files to the cache again', async () => {
     serve({
-      '/nodes/max/plantarium.json': listing([floatDefinition]),
-      '/nodes/max/plantarium/float.wasm': wasmFile
+      '/nodes/max/core.json': listing([floatDefinition]),
+      '/nodes/max/core/float.wasm': wasmFile
     });
     const cache = new MemoryCache();
     await new RemoteNodeRegistry('', cache).load([float]);
     await new RemoteNodeRegistry('', cache).loadDefinitions([float]);
     expect(cache.writes).toEqual([
-      '/nodes/max/plantarium/float.wasm',
-      '/nodes/max/plantarium.json'
+      '/nodes/max/core/float.wasm',
+      '/nodes/max/core.json'
     ]);
 
     await new RemoteNodeRegistry('', cache).load([float]);
@@ -206,17 +206,17 @@ describe.skipIf(!BUILT && !ON_CI)('RemoteNodeRegistry', () => {
 
   it('writes a changed file to the cache', async () => {
     const cache = new MemoryCache();
-    cache.values.set('/nodes/max/plantarium/float.wasm', wasm.slice(0, wasm.byteLength - 1));
-    serve({ '/nodes/max/plantarium/float.wasm': wasmFile });
+    cache.values.set('/nodes/max/core/float.wasm', wasm.slice(0, wasm.byteLength - 1));
+    serve({ '/nodes/max/core/float.wasm': wasmFile });
 
-    await new RemoteNodeRegistry('', cache).fetchArrayBuffer('nodes/max/plantarium/float.wasm');
+    await new RemoteNodeRegistry('', cache).fetchArrayBuffer('nodes/max/core/float.wasm');
     await vi.waitFor(() => expect(cache.writes).toHaveLength(1));
   });
 });
 
 describe.skipIf(!BUILT && !ON_CI)('getCollection', () => {
   it('lists the definitions of the nodes, read from their wasm files', async () => {
-    const collection = await getCollection('max/plantarium');
+    const collection = await getCollection('max/core');
 
     const definition = collection.definitions.find((d) => d.id === float);
     expect(definition?.outputs).toEqual(['float']);

@@ -30,7 +30,7 @@
   let isExecuting = $state(false);
   let queued = false;
 
-  const hasTime = $derived(graph?.nodes.some((n) => n.type === 'max/myzel/time') ?? false);
+  const hasTime = $derived(graph?.nodes.some((n) => n.type === 'max/core/time') ?? false);
 
   function fail(error: unknown) {
     viewer?.update(new Int32Array());

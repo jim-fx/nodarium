@@ -5,7 +5,7 @@ set -eu
 
 src=target/wasm32-unknown-unknown/release
 dst=app/static/nodes/max
-collections="plantarium myzel"
+collections="core plantarium myzel"
 
 for collection in $collections; do
   rm -rf "$dst/$collection"

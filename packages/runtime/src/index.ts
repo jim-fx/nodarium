@@ -1,4 +1,4 @@
-export { areSocketsCompatible, inputAccepts } from '@nodarium/types';
+export { areSocketsCompatible, CORE_COLLECTION, inputAccepts } from '@nodarium/types';
 export type {
   Graph,
   NodeDefinition,

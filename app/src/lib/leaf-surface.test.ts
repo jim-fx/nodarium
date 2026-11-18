@@ -163,7 +163,7 @@ describe.skipIf(!BUILT && !ON_CI)('leaf variants from one vein graph', () => {
     variants.nodes.push(
       {
         id: RANDOM,
-        type: 'max/plantarium/random',
+        type: 'max/core/random',
         position: [0, 0],
         props: { min: 0.6, max: 1.4 }
       },

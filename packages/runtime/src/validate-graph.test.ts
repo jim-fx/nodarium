@@ -16,8 +16,12 @@ import { CURRENT_GRAPH_VERSION } from './graph-migrations';
 import { createMockNodeRegistry } from './test-utils';
 import { type GraphIssue, validateGraph } from './validate-graph';
 
-function nodeDefinition(name: string, file = 'definition.json'): NodeDefinition {
-  const url = new URL(`../../../nodes/max/plantarium/${name}/src/${file}`, import.meta.url);
+function nodeDefinition(
+  name: string,
+  file = 'definition.json',
+  collection = 'plantarium'
+): NodeDefinition {
+  const url = new URL(`../../../nodes/max/${collection}/${name}/src/${file}`, import.meta.url);
   return JSON.parse(readFileSync(url, 'utf8'));
 }
 
@@ -26,8 +30,8 @@ const definitions = new Map(
     nodeDefinition('output', 'inputs.json'),
     nodeDefinition('stem'),
     nodeDefinition('noise'),
-    nodeDefinition('float'),
-    nodeDefinition('random')
+    nodeDefinition('float', 'definition.json', 'core'),
+    nodeDefinition('random', 'definition.json', 'core')
   ].map(d => [d.id as string, d])
 );
 
@@ -69,7 +73,7 @@ const mistakes: Record<string, (graph: Graph) => void> = {
   'prop thicknes on the stem': (g) => (g.nodes[1].props = { length: 2, thicknes: 0.1 }),
   'strength 99999 on noise': (g) => (g.nodes[2].props = { strength: 99999 }),
   'a float into the plant input of noise': (g) => {
-    g.nodes.push({ id: 3, type: 'max/plantarium/float', position: [0, 100], props: {} });
+    g.nodes.push({ id: 3, type: 'max/core/float', position: [0, 100], props: {} });
     g.edges[0] = [3, 0, 2, 'plant'];
   },
   'a path into the strength input of noise': (g) => g.edges.push([1, 0, 2, 'strength']),
@@ -253,7 +257,7 @@ describe('validateGraph', () => {
 
   it('warns about nodes that never run', () => {
     const graph = withMistake((g) => {
-      g.nodes.push({ id: 3, type: 'max/plantarium/random', position: [0, 0] });
+      g.nodes.push({ id: 3, type: 'max/core/random', position: [0, 0] });
       g.nodes.push({ id: 4, type: 'max/plantarium/stem', position: [0, 0] });
       g.nodes.push({ id: 5, type: DEBUG_NODE, position: [0, 0] });
       g.edges.push([4, 0, 5, 'input']);

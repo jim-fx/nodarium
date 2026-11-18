@@ -1,5 +1,8 @@
 import type { Graph, NodeDefinition, NodeId } from './types';
 
+/** The collection of the value nodes, `float`, `math`, `random`, `curve`, ..., that every graph has */
+export const CORE_COLLECTION = 'max/core';
+
 export interface NodeRegistry {
   status: 'loading' | 'ready' | 'error';
   /** Has to be called before getNode or getAllNodes */
@@ -11,6 +14,8 @@ export interface NodeRegistry {
   loadDefinitions?: (nodeIds: NodeId[]) => Promise<NodeDefinition[]>;
   /** The definitions of every node of a collection, like `max/plantarium`, without their code */
   loadCollection?: (collectionId: `${string}/${string}`) => Promise<NodeDefinition[]>;
+  /** The collections every graph offers, whichever nodes it has, like `max/core` */
+  baseCollections?: `${string}/${string}`[];
   getNode: (id: NodeId | string) => NodeDefinition | undefined;
   getAllNodes: () => NodeDefinition[];
   register: (id: string, wasmBuffer: ArrayBuffer) => Promise<NodeDefinition>;

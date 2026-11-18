@@ -11,7 +11,10 @@ export async function findImportIssues(graph: Graph, registry: NodeRegistry) {
   const types = [...graph.nodes, ...(graph.groups ?? []).flatMap((g) => g.nodes)]
     .map((node) => node.type)
     .filter((type) => !type.startsWith(INTERNAL_PREFIX));
-  const collections = new Set(types.map((type) => type.split('/').slice(0, 2).join('/')));
+  const collections = new Set([
+    ...(registry.baseCollections ?? []),
+    ...types.map((type) => type.split('/').slice(0, 2).join('/'))
+  ]);
   await Promise.allSettled(
     [...collections].map((c) => registry.loadCollection?.(c as `${string}/${string}`))
   );

@@ -1,4 +1,5 @@
 export type { AsyncCache, NodeRegistry, RuntimeExecutor, SyncCache } from './components';
+export { CORE_COLLECTION } from './components';
 export type { InputUnit, NodeInput } from './inputs';
 export {
   DEBUG_NODE,

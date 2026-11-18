@@ -88,13 +88,11 @@ Substrates:
 - `mesh`: → a substrate in real size, baked into the node: `stump` (33 cm across on a mound of forest floor 56 cm across), `moss` (a cushion 23 cm across), `needles` and `leaves` (litter 29 cm across), each with the colors of its scan or, with `colored` off, without them. See `nodes/max/myzel/mesh/bake/SOURCES.md`.
 - `sample_mesh`: geometry → points on its surface, pointing along its normal. `amount`, `spacing`, `facing_up`.
 
-Values and output:
+Output:
 
-- `time`: → the `time.t` setting of the graph, 0 to 1.
-- `mix_color`: two colors and a `factor` → a color between them, for example from young to old. A factor that is an expression is read by the node that uses the color, Plantarium's `set_color` with alpha and the path, so a curve of alpha makes a gradient. Myzel nodes read it once, without a path.
 - `output`: geometry, like the list of a `join` → what the app shows. Paths show as lines in the colors of their groups, a pattern as a disc, for debugging.
 
-The Plantarium nodes the templates use besides `stem`: `trunk_kink`, `rotate` and `keep_apart` pose and space the stipes, `points_on_path` places the cap and the veil, `separate` takes the rays apart from the stipe so the cap gets its own `strands`, `twist`, `random_break`, `clump` and `neighbour_sensing` give the strands their grown look, and `curve`, `random`, `math`, `path_info`, `round`, `random_int` and `vec3` make the values.
+The Plantarium nodes the templates use besides `stem`: `trunk_kink`, `rotate` and `keep_apart` pose and space the stipes, `points_on_path` places the cap and the veil, `separate` takes the rays apart from the stipe so the cap gets its own `strands`, `twist`, `random_break`, `clump` and `neighbour_sensing` give the strands their grown look, and `path_info` reads the stipe. The values come from the nodes of [Core](./CORE.md): `time` and `mix_color` (Myzel nodes up to graph version 15), `curve`, `random`, `math`, `round`, `random_int` and `vec3`.
 
 ## Conventions
 

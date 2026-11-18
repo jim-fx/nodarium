@@ -14,6 +14,7 @@ import { debugNode } from '../debug-node';
  */
 export abstract class WasmNodeRegistry implements NodeRegistry {
   status: 'loading' | 'ready' | 'error' = 'ready';
+  baseCollections?: `${string}/${string}`[];
 
   private nodes = new Map<string, NodeDefinition>();
   private pending = new Map<string, Promise<NodeDefinition>>();

@@ -1,6 +1,6 @@
 # @nodarium/runtime
 
-Runs a [Nodarium](https://nodes.max-richter.dev) graph without the app and turns its result into vertices and faces. The package brings the compiled nodes (Plantarium and Myzel) with it, so it generates the same plants and mushrooms as the app of the same version. It needs no three.js, the result is plain typed arrays.
+Runs a [Nodarium](https://nodes.max-richter.dev) graph without the app and turns its result into vertices and faces. The package brings the compiled nodes (Core, Plantarium and Myzel) with it, so it generates the same plants and mushrooms as the app of the same version. It needs no three.js, the result is plain typed arrays.
 
 The templates of the app come with it as `@nodarium/runtime/templates`. Other graphs are exported from the app and passed in as a file.
 
@@ -222,7 +222,7 @@ $ nodarium --root work render ../secret.json
 
 ### Docs
 
-`nodarium docs` lists the guides that come with the package, `nodarium docs <topic>` prints one as markdown: `graphs` (how to write a graph by hand, [docs/GRAPHS.md](https://git.max-richter.dev/max/nodarium/src/branch/main/docs/GRAPHS.md)), `plant-templates` (what the plant nodes can express and how every plant template is built), `plantarium` (the data of the plant nodes), `myzel` (the mushroom nodes and their workflow) and `templates`, the list of templates with their species and how each is built. A topic can also be named by its file, `PLANTARIUM.md`. A link from one guide to another points into the repository, followed by the `nodarium docs` command of the guide where the package has it. The guides name the commands of the repository, `pnpm nodarium ...`, which are `nodarium ...` here.
+`nodarium docs` lists the guides that come with the package, `nodarium docs <topic>` prints one as markdown: `graphs` (how to write a graph by hand, [docs/GRAPHS.md](https://git.max-richter.dev/max/nodarium/src/branch/main/docs/GRAPHS.md)), `plant-templates` (what the plant nodes can express and how every plant template is built), `core` (the value nodes every graph has), `plantarium` (the data of the plant nodes), `myzel` (the mushroom nodes and their workflow) and `templates`, the list of templates with their species and how each is built. A topic can also be named by its file, `PLANTARIUM.md`. A link from one guide to another points into the repository, followed by the `nodarium docs` command of the guide where the package has it. The guides name the commands of the repository, `pnpm nodarium ...`, which are `nodarium ...` here.
 
 `link` checks the graph like `run` and prints a link like `https://nodes.max-richter.dev/#graph=<data>`. `<data>` is the JSON of the graph, deflated and base64url; it is in the fragment, so the server never sees it. The app opens it as a new project, or the project that already has the same graph. `--base` points it at another deployment, a preview or `http://localhost:5173`. The other way round, a link given to `check`, `run` or `render` is read like a file. In code, `graphLink(graph, base)` makes a link, `graphLinkData(link)` takes the data out of one and `decodeGraph(data)` gives the JSON back, `encodeGraph(graph)` is the data alone. They are in the main entry and run in the browser and in Node; `decodeGraph` stops at `MAX_GRAPH_LINK_BYTES` (1 MB) of JSON.
 
@@ -351,6 +351,8 @@ The registry fetches `<baseUrl>/<user>/<collection>/<node>.wasm`, like `/nodes/m
 ```
 
 Copy them again after every update of the package, the nodes have to match the runtime.
+
+Since 2.0 the value nodes (`float`, `math`, `random`, `random_int`, `round`, `curve`, `alpha`, `wave`, `vec3`, `time` and `mix_color`) are a collection of their own, `max/core` (`CORE_COLLECTION` of the package), in `nodes/max/core`. Graphs of version 15 and before name them `max/plantarium/...` and `max/myzel/...` and are migrated when they load, a graph written with version 16 or later uses `max/core/...`.
 
 A mushroom takes seconds to build, plants are much faster. To keep the page responsive, run the runtime in a Web Worker and transfer `result.buffer` back to the page. The nodes are compiled synchronously when they are registered, the largest is below 200 KB, the app compiles them on the main thread as well.
 

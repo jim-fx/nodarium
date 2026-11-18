@@ -161,7 +161,8 @@ export function createServer(dir = nodesDir): McpServer {
     title: 'List the nodes',
     description: 'Lists the nodes a graph can use, one entry per node: '
       + '"id (types of the data it takes) -> type it gives", then the first sentence of what it '
-      + 'does. Plantarium nodes (max/plantarium/...) make plants, Myzel nodes (max/myzel/...) '
+      + 'does. Core nodes (max/core/...) give and shape values, like float, math, random, curve '
+      + 'and time, Plantarium nodes (max/plantarium/...) make plants, Myzel nodes (max/myzel/...) '
       + 'make mushrooms. Call get_node for the inputs of the nodes you use.',
     inputSchema: {
       query: z.string().optional().describe(
@@ -420,8 +421,9 @@ export function createServer(dir = nodesDir): McpServer {
     title: 'Read the docs',
     description: 'The guides of Nodarium as markdown: "graphs" (how to write a graph), '
       + '"plant-templates" (what the plant nodes can express and how every plant template is '
-      + 'built), "plantarium" (the data of the plant nodes), "myzel" (the mushroom nodes and '
-      + 'their groups), "templates" (the list_templates list). Without a topic, the list of '
+      + 'built), "core" (the value nodes every graph has), "plantarium" (the data of the plant '
+      + 'nodes), "myzel" (the mushroom nodes and their groups), "templates" (the list_templates '
+      + 'list). Without a topic, the list of '
       + 'topics. The guides name the commands of the `nodarium` command line: `nodes` is '
       + 'list_nodes and get_node, `check` check_graph, `run` run_graph, `render` render_graph, '
       + '`probe` probe_node, `link` graph_link.',
