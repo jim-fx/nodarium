@@ -1,5 +1,5 @@
 {
-  "id": "max/myzel/time",
+  "id": "max/core/time",
   "meta": {
     "description": "The time of the graph from 0 to 1, set in the graph settings"
   },

@@ -134,8 +134,8 @@ describe('nodarium', () => {
       ...handWritten,
       nodes: [
         ...handWritten.nodes,
-        { id: 4, type: 'max/plantarium/curve', props: { max: 0.5 } },
-        { id: 5, type: 'max/plantarium/random', props: { min: 0.1, max: 0.2 } }
+        { id: 4, type: 'max/core/curve', props: { max: 0.5 } },
+        { id: 5, type: 'max/core/random', props: { min: 0.1, max: 0.2 } }
       ],
       edges: [...handWritten.edges, [4, 0, 1, 'length'], [5, 0, 4, 'value']]
     });
@@ -153,14 +153,14 @@ describe('nodarium', () => {
       ...handWritten,
       nodes: [...handWritten.nodes, {
         id: 4,
-        type: 'max/plantarium/math',
+        type: 'max/core/math',
         props: { op_type: 'multiply' }
       }]
     });
     expect((await run('run', graph, '--print-graph')).out).toContain('"op_type": 2');
     const flagged = await file('flagged.json', {
       ...handWritten,
-      nodes: [...handWritten.nodes, { id: 4, type: 'max/plantarium/random', props: { once: true } }]
+      nodes: [...handWritten.nodes, { id: 4, type: 'max/core/random', props: { once: true } }]
     });
     expect((await run('run', flagged, '--print-graph')).out).toContain('"once": 1');
     const wrong = await run('check', graph, '--set', '4.op_type=times');
@@ -175,7 +175,7 @@ describe('nodarium', () => {
       ...handWritten,
       nodes: [
         ...handWritten.nodes,
-        { id: 4, type: 'max/plantarium/random', props: { min: 0.01, max: 0.02 } }
+        { id: 4, type: 'max/core/random', props: { min: 0.01, max: 0.02 } }
       ],
       edges: [...handWritten.edges, [4, 0, 2, 'strength']]
     });
@@ -299,6 +299,7 @@ describe('nodarium', () => {
     expect(list.out.split('\n').map((line) => line.split(' ')[0])).toEqual([
       'graphs',
       'plant-templates',
+      'core',
       'plantarium',
       'myzel',
       'templates'

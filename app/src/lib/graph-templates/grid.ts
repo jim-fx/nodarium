@@ -18,7 +18,7 @@ export function grid(width: number, height: number) {
       id: i,
       position: [x * 30, y * 40],
       props: i == 0 ? { value: 0 } : { op_type: 0, a: 1, b: 0.05 },
-      type: i == 0 ? 'max/plantarium/float' : 'max/plantarium/math'
+      type: i == 0 ? 'max/core/float' : 'max/core/math'
     });
 
     graph.edges.push([i, 0, i + 1, i === amount - 1 ? 'input' : 'a']);

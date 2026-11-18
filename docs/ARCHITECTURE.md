@@ -45,6 +45,20 @@ For a more in-depth explanation have a look at [./NODE_DEFINITION.md](NODE_DEFIN
 
 The runtime runs the graph bottom up and hands each node's result to the next node. It doesn't know what the data means, that is up to the node system the nodes belong to (for example [Plantarium](./PLANTARIUM.md)). How nodes and the runtime talk to each other is described in [ABI.md](./ABI.md). The runtime lives in `packages/runtime` and is published with the compiled nodes as `@nodarium/runtime`, so other projects can generate models without the app (see its [README](../packages/runtime/README.md)).
 
+## Systems
+
+The nodes are grouped into collections, the second part of their id (`max/<collection>/<node>`), each a folder under `nodes/max` and in `app/static/nodes/max`:
+
+| collection       | what                                                                                                                     | docs                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------- |
+| `max/core`       | the value nodes: `float`, `math`, `random`, `random_int`, `round`, `curve`, `alpha`, `wave`, `vec3`, `time`, `mix_color` | [CORE.md](./CORE.md)             |
+| `max/plantarium` | paths, points, leaves, geometry, instances: the plants                                                                   | [PLANTARIUM.md](./PLANTARIUM.md) |
+| `max/myzel`      | caps, strands, gills, veils, substrates: the mushrooms                                                                   | [MYZEL.md](./MYZEL.md)           |
+
+All nodes are compatible: Myzel works on the paths of Plantarium, and its surfaces are the same `geometry` as the plant nodes'. A node that both systems use lives in the lower one, the value nodes in Core, `path_info`, `join` and `set_color` in Plantarium. Core has no data of its own beyond numbers, vectors and colors (see Expressions in [CORE.md](./CORE.md)), so it depends on no system.
+
+Every graph has Core. The editor offers the nodes of the collections the graph uses and those of `baseCollections` of the registry, which the app sets to `max/core` (`CORE_COLLECTION` of `@nodarium/types`), so a graph of plant nodes alone can still add a `random`. A Cargo crate is named `<collection>_<node>` (`core_random`), `scripts/copy-node-wasm.sh` copies it to `app/static/nodes/max/<collection>/<node>.wasm` by that prefix, and `@nodarium/runtime` ships every collection that folder holds.
+
 ## How are old graphs migrated?
 
 Every graph has a `version`. A graph without one is version 0. When the editor loads a graph, the runtime executes one, or a project is imported, `migrateGraph()` (`packages/runtime/src/graph-migrations`) runs every migration newer than the graph's version on a copy of it. The migrated graph is where the undo history starts, and the migration is only logged. A graph newer than the app fails to load with an error message.

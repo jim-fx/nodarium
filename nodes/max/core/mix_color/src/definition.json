@@ -1,5 +1,5 @@
 {
-  "id": "max/myzel/mix_color",
+  "id": "max/core/mix_color",
   "meta": {
     "description": "Mixes two colors like paint in the same light. Drive the factor with time through a curve and the color changes as the mushroom grows: gills from pale pink to chocolate brown. Chain two for three colors."
   },

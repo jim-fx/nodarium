@@ -419,7 +419,8 @@ describe('version 4: a random node into the thickness of strands varies it', () 
   const strands = (g: Graph) => byType(g, 'max/myzel/strands')[0];
 
   it('only drops a variation of 0', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      4,
       v3([node(1, 'max/myzel/strands', { thickness: 0.001, thickness_variation: 0 })])
     );
     expect(migrated.nodes.map((n) => n.type)).toEqual(['max/myzel/strands']);
@@ -427,7 +428,8 @@ describe('version 4: a random node into the thickness of strands varies it', () 
   });
 
   it('turns a plain variation into a random node from the thinnest to the full thickness', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      4,
       v3(
         [
           node(1, 'max/plantarium/stem'),
@@ -443,7 +445,8 @@ describe('version 4: a random node into the thickness of strands varies it', () 
   });
 
   it('multiplies a wired thickness by a random share', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      4,
       v3(
         [
           node(1, 'max/plantarium/float'),
@@ -467,7 +470,8 @@ describe('version 4: a random node into the thickness of strands varies it', () 
   });
 
   it('builds the old formula from math nodes for a wired variation', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      4,
       v3(
         [node(1, 'max/plantarium/float'), node(2, 'max/myzel/strands', { thickness: 0.001 })],
         [[1, 0, 2, 'thickness_variation']]
@@ -1214,7 +1218,8 @@ describe('version 9: a curve into the cap radius makes it lopsided, cap_lopsided
   });
 
   it('drops the edges out of a cap_lopsided that got nothing', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      9,
       v8([node(3, LOPSIDED), node(4, 'max/myzel/margin_curl')], [[3, 0, 4, 'cap']])
     );
     expect(migrated.nodes.map((n) => n.id)).toEqual([4]);
@@ -1222,7 +1227,8 @@ describe('version 9: a curve into the cap radius makes it lopsided, cap_lopsided
   });
 
   it('makes the random nodes into the cap radius draw once per path', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      9,
       v8(
         [
           node(1, CAP),
@@ -1261,7 +1267,7 @@ describe('version 9: a curve into the cap radius makes it lopsided, cap_lopsided
         edges: [[10, 0, 12, 'plant'], [12, 0, 13, 'cap'], [13, 0, 11, 'out_0']]
       } as unknown as NonNullable<Graph['groups']>[number]
     ];
-    const [group] = migrateGraph(old).groups!;
+    const [group] = migrateTo(9, old).groups!;
     expect(group.nodes.map((n) => n.id)).toEqual([10, 11, 12]);
     expect(group.edges).toEqual([[10, 0, 12, 'plant'], [12, 0, 11, 'out_0']]);
   });
@@ -1279,7 +1285,8 @@ describe('version 10: strands only fills the tube, twist and random_break come b
     g.nodes.filter((n) => n.type === type);
 
   it('only drops the inputs at their defaults', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v9([node(1, STRANDS, { amount: 12, twist: 0, length_variation: 0 })])
     );
     expect(migrated.nodes.map((n) => n.type)).toEqual([STRANDS]);
@@ -1287,7 +1294,8 @@ describe('version 10: strands only fills the tube, twist and random_break come b
   });
 
   it('turns a twist into a twist node behind strands', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v9(
         [node(1, STRANDS, { twist: 0.1, wobble: 0.25 }), node(2, 'max/plantarium/clump')],
         [[1, 0, 2, 'plant']]
@@ -1301,7 +1309,8 @@ describe('version 10: strands only fills the tube, twist and random_break come b
   });
 
   it('turns a length variation into a random_break that keeps the mean shortening', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v9(
         [node(1, STRANDS, { length_variation: 0.3 }), node(2, 'max/plantarium/clump')],
         [[1, 0, 2, 'plant']]
@@ -1318,7 +1327,8 @@ describe('version 10: strands only fills the tube, twist and random_break come b
   });
 
   it('twists before it breaks, and passes the other inputs on to strands', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v9(
         [
           node(1, 'max/plantarium/stem'),
@@ -1345,7 +1355,8 @@ describe('version 10: strands only fills the tube, twist and random_break come b
   });
 
   it('wires a wired twist into the twist node', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v9([node(1, 'max/plantarium/float'), node(2, STRANDS)], [[1, 0, 2, 'twist']])
     );
     const [twist] = byType(migrated, TWIST);
@@ -1353,7 +1364,8 @@ describe('version 10: strands only fills the tube, twist and random_break come b
   });
 
   it('builds 1 - length_variation / 2 from math nodes for a wired length variation', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      10,
       v9([node(1, 'max/plantarium/float'), node(2, STRANDS)], [[1, 0, 2, 'length_variation']])
     );
     const [randomBreak] = byType(migrated, BREAK);
@@ -1384,7 +1396,7 @@ describe('version 10: strands only fills the tube, twist and random_break come b
         edges: [[10, 0, 12, 'plant'], [12, 0, 11, 'out_0']]
       } as unknown as NonNullable<Graph['groups']>[number]
     ];
-    const migrated = migrateGraph(old);
+    const migrated = migrateTo(10, old);
     const [group] = migrated.groups!;
     const [twist] = byType(group, TWIST);
     const [randomBreak] = byType(group, BREAK);
@@ -1414,7 +1426,8 @@ describe('version 11: a curve node shapes the depth of lamellae, ridges makes th
     g.nodes.filter((n) => n.type === type);
 
   it('draws the depth curve with a curve node up to the old depth', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      11,
       v10(
         [
           node(1, 'max/myzel/cap_open'),
@@ -1442,14 +1455,15 @@ describe('version 11: a curve node shapes the depth of lamellae, ridges makes th
   });
 
   it('draws the old default curve and depth when none were saved', () => {
-    const migrated = migrateGraph(v10([node(1, LAMELLAE)]));
+    const migrated = migrateTo(11, v10([node(1, LAMELLAE)]));
     const [curve] = byType(migrated, CURVE);
     expect(curve.props).toEqual({ curve: OLD_CURVE, min: 0, max: 0.004 });
     expect(byType(migrated, LAMELLAE)[0].props).toEqual({});
   });
 
   it('multiplies a depth that comes from a node by the curve through its max', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      11,
       v10(
         [node(1, CURVE, { curve: [0, 0, 1, 1], min: 0.0005 }), node(2, LAMELLAE, { depth: 0.002 })],
         [[1, 0, 2, 'depth']]
@@ -1463,7 +1477,8 @@ describe('version 11: a curve node shapes the depth of lamellae, ridges makes th
   });
 
   it('adds no curve for a depth curve that is 1 all along', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      11,
       v10(
         [node(1, 'max/plantarium/float'), node(2, LAMELLAE, { depth_curve: [0, 1, 1, 1] })],
         [[1, 0, 2, 'depth']]
@@ -1474,7 +1489,8 @@ describe('version 11: a curve node shapes the depth of lamellae, ridges makes th
   });
 
   it('turns a blunt lamellae into ridges with the values it had', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      11,
       v10(
         [
           node(1, LAMELLAE, { depth: 0.0012, free_distance: 0, blunt: 1, edge_wave: 0.4 }),
@@ -1493,9 +1509,7 @@ describe('version 11: a curve node shapes the depth of lamellae, ridges makes th
   });
 
   it('keeps thin and half blunt gills as lamellae', () => {
-    const migrated = migrateGraph(
-      v10([node(1, LAMELLAE, { blunt: 0.5, free_distance: 0.002 })])
-    );
+    const migrated = migrateTo(11, v10([node(1, LAMELLAE, { blunt: 0.5, free_distance: 0.002 })]));
     const [lamellae] = byType(migrated, LAMELLAE);
     expect(lamellae.props).toEqual({ free_distance: 0.002 });
     expect(byType(migrated, RIDGES)).toEqual([]);
@@ -1504,7 +1518,7 @@ describe('version 11: a curve node shapes the depth of lamellae, ridges makes th
   it('drops the exposed inputs that are gone', () => {
     const old = node(1, LAMELLAE, { blunt: 1 });
     old.exposed = ['depth', 'depth_curve', 'blunt', 'free_distance', 'thickness'];
-    const [ridges] = byType(migrateGraph(v10([old])), RIDGES);
+    const [ridges] = byType(migrateTo(11, v10([old])), RIDGES);
     expect(ridges.exposed).toEqual(['depth', 'thickness']);
   });
 
@@ -1521,7 +1535,7 @@ describe('version 11: a curve node shapes the depth of lamellae, ridges makes th
         edges: [[10, 0, 12, 'cap'], [10, 1, 12, 'depth'], [12, 0, 11, 'out_0']]
       } as unknown as NonNullable<Graph['groups']>[number]
     ];
-    const migrated = migrateGraph(old);
+    const migrated = migrateTo(11, old);
     const [group] = migrated.groups!;
     const [curve] = byType(group, CURVE);
     const ids = [1, group.id, ...group.nodes.map((n) => n.id)];
@@ -1554,14 +1568,15 @@ describe('version 12: a curve shapes the curl, a random the height of every lobe
   const smoothstep = (t: number) => t * t * (3 - 2 * t);
 
   it('only drops reach where a plain amount spreads as before', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      12,
       v11([node(1, CURL, { amount: 0.12, reach: 0.35 }), node(2, CURL)])
     );
     expect(migrated.nodes.map((n) => n.props)).toEqual([{ amount: 0.12 }, {}]);
   });
 
   it('draws another reach with a curve up to the amount', () => {
-    const migrated = migrateGraph(v11([node(1, CURL, { amount: 0.4, reach: 0.5 })]));
+    const migrated = migrateTo(12, v11([node(1, CURL, { amount: 0.4, reach: 0.5 })]));
     const [curl] = byType(migrated, CURL);
     const [curve] = byType(migrated, CURVE);
     expect(curl.props).toEqual({});
@@ -1575,7 +1590,8 @@ describe('version 12: a curve shapes the curl, a random the height of every lobe
   });
 
   it('puts an amount from a node into the max of the curve', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      12,
       v11(
         [node(1, CURVE, { min: 0.1, max: 0.5 }), node(2, CURL), node(3, 'max/plantarium/float')],
         [[1, 0, 2, 'amount'], [3, 0, 2, 'reach']]
@@ -1591,7 +1607,8 @@ describe('version 12: a curve shapes the curl, a random the height of every lobe
   });
 
   it('turns a plain irregularity into uneven spacing and a random amplitude', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      12,
       v11([node(1, WAVES, { waves: 5, amplitude: 0.18, irregularity: 0.8, seed: 3 })])
     );
     const [waves] = byType(migrated, WAVES);
@@ -1609,7 +1626,7 @@ describe('version 12: a curve shapes the curl, a random the height of every lobe
   });
 
   it('gives the old default irregularity a random and leaves out an irregularity of 0', () => {
-    const migrated = migrateGraph(v11([node(1, WAVES), node(2, WAVES, { irregularity: 0 })]));
+    const migrated = migrateTo(12, v11([node(1, WAVES), node(2, WAVES, { irregularity: 0 })]));
     const [random] = byType(migrated, RANDOM);
     expect(random.props!.min).toBeCloseTo(0.1275);
     expect(random.props!.max).toBeCloseTo(0.1725);
@@ -1618,7 +1635,8 @@ describe('version 12: a curve shapes the curl, a random the height of every lobe
   });
 
   it('multiplies an amplitude from a node by a random share, its random nodes draw once per cap', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      12,
       v11(
         [
           node(1, RANDOM, { min: 0.75, max: 1.15 }),
@@ -1646,7 +1664,8 @@ describe('version 12: a curve shapes the curl, a random the height of every lobe
   });
 
   it('builds 1 + irregularity × random(-0.5, 0.5) for an irregularity from a node', () => {
-    const migrated = migrateGraph(
+    const migrated = migrateTo(
+      12,
       v11(
         [node(1, RANDOM, { min: 0.5, max: 1 }), node(2, WAVES, { amplitude: 0.1 })],
         [[1, 0, 2, 'irregularity']]
@@ -1680,7 +1699,7 @@ describe('version 12: a curve shapes the curl, a random the height of every lobe
     waves.exposed = ['irregularity', 'seed', 'waves'];
     const curl = node(2, CURL);
     curl.exposed = ['amount', 'reach'];
-    const migrated = migrateGraph(v11([waves, curl]));
+    const migrated = migrateTo(12, v11([waves, curl]));
     expect(byType(migrated, WAVES)[0].exposed).toEqual(['uneven_spacing', 'waves']);
     expect(byType(migrated, CURL)[0].exposed).toEqual(['amount']);
   });
@@ -1704,7 +1723,7 @@ describe('version 12: a curve shapes the curl, a random the height of every lobe
         ]]
       } as unknown as NonNullable<Graph['groups']>[number]
     ];
-    const migrated = migrateGraph(old);
+    const migrated = migrateTo(12, old);
     const [group] = migrated.groups!;
     const ids = [1, group.id, ...group.nodes.map((n) => n.id)];
     expect(new Set(ids).size).toBe(ids.length);
@@ -2087,5 +2106,67 @@ describe('version 15: Myzel meshes are geometry', () => {
       { type: 'geometry' }
     ]);
     expect(outer.outputs).toEqual([{ type: 'path' }, { type: 'geometry' }]);
+  });
+});
+
+describe('version 16: the value nodes live in max/core', () => {
+  const v15 = (nodes: SerializedNode[], edges: Graph['edges'] = []): Graph => ({
+    ...graph(nodes, edges),
+    version: 15
+  });
+  const VALUE_NODES = [
+    'max/plantarium/float',
+    'max/plantarium/math',
+    'max/plantarium/random',
+    'max/plantarium/random_int',
+    'max/plantarium/round',
+    'max/plantarium/curve',
+    'max/plantarium/alpha',
+    'max/plantarium/wave',
+    'max/plantarium/vec3',
+    'max/myzel/time',
+    'max/myzel/mix_color'
+  ];
+
+  it('moves the eleven value nodes and keeps their props, edges and the other nodes', () => {
+    const old = v15(
+      [
+        ...VALUE_NODES.map((type, i) => node(i + 1, type, { value: i })),
+        node(20, 'max/plantarium/path_info'),
+        node(21, 'max/myzel/strands')
+      ],
+      [[1, 0, 2, 'a'], [20, 0, 21, 'thickness']]
+    );
+    const migrated = migrateGraph(old);
+    expect(migrated.version).toBe(16);
+    expect(migrated.nodes.map((n) => n.type)).toEqual([
+      'max/core/float',
+      'max/core/math',
+      'max/core/random',
+      'max/core/random_int',
+      'max/core/round',
+      'max/core/curve',
+      'max/core/alpha',
+      'max/core/wave',
+      'max/core/vec3',
+      'max/core/time',
+      'max/core/mix_color',
+      'max/plantarium/path_info',
+      'max/myzel/strands'
+    ]);
+    expect(migrated.nodes.map((n) => n.props)).toEqual(old.nodes.map((n) => n.props));
+    expect(migrated.edges).toEqual(old.edges);
+  });
+
+  it('moves the value nodes inside groups', () => {
+    const old = v15([node(1, '__internal/group/instance', { groupId: 10 })]);
+    old.groups = [{
+      id: 10,
+      nodes: [node(11, 'max/myzel/time'), node(12, 'max/plantarium/curve')],
+      edges: [[11, 0, 12, 'max']]
+    }] as unknown as Graph['groups'];
+    const [group] = migrateGraph(old).groups!;
+    expect(group.nodes.map((n) => n.type)).toEqual(['max/core/time', 'max/core/curve']);
+    expect(group.edges).toEqual([[11, 0, 12, 'max']]);
   });
 });

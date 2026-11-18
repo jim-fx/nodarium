@@ -6,9 +6,9 @@ test.use({ viewport: { width: 1920, height: 1080 } });
 // the float node under an id the site doesn't serve, the definition is JSON in a custom section
 const elsewhere = 'drop/elsewhere/float';
 const droppedWasm = Buffer.from(
-  readFileSync('static/nodes/max/plantarium/float.wasm')
+  readFileSync('static/nodes/max/core/float.wasm')
     .toString('latin1')
-    .replaceAll('max/plantarium/float', elsewhere),
+    .replaceAll('max/core/float', elsewhere),
   'latin1'
 );
 

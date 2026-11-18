@@ -1,6 +1,7 @@
 import type { Graph } from '@nodarium/types';
 import { createLogger } from '@nodarium/utils';
 import { capAtPoints } from './cap-at-points';
+import { coreCollection } from './core-collection';
 import { removeInputs, renameInputs, replaceNodes, wiredInputs } from './helpers';
 import { joinMeshes } from './join-meshes';
 import { lamellaeRidges } from './lamellae-ridges';
@@ -155,6 +156,12 @@ export const MIGRATIONS: Migration[] = [
     description:
       'Myzel meshes are geometry: join joins them instead of join_meshes, set_color paints them instead of set_mesh_color, the mesh inputs of cap_pattern and sample_mesh are called geometry and the one of the Myzel output input',
     migrate: oneSurfaceType
+  },
+  {
+    version: 16,
+    description:
+      'the value nodes float, math, random, random_int, round, curve, alpha, wave and vec3 of Plantarium and time and mix_color of Myzel moved to the collection max/core',
+    migrate: coreCollection
   }
 ];
 

@@ -10,7 +10,7 @@ function node(type: string) {
 
 const stem = node('max/plantarium/stem');
 const noise = node('max/plantarium/noise');
-const random = node('max/plantarium/random');
+const random = node('max/core/random');
 const output = node('max/plantarium/output');
 
 describe('tutorialConfig', () => {

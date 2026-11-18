@@ -1,5 +1,5 @@
 {
-  "id": "max/plantarium/random_int",
+  "id": "max/core/random_int",
   "meta": {
     "description": "A random whole number from min to max, both included"
   },

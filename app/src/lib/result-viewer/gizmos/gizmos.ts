@@ -38,7 +38,7 @@ export type GizmoHandlers = {
 export type GizmoChange = Record<string, number | number[]>;
 
 export const FORCE_NODE_TYPE = 'max/plantarium/force';
-export const VEC3_NODE_TYPE = 'max/plantarium/vec3';
+export const VEC3_NODE_TYPE = 'max/core/vec3';
 export const STEM_NODE_TYPE = 'max/plantarium/stem';
 export const ROTATE_NODE_TYPE = 'max/plantarium/rotate';
 export const BRANCH_NODE_TYPE = 'max/plantarium/branch';

@@ -1,5 +1,5 @@
 {
-  "id": "max/plantarium/vec3",
+  "id": "max/core/vec3",
   "meta": {
     "description": "A vector of three numbers, like the origin of stem. Each part can come from another node, like random or math."
   },

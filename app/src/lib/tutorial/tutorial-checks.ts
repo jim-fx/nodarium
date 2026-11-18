@@ -2,7 +2,7 @@ import type { Edge } from '@nodarium/types';
 
 const STEM = 'max/plantarium/stem';
 const NOISE = 'max/plantarium/noise';
-const RANDOM = 'max/plantarium/random';
+const RANDOM = 'max/core/random';
 const OUTPUT = 'max/plantarium/output';
 
 function connected(edges: Edge[], from: string, to: string, inputs?: string[]) {

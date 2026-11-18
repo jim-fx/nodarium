@@ -1151,6 +1151,28 @@ describe('getNodeDefinitions', () => {
     expect(ids).not.toContain('test/other/input');
   });
 
+  it('offers and loads the base collections of the registry in every graph', async () => {
+    const otherCollection: NodeDefinition = { ...mockFloatInputNode, id: 'test/other/input' };
+    const registry = createMockNodeRegistry([mockFloatOutputNode, otherCollection]);
+    const loaded: string[] = [];
+    registry.baseCollections = ['test/other'];
+    registry.loadCollection = async (id) => {
+      loaded.push(id);
+      return [];
+    };
+    const manager = new GraphManager(registry);
+
+    await manager.load({
+      id: 1,
+      nodes: [{ id: 0, type: 'test/node/output', position: [0, 0] }],
+      edges: [],
+      groups: []
+    });
+
+    expect(manager.getNodeDefinitions().map((d) => d.id)).toContain('test/other/input');
+    expect(loaded).toEqual(['test/other', 'test/node']);
+  });
+
   it('fails to load a graph with a node type that does not exist any more, without throwing', async () => {
     const registry = createMockNodeRegistry([mockFloatOutputNode]);
     registry.load = async () => {

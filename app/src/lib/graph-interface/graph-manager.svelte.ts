@@ -617,7 +617,7 @@ export class GraphManager extends EventEmitter<{
       this.groups = $state.snapshot(placed.groups);
     }
 
-    const allCollections = new SvelteSet<`${string}/${string}`>();
+    const allCollections = new SvelteSet<`${string}/${string}`>(this.registry.baseCollections);
     for (const id of nodeIds) {
       const [user, collection] = id.split('/');
       if (user === '__internal') continue;

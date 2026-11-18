@@ -1,5 +1,5 @@
 {
-  "id": "max/plantarium/wave",
+  "id": "max/core/wave",
   "meta": {
     "description": "A repeating profile, 0 on a crest and 1 in a trough, count times while the value goes from 0 to 1. Multiplied with a depth it cuts teeth into the margin of leaf_surface, into a thickness it makes rings. Uses alpha when no value is connected"
   },

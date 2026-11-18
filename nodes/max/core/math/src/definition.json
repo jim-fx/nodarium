@@ -1,5 +1,5 @@
 {
-  "id": "max/plantarium/math",
+  "id": "max/core/math",
   "meta": {
     "description": "Adds, subtracts, multiplies or divides two numbers. It is read where its output goes in, so alpha, random or path_info on a or b give every path, point or instance its own value."
   },

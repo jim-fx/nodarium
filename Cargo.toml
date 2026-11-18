@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+  "nodes/max/core/*",
   "nodes/max/myzel/*",
   "nodes/max/plantarium/*",
   "packages/macros",

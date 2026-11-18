@@ -19,6 +19,11 @@ export const DOC_TOPICS: DocTopic[] = [
     about: 'what the plant nodes can express, and how every plant template models its species'
   },
   {
+    topic: 'core',
+    file: 'CORE.md',
+    about: 'the value nodes every graph has: float, math, random, curve, ...'
+  },
+  {
     topic: 'plantarium',
     file: 'PLANTARIUM.md',
     about: 'the data of the plant nodes: paths, points, leaves, geometry, instances, colors'

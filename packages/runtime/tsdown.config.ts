@@ -35,7 +35,7 @@ export default defineConfig({
       load: {
         filter: { id: /[\\/]src[\\/]docs[\\/]texts\.ts$/ },
         handler() {
-          const files = ['GRAPHS.md', 'PLANT_TEMPLATES.md', 'PLANTARIUM.md', 'MYZEL.md'];
+          const files = ['GRAPHS.md', 'PLANT_TEMPLATES.md', 'CORE.md', 'PLANTARIUM.md', 'MYZEL.md'];
           const texts = Object.fromEntries(
             files.map((file) => [file, readFileSync(`../../docs/${file}`, 'utf8')])
           );

@@ -20,7 +20,7 @@ vi.mock('@nodarium/utils', async (importOriginal) => {
 });
 
 const wasmPath = fileURLToPath(
-  new URL('../../../../app/static/nodes/max/plantarium/float.wasm', import.meta.url)
+  new URL('../../../../app/static/nodes/max/core/float.wasm', import.meta.url)
 );
 
 class FakeRegistry extends WasmNodeRegistry {
@@ -42,7 +42,7 @@ class FakeRegistry extends WasmNodeRegistry {
   }
 }
 
-const id = 'max/plantarium/float' as NodeId;
+const id = 'max/core/float' as NodeId;
 
 describe('WasmNodeRegistry', () => {
   let registry: FakeRegistry;

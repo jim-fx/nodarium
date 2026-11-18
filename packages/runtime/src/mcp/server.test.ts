@@ -123,7 +123,7 @@ describe('nodarium mcp', () => {
       version: CURRENT_GRAPH_VERSION,
       nodes: [
         { id: 1, type: 'max/plantarium/stem', props: { length: 0.5, thickness: 0.02 } },
-        { id: 2, type: 'max/plantarium/random', props: { min: 0.5, max: 1 } },
+        { id: 2, type: 'max/core/random', props: { min: 0.5, max: 1 } },
         { id: 3, type: 'max/plantarium/leaf', props: { size: 0.1 } },
         { id: 4, type: 'max/plantarium/instance', props: { amount: 6 } },
         { id: 5, type: 'max/plantarium/output' }

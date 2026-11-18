@@ -4,15 +4,15 @@ Nodarium is a node editor for procedural 3D models that runs in the browser. Eve
 
 ## Map
 
-| path                                        | what                                                                                                                                                                  |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app/`                                      | the app: node editor in `app/src/lib/graph-interface`, viewer in `app/src/lib/result-viewer`, tools in `app/scripts`, bench in `app/benchmark`, e2e test in `app/e2e` |
-| `packages/runtime/`                         | runs graphs, migrates old ones, holds the templates and the `nodarium` command; published as `@nodarium/runtime`                                                      |
-| `packages/types/`, `packages/utils/`        | shared TypeScript types and helpers, and the Rust crates `nodarium_types` and `nodarium_utils`                                                                        |
-| `packages/macros/`                          | the Rust macros every node uses (`nodarium_definition_file!`, `#[nodarium_execute]`)                                                                                  |
-| `packages/myzel/`                           | `myzel_core`, the mesh and path formats of the Myzel nodes                                                                                                            |
-| `packages/ui/`, `packages/planty/`          | the Svelte components of the app, and the tutorial system                                                                                                             |
-| `nodes/max/plantarium/`, `nodes/max/myzel/` | one Rust crate per node                                                                                                                                               |
+| path                                                           | what                                                                                                                                                                  |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/`                                                         | the app: node editor in `app/src/lib/graph-interface`, viewer in `app/src/lib/result-viewer`, tools in `app/scripts`, bench in `app/benchmark`, e2e test in `app/e2e` |
+| `packages/runtime/`                                            | runs graphs, migrates old ones, holds the templates and the `nodarium` command; published as `@nodarium/runtime`                                                      |
+| `packages/types/`, `packages/utils/`                           | shared TypeScript types and helpers, and the Rust crates `nodarium_types` and `nodarium_utils`                                                                        |
+| `packages/macros/`                                             | the Rust macros every node uses (`nodarium_definition_file!`, `#[nodarium_execute]`)                                                                                  |
+| `packages/myzel/`                                              | `myzel_core`, the mesh and path formats of the Myzel nodes                                                                                                            |
+| `packages/ui/`, `packages/planty/`                             | the Svelte components of the app, and the tutorial system                                                                                                             |
+| `nodes/max/core/`, `nodes/max/plantarium/`, `nodes/max/myzel/` | one Rust crate per node: the value nodes every graph has, the plant nodes, the fungi nodes                                                                            |
 
 ## Setup
 
@@ -60,9 +60,10 @@ To measure: `pnpm -C app bench` runs whole graphs (the six of CI, or the templat
 ## Where the knowledge is
 
 - `docs/GRAPHS.md`: how to write a graph by hand
-- `docs/ARCHITECTURE.md`: nodes, the runtime, migrations, how the app is put together, the key types
+- `docs/ARCHITECTURE.md`: nodes and their systems (core, plantarium, myzel), the runtime, migrations, how the app is put together, the key types
 - `docs/ABI.md`: how the runtime and a node's wasm talk to each other
 - `docs/NODE_DEFINITION.md` and `docs/DEVELOPING_NODES.md`: writing a node
+- `docs/CORE.md`: the value nodes (`float`, `math`, `random`, `curve`, `alpha`, `time`, ...) and the expressions they give
 - `docs/PLANTARIUM.md` and `docs/PLANT_TEMPLATES.md`: the data of the plant nodes, and how the plant templates are modelled
 - `docs/MYZEL.md`: the fungi nodes and their workflow
 - `docs/UX.md`: general UX practices for web apps

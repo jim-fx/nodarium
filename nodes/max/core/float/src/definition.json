@@ -1,5 +1,5 @@
 {
-  "id": "max/plantarium/float",
+  "id": "max/core/float",
   "meta": {
     "description": "A number set on the node, to give the same value to several inputs."
   },
