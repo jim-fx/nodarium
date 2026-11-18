@@ -55,11 +55,11 @@ test('a project opens from the menu, builds and shows what it built', async ({ p
     await window.nodarium!.idle();
     return window.nodarium!.graph.get().nodes.map((n) => n.type).sort();
   });
-  expect(types).toEqual(['max/plantarium/output', 'max/plantarium/stem']);
+  expect(types).toEqual(['max/core/output', 'max/plantarium/stem', 'max/plantarium/to_geometry']);
   const nodes = page.locator('div.wrapper[data-node-id]');
-  await expect(nodes).toHaveCount(2);
+  await expect(nodes).toHaveCount(3);
   await expect(nodes.and(page.locator('[data-node-type="max/plantarium/stem"]'))).toBeVisible();
-  await expect(nodes.and(page.locator('[data-node-type="max/plantarium/output"]'))).toBeVisible();
+  await expect(nodes.and(page.locator('[data-node-type="max/core/output"]'))).toBeVisible();
 });
 
 test('the session of an agent: load a graph it wrote and read what it built', async ({ page }) => {
@@ -81,7 +81,8 @@ test('the session of an agent: load a graph it wrote and read what it built', as
   expect(result.vertices).toBeGreaterThan(0);
   expect(result.faces).toBeGreaterThan(0);
   expect(result.bounds?.max[1]).toBeGreaterThan(0.3);
-  expect(Object.keys(result.ms.nodes).sort()).toEqual(['1', '2', '3']);
+  // the to_geometry the migration puts before the output is node 4
+  expect(Object.keys(result.ms.nodes).sort()).toEqual(['1', '2', '3', '4']);
   await expect(page.getByRole('button', { name: 'agent test' })).toBeVisible();
 });
 

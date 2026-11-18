@@ -6,20 +6,22 @@ A small plant, a stem bent by gravity with eight leaves:
 
 ```json
 {
-  "version": 14,
+  "version": 18,
   "settings": { "resolution.curve": 16 },
   "nodes": [
     { "id": 1, "type": "max/plantarium/stem", "props": { "length": 0.4, "thickness": 0.01 } },
     { "id": 2, "type": "max/plantarium/gravity", "props": { "strength": 0.3 } },
     { "id": 3, "type": "max/plantarium/leaf", "props": { "size": 0.1 } },
     { "id": 4, "type": "max/plantarium/instance", "props": { "amount": 8, "size": 0.5 } },
-    { "id": 5, "type": "max/plantarium/output" }
+    { "id": 5, "type": "max/plantarium/to_geometry" },
+    { "id": 6, "type": "max/core/output" }
   ],
   "edges": [
     [1, 0, 2, "plant"],
     [2, 0, 4, "plant"],
     [3, 0, 4, "geometry"],
-    [4, 0, 5, "input"]
+    [4, 0, 5, "input"],
+    [5, 0, 6, "input"]
   ]
 }
 ```
@@ -31,11 +33,11 @@ A small plant, a stem bent by gravity with eight leaves:
 - `settings` are the values of the graph that inputs with a `setting` read, like `resolution.curve` (points along a path), `resolution.circle`, `resolution.field` and the `time.t` of the mushrooms.
 - `groups` hold the nodes of a group of the editor, each with its own `nodes` and `edges`. A node of type `__internal/group/instance` with `props.groupId` runs one, the templates of the mushrooms use them. A graph without groups can leave the list out.
 
-Every template is one of three shapes:
+Every graph ends in the one output, `max/core/output`, which shows geometry and instances and takes nothing else. Paths become geometry in a `to_geometry` before it: every path a tube of its thickness, geometry and instances passed on. `check` says so when a path goes into the output. Every template is one of three shapes:
 
-- **A plant**: `stem` → `noise`, `gravity`, `branch` and the other nodes that change paths → `output` (`max/plantarium/output`), which makes a tube of every path.
-- **A plant with leaves**: a `shape` into `leaf` (or the veins into `leaf_surface`) is the geometry of an `instance`, which places it along the paths, and the `instance` goes into the `output`.
-- **A mushroom**: Stipe, Cap and Gills groups, their strands joined into `hyphae_to_mesh`, its geometry and the one of the gills joined by `join` into `max/myzel/output`. [MYZEL.md](./MYZEL.md) describes the groups, [PLANTARIUM.md](./PLANTARIUM.md) the data of paths, points and instances.
+- **A plant**: `stem` → `noise`, `gravity`, `branch` and the other nodes that change paths → `to_geometry`, which makes a tube of every path, → `output`.
+- **A plant with leaves**: a `shape` into `leaf` (or the veins into `leaf_surface`) is the geometry of an `instance`, which places it along the paths, and the `instance` goes into the `to_geometry` before the `output`.
+- **A mushroom**: Stipe, Cap and Gills groups, their strands joined into `hyphae_to_mesh`, its geometry and the one of the gills joined by `join`, through a `to_geometry` (which passes the geometry on as it is) into the `output`. [MYZEL.md](./MYZEL.md) describes the groups, [PLANTARIUM.md](./PLANTARIUM.md) the data of paths, points and instances.
 
 Then the loop: `pnpm nodarium check plant.json` names every mistake with a fix, `pnpm nodarium render plant.json --out screenshots` draws it, `--node 2` draws what comes out of node 2 alone, `--seeds 1,2,3,4` draws four seeds side by side in one sheet (`--times 0.25,0.5,1` the growth, `--views front` one view), and `pnpm nodarium run plant.json --set 2.strength=0.6 --timings` tries another value and shows what every node costs. `run` prints how many instances every `instance` node placed and how long and wide they are in meters. `--set` also sets an input that an edge goes into (the edge is left out for that run) and a list, `--set 7.curve=0,0,0.5,1,1,1`. When a part comes out too large, missing or the same everywhere, `pnpm nodarium probe plant.json 7` shows what comes out of node 7: for a `random`, `curve`, `math` or `path_info` every value the nodes read from it, where and on how many paths, smallest, largest and mean, for a path or geometry output the paths by depth and the instances with their sizes in meters.
 

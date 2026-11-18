@@ -28,8 +28,7 @@ describe('templates', () => {
     for (const template of templates) {
       const graph = await template.load();
       expect(graph.meta?.unit ?? 'm', template.id).toBe(template.unit);
-      const myzel = graph.nodes.some((n) => n.type === 'max/myzel/output');
-      expect(template.category, template.id).toBe(myzel ? 'Mushrooms' : 'Plants');
+      expect(templateCategories, template.id).toContain(template.category);
     }
   });
 

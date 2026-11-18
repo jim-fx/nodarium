@@ -8,7 +8,7 @@ function createGraph(): Graph {
     meta: { title: 'Fern', lastModified: '2026-10-16T10:00:00Z' },
     settings: { seed: 0 },
     nodes: [
-      { id: 0, type: 'max/plantarium/output', position: [0, 0] },
+      { id: 0, type: 'max/core/output', position: [0, 0] },
       { id: 1, type: 'max/plantarium/stem', props: { length: 4 }, position: [-20, 0] }
     ],
     edges: [[1, 0, 0, 'plant']],

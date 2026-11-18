@@ -13,9 +13,10 @@ const handWritten = {
   nodes: [
     { id: 1, type: 'max/plantarium/stem', props: { length: 0.5, thickness: 0.02 } },
     { id: 2, type: 'max/plantarium/noise', props: { strength: 0.01 } },
-    { id: 3, type: 'max/plantarium/output' }
+    { id: 4, type: 'max/plantarium/to_geometry' },
+    { id: 3, type: 'max/core/output' }
   ],
-  edges: [[1, 0, 2, 'plant'], [2, 0, 3, 'input']]
+  edges: [[1, 0, 2, 'plant'], [2, 0, 4, 'input'], [4, 0, 3, 'input']]
 };
 
 let client: Client;
@@ -126,9 +127,16 @@ describe('nodarium mcp', () => {
         { id: 2, type: 'max/core/random', props: { min: 0.5, max: 1 } },
         { id: 3, type: 'max/plantarium/leaf', props: { size: 0.1 } },
         { id: 4, type: 'max/plantarium/instance', props: { amount: 6 } },
-        { id: 5, type: 'max/plantarium/output' }
+        { id: 6, type: 'max/plantarium/to_geometry' },
+        { id: 5, type: 'max/core/output' }
       ],
-      edges: [[1, 0, 4, 'plant'], [2, 0, 4, 'size'], [3, 0, 4, 'geometry'], [4, 0, 5, 'input']]
+      edges: [
+        [1, 0, 4, 'plant'],
+        [2, 0, 4, 'size'],
+        [3, 0, 4, 'geometry'],
+        [4, 0, 6, 'input'],
+        [6, 0, 5, 'input']
+      ]
     };
     const values = textOf(await call('probe_node', { graph: leaves, node: 2 })).split('\n');
     expect(values[0]).toBe('graph: random#2');

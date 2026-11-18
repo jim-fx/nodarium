@@ -50,8 +50,8 @@ describe('the catalog', () => {
 
   it('writes a node as its data inputs and outputs', () => {
     expect(nodeSignature(noise())).toBe('max/plantarium/noise (path) -> path');
-    expect(nodeSignature(findNodes(nodes, 'max/plantarium/output')[0])).toBe(
-      'max/plantarium/output (path)'
+    expect(nodeSignature(findNodes(nodes, 'max/core/output')[0])).toBe(
+      'max/core/output (geometry)'
     );
   });
 
@@ -93,9 +93,9 @@ describe('the catalog', () => {
   });
 
   it('finds a node by its name in every collection that has it', () => {
-    expect(findNodes(nodes, 'output').map((node) => node.id)).toEqual([
-      'max/myzel/output',
-      'max/plantarium/output'
+    expect(findNodes(nodes, 'set_color').map((node) => node.id)).toEqual([
+      'max/myzel/set_color',
+      'max/plantarium/set_color'
     ]);
     expect(findNodes(nodes, 'nope')).toEqual([]);
   });
@@ -103,7 +103,7 @@ describe('the catalog', () => {
   it('finds the nodes that take or give a type', () => {
     const meshes = nodesOfType(nodes, 'geometry').map((node) => node.id);
     expect(meshes).toContain('max/myzel/hyphae_to_mesh');
-    expect(meshes).toContain('max/myzel/output');
+    expect(meshes).toContain('max/core/output');
     expect(meshes).not.toContain('max/plantarium/stem');
   });
 });

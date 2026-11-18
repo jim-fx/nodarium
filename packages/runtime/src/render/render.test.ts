@@ -16,9 +16,10 @@ async function stem() {
     version: CURRENT_GRAPH_VERSION,
     nodes: [
       { id: 1, type: 'max/plantarium/stem', props: { length: 0.5, thickness: 0.05 } },
-      { id: 2, type: 'max/plantarium/output' }
+      { id: 2, type: 'max/core/output' },
+      { id: 3, type: 'max/plantarium/to_geometry' }
     ],
-    edges: [[1, 0, 2, 'input']],
+    edges: [[1, 0, 3, 'input'], [3, 0, 2, 'input']],
     groups: []
   };
   return (await runtime.run(graph, { seed: 1 })).result;

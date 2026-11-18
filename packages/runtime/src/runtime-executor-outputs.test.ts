@@ -161,7 +161,7 @@ describe('nodes with several outputs', () => {
     });
   });
 
-  describe('debugging what the Myzel output shows', () => {
+  describe('debugging what the output does not show', () => {
     const maker = (id: string, type: string, words: number[]) =>
       ({
         id,
@@ -169,35 +169,58 @@ describe('nodes with several outputs', () => {
         outputs: [type],
         execute: () => Int32Array.of(...words)
       }) as unknown as NodeDefinition;
-    const myzelOutput = {
-      id: 'max/myzel/output',
-      inputs: { input: { type: 'path', accepts: ['geometry', 'pattern'] } },
+    const coreOutput = {
+      id: 'max/core/output',
+      inputs: { input: { type: 'geometry' } },
       outputs: [],
-      execute: vi.fn(([p]: Int32Array[]) => Int32Array.of(p[0], 99))
+      execute: vi.fn(([p]: Int32Array[]) => p)
     } as unknown as NodeDefinition;
 
     async function debugged(source: NodeDefinition) {
       const runtime = new MemoryRuntimeExecutor(
-        createMockNodeRegistry([source, myzelOutput, debug])
+        createMockNodeRegistry([source, coreOutput, debug])
       );
       await runtime.execute(
-        graph(
-          [node(0, source.id), node(1, debug.id), node(2, myzelOutput.id)],
-          [[0, 0, 1, 'input'], [0, 0, 2, 'input']]
-        ),
+        graph([node(0, source.id), node(1, debug.id), node(2, coreOutput.id)], [[
+          0,
+          0,
+          1,
+          'input'
+        ]]),
         {}
       );
       return runtime.getDebugData()[0];
     }
 
-    it('previews a debugged pattern with the output node', async () => {
-      const entry = await debugged(maker('max/myzel/reaction_diffusion', 'pattern', [15, 0, 0]));
-      expect(entry).toEqual({ type: 'pattern', output: 0, data: Int32Array.of(15, 99) });
+    it('previews a debugged pattern as a disc of geometry', async () => {
+      // two rings of two values, from 1 cm to 3 cm
+      const pattern = [15, 0, 2, ...new Int32Array(Float32Array.of(0.01, 0.03, 0.005).buffer)];
+      const entry = await debugged(
+        maker('max/myzel/reaction_diffusion', 'pattern', [
+          ...pattern,
+          2,
+          2,
+          ...new Int32Array(Float32Array.of(0, 1, 1, 0).buffer)
+        ])
+      );
+      expect(entry.type).toBe('pattern');
+      // a list of one geometry with colors and groups of 2 rings of 3 points, 6 faces between them
+      expect([...entry.data.subarray(0, 9)]).toEqual([
+        0,
+        1,
+        0,
+        entry.data.length - 7,
+        1,
+        6,
+        6,
+        -1,
+        5
+      ]);
     });
 
-    it('draws a debugged geometry as it is', async () => {
-      const entry = await debugged(maker('max/myzel/pores', 'geometry', [1, 1, 2]));
-      expect(entry).toEqual({ type: 'geometry', output: 0, data: Int32Array.of(1, 1, 2) });
+    it('keeps a pattern it can not read', async () => {
+      const entry = await debugged(maker('max/myzel/reaction_diffusion', 'pattern', [15, 0, 0]));
+      expect(entry).toEqual({ type: 'pattern', output: 0, data: Int32Array.of(15, 0, 0) });
     });
 
     it('draws debugged paths as they are', async () => {

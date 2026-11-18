@@ -42,7 +42,8 @@ async function savedEdges(page: Page) {
   return JSON.parse(Buffer.concat(chunks).toString()).graph.edges;
 }
 
-const connected = [[2, 0, 3, 'input'], [1, 0, 2, 'plant']];
+// the migration puts a to_geometry (4) between noise and the output
+const connected = [[2, 0, 4, 'input'], [4, 0, 3, 'input'], [1, 0, 2, 'plant']];
 
 test('a click on an output and then on an input connects them', async ({ page }) => {
   await openGraph(page);

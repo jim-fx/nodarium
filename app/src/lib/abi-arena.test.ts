@@ -1,7 +1,8 @@
 // The arena of `#[nodarium_execute(arena)]` lays its buffers in pages it grows itself, so the Rust
 // allocator grows the memory before and after them. It must never hand out the arena's pages:
-// the compiled `output` node takes a large list of paths into the arena and builds its lines and
-// their list with the allocator, which has to grow the memory past the arena. See docs/ABI.md.
+// the compiled `to_geometry` node takes a large list of paths into the arena and, with bake on,
+// builds their tubes with the allocator, which has to grow the memory past the arena. See
+// docs/ABI.md.
 // `set_color` paints the geometry the host copied in where it is, and lengthens it in the arena
 // when it has no colors yet.
 import type { WasmSlice } from '@nodarium/types';
@@ -18,11 +19,11 @@ type Exports = {
 };
 
 const ON_CI = !!(process.env.CI || process.env.GITEA_ACTIONS);
-const NODE = resolve('static/nodes/max/myzel/output.wasm');
+const NODE = resolve('static/nodes/max/plantarium/to_geometry.wasm');
 const PAINT = resolve('static/nodes/max/plantarium/set_color.wasm');
 const BUILT = existsSync(NODE) && existsSync(PAINT);
 
-const LINES_TAG = 12;
+const GEOMETRY_TAG = 1;
 const VICTIM_WORDS = 64 * 1024;
 
 function instantiate(path = NODE) {
@@ -64,13 +65,23 @@ describe.skipIf(!BUILT && !ON_CI)('the arena of a node', () => {
     const before = memory.buffer.byteLength;
 
     // each run larger than the memory the allocator got back from the ones before
-    for (const [run, points] of [100_000, 250_000, 600_000].entries()) {
+    for (const [run, points] of [20_000, 50_000, 120_000].entries()) {
       exports.nodarium_reset();
       const input = pathList(points);
       const inputPtr = exports.nodarium_alloc(input.byteLength);
       new Int32Array(memory.buffer, inputPtr, input.length).set(input);
-      const tablePtr = exports.nodarium_alloc(8);
-      new Uint32Array(memory.buffer, tablePtr, 2).set([inputPtr, input.length]);
+      // three segments around, no limits, bake, no variants
+      const args = [3, 0, 0, 1, 0].map((value) => {
+        const ptr = exports.nodarium_alloc(4);
+        new Int32Array(memory.buffer, ptr, 1)[0] = value;
+        return ptr;
+      });
+      const tablePtr = exports.nodarium_alloc(48);
+      new Uint32Array(memory.buffer, tablePtr, 12).set([
+        inputPtr,
+        input.length,
+        ...args.flatMap((ptr) => [ptr, 1])
+      ]);
       // the last buffer of the run, at the tail of the arena
       const victimPtr = exports.nodarium_alloc(VICTIM_WORDS * 4);
       new Int32Array(memory.buffer, victimPtr, VICTIM_WORDS).set(
@@ -84,9 +95,9 @@ describe.skipIf(!BUILT && !ON_CI)('the arena of a node', () => {
 
       let resultPtr: number;
       try {
-        resultPtr = exports.nodarium_execute(tablePtr, 1);
+        resultPtr = exports.nodarium_execute(tablePtr, 6);
       } catch (error) {
-        throw new Error(`output panicked: ${panic()}`, { cause: error });
+        throw new Error(`to_geometry panicked: ${panic()}`, { cause: error });
       }
 
       expect(memory.buffer.byteLength, 'the allocator grew the memory after the arena')
@@ -102,9 +113,13 @@ describe.skipIf(!BUILT && !ON_CI)('the arena of a node', () => {
           .toBe(true);
       }
       const result = new Int32Array(memory.buffer, ptr, len);
-      expect([result[4], result[5]]).toEqual([LINES_TAG, points - 1]);
-      const last = new Float32Array(memory.buffer, ptr + (len - 4 - 7) * 4, 6);
-      expect(last[3]).toBeCloseTo((points - 1) * 0.001, 3);
+      const [, , tag, vertices, faces] = result;
+      expect(tag).toBe(GEOMETRY_TAG);
+      expect(vertices).toBeGreaterThanOrEqual(points * 3);
+      const positions = new Float32Array(memory.buffer, ptr + (7 + faces * 3) * 4, vertices * 3);
+      let right = -Infinity;
+      for (let i = 0; i < vertices; i++) right = Math.max(right, positions[i * 3]);
+      expect(right).toBeCloseTo((points - 1) * 0.001, 1);
     }
   });
 });

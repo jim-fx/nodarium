@@ -6,7 +6,7 @@ const graph: Graph = {
   id: 3,
   meta: { title: 'Fern' },
   settings: {},
-  nodes: [{ id: 0, type: 'max/plantarium/output', position: [0, 0] }],
+  nodes: [{ id: 0, type: 'max/core/output', position: [0, 0] }],
   edges: [],
   groups: []
 };

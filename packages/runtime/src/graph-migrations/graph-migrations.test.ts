@@ -2021,28 +2021,31 @@ describe('version 15: Myzel meshes are geometry', () => {
   });
 
   it('joins with join and paints with set_color, the mesh inputs get their new names', () => {
-    const migrated = migrateGraph(v14(
-      [
-        node(1, 'max/myzel/hyphae_to_mesh'),
-        node(2, 'max/myzel/lamellae'),
-        {
-          ...node(3, 'max/myzel/set_mesh_color', { color: [1, 2, 3] }),
-          exposed: ['mesh', 'color']
-        },
-        node(4, 'max/myzel/cap_pattern', { relief: 0.001 }),
-        node(5, 'max/myzel/join_meshes'),
-        node(6, 'max/myzel/output'),
-        node(7, 'max/myzel/sample_mesh', { amount: 3 })
-      ],
-      [
-        [2, 0, 3, 'mesh'],
-        [1, 0, 4, 'mesh'],
-        [4, 0, 5, 'a'],
-        [3, 0, 5, 'b'],
-        [5, 0, 6, 'mesh'],
-        [5, 0, 7, 'mesh']
-      ]
-    ));
+    const migrated = migrateTo(
+      15,
+      v14(
+        [
+          node(1, 'max/myzel/hyphae_to_mesh'),
+          node(2, 'max/myzel/lamellae'),
+          {
+            ...node(3, 'max/myzel/set_mesh_color', { color: [1, 2, 3] }),
+            exposed: ['mesh', 'color']
+          },
+          node(4, 'max/myzel/cap_pattern', { relief: 0.001 }),
+          node(5, 'max/myzel/join_meshes'),
+          node(6, 'max/myzel/output'),
+          node(7, 'max/myzel/sample_mesh', { amount: 3 })
+        ],
+        [
+          [2, 0, 3, 'mesh'],
+          [1, 0, 4, 'mesh'],
+          [4, 0, 5, 'a'],
+          [3, 0, 5, 'b'],
+          [5, 0, 6, 'mesh'],
+          [5, 0, 7, 'mesh']
+        ]
+      )
+    );
     expect(migrated.nodes.map((n) => n.type)).toEqual([
       'max/myzel/hyphae_to_mesh',
       'max/myzel/lamellae',
@@ -2186,7 +2189,7 @@ describe('version 17: to_geometry bakes instances only with bake on', () => {
       ],
       [[1, 0, 2, 'input'], [2, 0, 3, 'input']]
     );
-    const migrated = migrateGraph(old);
+    const migrated = migrateTo(17, old);
     expect(migrated.version).toBe(17);
     expect(migrated.nodes.map((n) => n.props)).toEqual([
       { max_points: 5, variants: 1, bake: 1 },
@@ -2205,5 +2208,112 @@ describe('version 17: to_geometry bakes instances only with bake on', () => {
     }] as unknown as Graph['groups'];
     const [group] = migrateGraph(old).groups!;
     expect(group.nodes[0].props).toEqual({ bake: 1 });
+  });
+});
+
+describe('version 18: one output node that takes only geometry', () => {
+  const v17 = (nodes: SerializedNode[], edges: Graph['edges'] = []): Graph => ({
+    ...graph(nodes, edges),
+    version: 17
+  });
+
+  it('puts a to_geometry before the plant output, which becomes the one output', () => {
+    const old = v17(
+      [
+        { ...node(1, 'max/plantarium/output', { resolution_circle: 12 }), position: [300, 80] },
+        node(2, 'max/plantarium/stem')
+      ],
+      [[2, 0, 1, 'input']]
+    );
+    const migrated = migrateGraph(old);
+    expect(migrated.version).toBe(18);
+    expect(migrated.nodes).toEqual([
+      { id: 1, type: 'max/core/output', props: {}, position: [330, 80] },
+      {
+        id: 3,
+        type: 'max/plantarium/to_geometry',
+        props: { resolution_circle: 12 },
+        position: [300, 80]
+      },
+      node(2, 'max/plantarium/stem')
+    ]);
+    expect(migrated.edges).toEqual([[2, 0, 3, 'input'], [3, 0, 1, 'input']]);
+  });
+
+  it('puts a to_geometry after the join of a mushroom', () => {
+    const old = v17(
+      [node(1, 'max/myzel/output'), node(2, 'max/plantarium/join'), node(3, 'max/myzel/lamellae')],
+      [[3, 0, 2, 'a'], [2, 0, 1, 'input']]
+    );
+    const migrated = migrateGraph(old);
+    expect(migrated.nodes.map((n) => n.type)).toEqual([
+      'max/core/output',
+      'max/plantarium/to_geometry',
+      'max/plantarium/join',
+      'max/myzel/lamellae'
+    ]);
+    expect(migrated.edges).toEqual([[3, 0, 2, 'a'], [2, 0, 4, 'input'], [4, 0, 1, 'input']]);
+  });
+
+  it('connects geometry to the output as it is', () => {
+    for (
+      const type of ['max/plantarium/to_geometry', 'max/myzel/lamellae', 'max/plantarium/leaf']
+    ) {
+      const old = v17([node(1, 'max/plantarium/output'), node(2, type)], [[2, 0, 1, 'input']]);
+      const migrated = migrateGraph(old);
+      expect(migrated.nodes.map((n) => n.type)).toEqual(['max/core/output', type]);
+      expect(migrated.edges).toEqual(old.edges);
+    }
+  });
+
+  it('looks at what a group gives the output', () => {
+    const old = v17(
+      [node(1, 'max/myzel/output'), node(2, '__internal/group/instance', { groupId: 10 })],
+      [[2, 1, 1, 'input']]
+    );
+    old.groups = [{
+      id: 10,
+      inputs: {},
+      outputs: [{ type: 'path' }, { type: 'geometry' }],
+      nodes: [],
+      edges: []
+    }] as unknown as Graph['groups'];
+    expect(migrateGraph(old).edges).toEqual([[2, 1, 1, 'input']]);
+    old.edges = [[2, 0, 1, 'input']];
+    const migrated = migrateGraph(old);
+    expect(migrated.nodes.map((n) => n.type)).toContain('max/plantarium/to_geometry');
+    expect(migrated.edges).toEqual([[2, 0, 11, 'input'], [11, 0, 1, 'input']]);
+  });
+
+  it('shows a pattern that reached the Myzel output with a debug node', () => {
+    const old = v17(
+      [node(1, 'max/myzel/output'), node(2, 'max/myzel/reaction_diffusion')],
+      [[2, 0, 1, 'input']]
+    );
+    const migrated = migrateGraph(old);
+    expect(migrated.nodes.map((n) => n.type)).toEqual([
+      'max/core/output',
+      '__internal/node/debug',
+      'max/myzel/reaction_diffusion'
+    ]);
+    expect(migrated.edges).toEqual([[2, 0, 3, 'input']]);
+  });
+
+  it('renames an output without an input and the outputs inside groups', () => {
+    const old = v17([node(1, 'max/plantarium/output')]);
+    old.groups = [{
+      id: 10,
+      nodes: [node(11, 'max/myzel/output'), node(12, 'max/plantarium/stem')],
+      edges: [[12, 0, 11, 'input']]
+    }] as unknown as Graph['groups'];
+    const migrated = migrateGraph(old);
+    expect(migrated.nodes).toEqual([node(1, 'max/core/output')]);
+    const [group] = migrated.groups!;
+    expect(group.nodes.map((n) => n.type)).toEqual([
+      'max/core/output',
+      'max/plantarium/to_geometry',
+      'max/plantarium/stem'
+    ]);
+    expect(group.edges).toEqual([[12, 0, 13, 'input'], [13, 0, 11, 'input']]);
   });
 });

@@ -7,12 +7,12 @@ import { describe, expect, it } from 'vitest';
 describe('graph-templates', () => {
   it('grid has an output node', () => {
     const result = grid(2, 2);
-    expect(result.nodes.some(n => n.type === 'max/plantarium/output')).toBe(true);
+    expect(result.nodes.some(n => n.type === 'max/core/output')).toBe(true);
   });
 
   it('tree has the output node as its root', () => {
     const result = tree(2);
-    expect(result.nodes.find(n => n.type === 'max/plantarium/output')?.id).toBe(0);
+    expect(result.nodes.find(n => n.type === 'max/core/output')?.id).toBe(0);
   });
 
   it('tree grows with its depth', () => {
@@ -38,7 +38,7 @@ describe('bundled graphs', () => {
       import: 'default'
     })
   };
-  // the definitions the nodes are compiled with, the output node keeps its own in inputs.json
+  // the definitions the nodes are compiled with
   const definitions = new Map(
     Object.values(
       import.meta.glob<NodeDefinition>('../../../nodes/*/*/*/src/{definition,inputs}.json', {

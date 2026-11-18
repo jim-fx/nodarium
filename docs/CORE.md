@@ -1,6 +1,6 @@
 # Core
 
-Core is the collection in `nodes/max/core`: the value nodes every graph has, whichever system its other nodes come from. They give a number, a vector or a color, or an expression that the node reading it evaluates where it reads it. They take no paths or geometry. Up to graph version 15 they lived in [Plantarium](./PLANTARIUM.md) (`time` and `mix_color` in [Myzel](./MYZEL.md)), the migration of the graph moves them.
+Core is the collection in `nodes/max/core`: the nodes every graph has, whichever system its other nodes come from. The value nodes give a number, a vector or a color, or an expression that the node reading it evaluates where it reads it. They take no paths or geometry, only the `output` takes geometry. Up to graph version 15 they lived in [Plantarium](./PLANTARIUM.md) (`time` and `mix_color` in [Myzel](./MYZEL.md)), the migration of the graph moves them.
 
 - `float`: a number set on the node, to give the same value to several inputs.
 - `math`: `a` and `b` added, subtracted, multiplied or divided.
@@ -13,6 +13,7 @@ Core is the collection in `nodes/max/core`: the value nodes every graph has, whi
 - `vec3`: three floats as a vector, with a gizmo in the viewer.
 - `time`: the `time.t` setting of the graph, 0 to 1.
 - `mix_color`: two colors and a `factor` → a color between them, for example from young to old.
+- `output`: the end of every graph, shows the geometry and the instances that reach it and takes nothing else. Paths become geometry in a `to_geometry` before it. Up to graph version 17 Plantarium and Myzel had an output each, the migration puts the `to_geometry` in front of it where paths reached it, and sends a pattern to a debug node.
 
 `path_info` stays in Plantarium, it reads the path a node works on.
 

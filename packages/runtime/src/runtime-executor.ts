@@ -203,8 +203,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
       origins
     );
 
-    // after the result is copied, a preview may run the output node once more
-    debug.preview(definitions);
+    debug.preview();
     cache.finish();
 
     addGroupTimings(nodeTimings, origins);

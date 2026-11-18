@@ -51,7 +51,7 @@ export const tutorialConfig: PlantyConfig = {
       position: 'center',
       action: 'load-tutorial-template',
       text:
-        "Now let's build your own plant from scratch!\nI've cleared the project — it only has an **Output** node. Your goal: connect nodes to make a plant.",
+        "Now let's build your own plant from scratch!\nI've cleared the project — it only has a **To Geometry** node in front of the **Output** node. Your goal: connect nodes to make a plant.",
       next: 'add_stem_node'
     },
 
@@ -59,7 +59,7 @@ export const tutorialConfig: PlantyConfig = {
       position: 'bottom-right',
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
-        "Open the **Add Menu** with **Shift+A** or **right-click** on the canvas.\nAdd a **Stem** node, then connect its output socket to the Output node's input.",
+        'Open the **Add Menu** with **Shift+A** or **right-click** on the canvas.\nAdd a **Stem** node, then connect its output socket to the input of To Geometry, which turns the stems into tubes for the Output.',
       next: 'add_noise_node'
     },
 
@@ -67,7 +67,7 @@ export const tutorialConfig: PlantyConfig = {
       position: 'bottom-right',
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
-        'Add a **Noise** node the same way.\nConnect: Stem → Noise input, then Noise output → Output.\nThis makes the stems grow in organic, curved shapes.',
+        'Add a **Noise** node the same way.\nConnect: Stem → Noise input, then Noise output → To Geometry.\nThis makes the stems grow in organic, curved shapes.',
       next: 'add_random_node'
     },
 

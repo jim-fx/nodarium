@@ -57,6 +57,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "core_output"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
 name = "core_random"
 version = "0.1.0"
 dependencies = [
@@ -263,16 +271,6 @@ dependencies = [
  "nodarium_macros",
  "nodarium_utils",
  "serde_json",
-]
-
-[[package]]
-name = "myzel_output"
-version = "0.1.0"
-dependencies = [
- "glam",
- "myzel_core",
- "nodarium_macros",
- "nodarium_utils",
 ]
 
 [[package]]
@@ -598,14 +596,6 @@ dependencies = [
  "nodarium_macros",
  "nodarium_utils",
  "noise",
-]
-
-[[package]]
-name = "plantarium_output"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
 ]
 
 [[package]]

@@ -27,7 +27,7 @@ export function grid(width: number, height: number) {
   graph.nodes.push({
     id: amount,
     position: [width * 30, (height - 1) * 40],
-    type: 'max/plantarium/output',
+    type: 'max/core/output',
     props: {}
   });
 

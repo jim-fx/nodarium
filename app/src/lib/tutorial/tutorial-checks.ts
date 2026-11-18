@@ -3,7 +3,8 @@ import type { Edge } from '@nodarium/types';
 const STEM = 'max/plantarium/stem';
 const NOISE = 'max/plantarium/noise';
 const RANDOM = 'max/core/random';
-const OUTPUT = 'max/plantarium/output';
+// the tutorial graph has a to_geometry in front of the output, the plant goes into it
+const OUTPUT = 'max/plantarium/to_geometry';
 
 function connected(edges: Edge[], from: string, to: string, inputs?: string[]) {
   return edges.some(([fromNode, , toNode, input]) =>

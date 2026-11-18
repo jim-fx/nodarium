@@ -7,13 +7,14 @@ test.describe.configure({ mode: 'serial' });
 let page: Page;
 
 const plant = {
-  version: 13,
+  version: 18,
   nodes: [
     { id: 1, type: 'max/plantarium/stem', props: { amount: 4, length: 0.6 } },
     { id: 2, type: 'max/plantarium/noise', props: { strength: 0.4 } },
-    { id: 3, type: 'max/plantarium/output' }
+    { id: 4, type: 'max/plantarium/to_geometry' },
+    { id: 3, type: 'max/core/output' }
   ],
-  edges: [[1, 0, 2, 'plant'], [2, 0, 3, 'input']]
+  edges: [[1, 0, 2, 'plant'], [2, 0, 4, 'input'], [4, 0, 3, 'input']]
 };
 
 function loadPlant() {
@@ -50,7 +51,7 @@ test('ready: the first build is done and every node is known', async () => {
   expect(state.app.version).toMatch(/^\d+\.\d+\.\d+$/);
   expect(typeof state.app.sha).toBe('string');
   expect(state.built).toBe(true);
-  expect(state.core).toBe(11);
+  expect(state.core).toBe(12);
   expect(state.plantarium).toBeGreaterThan(10);
   expect(state.myzel).toBeGreaterThan(10);
 });
@@ -90,7 +91,7 @@ test('graph.get is a copy of the open graph', async () => {
     graph.nodes.pop();
     return [graph.nodes.length, window.nodarium!.graph.get().nodes.length];
   });
-  expect(lengths).toEqual([2, 3]);
+  expect(lengths).toEqual([3, 4]);
 });
 
 test('graph.addNode adds a node, one undo step', async () => {
@@ -121,7 +122,7 @@ test('graph.removeNode removes a node and its edges', async () => {
     return { graph: window.nodarium!.graph.get(), result: window.nodarium!.lastResult()! };
   });
   expect(nodeOf(result.graph, 2)).toBeUndefined();
-  expect(result.graph.edges).toEqual([]);
+  expect(result.graph.edges).toEqual([[4, 0, 3, 'input']]);
   expect(result.result.vertices).toBe(0);
   await expect(page.evaluate(() => window.nodarium!.graph.removeNode(99))).rejects.toThrow(
     /no node 99/
@@ -132,13 +133,13 @@ test('graph.connect connects an output to an input', async () => {
   await loadPlant();
   const edges = await page.evaluate(async () => {
     const { graph } = window.nodarium!;
-    graph.disconnect(3, 'input');
-    graph.connect(1, 0, 3, 'input');
+    graph.disconnect(4, 'input');
+    graph.connect(1, 0, 4, 'input');
     await window.nodarium!.idle();
     return graph.get().edges;
   });
-  expect(edges).toContainEqual([1, 0, 3, 'input']);
-  expect(edges).not.toContainEqual([2, 0, 3, 'input']);
+  expect(edges).toContainEqual([1, 0, 4, 'input']);
+  expect(edges).not.toContainEqual([2, 0, 4, 'input']);
 
   await expect(page.evaluate(() => window.nodarium!.graph.connect(1, 0, 2, 'scale'))).rejects
     .toThrow('"scale" of noise#2 takes float, output 0 of stem#1 is path');
@@ -155,11 +156,11 @@ test('graph.connect connects an output to an input', async () => {
 test('graph.disconnect removes the edge into an input', async () => {
   await loadPlant();
   const result = await page.evaluate(async () => {
-    window.nodarium!.graph.disconnect(3, 'input');
+    window.nodarium!.graph.disconnect(4, 'input');
     await window.nodarium!.idle();
     return { edges: window.nodarium!.graph.get().edges, result: window.nodarium!.lastResult()! };
   });
-  expect(result.edges).toEqual([[1, 0, 2, 'plant']]);
+  expect(result.edges).toEqual([[1, 0, 2, 'plant'], [4, 0, 3, 'input']]);
   expect(result.result.vertices).toBe(0);
   expect(result.result.issues.map((i) => i.code)).toContain('unreachable-node');
 });
@@ -201,10 +202,11 @@ test('graph.format lays the nodes out left to right', async () => {
   const x = await page.evaluate(() => {
     window.nodarium!.graph.format();
     const graph = window.nodarium!.graph.get();
-    return [1, 2, 3].map((id) => graph.nodes.find((n) => n.id === id)!.position![0]);
+    return [1, 2, 4, 3].map((id) => graph.nodes.find((n) => n.id === id)!.position![0]);
   });
   expect(x[0]).toBeLessThan(x[1]);
   expect(x[1]).toBeLessThan(x[2]);
+  expect(x[2]).toBeLessThan(x[3]);
 });
 
 test('graph.undo and graph.redo step through the changes, one step per change', async () => {
