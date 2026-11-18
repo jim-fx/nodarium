@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 18,
+  "version": 19,
   "settings": {
     "time.t": 1,
     "resolution.field": 160,
@@ -157,7 +157,10 @@
         {
           "id": 56,
           "position": [-30, 5],
-          "type": "max/myzel/set_color"
+          "type": "max/plantarium/set_color",
+          "props": {
+            "depth": 10
+          }
         },
         {
           "id": 63,
@@ -313,7 +316,7 @@
           46,
           0,
           56,
-          "paths"
+          "plant"
         ],
         [
           2,
@@ -709,7 +712,10 @@
         {
           "id": 51,
           "position": [-30, 6.67],
-          "type": "max/myzel/set_color"
+          "type": "max/plantarium/set_color",
+          "props": {
+            "depth": 10
+          }
         },
         {
           "id": 60,
@@ -935,7 +941,7 @@
           24,
           0,
           51,
-          "paths"
+          "plant"
         ],
         [
           50,
