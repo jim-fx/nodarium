@@ -9,6 +9,7 @@ import { lopsidedByRadius } from './lopsided-by-radius';
 import { marginCurveRandom } from './margin-curve-random';
 import { membraneSkirts } from './membrane-skirts';
 import { oneOutput } from './one-output';
+import { oneSetColor } from './one-set-color';
 import { oneSurfaceType } from './one-surface-type';
 import { outputMesh } from './output-mesh';
 import { radians } from './radians';
@@ -176,6 +177,12 @@ export const MIGRATIONS: Migration[] = [
     description:
       'one output node, max/core/output, takes the place of the Plantarium and the Myzel output and takes only geometry: a to_geometry before it draws the paths that reached it, a pattern goes to a debug node',
     migrate: oneOutput
+  },
+  {
+    version: 19,
+    description:
+      "Myzel's set_color is gone, hyphae_to_mesh reads the colors of the points that the set_color of Plantarium writes: it takes the place of the Myzel one, its paths input is called plant and its depth colors every level",
+    migrate: oneSetColor
   }
 ];
 

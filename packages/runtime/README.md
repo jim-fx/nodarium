@@ -400,6 +400,8 @@ Up to version 1.2 mushrooms came out as `meshes`, read by `readMesh()`, and the 
 
 Up to graph version 17 Plantarium and Myzel had an output node each, `max/plantarium/output` and `max/myzel/output`, and the result held the paths, a geometry for every path and Myzel lines. Since graph version 18 there is one, `max/core/output`, and a `to_geometry` before it turns the paths into tubes: the result holds no paths and no lines, the tubes of a plant are one geometry with groups, and code that read the path links from the paths of the result reads them from `paths` of that geometry. A graph written by hand ends `… → max/plantarium/to_geometry → max/core/output`, `validateGraph` suggests the `to_geometry` when paths go into the output. Saved graphs are migrated when they load.
 
+Up to graph version 18 Myzel had a `set_color` of its own, `max/myzel/set_color`, that put the color of the strands next to them in the list of paths. Since graph version 19 `max/plantarium/set_color` colors strands like any other path, a color at every point, and `hyphae_to_mesh` colors the surface around them with it, so a curve of `alpha` makes a gradient along a mushroom too. The migration makes every Myzel `set_color` a Plantarium one with `depth` 10, so it colors every level as before. A graph written by hand with version 19 uses `max/plantarium/set_color` with the input `plant`.
+
 With three.js, a geometry becomes a `BufferGeometry`:
 
 ```ts

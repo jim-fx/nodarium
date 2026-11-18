@@ -62,7 +62,7 @@ Paths:
 - `margin_curl`: rays → rays whose margin rolls in under the cap. `amount`.
 - `cap_open`: rays → the cap closed to a button (0) or open as drawn (1). `opening`.
 - `strands`: guide paths → a bundle of strands in the tube of every guide. `amount`, `thickness`, `spread`, `wobble`.
-- `set_color`, `set_fibres`, `set_fill`: paths → the same paths with a color, a fibre relief or a fill for `hyphae_to_mesh`.
+- `set_fibres`, `set_fill`: paths → the same paths with a fibre relief or a fill for `hyphae_to_mesh`. The color of the strands comes from Plantarium's `set_color`, see Colors.
 
 Points:
 
@@ -75,7 +75,7 @@ Pattern:
 
 Geometry:
 
-- `hyphae_to_mesh`: paths → one body of tissue around them. `fibres`, `fill`, `loose_strands`, hidden `blend`, the `resolution.field` setting.
+- `hyphae_to_mesh`: paths → one body of tissue around them, colored by the colors of their points. `fibres`, `fill`, `loose_strands`, hidden `blend`, the `resolution.field` setting.
 - `lamellae`: rays and a pattern → thin plates with a sharp edge, free of the stipe or running down it. `depth`, `free_distance`, `decurrent`, `thickness`, `edge_wave`.
 - `ridges`: rays and a pattern → low blunt folds, never deeper than wide, that run down the stipe. `depth`, `decurrent`, `thickness`, `edge_wave`.
 - `pores`: rays and a pattern → a layer of tubes under the cap that open in pores where the pattern is 0, its walls where it is 1. `depth`, `free_distance`, `pore_depth`.
@@ -96,7 +96,7 @@ The Plantarium nodes the templates use besides `stem`: `trunk_kink`, `rotate` an
 
 These came out of the milestone "Myzel cleanup" (#212 to #224).
 
-**One job per node.** A node does one thing and has at most 8 inputs. What another node can do moves out: the `twist` and the length variation of `strands` became the Plantarium `twist` and `random_break`, the lopsided cap became a `curve` into the cap radius, the torn parts of the veil became `skirt`. `set_color` colors paths, Plantarium's `set_color` geometry. `hyphae_to_mesh` meshes paths, `join` joins geometry, the `output` only shows.
+**One job per node.** A node does one thing and has at most 8 inputs. What another node can do moves out: the `twist` and the length variation of `strands` became the Plantarium `twist` and `random_break`, the lopsided cap became a `curve` into the cap radius, the torn parts of the veil became `skirt`, and the color of the strands comes from Plantarium's `set_color` like the color of any path. `hyphae_to_mesh` meshes paths, `join` joins geometry, the `output` only shows.
 
 **Shape with `curve`, `random` and `alpha`.** A node has no inputs that shape another of its inputs (no `reach`, `irregularity`, `depth_curve` or `flare` curve). A `curve` into the input draws the profile, a `random` varies it, `alpha` (or a `curve` without a value) reads where the node is. Where a `curve` would only scale a `random`, the `random` goes into the `min` or `max` of the curve, so no `math` node is needed: how far the margin of a chanterelle waves is a `curve` of its age up to a `random` per mushroom between 0.07 and 0.17.
 
@@ -135,7 +135,7 @@ These came out of the milestone "Myzel cleanup" (#212 to #224).
 
 **Fill.** `hyphae_to_mesh` fills the gaps between strands a ball of `fill` radii of the thickest strand can't pass. Every ray of a cap carries the same number of strands however thick its flesh is, so the strands lie furthest apart where the flesh is thickest, around the middle of a large cap. A `set_fill` of 4 on the strands of the Cap closes the flesh there, while the stipe keeps the lower fill of `hyphae_to_mesh` and shows its strands. Without it the old caps of the Chanterelle had holes around the centre of their top. The blur that smooths the filled tissue wears away a tissue thinner than about the fill, and a strand whose tube sticks out of what is left keeps its tube, so a lone strand keeps its radius at any fill.
 
-**Colors.** Paths get a color with `set_color`, which `hyphae_to_mesh` blends over the surface around them, geometry with Plantarium's `set_color`, which keeps its groups. A `mix_color` with a curve of time or age as its factor lets a color follow it, like the gills of the Champignon that darken.
+**Colors.** Plantarium's `set_color` colors the strands and the geometry. On strands it gives every point a color, and `hyphae_to_mesh` colors the surface around them with it. Where the strands of two colors meet, the color goes over smoothly. The strands of a node that has one color everywhere share it with every other strand of that color. A node whose strands change color, along a strand by a curve of `alpha` or from strand to strand by a `random` per path, gets the color of its nearest strand at every vertex, at the point of the strand nearest to the vertex. So a stipe can go from a dark base to a pale top. The Stipe and Cap groups color their strands with a `depth` of 10, so all levels get the color. Up to graph version 18, Myzel had a `set_color` of its own that put the color next to the paths as a hidden item. The migration replaces it with this one. On geometry `set_color` keeps the groups. A `mix_color` with a curve of time or age as its factor lets a color follow it, like the gills of the Champignon that darken.
 
 **Patterns on the cap.** A pattern is a disc around the axis of the cap, its radius the distance along the rays, so `lamellae`, `ridges` and `cap_pattern` find a spot of it on the same spot of the tissue however the cap is posed. `cap_pattern` puts it on the top of the cap only: on the side of the flesh that faces away from the gills, in the material group most of that top is in, so a stipe, gills or a veil joined into the mesh stay as they are. It splits the faces there until they are as fine as the pattern. The Fly agaric turns it round: the flesh of its cap is white like the universal veil over it, and its `cracks` show the red cuticle under the veil, pressed in so the patches between them stand up as warts. The radius and the spacing of the cracks are shares of the radius of the cap, so the warts move apart as it grows, while the cracks widen with time.
 

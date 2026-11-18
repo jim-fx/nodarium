@@ -32,10 +32,12 @@ pub enum PathGroup {
     Creator(i32),
 }
 
-/// A path to mesh: its points as `x, y, z, radius`, its group and how its surface looks
+/// A path to mesh: its points as `x, y, z, radius`, its colors, its group and how its surface looks
 #[derive(Clone, Debug, PartialEq)]
 pub struct MeshPath<'a> {
     pub points: Cow<'a, [f32]>,
+    /// An RGBA8 color per point as `set_color` writes them, empty for a path without colors
+    pub colors: Cow<'a, [u32]>,
     pub group: PathGroup,
     pub style: PathStyle,
     /// Values of the mesh node the path brings with it, see [`crate::apply_settings`]
@@ -69,7 +71,13 @@ fn collect_paths<'a>(list: &'a [i32], style: PathStyle, out: &mut Vec<MeshPath<'
         } else if is_path(item) {
             let path = wrap_path(item);
             let group = PathGroup::Creator(path.link.creator);
-            out.push(MeshPath { points: Cow::Borrowed(path.points), group, style, settings: PathSettings::default() });
+            out.push(MeshPath {
+                points: Cow::Borrowed(path.points),
+                colors: Cow::Borrowed(path.colors),
+                group,
+                style,
+                settings: PathSettings::default(),
+            });
         }
     }
 }

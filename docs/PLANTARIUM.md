@@ -241,7 +241,7 @@ A color on a path, a geometry or instances is an RGBA8 word, sRGB with red in th
 
 `output` and `to_geometry` give the extruded geometry of a path with colors the color of its point at every ring, the cap the color of its tip. `instance` and `instance_from_points` keep the colors of their geometry, `to_geometry` with `bake` bakes them, and the vertices of parts without colors get `NO_COLOR` there. `trunk_kink`, `random_break` and the resampling of `to_geometry` keep the colors where they were along the length of the path. Other nodes that make paths, like `branch`, `umbel` or `fill_gaps`, make them without colors, so a `set_color` goes after the node that makes a level of paths and the nodes that shape it.
 
-`mix_color` of the Myzel nodes gives a plain color when both colors and the factor are plain, and the expression otherwise, so the node that reads the color evaluates it where it uses it. The Myzel nodes read it once, without a path and with alpha 0, `set_color` at every vertex of a geometry.
+`mix_color` gives a plain color when both colors and the factor are plain, and the expression otherwise, so the node that reads the color evaluates it where it uses it. The Myzel nodes read it once, without a path and with alpha 0, `set_color` at every point of a path and every vertex of a geometry. `hyphae_to_mesh` of Myzel colors the surface around the strands with the colors of their points, see Colors in [MYZEL.md](./MYZEL.md).
 
 ## Lists
 
