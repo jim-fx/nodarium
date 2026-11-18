@@ -621,7 +621,7 @@ fn unchanged(input: &[i32]) -> Output {
 /// into, which are the first ones of the mesh and unchanged
 fn unchanged_from(head: &[i32], mesh: &Mesh) -> Vec<i32> {
     let (v, colors) = (head[1] as usize, head[3] & mesh_flags::COLORS != 0);
-    let mut words = Vec::with_capacity(head.len() + v * if colors { 8 } else { 7 });
+    let mut words = Vec::with_capacity(head.len() + v * if colors { 8 } else { 7 } + mesh.creators.len() + 1);
     words.extend_from_slice(head);
     words.extend(mesh.positions[..v * 3].iter().map(|&p| encode_float(p)));
     words.extend(mesh.normals[..v * 3].iter().map(|&n| encode_float(n)));
@@ -629,6 +629,10 @@ fn unchanged_from(head: &[i32], mesh: &Mesh) -> Vec<i32> {
         words.extend(mesh.colors[..v].iter().map(|&c| c as i32));
     }
     words.extend(mesh.groups[..v].iter().map(|&g| g as i32));
+    if !mesh.creators.is_empty() {
+        words.push(mesh.creators.len() as i32);
+        words.extend(&mesh.creators);
+    }
     words
 }
 

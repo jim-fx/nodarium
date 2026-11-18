@@ -2,6 +2,8 @@ import { encodeNestedArray } from '@nodarium/utils';
 import { describe, expect, it } from 'vitest';
 import {
   decodeResult,
+  MESH_HAS_CREATORS,
+  NO_CREATOR,
   readGeometry,
   readInstances,
   readMesh,
@@ -82,6 +84,19 @@ describe('readMesh', () => {
   it('rejects data of the wrong length', () => {
     expect(() => readMesh(myzelMesh().subarray(0, 20))).toThrow(/needs 31 words/);
     expect(() => readMesh(myzelMesh(null).subarray(0, 20))).toThrow(/needs 28 words/);
+  });
+
+  it('reads the creators of the groups when the mesh brings them', () => {
+    const plain = myzelMesh(null, 0, [0, 1, 1]);
+    expect(readMesh(plain).creators).toBeUndefined();
+
+    const made = Int32Array.of(...plain, 2, 40, NO_CREATOR);
+    made[3] |= MESH_HAS_CREATORS;
+    const mesh = readMesh(made);
+    expect([...mesh.groups!]).toEqual([0, 1, 1]);
+    expect([...mesh.creators!]).toEqual([40, NO_CREATOR]);
+    // the table is as long as it says
+    expect(() => readMesh(made.subarray(0, made.length - 1))).toThrow(/needs 31 words, got 30/);
   });
 });
 

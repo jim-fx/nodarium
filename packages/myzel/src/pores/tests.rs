@@ -47,7 +47,7 @@ fn run() -> Run {
 fn build(paths: &[Vec<i32>], pattern: &Pattern, r: &Run) -> Mesh {
     let (cap, pattern) = (testing::list(paths), pattern.encode());
     let (free, pore) = ([encode_float(r.free_distance)], [encode_float(r.pore_depth)]);
-    pores(&PoreInputs { cap: &cap, pattern: &pattern, depth: &r.depth, free_distance: &free, pore_depth: &pore })
+    pores(&PoreInputs { cap: &cap, pattern: &pattern, depth: &r.depth, free_distance: &free, pore_depth: &pore, creator: 7 })
 }
 
 fn vertices(mesh: &Mesh) -> Vec<Vec3> {
@@ -117,7 +117,7 @@ fn depth_0_gives_nothing() {
     assert_eq!(build(&cap(0.0), &ring_pattern(), &Run { depth: flat, ..run() }), Mesh::default());
     // or no pattern
     let (paths, depth) = (testing::list(&cap(0.0)), [encode_float(0.004)]);
-    let mesh = pores(&PoreInputs { cap: &paths, pattern: &[], depth: &depth, free_distance: &depth, pore_depth: &depth });
+    let mesh = pores(&PoreInputs { cap: &paths, pattern: &[], depth: &depth, free_distance: &depth, pore_depth: &depth, creator: 7 });
     assert_eq!(mesh, Mesh::default());
 }
 
@@ -195,7 +195,7 @@ fn the_size_of_a_layer_is_known_before_it_is_meshed() {
     let (free, pore) = ([encode_float(r.free_distance)], [encode_float(r.pore_depth)]);
     for (closing, pattern) in [(0.0, ring_pattern()), (0.9, ring_pattern()), (0.3, even_pattern(0.0))] {
         let (paths, encoded) = (testing::list(&cap(closing)), pattern.encode());
-        let inputs = PoreInputs { cap: &paths, pattern: &encoded, depth: &r.depth, free_distance: &free, pore_depth: &pore };
+        let inputs = PoreInputs { cap: &paths, pattern: &encoded, depth: &r.depth, free_distance: &free, pore_depth: &pore, creator: 7 };
         let layers = layers(&inputs, &pattern);
         assert!(!layers.is_empty());
         for layer in &layers {

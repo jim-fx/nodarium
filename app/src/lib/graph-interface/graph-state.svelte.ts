@@ -38,6 +38,7 @@ export {
 };
 
 type PointerPosition = Pick<MouseEvent, 'clientX' | 'clientY'>;
+const NO_NODES: ReadonlySet<number> = new Set();
 
 type EdgeData = {
   x1: number;
@@ -77,6 +78,13 @@ export class GraphState {
 
   get options() {
     return this.readOptions();
+  }
+
+  /** Set by the wrapper, the nodes to point out apart from the selection */
+  readHighlightedNodes: () => ReadonlySet<number> = () => NO_NODES;
+
+  isHighlighted(nodeId: number) {
+    return this.readHighlightedNodes().has(nodeId);
   }
 
   hoveredEdgeId = $state<string | null>(null);

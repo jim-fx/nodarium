@@ -37,6 +37,8 @@ pub struct PoreInputs<'a> {
     pub depth: &'a [i32],
     pub free_distance: &'a [i32],
     pub pore_depth: &'a [i32],
+    /// The graph node that makes the pores
+    pub creator: i32,
 }
 
 /// A ring of vertices around the axis: their indices and angles, sorted by angle
@@ -301,7 +303,7 @@ pub fn write_pores(inputs: &PoreInputs) -> Output {
     let pattern = Pattern::decode(inputs.pattern);
     let layers = pattern.as_ref().map_or_else(Vec::new, |pattern| layers(inputs, pattern));
     let (vertices, faces) = layers_size(&layers);
-    write_mesh(vertices, faces, |mesh| {
+    write_mesh(vertices, faces, &[inputs.creator], |mesh| {
         for layer in &layers {
             layer.add(mesh);
         }

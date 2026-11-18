@@ -14,6 +14,7 @@
   import { openUrlProject } from '#lib/project-manager/open-url.ts';
   import { ProjectManager } from '#lib/project-manager/project-manager.svelte.ts';
   import ProjectBrowser from '#lib/project-manager/ProjectBrowser.svelte';
+  import { ViewportLink } from '#lib/provenance/viewport-link.svelte.ts';
   import { type ProbePath, readPaths } from '#lib/result-viewer/gizmos/gizmo-paths.ts';
   import {
     addProbe,
@@ -54,7 +55,7 @@
   import { Planty, type StepActionHook } from '@nodarium/planty';
   import { debugNode, MemoryRuntimeCache, MemoryRuntimeExecutor } from '@nodarium/runtime';
   import { loadTemplate } from '@nodarium/runtime/templates';
-  import type { Edge, Graph, NodeDefinition } from '@nodarium/types';
+  import { type Edge, getOutputType, type Graph, type NodeDefinition } from '@nodarium/types';
   import { type AngleUnit, createKeyMap, Spinner, Toast, toast, unitSettings } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
   import { onDestroy, onMount, untrack } from 'svelte';
@@ -231,6 +232,55 @@
     if (probeKey !== undefined) untrack(() => manager?.execute());
   });
 
+  /** The socket types that carry parts of the result from node to node */
+  const PART_TYPES = ['path', 'points', 'mesh'];
+  const isPartType = (type?: string) => !!type && PART_TYPES.includes(type);
+  const viewportLink = new ViewportLink({
+    enabled: () => appSettings.value.viewportLink.enabled,
+    manager: () => manager,
+    graphState: () => graphInterface?.state,
+    result: () => ({
+      links: viewerComponent?.pathLinks() ?? new Map(),
+      tissues: viewerComponent?.meshCreators() ?? new Set()
+    }),
+    traits: {
+      isPartOutput: (type, output) =>
+        isPartType(getOutputType(nodeRegistry.getNode(type)?.outputs?.[output])),
+      isMainInput: (type, input) => {
+        // a join works on all of its inputs alike
+        if (/\/join(_meshes)?$/.test(type)) return true;
+        const first = Object.entries(nodeRegistry.getNode(type)?.inputs ?? {}).find(([, i]) =>
+          isPartType(i.type) || ('accepts' in i && i.accepts?.some(isPartType))
+        );
+        return first?.[0] === input;
+      },
+      hasCreator: (type) =>
+        Object.values(nodeRegistry.getNode(type)?.inputs ?? {}).some((input) =>
+          input.type === 'creator'
+        )
+    },
+    notify: (message) => toast(message, 'info', 3000)
+  });
+  // `?pick=bytes` reads the ids back from an RGBA8 target, to try the fallback for integer targets
+  const pickFormat = typeof location !== 'undefined'
+      && new URLSearchParams(location.search).get('pick') === 'bytes'
+    ? 'bytes'
+    : 'integer';
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    Object.assign(window, {
+      __viewportLink: {
+        link: viewportLink,
+        pickStats: () => viewerComponent?.provenanceStats().pick,
+        highlightStats: () => viewerComponent?.provenanceStats().highlight,
+        scene: () => scene,
+        setMaterial: (id: string) => (appSettings.value.material.id = id),
+        settings: () => appSettings.value.viewportLink,
+        state: () => graphInterface?.state,
+        performance: () => performanceStore.get()
+      }
+    });
+  }
+
   function handleGizmoChange(nodeId: number, change: GizmoChange) {
     const node = manager?.getNode(nodeId);
     if (!node) return;
@@ -302,6 +352,11 @@
       preventDefault: true,
       description: 'Rename project',
       callback: () => titleBar?.startRename()
+    },
+    {
+      key: 'i',
+      description: 'Local view: only show what the selected node made',
+      callback: () => viewportLink.toggleLocalView()
     }
   ]);
 
@@ -356,12 +411,14 @@
         ms: waited,
         nodeTimings: run.nodeTimings
       };
+      viewportLink.resultVersion++;
       pm.thumbnails.schedule(g, run.result);
       runs.succeeded(runKey);
     } catch (error) {
       runs.failed();
       // the viewer would keep showing the geometry of the previous graph otherwise
       viewerComponent?.update(new Int32Array());
+      viewportLink.resultVersion++;
       const info = errorInfo(error);
       lastBuild = {
         graph: g,
@@ -553,6 +610,12 @@
           ongizmoend={() => manager?.endUndoStep()}
           centerCamera={appSettings.value.centerCamera}
           projectId={pm.activeId}
+          picking={appSettings.value.viewportLink.enabled}
+          {pickFormat}
+          highlight={viewportLink.highlight}
+          localView={viewportLink.localView}
+          onparthover={viewportLink.onparthover}
+          onpartclick={viewportLink.onpartclick}
         />
         {#if lastBuild}
           <ResultStats
@@ -585,6 +648,8 @@
             }}
             onresult={(result) => dragHold.request(result)}
             onregister={(node, wasm) => registerDroppedNode(node, wasm)}
+            highlightedNodeIds={viewportLink.highlightedNodeIds}
+            onnodehover={viewportLink.onnodehover}
           />
         {/key}
       {/if}

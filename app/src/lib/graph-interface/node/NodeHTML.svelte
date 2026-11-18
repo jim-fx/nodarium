@@ -2,6 +2,7 @@
   import { getOutputType, type NodeInstance } from '@nodarium/types';
   import MutedEdge from '../edges/MutedEdge.svelte';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
+  import { HIGHLIGHT_COLOR } from '../graph/constants';
   import { nodeLabel } from '../helpers/socketNames';
   import NodeHeader from './NodeHeader.svelte';
   import NodeOutput from './NodeOutput.svelte';
@@ -17,6 +18,7 @@
     position?: 'absolute' | 'fixed' | 'relative';
     isActive?: boolean;
     isSelected?: boolean;
+    isHighlighted?: boolean;
     hasError?: boolean;
     inView?: boolean;
     z?: number;
@@ -27,6 +29,7 @@
     position = 'absolute',
     isActive = false,
     isSelected = false,
+    isHighlighted = false,
     hasError = false,
     inView = true,
     z = 2
@@ -78,8 +81,10 @@
   class:active={isActive}
   class:muted={node.muted}
   style:--cz={z + zOffset}
+  style:--color-highlight={HIGHLIGHT_COLOR}
   style:display={inView && z > zLimit ? 'block' : 'none'}
   class:selected={isSelected}
+  class:highlighted={isHighlighted}
   class:error={hasError}
   class:out-of-view={!inView}
   data-node-id={node.id}
@@ -123,6 +128,11 @@
 
   .node.error {
     --stroke: var(--color-error);
+    --stroke-width: 2px;
+  }
+
+  .node.highlighted {
+    --stroke: var(--color-highlight);
     --stroke-width: 2px;
   }
 

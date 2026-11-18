@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { NodeInstance } from '@nodarium/types';
   import { T } from '@threlte/core';
-  import { type Mesh } from 'three';
+  import { Color, LinearSRGBColorSpace, type Mesh } from 'three';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
+  import { HIGHLIGHT_COLOR } from '../graph/constants';
   import {
     getNodeHeight,
     getOutputRowCount,
@@ -16,6 +17,7 @@
   const graph = getGraphManager();
   const graphState = getGraphState();
   const colors = graphState.options.colors;
+  const highlightColor = new Color().setStyle(HIGHLIGHT_COLOR, LinearSRGBColorSpace);
 
   type Props = {
     node: NodeInstance;
@@ -28,12 +30,15 @@
   const isActive = $derived(graphState.activeNodeId === node.id);
   const isSelected = $derived(graphState.selectedNodes.has(node.id));
   const hasError = $derived(graphState.options.errorNodeId === node.id);
+  const isHighlighted = $derived(graphState.isHighlighted(node.id));
   const strokeColor = $derived(
     graphState.options.theme
       && (isSelected
         ? colors.selected
         : isActive
         ? colors.active
+        : isHighlighted
+        ? highlightColor
         : hasError
         ? colors.error
         : colors.outline)
@@ -104,4 +109,4 @@
   />
 </T.Mesh>
 
-<NodeHtml bind:node {inView} {isActive} {isSelected} {hasError} z={zoom} />
+<NodeHtml bind:node {inView} {isActive} {isSelected} {isHighlighted} {hasError} z={zoom} />

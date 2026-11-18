@@ -1,7 +1,7 @@
 <script lang="ts">
   import SmallPerformanceViewer from '#lib/performance/SmallPerformanceViewer.svelte';
   import { appSettings } from '#lib/settings/app-settings.svelte.ts';
-  import { splitNestedArray } from '@nodarium/utils';
+  import { NO_PATH, type PathLink, splitNestedArray } from '@nodarium/utils';
   import type { PerformanceStore } from '@nodarium/utils';
   import { Canvas } from '@threlte/core';
   import { untrack } from 'svelte';
@@ -9,6 +9,9 @@
   import { createResultPools } from './geometry/geometryPool';
   import type { Gizmo, GizmoChange, GizmoMode } from './gizmos/gizmos';
   import { getMaterial, matcapLoaded, setHeightRange } from './materials/materials';
+  import { type PartHighlight, setSelectedStrength, visibleParts } from './provenance/highlight';
+  import { type PartHit, readPathLinks } from './provenance/part-hit';
+  import type { Pick, PickFormat } from './provenance/picker';
   import Scene from './Scene.svelte';
 
   // created on first use, switching back and forth keeps the compiled shaders
@@ -44,7 +47,10 @@
   }
 
   export function updateGeometries(inputs: Int32Array[], group: Group) {
-    pools = pools || createResultPools(group, material);
+    if (!pools) {
+      pools = createResultPools(group, material);
+      pools.setPicking(picking);
+    }
 
     // the pools know the bounds of what they show already
     const stats = pools.update(inputs);
@@ -65,6 +71,15 @@
     ongizmochange?: (nodeId: number, change: GizmoChange) => void;
     ongizmostart?: () => void;
     ongizmoend?: () => void;
+    /** Whether hovering and clicking the result reports the part under the pointer */
+    picking?: boolean;
+    pickFormat?: PickFormat;
+    onparthover?: (hit: PartHit | undefined) => void;
+    onpartclick?: (hit: PartHit | undefined, event: PointerEvent) => void;
+    /** The parts to tint, dim or hide. Without it the result is shown as it is. */
+    highlight?: PartHighlight;
+    /** Only what `highlight` doesn't hide is framed by the camera */
+    localView?: boolean;
   };
 
   let {
@@ -76,8 +91,118 @@
     gizmos = [],
     ongizmochange,
     ongizmostart,
-    ongizmoend
+    ongizmoend,
+    picking = false,
+    pickFormat = 'integer',
+    onparthover,
+    onpartclick,
+    highlight,
+    localView = false
   }: Props = $props();
+
+  let items: Int32Array[] = [];
+  let links: Map<number, PathLink> | undefined;
+
+  /** The links of the paths in the result by their id, read when they are asked for first */
+  let creators: Set<number> | undefined;
+
+  /**
+   * The creator ids of the graph nodes that made a tissue of the Myzel meshes in the result,
+   * read from the meshes when they are asked for first
+   */
+  export function meshCreators() {
+    return creators ??= pools?.meshCreators() ?? new Set();
+  }
+
+  export function pathLinks() {
+    return links ??= readPathLinks(items);
+  }
+
+  /** for measuring: how often the highlight was applied to the objects and how long it took */
+  const highlightStats = { applies: 0, lastApply: 0 };
+
+  export function provenanceStats() {
+    return { pick: sceneComponent?.pickStats(), highlight: highlightStats };
+  }
+
+  function toHit({ object, kind, index }: Pick): PartHit {
+    if (kind === 'geometry') return { kind, pathId: object.userData.pathId ?? NO_PATH };
+    if (kind === 'instances') return { kind, pathId: object.userData.pathIds?.[index] ?? NO_PATH };
+    // which graph node made the tissue, for a mesh that brings the creators of its groups
+    return { kind, pathId: NO_PATH, group: index, creator: object.userData.creators?.[index] };
+  }
+
+  function handlePick(pick: Pick | undefined, kind: 'hover' | 'click', event?: PointerEvent) {
+    const hit = pick && toHit(pick);
+    if (kind === 'hover') onparthover?.(hit);
+    else if (event) onpartclick?.(hit, event);
+  }
+
+  /** The bounds of what the highlight leaves visible */
+  function focusOf(shown: PartHighlight) {
+    const { paths, instances, creators } = visibleParts(shown);
+    return pools.boundsOf(paths, instances, creators);
+  }
+
+  let focused = false;
+  function updateFocus() {
+    const focus = localView && highlight && pools ? focusOf(highlight) : undefined;
+    if (!focus && !focused) return;
+    focused = !!focus;
+    sceneComponent?.setFocus(focus);
+  }
+
+  $effect(() => {
+    const on = picking;
+    untrack(() => pools?.setPicking(on));
+  });
+
+  /** ms the tint of a new selection stays, and ms it takes to fade after that */
+  const FADE_HOLD = 700;
+  const FADE_OUT = 900;
+  let fadeFrame = 0;
+  let fadeStartedAt = 0;
+  let shownSelection: string | undefined;
+
+  function fadeStep() {
+    fadeFrame = 0;
+    const elapsed = performance.now() - fadeStartedAt;
+    const strength = Math.min(Math.max(1 - (elapsed - FADE_HOLD) / FADE_OUT, 0), 1);
+    setSelectedStrength(strength);
+    sceneComponent?.redraw();
+    if (strength > 0) fadeFrame = requestAnimationFrame(fadeStep);
+  }
+
+  /** The tint of the selection stays, or shows what was selected and then gives the colours back */
+  function updateFade(next: PartHighlight | undefined, fade: boolean) {
+    const changed = next?.selection !== shownSelection;
+    shownSelection = next?.selection;
+    if (!fade) {
+      cancelAnimationFrame(fadeFrame);
+      fadeFrame = 0;
+      setSelectedStrength(1);
+    } else if (changed && next) {
+      fadeStartedAt = performance.now();
+      setSelectedStrength(1);
+      if (!fadeFrame) fadeFrame = requestAnimationFrame(fadeStep);
+    }
+  }
+
+  $effect(() => {
+    const next = highlight;
+    const fade = appSettings.value.viewportLink.fadeSelection;
+    void localView;
+    untrack(() => {
+      updateFade(next, fade);
+      if (!pools) return;
+      const startedAt = performance.now();
+      pools.setHighlight(next);
+      highlightStats.applies++;
+      highlightStats.lastApply = performance.now() - startedAt;
+      updateFocus();
+      sceneComponent?.invalidate();
+    });
+  });
 
   let gizmoMode = $state<GizmoMode>('translate');
   const gizmoModes: { mode: GizmoMode; label: string; icon: string }[] = [
@@ -89,6 +214,9 @@
     perf.addPoint('split-result');
     const inputs = splitNestedArray(result);
     perf.endPoint();
+    items = inputs;
+    links = undefined;
+    creators = undefined;
 
     perf.addPoint('update-geometries');
 
@@ -97,6 +225,7 @@
 
     perf.addPoint('total-vertices', totalVertices);
     perf.addPoint('total-faces', totalFaces);
+    updateFocus();
     sceneComponent?.invalidate();
 
     return {
@@ -129,6 +258,10 @@
       {ongizmochange}
       {ongizmostart}
       {ongizmoend}
+      {picking}
+      {pickFormat}
+      pickables={() => pools?.pickables() ?? []}
+      onpick={handlePick}
       bind:scene
       bind:fps
     />

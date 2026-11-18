@@ -10,7 +10,7 @@ export type {
 export { createRuntime, type RuntimeOptions } from './create-runtime';
 export { debugNode } from './debug-node';
 export * from './errors';
-export { expandGroups } from './expand-groups';
+export { expandGroups, expandWithChains } from './expand-groups';
 export {
   decodeGraph,
   encodeGraph,

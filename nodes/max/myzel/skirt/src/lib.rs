@@ -179,7 +179,12 @@ fn ring_reads(ctx: &mut Ctx, ring: &Attachment, length: &[i32], flare: &[i32], c
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Output {
-    write_skins(&skins(args, STRANDS))
+    write_skins(&skins(args, STRANDS), creator(args))
+}
+
+/// The graph node that makes the skirt, it is the last input
+fn creator(args: &[&[i32]]) -> i32 {
+    int(args[6])
 }
 
 /// The strands of every skin and the skins. Only the skins are an output, the strands are what
@@ -188,9 +193,9 @@ pub fn execute(args: &[&[i32]]) -> Output {
 fn build(args: &[&[i32]], strand_count: i32) -> (Vec<Vec<Vec3>>, Vec<i32>) {
     let skins = skins(args, strand_count);
     let strands = skins.iter().flat_map(|skin| skin.columns.iter().flatten().map(|c| c.iter().map(|q| q.0).collect())).collect();
-    let mesh = myzel_core::veil::skins_mesh(&skins).encode();
+    let mesh = myzel_core::veil::skins_mesh(&skins).made_by(creator(args)).encode();
     // the node writes the same mesh straight into its result
-    assert_eq!(unsafe { write_skins(&skins).words() }, mesh);
+    assert_eq!(unsafe { write_skins(&skins, creator(args)).words() }, mesh);
     (strands, mesh)
 }
 
@@ -200,8 +205,7 @@ fn skins(args: &[&[i32]], strand_count: i32) -> Vec<Skin> {
     let attachments = read_attachments(args[0]);
     let seed = int(args[4]);
     let resolution = int(args[5]).max(4) as usize;
-    // the graph node that makes the skirt, it is the last input
-    let creator = int(args[6]);
+    let creator = creator(args);
     let n = strand_count.clamp(1, MAX_STRANDS) as usize;
 
     // a ring hangs one skin, every other point a skin around the path it sits on

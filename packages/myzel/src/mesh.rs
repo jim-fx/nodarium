@@ -8,7 +8,13 @@ const HEADER_LEN: usize = 4;
 pub mod mesh_flags {
     /// One RGBA8 color per vertex follows the normals
     pub const COLORS: i32 = 1;
+    /// The groups are followed by how many there are and, for every group, the graph node that
+    /// made it, see [`super::Mesh::creators`]
+    pub const CREATORS: i32 = 2;
 }
+
+/// The creator of a group that no graph node is known for
+pub const NO_CREATOR: i32 = i32::MIN;
 
 /// Triangle mesh with a material group and optionally a color per vertex, see the crate docs for the format
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -20,6 +26,9 @@ pub struct Mesh {
     pub colors: Vec<u32>,
     /// One group per vertex, other programs can give each group its own material
     pub groups: Vec<u32>,
+    /// Empty, or for every group the creator id of the graph node that made it ([`NO_CREATOR`]
+    /// for none), so the viewer can lead from a part of the mesh to its node
+    pub creators: Vec<i32>,
 }
 
 /// Packs a color with components in [0, 1] into one RGBA8 word, red in the lowest byte
@@ -28,9 +37,31 @@ pub fn pack_rgba(r: f32, g: f32, b: f32, a: f32) -> u32 {
     byte(r) | byte(g) << 8 | byte(b) << 16 | byte(a) << 24
 }
 
+/// The words of a mesh up to the end of its groups, the table of its creators follows them
 fn encoded_len(v: usize, f: usize, flags: i32) -> usize {
     let colors = if flags & mesh_flags::COLORS != 0 { v } else { 0 };
     HEADER_LEN + f * 3 + v * 7 + colors
+}
+
+/// The words of the table of `creators`: how many there are, then each of them. No creators, no
+/// table.
+fn table_len(creators: usize) -> usize {
+    if creators == 0 { 0 } else { 1 + creators }
+}
+
+/// The groups a mesh with these groups numbers: one more than the highest
+fn group_count(groups: impl Iterator<Item = u32>) -> usize {
+    groups.max().map_or(0, |g| g as usize + 1)
+}
+
+/// The table of an encoded mesh whose words up to the end of its groups are `base` long: its
+/// creators, empty without the flag. `None` when the words don't end with the table.
+fn read_table(words: &[i32], base: usize, flags: i32) -> Option<&[i32]> {
+    if flags & mesh_flags::CREATORS == 0 {
+        return (words.len() == base).then_some(&words[..0]);
+    }
+    let n = usize::try_from(*words.get(base)?).ok()?;
+    (words.len() as u64 == base as u64 + 1 + n as u64).then(|| &words[base + 1..])
 }
 
 impl Mesh {
@@ -51,18 +82,30 @@ impl Mesh {
         self.faces.reserve_exact(faces * 3);
     }
 
+    /// The mesh with all of its groups made by the graph node `creator`, as a node that makes
+    /// its mesh alone sends it. A mesh without vertices stays without creators.
+    pub fn made_by(mut self, creator: i32) -> Mesh {
+        self.creators = vec![creator; group_count(self.groups.iter().copied())];
+        self
+    }
+
     pub fn encode(&self) -> Vec<i32> {
         let (v, f) = (self.vertex_count(), self.face_count());
         assert!(self.colors.is_empty() || self.colors.len() == v, "{} colors for {} vertices", self.colors.len(), v);
         assert_eq!(self.groups.len(), v, "every vertex needs a group");
-        let flags = if self.colors.is_empty() { 0 } else { mesh_flags::COLORS };
-        let mut words = Vec::with_capacity(encoded_len(v, f, flags));
-        words.extend([MESH_TAG, v as i32, f as i32, flags]);
+        let colors = if self.colors.is_empty() { 0 } else { mesh_flags::COLORS };
+        let creators = if self.creators.is_empty() { 0 } else { mesh_flags::CREATORS };
+        let mut words = Vec::with_capacity(encoded_len(v, f, colors) + table_len(self.creators.len()));
+        words.extend([MESH_TAG, v as i32, f as i32, colors | creators]);
         words.extend(self.faces.iter().map(|&i| i as i32));
         words.extend(self.positions.iter().map(|&p| encode_float(p)));
         words.extend(self.normals.iter().map(|&n| encode_float(n)));
         words.extend(self.colors.iter().map(|&c| c as i32));
         words.extend(self.groups.iter().map(|&g| g as i32));
+        if !self.creators.is_empty() {
+            words.push(self.creators.len() as i32);
+            words.extend(&self.creators);
+        }
         words
     }
 
@@ -70,6 +113,12 @@ impl Mesh {
     /// them has colors, the vertices of the other get [`crate::NO_COLOR`].
     pub fn append(&mut self, other: &Mesh, first_group: u32) {
         let offset = self.vertex_count() as u32;
+        if !self.creators.is_empty() || !other.creators.is_empty() {
+            let own = self.creators.len().max(first_group as usize);
+            self.creators.resize(own, NO_CREATOR);
+            let groups = group_count(other.groups.iter().copied());
+            self.creators.extend((0..groups).map(|g| other.creators.get(g).copied().unwrap_or(NO_CREATOR)));
+        }
         if !self.colors.is_empty() || !other.colors.is_empty() {
             self.colors.resize(self.vertex_count(), crate::NO_COLOR);
             if other.colors.is_empty() {
@@ -94,8 +143,8 @@ impl Mesh {
         let (v, f, flags) = (words[1] as usize, words[2] as usize, words[3]);
         let len = encoded_len(v, f, flags);
         assert!(
-            words.len() == len,
-            "mesh with {} vertices, {} faces and flags {} needs {} words, got {}",
+            read_table(words, len, flags).is_some(),
+            "mesh with {} vertices, {} faces and flags {} needs {} words and the table of its creators, got {}",
             v,
             f,
             flags,
@@ -123,7 +172,8 @@ impl Mesh {
         let normals = take(v * 3).iter().map(|&w| decode_float(w)).collect();
         let colors = if flags & mesh_flags::COLORS != 0 { take(v).iter().map(|&c| c as u32).collect() } else { Vec::new() };
         let groups = take(v).iter().map(|&g| g as u32).collect();
-        Mesh { faces, positions, normals, colors, groups }
+        let creators = if flags & mesh_flags::CREATORS != 0 { rest[1..].to_vec() } else { Vec::new() };
+        Mesh { faces, positions, normals, colors, groups, creators }
     }
 }
 
@@ -190,9 +240,21 @@ impl<'a> MeshWriter<'a> {
         MeshWriter { words, vertices, faces, v: 0, f: 0 }
     }
 
+    /// The words a mesh of `vertices` and `faces` needs with the table of `creators` after it, see
+    /// [`MeshWriter::finish_with`]
+    pub fn len_with(vertices: usize, faces: usize, creators: usize) -> usize {
+        Self::len(vertices, faces) + table_len(creators)
+    }
+
     /// Closes the gaps of what wasn't added and writes the header, returns the words of the mesh.
     /// The normals are zero.
     pub fn finish(self) -> usize {
+        self.finish_with(&[])
+    }
+
+    /// [`MeshWriter::finish`] with the creator of every group after the mesh. The words have
+    /// room for them, see [`MeshWriter::len_with`]. A mesh without vertices gets no table.
+    pub fn finish_with(self, creators: &[i32]) -> usize {
         let MeshWriter { words, vertices, faces, v, f } = self;
         let (positions, groups) = (HEADER_LEN + faces * 3, HEADER_LEN + faces * 3 + vertices * 6);
         // every section only moves towards the front, past the end of the one before it
@@ -200,7 +262,14 @@ impl<'a> MeshWriter<'a> {
         words[HEADER_LEN + f * 3 + v * 3..HEADER_LEN + f * 3 + v * 6].fill(0);
         words.copy_within(groups..groups + v, HEADER_LEN + f * 3 + v * 6);
         words[..HEADER_LEN].copy_from_slice(&[MESH_TAG, v as i32, f as i32, 0]);
-        Self::len(v, f)
+        let len = Self::len(v, f);
+        if creators.is_empty() || v == 0 {
+            return len;
+        }
+        words[3] = mesh_flags::CREATORS;
+        words[len] = creators.len() as i32;
+        words[len + 1..len + 1 + creators.len()].copy_from_slice(creators);
+        len + table_len(creators.len())
     }
 }
 
@@ -292,6 +361,8 @@ pub struct MeshWords<'a> {
     words: &'a [i32],
     v: usize,
     f: usize,
+    /// The creator of every group, empty when the mesh has no table of them
+    creators: &'a [i32],
 }
 
 impl<'a> MeshWords<'a> {
@@ -302,18 +373,40 @@ impl<'a> MeshWords<'a> {
             return None;
         }
         let (v, f, flags) = (usize::try_from(words[1]).ok()?, usize::try_from(words[2]).ok()?, words[3]);
-        if flags & !mesh_flags::COLORS != 0 {
+        if flags & !(mesh_flags::COLORS | mesh_flags::CREATORS) != 0 {
             return None;
         }
         // in u64, so counts up to i32::MAX can't overflow on wasm32
         let per_vertex = 7 + u64::from(flags & mesh_flags::COLORS != 0);
-        if words.len() as u64 != HEADER_LEN as u64 + f as u64 * 3 + v as u64 * per_vertex {
+        let base = HEADER_LEN as u64 + f as u64 * 3 + v as u64 * per_vertex;
+        if base > words.len() as u64 {
             return None;
         }
+        let creators = read_table(words, base as usize, flags)?;
         if words[HEADER_LEN..HEADER_LEN + f * 3].iter().any(|&i| i < 0 || i as usize >= v) {
             return None;
         }
-        Some(MeshWords { words, v, f })
+        Some(MeshWords { words, v, f, creators })
+    }
+
+    /// The creator of every group, empty when the mesh doesn't know them
+    pub fn creators(&self) -> &'a [i32] {
+        self.creators
+    }
+
+    /// The words of the mesh up to the end of its groups
+    fn base_len(&self) -> usize {
+        self.words.len() - table_len(self.creators.len())
+    }
+
+    /// The table of the creators as it follows the groups: their number and each of them
+    fn table(&self) -> &'a [i32] {
+        &self.words[self.base_len()..]
+    }
+
+    fn flags(&self, colors: bool) -> i32 {
+        let colors = if colors { mesh_flags::COLORS } else { 0 };
+        colors | (self.words[3] & mesh_flags::CREATORS)
     }
 
     pub fn vertex_count(&self) -> usize {
@@ -346,12 +439,12 @@ impl<'a> MeshWords<'a> {
     }
 
     fn groups(&self) -> &'a [i32] {
-        &self.words[self.words.len() - self.v..]
+        &self.words[self.base_len() - self.v..self.base_len()]
     }
 
     /// The words of [`MeshWords::painted`]
     pub fn painted_len(&self) -> usize {
-        encoded_len(self.v, self.f, if self.v > 0 { mesh_flags::COLORS } else { 0 })
+        encoded_len(self.v, self.f, if self.v > 0 { mesh_flags::COLORS } else { 0 }) + self.table().len()
     }
 
     /// The encoded mesh with every vertex in `color`
@@ -363,14 +456,14 @@ impl<'a> MeshWords<'a> {
 
     /// Writes [`MeshWords::painted`] into `words`, which are [`MeshWords::painted_len`] long
     pub fn paint_into(&self, color: u32, words: &mut [i32]) {
-        let flags = if self.v > 0 { mesh_flags::COLORS } else { 0 };
         let mut out = Words::new(words);
-        out.put(&[MESH_TAG, self.v as i32, self.f as i32, flags]);
+        out.put(&[MESH_TAG, self.v as i32, self.f as i32, self.flags(self.v > 0)]);
         out.put(self.faces());
         out.put(self.positions());
         out.put(self.normals());
         out.fill(self.v, color as i32);
         out.put(self.groups());
+        out.put(self.table());
         out.done();
     }
 
@@ -379,21 +472,30 @@ impl<'a> MeshWords<'a> {
     pub fn paint_in_place(words: &mut [i32], color: u32) {
         let (v, f, flags) = (words[1] as usize, words[2] as usize, words[3]);
         let painted = if v > 0 { mesh_flags::COLORS } else { 0 };
-        assert_eq!(words.len(), encoded_len(v, f, painted), "no room to paint a mesh in place");
         let colors = HEADER_LEN + f * 3 + v * 6;
+        // the groups and the table of the creators follow the colors
+        let tail = colors + if flags & mesh_flags::COLORS != 0 { v } else { 0 };
+        let table = if flags & mesh_flags::CREATORS != 0 { table_len(words[tail + v] as usize) } else { 0 };
+        assert_eq!(words.len(), encoded_len(v, f, painted) + table, "no room to paint a mesh in place");
         if flags & mesh_flags::COLORS == 0 {
-            words.copy_within(colors..colors + v, colors + v);
+            words.copy_within(tail..tail + v + table, colors + v);
         }
         words[colors..colors + v].fill(color as i32);
-        words[3] = painted;
+        words[3] = painted | (flags & mesh_flags::CREATORS);
     }
 
     /// The words of [`MeshWords::join`]
     pub fn join_len(meshes: &[MeshWords]) -> usize {
-        let meshes = meshes.iter().filter(|m| m.v > 0);
+        let meshes: Vec<&MeshWords> = meshes.iter().filter(|m| m.v > 0).collect();
         let (v, f, colored) =
-            meshes.fold((0, 0, false), |(v, f, colored), m| (v + m.v, f + m.f, colored || m.colors().is_some()));
-        encoded_len(v, f, if colored { mesh_flags::COLORS } else { 0 })
+            meshes.iter().fold((0, 0, false), |(v, f, colored), m| (v + m.v, f + m.f, colored || m.colors().is_some()));
+        let creators =
+            if meshes.iter().any(|m| !m.creators.is_empty()) { meshes.iter().map(|m| m.group_count()).sum() } else { 0 };
+        encoded_len(v, f, if colored { mesh_flags::COLORS } else { 0 }) + table_len(creators)
+    }
+
+    fn group_count(&self) -> usize {
+        group_count(self.groups().iter().map(|&g| g as u32))
     }
 
     /// The encoded meshes one after the other, the groups of each numbered after those of the
@@ -411,7 +513,8 @@ impl<'a> MeshWords<'a> {
         let v = meshes.iter().map(|m| m.v).sum::<usize>();
         let f = meshes.iter().map(|m| m.f).sum::<usize>();
         let colored = meshes.iter().any(|m| m.colors().is_some());
-        let flags = if colored { mesh_flags::COLORS } else { 0 };
+        let with_creators = meshes.iter().any(|m| !m.creators.is_empty());
+        let flags = if colored { mesh_flags::COLORS } else { 0 } | if with_creators { mesh_flags::CREATORS } else { 0 };
         let mut out = Words::new(words);
         out.put(&[MESH_TAG, v as i32, f as i32, flags]);
         let mut offset = 0u32;
@@ -434,9 +537,18 @@ impl<'a> MeshWords<'a> {
             }
         }
         let mut next = 0u32;
+        let mut counts = Vec::with_capacity(meshes.len());
         for mesh in &meshes {
             out.extend(mesh.groups().iter().map(|&g| (g as u32 + next) as i32));
-            next += mesh.groups().iter().map(|&g| g as u32).max().map_or(0, |g| g + 1);
+            counts.push(mesh.group_count());
+            next += counts[counts.len() - 1] as u32;
+        }
+        if with_creators {
+            // the groups of every mesh keep their creators, behind those of the meshes before it
+            out.put(&[next as i32]);
+            for (mesh, &count) in meshes.iter().zip(&counts) {
+                out.extend((0..count).map(|g| mesh.creators.get(g).copied().unwrap_or(NO_CREATOR)));
+            }
         }
         out.done();
     }
@@ -453,7 +565,34 @@ mod tests {
             normals: vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
             colors: vec![pack_rgba(1.0, 0.0, 0.0, 1.0); 3],
             groups: vec![0, 2, 2],
+            creators: Vec::new(),
         }
+    }
+
+    /// [`triangle`] that knows which graph node made each of its three groups
+    fn made() -> Mesh {
+        Mesh { creators: vec![40, NO_CREATOR, -7], ..triangle() }
+    }
+
+    #[test]
+    fn the_creators_follow_the_groups() {
+        let words = made().encode();
+        assert_eq!(words[3], mesh_flags::COLORS | mesh_flags::CREATORS);
+        assert_eq!(&words[words.len() - 7..], &[0, 2, 2, 3, 40, NO_CREATOR, -7]);
+        assert_eq!(Mesh::decode(&words), made());
+        // but for the flag, the words before them are the mesh as it was before meshes knew their creators
+        assert_eq!(words[4..words.len() - 4], Mesh { creators: Vec::new(), ..made() }.encode()[4..]);
+        assert_eq!(MeshWords::read(&words).unwrap().creators(), &[40, NO_CREATOR, -7]);
+        assert_eq!(MeshWords::read(&triangle().encode()).unwrap().creators(), &[] as &[i32]);
+        // a table that is shorter or longer than it says
+        assert_eq!(Mesh::try_decode(&words[..words.len() - 1]), None);
+        assert_eq!(Mesh::try_decode(&[words.clone(), vec![0]].concat()), None);
+    }
+
+    #[test]
+    fn a_mesh_made_by_one_node_names_it_for_every_group() {
+        assert_eq!(triangle().made_by(9).creators, vec![9; 3]);
+        assert!(Mesh::default().made_by(9).creators.is_empty());
     }
 
     #[test]
@@ -526,6 +665,7 @@ mod tests {
             normals: vec![0.0, 0.0, -1.0, 0.0, f32::NAN, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
             colors: if colored { vec![1, 2, 3, crate::NO_COLOR] } else { Vec::new() },
             groups: vec![1, 0, 4, 1],
+            creators: Vec::new(),
         }
     }
 
@@ -538,7 +678,10 @@ mod tests {
             vec![triangle()],
             vec![plain.clone(), other(false)],
             vec![other(true), Mesh::default(), plain.clone(), triangle()],
-            vec![plain, other(false), other(true)],
+            vec![plain.clone(), other(false), other(true)],
+            // only some know their creators, one of them fewer than it has groups
+            vec![made(), other(false), Mesh { creators: vec![5, 6], ..other(true) }],
+            vec![plain, made(), Mesh::default().made_by(3)],
         ];
         for meshes in cases {
             let mut appended = Mesh::default();
@@ -556,7 +699,7 @@ mod tests {
     #[test]
     fn paints_the_words_like_the_mesh() {
         let color = pack_rgba(0.2, 0.4, 0.6, 1.0);
-        for mesh in [Mesh::default(), triangle(), other(false), other(true)] {
+        for mesh in [Mesh::default(), triangle(), other(false), other(true), made(), other(false).made_by(4)] {
             let words = mesh.encode();
             let painted = Mesh { colors: vec![color; mesh.vertex_count()], ..mesh };
             assert_eq!(MeshWords::read(&words).unwrap().painted(color), painted.encode());
@@ -567,7 +710,7 @@ mod tests {
     fn paints_the_words_in_place_like_the_mesh() {
         let color = pack_rgba(0.2, 0.4, 0.6, 1.0);
         let colored = Mesh { colors: vec![7; 3], ..triangle() };
-        for mesh in [Mesh::default(), triangle(), other(false), other(true), colored] {
+        for mesh in [Mesh::default(), triangle(), other(false), other(true), colored, made(), other(false).made_by(4)] {
             let mut words = mesh.encode();
             let painted = MeshWords::read(&words).unwrap().painted(color);
             // the room for the colors holds what was there before
@@ -606,6 +749,24 @@ mod tests {
             let len = writer.finish();
             assert_eq!(&words[..len], &encoded[..], "room for {vertices} vertices and {faces} faces");
         }
+    }
+
+    #[test]
+    fn writes_the_creators_after_the_mesh_it_builds() {
+        let mut mesh = Mesh::default();
+        build(&mut mesh);
+        let encoded = Mesh { creators: vec![11, 12], ..mesh }.encode();
+        for (vertices, faces) in [(6, 2), (11, 3)] {
+            let mut words = vec![0; MeshWriter::len_with(vertices, faces, 2)];
+            let mut writer = MeshWriter::new(&mut words, vertices, faces);
+            build(&mut writer);
+            let len = writer.finish_with(&[11, 12]);
+            assert_eq!(&words[..len], &encoded[..], "room for {vertices} vertices and {faces} faces");
+        }
+        // nothing built, nothing to name a creator for
+        let mut words = vec![0; MeshWriter::len_with(3, 1, 2)];
+        let len = MeshWriter::new(&mut words, 3, 1).finish_with(&[11, 12]);
+        assert_eq!(&words[..len], &Mesh::default().encode()[..]);
     }
 
     #[test]

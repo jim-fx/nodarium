@@ -90,13 +90,22 @@ pub fn read_paths(list: &[i32], style: PathStyle) -> Vec<MeshPath<'_>> {
 /// A small material group per path: creators numbered in the order of their ids, so a node
 /// added later gets the next number and the others keep theirs
 pub fn group_numbers(paths: &[MeshPath]) -> Vec<u32> {
-    let creator = |p: &MeshPath| match p.group {
+    let creators = group_creators(paths);
+    paths.iter().map(|p| creators.binary_search(&creator(p)).unwrap() as u32).collect()
+}
+
+fn creator(path: &MeshPath) -> i32 {
+    match path.group {
         PathGroup::Creator(c) => c,
-    };
+    }
+}
+
+/// The creator of every group of [`group_numbers`], by the number of the group
+pub fn group_creators(paths: &[MeshPath]) -> Vec<i32> {
     let mut creators: Vec<i32> = paths.iter().map(creator).collect();
     creators.sort_unstable();
     creators.dedup();
-    paths.iter().map(|p| creators.binary_search(&creator(p)).unwrap() as u32).collect()
+    creators
 }
 
 /// The segments between neighbouring points of a path, each with the mean radius of its two

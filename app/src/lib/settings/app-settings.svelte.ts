@@ -62,6 +62,19 @@ export const AppSettingTypes = {
       value: 'matcap' as string
     }
   },
+  viewportLink: {
+    title: 'Viewport Link',
+    enabled: {
+      type: 'boolean',
+      label: 'Link viewport and nodes',
+      value: true as boolean
+    },
+    fadeSelection: {
+      type: 'boolean',
+      label: 'Fade the tint of the selection',
+      value: false as boolean
+    }
+  },
   nodeInterface: {
     title: 'Node Interface',
     backgroundType: {

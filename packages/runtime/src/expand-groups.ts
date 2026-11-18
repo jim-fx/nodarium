@@ -10,11 +10,19 @@ import {
 } from '@nodarium/types';
 import { hashString53 } from '@nodarium/utils';
 
+export type NodeSource = { instance: number; node: number };
+
 /**
  * @param origins filled with the ID of the outermost group node every expanded
  * node comes from, so errors can point at a node that is visible in the editor
+ * @param sources filled with the group node every expanded node was inlined for and the ID it
+ * has inside its group
  */
-export function expandGroups(graph: Graph, origins?: Map<number, number>): Graph {
+export function expandGroups(
+  graph: Graph,
+  origins?: Map<number, number>,
+  sources?: Map<number, NodeSource>
+): Graph {
   if (!graph.groups || graph.groups.length === 0) return graph;
 
   const groups = new Map<number, GroupDefinition>();
@@ -51,7 +59,11 @@ export function expandGroups(graph: Graph, origins?: Map<number, number>): Graph
     if (node.muted === true) {
       replacement = bypassInstance(node, group, edges);
     } else {
-      const inlined = inlineInstance(node, group, edges, id => createExpandedId(node.id, id));
+      const inlined = inlineInstance(node, group, edges, id => {
+        const expandedId = createExpandedId(node.id, id);
+        sources?.set(expandedId, { instance: node.id, node: id });
+        return expandedId;
+      });
       for (const n of inlined.nodes) origins?.set(n.id, origins.get(node.id) ?? node.id);
       pending.push(...inlined.nodes);
       replacement = inlined.edges;
@@ -179,4 +191,20 @@ function inlineInstance(
   }));
 
   return { nodes, edges: newEdges };
+}
+
+/**
+ * The graph as it runs, and for every node of it the way to it in the editor: the group nodes to
+ * enter from the root, then the node inside the last of them. A node of the root is its own way.
+ */
+export function expandWithChains(graph: Graph) {
+  const sources = new Map<number, NodeSource>();
+  const expanded = expandGroups(graph, undefined, sources);
+  const chains = new Map<number, number[]>();
+  function chainOf(id: number): number[] {
+    const source = sources.get(id);
+    return source ? [...chainOf(source.instance), source.node] : [id];
+  }
+  for (const node of expanded.nodes) chains.set(node.id, chainOf(node.id));
+  return { graph: expanded, chains };
 }

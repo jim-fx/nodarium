@@ -44,6 +44,7 @@ mod tests {
             normals: vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
             colors: Vec::new(),
             groups: vec![0, 1, 1],
+            creators: vec![21, 22],
         }
     }
 
@@ -56,6 +57,7 @@ mod tests {
             normals: [0.0, 0.0, 1.0].repeat(v),
             colors: if colors { (0..v as u32).collect() } else { Vec::new() },
             groups: (0..v as u32).map(|i| i % 3).collect(),
+            creators: vec![1, 2, 3],
         }
     }
 

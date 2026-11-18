@@ -100,7 +100,12 @@ fn columns(anchors: &[Anchor], sag: f32, resolution: usize) -> Vec<Column> {
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Output {
-    write_skins(&skins(args, STRANDS))
+    write_skins(&skins(args, STRANDS), creator(args))
+}
+
+/// The graph node that makes the membrane, it is the last input
+fn creator(args: &[&[i32]]) -> i32 {
+    int(args[5])
 }
 
 /// The strands across the skin and the skin. Only the skin is an output, the strands are what the
@@ -109,9 +114,9 @@ pub fn execute(args: &[&[i32]]) -> Output {
 fn build(args: &[&[i32]], strand_count: i32) -> (Vec<Vec<Vec3>>, Vec<i32>) {
     let skins = skins(args, strand_count);
     let strands = skins.iter().flat_map(|skin| skin.columns.iter().flatten().map(|c| c.iter().map(|q| q.0).collect())).collect();
-    let mesh = myzel_core::veil::skins_mesh(&skins).encode();
+    let mesh = myzel_core::veil::skins_mesh(&skins).made_by(creator(args)).encode();
     // the node writes the same mesh straight into its result
-    assert_eq!(unsafe { write_skins(&skins).words() }, mesh);
+    assert_eq!(unsafe { write_skins(&skins, creator(args)).words() }, mesh);
     (strands, mesh)
 }
 
@@ -121,8 +126,7 @@ fn skins(args: &[&[i32]], strand_count: i32) -> Vec<Skin> {
     let a = read_attachments(args[0]);
     let b = read_attachments(args[1]);
     let resolution = int(args[4]).max(4) as usize;
-    // the graph node that makes the membrane, it is the last input
-    let creator = int(args[5]);
+    let creator = creator(args);
 
     let pairs: Vec<(usize, usize, Option<usize>)> =
         a.iter().enumerate().filter_map(|(i, attachment)| partner(attachment, &b).map(|(j, spot)| (i, j, spot))).collect();
