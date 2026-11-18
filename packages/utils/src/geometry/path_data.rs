@@ -880,3 +880,35 @@ mod tests {
         assert_eq!(colors_at_lengths(&points[..4], &[black], [0.0, 1.0]), vec![black, black]);
     }
 }
+
+/// Resamples `points` to cover the path from its base up to `alpha` along its length, with the
+/// same number of points, so the broken path keeps its resolution.
+pub fn resample_up_to(points: &[Vec4], alpha: f32) -> Vec<Vec4> {
+    let mut distances = Vec::with_capacity(points.len());
+    let mut sum = 0.0;
+    for (i, point) in points.iter().enumerate() {
+        if i > 0 {
+            sum += (point.xyz() - points[i - 1].xyz()).length();
+        }
+        distances.push(sum);
+    }
+    let end = sum * alpha;
+    let last = points.len() - 1;
+
+    let mut segment = 0;
+    (0..points.len())
+        .map(|k| {
+            let target = end * k as f32 / last as f32;
+            while segment < last - 1 && distances[segment + 1] < target {
+                segment += 1;
+            }
+            let span = distances[segment + 1] - distances[segment];
+            let t = if span > 0.0 {
+                ((target - distances[segment]) / span).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            points[segment].lerp(points[segment + 1], t)
+        })
+        .collect()
+}

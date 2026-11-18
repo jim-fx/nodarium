@@ -79,7 +79,7 @@
     },
     "rotation": {
       "type": "float",
-      "description": "The rotation of the branches.",
+      "description": "How far every branch turns around the path from the one before it, in degrees (instance takes radians): 137.5 is the golden angle, 180 puts them in two ranks. The first branch points to the side, 90 down and 270 up from there. Read for every branch.",
       "hidden": true,
       "min": 0,
       "max": 360,
@@ -88,7 +88,7 @@
     },
     "angle": {
       "type": "float",
-      "description": "Upward tilt of branches. 0 = horizontal, positive = upward, negative = drooping.",
+      "description": "Tilts every branch from sticking straight out of the path, in degrees: positive toward the tip of the path (up on an upright stem), negative toward its base, 90 along it. Read for every branch. To let a tip nod past horizontal, use gravity with a strength above 1.",
       "min": -90,
       "max": 90,
       "step": 1,

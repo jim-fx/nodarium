@@ -25,6 +25,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     }
     let seed = args[9][0];
     let by_index = int(args[10]) == 1;
+    let face_path = args.get(13).is_some_and(|face| int(face) == 1);
 
     // the transforms of the instances of each geometry and the paths they sit on
     let mut groups: Vec<(Vec<[f32; 16]>, Vec<i32>)> = vec![Default::default(); geometries.len()];
@@ -85,11 +86,13 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 ctx.float(args[12])
             };
             let out = around * angle.cos() + tangent * angle.sin();
+            // toward the tip and the inside of the ring, where the sky is on an upright path
+            let along = tangent * angle.cos() - around * angle.sin();
             let up = Vec3::Y - out * Vec3::Y.dot(out);
-            let face = if up.length_squared() > 1e-6 {
-                up.normalize()
+            let face = if face_path || up.length_squared() <= 1e-6 {
+                along
             } else {
-                tangent * angle.cos() - around * angle.sin()
+                up.normalize()
             };
             let back = -out;
             let across = face.cross(back);
@@ -414,6 +417,48 @@ mod tests {
         // without the option the two inputs draw one after the other
         let drawn = sizes_and_angles(&stems, &random(0), &random(0));
         assert!(drawn.iter().all(|(size, angle)| (size - angle).abs() > 0.01), "{:?}", drawn);
+    }
+
+    /// The face of the one instance on a path that lies along +x, with the face input `face`
+    fn face_on_a_lying_path(face: i32, angle: f32) -> glam::Vec3 {
+        let mut stems = create_multiple_paths(1, 4, 1, 6);
+        for stem in wrap_multiple_paths(&mut stems).iter_mut() {
+            for i in 0..4 {
+                stem.points[i * 4..i * 4 + 4].copy_from_slice(&[i as f32, 1.0, 0.0, 0.1]);
+            }
+        }
+        let zero = [encode_float(0.0)];
+        let result = __nodarium_execute_inner(&[
+            &stems,
+            &geometry(3),
+            &[1],
+            &zero,
+            &zero,
+            &zero,
+            &[1],
+            &[encode_float(1.0)],
+            &[encode_float(angle)],
+            &[1],
+            &[0],
+            &zero,
+            &zero,
+            &[face],
+        ]);
+        let mut data = split_args(&result)[1].to_vec();
+        let instances = wrap_instance_data(&mut data);
+        Mat4::from_cols_slice(&instances.instances[..16]).y_axis.truncate().normalize()
+    }
+
+    #[test]
+    fn the_face_looks_up_or_toward_the_tip_of_the_path() {
+        // sticking out sideways from a lying path, up is in reach
+        assert!((face_on_a_lying_path(0, 0.0) - glam::Vec3::Y).length() < 1e-5);
+        // as if the path stood upright, it faces its tip
+        assert!((face_on_a_lying_path(1, 0.0) - glam::Vec3::X).length() < 1e-5);
+        // tilted toward the tip it faces the tip and the inside of the ring, the path, where the
+        // instance sticks out along +z
+        let face = face_on_a_lying_path(1, 60.0);
+        assert!((face - glam::Vec3::new(0.5, 0.0, -(0.75f32).sqrt())).length() < 1e-5);
     }
 
     #[test]

@@ -1,10 +1,10 @@
-use glam::{Vec4, Vec4Swizzles};
+use glam::Vec4;
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs,
     geometry::{
-        colors_at_lengths, is_path, path_link, path_random, set_path_link, wrap_path, wrap_path_mut,
-        DeepestPaths,
+        colors_at_lengths, is_path, path_link, path_random, resample_up_to, set_path_link, wrap_path,
+        wrap_path_mut, DeepestPaths,
     },
     split_args, Ctx,
 };
@@ -14,38 +14,6 @@ nodarium_definition_file!("src/definition.json");
 
 /// A break this close to the base would leave a path without length.
 const MIN_BREAK: f32 = 0.01;
-
-/// Resamples `points` to cover the path from its base up to `alpha` along its length, with the
-/// same number of points, so the broken path keeps its resolution.
-fn cut(points: &[Vec4], alpha: f32) -> Vec<Vec4> {
-    let mut distances = Vec::with_capacity(points.len());
-    let mut sum = 0.0;
-    for (i, point) in points.iter().enumerate() {
-        if i > 0 {
-            sum += (point.xyz() - points[i - 1].xyz()).length();
-        }
-        distances.push(sum);
-    }
-    let end = sum * alpha;
-    let last = points.len() - 1;
-
-    let mut segment = 0;
-    (0..points.len())
-        .map(|k| {
-            let target = end * k as f32 / last as f32;
-            while segment < last - 1 && distances[segment + 1] < target {
-                segment += 1;
-            }
-            let span = distances[segment + 1] - distances[segment];
-            let t = if span > 0.0 {
-                ((target - distances[segment]) / span).clamp(0.0, 1.0)
-            } else {
-                0.0
-            };
-            points[segment].lerp(points[segment + 1], t)
-        })
-        .collect()
-}
 
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
@@ -108,7 +76,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         }
 
         let points: Vec<Vec4> = path.points.chunks_exact(4).map(Vec4::from_slice).collect();
-        let broken = cut(&points, alpha);
+        let broken = resample_up_to(&points, alpha);
         // the colors of the part that is left spread over the shorter path
         let colors = (!path.colors.is_empty()).then(|| {
             let n = broken.len();

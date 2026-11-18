@@ -1,0 +1,49 @@
+{
+  "id": "max/plantarium/revolve",
+  "meta": {
+    "description": "Turns a shape around its midrib into a closed body, like a bud, a berry, a fruit, a capsule, a seed or a receptacle. It is placed like a leaf: it grows along -z from its base at the origin, at size 1 it is 100 long and as wide as the leaf of the same shape, so instance places and scales it like a leaf and set_color and deform work on it."
+  },
+  "outputs": [
+    "geometry"
+  ],
+  "inputs": {
+    "shape": {
+      "type": "shape",
+      "description": "The outline of one half of the body, from a shape node, like the outline of a leaf: x from the edge (0) to the axis (50), y from the tip (0) to the base (100). A point at x 50 closes the body there, the ends are closed in any case.",
+      "external": true,
+      "value": [
+        50,
+        100,
+        38,
+        97,
+        24,
+        88,
+        15,
+        72,
+        12,
+        52,
+        16,
+        30,
+        26,
+        13,
+        38,
+        4,
+        50,
+        0
+      ]
+    },
+    "size": {
+      "type": "float",
+      "description": "The scale of the body, at 1 it is 100 long. instance scales it again by the thickness of the path, like a leaf. Read along the body, alpha goes from the base (0) to the tip (1).",
+      "value": 1
+    },
+    "resolution_circle": {
+      "type": "integer",
+      "description": "How many segments the body has around, from the setting resolution.circle.",
+      "value": 32,
+      "min": 3,
+      "max": 64,
+      "setting": "resolution.circle"
+    }
+  }
+}

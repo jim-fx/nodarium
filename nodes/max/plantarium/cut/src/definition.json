@@ -1,0 +1,32 @@
+{
+  "id": "max/plantarium/cut",
+  "meta": {
+    "description": "Ends paths at a height above the ground, like the flat top of a yarrow or an elder, a mown lawn or a clipped hedge: a path that rises above it ends where it first crosses it, and what grew above is gone. Grow the paths longer than they need to be, so all of them reach the height."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "plant": {
+      "type": "path",
+      "description": "The paths to cut.",
+      "external": true
+    },
+    "height": {
+      "type": "float",
+      "description": "Where the paths end, in metres above the ground (y 0). Read once per path, so a random once for the graph moves the top with the size of the plant, and a curve of alpha tilts it from path to path.",
+      "min": 0,
+      "max": 3,
+      "step": 0.01,
+      "value": 0.5,
+      "unit": "m"
+    },
+    "depth": {
+      "type": "integer",
+      "hidden": true,
+      "min": 1,
+      "value": 10,
+      "description": "On how many of the deepest layers of paths to cut, all of them by default. A path that is not cut still loses the paths that grew on it above the cut."
+    }
+  }
+}

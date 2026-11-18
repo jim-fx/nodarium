@@ -1,0 +1,31 @@
+{
+  "id": "max/plantarium/mix_shape",
+  "meta": {
+    "description": "Blends two shapes by a factor: 0 gives the first, 1 the second, 0.5 the outline halfway between them. A random once for the graph into the factor gives every seed its own outline, like the depth of the lobes of a leaf."
+  },
+  "outputs": [
+    "shape"
+  ],
+  "inputs": {
+    "a": {
+      "type": "shape",
+      "description": "The shape at factor 0.",
+      "external": true,
+      "value": [47.8, 100, 47.8, 82.8, 30.9, 69.1, 23.2, 40.7, 27.1, 14.5, 42.5, 0]
+    },
+    "b": {
+      "type": "shape",
+      "description": "The shape at factor 1. With another number of points than a, both are spread evenly along their outline first, so their points still match up from the base to the tip.",
+      "external": true,
+      "value": [47.8, 100, 47.8, 82.8, 40, 69.1, 36, 40.7, 38, 14.5, 45, 0]
+    },
+    "factor": {
+      "type": "float",
+      "description": "How far from a to b, read once for the whole shape: 0 is a, 1 is b, values outside go on past them.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.5
+    }
+  }
+}
