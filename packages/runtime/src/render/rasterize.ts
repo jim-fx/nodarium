@@ -46,6 +46,8 @@ export function rasterize(
   views.map((name) => VIEWS[name]).forEach(({ yaw, pitch }, view) => {
     const offset = view * size;
     const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    // the direction the view looks along, the axis of the depth below
+    const look = [cp * sy, sp, cp * cy];
     const project = (v: Vec3): Vec3 => {
       const x = v[0] - center[0], y = v[1] - center[1], z = v[2] - center[2];
       const x1 = cy * x - sy * z, z1 = sy * x + cy * z;
@@ -68,9 +70,12 @@ export function rasterize(
       const v = [t.c[0] - t.a[0], t.c[1] - t.a[1], t.c[2] - t.a[2]];
       const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
       const length = Math.hypot(n[0], n[1], n[2]) || 1;
-      // both sides of a leaf are lit the same
-      const shade = 0.35
-        + 0.65 * Math.abs((n[0] * light[0] + n[1] * light[1] + n[2] * light[2]) / length);
+      // both sides of a leaf are lit the same. A light from the view as well as the one from
+      // above shows a face turned to the view in about its own color, a white petal white,
+      // whichever way the light falls on it
+      const lit = Math.abs((n[0] * light[0] + n[1] * light[1] + n[2] * light[2]) / length);
+      const seen = Math.abs((n[0] * look[0] + n[1] * look[1] + n[2] * look[2]) / length);
+      const shade = Math.min(1, 0.5 + 0.25 * lit + 0.35 * seen);
       const color = (t.color ?? (t.instanced ? INSTANCE_COLOR : STEM_COLOR)).map((c) =>
         Math.min(255, c * shade)
       );

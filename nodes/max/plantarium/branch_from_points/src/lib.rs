@@ -38,7 +38,7 @@ fn grow(ctx: &mut Ctx, args: &[&[i32]], point: &Point, dormant: bool, max_resolu
     let alphas = (0..resolution).map(|j| j as f32 / (resolution - 1) as f32);
     let thickness = ctx.float_along(args[3], alphas);
 
-    let up_angle = ctx.float(args[4]).to_radians();
+    let up_angle = ctx.float(args[4]);
     let direction = (point.direction * up_angle.cos() + point.tangent * up_angle.sin())
         .try_normalize()
         .unwrap_or(point.direction);
@@ -254,7 +254,7 @@ mod tests {
     fn the_angle_tilts_the_branch_toward_the_tip() {
         let plant = stem();
         let stem_id = path_link(&split_args(&plant)[0]).id;
-        let result = run(&plant, &[point(stem_id, 0, 1.0)], 90.0);
+        let result = run(&plant, &[point(stem_id, 0, 1.0)], 90f32.to_radians());
         let branch = wrap_path(split_args(&result)[0]);
         let n = branch.length - 1;
         let tip = Vec3::from_slice(&branch.points[n * 4..n * 4 + 3]);

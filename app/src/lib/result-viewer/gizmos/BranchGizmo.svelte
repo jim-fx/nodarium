@@ -24,11 +24,10 @@
   const orthogonal = $derived(new Vector3(...gizmo.orthogonal));
 
   function tipAt(angle: number, length: number) {
-    const radians = (angle * Math.PI) / 180;
     return origin
       .clone()
-      .addScaledVector(orthogonal, Math.cos(radians) * length)
-      .addScaledVector(direction, Math.sin(radians) * length);
+      .addScaledVector(orthogonal, Math.cos(angle) * length)
+      .addScaledVector(direction, Math.sin(angle) * length);
   }
 
   const tip = $derived(tipAt(gizmo.angle, gizmo.length).toArray() as Vec3);
@@ -44,8 +43,7 @@
     const y = offset.dot(direction);
 
     const length = Math.max(Math.hypot(x, y), MIN_LENGTH);
-    const degrees = (Math.atan2(y, x) * 180) / Math.PI;
-    const angle = Math.min(Math.max(degrees, -MAX_BRANCH_ANGLE), MAX_BRANCH_ANGLE);
+    const angle = Math.min(Math.max(Math.atan2(y, x), -MAX_BRANCH_ANGLE), MAX_BRANCH_ANGLE);
 
     group.position.copy(tipAt(angle, length));
     onchange?.(gizmo.nodeId, {

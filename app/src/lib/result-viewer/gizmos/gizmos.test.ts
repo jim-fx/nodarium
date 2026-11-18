@@ -147,7 +147,7 @@ describe('branch nodes', () => {
   it('start where the first branch grows on the path', () => {
     // a vertical stem, lowest branch at 30% of its length
     const [gizmo] = collectGizmos(
-      [branch({ lowest_branch: 0.3, angle: 20, length: 2 })],
+      [branch({ lowest_branch: 0.3, angle: 0.35, length: 2 })],
       [],
       1,
       defaults,
@@ -159,7 +159,7 @@ describe('branch nodes', () => {
     expect(gizmo.direction).toEqual([0, 1, 0]);
     // a vertical stem gets an orthogonal along z
     expect(gizmo.orthogonal).toEqual([0, 0, -1]);
-    expect(gizmo.angle).toBe(20);
+    expect(gizmo.angle).toBe(0.35);
     expect(gizmo.length).toBe(2);
   });
 

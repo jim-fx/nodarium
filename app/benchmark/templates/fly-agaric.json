@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 13,
+  "version": 14,
   "settings": {
     "time.t": 1,
     "resolution.field": 160,
@@ -128,8 +128,8 @@
           "type": "max/plantarium/trunk_kink",
           "props": {
             "amount": 2,
-            "angle": 5,
-            "rotation": 120,
+            "angle": 0.0872665,
+            "rotation": 2.0943951,
             "lowest_kink": 0.3,
             "highest_kink": 0.8
           }

@@ -9,7 +9,6 @@ use nodarium_utils::{
     int, log, split_args, Ctx,
 };
 
-use std::f32::consts::PI;
 
 nodarium_definition_file!("src/definition.json");
 
@@ -93,7 +92,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             };
 
             let rotation_angle = turn;
-            turn += ctx.float(args[9]) * PI / 180.0;
+            turn += ctx.float(args[9]);
 
             // a branch the path has not grown up to yet is a bud at its tip
             let spot = path.link.spot((root_alpha + offset_single).min(1.0));
@@ -119,7 +118,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 continue;
             }
 
-            let up_angle = ctx.float(args[10]) * PI / 180.0;
+            let up_angle = ctx.float(args[10]);
             let tilted = (orthogonal * up_angle.cos() + direction * up_angle.sin()).normalize();
             let branch_direction = rotate_vector_by_angle(tilted, direction, rotation_angle);
 

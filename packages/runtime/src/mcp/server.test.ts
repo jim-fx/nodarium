@@ -47,6 +47,7 @@ describe('nodarium mcp', () => {
       'get_template',
       'check_graph',
       'run_graph',
+      'probe_node',
       'render_graph',
       'graph_link',
       'get_docs'
@@ -113,6 +114,28 @@ describe('nodarium mcp', () => {
 
     const asText = await call('run_graph', { graph: JSON.stringify(handWritten), seed: 3 });
     expect(JSON.parse(textOf(asText)).vertices).toBeGreaterThan(summary.vertices);
+  });
+
+  it('probes the values a node gives and the paths and leaves it makes', async () => {
+    const leaves = {
+      version: CURRENT_GRAPH_VERSION,
+      nodes: [
+        { id: 1, type: 'max/plantarium/stem', props: { length: 0.5, thickness: 0.02 } },
+        { id: 2, type: 'max/plantarium/random', props: { min: 0.5, max: 1 } },
+        { id: 3, type: 'max/plantarium/leaf', props: { size: 0.1 } },
+        { id: 4, type: 'max/plantarium/instance', props: { amount: 6 } },
+        { id: 5, type: 'max/plantarium/output' }
+      ],
+      edges: [[1, 0, 4, 'plant'], [2, 0, 4, 'size'], [3, 0, 4, 'geometry'], [4, 0, 5, 'input']]
+    };
+    const values = textOf(await call('probe_node', { graph: leaves, node: 2 })).split('\n');
+    expect(values[0]).toBe('graph: random#2');
+    expect(values[2]).toMatch(/^ {4}into instance#4 size: 6 values on 1 paths, 0\.\d+ to 0\.\d+/);
+    const paths = textOf(await call('probe_node', { graph: leaves, node: 4 }));
+    expect(paths).toContain('depth 1: 1 paths, 0.5 m long');
+    expect(paths).toMatch(/instances 1: 6, [\d.]+ to [\d.]+ m \(mean [\d.]+\) long/);
+    const run = JSON.parse(textOf(await call('run_graph', { graph: leaves })).split('\n')[0]);
+    expect(run.instancers).toMatchObject([{ id: 4, count: 6 }]);
   });
 
   it('answers a broken graph with an error that lists its issues', async () => {

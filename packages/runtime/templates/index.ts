@@ -56,7 +56,8 @@ const ABOUT: Record<string, About> = {
   },
   sapling: {
     species: 'Betula pendula (silver birch), young tree',
-    notes: 'A straight trunk with 16 branches at 137.5°, each with 12 hanging twigs, birch leaves '
+    notes:
+      'A straight trunk with 16 branches at the golden angle, each with 12 hanging twigs, birch leaves '
       + 'from a node group.'
   },
   lavender: {
@@ -104,6 +105,18 @@ const ABOUT: Record<string, About> = {
     species: "Daucus carota (Queen Anne's lace)",
     notes: 'A main stem with 3 side branches and 3 stalks from the base, an open umbel or a bud on '
       + 'every tip.'
+  },
+  dandelion: {
+    species: 'Taraxacum officinale (common dandelion)',
+    notes: 'A rosette of runcinate leaf_surface leaves on a short crown, 3–6 leafless scapes, each '
+      + 'with a revolved bud that nods and opens into a head of three rings of ligules at its own '
+      + 'time.'
+  },
+  yarrow: {
+    species: 'Achillea millefolium (common yarrow)',
+    notes:
+      '2–5 upright stems with feathery leaves, three levels of branches cut at one height into '
+      + 'a flat-topped corymb of small white heads.'
   },
   'champignon-groomed': { notes: 'The Stipe, Cap, Gills and Veil groups, grown by time.' },
   'fly-agaric': { notes: 'As the champignon, with a Cuticle and a Volva group.' },
@@ -168,6 +181,8 @@ export const templates: Template[] = [
   plant('devils-backbone', "Devil's Backbone", 'cm', () => import('./devils-backbone.json')),
   plant('knotweed', 'Japanese Knotweed', 'm', () => import('./knotweed.json')),
   plant('wild-carrot', 'Wild Carrot', 'cm', () => import('./wild-carrot.json')),
+  plant('dandelion', 'Dandelion', 'cm', () => import('./dandelion.json')),
+  plant('yarrow', 'Yarrow', 'cm', () => import('./yarrow.json')),
   mushroom('champignon-groomed', 'Champignon', 'cm', () => import('./champignon-groomed.json')),
   mushroom('fly-agaric', 'Fly agaric', 'cm', () => import('./fly-agaric.json')),
   mushroom('porcini', 'Porcini', 'cm', () => import('./porcini.json')),

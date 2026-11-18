@@ -69,7 +69,7 @@ impl Controls {
             petiole: self.petiole,
             roundness: self.tooth_shape,
             serration: self.tooth_direction,
-            branch_angle: self.vein_angle.to_radians(),
+            branch_angle: self.vein_angle,
             // Parameters of the model without an input of their own.
             max_vein_angle: 60f32.to_radians(),
             base_growth: 0.04,
@@ -105,12 +105,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         petiole: ctx.float(args[6]).clamp(0.0, 1.0),
         tooth_shape: ctx.float(args[7]).clamp(0.0, 1.0),
         tooth_direction: ctx.float(args[8]).clamp(-1.0, 1.0),
-        vein_angle: ctx.float(args[9]).clamp(1.0, 89.0),
+        vein_angle: ctx.float(args[9]).clamp(1f32.to_radians(), 89f32.to_radians()),
     };
     let vein_depth = ctx.float(args[10]);
     let vein_width = ctx.float(args[11]).max(0.0);
-    let x_curve = ctx.float(args[12]).to_radians();
-    let y_curve = ctx.float(args[13]).to_radians();
+    let x_curve = ctx.float(args[12]);
+    let y_curve = ctx.float(args[13]);
     let resolution = ctx.int(args[14]).clamp(2, 128) as f32;
     let params = controls.params();
 

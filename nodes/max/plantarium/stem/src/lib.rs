@@ -14,7 +14,7 @@ fn fan_angle(fan: f32, rank: usize, count: usize) -> f32 {
     if count < 2 {
         return 0.0;
     }
-    (rank as f32 / (count - 1) as f32 - 0.5) * fan.to_radians()
+    (rank as f32 / (count - 1) as f32 - 0.5) * fan
 }
 
 #[nodarium_execute]
@@ -102,9 +102,10 @@ mod tests {
         concat_args(vec![&[encode_float(0.5)], &[encode_float(0.0)], &[encode_float(-0.25)]])
     }
 
+    /// `fan` in degrees, the node takes radians
     fn run_fan(points: &[i32], amount: i32, length: f32, fan: f32) -> Vec<i32> {
         let creator = 2;
-        __nodarium_execute_inner(&[&origin(), points, &[amount], &[encode_float(fan)], &[encode_float(length)], &[encode_float(0.1)], &[5], &[encode_float(1.0)], &[encode_float(1.0)], &[creator]])
+        __nodarium_execute_inner(&[&origin(), points, &[amount], &[encode_float(fan.to_radians())], &[encode_float(length)], &[encode_float(0.1)], &[5], &[encode_float(1.0)], &[encode_float(1.0)], &[creator]])
     }
 
     fn run(points: &[i32], amount: i32, length: f32) -> Vec<i32> {
@@ -222,7 +223,7 @@ mod tests {
     fn a_fan_keeps_the_ids_and_random_values_of_the_stems() {
         let length = concat_args(vec![&[1], &[encode_float(1.0)], &[encode_float(3.0)], &[7]]);
         let stems = |fan: f32| {
-            let mut data = __nodarium_execute_inner(&[&origin(), &[], &[3], &[encode_float(fan)], &length, &[encode_float(0.1)], &[5], &[encode_float(1.0)], &[encode_float(1.0)], &[2]]);
+            let mut data = __nodarium_execute_inner(&[&origin(), &[], &[3], &[encode_float(fan.to_radians())], &length, &[encode_float(0.1)], &[5], &[encode_float(1.0)], &[encode_float(1.0)], &[2]]);
             wrap_multiple_paths(&mut data)
                 .iter()
                 .map(|stem| {

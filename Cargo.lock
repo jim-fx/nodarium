@@ -429,6 +429,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "plantarium_cut"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
 name = "plantarium_deform"
 version = "0.1.0"
 dependencies = [
@@ -544,6 +553,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "plantarium_mix_shape"
+version = "0.1.0"
+dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
 name = "plantarium_neighbour_sensing"
 version = "0.1.0"
 dependencies = [
@@ -608,6 +625,15 @@ dependencies = [
 name = "plantarium_random_int"
 version = "0.1.0"
 dependencies = [
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
+name = "plantarium_revolve"
+version = "0.1.0"
+dependencies = [
+ "glam",
  "nodarium_macros",
  "nodarium_utils",
 ]

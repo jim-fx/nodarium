@@ -18,6 +18,7 @@ import {
   stringifyGraph
 } from '../cli/graph-commands';
 import { checkGraph, graphSourceOf } from '../cli/graph-input';
+import { probeGraph, probeLines } from '../cli/probe';
 import { docList, docText, templateList } from '../docs';
 import { MAX_GRAPH_LINK_BYTES } from '../graph-link';
 import { listNodes } from '../list-nodes';
@@ -44,7 +45,8 @@ const INSTRUCTIONS = paragraph(
   'Nodarium makes 3D plants and mushrooms from graphs of nodes. A graph is JSON: nodes with',
   'props, and edges between them. The tools work on graphs you pass as JSON, nothing is saved.',
   'The order that works: list_templates and get_template for a graph to start from, list_nodes',
-  'and get_node for the nodes you use, check_graph before run_graph, render_graph to see it, and',
+  'and get_node for the nodes you use, check_graph before run_graph, render_graph to see it,',
+  'probe_node to see the values or the sizes one node gives, and',
   'graph_link for a link that opens it in the editor. The prompt write_graph explains the format,',
   'get_docs gives the guides to the plant and mushroom nodes.'
 );
@@ -98,7 +100,8 @@ export function graphPrompt(request?: string) {
     paragraph(
       'The guide below names the commands of the `nodarium` command line. Here they are tools:',
       '`nodes` is list_nodes and get_node, `check` is check_graph, `run` is run_graph, `render` is',
-      'render_graph, `link` is graph_link and `run <template> --print-graph` is get_template. A',
+      'render_graph, `probe` is probe_node, `link` is graph_link and `run <template> --print-graph`',
+      'is get_template. A',
       '--set of an input is a change of the graph you pass, a --set of a setting goes into',
       '"settings".'
     ),
@@ -239,7 +242,9 @@ export function createServer(dir = nodesDir): McpServer {
     title: 'Run a graph',
     description: 'Builds the 3D model of a graph and answers with JSON: its vertices, faces, '
       + 'instances and meshes, its bounds in meters (min, max, height, width), the ms it took, '
-      + 'and "nodes", the ms and output bytes of every node, slowest first. A mushroom takes a '
+      + '"instancers", how many instances every instance node placed and how long and wide they '
+      + 'are in meters, and "nodes", the ms and output bytes of every node, slowest first. A '
+      + 'mushroom takes a '
       + 'few seconds. A graph with errors comes back as an error with all its issues.',
     inputSchema: { graph: GRAPH, seed: SEED, settings: SETTINGS },
     annotations: READ_ONLY
@@ -254,6 +259,36 @@ export function createServer(dir = nodesDir): McpServer {
       );
       const summary = { name: prepared.name, ...ran.summary, nodes: ran.nodes };
       return { content: [text(JSON.stringify(summary)), ...prepared.warnings] };
+    }));
+
+  server.registerTool('probe_node', {
+    title: 'Probe a node',
+    description: 'What comes out of one node of a graph, to find out why a part is too large, '
+      + 'missing or the same everywhere. For a float or integer output (random, curve, math, '
+      + 'path_info, ...) every value the nodes read from it, by the node and input its edge goes '
+      + 'into and the node that read it: how many, on how many paths, the smallest, largest and '
+      + 'mean. For a path, geometry or points output the paths by depth with their lengths in '
+      + 'meters, the instances with their length and width in meters, and the geometry with its '
+      + 'extents. A graph with errors comes back as an error with all its issues.',
+    inputSchema: {
+      graph: GRAPH,
+      node: z.number().int().describe('The id of the node of the graph to look at'),
+      seed: SEED,
+      settings: SETTINGS
+    },
+    annotations: READ_ONLY
+  }, ({ graph, node, seed, settings }) =>
+    answer(async () => {
+      const prepared = await prepare(graph);
+      const report = await probeGraph(
+        registry,
+        prepared.graph,
+        runSettings(prepared.graph, settings ?? {}, seed ?? 1),
+        node
+      );
+      return {
+        content: [text(probeLines(prepared.name, report).join('\n')), ...prepared.warnings]
+      };
     }));
 
   server.registerTool(
@@ -389,7 +424,7 @@ export function createServer(dir = nodesDir): McpServer {
       + 'their groups), "templates" (the list_templates list). Without a topic, the list of '
       + 'topics. The guides name the commands of the `nodarium` command line: `nodes` is '
       + 'list_nodes and get_node, `check` check_graph, `run` run_graph, `render` render_graph, '
-      + '`link` graph_link.',
+      + '`probe` probe_node, `link` graph_link.',
     inputSchema: {
       topic: z.string().optional().describe('A topic like "plant-templates", or a file name')
     },

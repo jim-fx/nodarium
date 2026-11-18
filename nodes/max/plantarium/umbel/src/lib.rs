@@ -158,7 +158,7 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
             let umbel = Umbel {
                 amount: ctx.int(args[1]).max(0),
                 variation: ctx.float(args[3]).clamp(0.0, 1.0),
-                opening: ctx.float(args[4]).to_radians(),
+                opening: ctx.float(args[4]),
                 shape: ctx.float(args[5]),
                 depth: ctx.int(args[7]).max(1),
                 umbellet_scale: ctx.float(args[8]),
@@ -238,7 +238,7 @@ mod tests {
             &[inputs.amount],
             &[encode_float(0.5)],
             &[encode_float(inputs.variation)],
-            &[encode_float(60.0)],
+            &[encode_float(60f32.to_radians())],
             &[encode_float(inputs.shape)],
             &[encode_float(0.01)],
             &[inputs.depth],

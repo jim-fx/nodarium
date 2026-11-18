@@ -109,6 +109,10 @@ pub struct Ctx {
     instance_id: Option<i32>,
 }
 
+/// `[9, tag, value]`: the value, which is also handed to the host with the tag. `nodarium probe`
+/// wraps the output of a node in it to see the values the nodes that read it get.
+pub const PROBE: i32 = 9;
+
 /// Stands where the creator stands in the id of a path. The id of a node is never negative, so
 /// an instance doesn't get the id of a path that grows on the same path with the same index.
 const INSTANCE: i32 = -2;
@@ -214,6 +218,11 @@ impl Ctx {
                 min + curve(&points, x) * (max - min)
             }
             [[6], value] => self.float(value).round(),
+            [[PROBE], [tag], value] => {
+                let v = self.float(value);
+                crate::probe(*tag, v, self.path_id);
+                v
+            }
             [[8], value, count, [shape]] => {
                 let x = self.float(value) * self.float(count);
                 wave(x - x.floor(), *shape)
@@ -342,6 +351,11 @@ impl Ctx {
                 (min as i64 + (self.random_u32(*seed) as u64 % range) as i64) as i32
             }
             [[6], value] => self.float(value).round() as i32,
+            [[PROBE], [tag], value] => {
+                let v = self.int(value);
+                crate::probe(*tag, v as f32, self.path_id);
+                v
+            }
             _ => 0,
         }
     }
@@ -538,6 +552,19 @@ mod tests {
         // and another math node that adds 2 to that result
 
         assert_eq!(Ctx::default().float(&input), 6.0);
+    }
+
+    #[test]
+    fn a_probe_gives_the_value_it_wraps_and_draws_nothing() {
+        let random = concat_args(vec![&[1], &[encode_float(0.0)], &[encode_float(1.0)], &[7]]);
+        let probed = concat_args(vec![&[PROBE], &[3], &random]);
+        let (mut plain, mut wrapped) = (Ctx::default(), Ctx::default());
+        for _ in 0..3 {
+            assert_eq!(plain.float(&random), wrapped.float(&probed));
+        }
+        let count = concat_args(vec![&[4], &[2], &[9], &[7]]);
+        let probed = concat_args(vec![&[PROBE], &[3], &count]);
+        assert_eq!(Ctx::default().int(&count), Ctx::default().int(&probed));
     }
 
     #[test]

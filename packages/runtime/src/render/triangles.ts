@@ -9,7 +9,7 @@ export const STEM_COLOR: Vec3 = [125, 95, 60];
 export const INSTANCE_COLOR: Vec3 = [70, 140, 60];
 const POINT_COLOR: Vec3 = [214, 84, 150];
 
-const POINTS_TAG = 4;
+export const POINTS_TAG = 4;
 const LINE_WORDS = 7;
 const TUBE_SIDES = 6;
 /** paths thinner than this share of the size of everything drawn are drawn this thick */
@@ -201,7 +201,7 @@ function addDot({ p, r }: Dot, triangles: Triangle[]) {
 }
 
 /** The items of a value: a list, or a single mesh or lines as a node gives them on their own */
-function itemsOf(data: Int32Array) {
+export function itemsOf(data: Int32Array) {
   if (data[0] === RESULT_TAGS.mesh || data[0] === RESULT_TAGS.lines) return [data];
   const items = splitNestedArray(data);
   // a single encoded item is not wrapped in an outer list

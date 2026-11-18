@@ -20,6 +20,18 @@ pub mod geometry;
 extern "C" {
     #[cfg(target_arch = "wasm32")]
     pub fn nodarium_log(ptr: *const u8, len: usize);
+    #[cfg(target_arch = "wasm32")]
+    fn nodarium_probe(tag: i32, value: f32, path: i32);
+}
+
+/// Hands a value a probe expression gave to the host, see `nodarium probe`
+pub fn probe(tag: i32, value: f32, path: i32) {
+    #[cfg(target_arch = "wasm32")]
+    unsafe {
+        nodarium_probe(tag, value, path);
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = (tag, value, path);
 }
 
 #[cfg(debug_assertions)]

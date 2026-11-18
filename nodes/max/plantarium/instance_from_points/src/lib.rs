@@ -10,15 +10,16 @@ nodarium_definition_file!("src/definition.json");
 
 /// Where and how an instance sits on `point`. The geometry grows along its -z axis, its face
 /// looks along +y. It sticks out along the direction of the point and faces up to the light as
-/// far as it can.
-fn transform(point: &Point, size: f32, angle: f32) -> Mat4 {
+/// far as it can, or with `face_path` toward the tip of the path.
+fn transform(point: &Point, size: f32, angle: f32, face_path: bool) -> Mat4 {
     // the angle tilts it along the path, positive toward the tip
     let out = point.direction * angle.cos() + point.tangent * angle.sin();
+    let along = point.tangent * angle.cos() - point.direction * angle.sin();
     let up = Vec3::Y - out * Vec3::Y.dot(out);
-    let face = if up.length_squared() > 1e-6 {
-        up.normalize()
+    let face = if face_path || up.length_squared() <= 1e-6 {
+        along
     } else {
-        point.tangent * angle.cos() - point.direction * angle.sin()
+        up.normalize()
     };
     let back = -out;
     let across = face.cross(back);
@@ -45,6 +46,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let seed = args.get(5).map_or(0, |s| s[0]);
     let by_index = args.get(6).is_some_and(|p| int(p) == 1);
     let pick_input = if by_index { args.get(7) } else { args.get(8) };
+    let face_path = args.get(9).is_some_and(|face| int(face) == 1);
 
     // the transforms of the instances of each geometry and the paths they sit on
     let mut placed: Vec<(Vec<[f32; 16]>, Vec<i32>)> = vec![Default::default(); geometries.len()];
@@ -64,7 +66,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             ctx.alpha = point.alpha;
             ctx.set_instance(point.index);
             let size = (point.scale + 0.01) * ctx.float(args[3]);
-            let angle = ctx.float(args[4]).to_radians();
+            let angle = ctx.float(args[4]);
             let pick = pick_input.map_or(0.0, |p| ctx.float(p));
             // the path has not grown up to this point yet, it reads its inputs like the others
             // so their random values stay
@@ -73,7 +75,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             }
             let hash = path_id(seed, point.parent_id, point.index);
             let choice = pick_geometry(by_index, pick, hash, geometries.len());
-            placed[choice].0.push(transform(point, size, angle).to_cols_array());
+            placed[choice].0.push(transform(point, size, angle, face_path).to_cols_array());
             placed[choice].1.push(point.parent_id);
         }
     }
@@ -170,7 +172,7 @@ mod tests {
             &encode_points(&[point]),
             &triangle(),
             &[encode_float(10.0)],
-            &[encode_float(90.0)],
+            &[encode_float(90f32.to_radians())],
         ]);
 
         let mut instance_data = split_args(&result)[1].to_vec();
@@ -181,6 +183,44 @@ mod tests {
         // pointing straight up, its face turns away from the direction of the point
         let face = matrix.y_axis.truncate().normalize();
         assert!((face - Vec3::NEG_X).length() < 1e-5);
+    }
+
+    /// The face of an instance that sticks out sideways from a path lying along +x
+    fn face_on_a_lying_path(face: i32) -> Vec3 {
+        let plant = create_multiple_paths(1, 4, 1, 6);
+        let point = Point {
+            position: Vec3::ZERO,
+            direction: Vec3::Z,
+            tangent: Vec3::X,
+            scale: 0.09,
+            parent_id: path_link(split_args(&plant)[0]).id,
+            alpha: 0.5,
+            depth: 1,
+            index: 0,
+        };
+        let zero = [encode_float(0.0)];
+        let result = __nodarium_execute_inner(&[
+            &plant,
+            &encode_points(&[point]),
+            &triangle(),
+            &[encode_float(10.0)],
+            &zero,
+            &[1],
+            &[0],
+            &zero,
+            &zero,
+            &[face],
+        ]);
+        let mut instance_data = split_args(&result)[1].to_vec();
+        let instances = wrap_instance_data(&mut instance_data);
+        Mat4::from_cols_slice(&instances.instances[..16]).y_axis.truncate().normalize()
+    }
+
+    #[test]
+    fn the_face_looks_up_or_along_the_path() {
+        assert!((face_on_a_lying_path(0) - Vec3::Y).length() < 1e-5);
+        // as if the path stood upright, it faces its tip
+        assert!((face_on_a_lying_path(1) - Vec3::X).length() < 1e-5);
     }
 
     #[test]
@@ -264,7 +304,7 @@ mod tests {
             .collect();
         // what the size and the angle inputs gave every instance, read back from its transform
         let read = |points: &[Point], per_instance: i32| -> Vec<(f32, f32)> {
-            let (min, max) = ([encode_float(10.0)], [encode_float(80.0)]);
+            let (min, max) = ([encode_float(0.2)], [encode_float(1.4)]);
             let random = concat_args(vec![&[1], &min, &max, &[7], &[1], &[0], &[5], &[0], &[per_instance]]);
             let result = __nodarium_execute_inner(&[&plant, &encode_points(points), &triangle(), &random, &random]);
             let mut instance_data = split_args(&result)[1].to_vec();
@@ -273,7 +313,7 @@ mod tests {
                 .chunks_exact(16)
                 .map(|m| {
                     let out = -Mat4::from_cols_slice(m).z_axis.truncate();
-                    (out.length() / 0.1, (out.y / out.length()).asin().to_degrees())
+                    (out.length() / 0.1, (out.y / out.length()).asin())
                 })
                 .collect()
         };
@@ -281,10 +321,10 @@ mod tests {
         let instances = read(&points, 1);
         assert_eq!(instances.len(), 6);
         for (i, (size, angle)) in instances.iter().enumerate() {
-            assert!((10.0..=80.0).contains(size), "{instances:?}");
-            assert!((size - angle).abs() < 0.01, "{instances:?}");
+            assert!((0.2..=1.4).contains(size), "{instances:?}");
+            assert!((size - angle).abs() < 1e-4, "{instances:?}");
             for (other, _) in &instances[..i] {
-                assert!((size - other).abs() > 0.01, "{instances:?}");
+                assert!((size - other).abs() > 1e-4, "{instances:?}");
             }
         }
 
@@ -293,7 +333,7 @@ mod tests {
 
         // without the option the two inputs draw one after the other
         let drawn = read(&points, 0);
-        assert!(drawn.iter().all(|(size, angle)| (size - angle).abs() > 0.01), "{drawn:?}");
+        assert!(drawn.iter().all(|(size, angle)| (size - angle).abs() > 1e-4), "{drawn:?}");
     }
 
     /// A geometry of `vertices` points at the origin and a single face.

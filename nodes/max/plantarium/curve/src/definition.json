@@ -27,17 +27,15 @@
     },
     "min": {
       "type": "float",
+      "description": "The value at the bottom of the curve (y 0), any number: negative for an angle that turns the other way, or larger than max to turn the curve upside down.",
       "hidden": true,
-      "min": 0,
-      "max": 10,
       "step": 0.05,
       "value": 0
     },
     "max": {
       "type": "float",
+      "description": "The value at the top of the curve (y 1), any number.",
       "hidden": true,
-      "min": 0,
-      "max": 10,
       "step": 0.05,
       "value": 1
     }

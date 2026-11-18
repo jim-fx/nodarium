@@ -13,9 +13,9 @@
     },
     "strength": {
       "type": "float",
-      "description": "How far a path droops: 1 turns its tip by 90° toward the ground, 0.5 by 45°, a negative value bends it up. Read along the path, alpha goes from the base (0) to the tip (1).",
-      "min": 0,
-      "max": 1,
+      "description": "How far a path droops: its tip turns by strength × 90° from its own direction toward the ground and on past it, so 0.5 turns it by 45°, 1 an upright tip to horizontal and 2 into a hook that points down. A negative value bends it up. Read along the path, alpha goes from the base (0) to the tip (1), and anew for every path, so time or path_info grown into a curve lets a bud nod and straighten up as it opens.",
+      "min": -2,
+      "max": 2,
       "value": 1
     },
     "depth": {

@@ -89,6 +89,9 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
 
   perf?: PerformanceStore;
 
+  /** Called with the id of every node right before it runs, the group instance for its nodes */
+  beforeNode?: (id: number) => void;
+
   /**
    * Every graph is checked by {@link validateGraph} before it runs, a graph with an error throws
    * a {@link GraphValidationError}
@@ -271,6 +274,7 @@ export class MemoryRuntimeExecutor implements RuntimeExecutor {
         log.log(`Inputs:`, inputs);
         // a module that has to be instantiated first takes longer than it will the next time
         const cold = definition.memoryBytes?.() === 0;
+        this.beforeNode?.(origins.get(node.id) ?? node.id);
         const a = performance.now();
         const result = definition.execute(inputs);
         results[node.id] = Array.isArray(result) ? result : [result];

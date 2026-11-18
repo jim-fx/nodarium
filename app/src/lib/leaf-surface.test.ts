@@ -44,7 +44,7 @@ const JOIN = 7;
 
 const graph = {
   id: 1,
-  version: 13,
+  version: 14,
   settings: {},
   groups: [],
   nodes: [
@@ -69,7 +69,7 @@ const graph = {
         amount: 12,
         lowest_point: 0.08,
         highest_point: 0.9,
-        rotation: 180,
+        rotation: Math.PI,
         offset_single: 0.3
       }
     },
@@ -77,7 +77,7 @@ const graph = {
       id: SIDE_VEINS,
       type: 'max/plantarium/branch_from_points',
       position: [0, 0],
-      props: { length: 0.3, thickness: 1, angle: 40, taper: 0.3 }
+      props: { length: 0.3, thickness: 1, angle: (40 * Math.PI) / 180, taper: 0.3 }
     },
     { id: SURFACE, type: 'max/plantarium/leaf_surface', position: [0, 0], props: { smooth: 0.1 } },
     { id: LEAF, type: 'max/plantarium/leaf', position: [0, 0], props: {} },
@@ -234,13 +234,13 @@ describe.skipIf(!BUILT && !ON_CI)('deform on the leaves of leaf_surface and leaf
         id: TWIST,
         type: 'max/plantarium/deform',
         position: [0, 0],
-        props: { mode: 2, amount: 0.25 }
+        props: { mode: 2, amount: Math.PI / 2 }
       },
       {
         id: CURL,
         type: 'max/plantarium/deform',
         position: [0, 0],
-        props: { mode: 1, amount: -0.25 }
+        props: { mode: 1, amount: -Math.PI / 2 }
       }
     );
     deformed.edges = deformed.edges.filter((e) => e[2] !== JOIN);

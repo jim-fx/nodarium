@@ -31,10 +31,10 @@
     },
     "angle": {
       "type": "float",
-      "description": "Tilts the instances along the path, positive toward the tip.",
-      "min": -90,
-      "max": 90,
-      "step": 1,
+      "description": "Tilts every instance from the direction of its point, in radians: positive toward the tip of the path, negative toward its base, 1.5708 along it. Read for every instance.",
+      "min": -1.5708,
+      "max": 1.5708,
+      "step": 0.01,
       "value": 0,
       "hidden": true
     },
@@ -65,6 +65,14 @@
       "value": 0,
       "hidden": true,
       "description": "With pick random: above 0 the later geometries of the list are picked more often, below 0 the earlier ones."
+    },
+    "face": {
+      "type": "select",
+      "internal": true,
+      "hidden": true,
+      "options": ["up", "path"],
+      "value": 0,
+      "description": "Which way the face of an instance looks, its top side, which y_curve and deform bend it from. Up: toward the sky as far as it can, like leaves that turn to the light. Path: as if the path stood upright, toward its tip and the inside of the ring, so the face turns with the path: the petals or bracts around a head that nods or leans all look at its axis alike. On an upright path both are the same."
     }
   }
 }

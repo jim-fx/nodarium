@@ -170,10 +170,18 @@ function wrongValueType(input: NodeInput, value: unknown): string | undefined {
       return typeof value === 'boolean' || value === 0 || value === 1
         ? undefined
         : 'true, false, 1 or 0';
-    case 'select':
-      return typeof value === 'number' || typeof value === 'string'
-        ? undefined
+    case 'select': {
+      const options = (input.options ?? []).map((o, i) =>
+        typeof o === 'string' ? `${i} "${o}"` : `${o.value} "${o.label}"`
+      );
+      const names = (input.options ?? []).map(o => (typeof o === 'string' ? o : o.label));
+      if (typeof value === 'number' || (typeof value === 'string' && names.includes(value))) {
+        return undefined;
+      }
+      return options.length
+        ? `the number or the name of an option: ${options.join(', ')}`
         : 'the index or the name of an option';
+    }
     case 'vec3':
       return isNumberArray(value) && (value as number[]).length === 3
         ? undefined

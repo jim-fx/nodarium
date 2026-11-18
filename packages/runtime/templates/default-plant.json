@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 13,
+  "version": 14,
   "settings": { "time.t": 1, "resolution.circle": 8, "resolution.curve": 24 },
   "groups": [],
   "nodes": [
@@ -56,8 +56,8 @@
         "lowest_branch": 0.46,
         "highest_branch": 1,
         "depth": 1,
-        "rotation": 180,
-        "angle": 19,
+        "rotation": 3.1415927,
+        "angle": 0.3316126,
         "taper": 1
       }
     },
@@ -92,7 +92,7 @@
         "highest_instance": 1,
         "rotation": 3.14,
         "depth": 1,
-        "angle": 65,
+        "angle": 1.134464,
         "pick": 1
       },
       "exposed": ["angle"]
@@ -109,6 +109,12 @@
       "position": [185, 153.33],
       "type": "max/plantarium/math",
       "props": { "op_type": 2, "a": 2, "b": 65 }
+    },
+    {
+      "id": 71,
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "b": 0.017453292519943295 },
+      "position": [200, 119.165]
     },
     { "id": 5, "position": [5, -12.87], "type": "max/plantarium/alpha", "props": {} },
     {
@@ -135,6 +141,12 @@
       "position": [95, -2.81],
       "type": "max/plantarium/math",
       "props": { "op_type": 2, "a": 2, "b": 84.411 }
+    },
+    {
+      "id": 72,
+      "type": "max/plantarium/math",
+      "props": { "op_type": 2, "b": 0.017453292519943295 },
+      "position": [110, -17.06]
     },
     { "id": 21, "position": [5, -63.87], "type": "max/plantarium/alpha", "props": {} },
     {
@@ -357,12 +369,14 @@
     [24, 0, 18, "plant"],
     [3, 0, 0, "value"],
     [0, 0, 4, "a"],
-    [4, 0, 2, "angle"],
+    [71, 0, 2, "angle"],
+    [4, 0, 71, "a"],
     [5, 0, 7, "value"],
     [7, 0, 6, "a"],
     [11, 0, 12, "value"],
     [12, 0, 8, "a"],
-    [8, 0, 18, "angle"],
+    [72, 0, 18, "angle"],
+    [8, 0, 72, "a"],
     [21, 0, 22, "value"],
     [22, 0, 23, "factor"],
     [19, 0, 24, "plant"],

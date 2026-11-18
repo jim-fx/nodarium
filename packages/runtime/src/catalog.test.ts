@@ -70,7 +70,9 @@ describe('the catalog', () => {
     expect(block).toContain('  scale: float = 1 [0.1..10]');
     expect(block).toContain('  fix_bottom: float = 1 [0..1] (hidden)');
     expect(block).toContain('  seed: seed');
-    expect(formatNode(findNodes(nodes, 'rotate')[0])).toContain('  axis: select = x (x, y, z)');
+    expect(formatNode(findNodes(nodes, 'rotate')[0])).toContain(
+      '  axis: select = x (0 x, 1 y, 2 z)'
+    );
     expect(formatNode(findNodes(nodes, 'max/plantarium/stem')[0])).toContain(
       '  length: float = 5 m'
     );

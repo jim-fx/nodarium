@@ -79,19 +79,19 @@
     },
     "rotation": {
       "type": "float",
-      "description": "The rotation of the branches.",
+      "description": "How far every branch turns around the path from the one before it, in radians: 2.3998 is the golden angle (137.5°), 3.1416 puts them in two ranks. The first branch points to the side, 1.5708 down and 4.7124 up from there. Read for every branch.",
       "hidden": true,
       "min": 0,
-      "max": 360,
+      "max": 6.2832,
       "step": 0.01,
-      "value": 137.5
+      "value": 2.3998
     },
     "angle": {
       "type": "float",
-      "description": "Upward tilt of branches. 0 = horizontal, positive = upward, negative = drooping.",
-      "min": -90,
-      "max": 90,
-      "step": 1,
+      "description": "Tilts every branch from sticking straight out of the path, in radians: positive toward the tip of the path (up on an upright stem), negative toward its base, 1.5708 along it. Read for every branch. To let a tip nod past horizontal, use gravity with a strength above 1.",
+      "min": -1.5708,
+      "max": 1.5708,
+      "step": 0.01,
       "value": 0
     },
     "taper": {

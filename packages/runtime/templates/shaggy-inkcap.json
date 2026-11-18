@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 13,
+  "version": 14,
   "meta": { "unit": "cm" },
   "settings": {
     "time.t": 0.6,
@@ -245,12 +245,18 @@
           ]
         },
         {
+          "id": 8009,
+          "type": "max/plantarium/math",
+          "props": { "op_type": 2, "b": 0.017453292519943295 },
+          "position": [-315, -23.75]
+        },
+        {
           "id": 22,
           "position": [-330, 31.25],
           "type": "max/plantarium/random",
           "props": {
-            "min": -60,
-            "max": 60,
+            "min": -1.0471976,
+            "max": 1.0471976,
             "uniform": 1
           }
         },
@@ -532,12 +538,8 @@
           23,
           "plant"
         ],
-        [
-          21,
-          0,
-          23,
-          "angle"
-        ],
+        [8009, 0, 23, "angle"],
+        [21, 0, 8009, "a"],
         [
           22,
           0,
