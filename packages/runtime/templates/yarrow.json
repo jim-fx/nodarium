@@ -1,5 +1,5 @@
 {
-  "version": 16,
+  "version": 17,
   "meta": {
     "title": "Yarrow",
     "unit": "cm"
@@ -1457,7 +1457,8 @@
       "props": {
         "max_circle_segments": 3,
         "max_points": 5,
-        "variants": 1
+        "variants": 1,
+        "bake": 1
       },
       "position": [
         -330,
@@ -1739,7 +1740,8 @@
       "type": "max/plantarium/to_geometry",
       "props": {
         "max_circle_segments": 4,
-        "max_points": 6
+        "max_points": 6,
+        "bake": 1
       },
       "position": [
         -120,
@@ -2061,7 +2063,8 @@
       "type": "max/plantarium/to_geometry",
       "props": {
         "max_circle_segments": 3,
-        "max_points": 4
+        "max_points": 4,
+        "bake": 1
       },
       "position": [
         -120,
