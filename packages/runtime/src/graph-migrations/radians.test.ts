@@ -44,15 +44,16 @@ function graph(nodes: SerializedNode[], edges: Graph['edges']): Graph {
   return { id: 1, version: 13, nodes, edges, groups: [] };
 }
 
+const recordedTemplates = Object.entries(before as Record<string, GeometrySummary>)
+  .filter(([name]) => name.startsWith('templates/'))
+  .map(([name, old]) => [name.slice('templates/'.length), old] as const);
+
 describe('every angle in radians (graph version 14)', () => {
-  it('builds the templates as they were built with degrees', async () => {
-    const recorded = before as Record<string, GeometrySummary>;
-    for (const [name, old] of Object.entries(recorded)) {
-      if (!name.startsWith('templates/')) continue;
-      const file = new URL(`${name.slice('templates/'.length)}.json`, templatesDir);
-      const template = parseProjectFile(JSON.parse(readFileSync(file, 'utf8'))).graph;
-      expectSame(await build(template), old, name);
-    }
+  // one test per template: all of them in one test take longer than a test may on CI
+  it.each(recordedTemplates)('builds %s as it was built with degrees', async (name, old) => {
+    const file = new URL(`${name}.json`, templatesDir);
+    const template = parseProjectFile(JSON.parse(readFileSync(file, 'utf8'))).graph;
+    expectSame(await build(template), old, name);
   });
 
   it('builds a graph of version 13 as it was built with degrees', async () => {
