@@ -2,14 +2,19 @@
 export type Suffixes = Record<string, (value: number) => number>;
 
 const NUMBER = /\s*((?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)/y;
-const WORD = /\s*([a-z]+)/y;
+const WORD = /\s*([a-z]+|°)/y;
 const SYMBOL = /\s*([-+*/()])/y;
 
 /**
  * Evaluates typed text like "2,5", "pi / 2" or "(1 + 2) * -3".
- * Returns undefined if the text is not an expression or has no finite result.
+ * Returns undefined if the text is not an expression or has no finite result. `pi` is half a turn in
+ * the unit of the result, 180 when it is in degrees.
  */
-export function evaluate(text: string, suffixes: Suffixes = {}): number | undefined {
+export function evaluate(
+  text: string,
+  suffixes: Suffixes = {},
+  pi = Math.PI
+): number | undefined {
   const source = text.toLowerCase().replaceAll(',', '.');
   let position = 0;
 
@@ -58,7 +63,7 @@ export function evaluate(text: string, suffixes: Suffixes = {}): number | undefi
       return suffix ? suffixes[suffix](parseFloat(digits)) : parseFloat(digits);
     }
 
-    return read(WORD, (word) => word === 'pi') ? Math.PI : NaN;
+    return read(WORD, (word) => word === 'pi') ? pi : NaN;
   }
 
   const result = sum();

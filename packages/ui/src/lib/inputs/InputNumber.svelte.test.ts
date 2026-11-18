@@ -136,4 +136,41 @@ describe('InputNumber', () => {
       unitSettings.unit = 'm';
     }
   });
+
+  it('should show an angle in the angle unit and keep radians', async () => {
+    const stored = { value: Math.PI / 2 };
+    unitSettings.angle = 'deg';
+    try {
+      render(InputNumber, {
+        get value() {
+          return stored.value;
+        },
+        set value(v: number) {
+          stored.value = v;
+        },
+        unit: 'rad',
+        min: 0,
+        max: Math.PI
+      });
+      const input = page.getByRole('textbox');
+      await expect.element(input).toHaveValue('90');
+      await expect.element(page.getByTestId('unit-label')).toHaveTextContent('°');
+      await expect.element(input).toHaveAttribute('max', '180');
+      await input.fill('45');
+      await input.element().blur();
+      await expect.element(input).toHaveValue('45');
+      expect(stored.value).toBeCloseTo(Math.PI / 4, 12);
+      await input.fill('0.5rad');
+      await input.element().blur();
+      expect(stored.value).toBe(0.5);
+      await expect.element(input).toHaveValue('28.648');
+
+      unitSettings.angle = 'rad';
+      await expect.element(input).toHaveValue('0.5');
+      await expect.element(page.getByTestId('unit-label')).toHaveTextContent('rad');
+      expect(stored.value).toBe(0.5);
+    } finally {
+      unitSettings.angle = 'rad';
+    }
+  });
 });

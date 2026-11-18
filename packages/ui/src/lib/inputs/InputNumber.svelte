@@ -1,6 +1,14 @@
 <script lang="ts">
-  import { evaluate } from '../expression';
-  import { parseLength, roundDisplay, UNIT_FACTORS, unitSettings } from '../units.svelte';
+  import type { InputUnit } from '@nodarium/types';
+  import {
+    formatStep,
+    formatValue,
+    parseValue,
+    roundDisplay,
+    unitFactor,
+    unitLabel as labelOf,
+    unitSettings
+  } from '../units.svelte';
 
   interface Props {
     value?: number;
@@ -8,8 +16,8 @@
     min?: number;
     max?: number;
     id?: string;
-    /** Marks the value as a length in meters, it is shown in the project unit */
-    unit?: 'm';
+    /** Marks the value as a length in meters or an angle in radians, shown in the unit of the settings */
+    unit?: InputUnit;
   }
 
   let {
@@ -30,13 +38,18 @@
     return Math.min(max, Math.max(min, v));
   }
 
-  // the value is stored in meters, the input shows it in the project unit
-  const factor = $derived(unit ? UNIT_FACTORS[unitSettings.unit] : 1);
-  const unitLabel = $derived(unit && unitSettings.show ? unitSettings.unit : undefined);
+  const factor = $derived(unitFactor(unit));
+  const unitLabel = $derived(unitSettings.show ? labelOf(unit) : undefined);
 
+  // snaps in shown units, so a step of 0.01 rad drags by whole degrees
   function snap(v: number, s = step) {
-    if (s) v = Math.round(v / s) * s;
-    return +v.toFixed(3 + Math.round(Math.log10(factor)));
+    let shown = v * factor;
+    if (s) {
+      const shownStep = formatStep(s, unit);
+      shown = Math.round(shown / shownStep) * shownStep;
+    }
+    shown = +shown.toFixed(3);
+    return factor === 1 ? shown : roundDisplay(shown / factor);
   }
 
   // the auto step follows the magnitude of the shown value, so 25 cm snaps to 10 cm and not to 0.1 m
@@ -106,7 +119,7 @@
     }
   }
 
-  const displayValue = $derived(roundDisplay(value * factor));
+  const displayValue = $derived(formatValue(value, unit));
 
   const width = $derived(
     Number.isFinite(value)
@@ -114,23 +127,18 @@
       : '20px'
   );
 
-  // the input is text, so "10cm", "pi / 2" or "2 * 3" can be typed, a plain number is read in the project unit
+  // the input is text, so "10cm", "45°", "pi / 2" or "2 * 3" can be typed, a plain number is read in the shown unit
   function onChange(e: Event & { currentTarget: HTMLInputElement }) {
-    const text = e.currentTarget.value;
-    const parsed = unit ? parseLength(text) : evaluate(text);
+    const parsed = parseValue(e.currentTarget.value, unit);
     if (parsed !== undefined) {
       value = parsed;
     }
-    // show the parsed value in the project unit again, also when the text was invalid
-    e.currentTarget.value = String(roundDisplay(value * factor));
+    // show the parsed value in the shown unit again, also when the text was invalid
+    e.currentTarget.value = String(formatValue(value, unit));
   }
 
-  function stepUp(e: MouseEvent) {
-    value = snap(value + (e.shiftKey ? step! * 10 : step!));
-  }
-
-  function stepDown(e: MouseEvent) {
-    value = snap(value - (e.shiftKey ? step! * 10 : step!));
+  function stepBy(e: MouseEvent, direction: number) {
+    value = snap(value + direction * (e.shiftKey ? 10 : 1) * formatStep(step!, unit) / factor);
   }
 </script>
 
@@ -143,7 +151,7 @@
   {#if step}
     <button
       aria-label="step down"
-      onmousedown={stepDown}
+      onmousedown={(e) => stepBy(e, -1)}
       class="cursor-pointer w-4 bg-layer-3/30 hover:bg-layer-3/50"
     >
       <span class="i-[tabler--chevron-left] block h-full w-full text-outline!"></span>
@@ -165,9 +173,9 @@
       onchange={onChange}
       type="text"
       {id}
-      step={step ? step * factor : step}
-      min={min * factor}
-      max={max * factor}
+      step={step ? formatStep(step, unit) : step}
+      min={formatValue(min, unit)}
+      max={formatValue(max, unit)}
       inputmode="decimal"
       onkeydown={onKeyDown}
       onmousedown={onMouseDown}
@@ -188,7 +196,7 @@
     <div class="w-px bg-outline"></div>
     <button
       aria-label="step up"
-      onmousedown={stepUp}
+      onmousedown={(e) => stepBy(e, 1)}
       class="cursor-pointer w-4 bg-layer-3/30 hover:bg-layer-3/50"
     >
       <span class="i-[tabler--chevron-right] block h-full w-full text-outline!"></span>

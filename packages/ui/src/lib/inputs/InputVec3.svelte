@@ -1,10 +1,11 @@
 <script lang="ts">
+  import type { InputUnit } from '@nodarium/types';
   import InputNumber from './InputNumber.svelte';
 
   interface Props {
     value?: number[];
     id?: string;
-    unit?: 'm';
+    unit?: InputUnit;
   }
 
   let { value = $bindable([0, 0, 0]), id = '', unit }: Props = $props();

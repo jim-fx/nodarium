@@ -43,6 +43,13 @@ export const AppSettingTypes = {
     label: 'Show Units',
     value: true
   },
+  // only how angles are shown, the graph keeps radians
+  angleUnit: {
+    type: 'select',
+    label: 'Angles',
+    options: ['rad', 'deg'],
+    value: 'rad'
+  },
   planty: {
     type: 'button',
     label: '🌱 Open Planty'

@@ -5,6 +5,7 @@
     type NodeOutput,
     type NodeRegistry
   } from '@nodarium/types';
+  import { describeAngles } from '@nodarium/ui';
   import type { Attachment } from 'svelte/attachments';
 
   let mx = $state(0);
@@ -76,9 +77,9 @@
   {#if node}
     <div class="mb-4">
       {#if input}
-        {node?.inputs?.[input]?.description || input}
+        {describeAngles(node?.inputs?.[input]?.description || input)}
       {:else if node?.meta?.description}
-        {node?.meta?.description}
+        {describeAngles(node.meta.description)}
       {:else}
         <div class="text-xs opacity-30 mb-4">{node.id}</div>
       {/if}
