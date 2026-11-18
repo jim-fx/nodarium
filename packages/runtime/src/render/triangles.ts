@@ -32,7 +32,8 @@ function blend(colors: Uint8Array | undefined, corners: number[], fallback: numb
 }
 
 function addMesh(part: Int32Array, triangles: Triangle[]) {
-  // [14, vertices, faces, flags, ...faces, ...positions, ...normals, ...colors?, ...groups]
+  // [14, vertices, faces, flags, ...faces, ...positions, ...normals, ...colors?, ...groups,
+  //   n?, ...creators?], only what comes before the groups is read
   const [vertexCount, faceCount] = [part[1], part[2]];
   const faces = part.subarray(4, 4 + faceCount * 3);
   const positions = floats(part, 4 + faceCount * 3, vertexCount * 3);

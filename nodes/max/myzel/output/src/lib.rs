@@ -134,6 +134,7 @@ mod tests {
             normals: vec![0.0, 0.0, 1.0].repeat(3),
             colors: Vec::new(),
             groups: vec![0; 3],
+            creators: vec![12],
         }
         .encode();
         assert_eq!(run(&mesh), vec![mesh.clone()]);

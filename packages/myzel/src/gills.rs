@@ -853,7 +853,7 @@ pub fn gills(inputs: &GillInputs, profile: GillProfile) -> Gills {
 pub fn write_gills(inputs: &GillInputs, profile: GillProfile) -> Output {
     let (plates, _) = plates_by(inputs, profile, |ctx| DepthAlong::read(ctx, inputs.depth), false);
     let (vertices, faces) = plates_size(&plates);
-    write_mesh(vertices, faces, |mesh| add_plates(mesh, &plates))
+    write_mesh(vertices, faces, &[inputs.creator], |mesh| add_plates(mesh, &plates))
 }
 
 fn gills_by(inputs: &GillInputs, profile: GillProfile, read_depth: impl FnMut(&mut Ctx) -> DepthAlong) -> Gills {
@@ -865,7 +865,7 @@ fn gills_by(inputs: &GillInputs, profile: GillProfile, read_depth: impl FnMut(&m
     add_plates(&mut mesh, &plates);
     debug_assert_eq!((mesh.vertex_count(), mesh.face_count()), (vertices, faces));
     smooth_normals(&mut mesh);
-    Gills { mesh, paths }
+    Gills { mesh: mesh.made_by(inputs.creator), paths }
 }
 
 /// The vertices and faces of the mesh of `plates`

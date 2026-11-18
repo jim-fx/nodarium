@@ -37,6 +37,8 @@ export type MeshData = {
   colors?: Uint8Array;
   /** material group per vertex */
   groups?: Int32Array;
+  /** by group, the creator id of the graph node that made it, `NO_CREATOR` for none */
+  creators?: Int32Array;
 };
 
 function readLayout(data: Int32Array, headerLength: number): MeshData {
@@ -75,13 +77,26 @@ export function readGeometry(data: Int32Array) {
 /** Set in the flags word of a Myzel mesh when it brings one color per vertex */
 export const MESH_HAS_COLORS = 1;
 
-/** Myzel mesh: `[14, v, f, flags, ...faces, ...positions, ...normals, ...colors?, ...groups]` */
+/** Set in the flags word of a Myzel mesh when the creators of its groups follow the groups */
+export const MESH_HAS_CREATORS = 2;
+
+/** The creator of a group of a Myzel mesh that no graph node is known for */
+export const NO_CREATOR = -(2 ** 31);
+
+/**
+ * Myzel mesh: `[14, v, f, flags, ...faces, ...positions, ...normals, ...colors?, ...groups, n?,
+ * ...creators?]`. With `MESH_HAS_CREATORS` the groups are followed by their number and the
+ * creator id of the graph node that made each of them. Meshes of nodes built before that have
+ * neither the flag nor the table and are read as before.
+ */
 export function readMesh(data: Int32Array) {
   const mesh = readLayout(data, 4);
   const withColors = (data[3] & MESH_HAS_COLORS) !== 0;
+  const withCreators = (data[3] & MESH_HAS_CREATORS) !== 0;
   const colorsStart = 4 + mesh.faceCount * 3 + mesh.vertexCount * 6;
   const groupsStart = colorsStart + (withColors ? mesh.vertexCount : 0);
-  const expected = groupsStart + mesh.vertexCount;
+  const groupsEnd = groupsStart + mesh.vertexCount;
+  const expected = withCreators ? groupsEnd + 1 + Math.max(data[groupsEnd] ?? 0, 0) : groupsEnd;
   if (data.length !== expected) {
     throw new Error(
       `A mesh with ${mesh.vertexCount} vertices, ${mesh.faceCount} faces and flags ${
@@ -90,7 +105,8 @@ export function readMesh(data: Int32Array) {
     );
   }
   if (withColors) mesh.colors = colorsAt(data, colorsStart, mesh.vertexCount);
-  mesh.groups = data.subarray(groupsStart, expected);
+  mesh.groups = data.subarray(groupsStart, groupsEnd);
+  if (withCreators) mesh.creators = data.subarray(groupsEnd + 1, expected);
   return mesh;
 }
 

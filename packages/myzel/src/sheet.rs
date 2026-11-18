@@ -120,12 +120,13 @@ pub fn smooth_normals_in_words(words: &mut [i32]) {
 }
 
 /// A mesh of up to `vertices` and `faces` as the result, written straight into the result buffer
-/// by `build` and given smooth normals, see [`MeshWriter`]
-pub fn write_mesh(vertices: usize, faces: usize, build: impl FnOnce(&mut MeshWriter)) -> Output {
-    abi::write_result(MeshWriter::len(vertices, faces), |words| {
+/// by `build` and given smooth normals, see [`MeshWriter`]. `creators` are the graph nodes that
+/// made its groups, by the number of the group.
+pub fn write_mesh(vertices: usize, faces: usize, creators: &[i32], build: impl FnOnce(&mut MeshWriter)) -> Output {
+    abi::write_result(MeshWriter::len_with(vertices, faces, creators.len()), |words| {
         let mut writer = MeshWriter::new(words, vertices, faces);
         build(&mut writer);
-        let len = writer.finish();
+        let len = writer.finish_with(creators);
         smooth_normals_in_words(&mut words[..len]);
         len
     })

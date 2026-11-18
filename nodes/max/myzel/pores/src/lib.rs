@@ -2,7 +2,7 @@
 
 use myzel_core::{write_pores, PoreInputs};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
-use nodarium_utils::abi::Output;
+use nodarium_utils::{abi::Output, int};
 
 nodarium_definition_file!("src/definition.json");
 
@@ -13,7 +13,14 @@ pub fn execute(args: &[&[i32]]) -> Output {
 
 /// args follow the key order of the inputs in definition.json
 fn inputs<'a>(args: &[&'a [i32]]) -> PoreInputs<'a> {
-    PoreInputs { cap: args[0], pattern: args[1], depth: args[2], free_distance: args[3], pore_depth: args[4] }
+    PoreInputs {
+        cap: args[0],
+        pattern: args[1],
+        depth: args[2],
+        free_distance: args[3],
+        pore_depth: args[4],
+        creator: int(args[5]),
+    }
 }
 
 #[cfg(test)]
@@ -31,11 +38,11 @@ mod tests {
     fn run(depth: f32, free_distance: f32, pore_depth: f32) -> Mesh {
         let cap = testing::list(&testing::grow(&testing::cone()));
         let pattern = pattern();
-        let args: [&[i32]; 5] =
-            [&cap, &pattern, &[encode_float(depth)], &[encode_float(free_distance)], &[encode_float(pore_depth)]];
+        let args: [&[i32]; 6] =
+            [&cap, &pattern, &[encode_float(depth)], &[encode_float(free_distance)], &[encode_float(pore_depth)], &[7]];
         let words = unsafe { __nodarium_execute_inner(&args).words() }.to_vec();
         // written straight into the result like the mesh is encoded
-        assert_eq!(words, pores(&inputs(&args)).encode());
+        assert_eq!(words, pores(&inputs(&args)).made_by(7).encode());
         Mesh::decode(&words)
     }
 

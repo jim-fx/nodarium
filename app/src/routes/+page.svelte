@@ -14,6 +14,8 @@
   import { openUrlProject } from '#lib/project-manager/open-url.ts';
   import { ProjectManager } from '#lib/project-manager/project-manager.svelte.ts';
   import ProjectBrowser from '#lib/project-manager/ProjectBrowser.svelte';
+  import { nodeTraits } from '#lib/provenance/provenance.ts';
+  import { ViewportLink } from '#lib/provenance/viewport-link.svelte.ts';
   import { type ProbePath, readPaths } from '#lib/result-viewer/gizmos/gizmo-paths.ts';
   import {
     addProbe,
@@ -231,6 +233,18 @@
     if (probeKey !== undefined) untrack(() => manager?.execute());
   });
 
+  const viewportLink = new ViewportLink({
+    enabled: () => appSettings.value.viewportLink.enabled,
+    manager: () => manager,
+    graphState: () => graphInterface?.state,
+    result: () => ({
+      links: viewerComponent?.pathLinks() ?? new Map(),
+      tissues: viewerComponent?.meshCreators() ?? new Set()
+    }),
+    traits: nodeTraits((type) => nodeRegistry.getNode(type)),
+    notify: (message) => toast(message, 'info', 3000)
+  });
+
   function handleGizmoChange(nodeId: number, change: GizmoChange) {
     const node = manager?.getNode(nodeId);
     if (!node) return;
@@ -302,6 +316,11 @@
       preventDefault: true,
       description: 'Rename project',
       callback: () => titleBar?.startRename()
+    },
+    {
+      key: 'i',
+      description: 'Local view: only show what the selected node made',
+      callback: () => viewportLink.toggleLocalView()
     }
   ]);
 
@@ -356,12 +375,14 @@
         ms: waited,
         nodeTimings: run.nodeTimings
       };
+      viewportLink.resultVersion++;
       pm.thumbnails.schedule(g, run.result);
       runs.succeeded(runKey);
     } catch (error) {
       runs.failed();
       // the viewer would keep showing the geometry of the previous graph otherwise
       viewerComponent?.update(new Int32Array());
+      viewportLink.resultVersion++;
       const info = errorInfo(error);
       lastBuild = {
         graph: g,
@@ -553,6 +574,11 @@
           ongizmoend={() => manager?.endUndoStep()}
           centerCamera={appSettings.value.centerCamera}
           projectId={pm.activeId}
+          picking={appSettings.value.viewportLink.enabled}
+          highlight={viewportLink.highlight}
+          localView={viewportLink.localView}
+          onparthover={viewportLink.onparthover}
+          onpartclick={viewportLink.onpartclick}
         />
         {#if lastBuild}
           <ResultStats
@@ -585,6 +611,8 @@
             }}
             onresult={(result) => dragHold.request(result)}
             onregister={(node, wasm) => registerDroppedNode(node, wasm)}
+            highlightedNodeIds={viewportLink.highlightedNodeIds}
+            onnodehover={viewportLink.onnodehover}
           />
         {/key}
       {/if}

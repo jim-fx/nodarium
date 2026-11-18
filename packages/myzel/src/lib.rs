@@ -1,6 +1,6 @@
 //! Shared core of the Myzel nodes: meshes, paths, colors and the settings that shape them.
 //!
-//! # Mesh `[14, v, f, flags, ...faces, ...positions, ...normals, ...colors, ...groups]`
+//! # Mesh `[14, v, f, flags, ...faces, ...positions, ...normals, ...colors, ...groups, n, ...creators]`
 //!
 //! `faces` are `3f` vertex indices (counter-clockwise seen from outside),
 //! `positions` and `normals` are `3v` f32. `colors` is only there when `flags`
@@ -9,7 +9,11 @@
 //! material, and so are vertices whose alpha is 0 ([`NO_COLOR`]); in between
 //! the alpha is how much of the vertex color shows over the material. `groups` holds one small integer per vertex that tells which
 //! material group it belongs to: for meshes made from paths the graph node that
-//! made the path, numbered by [`group_numbers`], 0 for meshes made from a pattern.
+//! made the path, numbered by [`group_numbers`], 0 for meshes made from a pattern. When `flags`
+//! has [`mesh_flags::CREATORS`] set, the groups are followed by their number `n` and the creator
+//! id of the graph node that made each of them ([`NO_CREATOR`] for none), so the viewer can lead
+//! from a part of the mesh to its node. `join_meshes` numbers the groups of every mesh after
+//! those of the meshes before it and keeps their creators.
 //! Thin closed sheets like gill plates and veils, which stay
 //! sharp at any mesh resolution, are built with [`add_sheet`]. The gills of `lamellae` and
 //! `ridges` come from [`gills`], the tubes of `pores` from [`pores`], the veil of `membrane`
@@ -67,11 +71,11 @@ pub use gills::{gills, write_gills, GillInputs, GillProfile, Gills};
 pub use hyphae_mesh::{paths_mesh, HyphaeMeshParams};
 pub use pores::{pores, write_pores, PoreInputs};
 pub use paths::{
-    group_numbers, path_lines, path_segments, read_paths, MeshPath, PathGroup,
+    group_creators, group_numbers, path_lines, path_segments, read_paths, MeshPath, PathGroup,
     PathStyle, LINES_TAG,
 };
 pub use inputs::{read_float, read_floats, read_int, read_mesh};
-pub use mesh::{mesh_flags, pack_rgba, Mesh, MeshBuild, MeshWords, MeshWriter, MESH_TAG};
+pub use mesh::{mesh_flags, pack_rgba, Mesh, MeshBuild, MeshWords, MeshWriter, MESH_TAG, NO_CREATOR};
 pub use noise::value_noise;
 pub use settings::{
     apply_settings, color_value, read_settings, with_setting, PathSettings, Setting, SettingItem, SETTING_TAG,

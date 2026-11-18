@@ -27,6 +27,7 @@ mod tests {
             normals: vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
             colors: if colored { vec![opaque([80, 52, 40]); 3] } else { Vec::new() },
             groups: groups.to_vec(),
+            creators: Vec::new(),
         }
     }
 

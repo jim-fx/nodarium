@@ -10,6 +10,13 @@ export type Framing = {
   far: number;
 };
 
+/** Where the camera is and how big the content was that it was fitted to */
+export type CameraView = {
+  camera: [number, number, number];
+  target: [number, number, number];
+  radius: number | undefined;
+};
+
 /** Content smaller than this (in meters) is framed as if it were this big */
 const MIN_RADIUS = 0.001;
 /** The radius of an empty scene, one meter */

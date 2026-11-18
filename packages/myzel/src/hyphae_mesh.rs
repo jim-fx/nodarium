@@ -4,7 +4,7 @@ use crate::color::{linear_rgba, pack_linear, NO_COLOR};
 use crate::density::{surface_in, Frame, Meshing, Segment, TissueField};
 use crate::mesh::Mesh;
 use crate::noise::value_noise;
-use crate::paths::{group_numbers, path_segments, MeshPath, PathStyle};
+use crate::paths::{group_creators, group_numbers, path_segments, MeshPath, PathStyle};
 use crate::spatial::{distance_sq_to_segment, TubeTree};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -90,6 +90,7 @@ pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
 
     let groups = group_numbers(paths);
     s.mesh.groups = s.owners.iter().map(|&i| groups[owner[i as usize]]).collect();
+    s.mesh.creators = group_creators(paths);
     if paths.iter().any(|p| p.settings.color.is_some()) {
         let colors: Vec<u32> = owner.iter().map(|&k| paths[k].settings.color.unwrap_or(NO_COLOR)).collect();
         let cell = s.cell;

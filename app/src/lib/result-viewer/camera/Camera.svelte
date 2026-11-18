@@ -5,7 +5,7 @@
   import { Vector3 } from 'three';
   import type { PerspectiveCamera, Vector3Tuple } from 'three';
   import type { OrbitControls as OrbitControlsType } from 'three/examples/jsm/controls/OrbitControls.js';
-  import { damp, type Framing } from './camera-framing';
+  import { type CameraView, damp, type Framing } from './camera-framing';
 
   let camera = $state<PerspectiveCamera>();
   let controls = $state<OrbitControlsType>();
@@ -119,6 +119,27 @@
       animating = true;
       task.start();
     }
+  }
+
+  /** Where the camera is, to come back to with `restore` */
+  export function snapshot(): CameraView | undefined {
+    if (!camera || !controls) return;
+    return {
+      camera: camera.position.toArray(),
+      target: controls.target.toArray(),
+      radius: lastRadius
+    };
+  }
+
+  export function restore(view: CameraView) {
+    if (!camera || !controls) return;
+    stopAnimation();
+    camera.position.fromArray(view.camera);
+    controls.target.fromArray(view.target);
+    // the content is as big as it was then, so the camera is not fitted to it again
+    lastRadius = view.radius;
+    controls.update();
+    saveCameraState();
   }
 
   $effect(() => {

@@ -397,10 +397,10 @@ pub fn skins_mesh(skins: &[Skin]) -> Mesh {
     mesh
 }
 
-/// [`skins_mesh`] written straight into the result
-pub fn write_skins(skins: &[Skin]) -> Output {
+/// [`skins_mesh`] written straight into the result, as made by the graph node `creator`
+pub fn write_skins(skins: &[Skin], creator: i32) -> Output {
     let (vertices, faces) = skins_size(skins);
-    write_mesh(vertices, faces, |mesh| {
+    write_mesh(vertices, faces, &[creator], |mesh| {
         for skin in skins {
             add_skin(mesh, skin);
         }

@@ -274,7 +274,10 @@ export class MouseEventManager {
     const my = event.clientY - this.state.rect.y;
 
     this.state.mousePosition = this.state.camera.toWorld(mx, my);
-    this.state.hoveredNodeId = this.state.getNodeIdFromEvent(event);
+    // the position of a pointer outside of the editor can still lie on a node next to the view
+    this.state.hoveredNodeId = this.state.wrapper?.contains(event.target as Node)
+      ? this.state.getNodeIdFromEvent(event)
+      : -1;
     this.state.movePointer(event);
 
     if (!this.state.mouseDown) return;

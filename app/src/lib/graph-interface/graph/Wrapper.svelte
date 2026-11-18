@@ -20,6 +20,10 @@
     onregister?: (node: NodeDefinition, wasm: ArrayBuffer) => Promise<void> | void;
     /** the `?` shortcut */
     onhelp?: () => void;
+    /** Nodes to point out, apart from the selection: what made the part hovered in the viewer */
+    highlightedNodeIds?: number[];
+    /** The node under the pointer changed, `undefined` when there is none */
+    onnodehover?: (nodeId: number | undefined) => void;
   };
 
   let {
@@ -29,7 +33,9 @@
     onsave,
     onresult,
     onregister,
-    onhelp
+    onhelp,
+    highlightedNodeIds,
+    onnodehover
   }: Props = $props();
 
   export const keymap = createKeyMap([]);
@@ -44,6 +50,14 @@
   onDestroy(persistCamera(state.camera, () => manager.id));
 
   setupKeymaps(keymap, manager, state, () => onhelp?.());
+
+  const highlighted = $derived(new Set(highlightedNodeIds));
+  state.readHighlightedNodes = () => highlighted;
+
+  $effect(() => {
+    const hovered = state.hoveredNodeId;
+    onnodehover?.(hovered === -1 ? undefined : hovered);
+  });
 
   $effect(() => {
     if (!state.addMenuPosition) {
