@@ -14,7 +14,7 @@ export const LINK_COLORS: Record<string, Color> = {
   geometry: { hue: 0, saturation: 70, lightness: 50 }, // #ed6c6c
   mesh: { hue: 335, saturation: 100, lightness: 63 }, // #ff8cc6
   pattern: { hue: 264, saturation: 100, lightness: 63 }, // #c58cff
-  '*': { hue: 200, saturation: 100, lightness: 20 } // #2e7fb8
+  '*': { hue: 200, saturation: 100, lightness: 20 } // #008daa
 };
 
 export class ColorGenerator {
