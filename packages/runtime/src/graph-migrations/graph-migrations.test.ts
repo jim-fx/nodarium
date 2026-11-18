@@ -2225,7 +2225,7 @@ describe('version 18: one output node that takes only geometry', () => {
       ],
       [[2, 0, 1, 'input']]
     );
-    const migrated = migrateGraph(old);
+    const migrated = migrateTo(18, old);
     expect(migrated.version).toBe(18);
     expect(migrated.nodes).toEqual([
       { id: 1, type: 'max/core/output', props: {}, position: [330, 80] },
@@ -2315,5 +2315,62 @@ describe('version 18: one output node that takes only geometry', () => {
       'max/plantarium/stem'
     ]);
     expect(group.edges).toEqual([[12, 0, 13, 'input'], [13, 0, 11, 'input']]);
+  });
+});
+
+describe('version 19: one set_color, hyphae_to_mesh reads the colors of the points', () => {
+  const v18 = (nodes: SerializedNode[], edges: Graph['edges'] = []): Graph => ({
+    ...graph(nodes, edges),
+    version: 18
+  });
+
+  it('makes the Myzel set_color the Plantarium one that colors every level', () => {
+    const old = v18(
+      [
+        node(1, 'max/myzel/set_color', { color: [240, 236, 228] }),
+        node(2, 'max/plantarium/neighbour_sensing'),
+        node(3, 'max/core/mix_color'),
+        node(4, 'max/myzel/hyphae_to_mesh'),
+        node(5, 'max/plantarium/set_color', { color: [92, 128, 58] })
+      ],
+      [[2, 0, 1, 'paths'], [3, 0, 1, 'color'], [1, 0, 4, 'paths']]
+    );
+    old.nodes[0].exposed = ['color', 'paths'];
+    const migrated = migrateGraph(old);
+    expect(migrated.version).toBe(19);
+    expect(migrated.nodes[0]).toEqual({
+      ...node(1, 'max/plantarium/set_color', { color: [240, 236, 228], depth: 10 }),
+      exposed: ['color', 'plant']
+    });
+    expect(migrated.nodes.slice(1)).toEqual(old.nodes.slice(1));
+    expect(migrated.edges).toEqual([[2, 0, 1, 'plant'], [3, 0, 1, 'color'], [1, 0, 4, 'paths']]);
+  });
+
+  it('migrates the set_color nodes inside groups', () => {
+    const old = v18([node(1, '__internal/group/instance', { groupId: 10 })]);
+    old.groups = [{
+      id: 10,
+      nodes: [node(11, 'max/myzel/set_color'), node(12, 'max/plantarium/strands')],
+      edges: [[12, 0, 11, 'paths']]
+    }] as unknown as Graph['groups'];
+    const [group] = migrateGraph(old).groups!;
+    expect(group.nodes[0]).toEqual(
+      node(11, 'max/plantarium/set_color', { color: [240, 236, 228], depth: 10 })
+    );
+    expect(group.edges).toEqual([[12, 0, 11, 'plant']]);
+  });
+
+  it('keeps the default color of the Myzel node where nothing sets one', () => {
+    const old = v18(
+      [
+        node(1, 'max/myzel/set_color'),
+        node(2, 'max/myzel/set_color'),
+        node(3, 'max/core/mix_color')
+      ],
+      [[3, 0, 2, 'color']]
+    );
+    const migrated = migrateGraph(old);
+    expect(migrated.nodes[0].props).toEqual({ color: [240, 236, 228], depth: 10 });
+    expect(migrated.nodes[1].props).toEqual({ depth: 10 });
   });
 });

@@ -55,7 +55,7 @@ Where alpha and the path come from, the nodes that set them before they read the
 
 ## Colors
 
-A color input holds the sRGB bytes `[0, 4, r, g, b, 1, 1]`, or the expression of the `mix_color` node `[7, a, b, factor]`, where `a` and `b` are colors and `factor` a float. `ctx.color` reads it like a float input, the factor with alpha and the path, see Colors in [PLANTARIUM.md](./PLANTARIUM.md). A factor that is an expression is read by the node that uses the color, Plantarium's `set_color` with alpha and the path, so a curve of alpha makes a gradient. Myzel nodes read it once, without a path.
+A color input holds the sRGB bytes `[0, 4, r, g, b, 1, 1]`, or the expression of the `mix_color` node `[7, a, b, factor]`, where `a` and `b` are colors and `factor` a float. `ctx.color` reads it like a float input, the factor with alpha and the path, see Colors in [PLANTARIUM.md](./PLANTARIUM.md). A factor that is an expression is read by the node that uses the color, Plantarium's `set_color` with alpha and the path, so a curve of alpha makes a gradient, on a mushroom too: `hyphae_to_mesh` colors the surface with the colors of the points. Myzel nodes that take a color read it once, without a path.
 
 ## Time
 

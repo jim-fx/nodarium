@@ -4,7 +4,7 @@ use crate::color::{linear_rgba, pack_linear, NO_COLOR};
 use crate::density::{surface_in, Frame, Meshing, Segment, TissueField};
 use crate::Mesh;
 use crate::noise::value_noise;
-use crate::paths::{group_creators, group_numbers, path_segments, MeshPath, PathStyle};
+use crate::paths::{group_creators, group_numbers, path_segments, MeshPath, PathGroup, PathStyle};
 use crate::spatial::{distance_sq_to_segment, TubeTree};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -91,11 +91,11 @@ pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
     let groups = group_numbers(paths);
     s.mesh.groups = s.owners.iter().map(|&i| groups[owner[i as usize]]).collect();
     s.mesh.creators = group_creators(paths);
-    if paths.iter().any(|p| p.settings.color.is_some()) {
-        let colors: Vec<u32> = owner.iter().map(|&k| paths[k].settings.color.unwrap_or(NO_COLOR)).collect();
+    if paths.iter().any(|p| !p.colors.is_empty()) {
+        let shading = Shading::new(paths, &owner);
         let cell = s.cell;
         let seam: Vec<f32> = segments.iter().zip(&meshing).map(|(g, m)| seam_width(g, m, cell)).collect();
-        s.mesh.colors = blend_colors(&s.mesh, &s.owners, &segments, &colors, &seam);
+        s.mesh.colors = blend_colors(&s.mesh, &s.owners, &segments, &shading, &seam);
     }
 
     // the relief of a path is its fibres relative to those of the node, so it stays the same where they are the same
@@ -121,37 +121,110 @@ fn seam_width(segment: &Segment, meshing: &Meshing, cell: f32) -> f32 {
 /// A seam fades out over this many seam widths
 const SEAM_REACH: f32 = 3.0;
 
+/// The colors of the segments, in the order [`paths_mesh`] makes them, and which of them blend as
+/// one. The paths of a node that has one color everywhere share it with every other path of that
+/// color. A node whose paths change color along them or from path to path, like a gradient of
+/// `alpha` or a color per path, is one of its own: there a vertex takes the color of its nearest
+/// segment of the node at the point nearest to it.
+struct Shading {
+    /// The color at the start and at the end of every segment, [`NO_COLOR`] for a path without colors
+    ends: Vec<[u32; 2]>,
+    /// The slot of every segment
+    slot: Vec<usize>,
+    /// The color of every slot, `None` for a node that changes color
+    slots: Vec<Option<u32>>,
+}
+
+impl Shading {
+    fn new(paths: &[MeshPath], owner: &[usize]) -> Shading {
+        let mut ends = Vec::with_capacity(owner.len());
+        for path in paths.iter().filter(|p| !p.is_empty()) {
+            let color = |i: usize| path.colors.get(i).copied().unwrap_or(NO_COLOR);
+            match path.len() {
+                1 => ends.push([color(0); 2]),
+                n => ends.extend((1..n).map(|i| [color(i - 1), color(i)])),
+            }
+        }
+        let creator = |i: usize| match paths[owner[i]].group {
+            PathGroup::Creator(c) => c,
+        };
+        // the one color of every node, None for a node of several
+        let mut one: Vec<(i32, Option<u32>)> = Vec::new();
+        for (i, pair) in ends.iter().enumerate() {
+            let c = creator(i);
+            let k = one.iter().position(|&(n, _)| n == c).unwrap_or_else(|| {
+                one.push((c, Some(pair[0])));
+                one.len() - 1
+            });
+            if one[k].1.is_some_and(|color| pair.iter().any(|&e| e != color)) {
+                one[k].1 = None;
+            }
+        }
+        #[derive(PartialEq)]
+        enum Key {
+            Color(u32),
+            Node(i32),
+        }
+        let mut keys: Vec<Key> = Vec::new();
+        let slot = (0..ends.len())
+            .map(|i| {
+                let c = creator(i);
+                let key = match one.iter().find(|&&(n, _)| n == c).and_then(|&(_, color)| color) {
+                    Some(color) => Key::Color(color),
+                    None => Key::Node(c),
+                };
+                keys.iter().position(|k| *k == key).unwrap_or_else(|| {
+                    keys.push(key);
+                    keys.len() - 1
+                })
+            })
+            .collect();
+        let slots = keys.iter().map(|k| if let Key::Color(c) = k { Some(*c) } else { None }).collect();
+        Shading { ends, slot, slots }
+    }
+}
+
+/// The color of a segment at the point nearest to `p`, in linear light, mixed premultiplied so a
+/// segment towards a point without color fades and keeps its hue
+fn color_along(segment: &Segment, [start, end]: [u32; 2], p: Vec3) -> [f32; 4] {
+    let a = linear_rgba(start);
+    if start == end {
+        return a;
+    }
+    let b = linear_rgba(end);
+    let axis = segment.end - segment.start;
+    let t = if axis.length_squared() > 0.0 { ((p - segment.start).dot(axis) / axis.length_squared()).clamp(0.0, 1.0) } else { 0.0 };
+    let alpha = a[3] + (b[3] - a[3]) * t;
+    if alpha <= 0.0 {
+        return [0.0; 4];
+    }
+    let mix = |c: usize| (a[c] * a[3] * (1.0 - t) + b[c] * b[3] * t) / alpha;
+    [mix(0), mix(1), mix(2), alpha]
+}
+
 /// The color of every vertex, mixed from the colors of the segments near it. Each color counts by
 /// how much farther its nearest tube is than the nearest tube of any color, `exp(-(Δd / w)²)` with
 /// the seam width `w` of the two segments: one color away from the others, and an even mix where
 /// two colors are equally near, so the color goes over smoothly where the surface goes over from
-/// one path to the next, filled gaps included. Colors mix in linear light, a vertex without a
-/// color of its own ([`NO_COLOR`]) only lowers the alpha.
-fn blend_colors(mesh: &Mesh, owners: &[u32], segments: &[Segment], colors: &[u32], seam: &[f32]) -> Vec<u32> {
-    let mut palette: Vec<u32> = Vec::new();
-    let slot: Vec<usize> = colors
-        .iter()
-        .map(|c| {
-            palette.iter().position(|p| p == c).unwrap_or_else(|| {
-                palette.push(*c);
-                palette.len() - 1
-            })
-        })
-        .collect();
+/// one path to the next, filled gaps included. A slot of a node that changes color counts as one
+/// color, the one of its nearest segment there, see [`Shading`]. Colors mix in linear light, a
+/// vertex without a color of its own ([`NO_COLOR`]) only lowers the alpha.
+fn blend_colors(mesh: &Mesh, owners: &[u32], segments: &[Segment], shading: &Shading, seam: &[f32]) -> Vec<u32> {
+    let Shading { ends, slot, slots } = shading;
     let n = mesh.vertex_count();
-    if palette.len() == 1 {
-        return vec![palette[0]; n];
+    if let [Some(color)] = slots[..] {
+        return vec![color; n];
     }
-    let linear: Vec<[f32; 4]> = palette.iter().map(|&c| linear_rgba(c)).collect();
+    let linear: Vec<Option<[f32; 4]>> = slots.iter().map(|c| c.map(linear_rgba)).collect();
     let reach = seam.iter().fold(0.0f32, |a, &w| a.max(w)) * SEAM_REACH;
-    let mut tubes = vec![Vec::new(); palette.len()];
+    let mut tubes = vec![Vec::new(); slots.len()];
     for (i, s) in segments.iter().enumerate() {
         tubes[slot[i]].push((s.start, s.end, s.radius, i as u32));
     }
     let trees: Vec<TubeTree> = tubes.into_iter().map(TubeTree::new).collect();
     let tube = |i: usize, p: Vec3| distance_sq_to_segment(p, segments[i].start, segments[i].end).sqrt() - segments[i].radius;
 
-    let mut nearest = vec![(f32::INFINITY, 0usize); palette.len()];
+    let mut nearest = vec![(f32::INFINITY, 0usize); slots.len()];
     let mut out = Vec::with_capacity(n);
     for (p, &own) in mesh.positions.chunks_exact(3).zip(owners) {
         let p = Vec3::from_slice(p);
@@ -183,7 +256,7 @@ fn blend_colors(mesh: &Mesh, owners: &[u32], segments: &[Segment], colors: &[u32
             }
             let weight = (-x * x).exp();
             // premultiplied, so a seam to a vertex without color doesn't fade the color towards white
-            let [r, g, b, a] = linear[k];
+            let [r, g, b, a] = linear[k].unwrap_or_else(|| color_along(&segments[i], ends[i], p));
             for (c, value) in [r, g, b].into_iter().enumerate() {
                 sum[c] += value * a * weight;
             }
@@ -328,7 +401,7 @@ fn add_fibres(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::color::opaque;
+    use crate::color::{mix_colors, opaque};
     use crate::density::{assert_closed, components, surface};
     use crate::paths::PathGroup;
     use crate::settings::PathSettings;
@@ -495,6 +568,7 @@ mod tests {
             .iter()
             .map(|(p, creator)| MeshPath {
                 points: Cow::Borrowed(p),
+                colors: Cow::Borrowed(&[]),
                 group: PathGroup::Creator(*creator),
                 style,
                 settings: PathSettings::default(),
@@ -848,7 +922,7 @@ mod tests {
     }
 
     fn set(fibres: f32, fill: f32) -> PathSettings {
-        PathSettings { fibres: Some(fibres), fill: Some(fill), color: None }
+        PathSettings { fibres: Some(fibres), fill: Some(fill) }
     }
 
     #[test]
@@ -977,13 +1051,23 @@ mod tests {
         assert!((top(&mixed, -0.25) - top(&low, -0.25)).abs() < 2.0 * cell, "{} vs {}", top(&mixed, -0.25), top(&low, -0.25));
     }
 
-    fn colored(points: &[(Vec<f32>, i32)], colors: &[(i32, [u8; 3])]) -> Vec<MeshPath<'static>> {
+    /// The paths of `points`, those of a node of `colors` with a color at every point from
+    /// `color(path, point)` of the node's two colors
+    fn shaded<'a>(points: &'a [(Vec<f32>, i32)], colors: &[(i32, [u8; 3])], color: impl Fn(usize, usize, [u8; 3]) -> u32) -> Vec<MeshPath<'a>> {
         mesh_paths(points, PathStyle::BODY)
             .into_iter()
-            .map(|p| {
-                let color = colors.iter().find(|(creator, _)| p.group == PathGroup::Creator(*creator)).map(|(_, c)| opaque(*c));
-                MeshPath { points: std::borrow::Cow::Owned(p.points.into_owned()), settings: PathSettings { color, ..p.settings }, ..p }
+            .enumerate()
+            .map(|(k, p)| match colors.iter().find(|(creator, _)| p.group == PathGroup::Creator(*creator)) {
+                Some(&(_, c)) => MeshPath { colors: Cow::Owned((0..p.len()).map(|i| color(k, i, c)).collect()), ..p },
+                None => p,
             })
+            .collect()
+    }
+
+    fn colored(points: &[(Vec<f32>, i32)], colors: &[(i32, [u8; 3])]) -> Vec<MeshPath<'static>> {
+        shaded(points, colors, |_, _, c| opaque(c))
+            .into_iter()
+            .map(|p| MeshPath { points: Cow::Owned(p.points.into_owned()), colors: Cow::Owned(p.colors.into_owned()), ..p })
             .collect()
     }
 
@@ -1063,7 +1147,8 @@ mod tests {
         let seam = [0.01, 0.1];
         let mesh = Mesh { positions: vec![0.0, 0.01, 0.0], ..Mesh::default() };
         let colors = [opaque(RED), opaque(BLUE)];
-        let [r, _, b, _] = linear_rgba(blend_colors(&mesh, &[0], &segments, &colors, &seam)[0]);
+        let shading = Shading { ends: vec![[colors[0]; 2], [colors[1]; 2]], slot: vec![0, 1], slots: vec![Some(colors[0]), Some(colors[1])] };
+        let [r, _, b, _] = linear_rgba(blend_colors(&mesh, &[0], &segments, &shading, &seam)[0]);
         let ([r0, _, b0, _], [r1, _, b1, _]) = (linear_rgba(colors[0]), linear_rgba(colors[1]));
         let blue = ((r - r0) * (r1 - r0) + (b - b0) * (b1 - b0)) / ((r1 - r0).powi(2) + (b1 - b0).powi(2));
         // 0.08 farther than the red tube with a seam of 0.055: exp(-(0.08 / 0.055)²) of blue
@@ -1089,5 +1174,72 @@ mod tests {
             }
         }
         assert!(faded > 10, "only {} vertices at the seam", faded);
+    }
+
+    #[test]
+    fn a_gradient_along_the_paths_goes_along_the_surface() {
+        // node 1 from red at z -0.5 to blue at z 0.5, node 2 in red
+        let points = two_slabs();
+        let params = HyphaeMeshParams { resolution: 96, fill: 6.0, ..HyphaeMeshParams::default() };
+        let gradient = |_: usize, i: usize, _: [u8; 3]| opaque(mix_colors(RED, BLUE, i as f32 / 10.0));
+        let mesh = paths_mesh(&shaded(&points, &[(1, RED)], gradient), &params);
+        let plain = paths_mesh(&mesh_paths(&points, PathStyle::BODY), &params);
+        assert_eq!(mesh.positions, plain.positions);
+        let [r0, _, b0, _] = linear_rgba(opaque(RED));
+        let [r1, _, b1, _] = linear_rgba(opaque(BLUE));
+        let blue = |v: usize| {
+            let [r, _, b, _] = linear_rgba(mesh.colors[v]);
+            ((r - r0) * (r1 - r0) + (b - b0) * (b1 - b0)) / ((r1 - r0).powi(2) + (b1 - b0).powi(2))
+        };
+        let mut bins = [(0.0f32, 0usize); 8];
+        for v in 0..mesh.vertex_count() {
+            let p = vertex(&mesh, v);
+            if p.x < -0.2 && p.z.abs() < 0.4 {
+                let bin = (((p.z + 0.4) / 0.1) as usize).min(7);
+                bins[bin].0 += blue(v);
+                bins[bin].1 += 1;
+            }
+        }
+        let share: Vec<f32> = bins.iter().map(|(sum, n)| sum / *n.max(&1) as f32).collect();
+        assert!(share[0] < 0.2 && share[7] > 0.8, "blue along the paths {:?}", share);
+        for pair in share.windows(2) {
+            assert!(pair[1] > pair[0], "blue along the paths {:?}", share);
+        }
+        // neighbouring vertices of node 1 differ a little, there is no edge along the paths
+        for f in mesh.faces.chunks_exact(3) {
+            for (i, j) in [(f[0], f[1]), (f[1], f[2]), (f[2], f[0])] {
+                let (pi, pj) = (vertex(&mesh, i as usize), vertex(&mesh, j as usize));
+                if pi.x < -0.2 && pj.x < -0.2 {
+                    let step = (blue(i as usize) - blue(j as usize)).abs();
+                    assert!(step < 0.1, "the color jumps by {} between {} and {}", step, pi, pj);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_color_per_path_stays_on_its_path() {
+        // every path of node 2 in a color of its own, node 1 in one color
+        let points = two_slabs();
+        let params = HyphaeMeshParams { resolution: 96, fill: 0.0, ..smooth() };
+        let per_path = |k: usize, _: usize, _: [u8; 3]| opaque([0, 10 * k as u8, 0]);
+        let paths = shaded(&points, &[(1, RED), (2, RED)], |k, i, c| if points[k].1 == 1 { opaque(c) } else { per_path(k, i, c) });
+        let mesh = paths_mesh(&paths, &params);
+        for v in 0..mesh.vertex_count() {
+            let p = vertex(&mesh, v);
+            // the nearest path of node 2 gives its color, away from the seam to node 1
+            if p.x > 0.15 {
+                let k = (0..points.len())
+                    .filter(|&k| points[k].1 == 2)
+                    .min_by(|&a, &b| {
+                        let d = |k: usize| path_segments(&points[k].0).iter().map(|s| distance_sq_to_segment(p, s.start, s.end)).fold(f32::INFINITY, f32::min);
+                        d(a).total_cmp(&d(b))
+                    })
+                    .unwrap();
+                assert_eq!(mesh.colors[v], per_path(k, 0, RED), "vertex at {}", p);
+            } else if p.x < -0.2 {
+                assert_eq!(mesh.colors[v], opaque(RED), "vertex at {}", p);
+            }
+        }
     }
 }

@@ -94,8 +94,13 @@ describe('the catalog', () => {
 
   it('finds a node by its name in every collection that has it', () => {
     expect(findNodes(nodes, 'set_color').map((node) => node.id)).toEqual([
-      'max/myzel/set_color',
       'max/plantarium/set_color'
+    ]);
+    const join = nodes.find((node) => node.id === 'max/plantarium/join')!;
+    const other = { ...join, id: 'max/other/join' } as NodeDefinition;
+    expect(findNodes([other, ...nodes], 'join').map((node) => node.id)).toEqual([
+      'max/other/join',
+      'max/plantarium/join'
     ]);
     expect(findNodes(nodes, 'nope')).toEqual([]);
   });

@@ -163,16 +163,19 @@ mod tests {
     }
 
     #[test]
-    fn colors_reach_their_paths() {
-        use myzel_core::{color_value, opaque, with_setting, Setting, NO_COLOR};
+    fn the_colors_of_the_points_color_the_surface() {
+        use myzel_core::{opaque, NO_COLOR};
+        use nodarium_utils::{geometry::with_path_colors, split_args};
         let d = HyphaeMeshParams::default();
         let white = [240, 236, 228];
+        let colored = |list: Vec<i32>| {
+            concat_arg_vecs(split_args(&list).iter().map(|path| with_path_colors(path, &[opaque(white); 8])).collect())
+        };
         let body = concat_arg_vecs(vec![paths(3, 42, 0.0), paths(2, 9, 0.03)]);
         let plain = run(&body, &d);
         assert!(plain.colors.is_empty());
         // node 42 white, node 9 keeps the material away from the seam
-        let set = with_setting(&body, Setting::Color, color_value(white));
-        let only_42 = concat_arg_vecs(vec![with_setting(&paths(3, 42, 0.0), Setting::Color, color_value(white)), paths(2, 9, 0.03)]);
+        let only_42 = concat_arg_vecs(vec![colored(paths(3, 42, 0.0)), paths(2, 9, 0.03)]);
         let mesh = run(&only_42, &d);
         assert_eq!(mesh.positions, plain.positions);
         for (k, &c) in mesh.colors.iter().enumerate() {
@@ -183,7 +186,8 @@ mod tests {
                 assert_eq!(c, NO_COLOR, "vertex at x {}", x);
             }
         }
-        assert!(run(&set, &d).colors.iter().all(|&c| c == opaque(white)));
+        let all = concat_arg_vecs(vec![colored(paths(3, 42, 0.0)), colored(paths(2, 9, 0.03))]);
+        assert!(run(&all, &d).colors.iter().all(|&c| c == opaque(white)));
     }
 
     #[test]

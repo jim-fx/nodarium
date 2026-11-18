@@ -12,16 +12,16 @@
 //!
 //! # Paths
 //!
-//! Myzel meshes Plantarium paths, see `nodarium_utils::geometry`.
+//! Myzel meshes Plantarium paths, see `nodarium_utils::geometry`. The colors a path carries at
+//! its points (Plantarium's `set_color`) color the surface around it.
 //!
 //! # Settings `[13, setting, value, ...creators]`
 //!
 //! A value of `hyphae_to_mesh` for every path of the graph nodes `creators`: `setting` 1 is the
-//! fibres, 2 the fill, 3 the color, `value` is an f32 (the color as
-//! `r | g << 8 | b << 16`, see [`color_value`]). The `set_fibres`, `set_fill` and
-//! `set_color` nodes put one into a path list next to the paths that pass through them, see
-//! [`with_setting`], and the mesh nodes give it to the paths, see [`apply_settings`]. A later
-//! setting replaces an earlier one, paths without one keep the value of the mesh node.
+//! fibres, 2 the fill, `value` is an f32. The `set_fibres` and `set_fill` nodes put one into a
+//! path list next to the paths that pass through them, see [`with_setting`], and the mesh nodes
+//! give it to the paths, see [`apply_settings`]. A later setting replaces an earlier one, paths
+//! without one keep the value of the mesh node.
 //!
 //! # Colors `[0, 4, r, g, b, 1, 1]`
 //!
@@ -63,7 +63,7 @@ pub use inputs::{read_float, read_floats, read_int, read_mesh};
 pub use nodarium_utils::geometry::{geometry_flags, geometry_input, pack_rgba, Mesh, MeshBuild, MeshWords, MeshWriter, NO_CREATOR};
 pub use noise::value_noise;
 pub use settings::{
-    apply_settings, color_value, read_settings, with_setting, PathSettings, Setting, SettingItem, SETTING_TAG,
+    apply_settings, read_settings, with_setting, PathSettings, Setting, SettingItem, SETTING_TAG,
 };
 pub use sheet::{add_sheet, sheet_checks, sheet_size, smooth_normals, smooth_normals_in_words, write_mesh, SheetGrid};
 pub use spatial::{distance_sq_to_segment, SpatialHash};

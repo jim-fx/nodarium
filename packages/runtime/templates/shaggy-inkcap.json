@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 18,
+  "version": 19,
   "meta": { "unit": "cm" },
   "settings": {
     "time.t": 0.6,
@@ -383,8 +383,10 @@
         {
           "id": 35,
           "position": [-30, 5],
-          "type": "max/myzel/set_color",
-          "props": {}
+          "type": "max/plantarium/set_color",
+          "props": {
+            "depth": 10
+          }
         }
       ],
       "edges": [
@@ -628,7 +630,7 @@
           34,
           0,
           35,
-          "paths"
+          "plant"
         ],
         [
           3,
@@ -989,8 +991,10 @@
         {
           "id": 60,
           "position": [-30, -5],
-          "type": "max/myzel/set_color",
-          "props": {}
+          "type": "max/plantarium/set_color",
+          "props": {
+            "depth": 10
+          }
         },
         {
           "id": 61,
@@ -1187,7 +1191,7 @@
           59,
           0,
           60,
-          "paths"
+          "plant"
         ],
         [
           37,

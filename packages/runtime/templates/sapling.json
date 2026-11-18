@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 0,
-  "version": 18,
+  "version": 19,
   "groups": [
     {
       "id": 1000,
