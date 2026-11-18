@@ -1,9 +1,10 @@
 {
-  "version": 17,
+  "version": 18,
   "groups": [],
   "settings": { "resolution.circle": 64, "resolution.curve": 64 },
   "nodes": [
-    { "id": 9, "position": [260, 0], "type": "max/plantarium/output", "props": {} },
+    { "id": 9, "position": [290, 0], "type": "max/core/output", "props": {} },
+    { "id": 23, "position": [260, 0], "type": "max/plantarium/to_geometry", "props": {} },
     {
       "id": 18,
       "position": [170, 0],
@@ -38,7 +39,8 @@
   "edges": [
     [18, 0, 19, "plant"],
     [19, 0, 20, "plant"],
-    [20, 0, 9, "input"],
+    [20, 0, 23, "input"],
+    [23, 0, 9, "input"],
     [21, 0, 18, "origin"],
     [22, 0, 21, "x"],
     [22, 0, 21, "z"]

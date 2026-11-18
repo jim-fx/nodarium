@@ -1,6 +1,6 @@
 {
   "id": 96544,
-  "version": 17,
+  "version": 18,
   "groups": [],
   "settings": { "resolution.circle": 32, "resolution.curve": 32 },
   "nodes": [
@@ -1354,7 +1354,8 @@
       "type": "max/core/math",
       "props": { "op_type": 0, "a": 1, "b": 0.075 }
     },
-    { "id": 225, "position": [510, 560], "type": "max/plantarium/output", "props": {} },
+    { "id": 225, "position": [540, 560], "type": "max/core/output", "props": {} },
+    { "id": 228, "position": [510, 560], "type": "max/plantarium/to_geometry", "props": {} },
     {
       "id": 226,
       "position": [450, 560],
@@ -1602,6 +1603,7 @@
     [223, 0, 224, "a"],
     [224, 0, 226, "length"],
     [226, 0, 227, "plant"],
-    [227, 0, 225, "input"]
+    [227, 0, 228, "input"],
+    [228, 0, 225, "input"]
   ]
 }

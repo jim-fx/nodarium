@@ -1,5 +1,5 @@
 {
-  "version": 17,
+  "version": 18,
   "meta": {
     "title": "Great Mullein",
     "unit": "m"
@@ -1604,13 +1604,14 @@
     },
     {
       "id": 91,
-      "type": "max/plantarium/output",
+      "type": "max/core/output",
       "props": {},
       "position": [
-        0,
+        30,
         0
       ]
     },
+    { "id": 1003, "position": [0, 0], "type": "max/plantarium/to_geometry", "props": {} },
     {
       "id": 1001,
       "type": "max/core/math",
@@ -2434,12 +2435,8 @@
       90,
       "b"
     ],
-    [
-      90,
-      0,
-      91,
-      "input"
-    ],
+    [90, 0, 1003, "input"],
+    [1003, 0, 91, "input"],
     [
       161,
       0,

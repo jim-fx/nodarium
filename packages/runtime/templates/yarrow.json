@@ -1,5 +1,5 @@
 {
-  "version": 17,
+  "version": 18,
   "meta": {
     "title": "Yarrow",
     "unit": "cm"
@@ -12,13 +12,14 @@
   "nodes": [
     {
       "id": 0,
-      "type": "max/plantarium/output",
+      "type": "max/core/output",
       "props": {},
       "position": [
-        0,
+        30,
         0
       ]
     },
+    { "id": 337, "position": [0, 0], "type": "max/plantarium/to_geometry", "props": {} },
     {
       "id": 1,
       "type": "max/core/time",
@@ -2652,12 +2653,8 @@
       110,
       "b"
     ],
-    [
-      110,
-      0,
-      0,
-      "input"
-    ],
+    [110, 0, 337, "input"],
+    [337, 0, 0, "input"],
     [
       121,
       0,

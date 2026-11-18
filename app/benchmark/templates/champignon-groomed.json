@@ -1,6 +1,6 @@
 {
   "id": 0,
-  "version": 17,
+  "version": 18,
   "settings": {
     "time.t": 1,
     "resolution.field": 128,
@@ -1811,10 +1811,11 @@
   "nodes": [
     {
       "id": 0,
-      "position": [30, 0],
-      "type": "max/myzel/output",
+      "position": [60, 0],
+      "type": "max/core/output",
       "props": {}
     },
+    { "id": 82, "position": [30, 0], "type": "max/plantarium/to_geometry", "props": {} },
     {
       "id": 1,
       "position": [-180, 103.13],
@@ -2023,11 +2024,7 @@
       59,
       "c"
     ],
-    [
-      59,
-      0,
-      0,
-      "input"
-    ]
+    [59, 0, 82, "input"],
+    [82, 0, 0, "input"]
   ]
 }

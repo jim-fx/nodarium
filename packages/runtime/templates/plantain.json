@@ -1,5 +1,5 @@
 {
-  "version": 17,
+  "version": 18,
   "meta": {
     "title": "Ribwort Plantain",
     "unit": "cm"
@@ -1047,12 +1047,13 @@
     },
     {
       "id": 146,
-      "type": "max/plantarium/output",
+      "type": "max/core/output",
       "position": [
-        290,
+        320,
         0
       ]
     },
+    { "id": 319, "position": [290, 0], "type": "max/plantarium/to_geometry", "props": {} },
     {
       "id": 160,
       "type": "max/core/random",
@@ -2167,12 +2168,8 @@
       145,
       "c"
     ],
-    [
-      145,
-      0,
-      146,
-      "input"
-    ],
+    [145, 0, 319, "input"],
+    [319, 0, 146, "input"],
     [
       135,
       0,

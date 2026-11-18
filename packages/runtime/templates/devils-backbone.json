@@ -1,7 +1,7 @@
 {
   "$schema": "https://nodes.max-richter.dev/graph.schema.json",
   "id": 10,
-  "version": 17,
+  "version": 18,
   "settings": { "time.t": 1, "resolution.circle": 10, "resolution.curve": 48 },
   "meta": {
     "unit": "cm",
@@ -12,10 +12,11 @@
   "nodes": [
     {
       "id": 1,
-      "position": [0, 0],
-      "type": "max/plantarium/output",
+      "position": [30, 0],
+      "type": "max/core/output",
       "props": {}
     },
+    { "id": 87, "position": [0, 0], "type": "max/plantarium/to_geometry", "props": {} },
     {
       "id": 2,
       "position": [-300, -314.55],
@@ -1029,12 +1030,8 @@
       43,
       "points"
     ],
-    [
-      43,
-      0,
-      1,
-      "input"
-    ],
+    [43, 0, 87, "input"],
+    [87, 0, 1, "input"],
     [
       0,
       0,
