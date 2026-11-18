@@ -2217,7 +2217,7 @@ describe('version 18: one output node that takes only geometry', () => {
     version: 17
   });
 
-  it('puts a to_geometry before the plant output, which becomes the one output', () => {
+  it('puts a to_geometry before the plant output, which becomes the one output, without the setting prop', () => {
     const old = v17(
       [
         { ...node(1, 'max/plantarium/output', { resolution_circle: 12 }), position: [300, 80] },
@@ -2232,7 +2232,7 @@ describe('version 18: one output node that takes only geometry', () => {
       {
         id: 3,
         type: 'max/plantarium/to_geometry',
-        props: { resolution_circle: 12 },
+        props: {},
         position: [300, 80]
       },
       node(2, 'max/plantarium/stem')

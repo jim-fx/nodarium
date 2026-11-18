@@ -61,8 +61,8 @@ export function oneOutput(graph: Graph) {
 
   for (const scope of scopes(graph)) {
     for (const output of scope.nodes.filter((node) => OLD_OUTPUTS.includes(node.type))) {
-      const { resolution_circle, ...props } = output.props ?? {};
-      if (output.props) output.props = props;
+      // the circle resolution is a setting, a prop of it was never read
+      if (output.props) delete output.props.resolution_circle;
       const edge = scope.edges.find(([, , to, input]) => to === output.id && input === 'input');
       if (!edge) continue;
       const source = scope.nodes.find((node) => node.id === edge[0]);
@@ -82,8 +82,8 @@ export function oneOutput(graph: Graph) {
         id,
         position: [x, y],
         type: TO_GEOMETRY,
-        props: resolution_circle === undefined ? {} : { resolution_circle }
-      } as SerializedNode);
+        props: {}
+      });
       if (output.position) output.position = [Math.round((x + SHIFT) * 100) / 100, y];
       edge[2] = id;
       scope.edges.splice(scope.edges.indexOf(edge) + 1, 0, [id, 0, output.id, 'input']);
