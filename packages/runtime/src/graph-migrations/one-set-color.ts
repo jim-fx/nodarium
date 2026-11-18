@@ -22,8 +22,9 @@ export function oneSetColor(graph: Graph) {
     for (const node of nodes) {
       if (node.type !== MYZEL_SET_COLOR) continue;
       const wired = edges.some((e) => e[2] === node.id && e[3] === 'color');
-      const color = wired || node.props?.color !== undefined ? {} : { color: CREAM };
-      node.props = { ...node.props, ...color, depth: EVERY_LEVEL };
+      const props: NonNullable<typeof node.props> = { ...node.props, depth: EVERY_LEVEL };
+      if (!wired && props.color === undefined) props.color = [...CREAM];
+      node.props = props;
     }
   }
   renameInputs(graph, MYZEL_SET_COLOR, { paths: 'plant' });
