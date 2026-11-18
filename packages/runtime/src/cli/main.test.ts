@@ -148,7 +148,7 @@ describe('nodarium', () => {
     expect(JSON.parse(set.out).height).toBeCloseTo(0.2, 1);
   });
 
-  it('takes the names of the options of a select', async () => {
+  it('takes the names of the options of a select and true or false for a boolean', async () => {
     const graph = await file('named.json', {
       ...handWritten,
       nodes: [...handWritten.nodes, {
@@ -158,6 +158,11 @@ describe('nodarium', () => {
       }]
     });
     expect((await run('run', graph, '--print-graph')).out).toContain('"op_type": 2');
+    const flagged = await file('flagged.json', {
+      ...handWritten,
+      nodes: [...handWritten.nodes, { id: 4, type: 'max/plantarium/random', props: { once: true } }]
+    });
+    expect((await run('run', flagged, '--print-graph')).out).toContain('"once": 1');
     const wrong = await run('check', graph, '--set', '4.op_type=times');
     expect(wrong.code).toBe(1);
     expect(wrong.out).toContain(

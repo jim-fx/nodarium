@@ -175,11 +175,12 @@ export type CheckedGraph = {
 };
 
 /**
- * Turns the names of the options of select inputs into their numbers, in the nodes of a graph
- * as it is written and in those of its groups. A name the input doesn't have stays, for
- * `validateGraph` to report.
+ * Turns the names of the options of select inputs into their numbers and `true` and `false` of
+ * boolean inputs into 1 and 0, in the nodes of a graph as it is written and in those of its
+ * groups, as a graph stores them. A name the input doesn't have stays, for `validateGraph` to
+ * report.
  */
-export function selectsByNumber(written: unknown, definitions: Map<string, NodeDefinition>) {
+export function valuesAsNumbers(written: unknown, definitions: Map<string, NodeDefinition>) {
   const graph = written as Partial<Graph> | undefined;
   if (!graph || typeof graph !== 'object') return;
   const levels = [graph, ...(Array.isArray(graph.groups) ? graph.groups : [])];
@@ -187,8 +188,10 @@ export function selectsByNumber(written: unknown, definitions: Map<string, NodeD
     for (const node of Array.isArray(level?.nodes) ? level.nodes : []) {
       const inputs = definitions.get(node?.type)?.inputs;
       if (!inputs || !node.props || typeof node.props !== 'object') continue;
-      for (const [key, value] of Object.entries(node.props as Record<string, unknown>)) {
+      const props = node.props as Record<string, unknown>;
+      for (const [key, value] of Object.entries(props)) {
         const input = inputs[key];
+        if (input?.type === 'boolean' && typeof value === 'boolean') props[key] = value ? 1 : 0;
         if (input?.type !== 'select' || typeof value !== 'string') continue;
         const options = input.options ?? [];
         const index = options.findIndex((option) =>
@@ -196,9 +199,7 @@ export function selectsByNumber(written: unknown, definitions: Map<string, NodeD
         );
         if (index < 0) continue;
         const option = options[index];
-        (node.props as Record<string, unknown>)[key] = typeof option === 'string'
-          ? index
-          : option.value;
+        props[key] = typeof option === 'string' ? index : option.value;
       }
     }
   }
@@ -207,11 +208,11 @@ export function selectsByNumber(written: unknown, definitions: Map<string, NodeD
 /**
  * Parses a project file or a bare graph and checks it with `validateGraph` as it is written. A
  * file the format check rejects has no graph but its issues all the same. The options of select
- * inputs may be named, they are turned into their numbers first.
+ * inputs may be named and booleans be true or false, they are turned into numbers first.
  */
 export function checkGraph(json: unknown, definitions: Map<string, NodeDefinition>): CheckedGraph {
   const written = writtenGraph(json);
-  selectsByNumber(written, definitions);
+  valuesAsNumbers(written, definitions);
   const issues = written && typeof written === 'object'
     ? validateGraph(written as Graph, definitions)
     : [];
