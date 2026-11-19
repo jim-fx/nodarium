@@ -3,8 +3,8 @@ use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs,
     geometry::{
-        colors_at_lengths, is_path, path_link, resample_up_to, set_path_link, wrap_path,
-        wrap_path_mut, DeepestPaths,
+        is_path, path_link, resample_up_to, set_path_link, wrap_path, wrap_path_mut, DeepestPaths,
+        PointValues,
     },
     split_args, Ctx,
 };
@@ -90,18 +90,18 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             continue;
         }
         let shortened = resample_up_to(&points, alpha);
-        // the colors of the part that is left spread over the shorter path
-        let colors = (!path.colors.is_empty()).then(|| {
+        // the colors and other values of the part that is left spread over the shorter path
+        let values = path.has_values().then(|| {
             let n = shortened.len();
-            let shares = (0..n).map(|i| alpha * i as f32 / (n - 1).max(1) as f32);
-            colors_at_lengths(path.points, path.colors, shares)
+            let shares: Vec<f32> = (0..n).map(|i| alpha * i as f32 / (n - 1).max(1) as f32).collect();
+            PointValues::at_lengths(&path, &shares)
         });
-        let target = wrap_path_mut(&mut items[index]);
+        let mut target = wrap_path_mut(&mut items[index]);
         for (i, point) in shortened.iter().enumerate() {
             target.points[i * 4..i * 4 + 4].copy_from_slice(&point.to_array());
         }
-        if let Some(colors) = colors {
-            target.colors.copy_from_slice(&colors);
+        if let Some(values) = values {
+            values.write_into(&mut target);
         }
         cuts.insert(link.id, alpha);
     }

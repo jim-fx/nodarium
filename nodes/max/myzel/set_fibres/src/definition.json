@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/set_fibres",
   "meta": {
-    "description": "Gives the paths that pass through their own fibrous relief in hyphae_to_mesh, in place of its fibres: a fibrous stipe next to a silky cap. Every path of the nodes that made them gets it, the other paths keep the fibres of hyphae_to_mesh."
+    "description": "Gives the paths that pass through their own fibrous relief in hyphae_to_mesh, in place of its fibres: a fibrous stipe next to a silky cap. The fibres are written into every point of the paths, the paths without them keep the fibres of hyphae_to_mesh."
   },
   "outputs": [
     "path"
@@ -9,7 +9,7 @@
   "inputs": {
     "plant": {
       "type": "path",
-      "description": "The paths, they pass through unchanged",
+      "description": "The paths, they pass through with their fibres. Everything else passes through as it is.",
       "external": true
     },
     "fibres": {
@@ -18,7 +18,7 @@
       "min": 0,
       "max": 3,
       "step": 0.05,
-      "description": "Relief along these paths, 0 leaves their surface smooth. Where two values meet, the relief goes over from one to the other in a few rings of the mesh."
+      "description": "Relief along these paths, 0 leaves their surface smooth. It is read for every path, with path_info and random per path, and along it with alpha, so a curve of alpha makes the relief fade towards the tip. Where two values meet, the relief goes over from one to the other in a few rings of the mesh."
     }
   }
 }

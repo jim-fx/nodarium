@@ -3,8 +3,8 @@ use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs,
     geometry::{
-        colors_at_lengths, is_path, path_link, path_random, resample_up_to, set_path_link, wrap_path,
-        wrap_path_mut, DeepestPaths,
+        is_path, path_link, path_random, resample_up_to, set_path_link, wrap_path, wrap_path_mut,
+        DeepestPaths, PointValues,
     },
     split_args, Ctx,
 };
@@ -77,18 +77,18 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
         let points: Vec<Vec4> = path.points.chunks_exact(4).map(Vec4::from_slice).collect();
         let broken = resample_up_to(&points, alpha);
-        // the colors of the part that is left spread over the shorter path
-        let colors = (!path.colors.is_empty()).then(|| {
+        // the colors and other values of the part that is left spread over the shorter path
+        let values = path.has_values().then(|| {
             let n = broken.len();
-            let shares = (0..n).map(|i| alpha * i as f32 / (n - 1).max(1) as f32);
-            colors_at_lengths(path.points, path.colors, shares)
+            let shares: Vec<f32> = (0..n).map(|i| alpha * i as f32 / (n - 1).max(1) as f32).collect();
+            PointValues::at_lengths(&path, &shares)
         });
-        let target = wrap_path_mut(&mut items[index]);
+        let mut target = wrap_path_mut(&mut items[index]);
         for (i, point) in broken.iter().enumerate() {
             target.points[i * 4..i * 4 + 4].copy_from_slice(&point.to_array());
         }
-        if let Some(colors) = colors {
-            target.colors.copy_from_slice(&colors);
+        if let Some(values) = values {
+            values.write_into(&mut target);
         }
         breaks.insert(link.id, alpha);
     }
@@ -107,8 +107,8 @@ mod tests {
     use nodarium_utils::{
         concat_arg_vecs, encode_float,
         geometry::{
-            create_path, path_link, set_path_link, with_path_colors, wrap_path, wrap_path_mut,
-            PathLink,
+            create_path, path_link, set_path_link, with_path_colors, with_path_fibres, with_path_fill,
+            wrap_path, wrap_path_mut, PathLink,
         },
         split_args,
     };
@@ -241,6 +241,22 @@ mod tests {
             } else {
                 assert!(color > colors[i / 2] && color < colors[i / 2 + 1], "{:x?}", path.colors);
             }
+        }
+    }
+
+    #[test]
+    fn a_broken_path_keeps_its_fibres_and_fill_below_the_break() {
+        let stem = straight(PathLink::root(1, 0), 1, [0.0; 3], 10.0);
+        let fibres: Vec<f32> = (0..9).map(|i| i as f32).collect();
+        let valued = with_path_fill(&with_path_fibres(&with_path_colors(&stem, &[7; 9]), &fibres), &[2.0; 9]);
+        let out = run(vec![valued], 1.0, 0.5, 0.5, 1);
+        let path = wrap_path(&out[0]);
+        // the lower half, fibres 0 to 4, spreads over the whole path
+        let expected: Vec<f32> = (0..9).map(|i| i as f32 * 0.5).collect();
+        assert_eq!(path.colors, &[7; 9]);
+        assert_eq!(path.fill, &[2.0; 9]);
+        for (got, want) in path.fibres.iter().zip(&expected) {
+            assert!((got - want).abs() < 1e-5, "{:?}", path.fibres);
         }
     }
 }

@@ -1,7 +1,7 @@
 import { concatEncodedArrays, PATH_HEADER_SIZE } from '@nodarium/utils';
 import { ArrowHelper, Group, Line, LineSegments, type Mesh, Points, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { clipPoints, isShown, selectLines, updateDebugScene } from './debug';
+import { clipPoints, isShown, updateDebugScene } from './debug';
 
 function wrap(item: Int32Array) {
   const data = new Int32Array(item.length + 4);
@@ -196,24 +196,6 @@ describe('updateDebugScene', () => {
   });
 });
 
-// [12, n, ...n × (x0, y0, z0, x1, y1, z1, group)], one polyline per list of points
-function lines(polylines: { group: number; points: number[][] }[]) {
-  const words: number[] = [];
-  const f = new Float32Array(6);
-  for (const { group, points } of polylines) {
-    for (let i = 1; i < points.length; i++) {
-      f.set([...points[i - 1], ...points[i]]);
-      words.push(...new Int32Array(f.buffer), group);
-    }
-  }
-  return Int32Array.from([12, words.length / 7, ...words]);
-}
-
-function readSegments(data: Int32Array) {
-  const f = new Float32Array(data.buffer, data.byteOffset, data.length);
-  return Array.from({ length: data[1] }, (_, i) => [...f.subarray(2 + i * 7, 8 + i * 7)]);
-}
-
 const pathItems = (n: number) =>
   Array.from({ length: n }, (_, i) => {
     const p = path(1, [[i, 0, 0, 0.1], [i, 1, 0, 0.1]]);
@@ -252,7 +234,7 @@ describe('the amount of the debug node', () => {
     expect(draw(0)).toHaveLength(0);
   });
 
-  it('applies to instances, points, meshes and lines', () => {
+  it('applies to instances, points and meshes', () => {
     const group = new Group();
     updateDebugScene(group, { 1: { type: 'path', data: wrap(instances(400)), amount: 0.1 } });
     expect(collect(group).arrows.length).toBeGreaterThan(10);
@@ -267,16 +249,6 @@ describe('the amount of the debug node', () => {
     );
     updateDebugScene(group, { 1: { type: 'points', data: pointData, amount: 0.1 } });
     expect(collect(group).arrows.length).toBeLessThan(60);
-
-    const polylines = Array.from({ length: 200 }, (_, i) => ({
-      group: 1,
-      points: [[i, 0, 0], [i, 1, 0], [i, 2, 0]]
-    }));
-    const shown = readSegments(selectLines(lines(polylines), 0.2));
-    // both segments of a path stay together
-    expect(shown.length % 2).toBe(0);
-    expect(shown.length / 2).toBeGreaterThan(20);
-    expect(shown.length / 2).toBeLessThan(60);
   });
 
   it('draws a share of the faces of a geometry with groups', () => {
@@ -326,22 +298,6 @@ describe('the clip of the debug node', () => {
     expect(rings.count).toBe(3 * 12 * 2);
     for (let i = 0; i < rings.count; i++) expect(rings.getY(i)).toBeLessThan(1.5 + 1e-6);
   });
-
-  it('cuts every path of Myzel lines', () => {
-    const data = lines([
-      { group: 1, points: [[0, 0, 0], [0, 1, 0], [0, 2, 0]] },
-      { group: 2, points: [[5, 0, 0], [5, 4, 0]] }
-    ]);
-    expect(readSegments(selectLines(data, 1, 0.25))).toEqual([
-      [0, 0, 0, 0, 0.5, 0],
-      [5, 0, 0, 5, 1, 0]
-    ]);
-    expect(readSegments(selectLines(data, 1, 0.75))).toEqual([
-      [0, 0, 0, 0, 1, 0],
-      [0, 1, 0, 0, 1.5, 0],
-      [5, 0, 0, 5, 3, 0]
-    ]);
-  });
 });
 
 describe('the defaults of the debug node', () => {
@@ -349,8 +305,7 @@ describe('the defaults of the debug node', () => {
     const data = concatEncodedArrays([
       ...pathItems(30),
       wrap(instances(5)),
-      wrap(point([0, 1, 0], [1, 0, 0])),
-      wrap(lines([{ group: 1, points: [[0, 0, 0], [0, 1, 0]] }]))
+      wrap(point([0, 1, 0], [1, 0, 0]))
     ]);
     const positions = (group: Group) => {
       const out: number[][] = [];
@@ -366,8 +321,5 @@ describe('the defaults of the debug node', () => {
     updateDebugScene(after, { 1: { type: 'path', data, amount: 1, clip: 1 } });
     expect(positions(after)).toEqual(positions(before));
     expect(positions(before).length).toBeGreaterThan(30);
-
-    const myzel = lines([{ group: 1, points: [[0, 0, 0], [0, 1, 0]] }]);
-    expect(selectLines(myzel, 1, 1)).toBe(myzel);
   });
 });

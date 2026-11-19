@@ -17,7 +17,6 @@ import {
   Vector3
 } from 'three';
 import { createGeometryPool } from '../geometry/geometryPool';
-import { createPathLines, hash, LINES_TAG } from '../geometry/lines';
 import { PATH_HEADER_SIZE } from '../gizmos/gizmo-paths';
 
 // one color per stem depth, branches of branches get the next color
@@ -48,6 +47,16 @@ export type DebugEntry = {
   /** the share of the length of each path that is drawn, 0–1 */
   clip?: number;
 };
+
+/** lowbias32 */
+function hash(x: number) {
+  x ^= x >>> 16;
+  x = Math.imul(x, 0x7feb352d);
+  x ^= x >>> 15;
+  x = Math.imul(x, 0x846ca68b);
+  x ^= x >>> 16;
+  return x >>> 0;
+}
 
 /** A key made of several numbers, e.g. the index of an instance and the item it is in */
 function itemKey(...parts: number[]) {
@@ -99,46 +108,6 @@ export function clipPoints(points: [Vector3, number][], clip = 1) {
     length += step;
   }
   return clipped;
-}
-
-const LINE_WORDS = 7;
-
-/**
- * Myzel lines with `amount` of their paths, each cut at `clip` of its length. The segments of a
- * path follow each other, a segment that does not start where the last one ended starts the next.
- */
-export function selectLines(data: Int32Array, amount = 1, clip = 1) {
-  if (amount >= 1 && clip >= 1) return data;
-  const floats = new Float32Array(data.buffer, data.byteOffset, data.length);
-  const count = data[1];
-  const paths: { group: number; points: [Vector3, number][] }[] = [];
-  let last: { group: number; points: [Vector3, number][] } | undefined;
-  for (let i = 0; i < count; i++) {
-    const o = 2 + i * LINE_WORDS;
-    const group = data[o + 6];
-    const end = last?.points[last.points.length - 1][0];
-    const continues = last?.group === group && end?.x === floats[o] && end.y === floats[o + 1]
-      && end.z === floats[o + 2];
-    if (!continues) {
-      last = { group, points: [[new Vector3().fromArray(floats, o), 0]] };
-      paths.push(last);
-    }
-    last!.points.push([new Vector3().fromArray(floats, o + 3), 0]);
-  }
-
-  const words: number[] = [];
-  const out = new Float32Array(6);
-  const outWords = new Int32Array(out.buffer);
-  paths.forEach(({ group, points }, index) => {
-    if (!isShown(itemKey(index), amount)) return;
-    const clipped = clipPoints(points, clip);
-    for (let i = 1; i < clipped.length; i++) {
-      clipped[i - 1][0].toArray(out, 0);
-      clipped[i][0].toArray(out, 3);
-      words.push(...outWords, group);
-    }
-  });
-  return Int32Array.from([LINES_TAG, words.length / LINE_WORDS, ...words]);
 }
 
 /** The words of a geometry before its faces: type, vertices, faces, path id and flags */
@@ -401,13 +370,6 @@ function createPointsDebug(points: Int32Array[]) {
   return group;
 }
 
-/** Myzel paths as lines colored by group */
-function createLinesDebug(lines: Int32Array[]) {
-  const segments = createPathLines(lines, { onTop: true });
-  segments.renderOrder = RENDER_ORDER;
-  return segments;
-}
-
 function clearGroup(group: Group) {
   group.traverse((child) => {
     if (child === group) return;
@@ -438,7 +400,6 @@ export function updateDebugScene(group: Group, data: Record<number, DebugEntry>)
     const meshes = items.filter((item) => item[0] === RESULT_TAGS.geometry && grouped(item));
     const instances = items.filter((item) => item[0] === 2);
     const points = items.filter((item) => item[0] === 4);
-    const lines = items.filter((item) => item[0] === RESULT_TAGS.lines);
 
     const shownPaths = pick(paths, idKeys(paths, (p) => p[2]), amount);
     const shownGeometries = pick(geometries, idKeys(geometries, (g) => g[3]), amount);
@@ -451,6 +412,5 @@ export function updateDebugScene(group: Group, data: Record<number, DebugEntry>)
     if (meshes.length) {
       group.add(createGeometryDebug(meshes.map((m) => selectFaces(m, amount))));
     }
-    if (lines.length) group.add(createLinesDebug(lines.map((l) => selectLines(l, amount, clip))));
   }
 }

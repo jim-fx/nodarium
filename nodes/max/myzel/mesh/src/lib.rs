@@ -61,16 +61,16 @@ impl<'a> Baked<'a> {
         self.u16_at(Self::HEADER + self.vertices * 9 + i * 2)
     }
 
-    /// The words of the geometry, see `nodarium_utils::geometry`
+    /// The words of the geometry with the table of its one creator, see `nodarium_utils::geometry`
     fn len(&self, colored: bool) -> usize {
-        GEOMETRY_HEAD + self.faces * 3 + self.vertices * (7 + colored as usize) + 2
+        GEOMETRY_HEAD + self.faces * 3 + self.vertices * (7 + colored as usize) + 2 + 2
     }
 
-    fn write(&self, colored: bool, words: &mut [i32]) {
+    fn write(&self, colored: bool, creator: i32, words: &mut [i32]) {
         let (v, f, len) = (self.vertices, self.faces, words.len());
-        let flags = geometry_flags::GROUPS | if colored { geometry_flags::COLORS } else { 0 };
+        let flags = geometry_flags::GROUPS | geometry_flags::CREATORS | if colored { geometry_flags::COLORS } else { 0 };
         words[..GEOMETRY_HEAD].copy_from_slice(&[0, len as i32 - 3, GEOMETRY_TAG, v as i32, f as i32, NO_PATH, flags]);
-        words[len - 2..].copy_from_slice(&[1, 1]);
+        words[len - 4..].copy_from_slice(&[1, creator, 1, 1]);
         for i in 0..f * 3 {
             words[GEOMETRY_HEAD + i] = self.corner(i) as i32;
         }
@@ -84,7 +84,7 @@ impl<'a> Baked<'a> {
                 words[colors + i] = opaque(self.color(i)) as i32;
             }
         }
-        // the groups after the colors stay 0, the whole substrate is one group
+        // the groups after the colors stay 0, the whole substrate is one group of this node
         smooth_normals_in_words(words);
     }
 }
@@ -93,9 +93,10 @@ impl<'a> Baked<'a> {
 pub fn execute(args: &[&[i32]]) -> Output {
     let substrate = read_int(args[0]).clamp(0, SUBSTRATES.len() as i32 - 1) as usize;
     let colored = read_int(args[1]) != 0;
+    let creator = read_int(args[2]);
     let baked = Baked::read(SUBSTRATES[substrate]);
     abi::write_result(baked.len(colored), |words| {
-        baked.write(colored, words);
+        baked.write(colored, creator, words);
         words.len()
     })
     .into()
@@ -106,8 +107,10 @@ mod tests {
     use super::{__nodarium_execute_inner, SUBSTRATES};
     use myzel_core::Mesh;
 
+    const CREATOR: i32 = 31;
+
     fn run(substrate: i32, colored: bool) -> Mesh {
-        Mesh::decode(unsafe { __nodarium_execute_inner(&[&[substrate], &[colored as i32]]).words() })
+        Mesh::decode(unsafe { __nodarium_execute_inner(&[&[substrate], &[colored as i32], &[CREATOR]]).words() })
     }
 
     #[test]
@@ -118,6 +121,7 @@ mod tests {
             assert!(mesh.faces.iter().all(|&i| (i as usize) < mesh.vertex_count()));
             assert!(mesh.positions.iter().all(|p| p.is_finite()));
             assert!(mesh.groups.iter().all(|&g| g == 0));
+            assert_eq!(mesh.creators, vec![CREATOR], "hovering it points out this node");
             for n in mesh.normals.chunks_exact(3) {
                 assert!((n[0] * n[0] + n[1] * n[1] + n[2] * n[2] - 1.0).abs() < 1e-4);
             }

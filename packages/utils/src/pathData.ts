@@ -28,22 +28,37 @@ export type PathLink = {
   grown: number;
 };
 
-/** The type of a path with an RGBA8 color at every point, its colors follow its points. */
-export const COLORED_PATH = 16;
+/**
+ * What a path carries at its points besides the points, its type is the sum of them. Each is one
+ * word per point after the points, in this order: an RGBA8 color, and the fibres and the fill of
+ * `hyphae_to_mesh` (f32).
+ */
+export const POINT_VALUES = { colors: 16, fibres: 32, fill: 64 } as const;
+
+const ALL_POINT_VALUES = POINT_VALUES.colors | POINT_VALUES.fibres | POINT_VALUES.fill;
+
+/** The type of a path with an RGBA8 color at every point and nothing else */
+export const COLORED_PATH = POINT_VALUES.colors;
 
 export function isPath(item: Int32Array) {
-  return (item[0] === 0 || item[0] === COLORED_PATH) && item.length >= PATH_HEADER_SIZE;
+  return (item[0] & ~ALL_POINT_VALUES) === 0 && item.length >= PATH_HEADER_SIZE;
 }
 
-/** How many points a path has: 4 words each after the header, and a color each when it has colors */
+/** How many words a path has per point: 4 for the point and one for every value it carries */
+function wordsPerPoint(path: Int32Array) {
+  let words = 4;
+  for (const flag of Object.values(POINT_VALUES)) if (path[0] & flag) words++;
+  return words;
+}
+
+/** How many points a path has */
 export function pathPointCount(path: Int32Array) {
-  const words = path.length - PATH_HEADER_SIZE;
-  return Math.floor(words / (path[0] === COLORED_PATH ? 5 : 4));
+  return Math.floor((path.length - PATH_HEADER_SIZE) / wordsPerPoint(path));
 }
 
 /** The RGBA8 colors of a path, sRGB with red first, four bytes per point, or undefined without */
 export function readPathColors(path: Int32Array) {
-  if (path[0] !== COLORED_PATH) return undefined;
+  if (!(path[0] & POINT_VALUES.colors)) return undefined;
   const points = pathPointCount(path);
   const start = PATH_HEADER_SIZE + points * 4;
   return new Uint8Array(path.buffer, path.byteOffset + start * 4, points * 4);

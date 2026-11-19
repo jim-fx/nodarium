@@ -27,6 +27,9 @@
       "label": "Colored",
       "value": true,
       "description": "Off leaves the colors of the scan out, the viewer shows the substrate in its own material, so the mushrooms stand out"
+    },
+    "creator": {
+      "type": "creator"
     }
   }
 }

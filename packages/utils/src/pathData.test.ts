@@ -7,6 +7,7 @@ import {
   PATH_HEADER_SIZE,
   pathLineage,
   pathPointCount,
+  POINT_VALUES,
   readGeometryPathId,
   readInstancePathIds,
   readPathColors,
@@ -116,5 +117,22 @@ describe('paths with colors', () => {
     expect(pathPointCount(plain)).toBe(2);
     expect(readPathColors(plain)).toBeUndefined();
     expect([...readPathColors(colored)!]).toEqual([0x44, 0x33, 0x22, 0x11, 0x88, 0x77, 0x66, 0x55]);
+  });
+
+  it('has its colors, fibres and fill after its points', () => {
+    const all = new Int32Array(PATH_HEADER_SIZE + 3 * 7);
+    all[0] = POINT_VALUES.colors | POINT_VALUES.fibres | POINT_VALUES.fill;
+    all.set([1, 2, 3], PATH_HEADER_SIZE + 12);
+    const fibres = new Int32Array(PATH_HEADER_SIZE + 3 * 5);
+    fibres[0] = POINT_VALUES.fibres;
+
+    expect(isPath(all)).toBe(true);
+    expect(pathPointCount(all)).toBe(3);
+    expect([...readPathColors(all)!]).toEqual([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]);
+    expect(pathPointCount(fibres)).toBe(3);
+    expect(readPathColors(fibres)).toBeUndefined();
+    expect(isPath(Int32Array.from({ length: PATH_HEADER_SIZE + 4 }, (_, i) => (i ? 0 : 128)))).toBe(
+      false
+    );
   });
 });

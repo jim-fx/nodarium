@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-use crate::color::{linear_rgba, pack_linear, NO_COLOR};
+use nodarium_utils::{linear_rgba, pack_linear, NO_COLOR};
 use crate::density::{surface_in, Frame, Meshing, Segment, TissueField};
 use crate::Mesh;
 use crate::noise::value_noise;
@@ -43,16 +43,19 @@ const SMOOTHING_PASSES: usize = 8;
 /// [`HyphaeMeshParams::loose_strands`]. Every vertex is in the group of the path that owns it,
 /// see [`group_numbers`].
 ///
-/// A path that brings its own fibres or fill (see [`crate::PathSettings`]) is meshed with
-/// them instead of `params`: its gaps fill by its own fill and
-/// its relief has its own strength. Where paths of different values meet, the surface and the
-/// relief go over from one to the other.
+/// A path that brings its own fibres or fill at its points (see [`MeshPath`]) is meshed with
+/// them instead of `params`: its gaps fill by its own fill and its relief has its own strength,
+/// each segment by the mean of its two points. Where paths of different values meet, the
+/// surface and the relief go over from one to the other.
 pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
     let mut segments = Vec::new();
     let mut owner = Vec::new();
+    let (mut fill, mut fibres) = (Vec::new(), Vec::new());
     for (k, path) in paths.iter().enumerate().filter(|(_, p)| !p.is_empty()) {
         let s = path_segments(&path.points);
         owner.extend(std::iter::repeat_n(k, s.len()));
+        fill.extend(segment_values(&path.fill, s.len(), params.fill));
+        fibres.extend(segment_values(&path.fibres, s.len(), params.fibres));
         segments.extend(s);
     }
     // the fill counts in radii of the thickest path
@@ -60,7 +63,7 @@ pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
     let mut meshing = Vec::with_capacity(segments.len());
     for (i, &k) in owner.iter().enumerate() {
         let path = &paths[k];
-        let fill = path.settings.fill.unwrap_or(params.fill);
+        let fill = fill[i];
         meshing.push(Meshing {
             closed: true,
             priority: path.style.priority,
@@ -99,7 +102,7 @@ pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
     }
 
     // the relief of a path is its fibres relative to those of the node, so it stays the same where they are the same
-    let fibres = |i: usize| paths[owner[i]].settings.fibres.unwrap_or(params.fibres).max(0.0);
+    let fibres = |i: usize| fibres[i].max(0.0);
     let reference = if params.fibres > 0.0 { params.fibres } else { s.owners.iter().map(|&i| fibres(i as usize)).fold(0.0, f32::max) };
     if s.owners.iter().any(|&i| fibres(i as usize) > 0.0) {
         let owners = &s.owners;
@@ -110,6 +113,17 @@ pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
         add_fibres(&mut s.mesh, &segments, owner, s.cell, reference, params.seed);
     }
     s.mesh
+}
+
+/// The value of every segment of a path (see [`path_segments`]) from the values at its points,
+/// `node` for a path without them
+fn segment_values(values: &[f32], segments: usize, node: f32) -> impl Iterator<Item = f32> + '_ {
+    let one = values.len() == 1;
+    (0..segments).map(move |j| match values {
+        [] => node,
+        _ if one => values[0],
+        _ => 0.5 * (values[j] + values[j + 1]),
+    })
 }
 
 /// How far a color goes over into the one next to it: as far as the kernel of the segment reaches,
@@ -401,10 +415,9 @@ fn add_fibres(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::color::{mix_colors, opaque};
+    use nodarium_utils::{mix_colors, opaque};
     use crate::density::{assert_closed, components, surface};
     use crate::paths::PathGroup;
-    use crate::settings::PathSettings;
     use std::borrow::Cow;
     use std::f32::consts::PI;
 
@@ -444,12 +457,27 @@ mod tests {
         paths
     }
 
+    /// The fibres and the fill a path brings at every point, `None` for those of the node
+    #[derive(Clone, Copy, Default)]
+    struct Values {
+        fibres: Option<f32>,
+        fill: Option<f32>,
+    }
+
+    fn give(path: &mut MeshPath, values: Values) {
+        if let Some(fibres) = values.fibres {
+            path.fibres = Cow::Owned(vec![fibres; path.len()]);
+        }
+        if let Some(fill) = values.fill {
+            path.fill = Cow::Owned(vec![fill; path.len()]);
+        }
+    }
+
     fn bundle_mesh(params: &HyphaeMeshParams) -> Mesh {
         let points = bundle();
         let mut paths = mesh_paths(&points, PathStyle::BODY);
         for path in paths.iter_mut().filter(|p| matches!(p.group, PathGroup::Creator(GILL | VEIL))) {
-            path.settings.fill = Some(0.0);
-            path.settings.fibres = Some(0.1 * params.fibres);
+            give(path, Values { fill: Some(0.0), fibres: Some(0.1 * params.fibres) });
         }
         paths_mesh(&paths, params)
     }
@@ -457,7 +485,7 @@ mod tests {
     /// Paths that keep their gaps open: a fill of 0 blends them like any other paths
     fn open(mut paths: Vec<MeshPath>) -> Vec<MeshPath> {
         for p in &mut paths {
-            p.settings.fill = Some(0.0);
+            give(p, Values { fill: Some(0.0), ..Values::default() });
         }
         paths
     }
@@ -569,9 +597,10 @@ mod tests {
             .map(|(p, creator)| MeshPath {
                 points: Cow::Borrowed(p),
                 colors: Cow::Borrowed(&[]),
+                fibres: Cow::Borrowed(&[]),
+                fill: Cow::Borrowed(&[]),
                 group: PathGroup::Creator(*creator),
                 style,
-                settings: PathSettings::default(),
             })
             .collect()
     }
@@ -907,26 +936,21 @@ mod tests {
         assert!(highest(&kept) > 1.4 - close, "arc reaches {}", highest(&kept));
     }
 
-    /// The paths of `points` in `style`, those of `creator` with `settings`
-    fn with_settings<'a>(
-        points: &'a [(Vec<f32>, i32)],
-        style: PathStyle,
-        creator: i32,
-        settings: PathSettings,
-    ) -> Vec<MeshPath<'a>> {
+    /// The paths of `points` in `style`, those of `creator` with `values`
+    fn with_values<'a>(points: &'a [(Vec<f32>, i32)], style: PathStyle, creator: i32, values: Values) -> Vec<MeshPath<'a>> {
         let mut paths = mesh_paths(points, style);
         for p in paths.iter_mut().filter(|p| p.group == PathGroup::Creator(creator)) {
-            p.settings = settings;
+            give(p, values);
         }
         paths
     }
 
-    fn set(fibres: f32, fill: f32) -> PathSettings {
-        PathSettings { fibres: Some(fibres), fill: Some(fill) }
+    fn set(fibres: f32, fill: f32) -> Values {
+        Values { fibres: Some(fibres), fill: Some(fill) }
     }
 
     #[test]
-    fn settings_equal_to_the_node_give_the_same_mesh() {
+    fn values_equal_to_the_node_give_the_same_mesh() {
         // a body of two creators and paths around it, every path with the values of the node
         let mut points = stipe_points();
         points.extend((0..4).map(|i| {
@@ -934,15 +958,15 @@ mod tests {
             let at = Vec3::new(a.cos(), 0.0, a.sin()) * 0.3;
             (line(at, at + Vec3::new(0.0, 0.8, 0.1), 9, 0.015), 50)
         }));
-        let paths = |settings: PathSettings| {
+        let paths = |values: Values| {
             let mut paths = mesh_paths(&points, PathStyle::BODY);
             for p in &mut paths {
-                p.settings = settings;
+                give(p, values);
             }
             paths
         };
         for params in [HyphaeMeshParams::default(), HyphaeMeshParams { blend: 2.0, fill: 1.5, fibres: 0.6, seed: 4, ..HyphaeMeshParams::default() }] {
-            let plain = paths_mesh(&paths(PathSettings::default()), &params);
+            let plain = paths_mesh(&paths(Values::default()), &params);
             let same = paths_mesh(&paths(set(params.fibres, params.fill)), &params);
             assert!(plain.face_count() > 0);
             assert_eq!(plain.encode(), same.encode());
@@ -967,7 +991,7 @@ mod tests {
         let params = HyphaeMeshParams { resolution: 96, fill: 6.0, fibres: 1.5, ..HyphaeMeshParams::default() };
         let smooth_mesh = paths_mesh(&mesh_paths(&points, PathStyle::BODY), &HyphaeMeshParams { fibres: 0.0, ..params.clone() });
         let uniform = paths_mesh(&mesh_paths(&points, PathStyle::BODY), &params);
-        let mesh = paths_mesh(&with_settings(&points, PathStyle::BODY, 1, PathSettings { fibres: Some(0.0), ..PathSettings::default() }), &params);
+        let mesh = paths_mesh(&with_values(&points, PathStyle::BODY, 1, Values { fibres: Some(0.0), ..Values::default() }), &params);
         assert_eq!(mesh.faces, smooth_mesh.faces);
         assert_closed(&mesh);
         let cell = surface(&path_segments(&points[0].0), 96, 3.0, 0.0, |_| false, |_| false, |_| 1.0).cell;
@@ -1022,7 +1046,7 @@ mod tests {
                 .count()
         };
         let params = HyphaeMeshParams { resolution: 96, fill: 6.0, ..smooth() };
-        let mesh = paths_mesh(&with_settings(&points, PathStyle::BODY, 1, PathSettings { fill: Some(1.0), ..PathSettings::default() }), &params);
+        let mesh = paths_mesh(&with_values(&points, PathStyle::BODY, 1, Values { fill: Some(1.0), ..Values::default() }), &params);
         assert_closed(&mesh);
         assert!(inner(&mesh, -0.4) > 0, "the bundle of fill 1 keeps its inner faces");
         assert_eq!(inner(&mesh, 0.4), 0, "the bundle of fill 6 has none");
@@ -1043,7 +1067,7 @@ mod tests {
                 .map(|p| p.y)
                 .fold(f32::NEG_INFINITY, f32::max)
         };
-        let mixed = paths_mesh(&with_settings(&points, PathStyle::BODY, 2, PathSettings { fill: Some(6.0), ..PathSettings::default() }), &params);
+        let mixed = paths_mesh(&with_values(&points, PathStyle::BODY, 2, Values { fill: Some(6.0), ..Values::default() }), &params);
         let low = paths_mesh(&mesh_paths(&points, PathStyle::BODY), &params);
         let high = paths_mesh(&mesh_paths(&points, PathStyle::BODY), &HyphaeMeshParams { fill: 6.0, ..params.clone() });
         let cell = surface(&path_segments(&points[0].0), 96, 3.0, 0.0, |_| false, |_| false, |_| 1.0).cell;
@@ -1067,7 +1091,13 @@ mod tests {
     fn colored(points: &[(Vec<f32>, i32)], colors: &[(i32, [u8; 3])]) -> Vec<MeshPath<'static>> {
         shaded(points, colors, |_, _, c| opaque(c))
             .into_iter()
-            .map(|p| MeshPath { points: Cow::Owned(p.points.into_owned()), colors: Cow::Owned(p.colors.into_owned()), ..p })
+            .map(|p| MeshPath {
+                points: Cow::Owned(p.points.into_owned()),
+                colors: Cow::Owned(p.colors.into_owned()),
+                fibres: Cow::Owned(p.fibres.into_owned()),
+                fill: Cow::Owned(p.fill.into_owned()),
+                ..p
+            })
             .collect()
     }
 

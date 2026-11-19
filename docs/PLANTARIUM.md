@@ -14,10 +14,10 @@ Alpha is only one number that changes from place to place, so it can't tell a no
 
 ```
 [0, stem_depth, id, parent_id, parent_alpha, creator, index, grown, ...points]    each point: x, y, z, thickness
-[16, stem_depth, id, parent_id, parent_alpha, creator, index, grown, ...points, ...colors]
+[type, stem_depth, id, parent_id, parent_alpha, creator, index, grown, ...points, ...colors?, ...fibres?, ...fill?]
 ```
 
-A path with the type 16 (`COLORED_PATH`) has an RGBA8 color for every point after its points, see Colors. `is_path` and `wrap_path` take both, `wrap_path` gives the points and the colors apart, so a node that moves the points of a path keeps its colors without knowing them.
+The type says what a path carries at every point after its points, it is the sum of them (`point_values` in `nodarium_utils::geometry`, `POINT_VALUES` in `@nodarium/utils`): 16 an RGBA8 color (`COLORED_PATH`, see Colors), 32 the fibres and 64 the fill of Myzel's `hyphae_to_mesh` (f32, see Fibres and fill in [MYZEL.md](./MYZEL.md)). A plain path has the type 0. `is_path` and `wrap_path` take every type, `wrap_path` gives the points and each value apart, so a node that moves the points of a path keeps its values without knowing them. A node that makes a path anew with other points takes them along with `PointValues::at_lengths`.
 
 The header says where the path sits in the plant, so a node, the viewer or a material can pick any part of it:
 

@@ -1,6 +1,6 @@
 use glam::{vec3, vec4, Vec3, Vec4, Vec4Swizzles};
 
-// 0: node-type: 0, or `COLORED_PATH` for a path with a color at every point
+// 0: type, the values the path carries at its points (`point_values`), 0 for a plain path
 // 1: depth
 // 2: id, a hash of the creator, the parent and the index, so it is unique in a list of paths
 //    and stays the same when other paths come or go
@@ -18,37 +18,128 @@ pub const BUD_LENGTH: f32 = 1e-5;
 /// The parent id of a path that is not attached to another path.
 pub const NO_PARENT: i32 = -1;
 
-/// The type of a path that carries an RGBA8 color at every point: its points are followed by
-/// one color per point, see `with_path_colors`. A plain path has the type 0.
-pub const COLORED_PATH: i32 = 16;
+/// What a path carries at each of its points besides the point itself. The type of a path is the
+/// sum of the values it carries. Each value is one word per point after the points, in the order
+/// of these flags. A plain path has the type 0.
+pub mod point_values {
+    /// An RGBA8 color, see `with_path_colors`
+    pub const COLORS: i32 = 16;
+    /// The strength of the fibrous relief of `hyphae_to_mesh` around the path (f32), see
+    /// `with_path_fibres`
+    pub const FIBRES: i32 = 32;
+    /// The fill of `hyphae_to_mesh` between the path and its neighbours, in radii of its
+    /// thickest path (f32), see `with_path_fill`
+    pub const FILL: i32 = 64;
+    pub const ALL: i32 = COLORS | FIBRES | FILL;
+}
+
+/// The type of a path that carries a color at every point and nothing else
+pub const COLORED_PATH: i32 = point_values::COLORS;
 
 /// Whether a list item is an encoded path with at least one point, brackets included.
 pub fn is_path(item: &[i32]) -> bool {
-    item.len() >= 2 + PATH_HEADER_SIZE + 4 + 2 && (item[2] == 0 || item[2] == COLORED_PATH)
+    item.len() >= 2 + PATH_HEADER_SIZE + 4 + 2 && item[2] & !point_values::ALL == 0
 }
 
-/// How many of the words after the header of a path are its points, the rest are its colors
-fn point_words(kind: i32, words: usize) -> usize {
-    if kind != COLORED_PATH {
-        return words;
+/// The words after the header of a path apart: how many are its points, colors, fibres and fill
+fn split_point_words(kind: i32, words: usize) -> [usize; 4] {
+    let per_point = 4 + (kind & point_values::ALL).count_ones() as usize;
+    assert!(
+        words.is_multiple_of(per_point),
+        "a path of type {} has {} words per point, got {}",
+        kind,
+        per_point,
+        words
+    );
+    let n = words / per_point;
+    let has = |flag: i32| if kind & flag != 0 { n } else { 0 };
+    [n * 4, has(point_values::COLORS), has(point_values::FIBRES), has(point_values::FILL)]
+}
+
+/// A copy of the path (brackets included) with other values at its points: `None` keeps the
+/// one the path has, an empty slice leaves it out.
+fn with_values(path: &[i32], colors: Option<&[u32]>, fibres: Option<&[f32]>, fill: Option<&[f32]>) -> Vec<i32> {
+    let old = wrap_path(path);
+    let colors = colors.unwrap_or(old.colors);
+    let fibres = fibres.unwrap_or(old.fibres);
+    let fill = fill.unwrap_or(old.fill);
+    for len in [colors.len(), fibres.len(), fill.len()] {
+        assert!(len == 0 || len == old.length, "one value per point, {} for {} points", len, old.length);
     }
-    assert!(words.is_multiple_of(5), "a colored path has 5 words per point, got {}", words);
-    words / 5 * 4
+    let flag = |values: usize, flag: i32| if values > 0 { flag } else { 0 };
+    let kind = flag(colors.len(), point_values::COLORS)
+        | flag(fibres.len(), point_values::FIBRES)
+        | flag(fill.len(), point_values::FILL);
+    let words = PATH_HEADER_SIZE + old.points.len() + colors.len() + fibres.len() + fill.len();
+    let mut out = Vec::with_capacity(words + 4);
+    out.extend_from_slice(&[0, words as i32 + 1, kind]);
+    out.extend_from_slice(&path[3..2 + PATH_HEADER_SIZE]);
+    out.extend(old.points.iter().map(|p| p.to_bits() as i32));
+    out.extend(colors.iter().map(|&c| c as i32));
+    out.extend(fibres.iter().chain(fill).map(|f| f.to_bits() as i32));
+    out.extend_from_slice(&[1, 1]);
+    out
 }
 
 /// A copy of the path (brackets included) with a color at every point, `colors` holds one
-/// RGBA8 word per point. Colors the path had are replaced.
+/// RGBA8 word per point. Colors the path had are replaced, its other values stay.
 pub fn with_path_colors(path: &[i32], colors: &[u32]) -> Vec<i32> {
-    let points = wrap_path(path).points;
-    assert_eq!(colors.len() * 4, points.len(), "one color per point");
-    let words = PATH_HEADER_SIZE + points.len() + colors.len();
-    let mut out = Vec::with_capacity(words + 4);
-    out.extend_from_slice(&[0, words as i32 + 1, COLORED_PATH]);
-    out.extend_from_slice(&path[3..2 + PATH_HEADER_SIZE]);
-    out.extend(points.iter().map(|p| p.to_bits() as i32));
-    out.extend(colors.iter().map(|&c| c as i32));
-    out.extend_from_slice(&[1, 1]);
-    out
+    assert!(!colors.is_empty(), "one color per point");
+    with_values(path, Some(colors), None, None)
+}
+
+/// A copy of the path (brackets included) with the strength of its fibres at every point, see
+/// `point_values::FIBRES`. Fibres the path had are replaced, its other values stay.
+pub fn with_path_fibres(path: &[i32], fibres: &[f32]) -> Vec<i32> {
+    assert!(!fibres.is_empty(), "one value per point");
+    with_values(path, None, Some(fibres), None)
+}
+
+/// A copy of the path (brackets included) with its fill at every point, see
+/// `point_values::FILL`. A fill the path had is replaced, its other values stay.
+pub fn with_path_fill(path: &[i32], fill: &[f32]) -> Vec<i32> {
+    assert!(!fill.is_empty(), "one value per point");
+    with_values(path, None, None, Some(fill))
+}
+
+/// The values a path carries at its points, see `point_values`, for a node that makes the path
+/// anew with other points. An empty one is a value the path doesn't carry.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PointValues {
+    pub colors: Vec<u32>,
+    pub fibres: Vec<f32>,
+    pub fill: Vec<f32>,
+}
+
+impl PointValues {
+    /// The values of `path` at shares of its length. Between two points they mix.
+    pub fn at_lengths(path: &PathData, shares: &[f32]) -> Self {
+        let colors = match path.colors {
+            [] => Vec::new(),
+            colors => colors_at_lengths(path.points, colors, shares.iter().copied()),
+        };
+        let floats = |values: &[f32]| match values {
+            [] => Vec::new(),
+            values => values_at_lengths(path.points, values, shares.iter().copied()),
+        };
+        PointValues { colors, fibres: floats(path.fibres), fill: floats(path.fill) }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.colors.is_empty() && self.fibres.is_empty() && self.fill.is_empty()
+    }
+
+    /// Writes the values into a path that carries the same ones at as many points
+    pub fn write_into(&self, path: &mut PathDataMut) {
+        path.colors.copy_from_slice(&self.colors);
+        path.fibres.copy_from_slice(&self.fibres);
+        path.fill.copy_from_slice(&self.fill);
+    }
+
+    /// A copy of the path (brackets included) with these values in place of the ones it had
+    pub fn give_to(&self, path: &[i32]) -> Vec<i32> {
+        with_values(path, Some(&self.colors), Some(&self.fibres), Some(&self.fill))
+    }
 }
 
 /// How far along a path each of its points lies, as a share of its length from 0 to 1
@@ -85,6 +176,24 @@ pub fn colors_at_lengths(
             let span = at[i] - at[i - 1];
             let t = if span > 0.0 { (share - at[i - 1]) / span } else { 0.0 };
             crate::mix_words(colors[i - 1], colors[i], t.clamp(0.0, 1.0))
+        })
+        .collect()
+}
+
+/// The values of a path (`points` with a value each) at shares of its length, like
+/// `colors_at_lengths`.
+pub fn values_at_lengths(points: &[f32], values: &[f32], shares: impl IntoIterator<Item = f32>) -> Vec<f32> {
+    let at = length_shares(points);
+    shares
+        .into_iter()
+        .map(|share| {
+            if values.len() < 2 {
+                return values[0];
+            }
+            let i = at.partition_point(|&a| a <= share).clamp(1, at.len() - 1);
+            let span = at[i] - at[i - 1];
+            let t = if span > 0.0 { ((share - at[i - 1]) / span).clamp(0.0, 1.0) } else { 0.0 };
+            values[i - 1] + (values[i] - values[i - 1]) * t
         })
         .collect()
 }
@@ -259,6 +368,9 @@ pub struct PathDataMut<'a> {
     pub points: &'a mut [f32],
     /// An RGBA8 color per point, empty for a path without colors
     pub colors: &'a mut [u32],
+    /// The fibres and the fill at every point, see `point_values`, empty for a path without them
+    pub fibres: &'a mut [f32],
+    pub fill: &'a mut [f32],
     grown: &'a mut i32,
 }
 
@@ -296,9 +408,17 @@ pub struct PathData<'a> {
     pub points: &'a [f32],
     /// An RGBA8 color per point, empty for a path without colors
     pub colors: &'a [u32],
+    /// The fibres and the fill at every point, see `point_values`, empty for a path without them
+    pub fibres: &'a [f32],
+    pub fill: &'a [f32],
 }
 
 impl PathData<'_> {
+    /// Whether the path carries values at its points, see `point_values`
+    pub fn has_values(&self) -> bool {
+        !(self.colors.is_empty() && self.fibres.is_empty() && self.fill.is_empty())
+    }
+
     pub fn get_length(&self) -> f32 {
         let mut l = 0.0;
         for i in 0..(self.length - 1) {
@@ -408,33 +528,23 @@ pub fn wrap_path(input: &[i32]) -> PathData<'_> {
     );
 
     let rest = &input[2..];
-
     let header = &rest[..PATH_HEADER_SIZE];
-
     let words = &rest[PATH_HEADER_SIZE..rest.len() - 2];
-    let (points_slice, colors_slice) = words.split_at(point_words(header[0], words.len()));
+    let [points, colors, fibres, _] = split_point_words(header[0], words.len());
+    let (points_slice, rest) = words.split_at(points);
+    let (colors_slice, rest) = rest.split_at(colors);
+    let (fibres_slice, fill_slice) = rest.split_at(fibres);
 
-    assert!(
-        points_slice.len().is_multiple_of(4),
-        "Points slice does not match the expected size. {}",
-        points_slice.len()
-    );
-
-    let length = points_slice.len() / 4;
-
-    let points: &[f32] = unsafe {
-        std::slice::from_raw_parts(points_slice.as_ptr() as *const f32, points_slice.len())
-    };
-    let colors: &[u32] = unsafe {
-        std::slice::from_raw_parts(colors_slice.as_ptr() as *const u32, colors_slice.len())
-    };
-
+    // SAFETY: i32, u32 and f32 have the same size and alignment
+    let floats = |s: &[i32]| unsafe { std::slice::from_raw_parts(s.as_ptr() as *const f32, s.len()) };
     PathData {
         depth: header[1],
         link: read_link(header),
-        length,
-        points,
-        colors,
+        length: points / 4,
+        points: floats(points_slice),
+        colors: unsafe { std::slice::from_raw_parts(colors_slice.as_ptr() as *const u32, colors_slice.len()) },
+        fibres: floats(fibres_slice),
+        fill: floats(fill_slice),
     }
 }
 
@@ -445,35 +555,26 @@ pub fn wrap_path_mut<'a>(geometry: &'a mut [i32]) -> PathDataMut<'a> {
     );
 
     let (_opening_brackets, rest) = geometry.split_at_mut(2);
-
     let (header, rest) = rest.split_at_mut(PATH_HEADER_SIZE);
-
     // split after points, excluding last two that encode closing bracket
     let (words, _closing_bracket) = rest.split_at_mut(rest.len() - 2);
-    let point_words = point_words(header[0], words.len());
-    let (points_slice, colors_slice) = words.split_at_mut(point_words);
+    let [points, colors, fibres, _] = split_point_words(header[0], words.len());
+    let (points_slice, rest) = words.split_at_mut(points);
+    let (colors_slice, rest) = rest.split_at_mut(colors);
+    let (fibres_slice, fill_slice) = rest.split_at_mut(fibres);
 
-    assert!(
-        points_slice.len() % 4 == 0,
-        "Points slice does not match the expected size. {}",
-        points_slice.len()
-    );
-
-    let length = points_slice.len() / 4;
-
-    let points: &'a mut [f32] = unsafe {
-        std::slice::from_raw_parts_mut(points_slice.as_mut_ptr() as *mut f32, points_slice.len())
-    };
-    let colors: &'a mut [u32] = unsafe {
-        std::slice::from_raw_parts_mut(colors_slice.as_mut_ptr() as *mut u32, colors_slice.len())
-    };
-
+    // SAFETY: i32, u32 and f32 have the same size and alignment
+    fn floats(s: &mut [i32]) -> &mut [f32] {
+        unsafe { std::slice::from_raw_parts_mut(s.as_mut_ptr() as *mut f32, s.len()) }
+    }
     PathDataMut {
         depth: header[1],
         link: read_link(header),
-        length,
-        points,
-        colors,
+        length: points / 4,
+        points: floats(points_slice),
+        colors: unsafe { std::slice::from_raw_parts_mut(colors_slice.as_mut_ptr() as *mut u32, colors_slice.len()) },
+        fibres: floats(fibres_slice),
+        fill: floats(fill_slice),
         grown: &mut header[7],
     }
 }
@@ -865,6 +966,43 @@ mod tests {
         assert_eq!(wrap_path(&copy).points[1], 7.0);
         // new colors replace the old ones
         assert_eq!(wrap_path(&with_path_colors(&copy, &[4, 5, 6])).colors, &[4, 5, 6]);
+    }
+
+    #[test]
+    fn a_path_carries_colors_fibres_and_fill_apart() {
+        let plain = straight(3);
+        let with_fibres = with_path_fibres(&plain, &[0.5, 1.0, 1.5]);
+        assert_eq!(with_fibres[2], point_values::FIBRES);
+        let all = with_path_fill(&with_path_colors(&with_fibres, &[1, 2, 3]), &[4.0; 3]);
+        assert!(is_path(&all));
+        assert_eq!(all[2], point_values::ALL);
+        assert_eq!(all.len(), plain.len() + 9);
+        let path = wrap_path(&all);
+        assert_eq!((path.points, path.link, path.length), (wrap_path(&plain).points, wrap_path(&plain).link, 3));
+        assert_eq!((path.colors, path.fibres, path.fill), (&[1, 2, 3][..], &[0.5, 1.0, 1.5][..], &[4.0; 3][..]));
+        assert!(path.has_values() && !wrap_path(&plain).has_values());
+
+        // new colors keep the fibres and the fill, writing in place changes one value only
+        let mut recolored = with_path_colors(&all, &[7, 8, 9]);
+        wrap_path_mut(&mut recolored).fill[1] = 2.0;
+        let path = wrap_path(&recolored);
+        assert_eq!((path.colors, path.fibres, path.fill), (&[7, 8, 9][..], &[0.5, 1.0, 1.5][..], &[4.0, 2.0, 4.0][..]));
+        // a type with a flag no path has is no path
+        let mut other = plain.clone();
+        other[2] = 128;
+        assert!(!is_path(&other));
+    }
+
+    #[test]
+    fn values_are_found_by_the_share_of_the_length() {
+        let all = with_path_fill(&with_path_colors(&straight(3), &[0xff00_0000, 0xffff_ffff, 0xffff_ffff]), &[0.0, 2.0, 4.0]);
+        let path = wrap_path(&all);
+        let values = PointValues::at_lengths(&path, &[0.0, 0.25, 1.0]);
+        assert_eq!(values.fill, vec![0.0, 1.0, 4.0]);
+        assert_eq!(values.colors, colors_at_lengths(path.points, path.colors, [0.0, 0.25, 1.0]));
+        assert!(values.fibres.is_empty());
+        let given = wrap_path(&values.give_to(&straight(3))).fill.to_vec();
+        assert_eq!(given, vec![0.0, 1.0, 4.0]);
     }
 
     #[test]

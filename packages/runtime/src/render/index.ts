@@ -23,7 +23,7 @@ export type RenderOptions = {
    */
   focus?: [x: number, z: number, r: number];
   /**
-   * Also draws paths and Myzel lines as tubes of their thickness and points as dots, for the
+   * Also draws paths as tubes of their thickness and points as dots, for the
    * output of a node in the middle of a graph. The result of a graph carries its paths next to
    * their geometry, so it is off by default.
    */
