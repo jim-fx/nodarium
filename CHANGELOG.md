@@ -1,3 +1,23 @@
+# v2.1.0 (2026-11-19)
+
+## Breaking
+
+- `stem` has no `fan` input any more, and there is no migration (#473). To fan stems out, use two `rotate` nodes fed by one `float` a: the first turns them by a · −0.5, the second by a with `spread`. A graph that sets `fan` builds without it, and `nodarium check` and `nodarium run` report the leftover prop until it is removed. No template used it.
+
+## Features
+
+- `to_geometry` shows only its paths: `resolution_circle`, `max_circle_segments`, `max_points` and `bake` are hidden by default, like `variants`. They are in Node Settings and can be pinned onto the node, and graphs that set them build the same (#473).
+
+## Upgrading
+
+- Remove `fan` from `stem` nodes in graphs written by hand, and use the two `rotate` nodes above. `docs/PLANTARIUM.md` shows the palmate leaf built that way.
+
+---
+
+- [e7db9947](https://git.max-richter.dev/max/nodarium/commit/e7db9947bdcb9ada8d3af8459562cee31bc70e5b) Merge pull request 'feat(stem)!: remove fan, hide the inputs of to_geometry' (#473) from feat/stem-no-fan into main
+- [0877e28f](https://git.max-richter.dev/max/nodarium/commit/0877e28f45d332d5d7a1ca6888549be13b87d0d9) feat(to_geometry): hide every input but the paths
+- [21553b2b](https://git.max-richter.dev/max/nodarium/commit/21553b2bafac9f7776061d4e2640001b872c8806) feat(stem)!: remove fan, two rotate nodes fan the stems out
+
 # v2.0.0 (2026-11-19)
 
 ## Breaking
