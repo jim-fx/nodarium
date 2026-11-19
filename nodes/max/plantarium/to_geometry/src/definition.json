@@ -21,11 +21,13 @@
       "value": 32,
       "min": 3,
       "max": 64,
-      "setting": "resolution.circle"
+      "setting": "resolution.circle",
+      "hidden": true
     },
     "max_circle_segments": {
       "type": "integer",
       "description": "The most segments around a path, lower it for small parts. 0 uses the circle resolution setting.",
+      "hidden": true,
       "value": 0,
       "min": 0,
       "max": 64
@@ -33,6 +35,7 @@
     "max_points": {
       "type": "integer",
       "description": "The most points along a path, longer paths are resampled to this many. 0 keeps all points.",
+      "hidden": true,
       "value": 0,
       "min": 0,
       "max": 64
@@ -40,6 +43,7 @@
     "bake": {
       "type": "boolean",
       "internal": true,
+      "hidden": true,
       "value": false,
       "description": "Bake the instances too and give everything as one geometry, so an instance node can place the whole part like a leaf. Off, the instances stay instances, which draw faster."
     },
