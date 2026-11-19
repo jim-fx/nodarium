@@ -139,7 +139,9 @@ const ABOUT: Record<string, About> = {
   chanterelle: {
     notes: 'Four to nine stipes of their own age, ridges instead of gills, a Stipe base group.'
   },
-  oyster: { notes: 'The Stipe, Cap and Gills groups, time scales the lengths and radii.' },
+  oyster: {
+    notes: 'Four to eight stipes from one spot, each of its own age, their shell caps in tiers.'
+  },
   'honey-fungus': {
     notes: 'Six to eleven stipes of their own age, with the Gills, Ring and Cuticle groups.'
   },
