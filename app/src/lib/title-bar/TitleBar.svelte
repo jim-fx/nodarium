@@ -205,6 +205,11 @@
         { label: 'Tutorial', onselect: onstarttutorial },
         { label: 'Keyboard shortcuts', onselect: () => panelState.setActivePanel('shortcuts') },
         { label: 'Changelog', onselect: () => panelState.setActivePanel('changelog') },
+        { label: 'Templates', onselect: () => window.open('/template', '_blank') },
+        {
+          label: 'Benchmarks',
+          onselect: () => window.open('https://nodes.max-richter.dev/bench', '_blank')
+        },
         'separator',
         { label: 'About', onselect: () => (showAbout = true) },
         {
