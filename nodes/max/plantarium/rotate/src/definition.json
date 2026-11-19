@@ -21,7 +21,7 @@
     "angle": {
       "type": "float",
       "min": 0,
-      "max": 6.28318530718,
+      "max": 6.2832,
       "step": 0.05,
       "value": 0,
       "description": "How far every path turns around its base, in radians: 1.5708 rad is a right angle, 6.2832 rad a full turn.",

@@ -136,7 +136,7 @@
           "props": {
             "amount": 2,
             "angle": 0.0523599,
-            "rotation": 2.0943951,
+            "rotation": 2.0944,
             "lowest_kink": 0.2,
             "highest_kink": 0.7
           }
@@ -193,7 +193,7 @@
           "type": "max/core/random",
           "props": {
             "min": 0,
-            "max": 0.1047198
+            "max": 0.1047
           }
         },
         {
@@ -201,8 +201,8 @@
           "position": [-270, 36.67],
           "type": "max/core/random",
           "props": {
-            "min": -1.5707963,
-            "max": 1.5707963
+            "min": -1.5708,
+            "max": 1.5708
           }
         },
         {

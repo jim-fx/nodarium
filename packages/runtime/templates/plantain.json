@@ -1714,6 +1714,7 @@
         "amount": 1,
         "lowest_instance": 1,
         "highest_instance": 1,
+        "rotation": 0.5,
         "face": 1,
         "angle": 1.5708
       },

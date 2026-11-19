@@ -73,8 +73,8 @@
         "highest_branch": 1,
         "length": 1,
         "thickness": 0.7,
-        "rotation": 3.1415927,
-        "angle": 0.6108652,
+        "rotation": 3.1416,
+        "angle": 0.6109,
         "taper": 0.8,
         "offset_single": 0,
         "depth": 1
@@ -104,7 +104,7 @@
         "length": 0.3,
         "thickness": 0.8,
         "rotation": 0.5735152,
-        "angle": 0.6981317,
+        "angle": 0.6981,
         "taper": 0.6,
         "offset_single": 0,
         "depth": 1
@@ -181,7 +181,7 @@
         "lowest_instance": 0.175,
         "highest_instance": 0.881,
         "rotation": 3.14,
-        "angle": 0.4363323,
+        "angle": 0.4363,
         "size": 1,
         "plant": 0,
         "geometry": [0, 0, 0],

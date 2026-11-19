@@ -73,7 +73,7 @@
         "length": 0.000134,
         "thickness": 1,
         "rotation": 0,
-        "angle": 1.5707963,
+        "angle": 1.5708,
         "taper": 0
       }
     },
@@ -93,7 +93,7 @@
         "lowest_instance": 0,
         "highest_instance": 1,
         "rotation": 0.628,
-        "angle": 1.0471976,
+        "angle": 1.0472,
         "size": 0.008763
       }
     },
@@ -106,7 +106,7 @@
         "highest_branch": 0,
         "thickness": 0.3,
         "rotation": 0.5759587,
-        "angle": 0.5235988,
+        "angle": 0.5236,
         "taper": 1
       }
     },

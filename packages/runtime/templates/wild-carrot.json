@@ -56,7 +56,7 @@
         "highest_branch": 0.85,
         "length": 0.3,
         "thickness": 0.65,
-        "rotation": 2.3998277,
+        "rotation": 2.3998,
         "angle": 0.5585054,
         "taper": 0.6,
         "depth": 1
@@ -178,7 +178,7 @@
         "lowest_instance": 1,
         "highest_instance": 1,
         "rotation": 0,
-        "angle": 1.5707963,
+        "angle": 1.5708,
         "size": 1,
         "depth": 2,
         "pick": 1,
@@ -276,7 +276,7 @@
       "type": "max/plantarium/rotate",
       "props": {
         "axis": 0,
-        "angle": 4.71239,
+        "angle": 4.7124,
         "spread": 0
       }
     },
@@ -288,7 +288,7 @@
         "amount": 24,
         "length": 0.065,
         "length_variation": 0.15,
-        "opening": 1.4835299,
+        "opening": 1.4835,
         "shape": 0.15,
         "thickness": 0.0005,
         "depth": 2,
@@ -358,7 +358,7 @@
         "lowest_instance": 1,
         "highest_instance": 1,
         "rotation": 1.2566,
-        "angle": 0.3490659,
+        "angle": 0.3491,
         "size": 0.16,
         "depth": 1
       }
@@ -373,8 +373,8 @@
         "highest_branch": 1,
         "length": 0.045,
         "thickness": 0.5,
-        "rotation": 2.3998277,
-        "angle": -0.1745329,
+        "rotation": 2.3998,
+        "angle": -0.1745,
         "taper": 0.8,
         "depth": 1
       }
@@ -389,8 +389,8 @@
         "highest_branch": 0.85,
         "length": 0.012,
         "thickness": 0.6,
-        "rotation": 3.1415927,
-        "angle": 0.5235988,
+        "rotation": 3.1416,
+        "angle": 0.5236,
         "taper": 0.8,
         "depth": 1
       }
@@ -460,7 +460,7 @@
       "type": "max/plantarium/rotate",
       "props": {
         "axis": 0,
-        "angle": 4.71239,
+        "angle": 4.7124,
         "spread": 0
       }
     },
@@ -488,7 +488,7 @@
         "lowest_instance": 1,
         "highest_instance": 1,
         "rotation": 1.2566,
-        "angle": 0.6981317,
+        "angle": 0.6981,
         "size": 0.12,
         "depth": 1
       }
@@ -503,8 +503,8 @@
         "highest_branch": 1,
         "length": 0.028,
         "thickness": 0.5,
-        "rotation": 2.3998277,
-        "angle": 0.8726646,
+        "rotation": 2.3998,
+        "angle": 0.8727,
         "taper": 0.8,
         "depth": 1
       }
@@ -519,8 +519,8 @@
         "highest_branch": 0.85,
         "length": 0.01,
         "thickness": 0.6,
-        "rotation": 3.1415927,
-        "angle": 0.5235988,
+        "rotation": 3.1416,
+        "angle": 0.5236,
         "taper": 0.8,
         "depth": 1
       }
@@ -569,8 +569,8 @@
         "highest_branch": 1,
         "length": 0.22,
         "thickness": 0.5,
-        "rotation": 2.3998277,
-        "angle": 0.5235988,
+        "rotation": 2.3998,
+        "angle": 0.5236,
         "taper": 0.7,
         "depth": 1
       }
@@ -598,8 +598,8 @@
       "position": [190, -295.47],
       "type": "max/core/random",
       "props": {
-        "min": 0.2617994,
-        "max": 0.8726646
+        "min": 0.2618,
+        "max": 0.8727
       }
     },
     {
@@ -612,8 +612,8 @@
         "highest_branch": 0.78,
         "length": 0.1,
         "thickness": 0.35,
-        "rotation": 2.3998277,
-        "angle": 0.6108652,
+        "rotation": 2.3998,
+        "angle": 0.6109,
         "taper": 0.7,
         "depth": 1
       }
@@ -665,8 +665,8 @@
       "position": [190, -192.47],
       "type": "max/core/random",
       "props": {
-        "min": 0.4363323,
-        "max": 0.9599311
+        "min": 0.4363,
+        "max": 0.9599
       }
     },
     {
@@ -713,8 +713,8 @@
         "highest_branch": 0.97,
         "length": 0.05,
         "thickness": 0.5,
-        "rotation": 3.1415927,
-        "angle": 0.6981317,
+        "rotation": 3.1416,
+        "angle": 0.6981,
         "taper": 0.7,
         "depth": 1,
         "offset_single": 1
@@ -775,8 +775,8 @@
       "position": [340, -178.8],
       "type": "max/core/random",
       "props": {
-        "min": 0.6108652,
-        "max": 0.9599311
+        "min": 0.6109,
+        "max": 0.9599
       }
     },
     {
@@ -849,7 +849,7 @@
         "lowest_instance": 0,
         "highest_instance": 0,
         "rotation": 0,
-        "angle": 1.5707963,
+        "angle": 1.5708,
         "size": 1,
         "depth": 1
       }
@@ -1333,7 +1333,7 @@
         "lowest_instance": 1,
         "highest_instance": 1,
         "rotation": 0,
-        "angle": 1.5707963,
+        "angle": 1.5708,
         "depth": 1
       }
     },

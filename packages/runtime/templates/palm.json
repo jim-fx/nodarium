@@ -40,8 +40,8 @@
         "thickness": 0.4,
         "lowest_branch": 0.93,
         "highest_branch": 1,
-        "rotation": 2.3998277,
-        "angle": 0.6981317
+        "rotation": 2.3998,
+        "angle": 0.6981
       }
     },
     {
@@ -104,7 +104,7 @@
         "lowest_instance": 0.14,
         "highest_instance": 1,
         "rotation": 3.14,
-        "angle": 0.5235988,
+        "angle": 0.5236,
         "plant": 0,
         "geometry": [0, 0, 0],
         "size": 1,
@@ -127,7 +127,7 @@
       "id": 24,
       "position": [150, -73.2],
       "type": "max/core/curve",
-      "props": { "curve": [0, 0, 0.93, 0, 0.965, 0.4, 1, 1], "min": -0.3490659, "max": 1.3089969 }
+      "props": { "curve": [0, 0, 0.93, 0, 0.965, 0.4, 1, 1], "min": -0.3491, "max": 1.309 }
     },
     {
       "id": 25,
@@ -233,7 +233,7 @@
       "id": 37,
       "position": [0, -134.15],
       "type": "max/plantarium/rotate",
-      "props": { "axis": 0, "angle": 4.71239, "spread": 0 }
+      "props": { "axis": 0, "angle": 4.7124, "spread": 0 }
     },
     {
       "id": 38,
@@ -257,7 +257,7 @@
       "id": 42,
       "position": [30, -193.77],
       "type": "max/plantarium/rotate",
-      "props": { "axis": 0, "angle": 4.71239, "spread": 0 }
+      "props": { "axis": 0, "angle": 4.7124, "spread": 0 }
     },
     {
       "id": 43,
@@ -268,7 +268,7 @@
         "lowest_instance": 0.45,
         "highest_instance": 1,
         "rotation": 2.4,
-        "angle": 0.3490659,
+        "angle": 0.3491,
         "size": 36
       }
     },
@@ -293,7 +293,7 @@
         "lowest_instance": 0.9,
         "highest_instance": 0.93,
         "rotation": 2.4,
-        "angle": -0.9599311,
+        "angle": -0.9599,
         "size": 5
       }
     },

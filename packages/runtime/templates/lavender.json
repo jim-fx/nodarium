@@ -56,7 +56,7 @@
         "lowest_instance": 0.02,
         "highest_instance": 0.4,
         "rotation": 1.57,
-        "angle": 0.6981317,
+        "angle": 0.6981,
         "size": 0.250446
       }
     },
@@ -81,7 +81,7 @@
         "lowest_instance": 0.74,
         "highest_instance": 1,
         "rotation": 2.4,
-        "angle": 0.7853982
+        "angle": 0.7854
       }
     },
     { "id": 26, "position": [180, 247.89], "type": "max/core/alpha", "props": {} },
@@ -138,8 +138,8 @@
         "highest_branch": 1.0,
         "length": 4.9,
         "thickness": 0.5,
-        "rotation": 2.3998277,
-        "angle": 1.0471976
+        "rotation": 2.3998,
+        "angle": 1.0472
       }
     },
     {
@@ -152,8 +152,8 @@
         "highest_branch": 0.9,
         "length": 1.1,
         "thickness": 0.7,
-        "rotation": 2.3998277,
-        "angle": 0.5235988,
+        "rotation": 2.3998,
+        "angle": 0.5236,
         "taper": 0.5
       }
     },
@@ -167,7 +167,7 @@
       "id": 32,
       "position": [60, -214.85],
       "type": "max/core/random",
-      "props": { "min": 0.2617994, "max": 0.7853982 }
+      "props": { "min": 0.2618, "max": 0.7854 }
     },
     {
       "id": 33,
@@ -176,7 +176,7 @@
       "props": {
         "curve": [0.4, 0.75, 0.6, 0.6944, 0.8, 0.4028, 1.0, 0.2361],
         "min": 0,
-        "max": 6.2831853
+        "max": 6.2832
       }
     },
     { "id": 34, "position": [90, -68.28], "type": "max/core/alpha", "props": {} },
@@ -184,7 +184,7 @@
       "id": 35,
       "position": [120, -67.03],
       "type": "max/core/curve",
-      "props": { "curve": [0, 1, 0.5, 1, 0.52, 0, 1, 0], "min": 0.8726646, "max": 1.3962634 }
+      "props": { "curve": [0, 1, 0.5, 1, 0.52, 0, 1, 0], "min": 0.8727, "max": 1.3963 }
     },
     { "id": 36, "position": [90, -40.28], "type": "max/core/alpha", "props": {} },
     {

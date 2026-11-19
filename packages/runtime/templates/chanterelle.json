@@ -552,7 +552,7 @@
           "type": "max/core/random",
           "props": {
             "min": 0.0,
-            "max": 0.2094395,
+            "max": 0.2094,
             "uniform": 1
           }
         },
@@ -561,8 +561,8 @@
           "position": [-330, -6.28],
           "type": "max/core/random",
           "props": {
-            "min": 2.7925268,
-            "max": 3.4906585,
+            "min": 2.7925,
+            "max": 3.4907,
             "uniform": 1
           }
         },
