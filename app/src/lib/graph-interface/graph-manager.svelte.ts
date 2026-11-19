@@ -47,6 +47,7 @@ import { toPlain } from './helpers/index.ts';
 import { COLUMN_GAP, layoutGraph, NODE_WIDTH } from './helpers/layoutGraph';
 import {
   areEdgesEqual,
+  exposeConnectedInputs,
   getNodeHeight,
   isInputConnectable,
   positionOf,
@@ -616,6 +617,19 @@ export class GraphManager extends EventEmitter<{
     if (wasPlaced) {
       graph = placed;
       this.groups = $state.snapshot(placed.groups);
+    }
+
+    // an edge into a hidden input that is not exposed would end where no socket is drawn
+    const getType = (type: string) => this.registry.getNode(type);
+    const exposedNodes = exposeConnectedInputs(graph.nodes, graph.edges, getType);
+    const exposedGroups = graph.groups?.map((group) => {
+      const nodes = exposeConnectedInputs(group.nodes, group.edges, getType);
+      return nodes === group.nodes ? group : { ...group, nodes };
+    });
+    if (exposedNodes !== graph.nodes) graph = { ...graph, nodes: exposedNodes };
+    if (exposedGroups?.some((group, i) => group !== graph.groups?.[i])) {
+      graph = { ...graph, groups: exposedGroups };
+      this.groups = $state.snapshot(exposedGroups);
     }
 
     const allCollections = new SvelteSet<`${string}/${string}`>(this.registry.baseCollections);

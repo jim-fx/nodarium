@@ -116,6 +116,40 @@ export function isInputConnectable(input: { hidden?: boolean; internal?: boolean
   return !!input && input.internal !== true && input.hidden !== true;
 }
 
+/**
+ * The nodes with every hidden input an edge goes into added to their `exposed`, in the
+ * order of the inputs of their type. The same array when no node misses one.
+ */
+export function exposeConnectedInputs<T extends SerializedNode>(
+  nodes: T[],
+  edges: SerializedEdge[],
+  getType: (type: string) => NodeDefinition | undefined
+): T[] {
+  const connected = new Map<number, Set<string>>();
+  for (const edge of edges) {
+    let keys = connected.get(edge[2]);
+    if (!keys) connected.set(edge[2], keys = new Set());
+    keys.add(edge[3]);
+  }
+
+  let changed = false;
+  const result = nodes.map((node) => {
+    const keys = connected.get(node.id);
+    const inputs = keys && getType(node.type)?.inputs;
+    if (!inputs) return node;
+    const missing = Object.keys(inputs).filter((key) =>
+      keys.has(key)
+      && inputs[key].hidden === true
+      && inputs[key].internal !== true
+      && !node.exposed?.includes(key)
+    );
+    if (!missing.length) return node;
+    changed = true;
+    return { ...node, exposed: [...(node.exposed ?? []), ...missing] };
+  });
+  return changed ? result : nodes;
+}
+
 export function areEdgesEqual(firstEdge: Edge, secondEdge: Edge) {
   if (firstEdge[0].id !== secondEdge[0].id) {
     return false;
