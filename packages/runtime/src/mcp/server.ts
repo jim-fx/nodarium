@@ -41,6 +41,20 @@ const VIEWS = { 'front-side-top': false, 'front-side-top-below': true } as const
 /** Lines joined into one paragraph, a model reads no line breaks into it */
 const paragraph = (...lines: string[]) => lines.join(' ');
 
+const SYSTEMS_TEXT = paragraph(
+  'The nodes come in three systems, the second part of their id, and all of them work together.',
+  'Core (max/core/...) has the value nodes every graph has: float, math, random, curve, alpha,',
+  'time, mix_color and the others give and shape the values of inputs. Plantarium',
+  '(max/plantarium/...) makes plants from paths: stems, branches, points, leaves and instances.',
+  'Myzel (max/myzel/...) grows mushrooms on those paths: caps, strands, gills and veils, and',
+  'hyphae_to_mesh turns the strands into a surface. Every graph ends in the one output,',
+  'max/core/output, which takes only geometry: paths reach it through a max/plantarium/to_geometry,',
+  'geometry and instances pass through that too. There is one set_color, max/plantarium/set_color:',
+  'it colors paths and geometry, and the colors it gives the strands of a mushroom color the',
+  'surface of hyphae_to_mesh. One join, max/plantarium/join, joins the paths and the geometry of',
+  'both.'
+);
+
 const INSTRUCTIONS = paragraph(
   'Nodarium makes 3D plants and mushrooms from graphs of nodes. A graph is JSON: nodes with',
   'props, and edges between them. The tools work on graphs you pass as JSON, nothing is saved.',
@@ -48,7 +62,8 @@ const INSTRUCTIONS = paragraph(
   'and get_node for the nodes you use, check_graph before run_graph, render_graph to see it,',
   'probe_node to see the values or the sizes one node gives, and',
   'graph_link for a link that opens it in the editor. The prompt write_graph explains the format,',
-  'get_docs gives the guides to the plant and mushroom nodes.'
+  'get_docs gives the guides to the plant and mushroom nodes.',
+  SYSTEMS_TEXT
 );
 
 const GRAPH = z.union([z.string(), z.record(z.string(), z.unknown())]).describe(
@@ -97,6 +112,7 @@ export function graphPrompt(request?: string) {
       'call check_graph and fix every error before run_graph or render_graph, look at the picture',
       'of render_graph, and give the link of graph_link at the end so the graph opens in the editor.'
     ),
+    SYSTEMS_TEXT,
     paragraph(
       'The guide below names the commands of the `nodarium` command line. Here they are tools:',
       '`nodes` is list_nodes and get_node, `check` is check_graph, `run` is run_graph, `render` is',
@@ -159,9 +175,9 @@ export function createServer(dir = nodesDir): McpServer {
 
   server.registerTool('list_nodes', {
     title: 'List the nodes',
-    description: 'Lists the nodes a graph can use, one entry per node: '
-      + '"id (types of the data it takes) -> type it gives", then the first sentence of what it '
-      + 'does. Core nodes (max/core/...) give and shape values, like float, math, random, curve '
+    description: 'Lists the nodes a graph can use under a heading per system, one entry per '
+      + 'node: "id (types of the data it takes) -> type it gives", then the first sentence of '
+      + 'what it does. Core nodes (max/core/...) give and shape values, like float, math, random, curve '
       + 'and time, and max/core/output, the end of every graph, takes only geometry. Plantarium '
       + 'nodes (max/plantarium/...) make plants, a to_geometry turns their paths into the geometry '
       + 'of the output, Myzel nodes (max/myzel/...) make mushrooms. Call get_node for the inputs '

@@ -84,6 +84,12 @@ describe('nodarium', () => {
     expect(list.out).toContain(
       'max/plantarium/noise (path) -> path\n  Bends paths with smooth noise'
     );
+    const headings = list.out.split('\n').filter((line) => line.startsWith('# '));
+    expect(headings.map((line) => line.split(':')[0])).toEqual([
+      '# core',
+      '# plantarium',
+      '# myzel'
+    ]);
 
     const stem = await run('nodes', 'stem');
     expect(stem.out.split('\n')[0]).toBe('max/plantarium/stem (points) -> path');
@@ -91,6 +97,7 @@ describe('nodarium', () => {
 
     const meshes = JSON.parse((await run('nodes', '--type', 'geometry', '--json')).out);
     expect(meshes.map((n: { id: string }) => n.id)).toContain('max/myzel/hyphae_to_mesh');
+    expect(meshes.find((n: { id: string }) => n.id === 'max/core/output').system).toBe('core');
 
     expect((await run('nodes', 'stme')).code).toBe(1);
   });

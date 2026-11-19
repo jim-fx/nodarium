@@ -39,6 +39,15 @@ function textOf(result: CallToolResult) {
 }
 
 describe('nodarium mcp', () => {
+  it('tells how the three systems fit together', () => {
+    const instructions = client.getInstructions()!;
+    for (const part of ['max/core/', 'max/plantarium/', 'max/myzel/', 'max/core/output']) {
+      expect(instructions).toContain(part);
+    }
+    expect(instructions).toContain('through a max/plantarium/to_geometry');
+    expect(instructions).toContain('one set_color, max/plantarium/set_color');
+  });
+
   it('lists the tools with their arguments', async () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name)).toEqual([
@@ -63,6 +72,9 @@ describe('nodarium mcp', () => {
 
   it('lists the nodes and shows one', async () => {
     const all = textOf(await call('list_nodes'));
+    expect(all).toMatch(/^# core: /);
+    expect(all).toContain('\n\n# plantarium: ');
+    expect(all).toContain('\n\n# myzel: ');
     expect(all).toContain('max/plantarium/noise (path) -> path\n  Bends paths with smooth noise');
     expect(textOf(await call('list_nodes', { type: 'geometry' }))).toContain(
       'max/myzel/hyphae_to_mesh'

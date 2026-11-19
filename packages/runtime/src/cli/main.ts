@@ -3,7 +3,7 @@ import { lstatSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { findNodes, formatNode, formatNodeList, nodesOfType } from '../catalog';
+import { findNodes, formatNode, formatNodeList, nodesOfType, nodeSystem } from '../catalog';
 import { DOC_TOPICS, docList, docText } from '../docs';
 import { GRAPH_LINK_BASE } from '../graph-link';
 import { listNodes } from '../list-nodes';
@@ -262,8 +262,10 @@ class Cli {
         return found;
       });
     }
-    if (this.options.json) this.print(JSON.stringify(nodes, null, 2));
-    else if (names.length) this.print(nodes.map((node) => formatNode(node)).join('\n\n'));
+    if (this.options.json) {
+      const withSystem = nodes.map((node) => ({ ...node, system: nodeSystem(node.id) }));
+      this.print(JSON.stringify(withSystem, null, 2));
+    } else if (names.length) this.print(nodes.map((node) => formatNode(node)).join('\n\n'));
     else this.print(formatNodeList(nodes));
   }
 

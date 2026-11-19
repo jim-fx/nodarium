@@ -6,9 +6,12 @@ export {
   firstSentence,
   formatNode,
   formatNodeList,
+  groupBySystem,
   nodeSignature,
   nodesOfType,
-  nodeSummary
+  nodeSummary,
+  nodeSystem,
+  SYSTEMS
 } from './catalog';
 export {
   applySets,
