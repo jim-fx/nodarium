@@ -5,7 +5,7 @@ export const GROUP_INPUT = '__internal/group/input';
 export const GROUP_OUTPUT = '__internal/group/output';
 export const DEBUG_NODE = '__internal/node/debug';
 
-/** A node whose input is the result of its graph, like `max/plantarium/output` */
+/** A node whose input is the result of its graph, like `max/core/output` */
 export function isOutputNode(type: string) {
   return type.endsWith('/output');
 }

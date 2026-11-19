@@ -1,12 +1,12 @@
 # Nodarium
 
-> Nodarium is a node editor for procedural 3D models that runs in the browser. A model is a graph of nodes, and every node is a WebAssembly module written in Rust. Two sets of nodes come with it: Plantarium makes plants, Myzel makes mushrooms. The editor shows the result in 3D and exports it as GLB or OBJ.
+> Nodarium is a node editor for procedural 3D models that runs in the browser. A model is a graph of nodes, and every node is a WebAssembly module written in Rust. Three systems of nodes come with it: Core has the value nodes and the one output every graph has, Plantarium makes plants, and Myzel grows mushrooms on the paths of Plantarium. The editor shows the result in 3D and exports it as GLB or OBJ.
 
 The app is at https://nodes.max-richter.dev and needs JavaScript and WebAssembly. It keeps the projects in the browser of the visitor: there is no account, and no server stores a graph. The files below are static and need no JavaScript.
 
 ## Nodes and graphs
 
-- [Node catalog](/nodes/index.txt): every node with the types of the data it takes and gives, and the first sentence of its description
+- [Node catalog](/nodes/index.txt): every node under a heading per system, with the types of the data it takes and gives, and the first sentence of its description
 - [Node catalog as JSON](/nodes/index.json): the same, with the address of the full definition of every node
 - [Collections](/nodes/users.json): the collections of nodes; `/nodes/<user>/<collection>.json` has the definitions of all nodes of a collection, with the type, default, range and description of every input
 - [Writing a graph](/docs/graphs.md): what a graph file looks like, with an example
