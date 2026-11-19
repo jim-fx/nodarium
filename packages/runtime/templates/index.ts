@@ -201,6 +201,12 @@ export const templates: Template[] = [
   mushroom('shiitake', 'Shiitake', 'cm', () => import('./shiitake.json')),
   mushroom('shaggy-inkcap', 'Shaggy inkcap', 'cm', () => import('./shaggy-inkcap.json')),
   mushroom('chanterelle', 'Chanterelle', 'cm', () => import('./chanterelle.json')),
+  mushroom(
+    'false-chanterelle',
+    'False chanterelle',
+    'cm',
+    () => import('./false-chanterelle.json')
+  ),
   mushroom('oyster', 'Oyster mushroom', 'cm', () => import('./oyster.json')),
   mushroom('honey-fungus', 'Honey fungus', 'cm', () => import('./honey-fungus.json')),
   mushroom('clouded-agaric', 'Clouded agaric', 'cm', () => import('./clouded-agaric.json'))
@@ -212,12 +218,6 @@ export const templates: Template[] = [
  */
 export const unlistedTemplates: Template[] = [
   mushroom('sulphur-tuft', 'Sulphur tuft', 'cm', () => import('./sulphur-tuft.json')),
-  mushroom(
-    'false-chanterelle',
-    'False chanterelle',
-    'cm',
-    () => import('./false-chanterelle.json')
-  ),
   mushroom('bitter-bolete', 'Bitter bolete', 'cm', () => import('./bitter-bolete.json'))
 ];
 
