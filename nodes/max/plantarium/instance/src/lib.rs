@@ -11,6 +11,9 @@ use nodarium_utils::{
 
 nodarium_definition_file!("src/definition.json");
 
+/// Instances smaller than this part of the largest one of the node are too small to be seen
+const MIN_RELATIVE_SIZE: f32 = 1e-3;
+
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
@@ -27,8 +30,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let by_index = int(args[10]) == 1;
     let face_path = args.get(13).is_some_and(|face| int(face) == 1);
 
-    // the transforms of the instances of each geometry and the paths they sit on
-    let mut groups: Vec<(Vec<[f32; 16]>, Vec<i32>)> = vec![Default::default(); geometries.len()];
+    // the geometry, transform, path and size of every instance
+    let mut placed: Vec<(usize, Mat4, i32, f32)> = Vec::new();
 
     let depth = ctx.int(args[6]);
     let selected = DeepestPaths::new(&inputs, depth);
@@ -109,8 +112,18 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
             let hash = path_id(seed, path.link.id, i);
             let choice = pick_geometry(by_index, pick, hash, geometries.len());
+            placed.push((choice, transform, path.link.id, size.abs()));
+        }
+    }
+
+    // compared to the largest instance and not in meters, so the instances of a plant of a few
+    // millimeters stay, while those that have just started to grow are left out
+    let largest = placed.iter().fold(0.0f32, |largest, p| largest.max(p.3));
+    let mut groups: Vec<(Vec<[f32; 16]>, Vec<i32>)> = vec![Default::default(); geometries.len()];
+    for (choice, transform, path_id, size) in placed {
+        if size > largest * MIN_RELATIVE_SIZE {
             groups[choice].0.push(transform.to_cols_array());
-            groups[choice].1.push(path.link.id);
+            groups[choice].1.push(path_id);
         }
     }
 
@@ -274,6 +287,38 @@ mod tests {
 
         assert!(groups(&result).is_empty());
         assert_eq!(split_args(&result), split_args(&stems));
+    }
+
+    #[test]
+    fn tiny_instances_are_placed() {
+        let stems = stems();
+
+        // the stems are 10 cm thick, the instances are 0.011 mm big
+        let result = run_sized(&stems, &geometry(3), 5, 0, 0.0001);
+
+        let placed: usize = groups(&result).iter().map(|(_, ids)| ids.len()).sum();
+        assert_eq!(placed, 10);
+    }
+
+    #[test]
+    fn instances_far_smaller_than_the_largest_are_left_out() {
+        let mut stems = stems();
+        let thin_id = {
+            let mut paths = wrap_multiple_paths(&mut stems);
+            for (stem, thickness) in paths.iter_mut().zip([20.0, 0.0]) {
+                for i in 0..4 {
+                    stem.points[i * 4 + 3] = thickness;
+                }
+            }
+            paths[1].link.id
+        };
+
+        // the instances on the thin stem are 2000 times smaller
+        let result = run_sized(&stems, &geometry(3), 5, 0, 0.0001);
+
+        let ids: Vec<i32> = groups(&result).into_iter().flat_map(|(_, ids)| ids).collect();
+        assert_eq!(ids.len(), 5);
+        assert!(!ids.contains(&thin_id));
     }
 
     #[test]
