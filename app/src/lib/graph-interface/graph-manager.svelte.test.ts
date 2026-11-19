@@ -859,6 +859,67 @@ describe('setInputExposed', () => {
 
     expect(manager.getNode(nodeA.id)?.exposed ?? []).toEqual([]);
   });
+
+  it('should expose the hidden inputs an edge goes into on load', async () => {
+    const mockTwoHiddenInputsNode: NodeDefinition = {
+      ...mockHiddenInputNode,
+      id: 'test/node/hidden2',
+      inputs: { ...mockHiddenInputNode.inputs, amount: { type: 'float', hidden: true } }
+    };
+    const registry = createMockNodeRegistry([
+      mockFloatInputNode,
+      mockHiddenInputNode,
+      mockTwoHiddenInputsNode
+    ]);
+    const manager = new GraphManager(registry);
+    const at = (id: number, type: NodeId, exposed?: string[]) => ({
+      id,
+      type,
+      position: [0, 0] as [number, number],
+      ...(exposed && { exposed })
+    });
+    const graph: Graph = {
+      id: 1,
+      version: CURRENT_GRAPH_VERSION,
+      nodes: [
+        at(1, 'test/node/input'),
+        at(2, 'test/node/hidden'),
+        at(3, 'test/node/hidden2', ['amount']),
+        at(4, 'test/node/hidden2')
+      ],
+      edges: [
+        [1, 0, 2, 'strength'],
+        [1, 0, 3, 'strength'],
+        [1, 0, 3, 'amount'],
+        [1, 0, 4, 'amount'],
+        [1, 0, 4, 'strength'],
+        [1, 0, 4, 'value']
+      ],
+      groups: [{
+        id: 10,
+        nodes: [at(11, 'test/node/input'), at(12, 'test/node/hidden')],
+        edges: [[11, 0, 12, 'strength']]
+      }]
+    };
+    const loaded = structuredClone(graph);
+
+    await manager.load(graph);
+
+    const saved = manager.serialize();
+    const exposed = (nodes: Graph['nodes']) =>
+      Object.fromEntries(nodes.map((n) => [n.id, n.exposed]));
+    expect(exposed(saved.nodes)).toEqual({
+      1: undefined,
+      2: ['strength'],
+      3: ['amount', 'strength'],
+      4: ['strength', 'amount']
+    });
+    expect(exposed(saved.groups[0].nodes)).toEqual({ 11: undefined, 12: ['strength'] });
+    expect(saved.edges).toHaveLength(graph.edges.length);
+    expect(manager.getNodeType(manager.getNode(2)!)?.inputs?.strength.hidden).toBe(false);
+    expect(manager.history.history).toHaveLength(0);
+    expect(graph).toEqual(loaded);
+  });
 });
 
 describe('internal inputs', () => {
