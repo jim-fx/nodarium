@@ -50,7 +50,6 @@ dependencies = [
 name = "core_mix_color"
 version = "0.1.0"
 dependencies = [
- "myzel_core",
  "nodarium_macros",
  "nodarium_utils",
  "serde_json",
@@ -93,7 +92,6 @@ name = "core_time"
 version = "0.1.0"
 dependencies = [
  "glam",
- "myzel_core",
  "nodarium_macros",
  "nodarium_utils",
 ]

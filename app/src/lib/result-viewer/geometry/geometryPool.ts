@@ -28,7 +28,6 @@ import {
   withHighlight
 } from '../provenance/highlight';
 import type { Pickable } from '../provenance/picker';
-import { createLinesPool } from './lines';
 
 /**
  * Path ids are hashes that would lose bits as floats in the group attribute, any 24 of them still
@@ -772,13 +771,12 @@ export function exportGeometry(geometry: BufferGeometry) {
 }
 
 /**
- * Shows a whole result: geometry, some of which brings its own colors and groups, instances and
- * Myzel paths as lines. Items of other kinds are skipped.
+ * Shows a whole result: geometry, some of which brings its own colors and groups, and instances.
+ * Items of other kinds are skipped.
  */
 export function createResultPools(parentScene: Group, material: Material) {
   const geometries = createGeometryPool(parentScene, material);
   const instances = createInstancedGeometryPool(parentScene, material);
-  const lines = createLinesPool(parentScene);
 
   let highlight: PartHighlight | undefined;
   let picking = false;
@@ -843,8 +841,7 @@ export function createResultPools(parentScene: Group, material: Material) {
       const sorted = sortResultItems(items);
       const stats = [
         geometries.update(sorted.geometries),
-        instances.update(sorted.instances),
-        lines.update(sorted.lines)
+        instances.update(sorted.instances)
       ];
       const bounds = new Box3();
       for (const s of stats) bounds.union(s.bounds);

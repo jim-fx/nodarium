@@ -1,4 +1,4 @@
-//! Shared core of the Myzel nodes: meshes, paths, colors and the settings that shape them.
+//! Shared core of the Myzel nodes: meshes, paths and the shapes of caps and gills.
 //!
 //! # Meshes
 //!
@@ -12,26 +12,15 @@
 //!
 //! # Paths
 //!
-//! Myzel meshes Plantarium paths, see `nodarium_utils::geometry`. The colors a path carries at
-//! its points (Plantarium's `set_color`) color the surface around it.
+//! Myzel meshes Plantarium paths, see `nodarium_utils::geometry`. What a path carries at its
+//! points shapes the surface around it: its colors (Plantarium's `set_color`) color it, its
+//! fibres (`set_fibres`) and its fill (`set_fill`) take the place of those of `hyphae_to_mesh`,
+//! see `point_values` in `nodarium_utils::geometry` and [`paths_mesh`].
 //!
-//! # Settings `[13, setting, value, ...creators]`
-//!
-//! A value of `hyphae_to_mesh` for every path of the graph nodes `creators`: `setting` 1 is the
-//! fibres, 2 the fill, `value` is an f32. The `set_fibres` and `set_fill` nodes put one into a
-//! path list next to the paths that pass through them, see [`with_setting`], and the mesh nodes
-//! give it to the paths, see [`apply_settings`]. A later setting replaces an earlier one, paths
-//! without one keep the value of the mesh node.
-//!
-//! # Colors `[0, 4, r, g, b, 1, 1]`
-//!
-//! A color input holds the sRGB bytes, the way the host sends a color set on a node. Color nodes
-//! like `mix_color` send theirs the same way, see [`read_color`].
-//!
-//! Inputs of Myzel nodes are plain values, see [`read_float`] and friends.
+//! Inputs of Myzel nodes are plain values, see `read_float` and friends in `nodarium_utils`, a
+//! color input is read once, without a path and with alpha 0, see `read_color`.
 
 mod cap;
-mod color;
 mod cap_shape;
 mod density;
 mod gills;
@@ -40,7 +29,6 @@ mod inputs;
 mod noise;
 mod paths;
 mod pores;
-mod settings;
 mod sheet;
 mod spatial;
 pub mod veil;
@@ -50,20 +38,15 @@ pub use cap::{
 };
 pub use cap_shape::{cap_alphas, grow_cap, ray_angles, CapShape};
 pub use density::{mesh_segments, surface, surface_in, Frame, Meshing, Segment, SegmentSurface, TissueField};
-pub use color::{
-    encode_color, linear_rgba, mix_colors, opaque, pack_linear, read_color, NO_COLOR,
-};
 pub use gills::{gills, write_gills, GillInputs, GillProfile, Gills};
 pub use hyphae_mesh::{paths_mesh, HyphaeMeshParams};
 pub use pores::{pores, write_pores, PoreInputs};
 pub use paths::{
-    group_creators, group_numbers, path_segments, read_paths, MeshPath, PathGroup, PathStyle,
+    group_creators, group_numbers, path_segments, read_paths, with_values_along, MeshPath, PathGroup, PathStyle,
 };
-pub use inputs::{read_float, read_floats, read_int, read_mesh};
+pub use inputs::read_mesh;
+pub use nodarium_utils::{encode_color, linear_rgba, mix_colors, opaque, pack_linear, read_color, read_float, read_floats, read_int, NO_COLOR};
 pub use nodarium_utils::geometry::{geometry_flags, geometry_input, pack_rgba, Mesh, MeshBuild, MeshWords, MeshWriter, NO_CREATOR};
 pub use noise::value_noise;
-pub use settings::{
-    apply_settings, read_settings, with_setting, PathSettings, Setting, SettingItem, SETTING_TAG,
-};
 pub use sheet::{add_sheet, sheet_checks, sheet_size, smooth_normals, smooth_normals_in_words, write_mesh, SheetGrid};
 pub use spatial::{distance_sq_to_segment, SpatialHash};

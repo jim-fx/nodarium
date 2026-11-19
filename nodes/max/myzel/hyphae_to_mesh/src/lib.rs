@@ -1,6 +1,4 @@
-use myzel_core::{
-    apply_settings, paths_mesh, read_float, read_int, read_paths, read_settings, HyphaeMeshParams, PathStyle,
-};
+use myzel_core::{paths_mesh, read_float, read_int, read_paths, HyphaeMeshParams, PathStyle};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 
 nodarium_definition_file!("src/definition.json");
@@ -15,9 +13,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         fill: read_float(args[5]).max(0.0),
         loose_strands: read_float(args[6]).clamp(0.0, 1.0),
     };
-    let mut paths = read_paths(args[0], PathStyle::BODY);
-    apply_settings(&mut paths, &read_settings(args[0]));
-    paths_mesh(&paths, &params).encode()
+    paths_mesh(&read_paths(args[0], PathStyle::BODY), &params).encode()
 }
 
 #[cfg(test)]
@@ -26,7 +22,8 @@ mod tests {
     use myzel_core::{HyphaeMeshParams, Mesh};
     use nodarium_utils::{
         concat_arg_vecs, encode_float,
-        geometry::{create_multiple_paths, wrap_multiple_paths},
+        geometry::{create_multiple_paths, with_path_fibres, with_path_fill, wrap_multiple_paths},
+        split_args,
     };
 
     fn run(paths: &[i32], d: &HyphaeMeshParams) -> Mesh {
@@ -117,29 +114,28 @@ mod tests {
         assert!(top(&at(1.0)) > 0.05, "kept at 1, ends at {}", top(&at(1.0)));
     }
 
+    /// Every path of a list with `value` at every point, written by `give`
+    fn with_value(list: &[i32], value: f32, give: fn(&[i32], &[f32]) -> Vec<i32>) -> Vec<i32> {
+        myzel_core::with_values_along(list, &[encode_float(value)], give)
+    }
+
     #[test]
-    fn settings_reach_the_paths_of_their_nodes() {
-        use myzel_core::{with_setting, Setting};
+    fn the_values_of_the_points_reach_the_mesh() {
         let d = HyphaeMeshParams::default();
         let all = concat_arg_vecs(vec![paths(3, 42, 0.0), paths(2, 9, 0.02), paths(2, 300, 0.04)]);
         let plain = run(&all, &d);
-        // the values of the node, set on every node's paths: the same mesh
-        let mut same = all.clone();
-        for (setting, value) in [(Setting::Fibres, d.fibres), (Setting::Fill, d.fill)] {
-            same = with_setting(&same, setting, value);
-        }
+        // the values of the node at every point: the same mesh
+        let same = with_value(&with_value(&all, d.fibres, with_path_fibres), d.fill, with_path_fill);
         assert_eq!(run(&same, &d), plain);
         // no relief on any path is the node without relief
         let smooth = run(&all, &HyphaeMeshParams { fibres: 0.0, ..d.clone() });
-        let flat = with_setting(&all, Setting::Fibres, 0.0);
-        let mesh = run(&flat, &d);
+        let mesh = run(&with_value(&all, 0.0, with_path_fibres), &d);
         assert_eq!(mesh.faces, smooth.faces);
         assert_eq!(mesh.positions, smooth.positions);
     }
 
     #[test]
     fn a_fill_of_zero_keeps_the_gaps_between_paths_open() {
-        use myzel_core::{with_setting, Setting};
         // 12 paths on a ring 8 mm wide, 3 mm apart: the default fill closes them into a tube
         let ring = |creator: i32| {
             let mut data = create_multiple_paths(12, 8, 1, creator);
@@ -159,13 +155,13 @@ mod tests {
             })
         };
         assert!(!inner(&run(&ring(5), &d)), "closed tissue has no inside");
-        assert!(inner(&run(&with_setting(&ring(5), Setting::Fill, 0.0), &d)), "the inner side of the paths shows");
+        assert!(inner(&run(&with_value(&ring(5), 0.0, with_path_fill), &d)), "the inner side of the paths shows");
     }
 
     #[test]
     fn the_colors_of_the_points_color_the_surface() {
         use myzel_core::{opaque, NO_COLOR};
-        use nodarium_utils::{geometry::with_path_colors, split_args};
+        use nodarium_utils::geometry::with_path_colors;
         let d = HyphaeMeshParams::default();
         let white = [240, 236, 228];
         let colored = |list: Vec<i32>| {

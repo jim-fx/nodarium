@@ -7,19 +7,17 @@ import {
 } from '@nodarium/utils';
 
 /** The first word of every item in a result says what it holds */
-export const RESULT_TAGS = { geometry: 1, instances: 2, lines: 12 } as const;
+export const RESULT_TAGS = { geometry: 1, instances: 2 } as const;
 
 /** Sorts the items of a result by their tag, items of other tags are left out */
 export function sortResultItems(items: Int32Array[]) {
   const geometries: Int32Array[] = [];
   const instances: Int32Array[] = [];
-  const lines: Int32Array[] = [];
   for (const item of items) {
     if (item[0] === RESULT_TAGS.geometry) geometries.push(item);
     else if (item[0] === RESULT_TAGS.instances) instances.push(item);
-    else if (item[0] === RESULT_TAGS.lines) lines.push(item);
   }
-  return { geometries, instances, lines };
+  return { geometries, instances };
 }
 
 /** Indexed triangles, all arrays are views into the data they were read from */

@@ -10,7 +10,6 @@ export const INSTANCE_COLOR: Vec3 = [70, 140, 60];
 const POINT_COLOR: Vec3 = [214, 84, 150];
 
 export const POINTS_TAG = 4;
-const LINE_WORDS = 7;
 const TUBE_SIDES = 6;
 /** paths thinner than this share of the size of everything drawn are drawn this thick */
 const MIN_LINE_RADIUS = 0.002;
@@ -100,20 +99,6 @@ function pathSegments(path: Int32Array, segments: Segment[]) {
   }
 }
 
-function lineSegments(lines: Int32Array, segments: Segment[]) {
-  // [12, count, (x0 y0 z0 x1 y1 z1 group)...]
-  const f = floats(lines, 0, lines.length);
-  for (let i = 0; i < lines[1]; i++) {
-    const o = 2 + i * LINE_WORDS;
-    segments.push({
-      a: [f[o], f[o + 1], f[o + 2]],
-      b: [f[o + 3], f[o + 4], f[o + 5]],
-      ra: 0,
-      rb: 0
-    });
-  }
-}
-
 function pointDot(point: Int32Array): Dot {
   // [4, parent id, depth, index, position, direction, tangent, thickness, alpha]
   const f = floats(point, 0, point.length);
@@ -180,9 +165,8 @@ function addDot({ p, r }: Dot, triangles: Triangle[]) {
   }
 }
 
-/** The items of a value: a list, or a single item or lines as a node gives them on their own */
+/** The items of a value: a list, or a single item as a node gives it on its own */
 export function itemsOf(data: Int32Array) {
-  if (data[0] === RESULT_TAGS.lines) return [data];
   const items = splitNestedArray(data);
   // a single encoded item is not wrapped in an outer list
   if (items.length === 0 && data[0] === 0 && data.length > 4) return [data.slice(2, -2)];
@@ -191,7 +175,7 @@ export function itemsOf(data: Int32Array) {
 
 /**
  * The triangles of the geometry and the instances in a result. With `paths`
- * also paths and Myzel lines as tubes of their thickness and points as small dots, for the
+ * also paths as tubes of their thickness and points as small dots, for the
  * output of a node in the middle of a graph.
  */
 export function collectTriangles(result: Int32Array, paths = false) {
@@ -205,7 +189,6 @@ export function collectTriangles(result: Int32Array, paths = false) {
       instances += addGeometry(part, triangles);
     } else if (!paths) continue;
     else if (isPath(part)) pathSegments(part, segments);
-    else if (part[0] === RESULT_TAGS.lines) lineSegments(part, segments);
     else if (part[0] === POINTS_TAG) dots.push(pointDot(part));
   }
 

@@ -3,9 +3,8 @@ use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs, encode_points,
     geometry::{
-        colors_at_lengths, create_path, follow_parents, length_shares, orthogonal_to,
-        rotate_vector_by_angle, set_path_link, with_path_colors,
-        wrap_path, wrap_path_mut, DeepestPaths,
+        create_path, follow_parents, length_shares, orthogonal_to, rotate_vector_by_angle,
+        set_path_link, wrap_path, wrap_path_mut, DeepestPaths, PointValues,
     },
     split_args, Ctx, Point,
 };
@@ -182,8 +181,8 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
             .collect();
 
         let mut points: Vec<Vec4> = path.points.chunks_exact(4).map(Vec4::from_slice).collect();
-        // the colors stay where they were along the path, it keeps its length
-        let colored = (!path.colors.is_empty()).then(|| (path.points.to_vec(), path.colors.to_vec()));
+        // the colors and other values stay where they were along the path, it keeps its length
+        let old = path.has_values().then(|| item.clone());
         let path_depth = path.depth;
         kink_points.extend(bend(&mut points, &mut kinks, (link.id, path_depth)));
 
@@ -194,9 +193,9 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
         for (i, point) in points.iter().enumerate() {
             bent_path.points[i * 4..i * 4 + 4].copy_from_slice(&point.to_array());
         }
-        if let Some((old_points, old_colors)) = colored {
+        if let Some(old) = old {
             let shares = length_shares(wrap_path(&bent).points);
-            bent = with_path_colors(&bent, &colors_at_lengths(&old_points, &old_colors, shares));
+            bent = PointValues::at_lengths(&wrap_path(&old), &shares).give_to(&bent);
         }
         *item = bent;
     }

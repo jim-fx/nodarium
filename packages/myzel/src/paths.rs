@@ -2,12 +2,12 @@ use std::borrow::Cow;
 
 use glam::Vec3;
 use nodarium_utils::{
+    concat_arg_vecs,
     geometry::{is_path, wrap_path},
-    split_args,
+    reads_place, split_args, Ctx,
 };
 
 use crate::density::Segment;
-use crate::settings::PathSettings;
 
 /// How the surface around a path looks
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -32,16 +32,19 @@ pub enum PathGroup {
     Creator(i32),
 }
 
-/// A path to mesh: its points as `x, y, z, radius`, its colors, its group and how its surface looks
+/// A path to mesh: its points as `x, y, z, radius`, the values at its points, its group and how
+/// its surface looks
 #[derive(Clone, Debug, PartialEq)]
 pub struct MeshPath<'a> {
     pub points: Cow<'a, [f32]>,
     /// An RGBA8 color per point as `set_color` writes them, empty for a path without colors
     pub colors: Cow<'a, [u32]>,
+    /// The fibres per point as `set_fibres` writes them, empty for the fibres of the mesh node
+    pub fibres: Cow<'a, [f32]>,
+    /// The fill per point as `set_fill` writes it, empty for the fill of the mesh node
+    pub fill: Cow<'a, [f32]>,
     pub group: PathGroup,
     pub style: PathStyle,
-    /// Values of the mesh node the path brings with it, see [`crate::apply_settings`]
-    pub settings: PathSettings,
 }
 
 impl MeshPath<'_> {
@@ -74,9 +77,10 @@ fn collect_paths<'a>(list: &'a [i32], style: PathStyle, out: &mut Vec<MeshPath<'
             out.push(MeshPath {
                 points: Cow::Borrowed(path.points),
                 colors: Cow::Borrowed(path.colors),
+                fibres: Cow::Borrowed(path.fibres),
+                fill: Cow::Borrowed(path.fill),
                 group,
                 style,
-                settings: PathSettings::default(),
             });
         }
     }
@@ -89,6 +93,53 @@ pub fn read_paths(list: &[i32], style: PathStyle) -> Vec<MeshPath<'_>> {
         collect_paths(list, style, &mut out);
     }
     out
+}
+
+fn count_paths(list: &[i32]) -> usize {
+    split_args(list).iter().map(|item| if is_list(item) { count_paths(item) } else { is_path(item) as usize }).sum()
+}
+
+fn give_values(list: &[i32], arg: &[i32], along: bool, at: &mut PathAt, give: fn(&[i32], &[f32]) -> Vec<i32>) -> Vec<i32> {
+    let items = split_args(list)
+        .into_iter()
+        .map(|item| {
+            if is_list(item) {
+                return give_values(item, arg, along, at, give);
+            }
+            if !is_path(item) {
+                return item.to_vec();
+            }
+            at.ctx.set_path(item, at.rank, at.count);
+            at.rank += 1;
+            let points = wrap_path(item).length;
+            let values: Vec<f32> = if along {
+                let alphas = (0..points).map(|i| i as f32 / (points - 1).max(1) as f32);
+                at.ctx.float_along(arg, alphas).into_iter().map(|v| v.max(0.0)).collect()
+            } else {
+                vec![at.ctx.float(arg).max(0.0); points]
+            };
+            give(item, &values)
+        })
+        .collect();
+    concat_arg_vecs(items)
+}
+
+struct PathAt {
+    ctx: Ctx,
+    rank: usize,
+    count: usize,
+}
+
+/// Every path of a list, also those in lists inside it, with a value of `arg` at every point,
+/// written by `give` (`with_path_fibres`, `with_path_fill`). `arg` is read for every path, with
+/// `path_info` and `random` per path, and along it with alpha. Values below 0 are 0, everything
+/// else in the list stays as it is.
+pub fn with_values_along(list: &[i32], arg: &[i32], give: fn(&[i32], &[f32]) -> Vec<i32>) -> Vec<i32> {
+    if list.len() < 4 || list[0] != 0 {
+        return list.to_vec();
+    }
+    let mut at = PathAt { ctx: Ctx::default(), rank: 0, count: count_paths(list) };
+    give_values(list, arg, reads_place(arg), &mut at, give)
 }
 
 /// A small material group per path: creators numbered in the order of their ids, so a node

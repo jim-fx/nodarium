@@ -1,6 +1,5 @@
-use myzel_core::{encode_color, mix_colors};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
-use nodarium_utils::{concat_args, plain_color, split_args, Ctx, MIX_COLOR};
+use nodarium_utils::{concat_args, encode_color, mix_colors, plain_color, split_args, Ctx, MIX_COLOR};
 
 nodarium_definition_file!("src/definition.json");
 
@@ -21,8 +20,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 #[cfg(test)]
 mod tests {
     use super::__nodarium_execute_inner;
-    use myzel_core::{encode_color, mix_colors, read_color};
-    use nodarium_utils::{concat_args, encode_float, Ctx};
+    use nodarium_utils::{concat_args, encode_color, encode_float, mix_colors, read_color, Ctx};
 
     fn mix(a: [u8; 3], b: [u8; 3], factor: &[i32]) -> [u8; 3] {
         read_color(&__nodarium_execute_inner(&[&encode_color(a), &encode_color(b), factor]))

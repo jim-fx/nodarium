@@ -402,6 +402,8 @@ Up to graph version 17 Plantarium and Myzel had an output node each, `max/planta
 
 Up to graph version 18 Myzel had a `set_color` of its own, `max/myzel/set_color`, that put the color of the strands next to them in the list of paths. Since graph version 19 `max/plantarium/set_color` colors strands like any other path, a color at every point, and `hyphae_to_mesh` colors the surface around them with it, so a curve of `alpha` makes a gradient along a mushroom too. The migration makes every Myzel `set_color` a Plantarium one with `depth` 10, so it colors every level as before. A graph written by hand with version 19 uses `max/plantarium/set_color` with the input `plant`.
 
+Up to 1.2, `set_fibres` and `set_fill` put their value next to the strands in the list of paths, as a hidden item for every path of the nodes that made them. Since then they write it into every point of the paths that pass through them, like `set_color` its color, and `hyphae_to_mesh` reads it there, so a curve of `alpha` into `fibres` or `fill` changes them along a strand. The graphs stay as they are. A path carries what it has at its points in its type, a sum of `POINT_VALUES` of `@nodarium/utils` (`colors` 16, `fibres` 32, `fill` 64): `isPath()`, `pathPointCount()` and `readPathColors()` take every one of them. `sortResultItems()` gives `geometries` and `instances` only, the Myzel lines are gone. The geometry of the substrate (`max/myzel/mesh`) names its node as the creator of its group, so a viewer leads from it to that node.
+
 With three.js, a geometry becomes a `BufferGeometry`:
 
 ```ts

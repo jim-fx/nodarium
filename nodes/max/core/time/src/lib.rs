@@ -1,5 +1,5 @@
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
-use myzel_core::read_float;
+use nodarium_utils::read_float;
 use nodarium_utils::{concat_args, encode_float};
 
 nodarium_definition_file!("src/definition.json");
@@ -31,6 +31,6 @@ mod tests {
         assert!(t.len() > 1);
         // expressions and Myzel nodes read it as the time
         assert_eq!(nodarium_utils::Ctx::default().float(&t), 0.25);
-        assert_eq!(myzel_core::read_float(&t), 0.25);
+        assert_eq!(nodarium_utils::read_float(&t), 0.25);
     }
 }
