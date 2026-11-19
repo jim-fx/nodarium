@@ -107,8 +107,8 @@ mod tests {
     use nodarium_utils::{
         concat_arg_vecs, encode_float,
         geometry::{
-            create_path, path_link, set_path_link, with_path_colors, wrap_path, wrap_path_mut,
-            PathLink,
+            create_path, path_link, set_path_link, with_path_colors, with_path_fibres, with_path_fill,
+            wrap_path, wrap_path_mut, PathLink,
         },
         split_args,
     };
@@ -241,6 +241,22 @@ mod tests {
             } else {
                 assert!(color > colors[i / 2] && color < colors[i / 2 + 1], "{:x?}", path.colors);
             }
+        }
+    }
+
+    #[test]
+    fn a_broken_path_keeps_its_fibres_and_fill_below_the_break() {
+        let stem = straight(PathLink::root(1, 0), 1, [0.0; 3], 10.0);
+        let fibres: Vec<f32> = (0..9).map(|i| i as f32).collect();
+        let valued = with_path_fill(&with_path_fibres(&with_path_colors(&stem, &[7; 9]), &fibres), &[2.0; 9]);
+        let out = run(vec![valued], 1.0, 0.5, 0.5, 1);
+        let path = wrap_path(&out[0]);
+        // the lower half, fibres 0 to 4, spreads over the whole path
+        let expected: Vec<f32> = (0..9).map(|i| i as f32 * 0.5).collect();
+        assert_eq!(path.colors, &[7; 9]);
+        assert_eq!(path.fill, &[2.0; 9]);
+        for (got, want) in path.fibres.iter().zip(&expected) {
+            assert!((got - want).abs() < 1e-5, "{:?}", path.fibres);
         }
     }
 }
