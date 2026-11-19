@@ -3,6 +3,19 @@ import { getOutputType, type NodeDefinition, type NodeInput } from '@nodarium/ty
 /** The input types that carry data from another node, the rest are values set on the node */
 const DATA_TYPES = new Set(['path', 'geometry', 'force', 'points', 'pattern', 'shape']);
 
+/** The systems in the order they build on each other, a heading each in the list of the nodes */
+export const SYSTEMS: Record<string, string> = {
+  core: 'the value nodes every graph has, and the one output, which takes only geometry',
+  plantarium: 'the plants: paths, points, leaves, geometry and instances, and to_geometry, which '
+    + 'turns paths into geometry for the output',
+  myzel: 'the mushrooms: caps, strands, gills and veils, grown on the paths of plantarium'
+};
+
+/** The system of a node, its collection: `plantarium` of `max/plantarium/stem` */
+export function nodeSystem(id: string) {
+  return id.split('/')[1] ?? id;
+}
+
 /** The first sentence of a description, a sentence ends with a stop before a capital */
 export function firstSentence(text: string) {
   return text.match(/^(.*?[.!?])(?=\s+[A-Z]|$)/s)?.[1] ?? text;
@@ -15,7 +28,13 @@ export function nodeSummary(node: NodeDefinition) {
     .map((input) => input.type);
   const outputs = (node.outputs ?? []).map(getOutputType);
   const description = node.meta?.description && firstSentence(node.meta.description);
-  return { id: node.id, inputs, outputs, ...(description && { description }) };
+  return {
+    id: node.id,
+    system: nodeSystem(node.id),
+    inputs,
+    outputs,
+    ...(description && { description })
+  };
 }
 
 /** `max/plantarium/noise (path) -> path`: the id, the data the node takes and what it gives */
@@ -76,16 +95,35 @@ export function formatNode(node: NodeDefinition, { descriptions = true } = {}) {
   return lines.join('\n');
 }
 
-/** The list of the nodes: the signature and the first sentence of the description of each */
+/** The nodes by system, core, plantarium and myzel first, the others after them by name */
+export function groupBySystem(nodes: NodeDefinition[]) {
+  const order = Object.keys(SYSTEMS);
+  const rank = (system: string) => order.includes(system) ? order.indexOf(system) : order.length;
+  const groups = new Map<string, NodeDefinition[]>();
+  for (const node of nodes) {
+    const system = nodeSystem(node.id);
+    groups.set(system, [...(groups.get(system) ?? []), node]);
+  }
+  return [...groups].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
+/**
+ * The list of the nodes under a heading per system: the signature and the first sentence of the
+ * description of each
+ */
 export function formatNodeList(nodes: NodeDefinition[]) {
-  return nodes
-    .map((node) => {
-      const description = node.meta?.description;
-      return description
-        ? `${nodeSignature(node)}\n  ${firstSentence(description)}`
-        : nodeSignature(node);
+  return groupBySystem(nodes)
+    .map(([system, group]) => {
+      const heading = SYSTEMS[system] ? `# ${system}: ${SYSTEMS[system]}` : `# ${system}`;
+      const lines = group.map((node) => {
+        const description = node.meta?.description;
+        return description
+          ? `${nodeSignature(node)}\n  ${firstSentence(description)}`
+          : nodeSignature(node);
+      });
+      return [heading, ...lines].join('\n');
     })
-    .join('\n');
+    .join('\n\n');
 }
 
 /** The nodes `name` means: an id, `collection/node` or the name of the node alone */

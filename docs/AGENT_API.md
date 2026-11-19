@@ -120,7 +120,7 @@ The site serves files that need no JavaScript, prerendered when the app is built
 
 | path                                    | what                                                                                    |
 | --------------------------------------- | --------------------------------------------------------------------------------------- |
-| `/nodes/index.txt`, `/nodes/index.json` | every node with its data types and the first sentence of its description                |
+| `/nodes/index.txt`, `/nodes/index.json` | every node with its system, its data types and the first sentence of its description    |
 | `/nodes/<user>/<collection>.json`       | the definitions of the nodes of a collection, `/nodes/users.json` lists the collections |
 | `/templates/index.json`                 | the templates of the project browser, `/templates/<id>.json` is the graph of one        |
 | `/graph.schema.json`                    | the JSON Schema of a graph and of a project file, `graphFileJsonSchema()`               |

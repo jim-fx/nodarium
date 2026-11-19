@@ -8,7 +8,8 @@ import {
   formatNodeList,
   nodeSignature,
   nodesOfType,
-  nodeSummary
+  nodeSummary,
+  SYSTEMS
 } from './catalog';
 import { listNodes } from './list-nodes';
 
@@ -58,6 +59,7 @@ describe('the catalog', () => {
   it('sums a node up as data', () => {
     expect(nodeSummary(noise())).toEqual({
       id: 'max/plantarium/noise',
+      system: 'plantarium',
       inputs: ['path'],
       outputs: ['path'],
       description: 'Bends paths with smooth noise, more toward the tip.'
@@ -84,12 +86,25 @@ describe('the catalog', () => {
   it('lists the nodes with the first sentence of their description', () => {
     const list = formatNodeList([noise()]);
     expect(list).toBe(
-      `max/plantarium/noise (path) -> path\n  ${firstSentence(noise().meta!.description!)}`
+      `# plantarium: ${SYSTEMS.plantarium}\n`
+        + `max/plantarium/noise (path) -> path\n  ${firstSentence(noise().meta!.description!)}`
     );
     expect(firstSentence('Bends a path. The same seed gives the same bend.')).toBe(
       'Bends a path.'
     );
     expect(firstSentence('Cuts at 0.5 m. Then more')).toBe('Cuts at 0.5 m.');
+  });
+
+  it('lists the nodes under a heading per system, core, plantarium and myzel first', () => {
+    const other = { ...noise(), id: 'max/other/noise' } as NodeDefinition;
+    const headings = formatNodeList([other, ...nodes]).split('\n')
+      .filter((line) => line.startsWith('# '));
+    expect(headings).toEqual([
+      `# core: ${SYSTEMS.core}`,
+      `# plantarium: ${SYSTEMS.plantarium}`,
+      `# myzel: ${SYSTEMS.myzel}`,
+      '# other'
+    ]);
   });
 
   it('finds a node by its name in every collection that has it', () => {
