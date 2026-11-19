@@ -1,3 +1,164 @@
+# v2.0.0 (2026-11-19)
+
+## Breaking
+
+All nodes are compatible now: three systems (Core, Plantarium, Myzel), one surface type, one output, one `set_color` (#398). Saved graphs and project files are migrated when they load, from any older version to graph version 19 (`parseProjectFile`, `migrateGraph`, the runtime's `execute`). A graph written by hand with the old ids and a current `version` is not migrated: it no longer validates, `validateGraph` and `nodarium check` name the new id.
+
+| old id                      | new id                     | graph version | changed inputs                                                   |
+| --------------------------- | -------------------------- | ------------- | ---------------------------------------------------------------- |
+| `max/myzel/join_meshes`     | `max/plantarium/join`      | 15            |                                                                  |
+| `max/myzel/set_mesh_color`  | `max/plantarium/set_color` | 15            | `mesh` → `plant`                                                 |
+| `max/plantarium/float`      | `max/core/float`           | 16            |                                                                  |
+| `max/plantarium/math`       | `max/core/math`            | 16            |                                                                  |
+| `max/plantarium/random`     | `max/core/random`          | 16            |                                                                  |
+| `max/plantarium/random_int` | `max/core/random_int`      | 16            |                                                                  |
+| `max/plantarium/round`      | `max/core/round`           | 16            |                                                                  |
+| `max/plantarium/curve`      | `max/core/curve`           | 16            |                                                                  |
+| `max/plantarium/alpha`      | `max/core/alpha`           | 16            |                                                                  |
+| `max/plantarium/wave`       | `max/core/wave`            | 16            |                                                                  |
+| `max/plantarium/vec3`       | `max/core/vec3`            | 16            |                                                                  |
+| `max/myzel/time`            | `max/core/time`            | 16            |                                                                  |
+| `max/myzel/mix_color`       | `max/core/mix_color`       | 16            |                                                                  |
+| `max/plantarium/output`     | `max/core/output`          | 18            | `resolution_circle` removed, it only takes geometry              |
+| `max/myzel/output`          | `max/core/output`          | 18            | `mesh` → `input` (15), it only takes geometry                    |
+| `max/myzel/set_color`       | `max/plantarium/set_color` | 19            | `paths` → `plant`, `depth` 10 so it colors every level as before |
+
+Renamed inputs of nodes that kept their id: `max/myzel/cap_pattern` and `max/myzel/sample_mesh` `mesh` → `geometry` (15).
+
+- Every angle input takes radians: the angles and rotations of `branch`, `branch_from_points`, `trunk_kink`, `instance`, `instance_from_points` and `points_on_path`, the opening of `umbel`, the fan of `stem`, the angles of `leaf_growth`, and the amount of `deform` (which took turns). Graph version 14 converts old graphs, a graph that claims version 14 or later but gives degrees bends wrong (#444).
+- One surface type: the link type `mesh` is gone, Myzel surfaces are `geometry` with material groups and a creator table. The geometry header has a flags word after the path id (`COLORS` 1, `CREATORS` 2, `GROUPS` 4, `PATHS` 8). `join_meshes` and `set_mesh_color` are removed, `join` and `set_color` do their work (#456).
+- The value nodes are a collection of their own, `max/core`, which every graph has (#457).
+- `to_geometry` is the step before the output: without the new `bake` input it turns paths into one geometry of tubes with a group per creator and passes geometry and instances on. Graph version 17 sets `bake` on every existing `to_geometry`. In a graph of version 17 or later a `to_geometry` without `bake` passes instances on (#460).
+- One output, `max/core/output`, takes only geometry: paths reach it through `to_geometry`. Graph version 18 puts a `to_geometry` in front of an output that got paths, and sends a pattern to a debug node, which shows it as a disc (#461).
+- One `set_color`, Plantarium's: `hyphae_to_mesh` colors the surface with the colors of the points of the strands, so a curve of `alpha` or a `random` per path makes a gradient on a mushroom (#462).
+- `set_fibres` and `set_fill` write their value into the points of the paths instead of a hidden setting item in the list of paths, so a link carries exactly its type. No migration, the graphs stay as they are (#464).
+
+`@nodarium/runtime` and `@nodarium/utils`:
+
+- `decodeResult()` has no `meshes`: a mushroom is one entry of `geometries` with `groups` and `creators`. `readMesh()`, `MESH_HAS_COLORS`, `MESH_HAS_CREATORS` and `RESULT_TAGS.mesh` are gone, `readGeometry()` reads every geometry and `GEOMETRY_FLAGS` names the flags (#456).
+- The result holds no paths and no lines. A plant is one geometry of tubes with `groups` and `creators` (a group per node that made them) plus its `instances`, no longer a geometry per path. The links of the paths are in `paths` of that geometry, `readPathLinkTable()` turns them into `PathLink`s (#461).
+- `sortResultItems()` returns `{ geometries, instances }`, `lines` is gone, and so is `RESULT_TAGS.lines` (#464).
+- A path's type is a sum of `POINT_VALUES`: 16 colors, 32 fibres, 64 fill, one word per point each after the points. `isPath()`, `pathPointCount()` and `readPathColors()` handle all of them, code that checked `type === 0 || type === 16` has to use `isPath()` (#464).
+- Every angle in a graph is in radians, and every angle input is marked `"unit": "rad"` in its definition (#444, #445).
+
+## Features
+
+- Viewport link: hovering a part of the result tints it and outlines the node that made it, also a group node, a click selects it, alt-click also the nodes of the paths it grows on. Selecting or hovering a node tints what it made, I shows only the parts of the selection. On by default, General settings → Viewport Link switches it off. The tubes of `to_geometry`, the Myzel tissues and the substrate of `mesh` name their node through the creator table (#420, #460, #461, #464).
+- View → Angles shows angles in degrees or radians, radians by default. Number fields read `45°`, `45 deg` or `0.785rad` in either mode, the graph keeps radians (#445).
+- The node header shows the system of a node with a coloured bar and in its tooltip (#458). The add menu offers every node of every collection in every graph, under a heading per system, core first; dropped from a socket it lists only the nodes that fit (#459).
+- New nodes: `revolve` turns a shape around its midrib into a closed body for buds, fruits and seed heads, `mix_shape` blends two shapes, `cut` ends paths at a height, `roll` rolls up the end of a path like the crozier of a fern. `instance` and `instance_from_points` have a hidden `face` input that turns an instance toward the tip of its path (#440, #444).
+- `to_geometry` keeps the colors of the paths and writes the links of the paths into its geometry (#460, #461). `join` joins every geometry with groups into one, `set_color` paints geometry with groups and keeps them (#456).
+- `nodarium probe <graph> <id>` (MCP `probe_node`) shows the values a node gives where they are read, or the sizes of its paths, geometry and instances. `run` prints the instances of every instance node, `--set` sets lists and inputs an edge goes into, a graph may name the options of a select and give booleans as `true` and `false` (#444).
+- `nodarium docs [topic]` (MCP `get_docs`) prints the guides of the package, among them `core`, `--root dir` keeps every path of a command inside one folder, `run --print-graph --write file` writes a graph into a file, and `render` takes `--views`, `--seeds`, `--times` (a contact sheet) and `--name`. In `@nodarium/runtime/node`, `renderToPng` picks its views and `renderSheetToPng` draws a sheet (#439). `render` lights what it shows from the view as well (#444).
+- `nodarium nodes`, the MCP tool `list_nodes` and `/nodes/index.txt` list the nodes under a heading per system, `nodes --json` and `nodeSummary()` give the `system` of a node. The MCP server tells an agent how the three systems fit together (#471).
+- Templates carry their `species` and a line on how they are built, also in `/templates/index.json` (#439).
+- New templates: dandelion and yarrow (#444), great mullein (`mullein`) and ribwort plantain (`plantain`).
+- Reworked templates: the oyster grows as a cluster of shell caps in tiers (#465), the false chanterelle is small, flat and three shades of orange and is listed again (#466), the champignon (`champignon-groomed`) has a short smooth stipe, a thin ring and pink gills (#467), the sage is a mound of broad leaves with a few loose racemes (#469), the Boston fern is a fountain of arching strap fronds (#470). The lady fern rolls up its fronds while they grow (#440).
+- The Help menu links the template previews and the benchmarks.
+- `docs/CORE.md` describes the value nodes and their expressions.
+
+## Fixes
+
+- Planty's tour matches the app again: the tutorial template centres on `to_geometry`, the steps use the node names of the editor and the texts follow the sidebar, the Node Settings, the exporter, the Help menu and the viewport link. Planty's bubble stays on screen in a low window, and Enter on a socket no longer also moves the tutorial on (#468).
+- A wasm file dropped onto the editor runs in the worker and is kept for the next visit; an invalid one says so (#437).
+- Every snap level of the editor can be reached by zooming (#436).
+- Every link type has a fixed colour, no colour depends on which edge is drawn first (#455).
+- The cache of the runtime makes the same decisions in every process (#441).
+- A graph may give a boolean as `true` or `false` (#444).
+
+## Upgrading
+
+- Old saved graphs and projects are migrated when they load, nothing to do for them. Graphs written by hand with a `version` of 16 or later must use the new ids of the table above, with 18 or later end in `… → max/plantarium/to_geometry → max/core/output`, with 19 or later color strands with `max/plantarium/set_color` (input `plant`). `nodarium check` and `validateGraph` name the new id and suggest the `to_geometry`.
+- Update the nodes and the runtime together, and copy the whole `nodes` folder of the package again: it has a new collection, `max/core`. The geometry header changed, so this runtime can't read the geometry of nodes built before, and an older `hyphae_to_mesh` doesn't read the colors of the points, a migrated mushroom comes out without colors. A `FetchNodeRegistry` that serves only `plantarium` and `myzel` doesn't find the value nodes or the output. A node built against an older `nodarium_utils` has to be built again.
+- Code that looks for node types by id, like `type === 'max/myzel/time'`, has to use the new ids. `CORE_COLLECTION` of `@nodarium/types` and `@nodarium/runtime` names `max/core`.
+- Code that read mushrooms from `meshes` reads `geometries`, code that read the links of paths from the paths of the result reads `paths` of the geometry (`readPathLinkTable()`), and code that read lines drops them: no node writes them any more. See Breaking.
+- The templates oyster, false chanterelle, champignon, sage and Boston fern build different models than in v1.2.0, and the false chanterelle is listed again.
+
+---
+
+- [12e908b8](https://git.max-richter.dev/max/nodarium/commit/12e908b830991e01a65170947146ca7bfd3fc829) Merge pull request 'chore(runtime): prepare the 2.0.0 release' (#471) from chore/453-release-2.0.0 into main
+- [81af9d26](https://git.max-richter.dev/max/nodarium/commit/81af9d26703cd26ab5328d5a475012c65c20b094) docs: name the systems and the join of the substrate as they are in 2.0
+- [ed2ecca1](https://git.max-richter.dev/max/nodarium/commit/ed2ecca1c8b733e9e8ddb4b76fe122c2c0523b42) feat(runtime): nodarium nodes lists the nodes by system, the MCP server tells how they fit
+- [f89520fe](https://git.max-richter.dev/max/nodarium/commit/f89520feaa7495e28a1c5b1d505587893b8488ed) Merge pull request 'feat(templates): the Boston fern is a fountain of arching strap fronds' (#470) from feat/463-fern-realism into main
+- [b379f039](https://git.max-richter.dev/max/nodarium/commit/b379f03944b548b946a940a4c0c11a9281b0bdb8) feat(templates): the Boston fern is a fountain of arching strap fronds
+- [f0f2f8a2](https://git.max-richter.dev/max/nodarium/commit/f0f2f8a22b6ce04584cb939e3e7d9170790ba449) Merge pull request 'feat(templates): the sage is a mound of broad leaves with a few loose racemes' (#469) from feat/463-sage-realism into main
+- [5ce61499](https://git.max-richter.dev/max/nodarium/commit/5ce6149968ad520d572dc1f453e50c4c630405b1) Merge pull request 'fix(tutorial): bring Planty's tour up to date with the app' (#468) from fix/planty-tutorial into main
+- [7a317ef7](https://git.max-richter.dev/max/nodarium/commit/7a317ef73d85f43c6a59c84a9fcb30297d00d892) feat(templates): the sage is a mound of broad leaves with a few loose racemes
+- [1c7bf2bf](https://git.max-richter.dev/max/nodarium/commit/1c7bf2bf6b24931e8627a311b3e3734a31769730) Merge pull request 'feat(templates): the champignon gets a short smooth stipe, a thin ring and pink gills' (#467) from feat/463-champignon-realism into main
+- [c8079e6f](https://git.max-richter.dev/max/nodarium/commit/c8079e6f2b44ff869551e13c29007cf605c3ea3e) fix(tutorial): bring Planty's tour up to date with the app
+- [3a11c9d5](https://git.max-richter.dev/max/nodarium/commit/3a11c9d595c1c68b7b71d52c1b8c4f13aea3e664) fix(planty): keep the bubble on screen and leave keys the page used
+- [b967dd82](https://git.max-richter.dev/max/nodarium/commit/b967dd82233ebba939de57a6fd7f085b55e871f7) feat(templates): the champignon gets a short smooth stipe, a thin ring and pink gills
+- [f1f8bfd5](https://git.max-richter.dev/max/nodarium/commit/f1f8bfd51ff0d4d5c980af926437511944a44fd2) feat(templates): list the false chanterelle again
+- [44547d6f](https://git.max-richter.dev/max/nodarium/commit/44547d6f920ec6ffa546aa74d0bb042bf7a38ba2) Merge pull request 'feat(templates): the false chanterelle is small, flat and three shades of orange' (#466) from feat/463-false-chanterelle-realism into main
+- [ebc76afe](https://git.max-richter.dev/max/nodarium/commit/ebc76afec73ffe92887669e876e716c0c667435a) feat(templates): the false chanterelle is small, flat and three shades of orange
+- [40f57bc2](https://git.max-richter.dev/max/nodarium/commit/40f57bc2975ba445372c2e58071bbb98a5770540) Merge pull request 'feat(templates): the oyster grows as a cluster of shell caps in tiers' (#465) from feat/463-oyster-realism into main
+- [fc8f73aa](https://git.max-richter.dev/max/nodarium/commit/fc8f73aae2c04c8ceb1f83b9b6c922046321a305) feat(templates): the oyster grows as a cluster of shell caps in tiers
+- [106a6a9d](https://git.max-richter.dev/max/nodarium/commit/106a6a9d24c4085ddf22e899cc26059953195fe0) Merge pull request 'refactor(myzel)!: fibres and fill as point values, not setting items' (#464) from refactor/454-myzel-point-values into main
+- [8324f34a](https://git.max-richter.dev/max/nodarium/commit/8324f34afea5ac046528b312bf856da75687e177) feat(app): link the template previews and the benchmarks in the help menu
+- [e9a1b84b](https://git.max-richter.dev/max/nodarium/commit/e9a1b84b3cd961869a874b8bec088494699ab13b) test(random_break): a break keeps the fibres and the fill of the points
+- [8bb2ac31](https://git.max-richter.dev/max/nodarium/commit/8bb2ac3186f2795f4ffd8d6994d4ee4beaf3d2d6) refactor(myzel)!: fibres and fill as point values, not setting items
+- [c54c9932](https://git.max-richter.dev/max/nodarium/commit/c54c9932196a68d95f34578f380799356ff4e683) Merge pull request 'feat!: one set_color, hyphae_to_mesh reads point colours' (#462) from feat/450-one-set-color into main
+- [3bfcee32](https://git.max-richter.dev/max/nodarium/commit/3bfcee327075a713fdf94c098fb89d8f934be0a3) fix(runtime): type the props of a migrated set_color
+- [efccf847](https://git.max-richter.dev/max/nodarium/commit/efccf8479553f2c718443290d3da34a243a2f2aa) fix(runtime): a migrated set_color without a color keeps the Myzel default
+- [44c5b024](https://git.max-richter.dev/max/nodarium/commit/44c5b0246504711545560c39140ea8a759b24b73) perf(set_color): read a color that is the same along a path once per path
+- [a4a366a2](https://git.max-richter.dev/max/nodarium/commit/a4a366a2f1ef60ae614bbae45fbaca78110797b2) chore: upgrade the templates to graph version 19
+- [edab82a1](https://git.max-richter.dev/max/nodarium/commit/edab82a192f09df650e439f3215beca9b4901171) feat!: one set_color, hyphae_to_mesh reads point colours
+- [35811c4b](https://git.max-richter.dev/max/nodarium/commit/35811c4b867a08b9458ba2c8e2913c2a1d63b586) Merge pull request 'feat(graph-interface): an add menu with a section per system' (#459) from feat/397-add-menu into main
+- [2ce3f16c](https://git.max-richter.dev/max/nodarium/commit/2ce3f16c6a3eb952884a6646fa2b0b77cf5a294f) Merge pull request 'feat(graph-interface): the system on the node header' (#458) from feat/452-system-on-header into main
+- [5b830aec](https://git.max-richter.dev/max/nodarium/commit/5b830aec7861991ec16a70a34592b6f2fd48ee4d) Merge pull request 'feat!: one output node, it takes only geometry' (#461) from feat/449-one-output into main
+- [f1245dd3](https://git.max-richter.dev/max/nodarium/commit/f1245dd33e4161db1c5f31d324ee492e1d5cee5a) fix(runtime): the migration to one output drops the never-read resolution_circle prop
+- [2c2176d4](https://git.max-richter.dev/max/nodarium/commit/2c2176d4791321096315ccf50efd379c880d32e7) chore: upgrade the templates to graph version 18
+- [11f3c312](https://git.max-richter.dev/max/nodarium/commit/11f3c312f8f0c3310f12f92bd4f4751505ef4c60) feat!: one output node, it takes only geometry
+- [836eb564](https://git.max-richter.dev/max/nodarium/commit/836eb56442dc6a3153f06cd45f782904c04fd2a4) feat!: geometry carries the links of the paths it was made from
+- [e7bd4fa2](https://git.max-richter.dev/max/nodarium/commit/e7bd4fa260453610d601805dec2a8ad9f92c8aa5) Merge pull request 'feat!: to_geometry is the step before the output' (#460) from feat/451-to-geometry into main
+- [4025a1d0](https://git.max-richter.dev/max/nodarium/commit/4025a1d01fcdaccd2b67a88b16f82465d8210340) test(app): a fern on the stump substrate, ending with to_geometry
+- [b4f10486](https://git.max-richter.dev/max/nodarium/commit/b4f1048658c7b19648f27490c48f937152a0d338) chore: upgrade the templates to graph version 17
+- [d94f786d](https://git.max-richter.dev/max/nodarium/commit/d94f786dfcc5ff06c1dcce7c0798c6e93554f5c0) feat!: to_geometry is the step before the output
+- [1081682c](https://git.max-richter.dev/max/nodarium/commit/1081682c45a793da2009b32f24b46d5e816a0413) feat(graph-interface): an add menu with a section per system
+- [b1fb13b2](https://git.max-richter.dev/max/nodarium/commit/b1fb13b2144e0f5ca07d2fa00ddec3bb07bd7ac7) feat(graph-interface): the system on the node header
+- [d00553e4](https://git.max-richter.dev/max/nodarium/commit/d00553e4353d78dab62a1b309ffa0330423612d9) Merge pull request 'feat!: a core collection for the value nodes' (#457) from feat/448-core-collection into main
+- [67c7d584](https://git.max-richter.dev/max/nodarium/commit/67c7d58439f13f8ef832a6df3b5b9018382c4d6a) test(e2e): a dropped float keeps the length of its id
+- [e44c3ff7](https://git.max-richter.dev/max/nodarium/commit/e44c3ff7feb98105a623541a751ed127ffb35b88) chore: upgrade the templates to graph version 16
+- [3f868f93](https://git.max-richter.dev/max/nodarium/commit/3f868f93f9196adf9700896befde8c626128b2ed) feat!: a core collection for the value nodes
+- [46f8158b](https://git.max-richter.dev/max/nodarium/commit/46f8158babee3a661100ac7a216124a9a4c02663) test(runtime): drop the remodelled dandelion and yarrow from the radians recording
+- [a7b0bf71](https://git.max-richter.dev/max/nodarium/commit/a7b0bf710c9f03528815b175a62f1b59ee49ebc8) Merge pull request 'feat!: one surface type, mesh merges into geometry' (#456) from feat/447-one-surface-type into main
+- [e656fd5a](https://git.max-richter.dev/max/nodarium/commit/e656fd5a817662fe27a8b502bd62bfd72fc530aa) chore: upgrade plant templates
+- [cb6a0325](https://git.max-richter.dev/max/nodarium/commit/cb6a0325afb55cc14cd67a82c5f23b635312e827) feat!: one surface type, mesh merges into geometry
+- [f2f3473f](https://git.max-richter.dev/max/nodarium/commit/f2f3473f836b8cccca6bf1a1f0c7ff7ae3e51e67) Merge pull request 'fix(graph-interface): a fixed colour for every link type' (#455) from fix/446-link-colors into main
+- [d6e35e24](https://git.max-richter.dev/max/nodarium/commit/d6e35e246c1916972f95460f5ac1293dd5767338) docs(graph-interface): the on-screen hex of the * link colour
+- [9b22d45a](https://git.max-richter.dev/max/nodarium/commit/9b22d45a14e5d1ce2aaedbc81c8571f5e89dc266) fix(graph-interface): a fixed colour for every link type
+- [6604be88](https://git.max-richter.dev/max/nodarium/commit/6604be8835afb0230c1c39d4a702493bfd57be30) Merge pull request 'feat: viewport link, hover and pick a part to find its node (#370)' (#420) from spike/370-viewport-provenance into main
+- [5d7245ef](https://git.max-richter.dev/max/nodarium/commit/5d7245efc0f868ff05be88eaaef359ef2bd2a398) test(e2e): hover, click and the local view on a plant, hover and click on a mushroom
+- [9ba63edb](https://git.max-richter.dev/max/nodarium/commit/9ba63edb8badd52354de6c118258c34eb5bee86b) test: the provenance of parts, the chains through groups, picking and the setting
+- [ef9867a7](https://git.max-richter.dev/max/nodarium/commit/ef9867a77ae757d43f45d028e1e1ce021bcdeccd) refactor(app): every Myzel mesh highlights its groups by its own table, no measuring hooks
+- [86506da7](https://git.max-richter.dev/max/nodarium/commit/86506da7b52bda1c2746db3a4fa8130f7bac716d) feat: viewport link, hover and pick a part to find its node (#370)
+- [4c2ff66c](https://git.max-richter.dev/max/nodarium/commit/4c2ff66cca3eae23b8cf2823b36eca7842558fe1) Merge pull request 'feat: show angles in degrees or radians, as the user chooses' (#445) from feat/angle-units into main
+- [8e2caed1](https://git.max-richter.dev/max/nodarium/commit/8e2caed18449ab5c5783f18d70e36b1471b50f47) feat(app): show angles in degrees or in radians, as the user chooses
+- [14dff0b7](https://git.max-richter.dev/max/nodarium/commit/14dff0b731255fcf61775880803d93a449b73545) feat(nodes): mark every angle input with "unit": "rad"
+- [ba785d27](https://git.max-richter.dev/max/nodarium/commit/ba785d27d0bd9e1e0320088aa1258a68e8d77a6a) Merge pull request 'feat!: nodes, CLI and docs for agents that model plants, and every angle in radians' (#444) from feat/plant-agent-findings into main
+- [4b08300c](https://git.max-richter.dev/max/nodarium/commit/4b08300cff8934d42d02ad377b74a63d3dc3061b) test(runtime): one test per template for the radians migration
+- [8c847800](https://git.max-richter.dev/max/nodarium/commit/8c847800fe6784555e9335e621c26947f2e5bece) feat!: every angle in radians, with a migration
+- [65fd4868](https://git.max-richter.dev/max/nodarium/commit/65fd48688e6b4a35872e95cd2246b4afbb6127b1) feat(templates): a dandelion and a yarrow, and recipes for heads, rosettes and seeds
+- [a946291a](https://git.max-richter.dev/max/nodarium/commit/a946291a82691e98286fddf16c1147eb4e3c9762) docs: how a graph names options, sets lists and probes a node
+- [48a6a386](https://git.max-richter.dev/max/nodarium/commit/48a6a386648ae893ca782e431bfd907febb42f46) fix(runtime): a graph may give a boolean as true or false
+- [8dd77b51](https://git.max-richter.dev/max/nodarium/commit/8dd77b51774e9619861a0a6a384341bf7f6de0fc) feat(runtime): render lights what it shows from the view as well
+- [82ba5265](https://git.max-richter.dev/max/nodarium/commit/82ba5265f9f402ac3f5a7b6353306d07ef1fcaf8) feat(runtime): nodarium probe, the instances of run, --set for lists and edges, option names
+- [a6a05005](https://git.max-richter.dev/max/nodarium/commit/a6a050055e33bb6bf6a11199c87a418fa3d44d05) feat(nodes): closed bodies, blended shapes, cut and instances that face along their path
+- [48707abd](https://git.max-richter.dev/max/nodarium/commit/48707abde64f66789f28e08ecb10f4eeb4a6611c) Merge pull request 'fix(runtime): the cache makes the same decisions in every process' (#441) from fix/429-cache-decisions into main
+- [fa54ccf0](https://git.max-richter.dev/max/nodarium/commit/fa54ccf04b8b1ab502a10c7cc19a5bf805850a2c) Merge pull request 'feat(nodes): a roll node that rolls up the end of a path' (#440) from feat/438-roll-node into main
+- [d56aac38](https://git.max-richter.dev/max/nodarium/commit/d56aac38695040495b252c093748c5a42daf819b) fix(runtime): the cache makes the same decisions in every process
+- [01d9e446](https://git.max-richter.dev/max/nodarium/commit/01d9e44615140870d18812650259e279397b1951) feat(nodes): a roll node that rolls up the end of a path
+- [e75b1df1](https://git.max-richter.dev/max/nodarium/commit/e75b1df12cfe56d04b9009e050105c0caf468e55) fix(runtime): --write says so when it can't write the file
+- [de6bccb8](https://git.max-richter.dev/max/nodarium/commit/de6bccb82a7674d8c084bc3cbcb7a4026ed334b6) Merge pull request 'feat(runtime): docs, a root folder, sheets and names for the nodarium command' (#439) from feat/435-nodarium-for-agents into main
+- [1f08a1bb](https://git.max-richter.dev/max/nodarium/commit/1f08a1bb8989ddb4826f9676527f8339ef9a9ebf) feat(runtime): docs, a root folder, a graph written to a file and names for the nodarium command
+- [b95b69f0](https://git.max-richter.dev/max/nodarium/commit/b95b69f0ef2af2f8f5045388a24493ec514b4d4f) feat(templates): the species and how it is built on every template
+- [9c9825e4](https://git.max-richter.dev/max/nodarium/commit/9c9825e420c858fb06a83e72c309cae59d5097af) feat(runtime): renderToPng picks its views, renderSheetToPng draws a contact sheet
+- [a089ea40](https://git.max-richter.dev/max/nodarium/commit/a089ea40f3d82e406bda7e66f73c46aadb62f6c9) fix(app): the worker gets its own copy of a dropped wasm file
+- [1304ee8f](https://git.max-richter.dev/max/nodarium/commit/1304ee8ffa6f6179cc799635ff9a705dd4a46c62) Merge pull request 'fix(app): a dropped wasm file runs in the worker, an invalid one says so' (#437) from fix/419-dropped-wasm into main
+- [d05f51af](https://git.max-richter.dev/max/nodarium/commit/d05f51af351edcbdeeb73c74e765b5082dcc86c8) fix(app): a dropped wasm file runs in the worker, an invalid one says so
+- [665986a8](https://git.max-richter.dev/max/nodarium/commit/665986a8ff299431026623d38bc7c2132da8fc40) Merge pull request 'fix(graph-interface): every snap level can be reached by zooming' (#436) from fix/417-snap-levels into main
+- [34aba3cd](https://git.max-richter.dev/max/nodarium/commit/34aba3cdde21212b32ea8278547e7986c4b834fa) fix(graph-interface): every snap level can be reached by zooming
+
 # v1.2.0 (2026-11-17)
 
 ## Features
