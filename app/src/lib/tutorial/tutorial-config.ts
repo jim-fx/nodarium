@@ -12,7 +12,7 @@ export const tutorialConfig: PlantyConfig = {
     intro: {
       position: 'center',
       text:
-        "# Hi, I'm Planty! 🌱\nI'll show you around Nodarium — a tool for building 3D plants by connecting nodes together.\nHow much detail do you want?",
+        "# Hi, I'm Planty! 🌱\nI'll show you around Nodarium — a tool for building 3D plants and mushrooms by connecting nodes together.\nHow much detail do you want?",
       choices: [
         { label: '🌱 Show me the basics', next: 'tour_canvas' },
         { label: '🤓 I want the technical details', next: 'tour_canvas_nerd' },
@@ -35,7 +35,7 @@ export const tutorialConfig: PlantyConfig = {
       position: 'top-left',
       highlight: { selector: '[data-planty="viewer"]', padding: 8 },
       text:
-        'This is the **3D viewer** — the live preview of your plant.\nLeft-click to rotate · right-click to pan · scroll to zoom.',
+        'This is the **3D viewer** — the live preview of your plant.\nLeft-drag to rotate · right-drag to pan · scroll to zoom.\nHover a part of the plant to find the node that made it, click it to select that node.',
       next: 'try_params'
     },
 
@@ -51,7 +51,7 @@ export const tutorialConfig: PlantyConfig = {
       position: 'center',
       action: 'load-tutorial-template',
       text:
-        "Now let's build your own plant from scratch!\nI've cleared the project — it only has a **To Geometry** node in front of the **Output** node. Your goal: connect nodes to make a plant.",
+        "Now let's build your own plant from scratch!\nI've cleared the project — it only has a **to_geometry** node in front of the **output** node. Your goal: connect nodes to make a plant.",
       next: 'add_stem_node'
     },
 
@@ -59,7 +59,7 @@ export const tutorialConfig: PlantyConfig = {
       position: 'bottom-right',
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
-        'Open the **Add Menu** with **Shift+A** or **right-click** on the canvas.\nAdd a **Stem** node, then connect its output socket to the input of To Geometry, which turns the stems into tubes for the Output.',
+        'Open the **Add Menu** with **Shift+A** or **right-click** on the canvas, type **stem** and press Enter.\nConnect its output socket to the input of to_geometry, which turns the stems into tubes for the output.',
       next: 'add_noise_node'
     },
 
@@ -67,7 +67,7 @@ export const tutorialConfig: PlantyConfig = {
       position: 'bottom-right',
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
-        'Add a **Noise** node the same way.\nConnect: Stem → Noise input, then Noise output → To Geometry.\nThis makes the stems grow in organic, curved shapes.',
+        'Add a **noise** node the same way.\nConnect: stem → noise input, then noise output → to_geometry.\nThis makes the stems grow in organic, curved shapes.',
       next: 'add_random_node'
     },
 
@@ -75,7 +75,7 @@ export const tutorialConfig: PlantyConfig = {
       position: 'bottom-right',
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
-        "Let's add some randomness! Add a **Random** node and connect its output to the **length** input of the Stem node.\nIt picks a value between *min* and *max* — try 3 and 8. **Ctrl+drag** any number field to exceed its normal limits.",
+        "Let's add some randomness! Add a **random** node and connect its output to the **length** input of the stem node.\nIt picks a value between *min* and *max* — try 3 and 8. **Ctrl+drag** any number field to exceed its normal limits.",
       next: 'prompt_regenerate'
     },
 
@@ -83,7 +83,7 @@ export const tutorialConfig: PlantyConfig = {
       position: 'bottom-right',
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
-        'Now press **R** to regenerate. Each press gives the Random node a new value — your plant changes every run!',
+        'Now press **R** to regenerate. Each press gives the random node a new value — your plant changes every run!',
       next: 'tour_sidebar'
     },
 
@@ -91,7 +91,7 @@ export const tutorialConfig: PlantyConfig = {
       position: 'right',
       highlight: { selector: '.tabs', padding: 4 },
       text:
-        'The **sidebar** holds all your tools:\n⚙️ Settings · ⌨️ Shortcuts · 📦 Export · 📊 Graph Settings\nEnable **Advanced Mode** in Settings to unlock performance and benchmark panels.',
+        'The **sidebar** holds all your tools:\n⚙️ General · ⌨️ Shortcuts · 📦 Exporter · 📊 Graph Settings · 📝 Changelog\nEnable **Advanced Mode** under General → Debug to unlock performance and benchmark panels.',
       next: 'save_project'
     },
 
@@ -137,14 +137,14 @@ export const tutorialConfig: PlantyConfig = {
       position: 'top-left',
       highlight: { selector: '[data-planty="viewer"]', padding: 8 },
       text:
-        'The **3D viewer** uses `@threlte/core` (Svelte + Three.js). Mesh data streams from WASM execution results. OrbitControls: left-drag rotate, right-drag pan, scroll zoom.',
+        'The **3D viewer** uses `@threlte/core` (Svelte + Three.js). Geometry streams from WASM execution results. OrbitControls: left-drag rotate, right-drag pan, scroll zoom. Hovering a part reads its node from an id pass.',
       next: 'tour_runtime_nerd'
     },
 
     tour_runtime_nerd: {
       position: 'bottom-right',
       text:
-        'By default, nodes execute in a **WebWorker** for better performance. You can switch to main-thread execution by disabling **Debug → Execute in WebWorker** in Settings.\nEnable **Advanced Mode** to unlock the Performance and Benchmark panels.',
+        'By default, nodes execute in a **WebWorker** for better performance. You can switch to main-thread execution by disabling **General → Debug → Execute in WebWorker**.\nEnable **Advanced Mode** to unlock the Performance and Benchmark panels.',
       next: 'start_building'
     },
 
@@ -160,7 +160,7 @@ export const tutorialConfig: PlantyConfig = {
     connections_rules: {
       position: 'right',
       text:
-        'Drag from an output socket to an input socket to connect them.\n• Types must match (or use `*`)\n• No circular loops\n• Optional inputs can stay empty\nInvalid connections snap back automatically.',
+        'Drag from an output socket to an input socket to connect them, or click one and then the other.\n• Types must match (or use `*`)\n• No circular loops\n• Optional inputs can stay empty\nInvalid connections snap back automatically.',
       choices: [
         { label: '🔧 Node parameters', next: 'params_intro' },
         { label: '🐛 Debug node', next: 'debug_intro' },
@@ -172,7 +172,7 @@ export const tutorialConfig: PlantyConfig = {
       position: 'bottom-right',
       highlight: { selector: '.graph-wrapper', padding: 12 },
       text:
-        'Click any node to select it. Basic settings are shown **on the node itself**.\nThe sidebar under *Graph Settings → Active Node* shows the full list:\n**Number** — drag or type · **Vec3** — X/Y/Z · **Select** — dropdown · **Color** — picker',
+        'Click any node to select it. Basic settings are shown **on the node itself**.\nThe sidebar under *Graph Settings → Node Settings* shows the hidden ones, the pin puts one on the node:\n**Number** — drag or type · **Vec3** — X/Y/Z · **Select** — dropdown · **Color** — picker',
       next: 'params_tip'
     },
 
@@ -190,7 +190,7 @@ export const tutorialConfig: PlantyConfig = {
     debug_intro: {
       position: 'bottom-right',
       text:
-        'Add a **Debug node** from the Add Menu (Shift+A or right-click). It accepts `*` wildcard inputs — connect any socket to inspect the data flowing through. **Shift+right-click** a node to attach it there directly.\nEnable **Advanced Mode** in Settings to also see Performance and Graph Source panels.',
+        'Add a **Debug node** from the Add Menu (Shift+A or right-click). It accepts `*` wildcard inputs — connect any socket to inspect the data flowing through. **Shift+right-click** a node to attach it there directly.\nEnable **Advanced Mode** under General → Debug to also see Performance and Graph Source panels.',
       next: 'debug_done'
     },
 
@@ -207,14 +207,14 @@ export const tutorialConfig: PlantyConfig = {
     shortcuts_tour: {
       position: 'bottom-right',
       text:
-        '**Essential shortcuts:**\n`R` — Regenerate\n`Shift+A` / right-click — Add node\n`f` — Smart-connect selected nodes\n`.` — Center camera\n`Ctrl+Z` / `Ctrl+Y` — Undo / Redo\n`Delete` — Remove selected · `Ctrl+Delete` — Remove and restore edges',
+        '**Essential shortcuts:**\n`R` — Regenerate\n`Shift+A` / right-click — Add node\n`f` — Smart-connect selected nodes\n`.` — Center camera\n`I` — Show only what the selected node made\n`Ctrl+Z` / `Ctrl+Y` — Undo / Redo\n`Delete` — Remove selected · `Ctrl+Delete` — Remove and restore edges',
       next: 'shortcuts_done'
     },
 
     shortcuts_done: {
       position: 'right',
       text:
-        'All shortcuts are also listed in the sidebar under the ⌨️ icon.\nReady to build something?',
+        'All shortcuts are also listed under **Help → Keyboard shortcuts**.\nReady to build something?',
       choices: [
         { label: '🔗 Node connections', next: 'connections_intro' },
         { label: '🔧 Parameters', next: 'params_intro' },
@@ -225,14 +225,14 @@ export const tutorialConfig: PlantyConfig = {
     export_tour: {
       position: 'right',
       text:
-        'Export your 3D model from the **📦 Exporter** panel:\n**glTF** — standard for 3D apps (Blender, Three.js)\n**OBJ** — widely supported, geometry only',
+        'Export your 3D model from the **📦 Exporter** panel:\n**GLB** (glTF) — standard for 3D apps (Blender, Three.js)\n**OBJ** — widely supported, with vertex colours',
       next: 'congrats'
     },
 
     improvements_hint: {
-      position: 'center',
+      position: 'bottom-right',
       text:
-        '# Ideas to grow your plant 🌿\n• Add a **Branch** node after the Stem — chain several for finer branching\n• Add a **Gravity** node to make the stems droop\n• Raise the Stem *amount* and use a **Random** node on a parameter so each run produces a unique shape\n• Connect a **Vec3** node to the Stem *origin* to move where it grows',
+        '# Ideas to grow your plant 🌿\n• Add a **branch** node after the stem — chain several for finer branching\n• Add a **gravity** node to make the stems droop\n• Raise the stem *amount* and use a **random** node on a parameter so each run produces a unique shape\n• Connect a **vec3** node to the stem *origin* to move where it grows',
       choices: [
         { label: '⌨️ Keyboard shortcuts', next: 'shortcuts_tour' },
         { label: "Let's build! 🌿", next: null }

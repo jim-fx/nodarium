@@ -50,6 +50,12 @@
     isAvatarNearTop ? null : `${(innerHeight.current ?? 0) - avatarY + GAP}px`
   );
   const top = $derived(isAvatarNearTop ? `${avatarY + AVATAR_SIZE + GAP}px` : null);
+  // a long text next to an avatar in the middle of a low window scrolls instead of leaving the screen
+  const maxHeight = $derived(
+    isAvatarNearTop
+      ? (innerHeight.current ?? 0) - avatarY - AVATAR_SIZE - GAP - 8
+      : avatarY - GAP - 8
+  );
   const tailLeft = $derived(
     Math.min(Math.max(avatarX - left + AVATAR_SIZE / 2 - 25, 12), BUBBLE_WIDTH - 28)
   );
@@ -63,7 +69,8 @@
     const code: string[] = [];
     return escapeHtml(raw)
       .replaceAll(/`(.+?)`/g, (_, c: string) => `\uE000${code.push(c) - 1}\uE000`)
-      .replaceAll(/^# (.+)$/gm, '<strong class="block text-sm font-bold mb-1">$1</strong>')
+      // the heading is a block already, the line break after it would add an empty line
+      .replaceAll(/^# (.+)\n?/gm, '<strong class="block text-sm font-bold mb-1">$1</strong>')
       .replaceAll(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replaceAll(/\*(.+?)\*/g, '<em>$1</em>')
       .replaceAll(/\n+/g, '<br>')
@@ -144,6 +151,8 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    // the page used the key itself, like Enter on a socket of the node editor
+    if (e.defaultPrevented) return;
     if (e.ctrlKey || e.metaKey || e.altKey || isEditable(e.target)) return;
     if (e.key === 'Escape') {
       onClose?.();
@@ -159,13 +168,14 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div
-  class="pointer-events-auto fixed z-99999 rounded-md border p-2"
+  class="pointer-events-auto fixed z-99999 flex flex-col rounded-md border p-2"
   role="dialog"
   aria-label={title}
   style:width="{BUBBLE_WIDTH}px"
   style:left="{left}px"
   style:bottom
   style:top
+  style:max-height="{maxHeight}px"
   style:background="var(--color-layer-0)"
   style:border-color="var(--color-outline)"
 >
@@ -191,38 +201,40 @@
 
   <p class="sr-only" aria-live="polite">{toPlainText(text)}</p>
 
-  <!-- Enter skips the typewriter as well, see handleKeydown -->
-  <div
-    class="mb-2 min-h-[1.4em] text-sm leading-relaxed"
-    class:cursor-pointer={!finished}
-    style="color: var(--color-text)"
-    aria-hidden="true"
-    onclick={skip}
-  >
-    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-    {@html displayed}
-  </div>
-
-  {#if choices.length > 0}
-    <div class="flex flex-col gap-1.5">
-      {#each choices as choice, i (choice.label)}
-        {#if finished}
-          <button
-            in:fade={prefersReducedMotion.current
-            ? { duration: 0 }
-            : { duration: 200, delay: i * 250 }}
-            class="cursor-pointer rounded-lg px-3 py-1.5 text-left text-sm font-medium transition-colors"
-            style:background="var(--color-layer-1)"
-            style:border-color="var(--color-outline)"
-            style:color="var(--color-text)"
-            onclick={() => onChoose?.(choice)}
-          >
-            {choice.label}
-          </button>
-        {/if}
-      {/each}
+  <div class="min-h-0 overflow-y-auto">
+    <!-- Enter skips the typewriter as well, see handleKeydown -->
+    <div
+      class="mb-2 min-h-[1.4em] text-sm leading-relaxed"
+      class:cursor-pointer={!finished}
+      style="color: var(--color-text)"
+      aria-hidden="true"
+      onclick={skip}
+    >
+      <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+      {@html displayed}
     </div>
-  {/if}
+
+    {#if choices.length > 0}
+      <div class="flex flex-col gap-1.5">
+        {#each choices as choice, i (choice.label)}
+          {#if finished}
+            <button
+              in:fade={prefersReducedMotion.current
+              ? { duration: 0 }
+              : { duration: 200, delay: i * 250 }}
+              class="cursor-pointer rounded-lg px-3 py-1.5 text-left text-sm font-medium transition-colors"
+              style:background="var(--color-layer-1)"
+              style:border-color="var(--color-outline)"
+              style:color="var(--color-text)"
+              onclick={() => onChoose?.(choice)}
+            >
+              {choice.label}
+            </button>
+          {/if}
+        {/each}
+      </div>
+    {/if}
+  </div>
 
   <div class="mt-2 flex items-center justify-between gap-2">
     <button
