@@ -209,7 +209,7 @@
       "type": "max/core/random",
       "props": {
         "min": 0,
-        "max": 6.28318,
+        "max": 6.2832,
         "uniform": 1,
         "once": 1
       },
@@ -394,7 +394,7 @@
       "type": "max/plantarium/deform",
       "props": {
         "mode": 0,
-        "amount": -1.1309734
+        "amount": -1.131
       },
       "position": [
         -480,
@@ -888,7 +888,7 @@
       "type": "max/plantarium/deform",
       "props": {
         "mode": 1,
-        "amount": 3.4557519
+        "amount": 3.4558
       },
       "position": [
         -420,
@@ -1332,7 +1332,7 @@
         "length": 0.045,
         "thickness": 0.35,
         "angle": 1.0821041,
-        "rotation": 2.3998277,
+        "rotation": 2.3998,
         "taper": 0,
         "growth": 1,
         "offset_single": 0.5
@@ -1439,7 +1439,7 @@
         "lowest_instance": 0.1,
         "highest_instance": 1,
         "rotation": 2.4,
-        "angle": 0.7853982
+        "angle": 0.7854
       },
       "position": [
         -210,
@@ -1464,7 +1464,7 @@
       "props": {
         "amount": 2,
         "rotation": 2.4,
-        "angle": 1.0471976
+        "angle": 1.0472
       },
       "position": [
         -180,
@@ -1492,8 +1492,8 @@
         "highest_branch": 1,
         "length": 0.03,
         "thickness": 0.6,
-        "angle": 0.7330383,
-        "rotation": 2.3998277,
+        "angle": 0.733,
+        "rotation": 2.3998,
         "taper": 0.3,
         "growth": 1
       },
@@ -1537,7 +1537,7 @@
         "lowest_instance": 1,
         "highest_instance": 1,
         "rotation": 1.2566,
-        "angle": 0.2094395,
+        "angle": 0.2094,
         "face": 1
       },
       "position": [
@@ -2575,7 +2575,7 @@
             "amount": 20,
             "lowest_point": 0.28,
             "highest_point": 0.86,
-            "rotation": 3.1415927,
+            "rotation": 3.1416,
             "offset_single": 0.3,
             "depth": 1
           },
@@ -2899,7 +2899,7 @@
           "type": "max/plantarium/deform",
           "props": {
             "mode": 0,
-            "amount": -0.3141593
+            "amount": -0.3142
           },
           "position": [
             -30,

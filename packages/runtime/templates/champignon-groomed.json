@@ -89,8 +89,8 @@
           "type": "max/plantarium/trunk_kink",
           "props": {
             "amount": 2,
-            "angle": 0.0872665,
-            "rotation": 2.0943951,
+            "angle": 0.0873,
+            "rotation": 2.0944,
             "lowest_kink": 0.12,
             "highest_kink": 0.55
           }
@@ -155,8 +155,8 @@
           "position": [-330, 40],
           "type": "max/core/random",
           "props": {
-            "min": -1.5707963,
-            "max": 1.5707963
+            "min": -1.5708,
+            "max": 1.5708
           }
         },
         {

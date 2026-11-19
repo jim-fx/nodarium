@@ -115,8 +115,8 @@
         "amount": 13,
         "lowest_kink": 0.3,
         "highest_kink": 0.96,
-        "angle": 0.1047198,
-        "rotation": 3.1415927
+        "angle": 0.1047,
+        "rotation": 3.1416
       }
     },
     {
@@ -125,7 +125,7 @@
       "type": "max/core/random",
       "props": {
         "min": 0.0523599,
-        "max": 0.1570796
+        "max": 0.1571
       }
     },
     {
@@ -183,7 +183,7 @@
       "type": "max/plantarium/instance_from_points",
       "props": {
         "size": 1.5,
-        "angle": 0.4363323
+        "angle": 0.4363
       }
     },
     {
@@ -193,7 +193,7 @@
       "props": {
         "length": 0.5,
         "thickness": 0.45,
-        "angle": 0.4363323,
+        "angle": 0.4363,
         "taper": 0
       }
     },
@@ -257,7 +257,7 @@
         "lowest_kink": 0.08,
         "highest_kink": 0.97,
         "angle": 0.2443461,
-        "rotation": 3.1415927
+        "rotation": 3.1416
       }
     },
     {
@@ -275,7 +275,7 @@
       "type": "max/plantarium/instance_from_points",
       "props": {
         "size": 1,
-        "angle": 0.2617994
+        "angle": 0.2618
       }
     },
     {
@@ -586,13 +586,13 @@
       "id": 57,
       "position": [-210, -121.08],
       "type": "max/core/random",
-      "props": { "min": 0, "max": 0.8726646, "uniform": 1 }
+      "props": { "min": 0, "max": 0.8727, "uniform": 1 }
     },
     {
       "id": 58,
       "position": [-60, 61.25],
       "type": "max/core/random",
-      "props": { "min": -0.1745329, "max": 0.7853982, "uniform": 1 }
+      "props": { "min": -0.1745, "max": 0.7854, "uniform": 1 }
     },
     {
       "id": 59,

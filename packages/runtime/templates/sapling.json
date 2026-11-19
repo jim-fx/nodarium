@@ -40,7 +40,7 @@
             "amount": 14,
             "lowest_point": 0.28,
             "highest_point": 0.86,
-            "rotation": 3.1415927,
+            "rotation": 3.1416,
             "offset_single": 0.3,
             "depth": 1
           }
@@ -171,13 +171,13 @@
           "id": 929,
           "position": [-90, 0],
           "type": "max/plantarium/deform",
-          "props": { "mode": 1, "amount": 0.1570796 }
+          "props": { "mode": 1, "amount": 0.1571 }
         },
         {
           "id": 930,
           "position": [-60, 0],
           "type": "max/plantarium/deform",
-          "props": { "mode": 0, "amount": -0.3141593 }
+          "props": { "mode": 0, "amount": -0.3142 }
         }
       ],
       "edges": [
@@ -271,8 +271,8 @@
         "thickness": 0.5,
         "lowest_branch": 0.28,
         "highest_branch": 0.97,
-        "rotation": 2.3998277,
-        "angle": 0.6981317
+        "rotation": 2.3998,
+        "angle": 0.6981
       }
     },
     {
@@ -309,8 +309,8 @@
         "thickness": 0.4,
         "lowest_branch": 0.15,
         "highest_branch": 1,
-        "rotation": 2.3998277,
-        "angle": -0.1745329
+        "rotation": 2.3998,
+        "angle": -0.1745
       }
     },
     {
@@ -334,7 +334,7 @@
         "lowest_instance": 0.15,
         "highest_instance": 1,
         "rotation": 2.4,
-        "angle": 0.6981317,
+        "angle": 0.6981,
         "size": 0.288347
       }
     },

@@ -249,7 +249,7 @@
         "lowest_instance": 0.04,
         "highest_instance": 0.5,
         "rotation": 2.4,
-        "angle": 0.4363323,
+        "angle": 0.4363,
         "size": 50,
         "depth": 1
       },
@@ -437,8 +437,8 @@
         "highest_branch": 0.96,
         "length": 0.1,
         "thickness": 0.8,
-        "rotation": 2.3998277,
-        "angle": 0.9599311,
+        "rotation": 2.3998,
+        "angle": 0.9599,
         "taper": 0.3,
         "depth": 1
       },
@@ -1059,7 +1059,7 @@
         "lowest_instance": 0,
         "highest_instance": 0,
         "rotation": 2.4,
-        "angle": 0.5235988,
+        "angle": 0.5236,
         "size": 100,
         "depth": 1
       },
@@ -1223,7 +1223,7 @@
       "type": "max/plantarium/rotate",
       "props": {
         "axis": 0,
-        "angle": 4.71239,
+        "angle": 4.7124,
         "spread": 0
       },
       "position": [
@@ -1266,8 +1266,8 @@
         "highest_branch": 0.98,
         "length": 0.02,
         "thickness": 0.6,
-        "rotation": 3.1415927,
-        "angle": 1.134464,
+        "rotation": 3.1416,
+        "angle": 1.1345,
         "taper": 0.5,
         "depth": 1
       },
@@ -1341,8 +1341,8 @@
         "highest_branch": 0.95,
         "length": 0.008,
         "thickness": 0.8,
-        "rotation": 3.1415927,
-        "angle": 0.9599311,
+        "rotation": 3.1416,
+        "angle": 0.9599,
         "taper": 0.5,
         "depth": 1
       },
@@ -1503,7 +1503,7 @@
         "length": 0.002,
         "thickness": 1,
         "rotation": 0,
-        "angle": 1.5707963,
+        "angle": 1.5708,
         "taper": 0,
         "depth": 1
       },
@@ -1534,7 +1534,7 @@
         "amount": 7,
         "length": 0.045,
         "length_variation": 0.1,
-        "opening": 0.7330383,
+        "opening": 0.733,
         "shape": 0,
         "thickness": 0.0007,
         "depth": 2,
@@ -1660,7 +1660,7 @@
         "lowest_instance": 1,
         "highest_instance": 1,
         "rotation": 1.0472,
-        "angle": 0.1745329,
+        "angle": 0.1745,
         "size": 0.22,
         "depth": 1
       },
@@ -1714,7 +1714,7 @@
         "lowest_instance": 1,
         "highest_instance": 1,
         "rotation": 1.5708,
-        "angle": 1.0471976,
+        "angle": 1.0472,
         "size": 0.1,
         "depth": 1
       },
@@ -1921,7 +1921,7 @@
         "lowest_instance": 1,
         "highest_instance": 1,
         "rotation": 1.2566,
-        "angle": 1.0471976,
+        "angle": 1.0472,
         "size": 0.6,
         "depth": 1
       },
@@ -2035,7 +2035,7 @@
         "lowest_instance": 1,
         "highest_instance": 1,
         "rotation": 1.2566,
-        "angle": 1.0471976,
+        "angle": 1.0472,
         "size": 0.17,
         "depth": 1
       },

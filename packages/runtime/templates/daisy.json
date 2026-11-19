@@ -226,7 +226,7 @@
         "highest_branch": 1,
         "length": 0.00012,
         "thickness": 1,
-        "angle": 1.5707963,
+        "angle": 1.5708,
         "rotation": 0,
         "taper": 0
       }
@@ -398,7 +398,7 @@
         "lowest_instance": 0,
         "highest_instance": 1,
         "rotation": 2.4,
-        "angle": 0.2094395,
+        "angle": 0.2094,
         "plant": 0,
         "geometry": [
           0,
@@ -584,7 +584,7 @@
         "length": 0.05,
         "thickness": 0.53,
         "angle": 0.7236135,
-        "rotation": 2.3998277,
+        "rotation": 2.3998,
         "taper": 1,
         "depth": 1,
         "offset_single": 0
@@ -1414,7 +1414,7 @@
           0
         ],
         "min": 0,
-        "max": 1.2217305
+        "max": 1.2217
       }
     },
     {
@@ -1495,7 +1495,7 @@
           0
         ],
         "min": 0.0523599,
-        "max": 1.3962634
+        "max": 1.3963
       }
     },
     {
@@ -1529,8 +1529,8 @@
           1,
           0
         ],
-        "min": 0.2094395,
-        "max": 1.3962634
+        "min": 0.2094,
+        "max": 1.3963
       }
     },
     {
@@ -1759,8 +1759,8 @@
       ],
       "type": "max/core/random",
       "props": {
-        "min": 0.5235988,
-        "max": 1.0471976
+        "min": 0.5236,
+        "max": 1.0472
       }
     },
     {

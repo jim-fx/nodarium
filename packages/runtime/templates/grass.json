@@ -89,7 +89,7 @@
         "lowest_instance": 0.82,
         "highest_instance": 1,
         "rotation": 2.4,
-        "angle": 0.5235988
+        "angle": 0.5236
       }
     },
     { "id": 30, "position": [240, 50.59], "type": "max/core/alpha", "props": {} },

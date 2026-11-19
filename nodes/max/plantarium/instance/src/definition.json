@@ -41,7 +41,7 @@
       "min": 0,
       "max": 6.2832,
       "step": 0.01,
-      "value": 0.5,
+      "value": 3.1416,
       "hidden": true,
       "unit": "rad"
     },
