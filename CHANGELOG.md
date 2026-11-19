@@ -1,3 +1,39 @@
+# v2.2.0 (2026-11-19)
+
+## Breaking
+
+- `gravity` and `apply_force` no longer bend by place. The `weight` select ("along each path" / "by place") and the `reach` and `root` inputs are gone, and there is no migration. No template used them, and every template builds as before. A graph that sets them builds without them, and `nodarium check` and `nodarium run` report the leftover props until they are removed (#475).
+- The `rotation` of `instance` defaults to π (3.1416). Graphs that left it unset get the new default (#475).
+
+## Features
+
+- The Graph Settings panel starts with a Unit dropdown (m, cm, mm). It sets the same project unit as View → Unit (#479).
+- Numbers like π in node definitions, templates and graphs are written with 4 decimals (3.1416, 1.5708, 6.2832). Many templates change slightly in their last digits, and their renders look the same (#475).
+
+## Fixes
+
+- Instances of a few millimeters and less are no longer dropped: a plant scaled down to a few centimeters keeps its leaves. `instance` leaves out only instances smaller than 1/1000 of its largest one. The dandelion now shows the reflexed bracts under its heads, and lavender, sage and plantain gain a few tiny instances (#480).
+- An edge into a hidden input shows that input on the node when a graph loads, also inside groups, so the edge ends at a socket (#478).
+
+## Upgrading
+
+- Remove `weight`, `reach` and `root` from `gravity` and `apply_force` in graphs written by hand.
+- Set `rotation` to 0.5 (the old default) on `instance` nodes that should keep building the same.
+
+---
+
+- [e8dc83cf](https://git.max-richter.dev/max/nodarium/commit/e8dc83cf7f59bfa97fc56c47e11d328b01b3b3ed) Merge pull request 'fix(instance): keep instances of a few millimeters' (#480) from fix/476-tiny-instances into main
+- [6c263607](https://git.max-richter.dev/max/nodarium/commit/6c2636078d03361077dc9375e2c27083dded3148) test(runtime): drop lavender from the radians recording
+- [a59cc367](https://git.max-richter.dev/max/nodarium/commit/a59cc367e37a9fc056df5d47a3a508977390a49f) fix(instance): keep instances of a few millimeters
+- [487dd479](https://git.max-richter.dev/max/nodarium/commit/487dd47984a032097561b1b7340c59edff8347d9) Merge pull request 'feat(settings): unit dropdown in the graph settings' (#479) from feat/graph-settings-unit into main
+- [6a361400](https://git.max-richter.dev/max/nodarium/commit/6a361400635d772321f915b25b1d70ff72431693) feat(settings): unit dropdown in the graph settings
+- [7a8e7280](https://git.max-richter.dev/max/nodarium/commit/7a8e72800555a3dcba2f266a5c60c413371cc832) Merge pull request 'fix(editor): show a hidden input when an edge goes into it on load' (#478) from fix/expose-connected-inputs into main
+- [47909159](https://git.max-richter.dev/max/nodarium/commit/4790915925d59c4023b354e720039050d21a0288) fix(editor): show a hidden input when an edge goes into it on load
+- [6239675a](https://git.max-richter.dev/max/nodarium/commit/6239675a7b2fdf0a3db37e1419296bbbcb4c8eaa) Merge pull request 'feat!: remove bending by place, instance rotation defaults to π, π with 4 decimals' (#475) from feat/remove-by-place into main
+- [361dddd1](https://git.max-richter.dev/max/nodarium/commit/361dddd131760d53a60d2d84c681e24324c32878) docs: drop the last mentions of bending by place
+- [a7cef222](https://git.max-richter.dev/max/nodarium/commit/a7cef222ac3c88c5530844732a59bff04d5f710d) feat(instance)!: rotation defaults to π, π-like numbers get 4 decimals
+- [a41406cd](https://git.max-richter.dev/max/nodarium/commit/a41406cdd689a83d0c2be09db35a1653bf58af63) feat(plantarium)!: remove bending by place from gravity and apply_force
+
 # v2.1.0 (2026-11-19)
 
 ## Breaking
