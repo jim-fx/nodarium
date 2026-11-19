@@ -520,17 +520,20 @@
         await pm.handleSelectProject(existing.id);
       }
     },
-    'load-tutorial-template': () => {
+    'load-tutorial-template': async () => {
       if (!pm.graph) return;
       const g = structuredClone(templates.tutorial) as unknown as Graph;
       g.id = pm.graph.id;
       g.meta = { ...pm.graph.meta };
-      manager.load(g);
-      graphInterface.state.centerNode(graphInterface.manager.nodeArray[0]);
+      await manager.load(g);
+      // the plant is built to the left of to_geometry, so it goes in the middle
+      graphInterface.state.centerNode(
+        manager.nodeArray.find((n) => n.type === 'max/plantarium/to_geometry')
+      );
     },
     'open-github-nodes': () => {
       window.open(
-        'https://github.com/jim-fx/nodarium/tree/main/nodes/max/plantarium',
+        'https://github.com/jim-fx/nodarium/tree/main/nodes/max',
         '_blank',
         'noopener'
       );
