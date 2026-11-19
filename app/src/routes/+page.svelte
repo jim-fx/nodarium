@@ -31,6 +31,7 @@
   import { errorInfo } from '#lib/runtime/run-error.ts';
   import type { AppRuntime } from '#lib/runtime/types.ts';
   import { appSettings, AppSettingTypes } from '#lib/settings/app-settings.svelte.ts';
+  import { changeGraphPanelSetting, graphPanelSettings } from '#lib/settings/graph-settings.ts';
   import type { SettingsValue } from '#lib/settings/index.ts';
   import MaterialPicker from '#lib/settings/MaterialPicker.svelte';
   import NestedSettings from '#lib/settings/NestedSettings.svelte';
@@ -259,6 +260,10 @@
   pm.onunitactive = (unit) => {
     if (manager) manager.meta = { ...manager.meta, unit };
   };
+
+  const graphPanel = $derived(
+    graphPanelSettings(manager?.settingTypes ?? {}, manager?.settings ?? {}, manager?.meta?.unit)
+  );
 
   // number inputs and the viewer show lengths in the unit of the project, angles as the user chose
   $effect(() => {
@@ -706,9 +711,13 @@
           {#if manager}
             <NestedSettings
               id="graph-settings"
-              type={manager.settingTypes}
-              value={manager.settings as SettingsValue}
-              onchange={(key, value) => manager.setSetting(key, value)}
+              type={graphPanel.types}
+              value={graphPanel.values as SettingsValue}
+              onchange={(key, value) =>
+              changeGraphPanelSetting(key, value, {
+                unit: (unit) => pm.activeId !== undefined && pm.setProjectUnit(pm.activeId, unit),
+                setting: (key, value) => manager.setSetting(key, value)
+              })}
             />
           {/if}
           {#key activeNode}
