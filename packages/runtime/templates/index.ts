@@ -157,8 +157,8 @@ const ABOUT: Record<string, About> = {
   },
   'clouded-agaric': {
     species: 'Clitocybe nebularis',
-    notes: 'Five to ten stipes on an arc of a ring, each of its own age, with the Gills and '
-      + 'Cuticle groups.'
+    notes: 'Three to seven large, fleshy caps on short stout stipes, close together on an arc of '
+      + 'a ring, each of its own age, with the Gills and Cuticle groups.'
   },
   'sulphur-tuft': { notes: 'Eight to fourteen thin stipes, like the honey fungus.' },
   'false-chanterelle': { notes: 'Like the chanterelle, with lamellae instead of ridges.' },
