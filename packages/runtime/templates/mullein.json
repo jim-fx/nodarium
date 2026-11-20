@@ -281,33 +281,13 @@
       "position": [-180, 134.51]
     },
     {
-      "id": 16,
-      "type": "max/plantarium/stem",
-      "props": {
-        "amount": 1,
-        "length": 0.045,
-        "thickness": 0.032,
-        "taper": 0
-      },
-      "position": [-120, -172.58]
-    },
-    {
-      "id": 18,
-      "type": "max/plantarium/set_color",
-      "props": {
-        "color": [140, 150, 115]
-      },
-      "position": [-90, -106.12]
-    },
-    {
       "id": 19,
-      "type": "max/plantarium/instance",
-      "props": {
-        "lowest_instance": 0,
-        "highest_instance": 1,
-        "rotation": 2.3998
-      },
-      "position": [-60, -22.5]
+      "type": "max/plantarium/instance_from_points",
+      "props": {},
+      "position": [
+        -60,
+        -22.5
+      ]
     },
     {
       "id": 30,
@@ -1100,11 +1080,23 @@
       "id": 5004,
       "type": "max/core/curve",
       "props": {
-        "curve": [0, 0.78, 0.22, 1, 0.6, 0.8, 1, 0.42],
+        "curve": [
+          0,
+          0.78,
+          0.22,
+          1,
+          0.6,
+          0.8,
+          1,
+          0.42
+        ],
         "min": 0,
-        "max": 0.086
+        "max": 0.003576
       },
-      "position": [-180, -71.7]
+      "position": [
+        -180,
+        -71.7
+      ]
     },
     {
       "id": 5005,
@@ -1253,14 +1245,15 @@
       "position": [-270, 198.89]
     },
     {
-      "id": 5021,
-      "type": "max/core/curve",
+      "id": 16,
+      "type": "max/plantarium/spiral",
       "props": {
-        "curve": [0, 0.05, 0.25, 1, 1, 1],
-        "min": 0,
-        "max": 1
+        "height": 0.045
       },
-      "position": [-150, -135.2]
+      "position": [
+        -120,
+        -172.58
+      ]
     }
   ],
   "edges": [
@@ -1268,8 +1261,6 @@
     [1, 0, 14, "value"],
     [102, 0, 101, "amount"],
     [100, 0, 101, "geometry"],
-    [5, 0, 19, "amount"],
-    [18, 0, 19, "plant"],
     [30, 0, 31, "shape"],
     [31, 0, 32, "plant"],
     [33, 0, 34, "shape"],
@@ -1395,7 +1386,6 @@
     [100, 0, 5013, "geometry"],
     [5012, 0, 5013, "amount"],
     [5013, 0, 19, "geometry"],
-    [16, 0, 18, "plant"],
     [5014, 0, 5015, "value"],
     [5015, 0, 62, "b"],
     [5015, 0, 67, "b"],
@@ -1409,8 +1399,8 @@
     [5019, 0, 73, "b"],
     [5019, 0, 75, "b"],
     [5020, 0, 702, "b"],
-    [1, 0, 5021, "value"],
-    [5021, 0, 16, "growth"]
+    [5, 0, 16, "amount"],
+    [16, 0, 19, "points"]
   ],
   "groups": [
     {
