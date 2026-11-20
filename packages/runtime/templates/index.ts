@@ -163,7 +163,8 @@ const ABOUT: Record<string, About> = {
   'sulphur-tuft': { notes: 'Eight to fourteen thin stipes, like the honey fungus.' },
   'false-chanterelle': { notes: 'Like the chanterelle, with lamellae instead of ridges.' },
   'bitter-bolete': {
-    notes: 'Like the porcini, its pores white turning pink and a coarse dark net on the stipe.'
+    notes: 'Like the porcini: a thick cushion of pores, white turning pink, and a coarse dark net '
+      + 'of wide meshes on a club of a stipe, stout or long by seed.'
   }
 };
 
