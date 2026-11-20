@@ -7,25 +7,10 @@
   "settings": { "resolution.circle": 12, "resolution.curve": 32, "time.t": 1 },
   "nodes": [
     {
-      "id": 10,
-      "position": [-690, -707.49],
-      "type": "max/plantarium/stem",
-      "props": { "amount": 1, "length": 0.01125, "thickness": 0.00825, "taper": 0 }
-    },
-    {
       "id": 11,
       "position": [-660, -640.49],
-      "type": "max/plantarium/branch",
-      "props": {
-        "amount": 9,
-        "lowest_branch": 0.1,
-        "highest_branch": 0.9,
-        "length": 2.4,
-        "thickness": 0.8,
-        "angle": 0.5236,
-        "rotation": 2.3998,
-        "taper": 0.35
-      }
+      "type": "max/plantarium/branch_from_points",
+      "props": { "taper": 0.35 }
     },
     {
       "id": 12,
@@ -806,7 +791,7 @@
       "id": 107,
       "position": [-720, -686.99],
       "type": "max/core/math",
-      "props": { "op_type": 2, "a": 1, "b": 0.00825 }
+      "props": { "op_type": 2, "a": 1, "b": 0.0066 }
     },
     {
       "id": 112,
@@ -995,10 +980,15 @@
       "props": { "curve": [0, 0, 0.75, 0, 0.77, 1, 1, 1] },
       "position": [-360, -185.33]
     },
-    { "id": 9005, "type": "max/core/math", "props": { "op_type": 2 }, "position": [-330, -224.45] }
+    { "id": 9005, "type": "max/core/math", "props": { "op_type": 2 }, "position": [-330, -224.45] },
+    {
+      "id": 10,
+      "type": "max/plantarium/spiral",
+      "props": { "origin": [0, 0.001125, 0], "height": 0.009 },
+      "position": [-690, -707.49]
+    }
   ],
   "edges": [
-    [10, 0, 11, "plant"],
     [13, 0, 11, "angle"],
     [11, 0, 14, "plant"],
     [14, 0, 15, "plant"],
@@ -1089,7 +1079,6 @@
     [101, 0, 102, "color"],
     [103, 0, 106, "value"],
     [106, 0, 107, "a"],
-    [107, 0, 10, "thickness"],
     [113, 0, 32, "size"],
     [113, 0, 31, "a"],
     [27, 0, 113, "a"],
@@ -1107,7 +1096,6 @@
     [120, 0, 66, "size"],
     [57, 0, 120, "a"],
     [118, 0, 120, "b"],
-    [125, 0, 11, "amount"],
     [126, 0, 16, "amount"],
     [103, 0, 129, "value"],
     [129, 0, 11, "growth"],
@@ -1145,6 +1133,9 @@
     [9003, 0, 9004, "value"],
     [138, 0, 9005, "a"],
     [9004, 0, 9005, "b"],
-    [9005, 0, 43, "growth"]
+    [9005, 0, 43, "growth"],
+    [125, 0, 10, "amount"],
+    [10, 0, 11, "points"],
+    [107, 0, 11, "thickness"]
   ]
 }
