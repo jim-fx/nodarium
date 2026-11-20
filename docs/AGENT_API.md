@@ -58,7 +58,7 @@ const result = await page.evaluate(async () => {
 | `version`, `app`                            | `1`, and the version and commit of the app                                                                           |
 | `ready`                                     | resolves once the open project is built and the definitions of every node are loaded                                 |
 | `idle()`                                    | resolves once nothing is being built or waits to be, see below                                                       |
-| `graph.get()`                               | a copy of the open graph as it is saved                                                                              |
+| `graph.get()`                               | a copy of the open graph as it is saved, with its `frames`                                                           |
 | `graph.load(graph, { title })`              | opens a graph or a project file as a new project, as File → Import does, and resolves with its first build           |
 | `graph.loadTemplate(id)`                    | opens a template as a new project, as the project browser does                                                       |
 | `graph.addNode(type, props)`                | adds a node in the middle of the editor, returns its id                                                              |

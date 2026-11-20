@@ -11,7 +11,13 @@ const variables = [
   'active',
   'selected',
   'connection',
-  'error'
+  'error',
+  'frame-gray',
+  'frame-green',
+  'frame-brown',
+  'frame-blue',
+  'frame-red',
+  'frame-violet'
 ] as const;
 
 function getColor(variable: (typeof variables)[number]) {

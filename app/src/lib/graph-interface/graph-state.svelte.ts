@@ -1,5 +1,5 @@
 import { GROUP_INSTANCE } from '@nodarium/types';
-import type { NodeInstance, SerializedEdge, SerializedNode, Socket } from '@nodarium/types';
+import type { Frame, NodeInstance, SerializedEdge, SerializedNode, Socket } from '@nodarium/types';
 import { createContext } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import type { Vector3 } from 'three';
@@ -7,6 +7,7 @@ import { GraphCamera } from './camera.svelte';
 import type { GraphManager } from './graph-manager.svelte';
 import { ColorGenerator } from './graph/colors';
 import { maxZoom } from './graph/constants';
+import { serializeFrame } from './helpers/frames';
 import { animate, easeInOut, lerp } from './helpers/index.ts';
 import { NODE_WIDTH } from './helpers/layoutGraph';
 import { boxContains, boxesOverlap, nodeBox } from './helpers/nodeBox';
@@ -79,6 +80,7 @@ export class GraphState {
   clipboard: null | {
     nodes: SerializedNode[];
     edges: SerializedEdge[];
+    frames: Frame[];
   } = null;
 
   boxSelection = $state(false);
@@ -95,6 +97,13 @@ export class GraphState {
   mouseDown = $state<[number, number] | null>(null);
   activeNodeId = $state(-1);
   selectedNodes = new SvelteSet<number>();
+  /** The frame whose title was clicked, -1 for none. A frame is selected without its nodes. */
+  activeFrameId = $state(-1);
+  get activeFrame() {
+    return this.activeFrameId === -1 ? undefined : this.graph.getFrame(this.activeFrameId);
+  }
+  /** The frame whose title is being renamed */
+  renamingFrameId = $state(-1);
   activeSocket = $state<Socket | null>(null);
   hoveredSocket = $state<Socket | null>(null);
   possibleSockets = $state<Socket[]>([]);
@@ -161,11 +170,30 @@ export class GraphState {
     }
   }
 
+  /** The active node and the selected nodes, or the nodes of the selected frame */
+  selectedNodeIds(): number[] {
+    if (this.activeFrame) return [...this.activeFrame.nodes];
+    const ids = new SvelteSet([this.activeNodeId, ...this.selectedNodes]);
+    ids.delete(-1);
+    return [...ids];
+  }
+
+  /** Selects the frame alone, without its nodes */
+  selectFrame(id: number) {
+    this.activeNodeId = -1;
+    this.clearSelection();
+    this.activeFrameId = id;
+  }
+
+  frameSelection() {
+    if (this.activeFrame) return;
+    const frame = this.graph.createFrame(this.selectedNodeIds());
+    if (frame) this.selectFrame(frame.id);
+  }
+
   copyNodes() {
-    if (this.activeNodeId === -1 && !this.selectedNodes?.size) {
-      return;
-    }
-    const ids = new SvelteSet([this.activeNodeId, ...(this.selectedNodes?.values() || [])]);
+    const ids = new SvelteSet(this.selectedNodeIds());
+    if (!ids.size) return;
     let nodes = [...ids]
       .map((id) => this.graph.getNode(id))
       .filter((b): b is NodeInstance => !!b);
@@ -179,9 +207,12 @@ export class GraphState {
       ]
     }));
 
+    const frames = this.graph.frames.filter((f) => f.nodes.every((id) => ids.has(id)));
+
     this.clipboard = {
       nodes: nodes.map(n => serializeNode(n)),
-      edges: edges.map(e => serializeEdge(e))
+      edges: edges.map(e => serializeEdge(e)),
+      frames: frames.map(serializeFrame)
     };
   }
 
@@ -193,9 +224,11 @@ export class GraphState {
     return this.graph.groupNodes([...this.selectedNodes.keys(), this.activeNodeId]);
   }
 
-  // Fits the node (or all nodes) into the part of the view the safe padding leaves free
+  // Fits the node, the nodes of the selected frame, or all nodes into the part of the view the
+  // safe padding leaves free
   centerNode(node?: NodeInstance) {
-    const nodes = node ? [node] : [...this.graph.nodes.values()];
+    const frameNodes = this.activeFrame?.nodes.flatMap((id) => this.graph.getNode(id) ?? []);
+    const nodes = node ? [node] : frameNodes ?? [...this.graph.nodes.values()];
     if (!nodes.length) return;
 
     const box = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
@@ -255,7 +288,8 @@ export class GraphState {
       ] as [number, number]
     }));
 
-    const newNodes = this.graph.createGraph(nodes, this.clipboard.edges);
+    const newNodes = this.graph.createGraph(nodes, this.clipboard.edges, this.clipboard.frames);
+    this.activeFrameId = -1;
     this.selectedNodes.clear();
     for (const node of newNodes) {
       this.selectedNodes.add(node.id);

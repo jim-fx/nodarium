@@ -5,9 +5,13 @@ import { animate, lerp, snapToGrid as snapPointToGrid } from '../helpers/index.t
 import { boxesOverlap, nodeBox } from '../helpers/nodeBox';
 import { EdgeInteractionManager } from './edge.events';
 
+/** The nodes of a frame dragged by its title, where each of them was when the drag started */
+type FrameDrag = { nodes: NodeInstance[]; from: [number, number][]; moved: boolean };
+
 export class MouseEventManager {
   edgeInteractionManager: EdgeInteractionManager;
   private pendingSelectionFrame = false;
+  private frameDrag: FrameDrag | null = null;
 
   constructor(
     private graph: GraphManager,
@@ -16,7 +20,62 @@ export class MouseEventManager {
     this.edgeInteractionManager = new EdgeInteractionManager(graph, state);
   }
 
+  private pressFrameTitle(header: Element, mx: number, my: number) {
+    const frame = this.graph.getFrame(Number(header.getAttribute('data-frame-id')));
+    if (!frame) return;
+    this.state.selectFrame(frame.id);
+    this.state.mouseDown = [mx, my];
+    this.state.cameraDown[0] = this.state.camera.position[0];
+    this.state.cameraDown[1] = this.state.camera.position[1];
+    const nodes = frame.nodes.flatMap((id) => this.graph.getNode(id) ?? []);
+    this.frameDrag = { nodes, from: nodes.map((n) => [...n.position]), moved: false };
+  }
+
+  private frameDelta(drag: FrameDrag, mx: number, my: number, snap: boolean) {
+    const [downX, downY] = this.state.mouseDown!;
+    let dx = (mx - downX) / this.state.camera.position[2];
+    let dy = (my - downY) / this.state.camera.position[2];
+    if (!drag.moved && Math.hypot(dx, dy) < 0.2) return;
+    drag.moved = true;
+    if (snap && this.state.options.snapToGrid) {
+      const step = 5 / this.state.camera.snapLevel();
+      dx = snapPointToGrid(dx, step);
+      dy = snapPointToGrid(dy, step);
+    }
+    return [dx, dy];
+  }
+
+  private dragFrame(drag: FrameDrag, mx: number, my: number) {
+    const delta = this.frameDelta(drag, mx, my, false);
+    if (!delta) return;
+    drag.nodes.forEach((node, i) => {
+      node.state.x = drag.from[i][0] + delta[0];
+      node.state.y = drag.from[i][1] + delta[1];
+      this.state.updateNodePosition(node);
+    });
+  }
+
+  private dropFrame(drag: FrameDrag, event: MouseEvent) {
+    const mx = event.clientX - this.state.rect.x;
+    const my = event.clientY - this.state.rect.y;
+    const delta = drag.moved && this.frameDelta(drag, mx, my, true);
+    this.frameDrag = null;
+    this.state.mouseDown = null;
+    if (!delta) return;
+    drag.nodes.forEach((node, i) => {
+      node.position = [drag.from[i][0] + delta[0], drag.from[i][1] + delta[1]];
+      node.state.x = node.position[0];
+      node.state.y = node.position[1];
+      this.state.updateNodePosition(node);
+    });
+    this.graph.commit({ build: false });
+  }
+
   handleWindowMouseUp(event: MouseEvent) {
+    if (this.frameDrag) {
+      this.dropFrame(this.frameDrag, event);
+      return;
+    }
     const droppedOnEdge = this.edgeInteractionManager.handleMouseUp();
     this.state.isPanning = false;
     if (!this.state.mouseDown) return;
@@ -151,6 +210,7 @@ export class MouseEventManager {
       && this.state.isBodyFocused()
     ) {
       this.state.activeNodeId = -1;
+      this.state.activeFrameId = -1;
       this.state.clearSelection();
     }
 
@@ -197,6 +257,18 @@ export class MouseEventManager {
     this.state.edgeEndPosition = null;
     const target = event.target as HTMLElement;
 
+    const frameHeader = target.closest?.('.frame-header');
+    if (frameHeader) {
+      if (target.nodeName !== 'INPUT') {
+        this.pressFrameTitle(
+          frameHeader,
+          event.clientX - this.state.rect.x,
+          event.clientY - this.state.rect.y
+        );
+      }
+      return;
+    }
+
     if (
       target.nodeName !== 'CANVAS'
       && !target.classList.contains('node')
@@ -214,6 +286,8 @@ export class MouseEventManager {
 
     const clickedNodeId = this.state.getNodeIdFromEvent(event);
     this.state.mouseDownNodeId = clickedNodeId;
+
+    if (clickedNodeId !== -1 || event.ctrlKey) this.state.activeFrameId = -1;
 
     if (clickedNodeId !== -1) {
       if (event.ctrlKey && event.shiftKey) {
@@ -281,6 +355,11 @@ export class MouseEventManager {
     this.state.movePointer(event);
 
     if (!this.state.mouseDown) return;
+
+    if (this.frameDrag) {
+      this.dragFrame(this.frameDrag, mx, my);
+      return;
+    }
 
     if (this.state.activeSocket || this.state.possibleSockets?.length) {
       let smallestDist = 1000;

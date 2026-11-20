@@ -16,7 +16,13 @@ export function createGraphOptions(options: Partial<GraphOptions> = {}): GraphOp
       outline: new Color(),
       active: new Color(),
       selected: new Color(),
-      error: new Color()
+      error: new Color(),
+      'frame-gray': new Color(),
+      'frame-green': new Color(),
+      'frame-brown': new Color(),
+      'frame-blue': new Color(),
+      'frame-red': new Color(),
+      'frame-violet': new Color()
     },
     nodeTimings: {},
     ...options
