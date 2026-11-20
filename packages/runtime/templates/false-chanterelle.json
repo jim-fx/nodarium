@@ -15,31 +15,65 @@
     {
       "id": 601,
       "name": "Stipe",
+      "frames": [
+        {
+          "id": 1,
+          "label": "Shape",
+          "color": "brown",
+          "nodes": [
+            1,
+            2,
+            3,
+            100,
+            101,
+            102,
+            103,
+            104,
+            105,
+            106,
+            107,
+            110,
+            111,
+            112,
+            113,
+            114,
+            115,
+            116,
+            117,
+            119,
+            120,
+            200,
+            201,
+            202,
+            203,
+            301,
+            303,
+            313
+          ]
+        },
+        {
+          "id": 2,
+          "label": "Hyphae",
+          "color": "gray",
+          "nodes": [4, 40, 315, 404, 405, 500, 9003, 9004]
+        }
+      ],
       "nodes": [
         {
           "id": 610,
-          "position": [
-            -390,
-            36.71
-          ],
+          "position": [-530, -11.94],
           "type": "__internal/group/input",
           "props": {}
         },
         {
           "id": 611,
-          "position": [
-            0,
-            0
-          ],
+          "position": [0, 0],
           "type": "__internal/group/output",
           "props": {}
         },
         {
           "id": 100,
-          "position": [
-            -300,
-            -97.04
-          ],
+          "position": [-365, -92.15],
           "type": "max/core/random_int",
           "props": {
             "min": 3,
@@ -48,10 +82,7 @@
         },
         {
           "id": 103,
-          "position": [
-            -420,
-            -84.54
-          ],
+          "position": [-485, -79.65],
           "type": "max/plantarium/path_info",
           "props": {
             "info": 1
@@ -59,10 +90,7 @@
         },
         {
           "id": 104,
-          "position": [
-            -390,
-            -97.04
-          ],
+          "position": [-455, -92.15],
           "type": "max/core/math",
           "props": {
             "op_type": 2,
@@ -71,10 +99,7 @@
         },
         {
           "id": 102,
-          "position": [
-            -360,
-            -153.54
-          ],
+          "position": [-425, -148.65],
           "type": "max/core/curve",
           "props": {
             "curve": [
@@ -95,10 +120,7 @@
         },
         {
           "id": 105,
-          "position": [
-            -360,
-            -118.54
-          ],
+          "position": [-425, -113.65],
           "type": "max/core/random",
           "props": {
             "min": -0.02,
@@ -107,10 +129,7 @@
         },
         {
           "id": 106,
-          "position": [
-            -330,
-            -137.04
-          ],
+          "position": [-395, -132.15],
           "type": "max/core/math",
           "props": {
             "op_type": 0
@@ -118,10 +137,7 @@
         },
         {
           "id": 107,
-          "position": [
-            -360,
-            -80.54
-          ],
+          "position": [-425, -75.65],
           "type": "max/core/curve",
           "props": {
             "curve": [
@@ -142,10 +158,7 @@
         },
         {
           "id": 110,
-          "position": [
-            -360,
-            -45.54
-          ],
+          "position": [-425, -40.65],
           "type": "max/core/random",
           "props": {
             "min": -0.02,
@@ -154,10 +167,7 @@
         },
         {
           "id": 111,
-          "position": [
-            -330,
-            -97.04
-          ],
+          "position": [-395, -92.15],
           "type": "max/core/math",
           "props": {
             "op_type": 0
@@ -165,10 +175,7 @@
         },
         {
           "id": 101,
-          "position": [
-            -300,
-            -122.04
-          ],
+          "position": [-365, -117.15],
           "type": "max/core/vec3",
           "props": {
             "y": 0
@@ -176,10 +183,7 @@
         },
         {
           "id": 301,
-          "position": [
-            -300,
-            -67.04
-          ],
+          "position": [-365, -62.15],
           "type": "max/core/curve",
           "props": {
             "curve": [
@@ -198,10 +202,7 @@
         },
         {
           "id": 112,
-          "position": [
-            -330,
-            -29.54
-          ],
+          "position": [-395, -24.65],
           "type": "max/core/random",
           "props": {
             "uniform": 1
@@ -209,10 +210,7 @@
         },
         {
           "id": 113,
-          "position": [
-            -360,
-            17.96
-          ],
+          "position": [-425, 22.85],
           "type": "max/plantarium/path_info",
           "props": {
             "info": 5
@@ -220,10 +218,7 @@
         },
         {
           "id": 313,
-          "position": [
-            -360,
-            37.96
-          ],
+          "position": [-425, 42.85],
           "type": "max/core/curve",
           "props": {
             "curve": [
@@ -240,10 +235,7 @@
         },
         {
           "id": 114,
-          "position": [
-            -390,
-            81.71
-          ],
+          "position": [-455, 70.35],
           "type": "max/core/random",
           "props": {
             "min": 0.085,
@@ -252,10 +244,7 @@
         },
         {
           "id": 115,
-          "position": [
-            -330,
-            10.46
-          ],
+          "position": [-395, 15.35],
           "type": "max/core/math",
           "props": {
             "op_type": 2
@@ -263,10 +252,7 @@
         },
         {
           "id": 2,
-          "position": [
-            -300,
-            -12.04
-          ],
+          "position": [-365, -7.15],
           "type": "max/core/curve",
           "props": {
             "curve": [
@@ -288,10 +274,7 @@
         },
         {
           "id": 1,
-          "position": [
-            -270,
-            -96.42
-          ],
+          "position": [-335, -86.53],
           "type": "max/plantarium/stem",
           "props": {
             "taper": 0
@@ -299,10 +282,7 @@
         },
         {
           "id": 3,
-          "position": [
-            -240,
-            -66.42
-          ],
+          "position": [-305, -63.19],
           "type": "max/plantarium/trunk_kink",
           "props": {
             "amount": 3,
@@ -312,10 +292,7 @@
         },
         {
           "id": 116,
-          "position": [
-            -270,
-            -36.42
-          ],
+          "position": [-335, -36.53],
           "type": "max/core/random",
           "props": {
             "min": -0.2094,
@@ -324,10 +301,7 @@
         },
         {
           "id": 117,
-          "position": [
-            -270,
-            -6.42
-          ],
+          "position": [-335, -6.53],
           "type": "max/core/random",
           "props": {
             "min": -0.8727,
@@ -336,10 +310,7 @@
         },
         {
           "id": 200,
-          "position": [
-            -210,
-            -38.75
-          ],
+          "position": [-275, -35.53],
           "type": "max/plantarium/rotate",
           "props": {
             "axis": 1,
@@ -348,10 +319,7 @@
         },
         {
           "id": 201,
-          "position": [
-            -240,
-            -16.42
-          ],
+          "position": [-305, -13.19],
           "type": "max/core/random",
           "props": {
             "min": 0,
@@ -361,10 +329,7 @@
         },
         {
           "id": 202,
-          "position": [
-            -180,
-            -27.5
-          ],
+          "position": [-245, -24.28],
           "type": "max/plantarium/keep_apart",
           "props": {
             "lean": 1
@@ -372,10 +337,7 @@
         },
         {
           "id": 203,
-          "position": [
-            -210,
-            -8.75
-          ],
+          "position": [-275, -5.53],
           "type": "max/core/math",
           "props": {
             "op_type": 2,
@@ -384,10 +346,7 @@
         },
         {
           "id": 303,
-          "position": [
-            -270,
-            44.08
-          ],
+          "position": [-335, 47.31],
           "type": "max/core/curve",
           "props": {
             "curve": [
@@ -404,10 +363,7 @@
         },
         {
           "id": 119,
-          "position": [
-            -300,
-            71.58
-          ],
+          "position": [-365, 74.81],
           "type": "max/core/random",
           "props": {
             "min": 0.55,
@@ -417,10 +373,7 @@
         },
         {
           "id": 120,
-          "position": [
-            -240,
-            21.58
-          ],
+          "position": [-305, 24.81],
           "type": "max/core/math",
           "props": {
             "op_type": 2
@@ -428,10 +381,7 @@
         },
         {
           "id": 4,
-          "position": [
-            -150,
-            -18.75
-          ],
+          "position": [-165, -23.75],
           "type": "max/myzel/strands",
           "props": {
             "amount": 250,
@@ -441,10 +391,7 @@
         },
         {
           "id": 315,
-          "position": [
-            -180,
-            7.5
-          ],
+          "position": [-195, -6.25],
           "type": "max/core/random",
           "props": {
             "min": 0.0003,
@@ -454,10 +401,7 @@
         },
         {
           "id": 404,
-          "position": [
-            -120,
-            -18.75
-          ],
+          "position": [-135, -23.75],
           "type": "max/plantarium/twist",
           "props": {
             "turns": 0.05
@@ -465,10 +409,7 @@
         },
         {
           "id": 405,
-          "position": [
-            -90,
-            -18.75
-          ],
+          "position": [-105, -23.75],
           "type": "max/plantarium/random_break",
           "props": {
             "chance": 0.5,
@@ -478,10 +419,7 @@
         },
         {
           "id": 40,
-          "position": [
-            -60,
-            -18.75
-          ],
+          "position": [-75, -23.75],
           "type": "max/plantarium/clump",
           "props": {
             "strength": 0.35,
@@ -498,10 +436,7 @@
         },
         {
           "id": 500,
-          "position": [
-            -30,
-            5
-          ],
+          "position": [-45, 0],
           "type": "max/plantarium/set_color",
           "props": {
             "depth": 10
@@ -522,19 +457,13 @@
               1
             ]
           },
-          "position": [
-            -90,
-            58.75
-          ]
+          "position": [-105, 53.75]
         },
         {
           "id": 9004,
           "type": "max/core/mix_color",
           "props": {},
-          "position": [
-            -60,
-            36.25
-          ]
+          "position": [-75, 31.25]
         }
       ],
       "edges": [
@@ -914,31 +843,63 @@
     {
       "id": 602,
       "name": "Cap",
+      "frames": [
+        {
+          "id": 1,
+          "label": "Shape",
+          "color": "violet",
+          "nodes": [
+            5,
+            50,
+            52,
+            55,
+            56,
+            58,
+            121,
+            122,
+            126,
+            127,
+            128,
+            211,
+            220,
+            221,
+            222,
+            224,
+            230,
+            305,
+            307,
+            309,
+            311,
+            312,
+            319,
+            320,
+            400,
+            401,
+            402,
+            403,
+            408,
+            409,
+            412
+          ]
+        },
+        { "id": 2, "label": "Hyphae", "color": "gray", "nodes": [6, 59, 60, 316, 406, 501] }
+      ],
       "nodes": [
         {
           "id": 620,
-          "position": [
-            -480,
-            -53.31
-          ],
+          "position": [-590, -19.39],
           "type": "__internal/group/input",
           "props": {}
         },
         {
           "id": 621,
-          "position": [
-            0,
-            0
-          ],
+          "position": [0, 0],
           "type": "__internal/group/output",
           "props": {}
         },
         {
           "id": 319,
-          "position": [
-            -360,
-            -89.81
-          ],
+          "position": [-425, -91.06],
           "type": "max/plantarium/points_on_path",
           "props": {
             "amount": 1,
@@ -948,10 +909,7 @@
         },
         {
           "id": 5,
-          "position": [
-            -330,
-            -79.68
-          ],
+          "position": [-395, -80.93],
           "type": "max/myzel/cap",
           "props": {
             "profile": [
@@ -973,10 +931,7 @@
         },
         {
           "id": 121,
-          "position": [
-            -450,
-            102.11
-          ],
+          "position": [-515, 100.86],
           "type": "max/plantarium/path_info",
           "props": {
             "info": 5
@@ -984,10 +939,7 @@
         },
         {
           "id": 122,
-          "position": [
-            -390,
-            -16.56
-          ],
+          "position": [-455, -17.81],
           "type": "max/core/math",
           "props": {
             "op_type": 2,
@@ -996,10 +948,7 @@
         },
         {
           "id": 50,
-          "position": [
-            -360,
-            -24.81
-          ],
+          "position": [-425, -26.06],
           "type": "max/core/curve",
           "props": {
             "curve": [
@@ -1017,10 +966,7 @@
         },
         {
           "id": 305,
-          "position": [
-            -450,
-            -57.06
-          ],
+          "position": [-515, -58.31],
           "type": "max/core/curve",
           "props": {
             "curve": [
@@ -1037,10 +983,7 @@
         },
         {
           "id": 211,
-          "position": [
-            -480,
-            -23.31
-          ],
+          "position": [-545, -30.81],
           "type": "max/core/random",
           "props": {
             "min": 0.1,
@@ -1051,10 +994,7 @@
         },
         {
           "id": 400,
-          "position": [
-            -450,
-            -12.06
-          ],
+          "position": [-515, -13.31],
           "type": "max/core/curve",
           "props": {
             "curve": [
@@ -1083,10 +1023,7 @@
         },
         {
           "id": 401,
-          "position": [
-            -420,
-            -52.06
-          ],
+          "position": [-485, -53.31],
           "type": "max/core/math",
           "props": {
             "op_type": 2
@@ -1094,10 +1031,7 @@
         },
         {
           "id": 402,
-          "position": [
-            -390,
-            -64.56
-          ],
+          "position": [-455, -65.81],
           "type": "max/core/math",
           "props": {
             "op_type": 0,
@@ -1106,10 +1040,7 @@
         },
         {
           "id": 403,
-          "position": [
-            -360,
-            -64.81
-          ],
+          "position": [-425, -66.06],
           "type": "max/core/math",
           "props": {
             "op_type": 2
@@ -1117,10 +1048,7 @@
         },
         {
           "id": 52,
-          "position": [
-            -300,
-            -54.35
-          ],
+          "position": [-365, -55.6],
           "type": "max/plantarium/fill_gaps",
           "props": {
             "spacing": 0.5
@@ -1128,10 +1056,7 @@
         },
         {
           "id": 222,
-          "position": [
-            -420,
-            89.61
-          ],
+          "position": [-485, 88.36],
           "type": "max/core/math",
           "props": {
             "op_type": 2,
@@ -1140,10 +1065,7 @@
         },
         {
           "id": 224,
-          "position": [
-            -420,
-            129.61
-          ],
+          "position": [-485, 128.36],
           "type": "max/core/random",
           "props": {
             "min": 3,
@@ -1154,10 +1076,7 @@
         },
         {
           "id": 221,
-          "position": [
-            -390,
-            84.44
-          ],
+          "position": [-455, 83.19],
           "type": "max/core/math",
           "props": {
             "op_type": 0
@@ -1165,18 +1084,12 @@
         },
         {
           "id": 220,
-          "position": [
-            -300,
-            -29.35
-          ],
+          "position": [-365, -30.6],
           "type": "max/core/round"
         },
         {
           "id": 126,
-          "position": [
-            -300,
-            30.65
-          ],
+          "position": [-365, 29.4],
           "type": "max/core/random",
           "props": {
             "min": 0.5,
@@ -1185,10 +1098,7 @@
         },
         {
           "id": 307,
-          "position": [
-            -390,
-            39.44
-          ],
+          "position": [-455, 38.19],
           "type": "max/core/curve",
           "props": {
             "curve": [
@@ -1207,10 +1117,7 @@
         },
         {
           "id": 127,
-          "position": [
-            -420,
-            51.61
-          ],
+          "position": [-485, 50.36],
           "type": "max/core/random",
           "props": {
             "min": 0.45,
@@ -1221,10 +1128,7 @@
         },
         {
           "id": 230,
-          "position": [
-            -360,
-            26.19
-          ],
+          "position": [-425, 24.94],
           "type": "max/core/math",
           "props": {
             "op_type": 3
@@ -1232,10 +1136,7 @@
         },
         {
           "id": 55,
-          "position": [
-            -330,
-            -1.68
-          ],
+          "position": [-395, -2.93],
           "type": "max/core/curve",
           "props": {
             "curve": [
@@ -1256,10 +1157,7 @@
         },
         {
           "id": 409,
-          "position": [
-            -330,
-            43.32
-          ],
+          "position": [-395, 42.07],
           "type": "max/core/random",
           "props": {
             "min": 0.3,
@@ -1268,10 +1166,7 @@
         },
         {
           "id": 412,
-          "position": [
-            -300,
-            -9.35
-          ],
+          "position": [-365, -10.6],
           "type": "max/core/math",
           "props": {
             "op_type": 2
@@ -1279,18 +1174,12 @@
         },
         {
           "id": 56,
-          "position": [
-            -270,
-            -23.75
-          ],
+          "position": [-335, -25],
           "type": "max/myzel/margin_waves"
         },
         {
           "id": 309,
-          "position": [
-            -300,
-            68.65
-          ],
+          "position": [-365, 67.4],
           "type": "max/core/curve",
           "props": {
             "curve": [
@@ -1309,10 +1198,7 @@
         },
         {
           "id": 128,
-          "position": [
-            -330,
-            96.15
-          ],
+          "position": [-395, 94.9],
           "type": "max/core/random",
           "props": {
             "min": 0.8,
@@ -1322,10 +1208,7 @@
         },
         {
           "id": 408,
-          "position": [
-            -270,
-            21.25
-          ],
+          "position": [-335, 20],
           "type": "max/core/curve",
           "props": {
             "curve": [
@@ -1348,18 +1231,12 @@
         },
         {
           "id": 58,
-          "position": [
-            -240,
-            -5
-          ],
+          "position": [-305, -6.25],
           "type": "max/myzel/margin_curl"
         },
         {
           "id": 312,
-          "position": [
-            -240,
-            20
-          ],
+          "position": [-305, 18.75],
           "type": "max/core/curve",
           "props": {
             "curve": [
@@ -1378,26 +1255,17 @@
         },
         {
           "id": 311,
-          "position": [
-            -210,
-            3.75
-          ],
+          "position": [-275, 2.5],
           "type": "max/myzel/cap_open"
         },
         {
           "id": 320,
-          "position": [
-            -180,
-            -1.25
-          ],
+          "position": [-245, -2.5],
           "type": "max/plantarium/separate"
         },
         {
           "id": 6,
-          "position": [
-            -150,
-            5
-          ],
+          "position": [-165, 0],
           "type": "max/myzel/strands",
           "props": {
             "amount": 40,
@@ -1407,10 +1275,7 @@
         },
         {
           "id": 316,
-          "position": [
-            -180,
-            23.75
-          ],
+          "position": [-195, 17.5],
           "type": "max/core/random",
           "props": {
             "min": 0.0003,
@@ -1420,10 +1285,7 @@
         },
         {
           "id": 406,
-          "position": [
-            -120,
-            5
-          ],
+          "position": [-135, 0],
           "type": "max/plantarium/random_break",
           "props": {
             "chance": 0.5,
@@ -1433,10 +1295,7 @@
         },
         {
           "id": 59,
-          "position": [
-            -90,
-            5
-          ],
+          "position": [-105, 0],
           "type": "max/myzel/set_fibres",
           "props": {
             "fibres": 0.15
@@ -1444,10 +1303,7 @@
         },
         {
           "id": 60,
-          "position": [
-            -60,
-            5
-          ],
+          "position": [-75, 0],
           "type": "max/myzel/set_fill",
           "props": {
             "fill": 4
@@ -1455,10 +1311,7 @@
         },
         {
           "id": 501,
-          "position": [
-            -30,
-            5
-          ],
+          "position": [-45, 0],
           "type": "max/plantarium/set_color",
           "props": {
             "depth": 10
@@ -1813,28 +1666,19 @@
       "nodes": [
         {
           "id": 630,
-          "position": [
-            -120,
-            -2.08
-          ],
+          "position": [-120, -2.08],
           "type": "__internal/group/input",
           "props": {}
         },
         {
           "id": 631,
-          "position": [
-            0,
-            0
-          ],
+          "position": [0, 0],
           "type": "__internal/group/output",
           "props": {}
         },
         {
           "id": 61,
-          "position": [
-            -90,
-            -31.25
-          ],
+          "position": [-90, -31.25],
           "type": "max/myzel/reaction_diffusion",
           "props": {
             "inner_radius": 0.003,
@@ -1845,10 +1689,7 @@
         },
         {
           "id": 407,
-          "position": [
-            -90,
-            48.75
-          ],
+          "position": [-90, 48.75],
           "type": "max/core/curve",
           "props": {
             "curve": [
@@ -1873,10 +1714,7 @@
         },
         {
           "id": 62,
-          "position": [
-            -60,
-            0
-          ],
+          "position": [-60, 0],
           "type": "max/myzel/lamellae",
           "props": {
             "free_distance": 0,
@@ -1887,10 +1725,7 @@
         },
         {
           "id": 318,
-          "position": [
-            -30,
-            0
-          ],
+          "position": [-30, 0],
           "type": "max/plantarium/set_color"
         }
       ],
@@ -2008,19 +1843,13 @@
           "id": 9011,
           "type": "__internal/group/input",
           "props": {},
-          "position": [
-            -90,
-            -13.75
-          ]
+          "position": [-90, -13.75]
         },
         {
           "id": 9012,
           "type": "__internal/group/output",
           "props": {},
-          "position": [
-            0,
-            0
-          ]
+          "position": [0, 0]
         },
         {
           "id": 9013,
@@ -2031,19 +1860,13 @@
             "stretch": 1,
             "softness": 0
           },
-          "position": [
-            -60,
-            -1.25
-          ]
+          "position": [-60, -1.25]
         },
         {
           "id": 9014,
           "type": "max/core/alpha",
           "props": {},
-          "position": [
-            -90,
-            78.75
-          ]
+          "position": [-90, 78.75]
         },
         {
           "id": 9015,
@@ -2064,10 +1887,7 @@
             "min": 0,
             "max": 1
           },
-          "position": [
-            -60,
-            58.75
-          ]
+          "position": [-60, 58.75]
         },
         {
           "id": 9016,
@@ -2076,10 +1896,7 @@
             "relief": 0,
             "slide": 0
           },
-          "position": [
-            -30,
-            0
-          ]
+          "position": [-30, 0]
         }
       ],
       "edges": [
@@ -2174,30 +1991,32 @@
       ]
     }
   ],
+  "frames": [
+    {
+      "id": 1,
+      "label": "Size",
+      "color": "gray",
+      "nodes": [7001, 7002, 7012, 7013, 7014, 7015, 7016]
+    },
+    { "id": 2, "label": "Stipe", "color": "brown", "nodes": [640, 7003, 7004] },
+    { "id": 3, "label": "Gills", "color": "violet", "nodes": [642, 9005] },
+    { "id": 4, "label": "Cuticle", "color": "red", "nodes": [8, 9, 9006, 9017] }
+  ],
   "nodes": [
     {
       "id": 0,
-      "position": [
-        30,
-        0
-      ],
+      "position": [30, 0],
       "type": "max/core/output"
     },
     {
       "id": 7017,
-      "position": [
-        0,
-        0
-      ],
+      "position": [-10, 0],
       "type": "max/plantarium/to_geometry",
       "props": {}
     },
     {
       "id": 640,
-      "position": [
-        -180,
-        -5
-      ],
+      "position": [-245, 36.39],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 601,
@@ -2218,10 +2037,7 @@
     },
     {
       "id": 641,
-      "position": [
-        -150,
-        -23.75
-      ],
+      "position": [-200, 21.83],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 602,
@@ -2234,10 +2050,7 @@
     },
     {
       "id": 642,
-      "position": [
-        -60,
-        27.5
-      ],
+      "position": [-95, -61.75],
       "type": "__internal/group/instance",
       "props": {
         "groupId": 603,
@@ -2253,18 +2066,12 @@
     },
     {
       "id": 8,
-      "position": [
-        -120,
-        -23.75
-      ],
+      "position": [-155, 65.5],
       "type": "max/plantarium/join"
     },
     {
       "id": 9,
-      "position": [
-        -90,
-        -23.75
-      ],
+      "position": [-125, 65.5],
       "type": "max/myzel/hyphae_to_mesh",
       "props": {
         "fill": 1.5,
@@ -2273,18 +2080,12 @@
     },
     {
       "id": 317,
-      "position": [
-        -30,
-        0
-      ],
+      "position": [-50, 0],
       "type": "max/plantarium/join"
     },
     {
       "id": 7001,
-      "position": [
-        -240,
-        108.75
-      ],
+      "position": [-355, 30.12],
       "type": "max/core/random",
       "props": {
         "min": 0,
@@ -2295,10 +2096,7 @@
     },
     {
       "id": 7002,
-      "position": [
-        -210,
-        86.25
-      ],
+      "position": [-325, 7.62],
       "type": "max/core/mix_color",
       "props": {
         "a": [
@@ -2315,10 +2113,7 @@
     },
     {
       "id": 7003,
-      "position": [
-        -210,
-        26.25
-      ],
+      "position": [-275, 68.89],
       "type": "max/core/random",
       "props": {
         "min": 0.028,
@@ -2328,10 +2123,7 @@
     },
     {
       "id": 7004,
-      "position": [
-        -210,
-        56.25
-      ],
+      "position": [-275, 98.89],
       "type": "max/core/random",
       "props": {
         "min": 0.04,
@@ -2341,19 +2133,13 @@
     },
     {
       "id": 7011,
-      "position": [
-        -270,
-        23.75
-      ],
+      "position": [-460, 83.62],
       "type": "max/core/time",
       "props": {}
     },
     {
       "id": 7012,
-      "position": [
-        -270,
-        33.75
-      ],
+      "position": [-385, 106.12],
       "type": "max/core/random",
       "props": {
         "uniform": 1,
@@ -2362,10 +2148,7 @@
     },
     {
       "id": 7013,
-      "position": [
-        -300,
-        26.25
-      ],
+      "position": [-415, 98.62],
       "type": "max/core/random",
       "props": {
         "min": -0.65,
@@ -2375,10 +2158,7 @@
     },
     {
       "id": 7014,
-      "position": [
-        -300,
-        56.25
-      ],
+      "position": [-415, 128.62],
       "type": "max/core/random",
       "props": {
         "min": 0.1,
@@ -2388,10 +2168,7 @@
     },
     {
       "id": 7015,
-      "position": [
-        -240,
-        11.25
-      ],
+      "position": [-355, 83.62],
       "type": "max/core/math",
       "props": {
         "op_type": 0
@@ -2399,10 +2176,7 @@
     },
     {
       "id": 7016,
-      "position": [
-        -210,
-        -8.75
-      ],
+      "position": [-325, 63.62],
       "type": "max/core/curve",
       "props": {
         "curve": [
@@ -2425,10 +2199,7 @@
           40
         ]
       },
-      "position": [
-        -60,
-        -22.5
-      ]
+      "position": [-95, 61.75]
     },
     {
       "id": 9005,
@@ -2445,10 +2216,7 @@
           20
         ]
       },
-      "position": [
-        -90,
-        75
-      ]
+      "position": [-125, -14.25]
     },
     {
       "id": 9006,
@@ -2465,10 +2233,7 @@
           30
         ]
       },
-      "position": [
-        -90,
-        21.25
-      ]
+      "position": [-125, 100.5]
     }
   ],
   "edges": [
