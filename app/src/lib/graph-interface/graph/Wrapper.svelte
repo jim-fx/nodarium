@@ -70,7 +70,8 @@
     }
   });
 
-  manager.on('result', (result) => onresult?.(result));
+  // a build the closed editor still asks for would show its graph instead of the one opened since
+  onDestroy(manager.on('result', (result) => onresult?.(result)));
 
   manager.on('save', (save) => onsave?.(save));
 
