@@ -90,8 +90,8 @@ describe('nodarium mcp', () => {
   });
 
   it('lists the templates and gives the graph of one', async () => {
-    expect(textOf(await call('list_templates'))).toContain(
-      'fern: Fern (Plants, cm)\n  Nephrolepis exaltata (Boston fern): 22 fronds'
+    expect(textOf(await call('list_templates'))).toMatch(
+      /^fern: Fern \(Plants, cm\)\n {2}\S.*: \S/m
     );
     const fern = JSON.parse(textOf(await call('get_template', { id: 'fern' })));
     expect(fern.version).toBe(CURRENT_GRAPH_VERSION);

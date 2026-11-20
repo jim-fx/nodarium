@@ -54,6 +54,7 @@ To measure: `pnpm -C app bench` runs whole graphs (the six of CI, or the templat
 - `app/src/lib/graph-interface` stays self-contained: no new imports from other `#lib` or `$lib` modules into it, it is meant to become its own package.
 - Comments only for reasons the code can't show. No comments that restate the code.
 - Nodes have few inputs. Variation and curves come from shaping an input with the random, curve and alpha nodes, not from extra inputs on every node. A generic node comes before a custom one.
+- Templates get no tests of their look, numbers or structure, only that each one loads and validates. A test that needs a plant uses its own graph or a frozen copy in its fixtures.
 - A link carries exactly its type. No hidden values inside a list of another type (for example a hinge inside a path list).
 - A browser window that is not visible gets no animation frames: the viewer draws once on its own, the graph stays black. To check the app in a browser, drive it with a Playwright script through `window.nodarium` ([docs/AGENT_API.md](docs/AGENT_API.md)): load a graph, wait for the build, read the result, take a picture with `viewer.screenshot()`. Open it with `?tutorial=0`, a template with `?template=fern` and a graph with the link of `nodarium link`. `nodarium render` above needs no browser.
 
