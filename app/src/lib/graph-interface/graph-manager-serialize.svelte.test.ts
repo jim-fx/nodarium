@@ -36,7 +36,9 @@ function legacySerialize(manager: GraphManager): Graph {
       inputs: group.inputs,
       outputs: group.outputs,
       nodes: level.nodes.map(serializeNode),
-      edges: level.edges.map(serializeEdge)
+      edges: level.edges.map(serializeEdge),
+      // frames came after this serializer, the templates have them
+      ...(level.frames?.length ? { frames: level.frames } : {})
     };
   });
   const serialized = $state.snapshot({
@@ -46,7 +48,8 @@ function legacySerialize(manager: GraphManager): Graph {
     meta: manager.meta,
     groups,
     nodes: root.nodes.map(serializeNode),
-    edges: root.edges.map(serializeEdge)
+    edges: root.edges.map(serializeEdge),
+    ...(root.frames?.length ? { frames: root.frames } : {})
   });
   return JSON.parse(JSON.stringify(serialized));
 }

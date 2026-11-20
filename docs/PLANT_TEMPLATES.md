@@ -109,6 +109,23 @@ Every template grows over the `time.t` setting and gives a different plant for e
 - **Per seed:** a `random_int` on the amounts, and a `random` with `once for the graph` on the `max` of a growth curve or of another random, for the height, the leaf size or the lean of the whole plant. `uniform` spreads plants evenly over the range, without it most of them look alike. Seeds differ clearly when one such random drives several traits together through curves of its own: in the dandelion one `habit` from 0 (a small lawn plant: short flat leaves, many short scapes that lean out, small heads) to 1 (a plant of the meadow: long ascending leaves that arch over, few tall scapes) sets the length, angle and arch of the leaves, the number, length, lean and thickness of the scapes, the size of the heads and the taproot. A second one sets how deep the leaves are lobed, two more how far the plant is in its flowering. Traits drawn one by one average out, the plants look alike.
 - **Small instances are dropped.** An instance scaled below about 1e-4 counts as collapsed. A leaf of `size 1` under an instance size of 0.01 is close to that and vanishes while it grows. Keep the leaf small and the instance size near 1.
 
+### Frames
+
+Every template names its parts with frames (`frames` in [GRAPHS.md](./GRAPHS.md)), so a graph of a hundred nodes reads as a handful of parts. Frame the nodes by what they make, in the words this file uses for the plant: "Rosette", "Scapes", "Flower heads", "Roots". A helper (a `random`, `curve`, `alpha` or `math`) goes into the frame of the nodes it feeds; one that feeds several parts goes into "Growth and time" when it is a clock or a per-seed value. Three to seven frames are enough for a plant, two or three for a small graph, and a leaf group gets its own few (veins, margin, vein colour, blade). `to_geometry`, `join` and `output` at the end stay outside. The colour says what kind of part it is, the same in every template:
+
+| colour   | parts                                                                                   |
+| -------- | --------------------------------------------------------------------------------------- |
+| `green`  | leaves and foliage: rosettes, leaflets, bracts, leaf blades, the veins of a leaf group  |
+| `brown`  | stems, wood and roots: trunks, canes, scapes, branches, the stipe and rachis of a frond |
+| `blue`   | time, growth and age: `time`, the clocks and ages that several parts read               |
+| `violet` | flowers and reproductive parts: flower heads, spikes, plumes, seed heads, fruit         |
+| `red`    | colour and material, when it is a part of its own, like the colour of a leaf's veins    |
+| `gray`   | helpers, size and output: the habit of a plant, the margin of a leaf                    |
+
+The mushrooms follow the same colours: in the root graph every group node gets a frame with the helpers that feed only it, brown for the Stipe, Veil, Ring, Volva and Reticulation, violet for the Cap, Gills and Pores, red for the Cuticle, and a gray "Size" holds the per-seed values that several groups read. Inside the Stipe and Cap groups, "Shape" (in the colour of the part) holds the path or cap that the strands grow on and "Hyphae" (gray) the strands and what bundles and colours them; the small groups have no frames. A frame of one node says nothing the node doesn't, so a part with only its group node stays unframed.
+
+A `set_color` or a `mix_color` that colours one part stays in that part's frame; a red frame is for colour that is worked out on its own. Lay the frames out as blocks that flow from left to right towards the `output`, in the order the paths go through them (stem → leaves on it → branches → their leaves), so that no frame feeds one to its left. A frame has no size of its own, it is the box around its nodes, so frames must not overlap: keep each frame's nodes together and leave room above it for its title.
+
 ## Agave: _Agave americana_ (century plant)
 
 Family Asparagaceae, subfamily Agavoideae.
