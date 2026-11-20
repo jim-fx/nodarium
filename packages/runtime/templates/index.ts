@@ -80,7 +80,7 @@ const ABOUT: Record<string, About> = {
   },
   maidenhair: {
     species: 'Adiantum raddianum (delta maidenhair)',
-    notes: '20 thin fronds arched into a mound, a deltate, 3-pinnate blade on the upper half of '
+    notes: '10–25 wiry fronds arched into a mound, a deltate, 3-pinnate blade on the upper half of '
       + 'each.'
   },
   daisy: {
