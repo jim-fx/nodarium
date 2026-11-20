@@ -36,7 +36,7 @@ type About = { species?: string; notes: string };
 const ABOUT: Record<string, About> = {
   fern: {
     species: 'Nephrolepis exaltata (Boston fern)',
-    notes: '22 fronds from a short crown at the golden angle, arched by gravity, each with 110 '
+    notes: '22 fronds from a spiral at the golden angle, arched by gravity, each with 110 '
       + 'pinnae in two ranks.'
   },
   agave: {
