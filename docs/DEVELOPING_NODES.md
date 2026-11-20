@@ -67,7 +67,7 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
 }
 ```
 
-`nodarium_definition_file!` checks the definition and embeds it into the `.wasm`. `#[nodarium_execute]` generates the exports the host needs. For a complete example have a look at the `box` node.
+`nodarium_definition_file!` checks the definition and embeds it into the `.wasm`. `#[nodarium_execute]` generates the exports the host needs. For a complete example have a look at the `rotate` node.
 
 ## Build
 
