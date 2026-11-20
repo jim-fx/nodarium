@@ -186,6 +186,7 @@ export class GraphState {
   }
 
   frameSelection() {
+    if (this.activeFrame) return;
     const frame = this.graph.createFrame(this.selectedNodeIds());
     if (frame) this.selectFrame(frame.id);
   }

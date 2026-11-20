@@ -14,8 +14,8 @@
   const graphState = getGraphState();
   const colors = graphState.options.colors;
 
-  // 14 px of the title and its padding fit into the header from this zoom on
-  const LABEL_INSIDE_ZOOM = 22 / FRAME_HEADER;
+  // the title is 28 px tall with its padding, it fits into the header from this zoom on
+  const LABEL_INSIDE_ZOOM = 28 / FRAME_HEADER;
 
   const box = $derived(
     frameBox(

@@ -131,6 +131,10 @@ describe('frames in the editor', () => {
     expect(state.activeNodeId).toBe(-1);
     expect(state.selectedNodes.size).toBe(0);
     expect(state.selectedNodeIds()).toEqual([ids[0], ids[1]]);
+
+    manager.renameFrame(1, 'Kept');
+    state.frameSelection();
+    expect(manager.frames.map((f) => [f.id, f.label])).toEqual([[1, 'Kept']]);
   });
 
   it('take nodes from the frame they were in, Alt+P takes them out', () => {

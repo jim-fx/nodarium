@@ -25,11 +25,11 @@ const positions = (page: Page) =>
 test('a frame is made of the selection, moved by its title, renamed and coloured', async ({ page }) => {
   await open(page);
   await page.evaluate((g) => window.nodarium!.graph.load(g, { title: 'frames' }), graph);
-  const stem = page.getByRole('group', { name: 'stem, node 1' });
-  await expect(stem).toBeVisible();
+  await page.evaluate(() => window.nodarium!.idle());
 
-  // the editor reacts to the keyboard once it has the focus
-  await stem.locator('.content').first().click({ position: { x: 5, y: 5 } });
+  // the editor reacts to the keyboard once it has the focus, `.` fits the nodes into the view
+  await page.locator('.graph-wrapper').focus();
+  await page.keyboard.press('.');
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Control+j');
   const ids = Object.keys(await positions(page)).map(Number);
@@ -37,6 +37,15 @@ test('a frame is made of the selection, moved by its title, renamed and coloured
 
   const title = page.locator('.frame-header .frame-label');
   await expect(title).toHaveText('Frame');
+  await expect(title).toBeVisible();
+  // the camera glides to the nodes, the title stays where it is once it is there
+  let last = '';
+  await expect.poll(async () => {
+    const at = JSON.stringify(await title.boundingBox());
+    const settled = at === last;
+    last = at;
+    return settled;
+  }, { intervals: [100] }).toBe(true);
 
   const before = await positions(page);
   const box = (await title.boundingBox())!;
