@@ -3,7 +3,7 @@
   import { getOutputLabel, type NodeInstance, type Socket } from '@nodarium/types';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers/index.ts';
-  import { getNodeHeight } from '../helpers/nodeHelpers';
+  import { getNodeHeight, headerSocketSide } from '../helpers/nodeHelpers';
   import { nodeSystem, systemColor } from '../helpers/nodeSystem';
   import { socketName } from '../helpers/socketNames';
 
@@ -30,9 +30,7 @@
 
   const cornerTop = 10;
   const nodeType = $derived(graph.getNodeType(node));
-  const rightBump = $derived(
-    !!nodeType?.outputs?.length && node.type !== GROUP_INPUT
-  );
+  const rightBump = $derived(headerSocketSide(node.type, nodeType) === 'right');
   const title = $derived(nodeType?.meta?.title || node.type?.split('/').pop());
   const system = $derived(nodeSystem(node.type));
   const tooltip = $derived(system ? `${title} · ${system.name}` : title);

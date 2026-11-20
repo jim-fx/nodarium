@@ -110,6 +110,49 @@ export function getOutputSocketOffset(nodeType: string, index: number) {
   return 2.5 + OUTPUT_ROW_HEIGHT * index;
 }
 
+export type SocketSide = 'left' | 'right' | undefined;
+
+/** Where the header shows the socket of the first output */
+export function headerSocketSide(nodeType: string, node: NodeDefinition | undefined): SocketSide {
+  return node?.outputs?.length && nodeType !== GROUP_INPUT ? 'right' : undefined;
+}
+
+/** Where the row of an input shows its socket. The rows of the Group Input node are its outputs. */
+export function inputSocketSide(
+  nodeType: string,
+  input: { internal?: boolean } | undefined
+): SocketSide {
+  if (nodeType === GROUP_INPUT) return 'right';
+  return input && input.internal !== true ? 'left' : undefined;
+}
+
+export type NodeRow = {
+  /** in graph units */
+  height: number;
+  socket: SocketSide;
+  /** the output index or the input key, as the socket ids of possibleSocketIds have it */
+  socketIndex: number | string;
+};
+
+/** The rows below the header, top to bottom, as NodeHTML draws them */
+export function getNodeRows(nodeType: string, node: NodeDefinition | undefined): NodeRow[] {
+  const rows: NodeRow[] = [];
+  for (let i = 1; i < (node?.outputs?.length ?? 0); i++) {
+    rows.push({ height: OUTPUT_ROW_HEIGHT, socket: 'right', socketIndex: i });
+  }
+  const keys = Object.keys(node?.inputs ?? {});
+  keys.forEach((key, i) => {
+    const height = getParameterHeight(node!, key) / 10;
+    if (!height) return;
+    rows.push({
+      height,
+      socket: inputSocketSide(nodeType, node!.inputs![key]),
+      socketIndex: nodeType === GROUP_INPUT ? i : key
+    });
+  });
+  return rows;
+}
+
 // Whether an edge can be drawn into the input. Internal inputs are only set on the
 // node itself, hidden inputs only take edges while they are exposed on the node.
 export function isInputConnectable(input: { hidden?: boolean; internal?: boolean } | undefined) {

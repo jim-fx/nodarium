@@ -4,7 +4,7 @@
   import { describeAngles } from '@nodarium/ui';
   import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
   import { createNodePath } from '../helpers/index.ts';
-  import { getParameterHeight } from '../helpers/nodeHelpers';
+  import { getParameterHeight, inputSocketSide } from '../helpers/nodeHelpers';
   import { connectionDescription, socketName } from '../helpers/socketNames';
   import NodeInputEl from './NodeInput.svelte';
 
@@ -55,10 +55,9 @@
     graphState.activateSocket(socket());
   }
 
-  const leftBump = $derived(
-    nodeType.inputs?.[id].internal !== true && node.type !== GROUP_INPUT
-  );
-  const rightBump = $derived(node.type === GROUP_INPUT);
+  const socketSide = $derived(inputSocketSide(node.type, nodeType.inputs?.[id]));
+  const leftBump = $derived(socketSide === 'left');
+  const rightBump = $derived(socketSide === 'right');
   const cornerBottom = $derived(isLast ? 5 : 0);
   const aspectRatio = 0.5;
 

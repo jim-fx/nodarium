@@ -123,7 +123,7 @@
   }
 
   .node.muted {
-    opacity: 0.5;
+    opacity: calc(min(1, (var(--cz) - 2.5) / 3.5) * 0.5);
   }
 
   .node.error {
