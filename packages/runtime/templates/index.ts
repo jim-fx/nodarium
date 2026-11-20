@@ -41,8 +41,9 @@ const ABOUT: Record<string, About> = {
   },
   agave: {
     species: 'Agave americana (century plant)',
-    notes: 'One channelled leaf shape on two spirals: 13–22 outer leaves low and 19–31 inner '
-      + 'leaves rising into the cone, each turned about the golden angle from the last.'
+    notes:
+      'A rosette of 16–32 toothed leaves on two spirals. A leaf comes up in the cone, grows and '
+      + 'lies down as it gets old, so the rosette opens while it grows.'
   },
   grass: {
     species: 'Cenchrus purpurascens (fountain grass)',
