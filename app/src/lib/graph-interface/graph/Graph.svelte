@@ -12,6 +12,7 @@
   import OverlayScale from '../components/OverlayScale.svelte';
   import Debug from '../debug/Debug.svelte';
   import EdgeEl from '../edges/Edge.svelte';
+  import FrameEl from '../frame/Frame.svelte';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
   import NodeEl from '../node/Node.svelte';
   import SocketHighlights from '../node/SocketHighlights.svelte';
@@ -170,6 +171,9 @@
           bind:this={overlayEl}
           class:hovering-sockets={graphState.activeSocket}
         >
+          {#each graph.frames as frame (frame.id)}
+            <FrameEl {frame} />
+          {/each}
           {#each graph.nodeArray as node, index (node)}
             <NodeEl
               bind:node={graph.nodeArray[index]}

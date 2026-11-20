@@ -41,6 +41,7 @@
   import Changelog from '#lib/sidebar/panels/Changelog.svelte';
   import ErrorLog from '#lib/sidebar/panels/ErrorLog.svelte';
   import ExportSettings from '#lib/sidebar/panels/ExportSettings.svelte';
+  import FrameSettings from '#lib/sidebar/panels/FrameSettings.svelte';
   import GraphSource from '#lib/sidebar/panels/GraphSource.svelte';
   import GroupSettings from '#lib/sidebar/panels/GroupSettings.svelte';
   import Keymap from '#lib/sidebar/panels/Keymap.svelte';
@@ -726,6 +727,7 @@
             {/key}
             <GroupSettings graphState={graphInterface?.state} {manager} node={activeNode} />
           {/key}
+          <FrameSettings graphState={graphInterface?.state} {manager} />
         </Panel>
         <Panel
           id="changelog"

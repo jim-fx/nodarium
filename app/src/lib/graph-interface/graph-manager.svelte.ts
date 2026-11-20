@@ -19,6 +19,7 @@ import {
 import type {
   Edge,
   Frame,
+  FrameColor,
   Graph,
   GroupDefinition,
   NodeDefinition,
@@ -816,6 +817,66 @@ export class GraphManager extends EventEmitter<{
     });
   }
 
+  getFrame(id: number) {
+    return this.frames.find((f) => f.id === id);
+  }
+
+  /** The frame of the open level that holds the node */
+  frameOf(nodeId: number) {
+    return this.frames.find((f) => f.nodes.includes(nodeId));
+  }
+
+  /** Puts the nodes into a new frame, they leave the frames they were in */
+  createFrame(nodeIds: number[], label = 'Frame'): Frame | undefined {
+    const ids = [...new SvelteSet(nodeIds)].filter((id) => this.nodes.has(id));
+    if (!ids.length) return;
+    const frame: Frame = {
+      id: Math.max(0, ...this.frames.map((f) => f.id)) + 1,
+      label,
+      nodes: ids
+    };
+    log.log('creating frame', frame);
+    this.withoutNodes(ids);
+    this.frames.push(frame);
+    this.commit({ build: false });
+    return this.getFrame(frame.id);
+  }
+
+  private withoutNodes(ids: number[]) {
+    const remove = new SvelteSet(ids);
+    const frames = this.frames.map((f) => ({ ...f, nodes: f.nodes.filter((n) => !remove.has(n)) }));
+    this.frames = frames.filter((f) => f.nodes.length);
+  }
+
+  /** Takes the nodes out of their frames, a frame without nodes is gone */
+  removeFromFrames(nodeIds: number[]) {
+    if (!nodeIds.some((id) => this.frameOf(id))) return;
+    this.withoutNodes(nodeIds);
+    this.commit({ build: false });
+  }
+
+  /** Removes the frame, its nodes stay where they are */
+  removeFrame(id: number) {
+    if (!this.getFrame(id)) return;
+    this.frames = this.frames.filter((f) => f.id !== id);
+    this.commit({ build: false });
+  }
+
+  renameFrame(id: number, label: string) {
+    const frame = this.getFrame(id);
+    if (!frame || frame.label === label) return;
+    frame.label = label;
+    this.commit({ build: false });
+  }
+
+  setFrameColor(id: number, color: FrameColor | undefined) {
+    const frame = this.getFrame(id);
+    if (!frame || frame.color === color) return;
+    if (color === undefined || color === 'gray') delete frame.color;
+    else frame.color = color;
+    this.commit({ build: false });
+  }
+
   // arranges the nodes of the current level in columns, see layoutGraph
   formatNodes() {
     const positions = layoutGraph(
@@ -948,7 +1009,12 @@ export class GraphManager extends EventEmitter<{
     };
   }
 
-  createGraph(nodes: SerializedNode[], edges: [number, number, number, string][]) {
+  /** Adds the nodes, the edges and the frames between them with new ids */
+  createGraph(
+    nodes: SerializedNode[],
+    edges: [number, number, number, string][],
+    frames: Frame[] = []
+  ) {
     // A level has a single Group Input and Output node, pasting must not add another
     // one (only the first one is used). Their edges are dropped with them.
     nodes = nodes.filter(n => n.type !== GROUP_INPUT && n.type !== GROUP_OUTPUT);
@@ -979,6 +1045,12 @@ export class GraphManager extends EventEmitter<{
       const from = instances.find((n) => n.id === idMap.get(fromId));
       const to = instances.find((n) => n.id === idMap.get(toId));
       if (from && to) this.edges.push([from, fromSocket, to, toSocket]);
+    }
+
+    let frameId = Math.max(0, ...this.frames.map((f) => f.id));
+    for (const frame of frames) {
+      const ids = frame.nodes.flatMap((id) => idMap.get(id) ?? []);
+      if (ids.length) this.frames.push({ ...serializeFrame(frame), id: ++frameId, nodes: ids });
     }
 
     this.commit({ build: false });
@@ -1015,10 +1087,17 @@ export class GraphManager extends EventEmitter<{
     const { group, instance, edges } = grouped;
     log.log('grouping nodes', { group });
 
+    // the group node takes the place of its nodes in their frame, if they shared one
+    const frames = new SvelteSet(
+      nodeIds.filter((id) => this.nodes.has(id)).map((id) => this.frameOf(id))
+    );
+    const [frame] = frames.size === 1 ? frames : [];
+
     return this.transaction(() => {
       this.groups.push(group);
       for (const node of group.nodes) this.nodes.delete(node.id);
       const groupNode = this.addNode(instance);
+      frame?.nodes.push(groupNode.id);
       this.edges = this.liveEdges(edges);
       this.commit();
       return groupNode;
@@ -1043,6 +1122,7 @@ export class GraphManager extends EventEmitter<{
 
     return this.transaction(() => {
       const instances = nodes.map((node) => this.addNode(node));
+      this.frameOf(nodeId)?.nodes.push(...instances.map((n) => n.id));
       // createEdge() checks the socket types, the types of a group can be changed after it was wired
       for (const [fromId, fromSocket, toId, toSocket] of edges) {
         this.createEdge(this.nodes.get(fromId)!, fromSocket, this.nodes.get(toId)!, toSocket);

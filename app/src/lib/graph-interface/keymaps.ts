@@ -17,6 +17,7 @@ export function setupKeymaps(
       const activeNode = graph.getNode(graphState.activeNodeId);
       if (activeNode) {
         const nodes = graph.getLinkedNodes(activeNode);
+        graphState.activeFrameId = -1;
         graphState.selectedNodes.clear();
         for (const node of nodes) {
           graphState.selectedNodes.add(node.id);
@@ -58,6 +59,7 @@ export function setupKeymaps(
         return;
       }
       graphState.activeNodeId = -1;
+      graphState.activeFrameId = -1;
       graphState.clearSelection();
       graphState.edgeEndPosition = null;
       (document.activeElement as HTMLElement)?.blur();
@@ -70,6 +72,23 @@ export function setupKeymaps(
     preventDefault: true,
     description: 'Group selected nodes',
     callback: () => graphState.groupSelectedNodes()
+  });
+
+  keymap.addShortcut({
+    key: 'j',
+    ctrl: true,
+    preventDefault: true,
+    description: 'Frame selected nodes',
+    callback: () => graphState.frameSelection()
+  });
+
+  keymap.addShortcut({
+    key: 'p',
+    alt: true,
+    preventDefault: true,
+    description: 'Remove selected nodes from their frame',
+    callback: () =>
+      graph.removeFromFrames([graphState.activeNodeId, ...graphState.selectedNodes.values()])
   });
 
   keymap.addShortcut({
@@ -124,6 +143,7 @@ export function setupKeymaps(
     description: 'Select all nodes',
     callback: () => {
       if (!graphState.isBodyFocused()) return;
+      graphState.activeFrameId = -1;
       for (const node of graph.nodes.keys()) {
         graphState.selectedNodes.add(node);
       }
@@ -172,10 +192,14 @@ export function setupKeymaps(
 
   keymap.addShortcut({
     key: ['Delete', 'Backspace', 'x'],
-    description: 'Delete selected nodes',
+    description: 'Delete selected nodes, or the selected frame without its nodes',
     callback: (event) => {
       if (!graphState.isBodyFocused()) return;
       graph.transaction(() => {
+        if (graphState.activeFrameId !== -1) {
+          graph.removeFrame(graphState.activeFrameId);
+          graphState.activeFrameId = -1;
+        }
         if (graphState.activeNodeId !== -1) {
           const node = graph.getNode(graphState.activeNodeId);
           if (node) {

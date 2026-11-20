@@ -1,8 +1,16 @@
+import type { FrameColor } from '@nodarium/types';
 import type { Color } from 'three';
 
 /** The colours the editor draws with. The objects stay, a new theme changes their values in place. */
 export type ThemeColors = Record<
-  'layer-0' | 'layer-1' | 'layer-2' | 'outline' | 'active' | 'selected' | 'error',
+  | 'layer-0'
+  | 'layer-1'
+  | 'layer-2'
+  | 'outline'
+  | 'active'
+  | 'selected'
+  | 'error'
+  | `frame-${FrameColor}`,
   Color
 >;
 

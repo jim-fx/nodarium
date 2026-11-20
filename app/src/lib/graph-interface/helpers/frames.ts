@@ -1,4 +1,31 @@
-import type { Frame } from '@nodarium/types';
+import type { Box, Frame } from '@nodarium/types';
+
+/** Around the nodes of a frame, in graph units */
+export const FRAME_MARGIN = 5;
+/** Above the nodes of a frame, room for its title */
+export const FRAME_HEADER = 9;
+
+/** The rectangle of a frame around the boxes of its nodes, undefined without nodes */
+export function frameBox(boxes: Iterable<Box>): Box | undefined {
+  let box: Box | undefined;
+  for (const b of boxes) {
+    box = box
+      ? {
+        minX: Math.min(box.minX, b.minX),
+        maxX: Math.max(box.maxX, b.maxX),
+        minY: Math.min(box.minY, b.minY),
+        maxY: Math.max(box.maxY, b.maxY)
+      }
+      : { ...b };
+  }
+  if (!box) return;
+  return {
+    minX: box.minX - FRAME_MARGIN,
+    maxX: box.maxX + FRAME_MARGIN,
+    minY: box.minY - FRAME_MARGIN - FRAME_HEADER,
+    maxY: box.maxY + FRAME_MARGIN
+  };
+}
 
 /**
  * The frames with only the nodes of `has`, each node in the first frame that names it, and
