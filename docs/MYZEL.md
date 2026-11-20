@@ -61,7 +61,7 @@ Paths:
 - `margin_waves`: rays → rays whose margin waves up and down in lobes. `waves`, `amplitude`, `uneven_spacing`.
 - `margin_curl`: rays → rays whose margin rolls in under the cap. `amount`.
 - `cap_open`: rays → the cap closed to a button (0) or open as drawn (1). `opening`.
-- `strands`: guide paths → a bundle of strands in the tube of every guide. `amount`, `thickness`, `spread`, `wobble`.
+- `strands`: guide paths → a bundle of strands in the tube of every guide. `amount`, `thickness`, `wobble`.
 - `set_fibres`, `set_fill`: paths → the same paths with a fibre relief or a fill for `hyphae_to_mesh` at every point, see Fibres and fill. The color of the strands comes from Plantarium's `set_color`, see Colors.
 
 Points:
@@ -70,12 +70,12 @@ Points:
 
 Pattern:
 
-- `reaction_diffusion`: → stripes on a disc, every stripe a gill. `radius`, `inner_radius`, `spacing`, `alignment`, `irregularity`, `forking`, `steps`.
+- `reaction_diffusion`: → stripes on a disc, every stripe a gill. `radius`, `inner_radius`, `spacing`, `alignment`, `irregularity`, `forking`.
 - `cracks`: → the cracks of a cuticle torn into patches on a disc, 1 in a crack. `radius`, `spacing`, `width`, `stretch`, `softness`. Narrow cracks are a cracked old cap, wide ones leave scales, patches stretched along the radius are fibrils.
 
 Geometry:
 
-- `hyphae_to_mesh`: paths → one body of tissue around them, colored by the colors of their points. `fibres`, `fill`, `loose_strands`, hidden `blend`, the `resolution.field` setting.
+- `hyphae_to_mesh`: paths → one body of tissue around them, colored by the colors of their points. `fibres`, `fill`, the `resolution.field` setting.
 - `lamellae`: rays and a pattern → thin plates with a sharp edge, free of the stipe or running down it. `depth`, `free_distance`, `decurrent`, `thickness`, `edge_wave`.
 - `ridges`: rays and a pattern → low blunt folds, never deeper than wide, that run down the stipe. `depth`, `decurrent`, `thickness`, `edge_wave`.
 - `pores`: rays and a pattern → a layer of tubes under the cap that open in pores where the pattern is 0, its walls where it is 1. `depth`, `free_distance`, `pore_depth`.

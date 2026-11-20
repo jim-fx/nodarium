@@ -234,8 +234,9 @@ max/plantarium/noise (path) -> path
   plant: path
   scale: float = 1 [0.1..10]
   strength: float = 0.5 [0..1]
-  fix_bottom: float = 1 [0..1] (hidden)
   seed: seed
+  directional_strength: vec3 = [1, 1, 1] (hidden)
+  octaves: integer = 1 [1..5] (hidden)
 ```
 
 In parentheses are the types of the data a node takes, after the arrow what it gives. An input shows its type, its default, its range and a unit, `hidden` ones are set in the templates, `not connectable` ones only on the node, and those with `setting` read a setting of the graph.
