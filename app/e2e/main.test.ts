@@ -27,18 +27,16 @@ test('a project opens from the menu, builds and shows what it built', async ({ p
     return window.nodarium!.graph.get();
   });
   expect(graph.meta?.title).toBe('Default Plant');
-  const props = (id: number) => graph.nodes.find((n) => n.id === id)?.props;
-  expect(props(10)).toMatchObject({ amount: 6, length: 0.55, thickness: 0.005 });
-  expect(props(15)).toMatchObject({ scale: 44, strength: 0.245 });
+  const stem = graph.nodes.find((n) => n.type === 'max/plantarium/stem')!;
 
   // the default plant is larger than the view, its nodes only have to be in the page
-  for (const id of [10, 15, 9]) {
+  for (const { id } of graph.nodes) {
     await expect(page.locator(`div.wrapper[data-node-id="${id}"]`)).toBeAttached();
   }
   const length = page.locator(
-    'div.wrapper[data-node-type="max/plantarium/stem"][data-node-input="length"] input'
+    `[data-node-id="${stem.id}"] [data-node-input="length"] input`
   );
-  expect(parseFloat(await length.inputValue())).toBe(0.55);
+  expect(parseFloat(await length.inputValue())).toBe(stem.props?.length);
 
   const result = await page.evaluate(() => window.nodarium!.lastResult()!);
   expect(result.ok).toBe(true);
@@ -104,27 +102,40 @@ test('a page without animation frames still shows the result', async ({ page }) 
     window.cancelAnimationFrame = () => {};
   });
   await open(page);
-  await page.evaluate(() => window.nodarium!.graph.loadTemplate('fern'));
+  await page.evaluate(() =>
+    window.nodarium!.graph.load({
+      version: 14,
+      nodes: [{ id: 1, type: 'max/core/output' }],
+      edges: []
+    })
+  );
 
   const viewer = page.locator('[data-planty="viewer"]');
-  const lit = async () => {
-    const shot = (await viewer.screenshot()).toString('base64');
-    return page.evaluate(async (png) => {
-      const blob = await (await fetch(`data:image/png;base64,${png}`)).blob();
-      const bitmap = await createImageBitmap(blob);
-      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-      const context = canvas.getContext('2d')!;
-      context.drawImage(bitmap, 0, 0);
-      const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
-      let green = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i + 1] > 60 && data[i + 1] > data[i] + 20) green++;
+  const pixels = async () => (await viewer.screenshot()).toString('base64');
+  const empty = await pixels();
+  await page.evaluate(() => window.nodarium!.graph.loadTemplate('fern'));
+
+  const changed = async () =>
+    page.evaluate(async ([a, b]) => {
+      const read = async (png: string) => {
+        const blob = await (await fetch(`data:image/png;base64,${png}`)).blob();
+        const bitmap = await createImageBitmap(blob);
+        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+        const context = canvas.getContext('2d')!;
+        context.drawImage(bitmap, 0, 0);
+        return context.getImageData(0, 0, bitmap.width, bitmap.height).data;
+      };
+      const [before, after] = await Promise.all([read(a), read(b)]);
+      let different = 0;
+      for (let i = 0; i < after.length; i += 4) {
+        const delta = Math.abs(after[i] - before[i]) + Math.abs(after[i + 1] - before[i + 1])
+          + Math.abs(after[i + 2] - before[i + 2]);
+        if (delta > 30) different++;
       }
-      return green / (data.length / 4);
-    }, shot);
-  };
-  // the grid is grey, only the fern is green, a few percent of the viewer however it is framed
-  await expect.poll(lit, { timeout: 5000 }).toBeGreaterThan(0.02);
+      return different / (after.length / 4);
+    }, [empty, await pixels()]);
+  // the plant covers some of the viewer that the empty graph left to the grid
+  await expect.poll(changed, { timeout: 5000 }).toBeGreaterThan(0.01);
 });
 
 test('angles show in degrees or in radians, the graph keeps radians', async ({ page }) => {

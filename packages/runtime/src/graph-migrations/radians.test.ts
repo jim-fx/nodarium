@@ -12,7 +12,7 @@ import { migrateGraph } from './index';
 import { radians } from './radians';
 
 const nodesDir = fileURLToPath(new URL('../../../../app/static/nodes', import.meta.url));
-const templatesDir = new URL('../../templates/', import.meta.url);
+const frozenDir = new URL('./fixtures/radians/', import.meta.url);
 const registry = new FileNodeRegistry(nodesDir);
 
 async function build(graph: Graph) {
@@ -44,16 +44,18 @@ function graph(nodes: SerializedNode[], edges: Graph['edges']): Graph {
   return { id: 1, version: 13, nodes, edges, groups: [] };
 }
 
-const recordedTemplates = Object.entries(before as Record<string, GeometrySummary>)
-  .filter(([name]) => name.startsWith('templates/'))
-  .map(([name, old]) => [name.slice('templates/'.length), old] as const);
+// templates as they were in version 13, frozen so that later template changes can't touch them
+const recordedGraphs = Object.entries(before as Record<string, GeometrySummary>)
+  .filter(([name]) => name.startsWith('radians/'))
+  .map(([name, old]) => [name.slice('radians/'.length), old] as const);
 
 describe('every angle in radians (graph version 14)', () => {
-  // one test per template: all of them in one test take longer than a test may on CI
-  it.each(recordedTemplates)('builds %s as it was built with degrees', async (name, old) => {
-    const file = new URL(`${name}.json`, templatesDir);
-    const template = parseProjectFile(JSON.parse(readFileSync(file, 'utf8'))).graph;
-    expectSame(await build(template), old, name);
+  // one test per graph: all of them in one test take longer than a test may on CI
+  it.each(recordedGraphs)('builds the old %s as it was built with degrees', async (name, old) => {
+    const file = new URL(`${name}.json`, frozenDir);
+    const migrated = parseProjectFile(JSON.parse(readFileSync(file, 'utf8'))).graph;
+    expect(migrated.version).toBeGreaterThanOrEqual(14);
+    expectSame(await build(migrated), old, name);
   });
 
   it('builds a graph of version 13 as it was built with degrees', async () => {

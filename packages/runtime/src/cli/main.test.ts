@@ -322,8 +322,8 @@ describe('nodarium', () => {
     );
     expect(myzel.out).not.toContain('](./');
     expect((await run('docs', 'PLANT_TEMPLATES.md')).out).toMatch(/^# Plant Templates/);
-    expect((await run('docs', 'templates')).out).toContain(
-      'fern: Fern (Plants, cm)\n  Nephrolepis exaltata (Boston fern): 22 fronds'
+    expect((await run('docs', 'templates')).out).toMatch(
+      /^fern: Fern \(Plants, cm\)\n {2}\S.*: \S/m
     );
     expect(JSON.parse((await run('docs', 'graphs', '--json')).out).text).toMatch(/^# Writing/);
 
