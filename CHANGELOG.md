@@ -1,3 +1,137 @@
+# v3.0.0 (2026-11-20)
+
+## Breaking
+
+- Unused nodes, inputs and options are removed, without a migration (#483):
+  - nodes `triangle`, `snap`, `leaf_growth`, `box`;
+  - `gravity`: `mode` (only chain is left) and `depth`;
+  - `avoid`: `mode` and `depth` (the automatic switch between contacts and density stays);
+  - `instance_from_points`: `pick`, `index`, `bias`, `face` (it always picks at random, the face looks up);
+  - `hyphae_to_mesh`: `blend` and `loose_strands`;
+  - `noise`: `fix_bottom` and `depth`;
+  - `keep_apart`: `iterations` and `at`;
+  - `depth` of `twist`, `clump`, `neighbour_sensing`, `branch`, `trunk_kink` and `random_break`;
+  - `force.strength`, `reaction_diffusion.steps`, `strands.spread`.
+
+  Every removed input keeps working as its old default did, so the templates build as before. The app opens graphs that still set them and names the leftovers in a toast; `nodarium check` and `nodarium run` report them as errors until they are removed. A graph with a removed node type is not loaded and says so.
+- `readInstances()` of `@nodarium/runtime` returns `creator` instead of `depth`: the instance header word that always held 1 now names the node that placed the instance. `instance` and `instance_from_points` have a hidden `creator` input (#491).
+
+## Features
+
+- `spiral` places points around one spot, on no path, at the golden angle by default (inputs `origin`, `amount`, `height`, a hidden `rotation`, optional centre `points`). It feeds `branch_from_points` and `instance_from_points` and replaces the short stub stems templates used as anchors for rosettes and crowns (#491).
+- Frames: a labelled, coloured box around nodes that belong together. Ctrl+J frames the selection, Alt+P takes nodes out, the title moves the frame with its nodes, a double-click renames it and the colour (gray, green, brown, blue, red, violet) is chosen in the Graph Settings panel. A frame always fits its nodes. Frames are an optional `frames` list per graph and group in the graph file, links, the CLI and MCP keep them, and they don't change the hash of a graph (#501, #502). Every template has frames now (#506–#512), the colour scheme is in `docs/PLANT_TEMPLATES.md`.
+- `/template` shows the nodes of the template: change their values and the plant rebuilds, pick the material, reset, and open the template with the changed values in the editor (#523).
+- The debug node shows geometry, meshes, instances and patterns shaded with the viewer's material and their colours, not as a wireframe, with the plant dimmed. I on a debug node shows only its result, framed (#525).
+- The WebGL nodes of the zoomed-out editor look like the HTML nodes: sockets only where an edge can go, the same notches, thin outlines, the system colour bar and the highlight of fitting sockets while an edge is dragged (#482).
+- Reworked templates: mullein, porcini, lavender, maidenhair, daisy, knotweed (#484–#489), the dandelion with buds, flowers, closed heads and clocks (#494), devil's backbone, wild carrot, lady fern, shiitake, horsetail, bitter bolete, clouded agaric and agave (#513–#515, #518–#522). Fern, sage, plantain, yarrow, mullein, lavender, agave, wild carrot and the fern on the stump grow from `spiral` instead of stub stems (#492–#505).
+- The app sends anonymous usage events to the Umami script it already loads, not under webdriver, on localhost or with Do Not Track or Global Privacy Control, and never graph contents, titles or values.
+
+## Fixes
+
+- A scroll or drag stops the camera animation, and the camera position is saved again after the user moves it.
+- Muted nodes fade in with the others instead of appearing at half opacity at once (#482).
+
+## Upgrading
+
+- Remove the props of the removed inputs from graphs written by hand; `nodarium check` lists them.
+- Code that read `depth` from `readInstances()` reads `creator`.
+- Update the nodes and the runtime together and copy the whole `nodes` folder again: `spiral` is new and four nodes are gone.
+- The reworked templates build different plants than in v2.2.0.
+
+---
+
+- [15a41fac](https://git.max-richter.dev/max/nodarium/commit/15a41fac697904f3fac9577ba0d250161fa80375) Merge pull request 'feat(viewer): the debug node shows geometry shaded like the result, I shows only it' (#525) from feat/516-debug-view into main
+- [b6a5057e](https://git.max-richter.dev/max/nodarium/commit/b6a5057e797ec11c6c52eea8ba43dd207dbd1fc4) fix(viewer): a debug node inside a group is found by the ids the editor shows there
+- [35917ec7](https://git.max-richter.dev/max/nodarium/commit/35917ec7d2e99d2e1f12fca8396c7146ba340395) fix(viewer): a debug node shows the node on its input, I on it leaves another local view
+- [02d3a43d](https://git.max-richter.dev/max/nodarium/commit/02d3a43d72bf9eabf09f268e3661a550879d44cc) feat(viewer): the debug node shows geometry shaded like the result, I shows only it
+- [ddd48e2c](https://git.max-richter.dev/max/nodarium/commit/ddd48e2ce8f43b8c7c2f22b2f660cb9b4b3070a4) Merge pull request 'feat(template): /template shows the nodes, their values can be changed, the material picked and the template opened in the editor' (#523) from feat/517-template-node-vis into main
+- [92d7f2ec](https://git.max-richter.dev/max/nodarium/commit/92d7f2ecb3fc74d1b62e9c24a8fac1a52d456399) fix(graph-interface): a closed editor asks for no more builds
+- [144e1cdf](https://git.max-richter.dev/max/nodarium/commit/144e1cdf39c870874438570bf3ca5b74582ee4ca) feat(template): /template shows the nodes, their values can be changed, the material picked and the template opened in the editor
+- [470470ab](https://git.max-richter.dev/max/nodarium/commit/470470abdbd178b725689eda9fe2869f027bf87e) Merge pull request 'feat(templates): the agave has toothed leaves that come up in the cone and lie down as they age' (#522) from feat/463-agave-realism into main
+- [07393a87](https://git.max-richter.dev/max/nodarium/commit/07393a8765733d4ee23755ce72ef5f296f9129a0) feat(templates): the agave has toothed leaves that come up in the cone and lie down as they age
+- [2febcd24](https://git.max-richter.dev/max/nodarium/commit/2febcd24849c65e049d4a9a91f2ba7fd3d1b7423) Merge pull request 'feat(templates): the clouded agaric has large, fleshy caps on short stout stipes that stand close together' (#521) from feat/463-clouded-agaric-realism into main
+- [0452a607](https://git.max-richter.dev/max/nodarium/commit/0452a60729a857b9b7d9e38473815ec102c7b435) feat(templates): the clouded agaric has large, fleshy caps on short stout stipes that stand close together
+- [39cd7f71](https://git.max-richter.dev/max/nodarium/commit/39cd7f715c45605c3a276dc67c803aae8cd195d1) Merge pull request 'feat(templates): the bitter bolete has a thick pink cushion of pores and a coarse net on a club that is stout or long' (#520) from feat/463-bitter-bolete-realism into main
+- [43ba3ff9](https://git.max-richter.dev/max/nodarium/commit/43ba3ff955be7ef82f2259ead1fe24fda5a764a3) feat(templates): the bitter bolete has a thick pink cushion of pores and a coarse net on a club that is stout or long
+- [37aff745](https://git.max-richter.dev/max/nodarium/commit/37aff74555ed071b4d10c5a3da042b2e804be480) Merge pull request 'feat(templates): the horsetail is a colony of shoots with sheaths at every node and whorls that read as branches' (#519) from feat/463-horsetail-realism into main
+- [ce9d6be1](https://git.max-richter.dev/max/nodarium/commit/ce9d6be14960d4c2406a26695a09d33c14c95857) feat(templates): the horsetail is a colony of shoots with sheaths at every node and whorls that read as branches
+- [5d397072](https://git.max-richter.dev/max/nodarium/commit/5d397072f81625636b006daf18f091d766b4df90) Merge pull request 'feat(templates): the shiitake grows as a flush of fruit bodies on short curved stipes, with gills that read as plates' (#518) from feat/463-shiitake-realism into main
+- [784061cf](https://git.max-richter.dev/max/nodarium/commit/784061cfe11dcee78a1528988ec4c359f4418fca) feat(templates): the shiitake grows as a flush of fruit bodies on short curved stipes, with gills that read as plates
+- [71e7c3de](https://git.max-richter.dev/max/nodarium/commit/71e7c3dece4388e64a46ec4c3776f80333ccb3bf) Merge pull request 'feat(templates): the lady fern is a shuttlecock of lacy, lanceolate fronds' (#515) from feat/463-lady-fern-realism into main
+- [74c05fe3](https://git.max-richter.dev/max/nodarium/commit/74c05fe332b305d5793dde71847ddea2fdf625db) feat(templates): the lady fern is a shuttlecock of lacy, lanceolate fronds
+- [d7bc1abb](https://git.max-richter.dev/max/nodarium/commit/d7bc1abb33f7a331b863d47b920247c2ddc311c6) Merge pull request 'feat(templates): the wild carrot branches from one stem and carries dense umbels, from bud to bird's nest' (#514) from feat/463-wild-carrot-realism into main
+- [ec88371e](https://git.max-richter.dev/max/nodarium/commit/ec88371e7ac7b6b35e06473d3b397b82a7baeb95) feat(app): track usage events with Umami
+- [b9f200ae](https://git.max-richter.dev/max/nodarium/commit/b9f200ae165d6574919b0c00c9bf8b613de07766) feat(templates): the wild carrot branches from one stem and carries dense umbels, from bud to bird's nest
+- [5de08536](https://git.max-richter.dev/max/nodarium/commit/5de085361ab78bd737e78e2fb3d448fe3463eca2) Merge pull request 'feat(templates): the devil's backbone has ovate leaves, red cyathia and stems that come up one after another' (#513) from feat/463-devils-backbone-realism into main
+- [465e5df6](https://git.max-richter.dev/max/nodarium/commit/465e5df6b94af1f9616ef0fdf5c6ba3773eafb8b) feat(templates): the devil's backbone has ovate leaves, red cyathia and stems that come up one after another
+- [1ff70e63](https://git.max-richter.dev/max/nodarium/commit/1ff70e639aa3d0a39e81494d3d88a2004d057a44) Merge pull request 'chore(templates): frames for the bitter bolete, champignon, chanterelle, clouded agaric, false chanterelle and fly agaric' (#509) from chore/template-frames-mushrooms-1 into main
+- [21ff8409](https://git.max-richter.dev/max/nodarium/commit/21ff84097fb1a8def7f3424ed08cb29beeec9e1a) Merge pull request 'chore(templates): frames for the honey fungus, oyster, porcini, shaggy inkcap, shiitake and sulphur tuft' (#510) from chore/template-frames-mushrooms-2 into main
+- [e339c682](https://git.max-richter.dev/max/nodarium/commit/e339c6829be58c3ac5e90bc9be97fcbb06ec3754) Merge pull request 'chore(templates): frames for the wild carrot' (#512) from chore/template-frames-wild-carrot into main
+- [49ab3a7f](https://git.max-richter.dev/max/nodarium/commit/49ab3a7f1df5c730b15640df398f70b58404da89) chore(templates): frames for the wild carrot
+- [d30a2e99](https://git.max-richter.dev/max/nodarium/commit/d30a2e99c735ce48a024fdd303837f5ac49bfe37) Merge pull request 'chore(templates): frames for the devil's backbone, lady fern, default plant, grass, fern and horsetail' (#508) from chore/template-frames-plants-3 into main
+- [b420b6e2](https://git.max-richter.dev/max/nodarium/commit/b420b6e2a54337b12f34cf9910057f21d72ad61f) Merge pull request 'feat(templates): the wild carrot's rosette grows from a spiral' (#505) from feat/490-wild-carrot-spiral into main
+- [b6c83abb](https://git.max-richter.dev/max/nodarium/commit/b6c83abbe4c9ca2915699331dba542d1e9dfa157) Merge pull request 'chore(templates): frames for the lavender, palm, knotweed, maidenhair, bamboo and sapling' (#507) from chore/template-frames-plants-2 into main
+- [0014f016](https://git.max-richter.dev/max/nodarium/commit/0014f0167f3bafab9e2127d50460ea1ec24370e4) fix(viewer): a scroll or drag stops the camera animation
+- [6b5c623a](https://git.max-richter.dev/max/nodarium/commit/6b5c623a6ba4cbddc647a14b020a17c3f56e18ca) feat(templates): the wild carrot's rosette grows from a spiral
+- [95d40564](https://git.max-richter.dev/max/nodarium/commit/95d40564adb511ef4a8d2b9cd83f6e0cd1512c18) Merge pull request 'chore(templates): frames for the agave' (#511) from chore/template-frames-agave into main
+- [9ed8d189](https://git.max-richter.dev/max/nodarium/commit/9ed8d1893bfeb764f84b59502233aedf4ac38c5c) chore(templates): frames for the agave
+- [ba91ace8](https://git.max-richter.dev/max/nodarium/commit/ba91ace8287113c630b4555c5f21d422109e1eae) ci(e2e): run the e2e tests with two workers
+- [f14fa174](https://git.max-richter.dev/max/nodarium/commit/f14fa17462dc9f18c3bf8278cba9efdf428468d6) chore(templates): frames for the honey fungus, oyster, porcini, shaggy inkcap, shiitake and sulphur tuft
+- [92e0e21f](https://git.max-richter.dev/max/nodarium/commit/92e0e21f96d66ce0d7ee17d09beb08264f8edaa6) chore(templates): frames for the bitter bolete, champignon, chanterelle, clouded agaric, false chanterelle and fly agaric
+- [4ffbac6c](https://git.max-richter.dev/max/nodarium/commit/4ffbac6c19013bda005a101baad7427f5a18e33e) chore(templates): frames for the devil's backbone, lady fern, default plant, grass, fern and horsetail
+- [9d0ec585](https://git.max-richter.dev/max/nodarium/commit/9d0ec58572994bd8d8c11f937597961bf743aeb7) chore(templates): frames for the lavender, palm, knotweed, maidenhair, bamboo and sapling
+- [36e8350f](https://git.max-richter.dev/max/nodarium/commit/36e8350fe685af5f79c399f1535cb7a5ebd8687a) Merge pull request 'chore(templates): frames for the dandelion, daisy, yarrow, sage, mullein and plantain' (#506) from chore/template-frames-plants-1 into main
+- [329cb8be](https://git.max-richter.dev/max/nodarium/commit/329cb8be2ec568d408bb98e1454a0ad5624f2473) chore(templates): frames for the dandelion, daisy, yarrow, sage, mullein and plantain
+- [7e56c10e](https://git.max-richter.dev/max/nodarium/commit/7e56c10e4dba989fa927fa25c7cba3cf64d3d627) Merge pull request 'feat(templates): the agave's rosette sits on two spirals' (#504) from feat/490-agave-spiral into main
+- [1f1834f9](https://git.max-richter.dev/max/nodarium/commit/1f1834f9abd4d4805929960470342dff4ace47e7) feat(templates): the agave's rosette sits on two spirals
+- [b79c9720](https://git.max-richter.dev/max/nodarium/commit/b79c972089691bb8ae2586f79cebaa7efa3e98dd) Merge pull request 'test: stop pinning the templates' (#503) from test/templates-unpinned into main
+- [72f7b2f4](https://git.max-richter.dev/max/nodarium/commit/72f7b2f47865240bc4eea209bfc72aa8cf372139) test: stop pinning the templates
+- [ab9ed4db](https://git.max-richter.dev/max/nodarium/commit/ab9ed4dba6501bc72bee94a81c45f47a7f845aff) Merge pull request 'feat(editor): draw frames and edit them' (#502) from feat/498-frames-editor into main
+- [a42d4a71](https://git.max-richter.dev/max/nodarium/commit/a42d4a713cdd5d07d79f7e7d9752652b40086a69) fix(editor): Ctrl+J keeps a selected frame, the title moves inside once it fits
+- [5f186fa8](https://git.max-richter.dev/max/nodarium/commit/5f186fa87b6847db63ced9727ee1626aee8023c5) feat(editor): draw frames and edit them
+- [fa0f2964](https://git.max-richter.dev/max/nodarium/commit/fa0f2964c3df80e2bd5746f2a2888999fc851c95) Merge pull request 'feat(types): frames in the graph file' (#501) from feat/498-frames-file into main
+- [c2a9e375](https://git.max-richter.dev/max/nodarium/commit/c2a9e3752110286532bf941a2035edf40d8a635d) feat(types): frames in the graph file
+- [1794ddf3](https://git.max-richter.dev/max/nodarium/commit/1794ddf3d2d8a6e3ffb2c0ec90ac50700e168ed5) Merge pull request 'feat(app): the fern on the stump grows from a spiral on its substrate point' (#500) from feat/490-fern-on-stump-spiral into main
+- [a7ec1ae2](https://git.max-richter.dev/max/nodarium/commit/a7ec1ae231599b1ba17e7cac8a37953780d0ad97) feat(app): the fern on the stump grows from a spiral on its substrate point
+- [a569e99e](https://git.max-richter.dev/max/nodarium/commit/a569e99e2f4a56a99758c902b3643bf8b3051906) Merge pull request 'feat(templates): the lavender's woody stems grow from a spiral' (#499) from feat/490-lavender-spiral into main
+- [e2daacb4](https://git.max-richter.dev/max/nodarium/commit/e2daacb4b37ebeb2be164803480e24c68f4237e2) feat(templates): the lavender's woody stems grow from a spiral
+- [fd671395](https://git.max-richter.dev/max/nodarium/commit/fd6713953e1efad4ea6e410f51e74f6f13a8156a) Merge pull request 'feat(templates): the mullein's rosette sits on a spiral' (#497) from feat/490-mullein-spiral into main
+- [38d4dc0f](https://git.max-richter.dev/max/nodarium/commit/38d4dc0f47a35552d782d6a3d7a1b52f4340bf6b) feat(templates): the mullein's rosette sits on a spiral
+- [412b9ef4](https://git.max-richter.dev/max/nodarium/commit/412b9ef44992d8855e256ee843cbfabb24cd3c78) Merge pull request 'feat(templates): the yarrow's basal leaves sit on a spiral' (#496) from feat/490-yarrow-spiral into main
+- [e0695c78](https://git.max-richter.dev/max/nodarium/commit/e0695c785a5b8bfcd86421d6bacb02eb70aab811) feat(templates): the yarrow's basal leaves sit on a spiral
+- [74084da2](https://git.max-richter.dev/max/nodarium/commit/74084da2577f1fac630cd71b0130db74f2e54813) Merge pull request 'feat(templates): the plantain's rosette sits on a spiral' (#495) from feat/490-plantain-spiral into main
+- [977329d1](https://git.max-richter.dev/max/nodarium/commit/977329d1b5fa74e18d4ebf813e67887bd027fce7) Merge pull request 'feat(templates): the dandelion has buds, flowers, closed heads and clocks on short scapes' (#494) from feat/463-dandelion-realism into main
+- [5989f74c](https://git.max-richter.dev/max/nodarium/commit/5989f74c26267283883c7667931b4eb621822a11) feat(templates): the plantain's rosette sits on a spiral
+- [2f6371af](https://git.max-richter.dev/max/nodarium/commit/2f6371af35b2adbf2828c5cb77a1e3db765d6916) Merge pull request 'feat(templates): the sage's woody stems grow from a spiral' (#493) from feat/490-sage-spiral into main
+- [e87e6f2f](https://git.max-richter.dev/max/nodarium/commit/e87e6f2f2e619dc59d4b03ed11e3c0eed9e84d0d) feat(templates): the dandelion has buds, flowers, closed heads and clocks on short scapes
+- [cf0a3986](https://git.max-richter.dev/max/nodarium/commit/cf0a3986d329dc0ce74374ddaff9041bd71f595a) feat(templates): the sage's woody stems grow from a spiral
+- [84c0e058](https://git.max-richter.dev/max/nodarium/commit/84c0e0580b87136d65f1eab2c672569eafc49d70) Merge pull request 'feat(templates): the fern's fronds grow from a spiral' (#492) from feat/490-fern-spiral into main
+- [f174fa08](https://git.max-richter.dev/max/nodarium/commit/f174fa08ab7e6260d4d8f3440f8e6ccb05e0feaf) test(e2e): the fern only needs to show, not fill a twentieth of the viewer
+- [bd7bbf82](https://git.max-richter.dev/max/nodarium/commit/bd7bbf82284c23ce66e05736397a128377907982) feat(templates): the fern's fronds grow from a spiral
+- [ae6dcc15](https://git.max-richter.dev/max/nodarium/commit/ae6dcc153debd0cdab2ec22d6a6d8786fcd540c7) Merge pull request 'feat(plantarium)!: spiral, points around one spot for clumps and rosettes' (#491) from feat/490-spiral into main
+- [5e8a3ae6](https://git.max-richter.dev/max/nodarium/commit/5e8a3ae60629b987a0833e25bfab01aa063d8aa4) docs(viewer): word 4 of the instance header is the creator
+- [704c6d7c](https://git.max-richter.dev/max/nodarium/commit/704c6d7cb78c8a292195f86f08a5f8bf0b62c622) feat(plantarium)!: spiral, points around one spot for clumps and rosettes
+- [0cee22f0](https://git.max-richter.dev/max/nodarium/commit/0cee22f0b3611a4adfd639209a8ac895208fcd40) Merge pull request 'feat(templates): the knotweed has jointed canes and broad hanging leaves' (#489) from feat/463-knotweed-realism into main
+- [571df387](https://git.max-richter.dev/max/nodarium/commit/571df38724caa02b735e5ed4a4584ea0f09c21f5) Merge branch 'main' into feat/463-knotweed-realism
+- [cebef7b8](https://git.max-richter.dev/max/nodarium/commit/cebef7b81b5fa8394fdd752d3de7e64ad8957fa1) Merge pull request 'feat(templates): the daisy has a flat rosette on a crown and shorter scapes' (#488) from feat/463-daisy-realism into main
+- [2f16e582](https://git.max-richter.dev/max/nodarium/commit/2f16e58255f8ba04b06a78e08b2eae9712965ca7) feat(templates): the knotweed has jointed canes and broad hanging leaves
+- [9973e209](https://git.max-richter.dev/max/nodarium/commit/9973e209ce6e776d6662e3cf216267c0a6728e6e) feat(templates): the daisy has a flat rosette on a crown and shorter scapes
+- [3c230b6c](https://git.max-richter.dev/max/nodarium/commit/3c230b6c862dd91a7a03e8ed2a98f7a5f4de1f5d) Merge pull request 'feat(templates): the maidenhair keeps its fronds above the ground' (#487) from feat/463-maidenhair-realism into main
+- [2913675c](https://git.max-richter.dev/max/nodarium/commit/2913675c2489000c1d4c102287c0f525978f4be7) feat(templates): the maidenhair keeps its fronds above the ground
+- [3a1a25fc](https://git.max-richter.dev/max/nodarium/commit/3a1a25fce280d195c0f648e69ffa29e9ab808fd3) Merge pull request 'feat(templates): the lavender is a mound with upright flower stems and plump spikes' (#486) from feat/463-lavender-realism into main
+- [4f32d761](https://git.max-richter.dev/max/nodarium/commit/4f32d76142e17e71bbfef6967d1ec840c0075b5f) feat(templates): the lavender is a mound with upright flower stems and plump spikes
+- [d1dbc0e6](https://git.max-richter.dev/max/nodarium/commit/d1dbc0e6a0d26c5fa61ca1d85f0c4aa97897d683) Merge pull request 'feat(templates): the porcini has a cushion of pores and a habit per seed' (#485) from feat/463-porcini-realism into main
+- [00d594f1](https://git.max-richter.dev/max/nodarium/commit/00d594f158bc2a792d1216fe10b379717b0e0e91) feat(templates): the porcini has a cushion of pores and a habit per seed
+- [23932a24](https://git.max-richter.dev/max/nodarium/commit/23932a24894e3f70546cb74b2ca8504ad5b59332) Merge pull request 'feat(templates): the mullein has a mound of a rosette and a stem leafy from the ground' (#484) from feat/463-mullein-realism into main
+- [66f89dcf](https://git.max-richter.dev/max/nodarium/commit/66f89dcfb2752da4b36e029d74e0cb3aec70bd4e) feat(templates): the mullein has a mound of a rosette and a stem leafy from the ground
+- [8e6e8822](https://git.max-richter.dev/max/nodarium/commit/8e6e882299e71fef99a046be520d15bcf35be40d) Merge pull request 'feat!: remove unused nodes, inputs and options (#481)' (#483) from feat/481-remove-unused into main
+- [b6ef3a10](https://git.max-richter.dev/max/nodarium/commit/b6ef3a10b4b9335a8f8ec486db28e7c35e8bd11c) docs(plantarium): only instance has the face input
+- [1617f088](https://git.max-richter.dev/max/nodarium/commit/1617f0880af3771519e113801770b0ccb54ec977) docs: drop the removed nodes and inputs, describe instance.depth
+- [02938c75](https://git.max-richter.dev/max/nodarium/commit/02938c757f7720b0e1626813a973ffa2857bc004) feat!: remove inputs and options no template uses
+- [a02c222e](https://git.max-richter.dev/max/nodarium/commit/a02c222ef277aaeaa794fd395238d7f959a191ed) feat(plantarium)!: remove the triangle, snap, leaf_growth and box nodes
+- [07a82c8a](https://git.max-richter.dev/max/nodarium/commit/07a82c8af7d1852381f9f666bfe0a9db946671c0) Merge pull request 'fix(editor): draw the WebGL nodes as the HTML nodes look' (#482) from fix/webgl-nodes-match-html into main
+- [939a6f33](https://git.max-richter.dev/max/nodarium/commit/939a6f33052e7e3b2bc4835c63bd3b1eebc7a77f) fix(editor): draw the WebGL nodes as the HTML nodes look
+
 # v2.2.0 (2026-11-19)
 
 ## Breaking

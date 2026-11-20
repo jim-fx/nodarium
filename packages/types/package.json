@@ -1,6 +1,6 @@
 {
   "name": "@nodarium/types",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "description": "",
   "type": "module",
   "main": "src/index.ts",
