@@ -85,8 +85,8 @@ const ABOUT: Record<string, About> = {
   },
   daisy: {
     species: 'Bellis perennis (common daisy)',
-    notes: '5 scapes with a rosette of 15 leaves at their base and a head of disc, rays and bracts '
-      + 'on each tip.'
+    notes: '3–8 scapes over a flat rosette of 12–26 leaves on a short crown, a head of disc, rays '
+      + 'and bracts on each tip.'
   },
   horsetail: {
     species: 'Equisetum arvense (field horsetail)',
