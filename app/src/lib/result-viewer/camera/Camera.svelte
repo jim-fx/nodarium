@@ -202,7 +202,7 @@
     bind:ref={controls}
     minDistance={framing ? framing.radius * 0.02 : 0}
     maxDistance={framing ? framing.radius * 50 : Infinity}
-    on:start={stopAnimation}
-    on:change={saveCameraState}
+    onstart={stopAnimation}
+    onchange={saveCameraState}
   />
 </T.PerspectiveCamera>
