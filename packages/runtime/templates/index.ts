@@ -105,8 +105,8 @@ const ABOUT: Record<string, About> = {
   },
   'wild-carrot': {
     species: "Daucus carota (Queen Anne's lace)",
-    notes: 'A main stem with 3 side branches and 3 stalks from the base, an open umbel or a bud on '
-      + 'every tip.'
+    notes: 'A main stem with 3–7 branches, a leaf under each, and a dense umbel on every tip: a '
+      + "bud, an open disc of lace or a bird's nest by its age."
   },
   dandelion: {
     species: 'Taraxacum officinale (common dandelion)',

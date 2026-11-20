@@ -324,34 +324,31 @@ Family Apiaceae.
 
 **Structure:** A biennial. In the first year it forms a rosette, in the second it grows a flowering stem 0.6–1.2 m tall that branches in its upper part. The leaves are 2–3-pinnate and feathery, with narrow, pointed last segments. The basal leaves are the largest, and the stem leaves get smaller toward the top. The main stem ends in the largest umbel, and every side branch ends in a smaller one. An umbel is 6–15 cm across with 20–50 rays. The outer rays are the longest and curve upward, so the top is flat to slightly domed. Each umbellet has 15–60 florets. Often a single dark purple floret sits in the centre. After flowering, the umbel curls inward into a "bird's nest".
 
-**Template:** a main `stem` 0.8–1 m long with a little `noise`. 3 side branches grow from its upper half (`rotation 2.3998`). An `alpha -> curve` makes the lower ones longer, and a negative `gravity` bends them up. A second `stem` node grows 3 slender stalks, 45–75 cm, from the base:
+**Template:** one `habit` per seed (a `random` with `once`) goes from a small plant of a dry verge to a tall, much-branched one: through curves of its own it sets the length of the main `stem` (0.5–1.05 m), its thickness (3–6 mm), the number of branches (3–7) and the size of the stem leaves. A `points_on_path` spreads as many points as the stem has branches from 30% to 88% of it, at the golden angle. Two `branch_from_points` grow on them: the side branches, and a stem leaf under every one of them, so a branch stands in the axil of its leaf. The branches leave the stem at 0.6–0.95 rad, an `alpha -> curve` makes the lower ones longer (up to 0.42 of the stem), and a negative `gravity` bends them up, not all the way, so their umbels look a little outward. A `branch` puts 0–2 branchlets on every branch, half as long as it. No stalk comes from the base.
 
-- A `rotate x` leans them 0.3–0.59 rad at random, and a `rotate y` with `spread` fans them around the plant.
-- A negative `gravity` curves them back up, so they stand like a vase.
+Every tip of the stem, the branches and the branchlets gets an umbel from an `instance` (`angle 1.5708`, `depth 3`). Its `geometry` is a `join` of three baked umbels, a closed bud, an open umbel and a bird's nest, and it uses `pick` index:
 
-A `join` combines the main stem and the stalks.
-
-Every tip of the stem, the side branches and the stalks gets an umbel from an `instance` (`angle 1.5708`, `depth 2`). Its `geometry` is a `join` of two baked umbels, an open one and a closed bud, and it uses `pick` index:
-
-- The `index` is `path_info` length through a step curve, times a `random`.
-- The main stem is the longest stalk, so its terminal umbel is always open. The shorter stalks get an open umbel or a bud at random.
-- The `size` comes from `path_info` depth, so umbels on the main stem and the basal stalks are larger than on the side branches.
+- Every umbel has a phase, `time × 1.07 − path_info depth × 0.147 − random(0–0.2, once per path) + season`, where `season` is a `random` per seed (±0.13). The umbel of the main stem is the first, those of the branches follow and those of the branchlets come last.
+- A step curve of the phase is the `index`: a bud below 0.5, an open umbel up to 0.8, a bird's nest after it. So a plant has buds, open umbels and nests at once, and how many of each depends on the seed.
+- A second curve of the phase is the `size`: the bud swells, the open umbel starts at the width of the bud and spreads. `path_info` depth makes the umbel of the main stem the largest (about 12 cm), those of the branches 9 cm and those of the branchlets 6 cm.
 
 The open umbel is built at the origin along -z and baked:
 
-- An `umbel` node (24 rays, `depth 2`, `opening 1.4835`, `umbellet_scale 0.17`) sits on a 2 cm stub.
-- A point `force` 10 cm out on the axis, used by `apply_force` with `depth 2`, pulls the outer rays up into an arc while the inner ones barely change. The top stays flat.
-- An `instance` puts a ring of five petals at the end of every bent pedicel. The umbel's `points` output is computed before the bend, so it isn't used here.
-- The involucre is a `branch` of 10 bracts, 4.5 cm long, off the top of the stub, each with 6 thread-like lobes from a second `branch`. A point `force` behind the umbel bends them so they spread and droop.
+- An `umbel` node (30 rays, 4.7 cm, `depth 2`, `opening 1.4835`, `shape 0.3`, `umbellet_scale 0.19`) sits on a 2 cm stub. Every ray carries an umbellet of 30 pedicels, so the umbel has 900 florets. The umbellets are as wide as the gaps between the rays, which closes the top into a disc of lace.
+- A point `force` 10 cm out on the axis, used by `apply_force` with `depth 2`, pulls the outer rays up into an arc while the inner ones barely change.
+- An `instance` puts three broad petals of 2 mm at the end of every bent pedicel, a floret of 4 mm. The umbel's `points` output is computed before the bend, so it isn't used here.
+- The involucre is a `branch` of 10 bracts, 4 cm long, off the top of the stub, each with 6 thread-like lobes from a second `branch`. A point `force` behind the umbel bends them so they spread and droop.
 - A `join` adds the involucre to the umbel before `to_geometry`.
 
 The bud is a second `umbel`: 16 rays, 1.8 cm, `opening 0.384` and `shape 1`, so the rays stand close together. Its bracts point up toward the tip (`angle 0.8727`).
 
-The leaves are grown live, in chains of their own that a `join` adds to the stalks before the output. The `gravity` and `noise` of the leaves only work on the deepest paths, so they would bend the stalks too if the leaves grew on the same list. The stem leaves grow on a second copy of the stem, which gets new ids. The rosette has a copy of the chain to itself: its petioles grow on no path, one level higher than the stem leaves, and the deepest paths of one list would leave them out.
+The bird's nest is a third: 26 rays of 5 cm that leave the stub at 0.85 rad with their tips in a cup (`shape −0.4`), and a point `force` 7 cm out on the axis curls them in over the middle. Every pedicel ends in a small brown fruit, the bracts stand up around the nest.
+
+The leaves are grown live, in chains of their own that a `join` adds to the stalks before the output. The `gravity` and `noise` of the leaves only work on the deepest paths, so they would bend the stalks too if the leaves grew on the same list. The stem leaves grow on a second copy of the stem, which gets new ids. The rosette has a copy of the chain to itself: its petioles grow on no path, one level higher than the stem leaves, and the deepest paths of one list would leave them out. The crown of the rosette sits 1.4 mm above the ground, the radius of a petiole, so no petiole dips into it.
 
 - The petioles:
   - The rosette is 9–12 petioles from the points of a `spiral` (`height` 1 cm, the golden angle) into `branch_from_points`, each 16–26 cm long, 1.25 mm thick and rising 0.26–0.87 rad.
-  - The stem leaves are 5 petioles on the main stem from 14% to 78%. An `alpha -> curve` times a `random` makes them shorter toward the top.
+  - The stem leaves are a petiole under every branch and two more low on the stem (a second `points_on_path` from 10% to 20%). An `alpha -> curve` times a `random` makes them shorter toward the top.
 - A `gravity` of random strength (0.15–0.45) per petiole and a gentle `noise` arch each leaf by its own amount.
 - 12–16 pinnae grow on the outer two thirds of the petiole, in opposite pairs (`rotation 3.1416`, `offset_single 1`). Their length is `path_info` length of the petiole times an `alpha -> curve`, so they get shorter toward the tip, and every leaf keeps its proportions at any size.
 - Every pinna is covered by one flat, deeply lobed blade:
@@ -360,9 +357,9 @@ The leaves are grown live, in chains of their own that a `join` adds to the stal
 
 The petals are tiny, so their `leaf.size` is small and their `instance.size` is large. Before #480 an instance that scaled below about 1e-4 was dropped as collapsed, now only one smaller than a thousandth of the largest of its node is, so the split no longer matters.
 
-**Colours:** The stems are green, a little browner at the base, the leaves green. The rays of the open umbel are pale green, the florets white and the bracts green. The bud has pinkish florets. A single dark purple floret sits in the middle of the open umbel on most plants (a `random` once for the graph): an `instance` on the stub puts a leaf there whose bare stalk reaches the florets and whose round end a curve of `alpha` into `y_curve` turns to face along the axis.
+**Colours:** The stems are green, a little browner at the base, the leaves green. The rays of the open umbel are pale green, the florets white and the bracts green. The bud has pinkish florets, the bird's nest is olive to brown. A single dark purple floret sits in the middle of the open umbel on most plants (a `random` once for the graph): an `instance` on the stub puts a leaf there whose bare stalk reaches the florets and whose round end a curve of `alpha` into `y_curve` turns to face along the axis.
 
-Missing: the hairs, the bird's nest of the fruiting umbel, and the sheathing leaf bases. The stem leaves don't sit in the axils of the branches, and the lobes of a pinna are not divided again as in the finest leaves.
+Missing: the hairs, the bristly fruits and the sheathing leaf bases. An umbel changes from a bud to an open umbel and to a nest in one step, each a baked geometry of its own, and the lobes of a pinna are not divided again as in the finest leaves.
 
 ## Dandelion: _Taraxacum officinale_ (common dandelion)
 
