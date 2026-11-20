@@ -1,94 +1,105 @@
 varying vec2 vUv;
 
+// in graph units, 10 px of the HTML node
 uniform float uWidth;
 uniform float uHeight;
-uniform float uZoom; 
+// graph units per screen pixel
+uniform float uPixel;
 
 uniform vec3 uColorDark;
 uniform vec3 uColorBright;
 uniform vec3 uStrokeColor;
+uniform vec3 uBarColor;
+uniform bool uHasBar;
 uniform bool uIsMuted;
 
-const float uHeaderHeight = 5.0; 
-uniform float uSectionHeights[16]; 
+const float HEADER_HEIGHT = 5.0;
+const float RADIUS = 0.5;
+uniform float uSectionHeights[16];
 uniform int uNumSections;
-// the first sections are output rows, their dent is on the right
-uniform int uNumOutputRows;
+// bit 0 is the header, bit i + 1 the section i
+uniform int uLeftSockets;
+uniform int uRightSockets;
+uniform int uPossibleSockets;
 
-float msign(in float x) { return (x < 0.0) ? -1.0 : 1.0; }
-float sdCircle(vec2 p, float r) { return length(p) - r; }
+// The notches of NodeHeader, NodeParameter and NodeOutput are cubic curves; an ellipse with
+// three quarters of their depth and half their height is within 3 % of them.
+const vec2 HEADER_NOTCH = vec2(0.825, 0.85);
+const vec2 ROW_NOTCH = vec2(0.9, 1.0);
+const vec2 ROW_NOTCH_POSSIBLE = vec2(1.05, 1.1);
 
-vec4 roundedBoxSDF( in vec2 p, in vec2 b, in float r, in float s) {
+float sdRoundBox(vec2 p, vec2 b, float r) {
   vec2 q = abs(p) - b + r;
-  float l = b.x + b.y + 1.570796 * r;
-  float k1 = min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
-  float k2 = ((q.x > 0.0) ? atan(q.y, q.x) : 1.570796);
-  float k3 = 3.0 + 2.0 * msign(min(p.x, -p.y)) - msign(p.x);
-  float k4 = msign(p.x * p.y);
-  float k5 = r * k2 + max(-q.x, 0.0);
-  float ra = s * round(k1 / s);
-  float l2 = l + 1.570796 * ra;
-  return vec4(k1 - ra, k3 * l2 + k4 * (b.y + ((q.y > 0.0) ? k5 + k2 * ra : q.y)), 4.0 * l2, k1);
+  return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
 }
 
-void main(){
-  float strokeWidth = mix(2.0, 0.5, uZoom);
-  
-  float borderRadius = 0.5;
-  float dentRadius = 0.8;
+float sdEllipse(vec2 p, vec2 r) {
+  float k0 = length(p / r);
+  float k1 = length(p / (r * r));
+  return k0 * (k0 - 1.0) / k1;
+}
 
-  float y = (1.0 - vUv.y) * uHeight;
-  float x = vUv.x * uWidth;
+bool hasBit(int mask, int bit) {
+  return ((mask >> bit) & 1) == 1;
+}
+
+float notch(float d, vec2 p, float inset, int bit, float centerY, vec2 radius) {
+  if (hasBit(uLeftSockets, bit)) {
+    d = max(d, -sdEllipse(p - vec2(inset, centerY), radius));
+  }
+  if (hasBit(uRightSockets, bit)) {
+    d = max(d, -sdEllipse(p - vec2(uWidth - inset, centerY), radius));
+  }
+  return d;
+}
+
+void main() {
+  vec2 p = vec2(vUv.x * uWidth, (1.0 - vUv.y) * uHeight);
+
+  // the HTML outline is 2px of the node; zoomed out it stays one screen pixel wide
+  float halfStroke = max(0.1, 0.5 * uPixel);
+  float aa = uPixel;
+  // the outline is centred on the path, its outer edge is the edge of the node
+  float inset = halfStroke;
+
   vec2 size = vec2(uWidth, uHeight);
-  vec2 uvCenter = (vUv - 0.5) * 2.0;
+  float d = sdRoundBox(p - size * 0.5, size * 0.5 - inset, RADIUS);
 
-  vec4 boxData = roundedBoxSDF(uvCenter * size, size, borderRadius * 2.0, 0.0);
-  float sceneSDF = boxData.w;
-
-  vec2 headerDentPos = vec2(uWidth, uHeaderHeight * 0.5);
-  float headerDentDist = sdCircle(vec2(x, y) - headerDentPos, dentRadius);
-  sceneSDF = max(sceneSDF, -headerDentDist*2.0);
-
-  float currentYBoundary = uHeaderHeight;
-  float previousYBoundary = uHeaderHeight;
-
-  for (int i = 0; i < 16; i++) {
-    if (i >= uNumSections) break;
-    
-    float sectionHeight = uSectionHeights[i];
-    currentYBoundary += sectionHeight;
-    
-    float centerY = previousYBoundary + (sectionHeight * 0.5);
-    vec2 circlePos = vec2(i < uNumOutputRows ? uWidth : 0.0, centerY);
-    float circleDist = sdCircle(vec2(x, y) - circlePos, dentRadius);
-    
-    sceneSDF = max(sceneSDF, -circleDist*2.0);
-    previousYBoundary = currentYBoundary;
-  }
-
-  if (sceneSDF > 0.05) { 
-    gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
-    return;
-  }
-
-  vec3 finalColor = (y < uHeaderHeight) ? uColorBright : uColorDark;
-  bool isDivider = false;
-
-  float dividerY = uHeaderHeight;
-  if (abs(y - dividerY) < strokeWidth * 0.25) isDivider = true;
-  
-  for (int i = 0; i < 16; i++) {
-    if (i >= uNumSections - 1) break;
-    dividerY += uSectionHeights[i];
-    if (abs(y - dividerY) < strokeWidth * 0.25) isDivider = true;
-  }
-
-  float alpha = 1.0;
-  if(uIsMuted) alpha = 0.5;
-
-  if (sceneSDF > -strokeWidth || isDivider) {
-    gl_FragColor = vec4(uStrokeColor, alpha);
+  // a notch is smaller than its row, so only the row of the fragment can cut into it
+  bool nearSide = p.x < 2.0 || p.x > uWidth - 2.0;
+  float divider = abs(p.y - HEADER_HEIGHT);
+  if (p.y < HEADER_HEIGHT) {
+    if (nearSide) d = notch(d, p, inset, 0, HEADER_HEIGHT * 0.5, HEADER_NOTCH);
   } else {
-    gl_FragColor = vec4(finalColor, alpha);
+    float top = HEADER_HEIGHT;
+    for (int i = 0; i < 16; i++) {
+      if (i >= uNumSections) break;
+      float h = uSectionHeights[i];
+      if (p.y < top + h || i == uNumSections - 1) {
+        if (i < uNumSections - 1) divider = min(divider, top + h - p.y);
+        divider = min(divider, p.y - top);
+        if (nearSide) {
+          vec2 radius = hasBit(uPossibleSockets, i + 1) ? ROW_NOTCH_POSSIBLE : ROW_NOTCH;
+          d = notch(d, p, inset, i + 1, top + h * 0.5, radius);
+        }
+        break;
+      }
+      top += h;
+    }
   }
+
+  float coverage = 1.0 - smoothstep(-0.5 * aa, 0.5 * aa, d - halfStroke);
+  if (coverage <= 0.0) discard;
+
+  vec3 fill = p.y < HEADER_HEIGHT ? uColorBright : uColorDark;
+  if (uHasBar && p.y < HEADER_HEIGHT) {
+    float bar = abs(p.x - 2.0 * halfStroke - 0.15) - 0.15;
+    fill = mix(uBarColor, fill, smoothstep(-0.5 * aa, 0.5 * aa, bar));
+  }
+
+  float stroke = smoothstep(-0.5 * aa, 0.5 * aa, d + halfStroke);
+  stroke = max(stroke, 1.0 - smoothstep(-0.5 * aa, 0.5 * aa, divider - halfStroke));
+
+  float alpha = coverage * (uIsMuted ? 0.5 : 1.0);
+  gl_FragColor = vec4(mix(fill, uStrokeColor, stroke), alpha);
 }

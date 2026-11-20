@@ -14,7 +14,8 @@
   import EdgeEl from '../edges/Edge.svelte';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
   import NodeEl from '../node/Node.svelte';
-  import { maxZoom, minZoom } from './constants';
+  import SocketHighlights from '../node/SocketHighlights.svelte';
+  import { maxZoom, minZoom, WEBGL_NODE_MAX_ZOOM } from './constants';
   import { FileDropEventManager } from './drop.events';
   import { MouseEventManager } from './mouse.events';
   import ZoomIndicator from './ZoomIndicator.svelte';
@@ -151,6 +152,10 @@
           {y2}
         />
       {/each}
+
+      {#if graphState.possibleSockets.length && graphState.camera.position[2] < WEBGL_NODE_MAX_ZOOM}
+        <SocketHighlights />
+      {/if}
 
       <Debug />
 
