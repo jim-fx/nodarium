@@ -91,7 +91,9 @@ const ABOUT: Record<string, About> = {
   },
   horsetail: {
     species: 'Equisetum arvense (field horsetail)',
-    notes: 'Five stems, each with 14 nodes of sheath teeth and a whorl of 9–12 branches at each.'
+    notes: 'A colony of 6–15 shoots that come up one after another, each with 16 nodes: a sheath '
+      + 'with dark teeth and, above the lowest fifth, a whorl of 9–12 branches. Low and open or '
+      + 'tall and dense by seed.'
   },
   'devils-backbone': {
     species: 'Euphorbia tithymaloides (zigzag plant)',
