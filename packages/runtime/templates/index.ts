@@ -98,8 +98,8 @@ const ABOUT: Record<string, About> = {
   },
   knotweed: {
     species: 'Reynoutria japonica (Japanese knotweed)',
-    notes: '7 arching canes that zigzag a little, a large leaf and a branch at each of their 13 '
-      + 'nodes.'
+    notes: '4–10 arching, jointed canes that zigzag, a swollen node every 11 cm, a large leaf and '
+      + 'a branch of hanging leaves at each of the upper 13 nodes.'
   },
   'wild-carrot': {
     species: "Daucus carota (Queen Anne's lace)",
