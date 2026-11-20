@@ -116,14 +116,16 @@
               input.label || id
             }</label>
           {/if}
-          <button
-            type="button"
-            aria-label="Hide from node"
-            class="flex cursor-pointer items-center border-none bg-transparent p-0 opacity-50 hover:opacity-100"
-            onclick={() => graph.setInputExposed(node, id, false)}
-          >
-            <span class="block h-3.5 w-3.5 i-[tabler--pin-filled]"></span>
-          </button>
+          {#if !graphState?.options.valuesOnly}
+            <button
+              type="button"
+              aria-label="Hide from node"
+              class="flex cursor-pointer items-center border-none bg-transparent p-0 opacity-50 hover:opacity-100"
+              onclick={() => graph.setInputExposed(node, id, false)}
+            >
+              <span class="block h-3.5 w-3.5 i-[tabler--pin-filled]"></span>
+            </button>
+          {/if}
         </div>
       {:else if inputType?.label !== ''}
         <label for={elementId} title={input.description && describeAngles(input.description)}>{

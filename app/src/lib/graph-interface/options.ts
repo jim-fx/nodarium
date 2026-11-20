@@ -27,6 +27,11 @@ export type GraphOptions = {
   systemColors?: Record<string, string>;
   safePadding?: { left?: number; right?: number; bottom?: number; top?: number };
   nodeTimings: Record<number, number>;
+  /**
+   * Only the values of the inputs can be changed: nodes stay where they are, nothing is added,
+   * removed or connected. Read once, when the editor is created.
+   */
+  valuesOnly?: boolean;
   /** Node that made the last execution fail */
   errorNodeId?: number;
 };

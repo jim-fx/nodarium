@@ -382,6 +382,7 @@ export class GraphState {
    * before. Released without a drag, the press picks the socket, see releasedSocket().
    */
   pressSocket(socket: Socket, event: PointerPosition) {
+    if (this.options.valuesOnly) return;
     this.socketPressedAt = null;
     if (this.connectPicked(socket)) return;
     const wasPicked = this.isPickedSocket(socket);
@@ -412,6 +413,7 @@ export class GraphState {
 
   /** Enter or Space on a socket: connects to the picked socket, or picks it, or unpicks it */
   activateSocket(socket: Socket) {
+    if (this.options.valuesOnly) return;
     if (this.connectPicked(socket)) return;
     const wasPicked = this.isPickedSocket(socket);
     this.unpickSocket();
@@ -452,6 +454,7 @@ export class GraphState {
   }
 
   openNodePalette() {
+    if (this.options.valuesOnly) return;
     this.addMenuPosition = [this.mousePosition[0], this.mousePosition[1]];
   }
 

@@ -65,6 +65,20 @@ log.mute();
 
 type Level = { nodes: SerializedNode[]; edges: SerializedEdge[]; frames?: Frame[] };
 
+/** The graph without the values of its inputs and its settings, see GraphManager.valuesOnly */
+function structureOf(graph: Graph) {
+  const withoutValues = (nodes: SerializedNode[]) =>
+    nodes.map(({ props, ...node }) =>
+      props?.groupId === undefined ? node : { ...node, groupId: props.groupId }
+    );
+  return JSON.stringify([
+    withoutValues(graph.nodes),
+    graph.edges,
+    graph.frames,
+    graph.groups?.map((group) => ({ ...group, nodes: withoutValues(group.nodes) }))
+  ]);
+}
+
 function sameKeys(a: object, b: object) {
   const keys = Object.keys(a);
   return keys.length === Object.keys(b).length && keys.every((key) => key in b);
@@ -149,6 +163,24 @@ export class GraphManager extends EventEmitter<{
   // Not a counter: an end that never came (the gizmo unmounted mid-drag) must not hold every later step
   private heldStep: { changed: boolean } | undefined;
 
+  /**
+   * Only the values of the inputs and the settings may change: a commit that changed anything
+   * else, a node, its position, an edge, a frame or a group, is undone right away
+   */
+  valuesOnly = false;
+  private accepted: { graph: Graph; structure: string } | undefined;
+
+  private acceptChange(): boolean {
+    const graph = this.serialized;
+    const structure = structureOf(graph);
+    if (this.accepted && structure !== this.accepted.structure) {
+      this.restoreState(structuredClone(this.accepted.graph));
+      return false;
+    }
+    this.accepted = { graph, structure };
+    return true;
+  }
+
   /** The graph changed. `build: false` for changes the result doesn't depend on, like a position. */
   commit({ build = true, coalesce = false } = {}) {
     if (this.transactionDepth > 0) {
@@ -159,6 +191,7 @@ export class GraphManager extends EventEmitter<{
       return;
     }
     this.pruneFrames();
+    if (this.valuesOnly && !this.acceptChange()) return;
     if (this.heldStep) this.heldStep.changed = true;
     else if (coalesce) this.recorder.coalesce();
     else this.recorder.step();
@@ -666,6 +699,27 @@ export class GraphManager extends EventEmitter<{
       allCollections.add(`${user}/${collection}`);
     }
     this.collections = allCollections;
+    // without the add menu, the nodes that are not in the graph are never shown
+    if (!this.valuesOnly) this.loadCollections(allCollections);
+
+    log.info('loaded node types', this.registry.getAllNodes());
+
+    this.path = [];
+
+    this.heldStep = undefined;
+    this.recorder.reset();
+    this.openLevel(graph);
+    this.updateSettings(graph.settings);
+    this.accepted = undefined;
+    if (this.valuesOnly) this.acceptChange();
+    this.recorder.step();
+    this.status = 'idle';
+    if (wasPlaced) this.emit('placed', graph);
+    log.log(`Graph loaded in ${performance.now() - a}ms`);
+    setTimeout(() => this.execute(), 100);
+  }
+
+  private loadCollections(allCollections: SvelteSet<`${string}/${string}`>) {
     const loadCollection = (collection: `${string}/${string}`) => {
       this.registry.loadCollection?.(collection)
         .catch((error) => log.error(`failed to load the collection ${collection}`, error));
@@ -680,20 +734,6 @@ export class GraphManager extends EventEmitter<{
         }
       })
       .catch((error) => log.error('failed to list the collections', error));
-
-    log.info('loaded node types', this.registry.getAllNodes());
-
-    this.path = [];
-
-    this.heldStep = undefined;
-    this.recorder.reset();
-    this.openLevel(graph);
-    this.updateSettings(graph.settings);
-    this.recorder.step();
-    this.status = 'idle';
-    if (wasPlaced) this.emit('placed', graph);
-    log.log(`Graph loaded in ${performance.now() - a}ms`);
-    setTimeout(() => this.execute(), 100);
   }
 
   getNode(id: number) {

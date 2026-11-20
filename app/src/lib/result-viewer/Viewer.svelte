@@ -22,11 +22,10 @@
     return materialCache[entry.id];
   }
 
-  let material = loadMaterial(appSettings.value.material.id);
   const bounds = new Box3();
 
   $effect(() => {
-    const id = appSettings.value.material.id;
+    const id = materialId;
     untrack(() => {
       material = loadMaterial(id);
       setHeightRange(material, bounds);
@@ -79,6 +78,8 @@
     highlight?: PartHighlight;
     /** Only what `highlight` doesn't hide is framed by the camera */
     localView?: boolean;
+    /** The material instead of the one of the app settings */
+    material?: string;
   };
 
   let {
@@ -95,8 +96,13 @@
     onparthover,
     onpartclick,
     highlight,
-    localView = false
+    localView = false,
+    material: materialOverride
   }: Props = $props();
+
+  const materialId = $derived(materialOverride ?? appSettings.value.material.id);
+  // svelte-ignore state_referenced_locally
+  let material = loadMaterial(materialId);
 
   let items: Int32Array[] = [];
   let links: Map<number, PathLink> | undefined;
@@ -232,6 +238,7 @@
       bind:this={sceneComponent}
       {centerCamera}
       {projectId}
+      {materialId}
       contentBounds={bounds}
       {debugData}
       {gizmos}

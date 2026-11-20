@@ -80,7 +80,7 @@
   onkeydown={(ev) => keymap.handleKeyboardEvent(ev)}
   onmousedown={(ev) => mouseEvents.handleMouseDown(ev)}
   oncontextmenu={(ev) => mouseEvents.handleContextMenu(ev)}
-  {...fileDropEvents.getEventListenerProps()}
+  {...graphState.options.valuesOnly ? {} : fileDropEvents.getEventListenerProps()}
 >
   <input
     type="file"

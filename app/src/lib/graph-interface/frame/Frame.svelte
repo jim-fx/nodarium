@@ -114,7 +114,9 @@
         class="frame-label"
         role="heading"
         aria-level={3}
-        ondblclick={() => (graphState.renamingFrameId = frame.id)}
+        ondblclick={() => {
+          if (!graphState.options.valuesOnly) graphState.renamingFrameId = frame.id;
+        }}
       >{frame.label}</span>
     {/if}
   </div>

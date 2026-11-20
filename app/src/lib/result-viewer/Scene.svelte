@@ -42,6 +42,7 @@
     scene: Group;
     centerCamera: boolean;
     projectId?: number;
+    materialId: string;
     /** the bounds of everything the pools show, they change with every update */
     contentBounds: Box3;
     gizmos?: Gizmo[];
@@ -58,6 +59,7 @@
   let {
     centerCamera,
     projectId,
+    materialId,
     contentBounds,
     fps = $bindable(),
     scene = $bindable(),
@@ -280,7 +282,7 @@
   };
 </script>
 
-{#if usesEnvironment(appSettings.value.material.id)}
+{#if usesEnvironment(materialId)}
   <Environment url={lighting.environment.url} />
 {/if}
 

@@ -1,19 +1,30 @@
 <script lang="ts">
+  import GraphInterface, { type GraphOptions } from '#lib/graph-interface/index.ts';
   import { groupNode } from '#lib/node-registry/groupNode.ts';
   import { createAppRegistry } from '#lib/node-registry/index.ts';
+  import { materials } from '#lib/result-viewer/materials/materials.ts';
   import ResultStats from '#lib/result-viewer/ResultStats.svelte';
   import Viewer from '#lib/result-viewer/Viewer.svelte';
+  import { appSettings } from '#lib/settings/app-settings.svelte.ts';
+  import {
+    type ChangedValues,
+    changedValues,
+    editorGraph,
+    withValues
+  } from '#lib/template-values.ts';
+  import { colors, systemColors } from '#lib/theme/colors.svelte.ts';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { debugNode, MemoryRuntimeExecutor } from '@nodarium/runtime';
+  import { debugNode, graphLink, MemoryRuntimeExecutor } from '@nodarium/runtime';
   import { templates } from '@nodarium/runtime/templates';
   import type { Graph } from '@nodarium/types';
-  import { InputNumber, Spinner, toast } from '@nodarium/ui';
+  import { Button, InputNumber, InputSelect, Spinner, toast } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
   import type { Group } from 'three';
 
-  const runtime = new MemoryRuntimeExecutor(createAppRegistry([debugNode, groupNode]));
+  const registry = createAppRegistry([debugNode, groupNode]);
+  const runtime = new MemoryRuntimeExecutor(registry);
   const perf = createPerformanceStore();
 
   const vertices = $derived($perf?.at(-1)?.['total-vertices']?.[0] || 0);
@@ -23,14 +34,56 @@
 
   let scene = $state<Group>(null!);
   let viewer = $state<ReturnType<typeof Viewer>>();
-  let graph = $state.raw<Graph>();
+  let graphInterface = $state<ReturnType<typeof GraphInterface>>();
+  let template = $state.raw<Graph>();
+  /** What the user changed in the nodes, it stays when the seed or the time change */
+  let values = $state.raw<ChangedValues>({});
   let time = $state(0.5);
   let seed = $state<number>();
   let isLoading = $state(false);
   let isExecuting = $state(false);
   let queued = false;
 
-  const hasTime = $derived(graph?.nodes.some((n) => n.type === 'max/core/time') ?? false);
+  const graph = $derived(template && withValues(template, values));
+  const hasTime = $derived(template?.nodes.some((n) => n.type === 'max/core/time') ?? false);
+  const hasChanges = $derived(Object.keys(values).length > 0);
+
+  const MATERIAL_KEY = 'template.material';
+  function readMaterial() {
+    try {
+      const stored = localStorage.getItem(MATERIAL_KEY);
+      if (materials.some((m) => m.id === stored)) return stored!;
+    } catch {
+      // without storage the page starts with the material of the editor
+    }
+    return appSettings.value.material.id;
+  }
+  let material = $state(readMaterial());
+  const materialIndex = $derived(Math.max(0, materials.findIndex((m) => m.id === material)));
+  function selectMaterial(index: number) {
+    material = materials[index]?.id ?? material;
+    try {
+      localStorage.setItem(MATERIAL_KEY, material);
+    } catch {
+      // the material is still used for this visit
+    }
+  }
+
+  const graphOptions: GraphOptions = {
+    get backgroundType() {
+      return appSettings.value.nodeInterface.backgroundType;
+    },
+    snapToGrid: false,
+    showHelp: false,
+    showDebugInfo: false,
+    get theme() {
+      return appSettings.value.theme;
+    },
+    colors,
+    systemColors,
+    nodeTimings: {},
+    valuesOnly: true
+  };
 
   function fail(error: unknown) {
     viewer?.update(new Int32Array());
@@ -44,12 +97,13 @@
     try {
       const loaded = structuredClone(await entry.load());
       if (id !== selected) return;
-      graph = loaded;
+      template = loaded;
+      values = {};
       time = Number(loaded.settings?.['time.t'] ?? 0.5);
       seed = undefined;
     } catch (error) {
       if (id !== selected) return;
-      graph = undefined;
+      template = undefined;
       fail(error);
     } finally {
       if (id === selected) isLoading = false;
@@ -84,6 +138,37 @@
     isExecuting = false;
   }
 
+  function edited(result: Graph) {
+    if (!template) return;
+    const next = changedValues(template, result);
+    if (JSON.stringify(next) === JSON.stringify(values)) return;
+    values = next;
+    void run();
+  }
+
+  function reset() {
+    if (!template) return;
+    values = {};
+    void graphInterface?.manager.load(structuredClone(template));
+    void run();
+  }
+
+  let editorLink = $state<string>();
+  $effect(() => {
+    if (!graph) return;
+    const entry = templates.find((t) => t.id === selected);
+    const opened = editorGraph(template!, values, {
+      title: entry?.name ?? selected,
+      seed,
+      time: hasTime ? time : undefined
+    });
+    let current = true;
+    graphLink(opened, location.origin + resolve('/')).then((link) => {
+      if (current) editorLink = link;
+    });
+    return () => (current = false);
+  });
+
   function scrub(t: number) {
     time = t;
     void run();
@@ -99,6 +184,7 @@
 
   function onkeydown(event: KeyboardEvent) {
     if (event.key !== 'r' || event.ctrlKey || event.metaKey || event.altKey) return;
+    if ((event.target as Element | null)?.closest?.('input, textarea, select')) return;
     seed = Math.floor(Math.random() * 100000000);
     void run();
   }
@@ -110,121 +196,73 @@
 
 <svelte:document {onkeydown} />
 
-<div class="page">
-  <nav>
-    <h1>Templates</h1>
-    <ul>
-      {#each templates as template (template.id)}
+<div class="grid h-dvh bg-layer-0 text-text grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[220px_minmax(0,1fr)] md:grid-rows-1">
+  <nav class="flex gap-3 overflow-auto border-b border-outline bg-layer-1 p-2 md:flex-col md:border-r md:border-b-0 md:px-3 md:py-4">
+    <h1 class="m-0 hidden px-2 text-sm font-semibold opacity-70 md:block">Templates</h1>
+    <ul class="m-0 flex list-none gap-0.5 p-0 md:flex-col">
+      {#each templates as entry (entry.id)}
         <li>
-          <button class:active={template.id === selected} onclick={() => select(template.id)}>
-            {template.name}
+          <button
+            class="w-full cursor-pointer rounded-md border-0 p-2 text-left whitespace-nowrap text-inherit hover:bg-layer-2 {entry.id === selected ? 'bg-layer-2 font-semibold' : 'bg-transparent'}"
+            aria-current={entry.id === selected ? 'page' : undefined}
+            onclick={() => select(entry.id)}
+          >
+            {entry.name}
           </button>
         </li>
       {/each}
     </ul>
-    <p class="hint">Press <kbd>R</kbd> to regenerate</p>
+    <p class="mt-auto mb-0 hidden px-2 text-xs opacity-60 md:block">
+      Press <kbd class="rounded border border-current px-1">R</kbd> to regenerate
+    </p>
   </nav>
-  <main>
-    <Viewer bind:scene bind:this={viewer} {perf} centerCamera />
-    <ResultStats {vertices} {faces} class="absolute right-4 bottom-4 items-end" />
-    {#if hasTime}
-      <div class="time">
-        <label for="time">Time</label>
-        <InputNumber id="time" bind:value={() => time, scrub} min={0} max={1} step={0.01} />
+  <main class="grid min-w-0 grid-rows-2 md:grid-cols-2 md:grid-rows-1">
+    <div class="relative min-h-0">
+      <Viewer bind:scene bind:this={viewer} {perf} {material} centerCamera />
+      <div class="absolute top-3 left-3 z-2 flex items-center gap-2 text-xs">
+        <label for="material" class="opacity-70">Material</label>
+        <InputSelect
+          id="material"
+          options={materials.map((m) => m.name)}
+          bind:value={() => materialIndex, selectMaterial}
+        />
       </div>
-    {/if}
-    {#if isLoading || isExecuting}
-      <div class="spinner"><Spinner size={28} /></div>
-    {/if}
+      <ResultStats {vertices} {faces} class="absolute right-4 bottom-4 items-end" />
+      {#if hasTime}
+        <div class="absolute bottom-4 left-4 z-2 flex w-[200px] items-center gap-2 text-xs md:left-1/2 md:-translate-x-1/2">
+          <label for="time" class="opacity-70">Time</label>
+          <div class="flex-1">
+            <InputNumber id="time" bind:value={() => time, scrub} min={0} max={1} step={0.01} />
+          </div>
+        </div>
+      {/if}
+      {#if isLoading || isExecuting}
+        <div class="absolute top-4 right-4"><Spinner size={28} /></div>
+      {/if}
+    </div>
+    <div class="relative min-h-0 border-t border-outline md:border-t-0 md:border-l">
+      {#if template}
+        {#key template}
+          <GraphInterface
+            graph={structuredClone(template)}
+            bind:this={graphInterface}
+            {registry}
+            options={graphOptions}
+            onresult={edited}
+          />
+        {/key}
+      {/if}
+      <div class="absolute top-3 right-3 z-10 flex gap-2">
+        <Button size="sm" disabled={!hasChanges} onclick={reset}>Reset</Button>
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={!editorLink}
+          onclick={() => window.open(editorLink, '_blank')}
+        >
+          Open in editor
+        </Button>
+      </div>
+    </div>
   </main>
 </div>
-
-<style>
-  .page {
-    display: grid;
-    grid-template-columns: 220px 1fr;
-    height: 100vh;
-    background: var(--layer-0, #111);
-    color: var(--text-color, #eee);
-  }
-  nav {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 16px 12px;
-    overflow-y: auto;
-    border-right: 1px solid var(--outline, #333);
-    background: var(--layer-1, #181818);
-  }
-  h1 {
-    margin: 0;
-    padding: 0 8px;
-    font-size: 14px;
-    font-weight: 600;
-    opacity: 0.7;
-  }
-  ul {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  button {
-    width: 100%;
-    padding: 8px;
-    border: 0;
-    border-radius: 6px;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-  button:hover {
-    background: var(--layer-2, #262626);
-  }
-  button.active {
-    background: var(--layer-3, #333);
-    font-weight: 600;
-  }
-  .hint {
-    margin: auto 0 0;
-    padding: 0 8px;
-    font-size: 12px;
-    opacity: 0.6;
-  }
-  kbd {
-    padding: 1px 5px;
-    border: 1px solid currentColor;
-    border-radius: 4px;
-  }
-  main {
-    position: relative;
-    min-width: 0;
-  }
-  .time {
-    position: absolute;
-    bottom: 16px;
-    left: 50%;
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 220px;
-    font-size: 12px;
-    transform: translateX(-50%);
-  }
-  .time label {
-    opacity: 0.7;
-  }
-  .time :global(.component-wrapper) {
-    flex: 1;
-  }
-  .spinner {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-  }
-</style>
