@@ -84,25 +84,10 @@
       }
     },
     {
-      "id": 26,
-      "position": [60, -196.97],
-      "type": "max/plantarium/stem",
-      "props": { "amount": 1, "length": 0.0573, "thickness": 0.01146, "taper": 0 }
-    },
-    {
       "id": 27,
       "position": [120, -120.27],
-      "type": "max/plantarium/branch",
-      "props": {
-        "amount": 34,
-        "lowest_branch": 0.05,
-        "highest_branch": 1,
-        "length": 5,
-        "thickness": 0.6,
-        "rotation": 2.3998,
-        "angle": 0.9599,
-        "taper": 0.6
-      }
+      "type": "max/plantarium/branch_from_points",
+      "props": { "thickness": 0.006876, "taper": 0.6 }
     },
     {
       "id": 28,
@@ -167,12 +152,6 @@
       "type": "max/core/random",
       "props": { "min": 2.8, "max": 3.5 }
     },
-    {
-      "id": 48,
-      "position": [90, -161.27],
-      "type": "max/plantarium/set_color",
-      "props": { "color": [96, 72, 50] }
-    },
     { "id": 49, "position": [150, 10.42], "type": "max/core/alpha", "props": {} },
     {
       "id": 50,
@@ -232,7 +211,7 @@
       "id": 64,
       "position": [120, -57.27],
       "type": "max/plantarium/path_info",
-      "props": { "info": 4 }
+      "props": { "info": 0 }
     },
     { "id": 65, "position": [0, 35.86], "type": "max/core/time", "props": {} },
     {
@@ -359,7 +338,18 @@
       "props": { "curve": [0, 1, 0.3, 0.85, 0.7, 0.35, 1, 0], "min": 0, "max": 1 },
       "position": [180, -35.36]
     },
-    { "id": 9004, "type": "max/plantarium/roll", "props": { "turns": 2 }, "position": [210, -8.86] }
+    {
+      "id": 9004,
+      "type": "max/plantarium/roll",
+      "props": { "turns": 2 },
+      "position": [210, -8.86]
+    },
+    {
+      "id": 26,
+      "type": "max/plantarium/spiral",
+      "props": { "origin": [0, 0.0029, 0], "height": 0.0544 },
+      "position": [60, -196.97]
+    }
   ],
   "edges": [
     [13, 0, 14, "plant"],
@@ -369,7 +359,6 @@
     [17, 0, 90, "input"],
     [90, 0, 10, "input"],
     [24, 0, 25, "value"],
-    [48, 0, 27, "plant"],
     [30, 0, 29, "value"],
     [29, 0, 28, "a"],
     [31, 0, 28, "b"],
@@ -384,7 +373,6 @@
     [45, 0, 46, "value"],
     [46, 0, 17, "angle"],
     [47, 0, 17, "rotation"],
-    [26, 0, 48, "plant"],
     [49, 0, 50, "value"],
     [50, 0, 51, "factor"],
     [51, 0, 52, "color"],
@@ -406,7 +394,6 @@
     [66, 0, 68, "b"],
     [68, 0, 69, "a"],
     [67, 0, 69, "b"],
-    [73, 0, 27, "amount"],
     [43, 0, 80, "a"],
     [79, 0, 80, "b"],
     [80, 0, 17, "size"],
@@ -428,6 +415,8 @@
     [9002, 0, 9003, "value"],
     [14, 0, 9004, "plant"],
     [9003, 0, 9004, "roll"],
-    [9004, 0, 52, "plant"]
+    [9004, 0, 52, "plant"],
+    [73, 0, 26, "amount"],
+    [26, 0, 27, "points"]
   ]
 }

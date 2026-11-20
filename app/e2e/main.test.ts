@@ -123,8 +123,8 @@ test('a page without animation frames still shows the result', async ({ page }) 
       return green / (data.length / 4);
     }, shot);
   };
-  // the grid is grey, only the fern is green
-  await expect.poll(lit, { timeout: 5000 }).toBeGreaterThan(0.05);
+  // the grid is grey, only the fern is green, a few percent of the viewer however it is framed
+  await expect.poll(lit, { timeout: 5000 }).toBeGreaterThan(0.02);
 });
 
 test('angles show in degrees or in radians, the graph keeps radians', async ({ page }) => {
