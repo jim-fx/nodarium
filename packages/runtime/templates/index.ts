@@ -67,7 +67,7 @@ const ABOUT: Record<string, About> = {
   },
   sage: {
     species: 'Salvia officinalis (common sage)',
-    notes: 'A short woody crown with 9 woody stems, each with 7 shoots of opposite, decussate leaf '
+    notes: '9 woody stems from a spiral, each with 7 shoots of opposite, decussate leaf '
       + 'pairs.'
   },
   bamboo: {
