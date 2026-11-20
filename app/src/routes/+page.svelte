@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { AgentApiHost, BuildRecord } from '#lib/agent-api/agent-api.ts';
+  import { count, msBucket, publicNodeType, setTrackContext, track } from '#lib/analytics.ts';
   import GraphInterface, { type GraphOptions } from '#lib/graph-interface/index.ts';
   import * as templates from '#lib/graph-templates/index.ts';
   import Grid from '#lib/grid/index.ts';
@@ -78,6 +79,12 @@
   let onRegenerate: (() => void) | undefined;
 
   const { data } = $props();
+  setTrackContext(untrack(() => data.git), version);
+  /** The step the tutorial is on, onComplete comes after the step is left */
+  let tutorialStep = '';
+  /** Graphs that were reported as slow, once per graph and session */
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- not rendered
+  const slowGraphs = new Set<number>();
 
   const nodeRegistry = createAppRegistry([debugNode, groupNode]);
   const registryCache = nodeRegistry.cache;
@@ -302,6 +309,7 @@
       callback: () => {
         randomGenerate();
         onRegenerate?.();
+        count('regenerate');
       }
     },
     {
@@ -327,7 +335,10 @@
     {
       key: 'i',
       description: 'Local view: only show what the selected node made',
-      callback: () => viewportLink.toggleLocalView()
+      callback: () => {
+        viewportLink.toggleLocalView();
+        count('localView');
+      }
     }
   ]);
 
@@ -359,6 +370,11 @@
       const run = await runtime.run(probed.graph, settings);
       const waited = performance.now() - startedAt;
       if (run.performance) mergeWorkerRun(run.performance, waited);
+      count('builds');
+      if (waited > 2000 && !slowGraphs.has(g.id)) {
+        slowGraphs.add(g.id);
+        track('build-slow', { ms: msBucket(waited), worker: runtime === workerRuntime });
+      }
 
       probe = probed.sourceId === undefined
         ? undefined
@@ -402,6 +418,11 @@
       };
       errorNodeId = info.nodeId;
       errorLog.add(info);
+      track('build-error', {
+        nodeType: publicNodeType(info.nodeType),
+        kind: info.location ? 'panic' : info.missingInputs?.length ? 'missing-input' : 'other',
+        missingInputs: info.missingInputs?.length ?? 0
+      });
       toast(info.message, 'error', 6000);
     } finally {
       clearTimeout(timeout);
@@ -467,6 +488,25 @@
     });
   });
 
+  $effect(() =>
+    manager?.on('usage', ({ name, data }) => {
+      switch (name) {
+        case 'undo':
+        case 'redo':
+          count(name);
+          break;
+        case 'edge-connect':
+          count('edges');
+          break;
+        case 'node-add':
+          track(name, { ...data, type: publicNodeType(String(data?.type)) });
+          break;
+        default:
+          track(name, data);
+      }
+    })
+  );
+
   function focusNode(nodeId: number) {
     const node = manager?.getNode(nodeId);
     if (node) graphInterface.state.centerNode(node);
@@ -509,6 +549,11 @@
   bind:this={planty}
   config={tutorialConfig}
   autoStart={urlOptions.tutorial}
+  onStepChange={(step) => {
+    tutorialStep = step;
+    track('tutorial-step', { step });
+  }}
+  onComplete={(completed) => track('tutorial-end', { step: tutorialStep, completed })}
   actions={{
     'setup-default': async () => {
       const graph = structuredClone(await loadTemplate('default-plant'));
@@ -613,7 +658,10 @@
             bind:this={graphInterface}
             registry={nodeRegistry}
             options={graphOptions}
-            onhelp={() => panelState.setActivePanel('shortcuts')}
+            onhelp={() => {
+              panelState.setActivePanel('shortcuts');
+              track('help-open');
+            }}
             onsave={async (g) => {
               pendingSave = true;
               await pm.saveGraph(g);

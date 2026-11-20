@@ -1,4 +1,4 @@
-export { GraphManager } from './graph-manager.svelte';
+export { GraphManager, type UsageEvent } from './graph-manager.svelte';
 export type { GraphState } from './graph-state.svelte';
 export { default } from './graph/Wrapper.svelte';
 export { collectSettings } from './helpers/collectSettings';

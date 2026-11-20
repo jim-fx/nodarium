@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { NodeId, NodeInstance } from '@nodarium/types';
   import { HTML } from '@threlte/extras';
+  import { onDestroy } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import { getGraphManager, getGraphState } from '../graph-state.svelte';
   import { groupNodes, nodeLabel, searchNodes, sortByLabel } from '../helpers/addMenu';
@@ -48,8 +49,25 @@
     if (id === activeNodeId) el.scrollIntoView({ block: 'nearest' });
   };
 
+  let created = false;
+
+  // the query itself is text a user typed and stays here, only its length goes out
+  onDestroy(() => {
+    if (!created && value && nodes.length === 0) {
+      graph.report({ name: 'add-menu-no-results', data: { queryLength: value.length } });
+    }
+  });
+
   function handleNodeCreation(nodeType: NodeInstance['type']) {
     if (!graphState.addMenuPosition) return;
+    created = true;
+    graph.report({
+      name: 'node-add',
+      data: {
+        type: nodeType,
+        via: graphState.activeSocket ? 'socket' : value ? 'search' : 'browse'
+      }
+    });
     onnode?.({
       id: -1,
       type: nodeType,

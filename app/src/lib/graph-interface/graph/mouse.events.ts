@@ -160,11 +160,12 @@ export class MouseEventManager {
       });
       this.graph.commit({ build: false });
     } else if (this.state.hoveredSocket && this.state.activeSocket) {
+      let connected: unknown;
       if (
         typeof this.state.hoveredSocket.index === 'number'
         && typeof this.state.activeSocket.index === 'string'
       ) {
-        this.graph.createEdge(
+        connected = this.graph.createEdge(
           this.state.hoveredSocket.node,
           this.state.hoveredSocket.index || 0,
           this.state.activeSocket.node,
@@ -174,13 +175,14 @@ export class MouseEventManager {
         typeof this.state.activeSocket.index == 'number'
         && typeof this.state.hoveredSocket.index === 'string'
       ) {
-        this.graph.createEdge(
+        connected = this.graph.createEdge(
           this.state.activeSocket.node,
           this.state.activeSocket.index || 0,
           this.state.hoveredSocket.node,
           this.state.hoveredSocket.index
         );
       }
+      if (connected) this.graph.report({ name: 'edge-connect', data: { via: 'drag' } });
     } else if (this.state.activeSocket && event.ctrlKey) {
       // Handle automatic adding of nodes on ctrl+mouseUp
       this.state.edgeEndPosition = [

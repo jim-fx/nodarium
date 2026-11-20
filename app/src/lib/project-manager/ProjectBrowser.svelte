@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { track } from '#lib/analytics.ts';
   import { formatRelativeTime } from '#lib/helpers/formatRelativeTime.ts';
   import { localState } from '#lib/helpers/localState.svelte.ts';
   import { type Template, templateCategories, templates } from '@nodarium/runtime/templates';
@@ -79,12 +80,14 @@
   function openProject(id: number | undefined) {
     if (id === undefined) return;
     pm.handleSelectProject(id);
+    track('project-action', { action: 'open', from: 'browser' });
     close();
   }
 
   async function createFromTemplate(template: Template) {
     try {
       pm.handleCreateProject(await template.load(), template.name);
+      track('template-open', { template: template.id, source: 'browser' });
       close();
     } catch (error) {
       toast(

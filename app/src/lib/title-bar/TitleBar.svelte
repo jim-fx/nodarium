@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { track } from '#lib/analytics.ts';
   import { formatRelativeTime } from '#lib/helpers/formatRelativeTime.ts';
   import type { ProjectManager } from '#lib/project-manager/project-manager.svelte.ts';
   import { appSettings, AppSettingTypes } from '#lib/settings/app-settings.svelte.ts';
@@ -62,7 +63,9 @@
     if (!file) return;
     try {
       await pm.importProject(file);
+      track('project-action', { action: 'import', ok: true });
     } catch (error) {
+      track('project-action', { action: 'import', ok: false });
       const msg = error instanceof Error ? error.message : String(error);
       toast(`Import failed: ${msg}`, 'error');
     }
@@ -73,8 +76,10 @@
       const link = await pm.projectLink(id);
       if (!link) return;
       await navigator.clipboard.writeText(link);
+      track('share-link', { action: 'copy', ok: true });
       toast('Link copied to clipboard', 'success');
     } catch {
+      track('share-link', { action: 'copy', ok: false });
       toast('Could not copy to the clipboard', 'error');
     }
   }
@@ -96,7 +101,10 @@
         label: p.meta?.title || 'Untitled',
         image: pm.thumbnails.urls.get(p.id) ?? '',
         detail: formatRelativeTime(p.meta?.lastModified),
-        onselect: () => pm.handleSelectProject(p.id)
+        onselect: () => {
+          pm.handleSelectProject(p.id);
+          track('project-action', { action: 'open', from: 'recent' });
+        }
       }));
     const browse = { label: 'Browse all projects…', shortcut: 'Ctrl+O', onselect: onopenprojects };
     return recent.length ? [...recent, 'separator', browse] : [browse];
@@ -119,15 +127,34 @@
     {
       label: 'File',
       items: [
-        { label: 'New project', shortcut: 'Alt+N', onselect: () => pm.handleCreateProject() },
+        {
+          label: 'New project',
+          shortcut: 'Alt+N',
+          onselect: () => {
+            pm.handleCreateProject();
+            track('project-action', { action: 'create' });
+          }
+        },
         { label: 'Open…', shortcut: 'Ctrl+O', onselect: onopenprojects },
         { label: 'Open recent', items: recentItems },
         'separator',
         { label: 'Rename', shortcut: 'F2', onselect: startRename },
-        { label: 'Duplicate', onselect: withActive((id) => pm.duplicateProject(id)) },
+        {
+          label: 'Duplicate',
+          onselect: withActive((id) => {
+            pm.duplicateProject(id);
+            track('project-action', { action: 'duplicate' });
+          })
+        },
         'separator',
         { label: 'Import .json…', onselect: () => importInput?.click() },
-        { label: 'Export .json', onselect: withActive((id) => pm.exportProject(id)) },
+        {
+          label: 'Export .json',
+          onselect: withActive((id) => {
+            pm.exportProject(id);
+            track('export', { format: 'json' });
+          })
+        },
         { label: 'Copy link', onselect: withActive(copyLink) },
         { label: 'Export mesh…', onselect: () => panelState.setActivePanel('exports') },
         'separator',

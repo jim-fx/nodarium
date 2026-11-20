@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { track } from '#lib/analytics.ts';
   import { Button, toast } from '@nodarium/ui';
   import FileSaver from 'file-saver';
   import type { Group } from 'three';
@@ -31,10 +32,12 @@
       (glb) => {
         download(glb as ArrayBuffer, 'plant', 'model/gltf-binary', 'glb');
         toast('Exported as GLB', 'success');
+        track('export', { format: 'glb', ok: true });
       },
       (err) => {
         const msg = err instanceof Error ? err.message : String(err);
         toast(`GLB export failed: ${msg}`, 'error');
+        track('export', { format: 'glb', ok: false });
       },
       { binary: true }
     );
@@ -53,9 +56,11 @@
       const result = addObjVertexColors(exporter.parse(exportScene), exportScene);
       download(result, 'plant', 'text/plain', 'obj');
       toast('Exported as OBJ', 'success');
+      track('export', { format: 'obj', ok: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast(`OBJ export failed: ${msg}`, 'error');
+      track('export', { format: 'obj', ok: false });
     }
   }
 </script>

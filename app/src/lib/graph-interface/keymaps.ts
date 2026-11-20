@@ -157,6 +157,7 @@ export function setupKeymaps(
     callback: () => {
       if (!graphState.isBodyFocused()) return;
       graph.undo();
+      graph.report({ name: 'undo' });
       for (const node of graph.nodes.values()) {
         graphState.updateNodePosition(node);
       }
@@ -169,6 +170,7 @@ export function setupKeymaps(
     description: 'Redo',
     callback: () => {
       graph.redo();
+      graph.report({ name: 'redo' });
       for (const node of graph.nodes.values()) {
         graphState.updateNodePosition(node);
       }

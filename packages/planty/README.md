@@ -70,7 +70,7 @@ lists dangling links and unreachable nodes, Planty also logs them as a warning.
 | `hooks`        | Step hooks, see below                                                               |
 | `autoStart`    | Start on mount unless the tour has been started before in this browser              |
 | `onStepChange` | Called with the id and node whenever a node is entered                              |
-| `onComplete`   | Called when the tour is closed or ends                                              |
+| `onComplete`   | Called when the tour is closed or ends, with `true` when it reached its last step   |
 
 `bind:this` exposes `start()`, `stop()`, `next()` and `registerHook(name, fn)`.
 

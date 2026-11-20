@@ -70,11 +70,15 @@ function sameKeys(a: object, b: object) {
   return keys.length === Object.keys(b).length && keys.every((key) => key in b);
 }
 
+/** Something a user did in the editor, for usage statistics. Holds no contents of the graph. */
+export type UsageEvent = { name: string; data?: Record<string, string | number | boolean> };
+
 export class GraphManager extends EventEmitter<{
   save: Graph;
   result: Graph;
   /** load() placed nodes that had no position, the camera doesn't know where they are */
   placed: Graph;
+  usage: UsageEvent;
 }> {
   status = $state<'loading' | 'idle' | 'error'>();
 
@@ -1266,6 +1270,10 @@ export class GraphManager extends EventEmitter<{
       level = group;
     }
     return path;
+  }
+
+  report(event: UsageEvent) {
+    this.emit('usage', event);
   }
 
   undo() {

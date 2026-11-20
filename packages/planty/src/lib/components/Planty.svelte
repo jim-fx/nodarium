@@ -26,7 +26,8 @@
     /** Start the tour on mount unless this config has been started before */
     autoStart?: boolean;
     onStepChange?: (nodeId: string, node: DialogNode) => void;
-    onComplete?: () => void;
+    /** `completed` is false when the tour was closed before its last step */
+    onComplete?: (completed: boolean) => void;
   }
 
   let { config, actions = {}, hooks = {}, autoStart = false, onStepChange, onComplete }: Props =
@@ -141,9 +142,13 @@
   }
 
   export function stop() {
+    _end(false);
+  }
+
+  function _end(completed: boolean) {
     if (!isActive) return;
     _reset();
-    onComplete?.();
+    onComplete?.(completed);
   }
 
   export async function next() {
@@ -154,7 +159,7 @@
     if (gen !== generation || !isActive) return;
     const next = runner.getNextNode(id);
     if (next) _enterNode(next.id, next.node);
-    else stop();
+    else _end(true);
   }
 
   export function registerHook(name: string, fn: PlantyHook) {
@@ -188,7 +193,7 @@
     if (gen !== generation || !isActive) return;
     const n = runner.followChoice(choice);
     if (n) _enterNode(n.id, n.node, true);
-    else stop();
+    else _end(true);
   }
 
   async function _runAfter(nodeId: string, node: DialogNode | null) {
@@ -239,7 +244,7 @@
     }
 
     if (!node.choices && !node.next) {
-      _setTimer(() => stop(), AUTO_STOP_MS);
+      _setTimer(() => _end(true), AUTO_STOP_MS);
     }
   }
 

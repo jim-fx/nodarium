@@ -1,3 +1,4 @@
+import { track } from '#lib/analytics.ts';
 import type { UrlOptions } from '#lib/url-options.ts';
 import { decodeGraph } from '@nodarium/runtime';
 import { templates } from '@nodarium/runtime/templates';
@@ -30,8 +31,12 @@ export async function openUrlProject(
       settings: seed === undefined ? undefined : { seed },
       reuse: true
     });
+    if (graph === undefined) track('template-open', { template: template!, source: 'url' });
+    else track('share-link', { action: 'open', ok: true });
     return id;
   } catch (error) {
+    if (graph === undefined) track('template-open', { template: 'unknown', source: 'url' });
+    else track('share-link', { action: 'open', ok: false });
     const message = error instanceof Error ? error.message : String(error);
     toast(`Opening the link failed: ${message}`, 'error', 8000);
   }

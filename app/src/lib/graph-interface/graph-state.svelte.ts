@@ -221,7 +221,9 @@ export class GraphState {
   }
 
   groupSelectedNodes() {
-    return this.graph.groupNodes([...this.selectedNodes.keys(), this.activeNodeId]);
+    const group = this.graph.groupNodes([...this.selectedNodes.keys(), this.activeNodeId]);
+    if (group) this.graph.report({ name: 'group-create' });
+    return group;
   }
 
   // Fits the node, the nodes of the selected frame, or all nodes into the part of the view the
@@ -263,6 +265,7 @@ export class GraphState {
     ]);
 
     this.graph.formatNodes();
+    this.graph.report({ name: 'format-nodes' });
 
     animate(500, (a: number) => {
       const t = easeInOut(a);
@@ -363,7 +366,13 @@ export class GraphState {
     const fromNode = this.graph.getNode(from.node.id);
     const toNode = this.graph.getNode(to.node.id);
     if (fromNode && toNode) {
-      this.graph.createEdge(fromNode, from.index as number, toNode, to.index as string);
+      const edge = this.graph.createEdge(
+        fromNode,
+        from.index as number,
+        toNode,
+        to.index as string
+      );
+      if (edge) this.graph.report({ name: 'edge-connect', data: { via: 'click' } });
     }
     return true;
   }
