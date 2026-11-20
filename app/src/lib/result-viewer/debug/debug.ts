@@ -268,7 +268,7 @@ function createInstanceDebug(instances: Int32Array[], amount = 1) {
   const direction = new Vector3();
 
   for (const [index, data] of instances.entries()) {
-    // 0: type, 1: vertices, 2: faces, 3: instances, 4: depth, followed by the faces,
+    // 0: type, 1: vertices, 2: faces, 3: instances, 4: creator, followed by the faces,
     // the positions and normals of the geometry, then a matrix for every instance
     const vertices = data[1];
     const faces = data[2];

@@ -22,7 +22,7 @@ function path(depth: number, points: number[][]) {
   return data;
 }
 
-// [2, vertices, faces, instances, depth, ...faces, ...positions, ...normals, ...matrices]
+// [2, vertices, faces, instances, creator, ...faces, ...positions, ...normals, ...matrices]
 function instances(count: number) {
   const data = new Int32Array(5 + 3 + 18 + count * 16);
   data.set([2, 3, 1, count, 0, 0, 1, 2]);
