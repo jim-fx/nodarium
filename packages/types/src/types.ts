@@ -128,6 +128,26 @@ const SerializedEdgeSchema = z.tuple([z.number(), z.number(), z.number(), z.stri
 
 export type SerializedEdge = z.infer<typeof SerializedEdgeSchema>;
 
+/** The colours a frame can have, every theme defines a `--color-frame-<name>` for each */
+export const FRAME_COLORS = ['gray', 'green', 'brown', 'blue', 'red', 'violet'] as const;
+export type FrameColor = (typeof FRAME_COLORS)[number];
+
+/**
+ * A labelled rectangle behind some nodes of one level. It computes nothing, its rectangle is the
+ * box around its nodes.
+ */
+export const FrameSchema = z.object({
+  /** unique among the frames of its level */
+  id: z.number(),
+  label: z.string(),
+  // a colour this version doesn't know is read as gray, not as a broken file
+  color: z.enum(FRAME_COLORS).optional().catch(undefined),
+  /** the ids of nodes of the same level, a node is in at most one frame */
+  nodes: z.array(z.number())
+});
+
+export type Frame = z.infer<typeof FrameSchema>;
+
 export const GroupSchema = z.object({
   id: z.number(),
   name: z.string().optional(),
@@ -137,7 +157,8 @@ export const GroupSchema = z.object({
   outputs: z.array(z.object({
     type: z.string(),
     label: z.string().optional()
-  })).optional()
+  })).optional(),
+  frames: z.array(FrameSchema).optional()
 });
 
 export type GroupDefinition = z.infer<typeof GroupSchema>;
@@ -159,7 +180,8 @@ export const GraphSchema = z.object({
   settings: z.record(z.string(), z.any()).optional(),
   nodes: z.array(NodeSchema),
   edges: z.array(SerializedEdgeSchema),
-  groups: z.array(GroupSchema)
+  groups: z.array(GroupSchema),
+  frames: z.array(FrameSchema).optional()
 });
 
 export type Graph = z.infer<typeof GraphSchema>;

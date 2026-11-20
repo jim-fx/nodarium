@@ -286,6 +286,39 @@ describe('validateGraph', () => {
     expect(validateGraph(graph, definitions)).toEqual([]);
   });
 
+  it('takes frames for what they are, nodes of the graph with a label', () => {
+    const graph = withMistake((g) => {
+      g.frames = [{ id: 1, label: 'Stem', color: 'brown', nodes: [1, 2] }];
+    });
+    expect(validateGraph(graph, definitions)).toEqual([]);
+  });
+
+  it('warns about frames that name missing nodes, share a node or an id', () => {
+    const graph = withMistake((g) => {
+      g.frames = [
+        { id: 1, label: 'Stem', nodes: [1, 42] },
+        { id: 1, label: 'Bend', nodes: [2, 1] }
+      ];
+    });
+    expect(validateGraph(graph, definitions).map(i => [i.severity, i.code, i.message, i.frameId]))
+      .toEqual([
+        [
+          'warning',
+          'frame-missing-node',
+          'the frame "Stem" names the node 42, there is no such node',
+          1
+        ],
+        ['warning', 'duplicate-frame-id', 'two frames have the id 1', 1],
+        [
+          'warning',
+          'node-in-two-frames',
+          'stem#1 is in the frame "Bend" and in the frame "Stem", a node is in one frame at most, '
+          + 'the first one keeps it',
+          1
+        ]
+      ]);
+  });
+
   it('warns about nodes that never run', () => {
     const graph = withMistake((g) => {
       g.nodes.push({ id: 3, type: 'max/core/random', position: [0, 0] });
@@ -337,6 +370,21 @@ describe('validateGraph', () => {
 
     it('takes the sockets of an instance and of the boundary nodes from the group', () => {
       expect(validateGraph(grouped(), definitions)).toEqual([]);
+    });
+
+    it('checks the frames of a group against its own nodes', () => {
+      const graph = grouped((_, g) => {
+        g.frames = [{ id: 1, label: 'Inner', nodes: [12, 1] }];
+      });
+      expect(validateGraph(graph, definitions)).toEqual([
+        expect.objectContaining({
+          code: 'frame-missing-node',
+          message: 'the frame "Inner" names the node 1, there is no such node (in group "Wobble")',
+          groupId: 7,
+          frameId: 1,
+          nodeId: 1
+        })
+      ]);
     });
 
     it('names the mistakes inside a group with the group', () => {

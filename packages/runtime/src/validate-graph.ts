@@ -1,4 +1,5 @@
 import type {
+  Frame,
   Graph,
   GroupDefinition,
   NodeDefinition,
@@ -36,7 +37,10 @@ export type GraphIssueCode =
   | 'wrong-value-type'
   | 'unknown-setting'
   | 'no-version'
-  | 'unreachable-node';
+  | 'unreachable-node'
+  | 'frame-missing-node'
+  | 'node-in-two-frames'
+  | 'duplicate-frame-id';
 
 /** A mistake in a graph, found by {@link validateGraph} */
 export type GraphIssue = {
@@ -49,6 +53,8 @@ export type GraphIssue = {
   nodeId?: number;
   /** the group the issue is in, missing for the graph itself */
   groupId?: number;
+  /** the frame the issue is about, of the graph or of the group `groupId` */
+  frameId?: number;
   edge?: SerializedEdge;
   /** what to write instead: a name, a node type or a value */
   suggestion?: string;
@@ -60,7 +66,11 @@ const TO_GEOMETRY = 'max/plantarium/to_geometry';
 const WARNINGS = new Set<GraphIssueCode>([
   'value-out-of-range',
   'unknown-setting',
-  'unreachable-node'
+  'unreachable-node',
+  // frames compute nothing, the editor drops what is wrong with them
+  'frame-missing-node',
+  'node-in-two-frames',
+  'duplicate-frame-id'
 ]);
 
 /** The inputs and output types of a node as the runtime sees them */
@@ -73,10 +83,11 @@ type Sockets = {
 type Scope = {
   nodes: SerializedNode[];
   edges: SerializedEdge[];
+  frames?: Frame[];
   group?: GroupDefinition;
 };
 
-type Details = Pick<GraphIssue, 'nodeId' | 'groupId' | 'edge' | 'suggestion'>;
+type Details = Pick<GraphIssue, 'nodeId' | 'groupId' | 'frameId' | 'edge' | 'suggestion'>;
 
 type Report = (code: GraphIssueCode, message: string, details?: Details) => void;
 
@@ -291,11 +302,20 @@ class GraphValidator {
         continue;
       }
       this.groups.set(group.id, group);
-      groupScopes.push({ nodes: list(group.nodes), edges: list(group.edges), group });
+      groupScopes.push({
+        nodes: list(group.nodes),
+        edges: list(group.edges),
+        frames: list(group.frames),
+        group
+      });
     }
 
     this.checkGroupCycles();
-    const root: Scope = { nodes: list(this.graph.nodes), edges: list(this.graph.edges) };
+    const root: Scope = {
+      nodes: list(this.graph.nodes),
+      edges: list(this.graph.edges),
+      frames: list(this.graph.frames)
+    };
     for (const scope of [root, ...groupScopes]) this.checkScope(scope);
     this.checkOutputs(root);
     this.checkSettings();
@@ -393,6 +413,39 @@ class GraphValidator {
     this.checkEdges(scope, byId, sockets, report);
     this.checkCycles(scope, byId, report);
     this.checkReach(scope, byId, report);
+    this.checkFrames(scope, byId, report);
+  }
+
+  private checkFrames(scope: Scope, byId: Map<number, SerializedNode>, report: Report) {
+    const frameIds = new Set<number>();
+    const frameOf = new Map<number, Frame>();
+    for (const frame of list(scope.frames)) {
+      const name = `the frame "${frame.label}"`;
+      if (frameIds.has(frame.id)) {
+        report('duplicate-frame-id', `two frames have the id ${frame.id}`, { frameId: frame.id });
+      }
+      frameIds.add(frame.id);
+      for (const nodeId of list(frame.nodes)) {
+        if (!byId.has(nodeId)) {
+          report('frame-missing-node', `${name} names the node ${nodeId}, there is no such node`, {
+            frameId: frame.id,
+            nodeId
+          });
+          continue;
+        }
+        const other = frameOf.get(nodeId);
+        if (other) {
+          report(
+            'node-in-two-frames',
+            `${nodeName(byId.get(nodeId)!)} is in ${name} and in the frame "${other.label}", `
+              + 'a node is in one frame at most, the first one keeps it',
+            { frameId: frame.id, nodeId }
+          );
+          continue;
+        }
+        frameOf.set(nodeId, frame);
+      }
+    }
   }
 
   /** @param connected the inputs with an edge, as `<node id>/<input>` */

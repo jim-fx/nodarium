@@ -85,10 +85,11 @@ The app uses Svelte 5 runes (`$state`, `$derived`, `$effect`). Maps and sets tha
 
 They are in `packages/types/src/types.ts`, as Zod schemas with the types inferred from them.
 
-- `Graph`: `id`, `version`, `meta`, `settings`, `nodes`, `edges` and `groups`. This is what is saved and what the runtime runs.
+- `Graph`: `id`, `version`, `meta`, `settings`, `nodes`, `edges`, `groups` and the optional `frames`. This is what is saved and what the runtime runs.
 - A node in a graph has an `id` (a number), a `type` (the node id, `<author>/<system>/<node>` like `max/plantarium/stem`), a `position`, and `props` with the values of its inputs. In the editor every node also has a `state` that is never saved: its definition, its position while dragged, its mesh.
 - An edge is `[fromNode, outputIndex, toNode, inputName]`. Saved, the nodes are ids; in the editor they are the node objects themselves.
 - A group (`GroupDefinition`) has its own `nodes` and `edges` and the `inputs` and `outputs` the group node shows. Ctrl+G groups the selected nodes, Tab enters a group. Before a run, the runtime migrates the graph and `expandGroups()` replaces every group node with the nodes inside it.
+- A `Frame` is `{ id, label, color?, nodes }`: a label and a colour behind some nodes of one level, the graph and every group have their own `frames`. Only the editor reads them: the rectangle is the box of the nodes, nothing of it is stored, and the runtime, `hashGraph()` and the thumbnails leave frames out, so they never change a build. Frames are optional, a graph without them has no `frames` and no migration was needed.
 - A `NodeDefinition` is a node's `definition.json` (see [NODE_DEFINITION.md](./NODE_DEFINITION.md)) plus `execute()`, which takes one value per input and returns one per output.
 
 The types an input or output can have are in `packages/types/src/inputs.ts`: `float`, `integer`, `boolean`, `select`, `seed`, `creator`, `vec3`, `color`, `shape`, `curve`, `geometry`, `path`, `force`, `points`, `pattern`, and `*`, which connects to anything. An input may list more types it takes in `accepts`, `areSocketsCompatible()` decides which output can connect to which input. How each type is encoded is described in [PLANTARIUM.md](./PLANTARIUM.md) and, for the Myzel types, in the module docs of `myzel_core` (`packages/myzel/src`). Graphs before version 15 had a type `mesh` for the Myzel surfaces, their migration makes it `geometry`.
