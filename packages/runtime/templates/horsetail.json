@@ -4,87 +4,145 @@
   "version": 19,
   "meta": { "unit": "cm" },
   "groups": [],
-  "settings": { "resolution.circle": 6, "resolution.curve": 16, "time.t": 1 },
+  "settings": { "resolution.circle": 6, "resolution.curve": 16, "time.t": 1, "seed": 1 },
   "frames": [
-    { "id": 1, "label": "Growth and time", "color": "blue", "nodes": [30, 42, 43, 44] },
+    { "id": 1, "label": "Growth and time", "color": "blue", "nodes": [30, 42, 43, 44, 68, 69, 70] },
     {
       "id": 2,
       "label": "Shoots",
       "color": "brown",
-      "nodes": [2, 3, 4, 5, 6, 7, 17, 18, 19, 20, 21, 22, 23, 24, 39, 40, 45, 46, 47, 48, 49]
+      "nodes": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        135,
+        45,
+        46,
+        47,
+        48,
+        49,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67
+      ]
     },
     {
       "id": 3,
       "label": "Sheaths and whorls",
       "color": "green",
-      "nodes": [8, 9, 10, 11, 12, 14, 15, 16, 25, 26, 27, 28, 29, 37, 41, 50, 51]
+      "nodes": [
+        8,
+        9,
+        10,
+        11,
+        14,
+        15,
+        16,
+        25,
+        26,
+        27,
+        28,
+        29,
+        37,
+        50,
+        51,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83
+      ]
     }
   ],
   "nodes": [
     { "id": 1, "position": [30, 0], "type": "max/core/output", "props": {} },
-    { "id": 52, "position": [-10, 0], "type": "max/plantarium/to_geometry", "props": {} },
+    { "id": 52, "position": [0, 0], "type": "max/plantarium/to_geometry", "props": {} },
     {
       "id": 2,
-      "position": [-465, -75.62],
+      "position": [-490, -26.29],
       "type": "max/plantarium/stem",
-      "props": { "amount": 5, "length": 6.0, "thickness": 0.004014, "taper": 0.5 }
+      "props": { "amount": 5, "length": 6, "thickness": 0.0022, "taper": 0 }
     },
     {
       "id": 3,
-      "position": [-435, -56.87],
+      "position": [-460, -7.54],
       "type": "max/plantarium/rotate",
       "props": { "axis": 0, "angle": 0.1, "spread": 0 }
     },
     {
       "id": 4,
-      "position": [-465, -25.62],
+      "position": [-490, 23.71],
       "type": "max/core/random",
-      "props": { "min": 0.0, "max": 0.4 }
+      "props": { "min": 0, "max": 0.4 }
     },
     {
       "id": 17,
-      "position": [-555, -43.5],
+      "position": [-580, 12.13],
       "type": "max/core/random",
-      "props": { "min": 0.28098, "max": 0.42816 }
+      "props": { "min": 0.68, "max": 1, "uniform": 1 }
     },
     {
       "id": 18,
-      "position": [-495, -101.25],
+      "position": [-520, -71.37],
       "type": "max/core/vec3",
-      "props": { "x": 0, "y": 0.0, "z": 0 }
+      "props": { "x": 0, "y": 0.001, "z": 0 }
     },
     {
       "id": 19,
-      "position": [-525, -114],
+      "position": [-550, -121.62],
       "type": "max/core/random",
-      "props": { "min": -0.04683, "max": 0.04683 }
+      "props": { "min": -0.13, "max": 0.13, "uniform": 1 }
     },
     {
       "id": 20,
-      "position": [-525, -84],
+      "position": [-550, -91.62],
       "type": "max/core/random",
-      "props": { "min": -0.04683, "max": 0.04683 }
+      "props": { "min": -0.13, "max": 0.13, "uniform": 1 }
     },
     {
       "id": 5,
-      "position": [-405, -56.87],
+      "position": [-430, -7.54],
       "type": "max/plantarium/rotate",
       "props": { "axis": 1, "angle": 6.28, "spread": 1 }
     },
     {
       "id": 6,
-      "position": [-375, -56.87],
+      "position": [-400, -7.54],
       "type": "max/plantarium/noise",
       "props": { "scale": 22.421525, "strength": 0.005352 }
     },
     {
       "id": 7,
-      "position": [-315, -43.12],
+      "position": [-340, 6.21],
       "type": "max/plantarium/branch",
       "props": {
-        "amount": 14,
-        "lowest_branch": 0.2,
-        "highest_branch": 0.96,
+        "amount": 16,
+        "lowest_branch": 0.07,
+        "highest_branch": 0.965,
         "length": 0.000134,
         "thickness": 1,
         "rotation": 0,
@@ -94,204 +152,299 @@
     },
     {
       "id": 8,
-      "position": [-235, -62.71],
+      "position": [-230, -10.18],
       "type": "max/plantarium/shape",
-      "props": { "shape": [50, 100, 45, 45, 41, 0] }
+      "props": { "shape": [50, 100, 36, 92, 38, 55, 44, 22, 50, 0] }
     },
-    { "id": 9, "position": [-205, -62.71], "type": "max/plantarium/leaf", "props": { "size": 1 } },
+    { "id": 9, "position": [-200, -34.08], "type": "max/plantarium/leaf", "props": { "size": 1 } },
     {
       "id": 10,
-      "position": [-145, -43.13],
+      "position": [-140, -46.53],
       "type": "max/plantarium/instance",
       "props": {
         "amount": 10,
         "lowest_instance": 0,
         "highest_instance": 1,
-        "rotation": 0.628,
-        "angle": 1.0472,
+        "rotation": 0.6283,
+        "angle": 1,
         "size": 0.008763
       }
     },
     {
       "id": 11,
-      "position": [-115, 0],
+      "position": [-110, -5.9],
       "type": "max/plantarium/branch",
       "props": {
         "lowest_branch": 0,
         "highest_branch": 0,
         "thickness": 0.3,
         "rotation": 0.5759587,
-        "angle": 0.5236,
-        "taper": 1
+        "angle": 0.6,
+        "taper": 0.45
       }
     },
     {
-      "id": 12,
-      "position": [-145, 41.88],
-      "type": "max/core/random_int",
-      "props": { "min": 9, "max": 12 }
-    },
-    {
       "id": 14,
-      "position": [-175, 24.63],
+      "position": [-230, 94.18],
       "type": "max/plantarium/path_info",
       "props": { "info": 4 }
     },
     {
       "id": 15,
-      "position": [-145, 6.88],
+      "position": [-140, 3.47],
       "type": "max/core/curve",
       "props": {
         "curve": [
           0,
-          0.55,
+          0,
           0.2,
-          0.55,
-          0.291,
-          0.85,
-          0.39,
-          1.0,
-          0.58,
-          0.7,
-          0.808,
-          0.35,
-          0.96,
-          0.12,
+          0,
+          0.25,
+          0.62,
+          0.32,
+          0.9,
+          0.42,
           1,
-          0.12
+          0.6,
+          0.72,
+          0.808,
+          0.36,
+          0.96,
+          0.1,
+          1,
+          0.08
         ],
-        "min": 0.0,
+        "min": 0,
         "max": 0.11373
       }
     },
     {
       "id": 16,
-      "position": [-85, 0],
+      "position": [-80, -5.9],
       "type": "max/plantarium/gravity",
-      "props": { "strength": 0.15, "elasticity": 0.5 }
+      "props": { "strength": 0.12, "elasticity": 0.5 }
     },
-    { "id": 21, "position": [-435, 20.63], "type": "max/core/alpha", "props": {} },
+    { "id": 21, "position": [-460, 69.96], "type": "max/core/alpha", "props": {} },
     {
       "id": 22,
-      "position": [-405, 0.63],
+      "position": [-430, 49.96],
       "type": "max/core/curve",
       "props": { "curve": [0, 0, 0.2, 1, 1, 1], "min": 0, "max": 1 }
     },
     {
       "id": 23,
-      "position": [-375, -21.87],
+      "position": [-400, 27.46],
       "type": "max/core/mix_color",
       "props": { "a": [110, 124, 74], "b": [80, 118, 52] }
     },
-    { "id": 24, "position": [-345, -43.12], "type": "max/plantarium/set_color", "props": {} },
-    { "id": 25, "position": [-265, 4.79], "type": "max/core/alpha", "props": {} },
+    { "id": 24, "position": [-370, 6.21], "type": "max/plantarium/set_color", "props": {} },
+    { "id": 25, "position": [-260, 47.82], "type": "max/core/alpha", "props": {} },
     {
       "id": 26,
-      "position": [-235, -15.21],
+      "position": [-230, 27.82],
       "type": "max/core/curve",
-      "props": { "curve": [0, 0, 0.45, 0.1, 0.8, 1, 1, 1], "min": 0, "max": 1 }
+      "props": { "curve": [0, 0, 0.3, 0.6, 0.6, 1, 1, 1], "min": 0, "max": 1 }
     },
     {
       "id": 27,
-      "position": [-205, -37.71],
+      "position": [-200, -9.08],
       "type": "max/core/mix_color",
-      "props": { "a": [168, 174, 130], "b": [36, 28, 24] }
+      "props": { "a": [96, 96, 62], "b": [30, 24, 20] }
     },
-    { "id": 28, "position": [-175, -48.38], "type": "max/plantarium/set_color", "props": {} },
+    { "id": 28, "position": [-170, -41.82], "type": "max/plantarium/set_color", "props": {} },
     {
       "id": 29,
-      "position": [-55, 0],
+      "position": [-50, -5.9],
       "type": "max/plantarium/set_color",
       "props": { "color": [84, 116, 56] }
     },
-    { "id": 30, "position": [-605, -4.74], "type": "max/core/time", "props": {} },
+    { "id": 30, "position": [-720, -53], "type": "max/core/time", "props": {} },
     {
       "id": 37,
-      "position": [-145, 71.88],
+      "position": [-140, 58.47],
       "type": "max/core/curve",
       "props": { "curve": [0, 0.02, 0.3, 0.02, 0.55, 0.4, 0.8, 0.9, 1, 1], "min": 0, "max": 1 }
     },
     {
-      "id": 39,
-      "position": [-495, -76.25],
-      "type": "max/core/random_int",
-      "props": { "min": 3, "max": 8 }
-    },
-    {
-      "id": 40,
-      "position": [-555, -13.5],
+      "id": 135,
+      "position": [-610, 6.63],
       "type": "max/core/random",
-      "props": { "min": 0.75, "max": 1.25, "uniform": 1, "once": 1 }
-    },
-    {
-      "id": 41,
-      "position": [-175, 44.63],
-      "type": "max/core/random",
-      "props": { "min": 0.08, "max": 0.14, "uniform": 1, "once": 1 }
+      "props": { "min": 0, "max": 1, "uniform": 1, "once": 1 }
     },
     {
       "id": 42,
-      "position": [-635, 48.76],
+      "position": [-690, 40.5],
       "type": "max/core/random",
       "props": { "min": 0, "max": 0.2, "uniform": 1 }
     },
     {
       "id": 43,
-      "position": [-605, 21.26],
+      "position": [-660, 3],
       "type": "max/core/math",
       "props": { "op_type": 1, "a": 0, "b": 0 }
     },
     {
       "id": 44,
-      "position": [-635, 28.76],
+      "position": [-690, 20.5],
       "type": "max/plantarium/path_info",
       "props": { "info": 7 }
     },
     {
       "id": 45,
-      "position": [-495, -6.25],
+      "position": [-520, 48.63],
       "type": "max/core/curve",
       "props": {
-        "curve": [0.0, 0.02, 0.188, 0.15, 0.375, 0.375, 0.525, 0.48, 0.637, 0.5, 0.75, 0.5, 1, 1],
+        "curve": [0, 0.02, 0.188, 0.15, 0.375, 0.375, 0.525, 0.48, 0.637, 0.5, 0.75, 0.5, 1, 1],
         "min": 0,
-        "max": 2.0
+        "max": 2
       }
     },
     {
       "id": 46,
-      "position": [-525, -6],
+      "position": [-550, 34.38],
       "type": "max/core/curve",
       "props": { "curve": [0, 0, 1, 1], "min": 0.75, "max": 1 }
     },
     {
       "id": 47,
-      "position": [-525, -46],
+      "position": [-550, -5.62],
       "type": "max/core/math",
       "props": { "op_type": 2, "a": 0, "b": 0 }
     },
     {
       "id": 48,
-      "position": [-495, -46.25],
+      "position": [-520, -26.37],
       "type": "max/core/math",
       "props": { "op_type": 2, "a": 0, "b": 0 }
     },
     {
       "id": 49,
-      "position": [-345, -0.62],
+      "position": [-370, 48.71],
       "type": "max/core/math",
-      "props": { "op_type": 2, "a": 0, "b": 3.0 }
+      "props": { "op_type": 2, "a": 0, "b": 3 }
     },
     {
       "id": 50,
-      "position": [-205, 10.29],
+      "position": [-230, -61.18],
       "type": "max/core/curve",
       "props": { "curve": [0, 0, 0.3, 1, 1, 1], "min": 0, "max": 1 }
     },
     {
       "id": 51,
-      "position": [-175, -23.38],
+      "position": [-170, -16.83],
       "type": "max/core/math",
-      "props": { "op_type": 2, "a": 0.008763, "b": 0 }
+      "props": { "op_type": 2, "a": 0.0075, "b": 0 }
+    },
+    {
+      "id": 60,
+      "position": [-580, 42.13],
+      "type": "max/core/curve",
+      "props": { "curve": [0, 0, 1, 1], "min": 0.26, "max": 0.62 }
+    },
+    {
+      "id": 61,
+      "position": [-580, -68.87],
+      "type": "max/core/curve",
+      "props": { "curve": [0, 0, 1, 1], "min": 6, "max": 15 }
+    },
+    {
+      "id": 62,
+      "position": [-580, -33.87],
+      "type": "max/core/random",
+      "props": { "min": -1, "max": 1 }
+    },
+    { "id": 63, "position": [-550, -53.62], "type": "max/core/math", "props": { "op_type": 0 } },
+    { "id": 64, "position": [-520, -46.37], "type": "max/core/round", "props": {} },
+    {
+      "id": 65,
+      "position": [-520, 91.63],
+      "type": "max/core/curve",
+      "props": { "curve": [0, 1, 1, 0], "min": 0.1, "max": 0.42 }
+    },
+    { "id": 66, "position": [-550, 77.38], "type": "max/core/alpha", "props": {} },
+    {
+      "id": 67,
+      "position": [-520, 13.63],
+      "type": "max/core/curve",
+      "props": { "curve": [0, 1, 0.5, 0.86, 0.85, 0.52, 1, 0.12], "min": 0, "max": 0.0022 }
+    },
+    {
+      "id": 68,
+      "position": [-690, -65.5],
+      "type": "max/core/math",
+      "props": { "op_type": 2, "b": 1.45 }
+    },
+    {
+      "id": 69,
+      "position": [-690, -25.5],
+      "type": "max/core/random",
+      "props": { "min": 0, "max": 0.45, "uniform": 1, "per_path": 1 }
+    },
+    { "id": 70, "position": [-660, -53], "type": "max/core/math", "props": { "op_type": 1 } },
+    {
+      "id": 71,
+      "position": [-260, -134.18],
+      "type": "max/plantarium/shape",
+      "props": { "shape": [50, 100, 12, 97, 8, 70, 4, 30, 2, 8, 30, 2, 50, 0] }
+    },
+    {
+      "id": 72,
+      "position": [-230, -134.18],
+      "type": "max/plantarium/revolve",
+      "props": { "size": 0.01 }
+    },
+    { "id": 73, "position": [-290, -66.68], "type": "max/core/alpha", "props": {} },
+    {
+      "id": 74,
+      "position": [-260, -86.68],
+      "type": "max/core/curve",
+      "props": { "curve": [0, 0, 0.55, 0.15, 0.85, 1, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 75,
+      "position": [-230, -109.18],
+      "type": "max/core/mix_color",
+      "props": { "a": [150, 166, 104], "b": [52, 40, 30] }
+    },
+    { "id": 76, "position": [-200, -107.07], "type": "max/plantarium/set_color", "props": {} },
+    {
+      "id": 77,
+      "position": [-170, -91.82],
+      "type": "max/plantarium/instance",
+      "props": {
+        "amount": 1,
+        "lowest_instance": 0,
+        "highest_instance": 0,
+        "rotation": 0,
+        "angle": 1.5708,
+        "size": 0.5
+      }
+    },
+    {
+      "id": 78,
+      "position": [-200, -82.07],
+      "type": "max/core/math",
+      "props": { "op_type": 2, "a": 0.52 }
+    },
+    {
+      "id": 79,
+      "position": [-200, 74.18],
+      "type": "max/core/curve",
+      "props": { "curve": [0, 0, 0.2, 0, 0.24, 1, 1, 1], "min": 0, "max": 1 }
+    },
+    {
+      "id": 80,
+      "position": [-200, 109.18],
+      "type": "max/core/random",
+      "props": { "min": 9, "max": 12.4 }
+    },
+    { "id": 81, "position": [-170, 74.18], "type": "max/core/math", "props": { "op_type": 2 } },
+    { "id": 82, "position": [-140, 38.47], "type": "max/core/round", "props": {} },
+    {
+      "id": 83,
+      "position": [-170, 31.18],
+      "type": "max/core/curve",
+      "props": { "curve": [0, 0, 1, 1], "min": 0.06, "max": 0.15 }
     }
   ],
   "edges": [
@@ -304,10 +457,8 @@
     [5, 0, 6, "plant"],
     [24, 0, 7, "plant"],
     [8, 0, 9, "shape"],
-    [7, 0, 10, "plant"],
     [28, 0, 10, "geometry"],
     [10, 0, 11, "plant"],
-    [12, 0, 11, "amount"],
     [14, 0, 15, "value"],
     [11, 0, 16, "plant"],
     [29, 0, 52, "input"],
@@ -321,15 +472,10 @@
     [9, 0, 28, "plant"],
     [27, 0, 28, "color"],
     [16, 0, 29, "plant"],
-    [39, 0, 2, "amount"],
-    [41, 0, 15, "max"],
     [42, 0, 43, "b"],
     [43, 0, 37, "value"],
-    [30, 0, 45, "value"],
     [45, 0, 2, "growth"],
-    [30, 0, 46, "value"],
     [17, 0, 47, "a"],
-    [40, 0, 47, "b"],
     [47, 0, 48, "a"],
     [46, 0, 48, "b"],
     [48, 0, 2, "length"],
@@ -340,6 +486,39 @@
     [51, 0, 10, "size"],
     [44, 0, 43, "a"],
     [15, 0, 11, "length"],
-    [37, 0, 11, "growth"]
+    [37, 0, 11, "growth"],
+    [135, 0, 60, "value"],
+    [60, 0, 47, "b"],
+    [135, 0, 61, "value"],
+    [61, 0, 63, "a"],
+    [62, 0, 63, "b"],
+    [63, 0, 64, "value"],
+    [64, 0, 2, "amount"],
+    [135, 0, 65, "value"],
+    [65, 0, 4, "max"],
+    [66, 0, 67, "value"],
+    [67, 0, 2, "thickness"],
+    [30, 0, 68, "a"],
+    [68, 0, 70, "a"],
+    [69, 0, 70, "b"],
+    [70, 0, 45, "value"],
+    [70, 0, 46, "value"],
+    [71, 0, 72, "shape"],
+    [73, 0, 74, "value"],
+    [74, 0, 75, "factor"],
+    [72, 0, 76, "plant"],
+    [75, 0, 76, "color"],
+    [7, 0, 77, "plant"],
+    [76, 0, 77, "geometry"],
+    [50, 0, 78, "b"],
+    [78, 0, 77, "size"],
+    [77, 0, 10, "plant"],
+    [14, 0, 79, "value"],
+    [79, 0, 81, "a"],
+    [80, 0, 81, "b"],
+    [81, 0, 82, "value"],
+    [82, 0, 11, "amount"],
+    [135, 0, 83, "value"],
+    [83, 0, 15, "max"]
   ]
 }
