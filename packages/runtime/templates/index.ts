@@ -62,7 +62,7 @@ const ABOUT: Record<string, About> = {
   },
   lavender: {
     species: 'Lavandula angustifolia (English lavender)',
-    notes: 'A short woody crown with 11–18 woody stems, each with up to 4 upright flower stems of '
+    notes: '11–18 woody stems from a spiral, each with up to 4 upright flower stems of '
       + 'linear leaves and a spike of 110 florets, and a short leafy side shoot.'
   },
   sage: {

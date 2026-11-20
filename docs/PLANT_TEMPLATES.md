@@ -239,7 +239,7 @@ Family Lamiaceae.
 
 **Structure:** An evergreen dome, 40–60 cm high including the flowers. A woody base branches into dense leafy shoots that form a low grey-green mound. The leaves are opposite and decussate (each pair is turned 1.5708 rad to the next). They are linear, about 2–5 cm × 2–5 mm (more than 10:1), with margins rolled under (_revolute_), and crowded toward the base. From the mound rise many long, bare, unbranched flowering stems, 10–35 cm above the foliage. Each ends in a slender spike 2–8 cm long of stacked flower whorls, with the lowest whorls spaced further apart.
 
-**Template:** A short woody crown branches into 11–18 woody stems at the golden angle. An `alpha -> curve` sets how far they rise: the lowest lie 0.2 rad above the ground and are the longest (16 cm), the ones in the middle of the crown stand at 1.05 rad and are about half as long, so the shoots start all over a low frame instead of at one point.
+**Template:** 11–18 woody stems grow from the points of a `spiral` at the golden angle, 1.8 cm from the lowest to the highest. An `alpha -> curve` sets how far they rise: the lowest lie 0.2 rad above the ground and are the longest (16 cm), the ones in the middle stand at 1.05 rad and are about half as long, so the shoots start all over a low frame instead of at one point.
 
 Every woody stem has five places for a shoot, from 30 % of its length to its tip. The four upper ones are flower stems. An `alpha -> curve` into the branch `rotation` turns each of them up around the woody stem, a little to alternating sides (the turns add up from branch to branch, so the curve holds the differences). Their `angle` is the angle of their woody stem above the ground, which `path_info` parent position gives through the same curve, plus how far they lean out: 0.5–0.95 rad on the lowest woody stems, 0.17 rad in the middle. So every flower stem stands up whatever its woody stem does, the outer ones lean out and the inner ones are upright, and the spikes end on a dome. Before, the flower stems went on in the direction of their woody stems and splayed almost flat. A weak negative gravity lets them arch up a little. The first place is the branch that always points to the side: a short leafy shoot without flowers that turns up, the skirt of the mound. A `random` through a step curve into the `growth` decides which places grow a shoot at all, 55–95 % of them by seed.
 
@@ -247,7 +247,7 @@ The lower 40 % of a flower stem carries 14–24 linear leaves at 1.5708 rad step
 
 **Per seed:** one `habit` from an upright plant with long flower stems to a low, wide cushion with short ones sets the length of the flower stems (1 to 1.5 times 30–36 cm) and how far the outer ones lean out. Apart from it, the size of the whole plant, the number of woody stems, how many places grow a shoot, the length of the spike and the hues of leaves and florets differ.
 
-**Colours:** The crown and the woody stems are grey-brown, the flower stems grey-green. The leaves are grey-green, one shade per seed. The florets are lavender with a dusky calyx at their base, one hue per seed between lavender blue and purple.
+**Colours:** The woody stems are grey-brown, the flower stems grey-green. The leaves are grey-green, one shade per seed. The florets are lavender with a dusky calyx at their base, one hue per seed between lavender blue and purple.
 
 ## Maidenhair Fern: _Adiantum raddianum_ (delta maidenhair)
 
