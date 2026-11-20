@@ -42,14 +42,18 @@
 
   // svelte-ignore state_referenced_locally
   export const manager = new GraphManager(registry);
+  // svelte-ignore state_referenced_locally
+  manager.valuesOnly = options.valuesOnly ?? false;
   setGraphManager(manager);
 
   export const state = new GraphState(manager, () => options);
   setGraphState(state);
 
-  onDestroy(persistCamera(state.camera, () => manager.id));
+  // the graph of a values-only editor is no project, a camera stored under its id would move
+  // the camera of the project with that id
+  if (!manager.valuesOnly) onDestroy(persistCamera(state.camera, () => manager.id));
 
-  setupKeymaps(keymap, manager, state, () => onhelp?.());
+  setupKeymaps(keymap, manager, state, () => onhelp?.(), manager.valuesOnly);
 
   const highlighted = $derived(new Set(highlightedNodeIds));
   state.readHighlightedNodes = () => highlighted;
@@ -76,9 +80,10 @@
   manager.on('placed', () => setTimeout(() => state.centerNode()));
 
   onMount(() => {
-    if (graph) {
-      manager.load(graph);
-    }
+    if (!graph) return;
+    void manager.load(graph).then(() => {
+      if (manager.valuesOnly) setTimeout(() => state.centerNode());
+    });
   });
 </script>
 

@@ -232,7 +232,7 @@ export class MouseEventManager {
   }
 
   private connectToDebugNode(nodeId: number) {
-    if (nodeId === -1) return;
+    if (nodeId === -1 || this.state.options.valuesOnly) return;
     const debugNode = this.graph.tryConnectToDebugNode(nodeId);
     if (debugNode) this.state.updateNodePosition(debugNode);
   }
@@ -260,7 +260,7 @@ export class MouseEventManager {
     const target = event.target as HTMLElement;
 
     const frameHeader = target.closest?.('.frame-header');
-    if (frameHeader) {
+    if (frameHeader && !this.state.options.valuesOnly) {
       if (target.nodeName !== 'INPUT') {
         this.pressFrameTitle(
           frameHeader,
@@ -321,7 +321,7 @@ export class MouseEventManager {
         this.state.activeNodeId = clickedNodeId;
         this.state.clearSelection();
       }
-      this.edgeInteractionManager.handleMouseDown();
+      if (!this.state.options.valuesOnly) this.edgeInteractionManager.handleMouseDown();
     } else if (event.ctrlKey) {
       this.state.boxSelection = true;
     }
@@ -417,7 +417,12 @@ export class MouseEventManager {
       return;
     }
 
-    if (this.state.activeNodeId !== -1 && this.state.mouseDownNodeId !== -1) {
+    // in the values-only mode, a drag on a node moves the view instead
+    if (
+      this.state.activeNodeId !== -1
+      && this.state.mouseDownNodeId !== -1
+      && !this.state.options.valuesOnly
+    ) {
       this.edgeInteractionManager.handleMouseMove();
       const node = this.graph.getNode(this.state.activeNodeId);
       if (!node || event.buttons !== 1) return;

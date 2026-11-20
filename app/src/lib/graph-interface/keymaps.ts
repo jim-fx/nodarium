@@ -8,8 +8,11 @@ export function setupKeymaps(
   keymap: Keymap,
   graph: GraphManager,
   graphState: GraphState,
-  onhelp: () => void
+  onhelp: () => void,
+  valuesOnly = false
 ) {
+  const addEdit: Keymap['addShortcut'] = valuesOnly ? () => {} : (s) => keymap.addShortcut(s);
+
   keymap.addShortcut({
     key: 'l',
     description: 'Select linked nodes',
@@ -32,14 +35,14 @@ export function setupKeymaps(
     callback: onhelp
   });
 
-  keymap.addShortcut({
+  addEdit({
     key: 'c',
     ctrl: true,
     description: 'Copy active nodes',
     callback: () => graphState.copyNodes()
   });
 
-  keymap.addShortcut({
+  addEdit({
     key: 'v',
     ctrl: true,
     description: 'Paste nodes',
@@ -66,7 +69,7 @@ export function setupKeymaps(
     }
   });
 
-  keymap.addShortcut({
+  addEdit({
     key: 'g',
     ctrl: true,
     preventDefault: true,
@@ -74,7 +77,7 @@ export function setupKeymaps(
     callback: () => graphState.groupSelectedNodes()
   });
 
-  keymap.addShortcut({
+  addEdit({
     key: 'j',
     ctrl: true,
     preventDefault: true,
@@ -82,7 +85,7 @@ export function setupKeymaps(
     callback: () => graphState.frameSelection()
   });
 
-  keymap.addShortcut({
+  addEdit({
     key: 'p',
     alt: true,
     preventDefault: true,
@@ -91,7 +94,7 @@ export function setupKeymaps(
       graph.removeFromFrames([graphState.activeNodeId, ...graphState.selectedNodes.values()])
   });
 
-  keymap.addShortcut({
+  addEdit({
     key: 'm',
     ctrl: false,
     preventDefault: false,
@@ -102,7 +105,7 @@ export function setupKeymaps(
       )
   });
 
-  keymap.addShortcut({
+  addEdit({
     key: 'g',
     alt: true,
     preventDefault: true,
@@ -120,7 +123,7 @@ export function setupKeymaps(
     }
   });
 
-  keymap.addShortcut({
+  addEdit({
     key: 'A',
     shift: true,
     description: 'Add new Node',
@@ -177,7 +180,7 @@ export function setupKeymaps(
     }
   });
 
-  keymap.addShortcut({
+  addEdit({
     key: 's',
     ctrl: true,
     description: 'Save',
@@ -192,7 +195,7 @@ export function setupKeymaps(
     }
   });
 
-  keymap.addShortcut({
+  addEdit({
     key: ['Delete', 'Backspace', 'x'],
     description: 'Delete selected nodes, or the selected frame without its nodes',
     callback: (event) => {
@@ -222,7 +225,7 @@ export function setupKeymaps(
     }
   });
 
-  keymap.addShortcut({
+  addEdit({
     key: 'F',
     shift: true,
     description: 'Format nodes',
@@ -232,7 +235,7 @@ export function setupKeymaps(
     }
   });
 
-  keymap.addShortcut({
+  addEdit({
     key: 'f',
     description: 'Smart Connect Nodes',
     callback: () => {
