@@ -94,7 +94,9 @@ const ABOUT: Record<string, About> = {
   },
   'devils-backbone': {
     species: 'Euphorbia tithymaloides (zigzag plant)',
-    notes: '9 stems zigzagged by trunk_kink, a leaf on the outer side of every kink.'
+    notes: '5–10 stems zigzagged by trunk_kink that come up one after another, an ovate leaf on '
+      + 'the outer side of every kink, red cyathia on the tips of the oldest. A low bush or a tall '
+      + 'open plant by seed.'
   },
   knotweed: {
     species: 'Reynoutria japonica (Japanese knotweed)',
