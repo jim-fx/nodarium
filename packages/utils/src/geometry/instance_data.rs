@@ -1,4 +1,4 @@
-use super::{GeometryData, NO_PATH};
+use super::{GeometryData, NO_CREATOR, NO_PATH};
 
 pub struct InstanceData<'a> {
     pub instances: &'a mut [f32],
@@ -60,12 +60,12 @@ static INSTANCE_HEADER_SIZE: usize = 5;
 // 1: vertex amount
 // 2: face amount
 // 3: instance amount
-// 4: stem_depth
+// 4: creator, the id of the graph node that placed the instances, `NO_CREATOR` for none
 // followed by faces, positions, normals, a 4x4 matrix per instance, the id of the path each
 // instance sits on and, for a geometry with colors, an RGBA8 color per vertex
 
 fn instance_data_len(vertex_amount: usize, face_amount: usize, instance_amount: usize) -> usize {
-    INSTANCE_HEADER_SIZE // type, vertex_amount, face_amount, instance_amount, stem_depth
+    INSTANCE_HEADER_SIZE // type, vertex_amount, face_amount, instance_amount, creator
       + 4 // opening and closing brackets
       + instance_amount * 16  // instances stored as 4x4 matrices
       + instance_amount // the id of the path each instance sits on
@@ -108,7 +108,7 @@ fn create_instances(
     geo[3] = vertex_amount as i32;
     geo[4] = face_amount as i32;
     geo[5] = instance_amount as i32;
-    geo[6] = 1; // stem_depth
+    geo[6] = NO_CREATOR;
     // no instance sits on a path until it is set
     let path_ids = amount - 2 - colors - instance_amount;
     geo[path_ids..path_ids + instance_amount].fill(NO_PATH);
@@ -136,8 +136,9 @@ pub fn pick_geometry(by_index: bool, value: f32, hash: i32, count: usize) -> usi
     index(x.powf(4.0_f32.powf(-value.clamp(-1.0, 1.0))))
 }
 
-/// Instances of `geometry` (brackets included), one per transform, each on the path of its id.
-pub fn encode_instances(geometry: &[i32], transforms: &[[f32; 16]], path_ids: &[i32]) -> Vec<i32> {
+/// Instances of `geometry` (brackets included), one per transform, each on the path of its id,
+/// placed by the graph node `creator`.
+pub fn encode_instances(geometry: &[i32], transforms: &[[f32; 16]], path_ids: &[i32], creator: i32) -> Vec<i32> {
     let mut geo_data = geometry.to_vec();
     let geo = super::wrap_geometry_data(&mut geo_data);
     let create = if geo.colors.is_empty() { create_instance_data } else { create_colored_instance_data };
@@ -148,6 +149,7 @@ pub fn encode_instances(geometry: &[i32], transforms: &[[f32; 16]], path_ids: &[
         instances.set_transformation_matrix(i, transform);
         instances.set_path_id(i, *path_id);
     }
+    data[6] = creator;
     data
 }
 

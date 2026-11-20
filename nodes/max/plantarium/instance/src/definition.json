@@ -105,6 +105,9 @@
       "options": ["up", "path"],
       "value": 0,
       "description": "Which way the face of an instance looks, its top side, which y_curve and deform bend it from. Up: toward the sky as far as it can, like leaves that turn to the light. Path: as if the path stood upright, toward its tip and the inside of the ring, so the face turns with the path: the petals or bracts around a head that nods or leans all look at its axis alike. On an upright path both are the same."
+    },
+    "creator": {
+      "type": "creator"
     }
   }
 }

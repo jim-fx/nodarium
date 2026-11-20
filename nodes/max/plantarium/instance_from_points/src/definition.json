@@ -1,7 +1,7 @@
 {
   "id": "max/plantarium/instance_from_points",
   "meta": {
-    "description": "Places a copy of a geometry on every point, for example a leaf on the points of points_on_path or the kinks of trunk_kink."
+    "description": "Places a copy of a geometry on every point, for example a leaf on the points of points_on_path or the kinks of trunk_kink, or a rosette of leaves on the points of spiral."
   },
   "outputs": [
     "path"
@@ -26,7 +26,7 @@
     },
     "size": {
       "type": "float",
-      "description": "The size of the instances, relative to the path at the point.",
+      "description": "The size of the instances, times the thickness of the path at the point plus 1 cm. A point of spiral sits on no path and counts as 1 m thick.",
       "min": 0,
       "step": 0.05,
       "value": 1
@@ -43,6 +43,9 @@
     },
     "seed": {
       "type": "seed"
+    },
+    "creator": {
+      "type": "creator"
     }
   }
 }

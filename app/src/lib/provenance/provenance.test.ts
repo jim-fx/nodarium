@@ -1,7 +1,7 @@
 import { HIGHLIGHT } from '#lib/result-viewer/provenance/highlight.ts';
 import { toCreatorId } from '@nodarium/runtime';
 import type { Graph, NodeDefinition } from '@nodarium/types';
-import { NO_PARENT, type PathLink } from '@nodarium/utils';
+import { NO_PARENT, NO_PATH, type PathLink } from '@nodarium/utils';
 import { describe, expect, it } from 'vitest';
 import {
   buildIndex,
@@ -42,6 +42,13 @@ const DEFINITIONS = [
   definition('p/separate', ['path'], { plant: { type: 'path' }, mask: { type: 'path' } }),
   definition('p/instance', ['path'], { plant: { type: 'path' }, shape: { type: 'shape' } }),
   definition('p/leaf', ['shape']),
+  definition('p/spiral', ['points'], { amount: { type: 'integer' } }),
+  definition('p/instance_from_points', ['path'], {
+    plant: { type: 'path' },
+    points: { type: 'points' },
+    shape: { type: 'shape' },
+    creator
+  }),
   definition('p/curve', ['float']),
   definition('p/random', ['float'], { creator }),
   definition('p/output', [], { input: { type: 'path', accepts: ['geometry'] } }),
@@ -135,6 +142,27 @@ describe('the parts of a plant', () => {
     expect(nodeOfPart(index, result, { kind: 'geometry', pathId: 201 })).toBe(2);
     expect(nodeOfPart(index, result, { kind: 'instances', pathId: 201 })).toBe(4);
     expect(nodeOfPart(index, result, { kind: 'geometry', pathId: 999 })).toBeUndefined();
+  });
+
+  it('leads from an instance that names the node that placed it to that node', () => {
+    // a rosette: spiral 1 → instance_from_points 4 and 8 → output 5, a leaf 6 into 4
+    const rosette = graphOf(
+      [[1, 'p/spiral'], [4, 'p/instance_from_points'], [8, 'p/instance_from_points'], [
+        5,
+        'p/output'
+      ], [6, 'p/leaf']],
+      [[1, 0, 4, 'points'], [1, 0, 8, 'points'], [4, 0, 5, 'input'], [6, 0, 4, 'shape']]
+    );
+    const rosetteIndex = buildIndex(rosette, traits);
+    const placed = resultOf([], [4, 8]);
+    const hit = { kind: 'instances', pathId: NO_PATH, creator: 8 } as const;
+    expect(nodeOfPart(rosetteIndex, placed, hit)).toBe(8);
+    expect(nodeOfPart(rosetteIndex, placed, { ...hit, creator: undefined })).toBeUndefined();
+
+    const only = (creators: number[]) => ({ paths: [], instances: [], creators });
+    expect(plain(partsOfRunning(rosetteIndex, placed, [4]))).toEqual(only([4]));
+    expect(plain(partsOfRunning(rosetteIndex, placed, [6]))).toEqual(only([4]));
+    expect(plain(partsOfRunning(rosetteIndex, placed, [1]))).toEqual(only([4, 8]));
   });
 
   it('leads from an instance to the creator of its path when two instance nodes get it', () => {

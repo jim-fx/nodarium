@@ -1,0 +1,49 @@
+{
+  "id": "max/plantarium/spiral",
+  "meta": {
+    "description": "Makes points around one spot, each turned from the one before by the golden angle, where branch_from_points grows a clump of stems or instance_from_points places a rosette of leaves. The points sit on no path."
+  },
+  "outputs": [
+    "points"
+  ],
+  "inputs": {
+    "origin": {
+      "type": "vec3",
+      "description": "Where the first point sits. Read for every point, alpha is where it sits in the spiral.",
+      "value": [0, 0, 0],
+      "external": true,
+      "unit": "m"
+    },
+    "points": {
+      "type": "points",
+      "description": "Centres, for example the points of sample_mesh on a substrate. Every centre gets a spiral of its own, around the direction of the centre instead of straight up from the origin.",
+      "external": true
+    },
+    "amount": {
+      "type": "integer",
+      "description": "How many points a spiral has.",
+      "min": 0,
+      "max": 256,
+      "value": 12
+    },
+    "height": {
+      "type": "float",
+      "description": "How far the last point sits above the first, the points in between rise evenly. 0 puts all of them on one spot. Read for every point.",
+      "min": 0,
+      "max": 1,
+      "step": 0.001,
+      "value": 0,
+      "unit": "m"
+    },
+    "rotation": {
+      "type": "float",
+      "description": "How far every point turns from the one before it, in radians: 2.3998 rad is the golden angle, 3.1416 rad puts them in two ranks. Read for every point.",
+      "min": 0,
+      "max": 6.2832,
+      "step": 0.01,
+      "value": 2.3998,
+      "hidden": true,
+      "unit": "rad"
+    }
+  }
+}

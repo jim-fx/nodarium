@@ -1,6 +1,7 @@
 import type { GraphManager, GraphState } from '#lib/graph-interface/index.ts';
 import type { PartHighlight } from '#lib/result-viewer/provenance/highlight.ts';
 import type { PartHit } from '#lib/result-viewer/provenance/part-hit.ts';
+import { NO_PATH } from '@nodarium/utils';
 import {
   buildIndex,
   composeHighlight,
@@ -207,6 +208,12 @@ export class ViewportLink {
       // a tissue is as fine as a geometry tells its groups apart
       const creators = hit.creator === undefined ? [] : [hit.creator];
       this.picked = { nodeId, paths: [], creators, instancesOnly: false };
+      return;
+    }
+    if (hit.kind === 'instances' && hit.pathId === NO_PATH && hit.creator !== undefined) {
+      // an instance on a point without a path, like a leaf of a rosette, is picked with the
+      // others of its node
+      this.picked = { nodeId, paths: [], creators: [hit.creator], instancesOnly: false };
       return;
     }
     const instancesOnly = hit.kind === 'instances' && isInstanceNode(index, creator);

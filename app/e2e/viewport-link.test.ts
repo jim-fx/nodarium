@@ -15,6 +15,18 @@ const stem = {
   edges: [[1, 0, 2, 'input']]
 };
 
+// a rosette of upright leaves on the points of a spiral, which sit on no path
+const rosette = {
+  version: 14,
+  nodes: [
+    { id: 1, type: 'max/plantarium/spiral', props: { amount: 5 } },
+    { id: 2, type: 'max/plantarium/leaf', props: { size: 0.01 } },
+    { id: 3, type: 'max/plantarium/instance_from_points', props: { angle: 1.2 } },
+    { id: 4, type: 'max/plantarium/output' }
+  ],
+  edges: [[1, 0, 3, 'points'], [2, 0, 3, 'geometry'], [3, 0, 4, 'input']]
+};
+
 const node = (id: number) => page.locator(`.node[data-node-id="${id}"]`);
 const highlighted = () => page.locator('.node.highlighted');
 
@@ -65,6 +77,17 @@ test('a part of a plant leads to its node: hover, click and the local view', asy
 
   // the pointer is outside the viewer, no part is hovered
   await expect(highlighted()).toHaveCount(0);
+});
+
+test('a leaf on no path leads to the node that placed it', async () => {
+  await page.evaluate((g) => window.nodarium!.graph.load(g, { title: 'rosette' }), rosette);
+  await page.evaluate(() => window.nodarium!.idle());
+
+  const { x, y } = await hoverMiddle();
+  await expect(node(3)).toHaveClass(/highlighted/);
+
+  await page.mouse.click(x, y);
+  await expect(node(3)).toHaveClass(/active/);
 });
 
 test('a tissue of a mushroom leads to the group node that made it', async () => {

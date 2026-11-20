@@ -391,13 +391,13 @@ type GeometryData = MeshData & {
 
 type InstancesData = MeshData & {
   instanceCount: number;
-  depth: number;
+  creator: number; // the creator id of the node that placed the instances, NO_CREATOR for none
   matrices: Float32Array; // a column-major 4x4 matrix per instance
   pathIds: Int32Array; // the path every instance sits on
 };
 ```
 
-Every graph ends in the one output, `max/core/output`, which takes only geometry: a plant comes out of its `to_geometry` as one geometry of tubes with a group for every node that made them, and `instances`, a mushroom as one geometry with `groups`. The tubes carry the links of their paths in `paths` (id, parent, creator, …, see `readPathLinkTable()` of `@nodarium/utils`), an instance names the path it sits on in `pathIds`. Its colors come from nodes like `set_color`, and its group for every vertex lets a viewer give every tissue its own material. Alpha is how much of a color shows over the material: vertices without a color of their own have alpha 0 and take the color of the material.
+Every graph ends in the one output, `max/core/output`, which takes only geometry: a plant comes out of its `to_geometry` as one geometry of tubes with a group for every node that made them, and `instances`, a mushroom as one geometry with `groups`. The tubes carry the links of their paths in `paths` (id, parent, creator, …, see `readPathLinkTable()` of `@nodarium/utils`), an instance names the path it sits on in `pathIds` and the node that placed it in `creator`. Its colors come from nodes like `set_color`, and its group for every vertex lets a viewer give every tissue its own material. Alpha is how much of a color shows over the material: vertices without a color of their own have alpha 0 and take the color of the material.
 
 Up to version 1.2 mushrooms came out as `meshes`, read by `readMesh()`, and the graphs of version 14 and before had nodes and links of the type `mesh`. Since 2.0 they are `geometries` with `groups`: read a mushroom with `decodeResult(result).geometries` or `readGeometry()`, the flags of the header are `GEOMETRY_FLAGS`. Old graphs are migrated when they load.
 
