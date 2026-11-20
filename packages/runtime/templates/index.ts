@@ -137,7 +137,10 @@ const ABOUT: Record<string, About> = {
     notes: 'The Stipe and Cap groups, a Pores group instead of the Gills and a Reticulation net on '
       + 'the stipe.'
   },
-  shiitake: { notes: 'The Stipe, Cap, Gills and Cuticle groups, no veil.' },
+  shiitake: {
+    notes: 'Two to six fruit bodies of their own age on short stipes that lean out and turn up, '
+      + 'with the Gills and Cuticle groups, no veil.'
+  },
   'shaggy-inkcap': {
     notes: 'Three to seven stipes of their own age, with the Gills, Cuticle and Ring groups.'
   },
