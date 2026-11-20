@@ -2,6 +2,7 @@ import { GEOMETRY_FLAGS, RESULT_TAGS } from '@nodarium/runtime';
 import { isPath, pathPointCount, splitNestedArray } from '@nodarium/utils';
 import {
   ArrowHelper,
+  Box3,
   BufferGeometry,
   Color,
   Float32BufferAttribute,
@@ -9,30 +10,27 @@ import {
   Line,
   LineBasicMaterial,
   LineSegments,
-  Matrix4,
-  type Mesh,
-  MeshBasicMaterial,
+  type Material,
+  type MeshBasicMaterial,
   Points,
   PointsMaterial,
+  ShaderMaterial,
   Vector3
 } from 'three';
-import { createGeometryPool } from '../geometry/geometryPool';
+import { createResultPools, takeVertexColors } from '../geometry/geometryPool';
 import { PATH_HEADER_SIZE } from '../gizmos/gizmo-paths';
 
 // one color per stem depth, branches of branches get the next color
 const depthColors = ['#ff5c5c', '#ffb347', '#4dd2ff', '#c084fc', '#5eea8c'].map((c) =>
   new Color(c)
 );
-const INSTANCE_COLOR = new Color('#5eea8c');
 const POINT_COLOR = new Color('#f472b6');
 // the arrow of a point is this many times the thickness of the path at the point
 const POINT_ARROW_SCALE = 5;
 // so a point on a very thin path still gets an arrow that can be seen
 const POINT_ARROW_MIN = 0.05;
-// instances are tiny next to the plant, their arrows are drawn this much longer
-const INSTANCE_ARROW_SCALE = 100;
 const RING_SEGMENTS = 12;
-// drawn on top of the result
+// the lines are drawn on top of the result, paths run inside their tubes
 const RENDER_ORDER = 999;
 
 const DRAWN_TYPES = new Set(['path', 'geometry', 'points', 'pattern']);
@@ -237,65 +235,6 @@ function createPathDebug(paths: Int32Array[], clip = 1) {
   return group;
 }
 
-/** geometries as a wireframe */
-function createGeometryDebug(geometries: Int32Array[]) {
-  const group = new Group();
-  const material = new MeshBasicMaterial({
-    color: '#4dd2ff',
-    wireframe: true,
-    transparent: true,
-    opacity: 0.35,
-    depthTest: false
-  });
-
-  createGeometryPool(group, material).update(geometries);
-  group.traverse((child) => {
-    (child as Mesh).renderOrder = RENDER_ORDER;
-  });
-
-  return group;
-}
-
-/**
- * Instances as an arrow from their location along the direction they grow in. The geometry
- * grows along its -z axis. Instances are often tiny next to the plant, so the arrows are
- * scaled up by a fixed factor, they still grow and shrink with the size of the instances.
- */
-function createInstanceDebug(instances: Int32Array[], amount = 1) {
-  const group = new Group();
-  const matrix = new Matrix4();
-  const origin = new Vector3();
-  const direction = new Vector3();
-
-  for (const [index, data] of instances.entries()) {
-    // 0: type, 1: vertices, 2: faces, 3: instances, 4: creator, followed by the faces,
-    // the positions and normals of the geometry, then a matrix for every instance
-    const vertices = data[1];
-    const faces = data[2];
-    const count = data[3];
-    const offset = 5 + faces * 3 + vertices * 6;
-    const f32 = new Float32Array(data.buffer, data.byteOffset, data.length);
-
-    for (let i = 0; i < count; i++) {
-      if (!isShown(itemKey(index, i), amount)) continue;
-      matrix.fromArray(f32, offset + i * 16);
-      origin.setFromMatrixPosition(matrix);
-      direction.setFromMatrixColumn(matrix, 2).negate();
-      const length = direction.length() * INSTANCE_ARROW_SCALE;
-      if (!(length > 0)) continue;
-
-      const arrow = new ArrowHelper(direction.normalize(), origin.clone(), length, INSTANCE_COLOR);
-      (arrow.line.material as LineBasicMaterial).depthTest = false;
-      (arrow.cone.material as MeshBasicMaterial).depthTest = false;
-      arrow.line.renderOrder = RENDER_ORDER;
-      arrow.cone.renderOrder = RENDER_ORDER;
-      group.add(arrow);
-    }
-  }
-
-  return group;
-}
-
 /**
  * Points as a dot with an arrow along their direction, the way a branch on them would grow,
  * and a short line along the tangent of the path they sit on.
@@ -370,6 +309,95 @@ function createPointsDebug(points: Int32Array[]) {
   return group;
 }
 
+/** The words of an instance item before its faces: type, vertices, faces, instances, creator */
+const INSTANCES_HEADER = 5;
+
+/** The instances of an item with `amount` of them, the geometry they share stays as it is */
+function selectInstances(data: Int32Array, index: number, amount = 1) {
+  if (amount >= 1) return data;
+  const count = data[3];
+  const matrices = INSTANCES_HEADER + data[2] * 3 + data[1] * 6;
+  const ids = matrices + count * 16;
+  const hasIds = data.length >= ids + count;
+  const kept: number[] = [];
+  for (let i = 0; i < count; i++) if (isShown(itemKey(index, i), amount)) kept.push(i);
+  const colors = data.subarray(hasIds ? ids + count : ids);
+  const result = new Int32Array(
+    matrices + kept.length * (hasIds ? 17 : 16) + colors.length
+  );
+  result.set(data.subarray(0, matrices));
+  result[3] = kept.length;
+  let at = matrices;
+  for (const i of kept) {
+    result.set(data.subarray(matrices + i * 16, matrices + i * 16 + 16), at);
+    at += 16;
+  }
+  if (hasIds) { for (const i of kept) result[at++] = data[ids + i]; }
+  result.set(colors, at);
+  return result;
+}
+
+/** What one debug entry draws: surfaces like the result, paths and points as lines */
+function debugItems({ type, data, amount }: DebugEntry) {
+  // single values like floats and vectors have nothing to draw. A pattern only arrives as its
+  // preview geometry, which the output node wraps in a list, one that could not be previewed is
+  // skipped.
+  if (!DRAWN_TYPES.has(type) || !(data instanceof Int32Array) || data[0] === PATTERN_TAG) return;
+
+  // a path output can carry geometry and instances along, e.g. from the instance node
+  const items = splitItems(data);
+  const paths = items.filter((item) => isPath(item));
+  // a geometry with groups, like a mushroom, shows a share of its faces, the others by path
+  const grouped = (item: Int32Array) => (item[4] & GEOMETRY_FLAGS.groups) !== 0;
+  const geometries = items.filter((item) => item[0] === RESULT_TAGS.geometry && !grouped(item));
+  const meshes = items.filter((item) => item[0] === RESULT_TAGS.geometry && grouped(item));
+  const instances = items.filter((item) => item[0] === RESULT_TAGS.instances);
+  const points = items.filter((item) => item[0] === 4);
+
+  return {
+    paths: pick(paths, idKeys(paths, (p) => p[2]), amount),
+    points: pick(points, points.map((p) => itemKey(p[1], p[3])), amount),
+    surfaces: [
+      ...pick(geometries, idKeys(geometries, (g) => g[3]), amount),
+      ...meshes.map((m) => selectFaces(m, amount)),
+      ...instances.map((data, index) => selectInstances(data, index, amount))
+    ]
+  };
+}
+
+/** Whether `entry` has anything to draw, a float or a vector has not */
+export function drawsSomething(entry: DebugEntry) {
+  const items = debugItems({ ...entry, amount: 1 });
+  return !!items && (items.paths.length + items.points.length + items.surfaces.length) > 0;
+}
+
+const inFrontMaterials = new WeakMap<Material, Material>();
+
+/**
+ * `material` drawn in front of a surface at the same place. The debug node often shows a surface
+ * the result has as well, the dimmed copy of the result would fight with it. The colours of a
+ * geometry, like the disc of a pattern, are what the debug node is there to show, so every
+ * material with a surface colour shows them, not only the one of the plants.
+ */
+export function inFront(material: Material) {
+  let front = inFrontMaterials.get(material);
+  if (front) return front;
+  front = material.clone();
+  front.polygonOffset = true;
+  front.polygonOffsetFactor = -1;
+  front.polygonOffsetUnits = -4;
+  // the height range is set on the uniforms of the material itself
+  if (front instanceof ShaderMaterial && material instanceof ShaderMaterial) {
+    front.uniforms = material.uniforms;
+  } else {
+    takeVertexColors(front);
+  }
+  front.onBeforeCompile = (shader, renderer) => material.onBeforeCompile(shader, renderer);
+  front.customProgramCacheKey = () => material.customProgramCacheKey();
+  inFrontMaterials.set(material, front);
+  return front;
+}
+
 function clearGroup(group: Group) {
   group.traverse((child) => {
     if (child === group) return;
@@ -381,36 +409,40 @@ function clearGroup(group: Group) {
   group.clear();
 }
 
-export function updateDebugScene(group: Group, data: Record<number, DebugEntry>) {
-  clearGroup(group);
-  for (const { type, data: value, amount, clip } of Object.values(data || {})) {
-    // single values like floats and vectors have nothing to draw
-    if (!DRAWN_TYPES.has(type) || !(value instanceof Int32Array)) continue;
+/**
+ * Draws what one debug node shows. Geometry, geometry with groups, the disc of a pattern and
+ * instances are drawn like the result, with the material of the viewer and its colours. Paths
+ * and points have no surface and stay lines on top of everything.
+ */
+export function createDebugScene(parent: Group, material: Material) {
+  const surfaces = new Group();
+  const lines = new Group();
+  parent.add(surfaces, lines);
+  let pools: ReturnType<typeof createResultPools> | undefined;
+  let shown = material;
 
-    // a pattern only arrives as its preview geometry, which the output node wraps in a list.
-    // One that could not be previewed is skipped.
-    if (value[0] === PATTERN_TAG) continue;
+  return {
+    setMaterial(next: Material) {
+      shown = next;
+      pools?.setMaterial(inFront(next));
+    },
+    /**
+     * Shows `entry` instead of what was shown, nothing without one. Returns the bounds of what is
+     * drawn, empty when there is nothing to draw.
+     */
+    update(entry: DebugEntry | undefined) {
+      clearGroup(lines);
+      const items = entry && debugItems(entry);
+      const bounds = new Box3();
 
-    // a path output can carry geometry and instances along, e.g. from the instance node
-    const items = splitItems(value);
-    const paths = items.filter((item) => isPath(item));
-    // a geometry with groups, like a mushroom, shows a share of its faces, the others by path
-    const grouped = (item: Int32Array) => (item[4] & GEOMETRY_FLAGS.groups) !== 0;
-    const geometries = items.filter((item) => item[0] === RESULT_TAGS.geometry && !grouped(item));
-    const meshes = items.filter((item) => item[0] === RESULT_TAGS.geometry && grouped(item));
-    const instances = items.filter((item) => item[0] === 2);
-    const points = items.filter((item) => item[0] === 4);
-
-    const shownPaths = pick(paths, idKeys(paths, (p) => p[2]), amount);
-    const shownGeometries = pick(geometries, idKeys(geometries, (g) => g[3]), amount);
-    const shownPoints = pick(points, points.map((p) => itemKey(p[1], p[3])), amount);
-
-    if (shownPaths.length) group.add(createPathDebug(shownPaths, clip));
-    if (shownGeometries.length) group.add(createGeometryDebug(shownGeometries));
-    if (instances.length) group.add(createInstanceDebug(instances, amount));
-    if (shownPoints.length) group.add(createPointsDebug(shownPoints));
-    if (meshes.length) {
-      group.add(createGeometryDebug(meshes.map((m) => selectFaces(m, amount))));
+      if (items?.surfaces.length || pools) {
+        pools ??= createResultPools(surfaces, inFront(shown));
+        bounds.union(pools.update(items?.surfaces ?? []).bounds);
+      }
+      if (items?.paths.length) lines.add(createPathDebug(items.paths, entry?.clip));
+      if (items?.points.length) lines.add(createPointsDebug(items.points));
+      if (lines.children.length) bounds.union(new Box3().setFromObject(lines));
+      return bounds;
     }
-  }
+  };
 }

@@ -13,7 +13,6 @@
     gridSectionSize
   } from './camera/camera-framing';
   import Camera from './camera/Camera.svelte';
-  import Debug from './debug/Debug.svelte';
   import type { Gizmo, GizmoChange, GizmoMode } from './gizmos/gizmos';
   import Gizmos from './gizmos/Gizmos.svelte';
   import { createLights, lighting } from './materials/lighting';
@@ -38,7 +37,8 @@
 
   type Props = {
     fps: number[];
-    debugData?: Record<number, { type: string; data: Int32Array }>;
+    /** what the debug node shows, drawn next to the result */
+    debugScene: Group;
     scene: Group;
     centerCamera: boolean;
     projectId?: number;
@@ -63,7 +63,7 @@
     contentBounds,
     fps = $bindable(),
     scene = $bindable(),
-    debugData,
+    debugScene,
     gizmos = [],
     gizmoMode = 'translate',
     ongizmochange,
@@ -300,7 +300,7 @@
 
 <Camera bind:this={cameraComponent} {framing} {frameRequest} {centerCamera} {projectId} />
 
-<Debug {debugData} />
+<T is={debugScene} />
 
 <Gizmos
   {gizmos}
