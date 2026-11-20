@@ -63,6 +63,22 @@ describe('parseProjectFile', () => {
     ).toThrow(/preview/);
   });
 
+  it('keeps the frames of the graph and of its groups', () => {
+    const frame = { id: 1, label: 'Leaves', color: 'green' as const, nodes: [0] };
+    const group = { id: 5, nodes: [], edges: [], frames: [{ id: 1, label: 'Inner', nodes: [] }] };
+    const file = parseProjectFile({ ...graph, frames: [frame], groups: [group] });
+    expect(file.graph.frames).toEqual([frame]);
+    expect(file.graph.groups[0].frames).toEqual(group.frames);
+  });
+
+  it('reads a frame colour it does not know as none', () => {
+    const file = parseProjectFile({
+      ...graph,
+      frames: [{ id: 1, label: 'Leaves', color: 'teal', nodes: [0] }]
+    });
+    expect(file.graph.frames).toEqual([{ id: 1, label: 'Leaves', nodes: [0] }]);
+  });
+
   it('reports errors of the project file schema', () => {
     expect(() => parseProjectFile({ format: 'nodarium-project', version: 2, graph })).toThrow(
       /version/
@@ -85,6 +101,11 @@ describe('graphFileJsonSchema', () => {
       .toBe(true);
     expect(schema.safeParse({ nodes: [{ id: 1, type: 'max/plantarium/stem' }], edges: [] }).success)
       .toBe(true);
+    const frames = [{ id: 1, label: 'Stem', color: 'brown', nodes: [1] }];
+    expect(
+      schema.safeParse({ nodes: [{ id: 1, type: 'max/plantarium/stem' }], edges: [], frames })
+        .success
+    ).toBe(true);
   });
 
   it('rejects what parseProjectFile rejects', () => {

@@ -18,6 +18,8 @@ export { areSocketsCompatible, inputAccepts } from './sockets';
 export type {
   Box,
   Edge,
+  Frame,
+  FrameColor,
   Graph,
   GroupDefinition,
   NodeDefinition,
@@ -33,6 +35,8 @@ export type {
   WasmSlice
 } from './types';
 export {
+  FRAME_COLORS,
+  FrameSchema,
   GraphSchema,
   GroupSchema,
   NodeSchema,

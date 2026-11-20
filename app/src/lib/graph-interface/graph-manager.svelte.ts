@@ -18,6 +18,7 @@ import {
 } from '@nodarium/types';
 import type {
   Edge,
+  Frame,
   Graph,
   GroupDefinition,
   NodeDefinition,
@@ -35,6 +36,7 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { ChangeRecorder } from './change-recorder';
 import { collectSettings } from './helpers/collectSettings';
 import EventEmitter from './helpers/EventEmitter';
+import { cleanFrames, serializeFrame } from './helpers/frames';
 import {
   exposeInputs,
   groupInputType,
@@ -60,7 +62,7 @@ import throttle from './helpers/throttle.ts';
 const log = createLogger('graph-manager');
 log.mute();
 
-type Level = { nodes: SerializedNode[]; edges: SerializedEdge[] };
+type Level = { nodes: SerializedNode[]; edges: SerializedEdge[]; frames?: Frame[] };
 
 function sameKeys(a: object, b: object) {
   const keys = Object.keys(a);
@@ -87,6 +89,8 @@ export class GraphManager extends EventEmitter<{
   meta = $state<Graph['meta']>({});
   nodes = new SvelteMap<number, NodeInstance>();
   edges = $state<Edge[]>([]);
+  /** The frames of the open level */
+  frames = $state<Frame[]>([]);
   groups: GroupDefinition[] = $state([]);
 
   nodeArray = $derived(Array.from(this.nodes.values()));
@@ -149,6 +153,7 @@ export class GraphManager extends EventEmitter<{
       };
       return;
     }
+    this.pruneFrames();
     if (this.heldStep) this.heldStep.changed = true;
     else if (coalesce) this.recorder.coalesce();
     else this.recorder.step();
@@ -205,23 +210,35 @@ export class GraphManager extends EventEmitter<{
     return this.registry.loadDefinitions?.(nodeIds) ?? this.registry.load(nodeIds);
   }
 
+  /** A frame never names a node that is gone, its id could go to a new node */
+  private pruneFrames() {
+    const frames = cleanFrames(this.frames, (id) => this.nodes.has(id));
+    if (frames !== this.frames) this.frames = frames;
+  }
+
   /** The open level from the live nodes, every other level from where it is stored */
   private levelState(groupId: number | null): Level {
     if (groupId !== this.currentGroupId) return this.storedLevel(groupId);
-    return { nodes: [...this.nodes.values()], edges: this.edges.map(e => serializeEdge(e)) };
+    return {
+      nodes: [...this.nodes.values()],
+      edges: this.edges.map(e => serializeEdge(e)),
+      frames: this.frames
+    };
   }
 
   private storedLevel(groupId: number | null): Level {
     if (groupId === null) return this.root;
     const group = this.getGroup(groupId);
-    return { nodes: group?.nodes ?? [], edges: group?.edges ?? [] };
+    return { nodes: group?.nodes ?? [], edges: group?.edges ?? [], frames: group?.frames };
   }
 
   /** Writes the open level to where it is stored */
   private storeLevel() {
-    const level = {
+    const frames = this.frames.map(serializeFrame);
+    const level: Level = {
       nodes: [...this.nodes.values()].map(n => serializeNode(n)),
-      edges: this.edges.map(e => serializeEdge(e))
+      edges: this.edges.map(e => serializeEdge(e)),
+      ...(frames.length ? { frames } : {})
     };
     if (this.currentGroupId === null) {
       this.root = level;
@@ -231,6 +248,8 @@ export class GraphManager extends EventEmitter<{
     if (!group) return;
     group.nodes = level.nodes;
     group.edges = level.edges;
+    if (frames.length) group.frames = frames;
+    else delete group.frames;
   }
 
   // Recomputed only after the graph changed: the history, the build, the database and the
@@ -255,6 +274,7 @@ export class GraphManager extends EventEmitter<{
       if (group.outputs !== undefined) serialized.outputs = toPlain(group.outputs);
       serialized.nodes = level.nodes.map(n => serializeNode(n));
       serialized.edges = level.edges.map(e => serializeEdge(e));
+      if (level.frames?.length) serialized.frames = level.frames.map(serializeFrame);
       return serialized;
     });
 
@@ -266,6 +286,7 @@ export class GraphManager extends EventEmitter<{
     if (groups !== undefined) serialized.groups = groups;
     serialized.nodes = nodes;
     serialized.edges = edges;
+    if (root.frames?.length) serialized.frames = root.frames.map(serializeFrame);
     log.log('serializing graph', serialized);
     return serialized;
   }
@@ -504,6 +525,7 @@ export class GraphManager extends EventEmitter<{
     this.nodes.clear();
     for (const node of level.nodes) this.addNode(node);
     this.edges = this.liveEdges(level.edges);
+    this.frames = cleanFrames((level.frames ?? []).map(serializeFrame), (id) => this.nodes.has(id));
   }
 
   /** A new instance of the node in the open level */
@@ -1146,7 +1168,7 @@ export class GraphManager extends EventEmitter<{
   // at the deepest level that still does.
   private restoreState(state: Graph) {
     this.groups = state.groups ?? [];
-    this.root = { nodes: state.nodes, edges: state.edges };
+    this.root = { nodes: state.nodes, edges: state.edges, frames: state.frames };
     this.path = this.pathStillIn(state);
     this.openLevel(this.storedLevel(this.currentGroupId));
     this.updateSettings(state.settings);

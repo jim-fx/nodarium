@@ -1,10 +1,16 @@
-import type { Graph, SerializedNode } from '@nodarium/types';
+import type { Graph, GroupDefinition, SerializedNode } from '@nodarium/types';
 import { fastHashArrayBuffer } from '@nodarium/utils';
 
 // Only the parts of a node that influence the generated geometry,
-// moving nodes around should not invalidate a thumbnail
+// moving nodes around or framing them should not invalidate a thumbnail
 function stripNodes(nodes: SerializedNode[]) {
   return nodes.map(({ id, type, props }) => ({ id, type, props }));
+}
+
+function stripFrames(group: GroupDefinition) {
+  const stripped: Partial<GroupDefinition> = { ...group, nodes: stripNodes(group.nodes) };
+  delete stripped.frames;
+  return stripped;
 }
 
 function sortKeys(_key: string, value: unknown) {
@@ -22,7 +28,7 @@ export function hashGraph(graph: Graph, { ignoreKeyOrder = false } = {}): string
     {
       nodes: stripNodes(graph.nodes),
       edges: graph.edges,
-      groups: graph.groups?.map((group) => ({ ...group, nodes: stripNodes(group.nodes) })),
+      groups: graph.groups?.map((group) => stripFrames(group)),
       settings: graph.settings ?? {}
     },
     ignoreKeyOrder ? sortKeys : undefined

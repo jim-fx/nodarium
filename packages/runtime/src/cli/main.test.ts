@@ -331,6 +331,27 @@ describe('nodarium', () => {
     expect(stderr.join()).toContain('there is no doc gardening');
   });
 
+  it('keeps frames through --print-graph, --write and a link, and checks them', async () => {
+    const frames = [{ id: 1, label: 'Stem', color: 'brown', nodes: [1, 2] }];
+    const graph = await file('framed.json', { ...handWritten, frames });
+    expect(JSON.parse((await run('run', graph, '--print-graph')).out).frames).toEqual(frames);
+
+    const target = join(dir, 'written.json');
+    expect((await run('run', graph, '--print-graph', '--write', target)).code).toBe(0);
+    expect(JSON.parse(await readFile(target, 'utf8')).frames).toEqual(frames);
+
+    const link = (await run('link', graph)).out;
+    expect(JSON.parse((await run('run', link, '--print-graph')).out).frames).toEqual(frames);
+
+    const missing = await file('missing.json', {
+      ...handWritten,
+      frames: [{ id: 1, label: 'Stem', nodes: [1, 42] }]
+    });
+    expect((await run('check', missing)).out).toContain(
+      'the frame "Stem" names the node 42, there is no such node'
+    );
+  });
+
   it('writes the graph of --print-graph into a new file', async () => {
     const target = join(dir, 'new', 'fern.json');
     const { code, out } = await run('run', 'fern', '--print-graph', '--write', target);

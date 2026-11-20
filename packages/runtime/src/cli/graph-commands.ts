@@ -303,13 +303,14 @@ export function linkGraph(
   base?: string
 ) {
   // the app gives the project an id of its own and the title of the graph
-  const { version, meta, nodes, edges, groups } = graph;
+  const { version, meta, nodes, edges, groups, frames } = graph;
   return graphLink({
     version,
     meta: { title: meta?.title ?? name, unit: meta?.unit },
     settings: { ...graph.settings, ...settings },
     nodes,
     edges,
-    groups
+    groups,
+    ...(frames ? { frames } : {})
   }, base);
 }

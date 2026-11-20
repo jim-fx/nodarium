@@ -53,4 +53,14 @@ describe('graph links', () => {
     );
     expect(printed.meta).toEqual({ title: 'My daisy', unit: project.meta.unit });
   });
+
+  it('keep the frames of a project', async () => {
+    const project = { ...structuredClone(await loadTemplate('fern')), id: 4 } as Graph;
+    project.frames = [{ id: 1, label: 'Fronds', color: 'green', nodes: [project.nodes[0].id] }];
+    const link = await projectLink(project, 'https://nodes.max-richter.dev');
+    expect((await openInApp(link)).frames).toEqual(project.frames);
+    expect(JSON.parse((await cli('run', link, '--print-graph')).out).frames).toEqual(
+      project.frames
+    );
+  });
 });

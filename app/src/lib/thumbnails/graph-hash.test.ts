@@ -25,6 +25,18 @@ describe('hashGraph', () => {
     expect(hashGraph(moved)).toBe(hashGraph(graph));
   });
 
+  it('ignores the frames of the graph and of its groups', () => {
+    const graph = createGraph();
+    graph.groups = [{ id: 5, nodes: [], edges: [] }];
+    const framed = structuredClone(graph);
+    framed.frames = [{ id: 1, label: 'Stem', color: 'brown', nodes: [1] }];
+    framed.groups[0].frames = [{ id: 1, label: 'Inner', nodes: [] }];
+    expect(hashGraph(framed)).toBe(hashGraph(graph));
+    expect(hashGraph(framed, { ignoreKeyOrder: true })).toBe(
+      hashGraph(graph, { ignoreKeyOrder: true })
+    );
+  });
+
   it('changes when a prop changes', () => {
     const changed = createGraph();
     changed.nodes[1].props = { length: 5 };
