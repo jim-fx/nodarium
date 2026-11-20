@@ -108,8 +108,9 @@ const ABOUT: Record<string, About> = {
   },
   dandelion: {
     species: 'Taraxacum officinale (common dandelion)',
-    notes: 'A taproot, a rosette of 5–10 runcinate leaf_surface leaves, 2–5 leaning scapes, each '
-      + 'with a bud of bracts and ligules that opens into five rings of ligules at its own time.'
+    notes: 'A taproot, a rosette of 8–18 runcinate leaf_surface leaves on a spiral, 3–10 scapes '
+      + 'that curve up, each with its own phase: a bud, an open head of 130–165 ligules, a closed '
+      + 'head, a clock of 110 baked seeds that fly off. A habit per seed, from lawn to meadow.'
   },
   yarrow: {
     species: 'Achillea millefolium (common yarrow)',
