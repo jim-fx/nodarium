@@ -4,14 +4,10 @@ use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
     concat_args,
     geometry::{is_path, wrap_path, wrap_path_mut, DeepestPaths},
-    int, log, split_args, Ctx,
+    split_args, Ctx,
 };
 
 nodarium_definition_file!("src/definition.json");
-
-fn lerp_vec3(a: Vec3, b: Vec3, t: f32) -> Vec3 {
-    a + (b - a) * t
-}
 
 /// Turns a segment that points along `rest_dir` down towards gravity by `bend_angle` radians
 fn droop(rest_dir: Vec3, bend_angle: f32) -> Vec3 {
@@ -38,9 +34,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
 
     let plants = split_args(args[0]);
-    let depth = ctx.int(args[2]);
-    let mode = int(args[4]); // 0 = closed-form, 1 = verlet
-    let selected = DeepestPaths::new(&plants, depth);
+    let selected = DeepestPaths::new(&plants, 1);
 
     let path_count = plants.iter().filter(|p| is_path(p)).count();
     let mut path_index = 0;
@@ -55,7 +49,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             // alpha is where this path sits among all paths, from 0 at the first to 1 at the last
             ctx.set_path(path_data, path_index, path_count);
             path_index += 1;
-            let elasticity = ctx.float(args[3]).clamp(0.0, 1.0);
+            let elasticity = ctx.float(args[2]).clamp(0.0, 1.0);
             // 0 → sqrt (rope), 1 → ~4.5 (only the tip droops)
             let bend_exponent = 0.5 + elasticity * 4.0;
 
@@ -70,108 +64,56 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             let strengths = ctx.float_along(args[1], alphas);
             let output = wrap_path_mut(&mut output_data);
 
-            if mode == 1 {
-                // Forward-kinematic cantilever chain. Each segment rotates around
-                // an axis perpendicular to (rest_dir, gravity) by an angle that
-                // grows with alpha along the stem. Positions are built from the
-                // anchored base outward, so segment lengths are preserved by
-                // construction (no iteration, no rescaling, no oscillation).
+            // Forward-kinematic cantilever chain. Each segment rotates around
+            // an axis perpendicular to (rest_dir, gravity) by an angle that
+            // grows with alpha along the stem. Positions are built from the
+            // anchored base outward, so segment lengths are preserved by
+            // construction (no iteration, no rescaling, no oscillation).
 
-                let original: Vec<Vec3> = (0..path.length)
-                    .map(|i| {
-                        let s = i * 4;
-                        Vec3::from_slice(&path.points[s..s + 3])
-                    })
-                    .collect();
-
-                let seg_lens: Vec<f32> = (0..path.length - 1)
-                    .map(|i| (original[i + 1] - original[i]).length())
-                    .collect();
-                let rest_dirs: Vec<Vec3> = (0..path.length - 1)
-                    .map(|i| {
-                        let d = original[i + 1] - original[i];
-                        let l = d.length();
-                        if l > 0.0001 {
-                            d / l
-                        } else {
-                            Vec3::Y
-                        }
-                    })
-                    .collect();
-
-                let mut cur = vec![Vec3::ZERO; path.length];
-                cur[0] = original[0];
-
-                for i in 1..path.length {
-                    let seg_idx = i - 1;
-                    // the middle of the segment, so coarse paths bend like fine ones
-                    let alpha = (seg_idx as f32 + 0.5) / (path.length - 1) as f32 * share;
-                    let strength = (strengths[seg_idx] + strengths[i]) * 0.5;
-                    // Tip bend angle in radians. PI/2 = horizontal tip at strength=1.
-                    let max_angle = strength * std::f32::consts::FRAC_PI_2;
-                    let bend_angle = max_angle * alpha.powf(bend_exponent);
-
-                    let bent_dir = droop(rest_dirs[seg_idx], bend_angle);
-
-                    cur[i] = cur[i - 1] + bent_dir * seg_lens[seg_idx];
-                }
-
-                for i in 0..path.length {
+            let original: Vec<Vec3> = (0..path.length)
+                .map(|i| {
                     let s = i * 4;
-                    output.points[s] = cur[i].x;
-                    output.points[s + 1] = cur[i].y;
-                    output.points[s + 2] = cur[i].z;
-                }
-            } else {
-                // Closed-form: per-segment lerp toward a downward vector
-                let mut offset_vec = Vec3::ZERO;
+                    Vec3::from_slice(&path.points[s..s + 3])
+                })
+                .collect();
 
-                for i in 0..path.length - 1 {
-                    // the middle of the segment, so coarse paths bend like fine ones
-                    let alpha = (i as f32 + 0.5) / (path.length - 1) as f32 * share;
-                    let start_index = i * 4;
-
-                    let start_point = Vec3::from_slice(&path.points[start_index..start_index + 3]);
-                    let end_point =
-                        Vec3::from_slice(&path.points[start_index + 4..start_index + 7]);
-
-                    let direction = end_point - start_point;
-
-                    let length = direction.length();
-
-                    let curviness = elasticity.max(0.0001);
-                    let strength_arg = (strengths[i] + strengths[i + 1]) * 0.5 * 10.0;
-                    let strength = strength_arg / curviness * strength_arg;
-
-                    log!(
-                        "length: {}, curviness: {}, strength: {}",
-                        length,
-                        curviness,
-                        strength
-                    );
-
-                    let down_point = Vec3::new(0.0, -length * strength, 0.0);
-
-                    let mut mid_point =
-                        lerp_vec3(direction, down_point, curviness * alpha.powf(bend_exponent));
-
-                    if mid_point[0] == 0.0 && mid_point[2] == 0.0 {
-                        mid_point[0] += 0.0001;
-                        mid_point[2] += 0.0001;
+            let seg_lens: Vec<f32> = (0..path.length - 1)
+                .map(|i| (original[i + 1] - original[i]).length())
+                .collect();
+            let rest_dirs: Vec<Vec3> = (0..path.length - 1)
+                .map(|i| {
+                    let d = original[i + 1] - original[i];
+                    let l = d.length();
+                    if l > 0.0001 {
+                        d / l
+                    } else {
+                        Vec3::Y
                     }
+                })
+                .collect();
 
-                    // Correct midpoint length
-                    mid_point *= length / mid_point.length();
+            let mut cur = vec![Vec3::ZERO; path.length];
+            cur[0] = original[0];
 
-                    let final_end_point = start_point + mid_point;
-                    // the end of this segment moves by its own bend and by all bends below it
-                    offset_vec += final_end_point - end_point;
-                    let offset_end_point = end_point + offset_vec;
+            for i in 1..path.length {
+                let seg_idx = i - 1;
+                // the middle of the segment, so coarse paths bend like fine ones
+                let alpha = (seg_idx as f32 + 0.5) / (path.length - 1) as f32 * share;
+                let strength = (strengths[seg_idx] + strengths[i]) * 0.5;
+                // Tip bend angle in radians. PI/2 = horizontal tip at strength=1.
+                let max_angle = strength * std::f32::consts::FRAC_PI_2;
+                let bend_angle = max_angle * alpha.powf(bend_exponent);
 
-                    output.points[start_index + 4] = offset_end_point[0];
-                    output.points[start_index + 5] = offset_end_point[1];
-                    output.points[start_index + 6] = offset_end_point[2];
-                }
+                let bent_dir = droop(rest_dirs[seg_idx], bend_angle);
+
+                cur[i] = cur[i - 1] + bent_dir * seg_lens[seg_idx];
+            }
+
+            for i in 0..path.length {
+                let s = i * 4;
+                output.points[s] = cur[i].x;
+                output.points[s + 1] = cur[i].y;
+                output.points[s + 2] = cur[i].z;
             }
             output_data
         })
@@ -202,13 +144,11 @@ mod tests {
         stems
     }
 
-    fn tip(resolution: usize, mode: i32) -> Vec3 {
+    fn tip(resolution: usize) -> Vec3 {
         let out = __nodarium_execute_inner(&[
             &stem(resolution),
             &[encode_float(0.6)],
-            &[1],
             &[encode_float(0.3)],
-            &[mode],
         ]);
         let path = split_args(&out)[0].to_vec();
         let p = wrap_path(&path).points;
@@ -218,20 +158,16 @@ mod tests {
 
     #[test]
     fn the_shape_does_not_depend_on_the_resolution() {
-        // the closed-form mode only gets close to the shape as the resolution grows
-        for (mode, tolerance) in [(1, 0.05), (0, 0.25)] {
-            let reference = tip(32, mode);
-            for resolution in [8, 16, 64] {
-                let t = tip(resolution, mode);
-                assert!(
-                    t.distance(reference) < tolerance,
-                    "mode {}: tip at resolution {} is {:?}, at 32 it is {:?}",
-                    mode,
-                    resolution,
-                    t,
-                    reference
-                );
-            }
+        let reference = tip(32);
+        for resolution in [8, 16, 64] {
+            let t = tip(resolution);
+            assert!(
+                t.distance(reference) < 0.05,
+                "tip at resolution {} is {:?}, at 32 it is {:?}",
+                resolution,
+                t,
+                reference
+            );
         }
     }
 }

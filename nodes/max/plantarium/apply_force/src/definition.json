@@ -13,13 +13,13 @@
     },
     "force": {
       "type": "force",
-      "description": "The forces that act on the paths. Several forces add up."
+      "description": "The force that acts on the paths."
     },
     "strength": {
       "type": "float",
       "step": 0.05,
       "value": 1,
-      "description": "How far the paths are bent by the forces. Alpha goes along the path, so the strength can change from base to tip."
+      "description": "How far the paths are bent by the force. A negative value bends them away from it. Alpha goes along the path, so the strength can change from base to tip."
     },
     "stiffness": {
       "type": "float",
@@ -35,7 +35,7 @@
       "max": 10,
       "value": 1,
       "hidden": true,
-      "description": "On which layers of paths to work, counted from the outermost. 1 is the layer of branches and leaves, higher values reach down to the trunk. Branches always follow the paths they grow on, also on layers that are not bent."
+      "description": "On which layers of paths to work, counted from the deepest. 1 bends only the deepest paths, e.g. the branches and leaves, higher values reach down to the trunk. Branches always follow the paths they grow on, also on layers that are not bent."
     }
   }
 }

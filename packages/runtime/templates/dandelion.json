@@ -761,8 +761,7 @@
         "radius": 0.04,
         "strength": 0.4,
         "smoothing": 2,
-        "iterations": 6,
-        "depth": 1
+        "iterations": 6
       },
       "position": [
         -240,

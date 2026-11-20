@@ -187,10 +187,10 @@ describe('validateGraph', () => {
   });
 
   it('checks a graph without a version as it is written', () => {
-    // migration 2 would rename the old fixBottom, the input of today is fix_bottom
+    // migration 2 would rename the old directionalStrength, the input of today is directional_strength
     const graph = withMistake((g) => {
       delete g.version;
-      g.nodes[2].props = { fix_bottom: 0.5 };
+      g.nodes[2].props = { directional_strength: [1, 0.5, 1] };
     });
     expect(codes(validateGraph(graph, definitions))).toEqual(['warning no-version']);
   });
@@ -198,7 +198,7 @@ describe('validateGraph', () => {
   it('checks a graph of an older version as it is after its migration', () => {
     const graph = withMistake((g) => {
       g.version = 1;
-      g.nodes[2].props = { fixBottom: 0.5 };
+      g.nodes[2].props = { directionalStrength: [1, 0.5, 1] };
     });
     expect(validateGraph(graph, definitions)).toEqual([]);
   });

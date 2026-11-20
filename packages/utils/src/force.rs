@@ -1,6 +1,6 @@
 //! Forces that nodes like `apply_force` push paths with.
 //!
-//! An encoded force is `[0, 9, 3, kind, x, y, z, strength, radius, falloff, 1, 1]`, a list of
+//! An encoded force is `[0, 8, 3, kind, x, y, z, radius, falloff, 1, 1]`, a list of
 //! forces is a framed list of those. The type word 3 sets it apart from paths (0), geometry (1)
 //! and instances (2).
 
@@ -11,12 +11,12 @@ use glam::Vec3;
 /// The type word of an encoded force.
 pub const FORCE_TYPE: i32 = 3;
 
-// type, kind, position (3), strength, radius, falloff
-const FORCE_WORDS: usize = 8;
+// type, kind, position (3), radius, falloff
+const FORCE_WORDS: usize = 7;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ForceKind {
-    /// Pulls towards a position, a negative strength pushes away from it.
+    /// Pulls towards a position.
     Point = 0,
 }
 
@@ -33,7 +33,6 @@ impl ForceKind {
 pub struct Force {
     pub kind: ForceKind,
     pub position: Vec3,
-    pub strength: f32,
     /// How far the force reaches. A radius of 0 or less reaches nothing.
     pub radius: f32,
     /// 0 keeps the full strength up to the radius, 1 fades smoothly to nothing at the radius.
@@ -54,7 +53,6 @@ impl Force {
                 self.position.x,
                 self.position.y,
                 self.position.z,
-                self.strength,
                 self.radius,
                 self.falloff,
             ]
@@ -73,9 +71,8 @@ impl Force {
         Some(Self {
             kind: ForceKind::from_index(item[3])?,
             position: Vec3::new(value(0), value(1), value(2)),
-            strength: value(3),
-            radius: value(4),
-            falloff: value(5),
+            radius: value(3),
+            falloff: value(4),
         })
     }
 
@@ -96,7 +93,7 @@ impl Force {
                 };
                 let falloff = self.falloff.clamp(0.0, 1.0);
                 let intensity = 1.0 - falloff * smoothstep(distance / self.radius);
-                direction * self.strength * intensity
+                direction * intensity
             }
         }
     }
@@ -123,11 +120,10 @@ mod tests {
     use super::*;
     use crate::concat_arg_vecs;
 
-    fn point(position: Vec3, strength: f32, radius: f32, falloff: f32) -> Force {
+    fn point(position: Vec3, radius: f32, falloff: f32) -> Force {
         Force {
             kind: ForceKind::Point,
             position,
-            strength,
             radius,
             falloff,
         }
@@ -135,8 +131,8 @@ mod tests {
 
     #[test]
     fn a_force_survives_a_round_trip_in_a_list() {
-        let a = point(Vec3::new(1.0, 2.0, 3.0), 0.5, 4.0, 0.25);
-        let b = point(Vec3::new(-1.0, 0.0, 0.5), -2.0, 1.0, 1.0);
+        let a = point(Vec3::new(1.0, 2.0, 3.0), 4.0, 0.25);
+        let b = point(Vec3::new(-1.0, 0.0, 0.5), 1.0, 1.0);
         let list = concat_arg_vecs(vec![a.encode(), b.encode()]);
 
         assert_eq!(decode_forces(&list), vec![a, b]);
@@ -144,7 +140,7 @@ mod tests {
 
     #[test]
     fn a_single_force_decodes_from_its_list() {
-        let a = point(Vec3::ONE, 1.0, 2.0, 0.0);
+        let a = point(Vec3::ONE, 2.0, 0.0);
         let list = concat_arg_vecs(vec![a.encode()]);
 
         assert_eq!(decode_forces(&list), vec![a]);
@@ -163,47 +159,41 @@ mod tests {
 
     #[test]
     fn a_point_force_pulls_towards_its_position() {
-        let force = point(Vec3::new(2.0, 0.0, 0.0), 1.0, 5.0, 0.0);
+        let force = point(Vec3::new(2.0, 0.0, 0.0), 5.0, 0.0);
         let push = force.sample(Vec3::ZERO);
         assert!((push - Vec3::X).length() < 1e-6, "{:?}", push);
     }
 
     #[test]
-    fn a_negative_strength_pushes_away() {
-        let force = point(Vec3::new(2.0, 0.0, 0.0), -1.0, 5.0, 0.0);
-        assert!(force.sample(Vec3::ZERO).x < 0.0);
-    }
-
-    #[test]
     fn nothing_happens_outside_of_the_radius() {
-        let force = point(Vec3::new(2.0, 0.0, 0.0), 1.0, 1.5, 0.0);
+        let force = point(Vec3::new(2.0, 0.0, 0.0), 1.5, 0.0);
         assert_eq!(force.sample(Vec3::ZERO), Vec3::ZERO);
-        assert_eq!(point(Vec3::X, 1.0, 0.0, 0.0).sample(Vec3::ZERO), Vec3::ZERO);
+        assert_eq!(point(Vec3::X, 0.0, 0.0).sample(Vec3::ZERO), Vec3::ZERO);
     }
 
     #[test]
     fn falloff_fades_the_force_towards_the_radius() {
-        let force = point(Vec3::new(4.0, 0.0, 0.0), 1.0, 4.0, 1.0);
+        let force = point(Vec3::new(4.0, 0.0, 0.0), 4.0, 1.0);
         let near = force.sample(Vec3::new(3.0, 0.0, 0.0)).length();
         let far = force.sample(Vec3::new(0.5, 0.0, 0.0)).length();
         assert!(near > far, "near {} far {}", near, far);
         assert!(far > 0.0);
 
-        let hard = point(Vec3::new(4.0, 0.0, 0.0), 1.0, 4.0, 0.0);
+        let hard = point(Vec3::new(4.0, 0.0, 0.0), 4.0, 0.0);
         assert_eq!(hard.sample(Vec3::new(0.5, 0.0, 0.0)).length(), 1.0);
     }
 
     #[test]
     fn forces_add_up() {
-        let a = point(Vec3::X, 1.0, 5.0, 0.0);
-        let b = point(Vec3::X, 1.0, 5.0, 0.0);
+        let a = point(Vec3::X, 5.0, 0.0);
+        let b = point(Vec3::X, 5.0, 0.0);
         let sum = sample_forces(&[a, b], Vec3::ZERO);
         assert!((sum - Vec3::X * 2.0).length() < 1e-6);
     }
 
     #[test]
     fn a_point_on_the_force_gets_no_push() {
-        let force = point(Vec3::ONE, 1.0, 5.0, 0.0);
+        let force = point(Vec3::ONE, 5.0, 0.0);
         assert_eq!(force.sample(Vec3::ONE), Vec3::ZERO);
     }
 }

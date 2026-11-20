@@ -13,9 +13,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let force = Force {
         kind,
         position: Vec3::from(position),
-        strength: ctx.float(args[2]),
-        radius: ctx.float(args[3]).max(0.0),
-        falloff: ctx.float(args[4]).clamp(0.0, 1.0),
+        radius: ctx.float(args[2]).max(0.0),
+        falloff: ctx.float(args[3]).clamp(0.0, 1.0),
     };
 
     concat_arg_vecs(vec![force.encode()])
@@ -42,7 +41,6 @@ mod tests {
         let result = super::__nodarium_execute_inner(&[
             &[0],
             &vec3(1.0, 2.0, 3.0),
-            &[encode_float(-0.5)],
             &[encode_float(4.0)],
             &[encode_float(0.25)],
         ]);
@@ -51,13 +49,11 @@ mod tests {
         assert_eq!(forces.len(), 1);
         let Force {
             position,
-            strength,
             radius,
             falloff,
             ..
         } = forces[0];
         assert_eq!(position.to_array(), [1.0, 2.0, 3.0]);
-        assert_eq!(strength, -0.5);
         assert_eq!(radius, 4.0);
         assert_eq!(falloff, 0.25);
     }

@@ -10,6 +10,10 @@ nodarium_definition_file!("src/definition.json");
 
 /// The angle between the directions two stems on the same spot leave in
 const GOLDEN_ANGLE: f32 = 2.399_963;
+/// How often the stems are pushed apart at most
+const ITERATIONS: usize = 24;
+/// Where along a stem its place is measured: the tip, where a cap or crown sits
+const AT: f32 = 1.0;
 
 /// A stem in the plane seen from above
 struct Spot {
@@ -20,8 +24,8 @@ struct Spot {
 }
 
 /// Pushes every pair of overlapping circles apart, the larger circle moves less
-fn relax(spots: &mut [Spot], iterations: usize) {
-    for _ in 0..iterations {
+fn relax(spots: &mut [Spot]) {
+    for _ in 0..ITERATIONS {
         let mut moved = false;
         for i in 0..spots.len() {
             for j in i + 1..spots.len() {
@@ -50,11 +54,11 @@ fn relax(spots: &mut [Spot], iterations: usize) {
     }
 }
 
-/// Turns a path around its base, so its point at `at` moves towards that point moved by `shift`
-fn lean_path(path: &mut [i32], at: f32, shift: Vec3) {
+/// Turns a path around its base, so its place moves towards that place moved by `shift`
+fn lean_path(path: &mut [i32], shift: Vec3) {
     let points = wrap_path_mut(path).points;
     let base = Vec3::from_slice(&points[..3]);
-    let from = interpolate_along_path(points, at).0.truncate() - base;
+    let from = interpolate_along_path(points, AT).0.truncate() - base;
     let (Some(a), Some(b)) = (from.try_normalize(), (from + shift).try_normalize()) else {
         return;
     };
@@ -69,9 +73,7 @@ fn lean_path(path: &mut [i32], at: f32, shift: Vec3) {
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
     let original: Vec<Vec<i32>> = split_args(args[0]).iter().map(|p| p.to_vec()).collect();
-    let at = ctx.float(args[2]).clamp(0.0, 1.0);
-    let iterations = ctx.int(args[3]).clamp(1, 256) as usize;
-    let lean = ctx.int(args[4]) != 0;
+    let lean = ctx.int(args[2]) != 0;
 
     let stems: Vec<usize> = (0..original.len())
         .filter(|&i| is_path(&original[i]) && !path_link(&original[i]).has_parent() && wrap_path(&original[i]).length >= 2)
@@ -83,19 +85,19 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             let path = &original[index];
             ctx.set_path(path, rank, stems.len());
             let radius = ctx.float(args[1]).max(0.0);
-            let p = interpolate_along_path(wrap_path(path).points, at).0;
+            let p = interpolate_along_path(wrap_path(path).points, AT).0;
             let start = Vec2::new(p.x, p.z);
             Spot { index, start, at: start, radius }
         })
         .collect();
-    relax(&mut spots, iterations);
+    relax(&mut spots);
 
     let mut current = original.clone();
     for spot in &spots {
         let shift = spot.at - spot.start;
         let shift = Vec3::new(shift.x, 0.0, shift.y);
         if lean {
-            lean_path(&mut current[spot.index], at, shift);
+            lean_path(&mut current[spot.index], shift);
         } else {
             translate_path(&mut current[spot.index], shift);
         }
@@ -130,12 +132,12 @@ mod tests {
         path(PathLink::root(1, index), Vec3::new(x, 0.0, 0.0), Vec3::new(x, height, 0.0))
     }
 
-    fn run(paths: Vec<Vec<i32>>, radius: &[i32], at: f32) -> Vec<Vec<Vec3>> {
-        run_leaning(paths, radius, at, false)
+    fn run(paths: Vec<Vec<i32>>, radius: &[i32]) -> Vec<Vec<Vec3>> {
+        run_leaning(paths, radius, false)
     }
 
-    fn run_leaning(paths: Vec<Vec<i32>>, radius: &[i32], at: f32, lean: bool) -> Vec<Vec<Vec3>> {
-        let out = __nodarium_execute_inner(&[&concat_arg_vecs(paths), radius, &[encode_float(at)], &[24], &[lean as i32]]);
+    fn run_leaning(paths: Vec<Vec<i32>>, radius: &[i32], lean: bool) -> Vec<Vec<Vec3>> {
+        let out = __nodarium_execute_inner(&[&concat_arg_vecs(paths), radius, &[lean as i32]]);
         split_args(&out)
             .iter()
             .map(|p| wrap_path(p).points.chunks_exact(4).map(|q| Vec3::new(q[0], q[1], q[2])).collect())
@@ -149,7 +151,7 @@ mod tests {
     #[test]
     fn stems_far_enough_apart_stay() {
         let paths = vec![stem(0, 0.0, 1.0), stem(1, 0.5, 1.0)];
-        let out = run(paths, &[encode_float(0.2)], 1.0);
+        let out = run(paths, &[encode_float(0.2)]);
         assert_eq!(out[0][4], Vec3::new(0.0, 1.0, 0.0));
         assert_eq!(out[1][4], Vec3::new(0.5, 1.0, 0.0));
     }
@@ -157,7 +159,7 @@ mod tests {
     #[test]
     fn overlapping_stems_move_until_they_touch_and_keep_their_shape() {
         let paths = vec![stem(0, 0.0, 1.0), stem(1, 0.1, 1.0), stem(2, 0.1, 1.0)];
-        let out = run(paths, &[encode_float(0.2)], 0.0);
+        let out = run(paths, &[encode_float(0.2)]);
         for i in 0..3 {
             for j in i + 1..3 {
                 let d = flat(out[i][0]).distance(flat(out[j][0]));
@@ -174,20 +176,18 @@ mod tests {
         // the radius follows the length of each stem
         let length = concat_args(vec![&[5], &[5]]);
         let radius = concat_args(vec![&[0], &[2], &length, &[encode_float(0.2)]]);
-        let out = run(vec![stem(0, 0.0, 2.0), stem(1, 0.1, 0.5)], &radius, 1.0);
+        let out = run(vec![stem(0, 0.0, 2.0), stem(1, 0.1, 0.5)], &radius);
         let (big, small) = (out[0][4].x.abs(), (out[1][4].x - 0.1).abs());
         assert!(big < small, "{big} and {small}");
         assert!((out[1][4].x - out[0][4].x - 0.5).abs() < 1e-3);
     }
 
     #[test]
-    fn the_place_is_measured_where_at_says() {
+    fn the_place_is_measured_at_the_tip() {
         // two stems that lean together: apart at the base, crossing at the tip
         let a = path(PathLink::root(1, 0), Vec3::new(-0.3, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
         let b = path(PathLink::root(1, 1), Vec3::new(0.3, 0.0, 0.0), Vec3::new(0.05, 1.0, 0.0));
-        let base = run(vec![a.clone(), b.clone()], &[encode_float(0.2)], 0.0);
-        assert_eq!(base[0][0], Vec3::new(-0.3, 0.0, 0.0));
-        let tip = run(vec![a, b], &[encode_float(0.2)], 1.0);
+        let tip = run(vec![a, b], &[encode_float(0.2)]);
         assert!((tip[1][4].x - tip[0][4].x - 0.4).abs() < 1e-3);
     }
 
@@ -197,7 +197,7 @@ mod tests {
         let s1 = stem(1, 0.0, 1.0);
         let parent = PathLink::root(1, 1).id;
         let leaf = path(PathLink::child(2, parent, 0.5, 0), Vec3::new(0.0, 0.5, 0.0), Vec3::new(0.2, 0.6, 0.0));
-        let out = run(vec![s0, s1, leaf], &[encode_float(0.1)], 1.0);
+        let out = run(vec![s0, s1, leaf], &[encode_float(0.1)]);
         let shift = out[1][0] - Vec3::ZERO;
         assert!(shift.length() > 0.05);
         assert!((out[2][0] - (Vec3::new(0.0, 0.5, 0.0) + shift)).length() < 1e-5);
@@ -206,8 +206,8 @@ mod tests {
     #[test]
     fn leaning_stems_keep_their_base_and_their_length() {
         let paths = vec![stem(0, 0.0, 1.0), stem(1, 0.1, 1.0)];
-        let moved = run(paths.clone(), &[encode_float(0.2)], 1.0);
-        let leaning = run_leaning(paths, &[encode_float(0.2)], 1.0, true);
+        let moved = run(paths.clone(), &[encode_float(0.2)]);
+        let leaning = run_leaning(paths, &[encode_float(0.2)], true);
         for i in 0..2 {
             assert_eq!(leaning[i][0], Vec3::new(0.1 * i as f32, 0.0, 0.0));
             assert!(((leaning[i][4] - leaning[i][0]).length() - 1.0).abs() < 1e-5);

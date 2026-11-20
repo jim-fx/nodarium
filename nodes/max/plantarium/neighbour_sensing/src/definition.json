@@ -9,7 +9,7 @@
   "inputs": {
     "plant": {
       "type": "path",
-      "description": "The paths that sense each other, e.g. the strands of a stipe or a cap."
+      "description": "The paths that sense each other, e.g. the strands of a stipe or a cap. Only the deepest paths move, the others are passed on."
     },
     "strength": {
       "type": "float",
@@ -47,14 +47,6 @@
     },
     "seed": {
       "type": "seed"
-    },
-    "depth": {
-      "type": "integer",
-      "min": 1,
-      "max": 10,
-      "value": 1,
-      "hidden": true,
-      "description": "On which layers of paths to work, counted from the deepest. 1 works only on the deepest paths, e.g. the strands."
     }
   }
 }

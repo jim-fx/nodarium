@@ -3,7 +3,7 @@
 //! The disc is a grid of rings around the axis, from `inner_radius` to `radius`. Every ring has
 //! as many cells as fit around it, so a cell is about as wide on every ring. The pattern starts
 //! on the inner ring as evenly spaced stripes and grows outward one ring at a time: a new ring
-//! starts as a copy of the ring inside it and settles for `steps` steps together with the few
+//! starts as a copy of the ring inside it and settles for [`STEPS`] steps together with the few
 //! rings before it, the rings further in stay as they are. The stripes run outward along the
 //! rings. As the circumference grows they drift apart until a gap gets too wide, then a new
 //! stripe starts in it or a stripe forks, so the stripes stay about `spacing` apart from the
@@ -85,6 +85,9 @@ fn hash(seed: i32, ring: usize, cell: usize) -> f32 {
     h ^= h >> 16;
     (h >> 8) as f32 / (1u32 << 24) as f32
 }
+
+/// How long the pattern settles at every ring as the disc grows
+pub const STEPS: usize = 60;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Params {
@@ -385,8 +388,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         alignment: ctx.float(args[3]),
         irregularity: ctx.float(args[4]),
         forking: ctx.float(args[5]),
-        steps: ctx.int(args[6]).clamp(1, 1000) as usize,
-        seed: ctx.int(args[7]),
+        steps: STEPS,
+        seed: ctx.int(args[6]),
     };
     reaction_diffusion(&params).encode()
 }
@@ -404,7 +407,7 @@ mod tests {
             alignment: 0.7,
             irregularity: 0.5,
             forking: 0.0,
-            steps: 60,
+            steps: STEPS,
             seed: 3,
         }
     }
@@ -651,7 +654,6 @@ mod tests {
             &[encode_float(p.alignment)],
             &[encode_float(p.irregularity)],
             &[encode_float(p.forking)],
-            &[p.steps as i32],
             &[p.seed],
         ]);
         assert_eq!(Pattern::decode(&out), Some(reaction_diffusion(&p)));
@@ -665,7 +667,6 @@ mod tests {
         assert_eq!(value("spacing"), 0.001);
         assert_eq!(value("alignment"), 0.85);
         assert_eq!(value("irregularity"), 0.5);
-        assert_eq!(value("steps"), 60.0);
         assert_eq!(value("forking"), 0.0);
     }
 }

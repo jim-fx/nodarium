@@ -20,10 +20,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     let mut output: Vec<Vec<i32>> = Vec::new();
 
-    let max_resolution = int(args[8]).max(4) as usize;
-    let depth = ctx.int(args[6]);
-
-    let selected = DeepestPaths::new(&paths, depth);
+    let max_resolution = int(args[7]).max(4) as usize;
+    let selected = DeepestPaths::new(&paths, 1);
 
     // the longest path sets the point density, so branches on every level share it
     let reference_length = paths
@@ -35,7 +33,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let path_count = selected.count(&paths);
     let mut path_index = 0;
     // the graph node that makes the branches, it is the last input
-    let creator = int(args[13]);
+    let creator = int(args[12]);
 
     for path_data in paths.iter() {
         if !selected.contains(path_data) {
@@ -48,7 +46,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         // alpha is where this parent path sits among all paths, from 0 at the first to 1 at the last
         ctx.set_path(path_data, path_index, path_count);
         path_index += 1;
-        let branch_amount = ctx.int(args[7]).max(1);
+        let branch_amount = ctx.int(args[6]).max(1);
 
         let lowest_branch = ctx.float(args[4]);
         let highest_branch = ctx.float(args[5]);
@@ -69,8 +67,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
             // the length is read first, so its random values are those of a branch without growth
             let full_length = ctx.float(args[1]);
-            let growth = ctx.float(args[12]).max(0.0);
-            let taper = ctx.float(args[11]);
+            let growth = ctx.float(args[11]).max(0.0);
+            let taper = ctx.float(args[10]);
             // a branch as long as the longest path gets the full resolution, shorter ones get
             // fewer points, no matter which layer they grow on. A branch that grows keeps the
             // points of the full-grown one
@@ -92,7 +90,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             };
 
             let rotation_angle = turn;
-            turn += ctx.float(args[9]);
+            turn += ctx.float(args[8]);
 
             // a branch the path has not grown up to yet is a bud at its tip
             let spot = path.link.spot((root_alpha + offset_single).min(1.0));
@@ -118,13 +116,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 continue;
             }
 
-            let up_angle = ctx.float(args[10]);
+            let up_angle = ctx.float(args[9]);
             let tilted = (orthogonal * up_angle.cos() + direction * up_angle.sin()).normalize();
             let branch_direction = rotate_vector_by_angle(tilted, direction, rotation_angle);
 
             log!(
-                "BRANCH depth: {}, branch_origin: {:?}, direction_at: {:?}, branch_direction: {:?}",
-                depth,
+                "BRANCH branch_origin: {:?}, direction_at: {:?}, branch_direction: {:?}",
                 branch_origin,
                 direction,
                 branch_direction
@@ -171,7 +168,6 @@ mod tests {
             &[encode_float(0.0)],
             &[encode_float(0.2)],
             &[encode_float(1.0)],
-            &[1],
             &[amount],
             &[8],
             &[encode_float(rotation)],
@@ -286,7 +282,7 @@ mod tests {
         let second = run_as(4, &first, 2, 137.5);
         let links = links(&second);
 
-        // the stem has depth 1, so only its branches (depth 2) were branched again
+        // only the deepest layer is branched, the branches of the stem
         let ids: Vec<i32> = links.iter().map(|l| l.id).collect();
         let mut unique = ids.clone();
         unique.sort();

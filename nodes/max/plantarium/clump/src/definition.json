@@ -9,7 +9,7 @@
   "inputs": {
     "plant": {
       "type": "path",
-      "description": "The paths to bundle. Paths with the same parent and the same creator are one bundle, e.g. the strands of one guide."
+      "description": "The paths to bundle. Only the deepest paths are bundled, the others are passed on. Paths with the same parent and the same creator are one bundle, e.g. the strands of one guide."
     },
     "strength": {
       "type": "float",
@@ -38,14 +38,6 @@
     },
     "seed": {
       "type": "seed"
-    },
-    "depth": {
-      "type": "integer",
-      "min": 1,
-      "max": 10,
-      "value": 1,
-      "hidden": true,
-      "description": "On which layers of paths to work, counted from the deepest. 1 bundles only the deepest paths, e.g. the strands."
     }
   }
 }

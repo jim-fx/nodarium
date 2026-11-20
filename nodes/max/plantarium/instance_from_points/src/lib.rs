@@ -2,21 +2,21 @@ use glam::{Mat4, Vec3};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_args, decode_points,
-    geometry::{encode_instances, is_geometry, is_path, path_id, path_link, pick_geometry, split_items},
-    group_points_by_parent, int, split_args, Ctx, Point,
+    geometry::{encode_instances, is_geometry, is_path, path_id, path_link, split_items},
+    group_points_by_parent, split_args, Ctx, Point,
 };
 
 nodarium_definition_file!("src/definition.json");
 
 /// Where and how an instance sits on `point`. The geometry grows along its -z axis, its face
 /// looks along +y. It sticks out along the direction of the point and faces up to the light as
-/// far as it can, or with `face_path` toward the tip of the path.
-fn transform(point: &Point, size: f32, angle: f32, face_path: bool) -> Mat4 {
+/// far as it can.
+fn transform(point: &Point, size: f32, angle: f32) -> Mat4 {
     // the angle tilts it along the path, positive toward the tip
     let out = point.direction * angle.cos() + point.tangent * angle.sin();
     let along = point.tangent * angle.cos() - point.direction * angle.sin();
     let up = Vec3::Y - out * Vec3::Y.dot(out);
-    let face = if face_path || up.length_squared() <= 1e-6 {
+    let face = if up.length_squared() <= 1e-6 {
         along
     } else {
         up.normalize()
@@ -44,9 +44,6 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         return concat_args(plant);
     }
     let seed = args.get(5).map_or(0, |s| s[0]);
-    let by_index = args.get(6).is_some_and(|p| int(p) == 1);
-    let pick_input = if by_index { args.get(7) } else { args.get(8) };
-    let face_path = args.get(9).is_some_and(|face| int(face) == 1);
 
     // the transforms of the instances of each geometry and the paths they sit on
     let mut placed: Vec<(Vec<[f32; 16]>, Vec<i32>)> = vec![Default::default(); geometries.len()];
@@ -67,15 +64,14 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             ctx.set_instance(point.index);
             let size = (point.scale + 0.01) * ctx.float(args[3]);
             let angle = ctx.float(args[4]);
-            let pick = pick_input.map_or(0.0, |p| ctx.float(p));
             // the path has not grown up to this point yet, it reads its inputs like the others
             // so their random values stay
             if parent.is_some_and(|link| link.spot(point.alpha).is_none()) {
                 continue;
             }
             let hash = path_id(seed, point.parent_id, point.index);
-            let choice = pick_geometry(by_index, pick, hash, geometries.len());
-            placed[choice].0.push(transform(point, size, angle, face_path).to_cols_array());
+            let choice = hash as usize % geometries.len();
+            placed[choice].0.push(transform(point, size, angle).to_cols_array());
             placed[choice].1.push(point.parent_id);
         }
     }
@@ -185,8 +181,8 @@ mod tests {
         assert!((face - Vec3::NEG_X).length() < 1e-5);
     }
 
-    /// The face of an instance that sticks out sideways from a path lying along +x
-    fn face_on_a_lying_path(face: i32) -> Vec3 {
+    #[test]
+    fn the_face_looks_up() {
         let plant = create_multiple_paths(1, 4, 1, 6);
         let point = Point {
             position: Vec3::ZERO,
@@ -198,29 +194,17 @@ mod tests {
             depth: 1,
             index: 0,
         };
-        let zero = [encode_float(0.0)];
         let result = __nodarium_execute_inner(&[
             &plant,
             &encode_points(&[point]),
             &triangle(),
             &[encode_float(10.0)],
-            &zero,
-            &[1],
-            &[0],
-            &zero,
-            &zero,
-            &[face],
+            &[encode_float(0.0)],
         ]);
         let mut instance_data = split_args(&result)[1].to_vec();
         let instances = wrap_instance_data(&mut instance_data);
-        Mat4::from_cols_slice(&instances.instances[..16]).y_axis.truncate().normalize()
-    }
-
-    #[test]
-    fn the_face_looks_up_or_along_the_path() {
-        assert!((face_on_a_lying_path(0) - Vec3::Y).length() < 1e-5);
-        // as if the path stood upright, it faces its tip
-        assert!((face_on_a_lying_path(1) - Vec3::X).length() < 1e-5);
+        let face = Mat4::from_cols_slice(&instances.instances[..16]).y_axis.truncate().normalize();
+        assert!((face - Vec3::Y).length() < 1e-5);
     }
 
     #[test]
@@ -345,7 +329,7 @@ mod tests {
 
     /// `amount` points along a stem, and how many instances of the geometries with 3, 4 and 5
     /// vertices sit on them.
-    fn picked(amount: i32, seed: i32, pick: &[&[i32]]) -> [usize; 3] {
+    fn picked(amount: i32, seed: i32) -> [usize; 3] {
         let plant = create_multiple_paths(1, 4, 1, 6);
         let stem_id = path_link(split_args(&plant)[0]).id;
         let points: Vec<Point> = (0..amount)
@@ -363,9 +347,7 @@ mod tests {
         let list = concat_args(vec![&geometry(3), &geometry(4), &geometry(5)]);
         let points = encode_points(&points);
         let (size, angle, seed) = ([encode_float(10.0)], [encode_float(0.0)], [seed]);
-        let mut args: Vec<&[i32]> = vec![&plant, &points, &list, &size, &angle, &seed];
-        args.extend(pick);
-        let result = __nodarium_execute_inner(&args);
+        let result = __nodarium_execute_inner(&[&plant, &points, &list, &size, &angle, &seed]);
         let mut counts = [0; 3];
         for item in split_args(&result).iter().skip(1) {
             let mut data = item.to_vec();
@@ -377,25 +359,10 @@ mod tests {
 
     #[test]
     fn every_instance_picks_a_geometry_of_a_list_at_random() {
-        let counts = picked(300, 1, &[]);
+        let counts = picked(300, 1);
         assert_eq!(counts.iter().sum::<usize>(), 300);
         assert!(counts.iter().all(|&c| c > 60), "{counts:?}");
-        assert_ne!(counts, picked(300, 2, &[]), "another seed picks others");
-        assert_eq!(counts, picked(300, 1, &[]));
-    }
-
-    #[test]
-    fn the_bias_favours_the_later_geometries() {
-        let (zero, bias) = ([encode_float(0.0)], [encode_float(1.0)]);
-        let counts = picked(300, 1, &[&[0], &zero, &bias]);
-        assert!(counts[2] > 200 && counts[0] < 20, "{counts:?}");
-    }
-
-    #[test]
-    fn by_index_alpha_goes_through_the_list_along_the_path() {
-        let alpha = concat_args(vec![&[2], &[0]]);
-        let (zero, one) = ([encode_float(0.0)], [encode_float(1.0)]);
-        assert_eq!(picked(9, 1, &[&[1], &alpha, &zero]), [3, 3, 3]);
-        assert_eq!(picked(9, 1, &[&[1], &one, &zero]), [0, 0, 9]);
+        assert_ne!(counts, picked(300, 2), "another seed picks others");
+        assert_eq!(counts, picked(300, 1));
     }
 }

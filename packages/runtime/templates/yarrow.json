@@ -439,8 +439,7 @@
         "thickness": 0.8,
         "rotation": 2.3998,
         "angle": 0.9599,
-        "taper": 0.3,
-        "depth": 1
+        "taper": 0.3
       },
       "position": [
         -240,
@@ -571,8 +570,7 @@
       "type": "max/plantarium/gravity",
       "props": {
         "strength": -0.35,
-        "elasticity": 0.3,
-        "depth": 1
+        "elasticity": 0.3
       },
       "position": [
         -210,
@@ -1236,8 +1234,7 @@
       "type": "max/plantarium/gravity",
       "props": {
         "strength": 0.2,
-        "elasticity": 0.18,
-        "depth": 1
+        "elasticity": 0.18
       },
       "position": [
         -450,
@@ -1268,8 +1265,7 @@
         "thickness": 0.6,
         "rotation": 3.1416,
         "angle": 1.1345,
-        "taper": 0.5,
-        "depth": 1
+        "taper": 0.5
       },
       "position": [
         -420,
@@ -1343,8 +1339,7 @@
         "thickness": 0.8,
         "rotation": 3.1416,
         "angle": 0.9599,
-        "taper": 0.5,
-        "depth": 1
+        "taper": 0.5
       },
       "position": [
         -390,
@@ -1504,8 +1499,7 @@
         "thickness": 1,
         "rotation": 0,
         "angle": 1.5708,
-        "taper": 0,
-        "depth": 1
+        "taper": 0
       },
       "position": [
         -240,

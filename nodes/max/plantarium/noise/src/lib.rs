@@ -14,28 +14,21 @@ nodarium_definition_file!("src/definition.json");
 /// the resolution.curve setting
 const REFERENCE_RESOLUTION: f32 = 32.0;
 
-fn lerp(a: f32, b: f32, t: f32) -> f32 {
-    a + t * (b - a)
-}
-
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
 
-
     let plants = split_args(args[0]);
-    let seed = args[4][0];
+    let seed = args[3][0];
 
-    let directional_args = split_args(args[5]);
+    let directional_args = split_args(args[4]);
     assert!(
         directional_args.len() == 3,
         "Failed to evaluate Vec3 - Expected 3 arguments, got {}",
         directional_args.len()
     );
 
-    let depth = ctx.int(args[6]);
-
-    let octaves = ctx.int(args[7]);
+    let octaves = ctx.int(args[5]);
 
     let noise_x: HybridMulti<OpenSimplex> =
         HybridMulti::new(seed as u32 + 1).set_octaves(octaves as usize);
@@ -44,7 +37,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let noise_z: HybridMulti<OpenSimplex> =
         HybridMulti::new(seed as u32 + 3).set_octaves(octaves as usize);
 
-    let selected = DeepestPaths::new(&plants, depth);
+    let selected = DeepestPaths::new(&plants, 1);
     let path_count = selected.count(&plants);
     let mut path_index = 0;
 
@@ -78,7 +71,6 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 .map(|v| (v * 0.1) as f64)
                 .collect();
             let strength = ctx.float_along(args[2], alphas.iter().copied());
-            let fix_bottom = ctx.float_along(args[3], alphas.iter().copied());
             let directional_strength: Vec<[f32; 3]> = {
                 let x = ctx.float_along(directional_args[0], alphas.iter().copied());
                 let y = ctx.float_along(directional_args[1], alphas.iter().copied());
@@ -90,20 +82,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
             // direction even after we've modified earlier points.
             let orig: Vec<f32> = path.points[..path.length * 4].to_vec();
 
-            // Anchor the base (fix_bottom=1 → scale=0, no displacement at root)
-            let scale0 = lerp(1.0, 0.0, fix_bottom[0]);
-            path.points[0] += noise_x.get([j as f64, 0.0]) as f32
-                * directional_strength[0][0]
-                * strength[0]
-                * scale0;
-            path.points[1] += noise_y.get([j as f64, 0.0]) as f32
-                * directional_strength[0][1]
-                * strength[0]
-                * scale0;
-            path.points[2] += noise_z.get([j as f64, 0.0]) as f32
-                * directional_strength[0][2]
-                * strength[0]
-                * scale0;
+            // the base stays where it is, so the path keeps growing from its parent
             let mut prev = Vec3::new(path.points[0], path.points[1], path.points[2]);
 
             for i in 1..path.length {
@@ -111,7 +90,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
                 let a = (i as f64 - 0.5) / (path.length - 1) as f64 * share as f64;
                 let px = j as f64 + a * length * scale[i];
                 let py = a * scale[i];
-                let sf = lerp(1.0, a as f32, fix_bottom[i]);
+                // the noise grows with alpha; rounded like the fix_bottom lerp this replaced, so the
+                // plants built before stay the same to the bit
+                let sf = 1.0 + (a as f32 - 1.0);
 
                 let orig_dir = Vec3::new(
                     orig[i * 4] - orig[(i - 1) * 4],
@@ -186,10 +167,8 @@ mod tests {
             plant,
             &[encode_float(1.0)],
             &[encode_float(0.5)],
-            &[encode_float(1.0)],
             &[7],
             &direction,
-            &[1],
             &[1],
         ]);
         let path = split_args(&out)[0].to_vec();

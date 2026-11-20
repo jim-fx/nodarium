@@ -3,7 +3,7 @@ use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs, encode_points,
     geometry::{
-        create_path, follow_parents, length_shares, orthogonal_to, rotate_vector_by_angle,
+        create_path, length_shares, orthogonal_to, rotate_vector_by_angle,
         set_path_link, wrap_path, wrap_path_mut, DeepestPaths, PointValues,
     },
     split_args, Ctx, Point,
@@ -128,13 +128,10 @@ fn bend(points: &mut Vec<Vec4>, kinks: &mut [Kink], path: (i32, i32)) -> Vec<Poi
 #[nodarium_execute]
 pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
     let mut ctx = Ctx::default();
-    let original: Vec<Vec<i32>> = split_args(args[0]).iter().map(|p| p.to_vec()).collect();
-    let depth = ctx.int(args[6]);
+    let mut current: Vec<Vec<i32>> = split_args(args[0]).iter().map(|p| p.to_vec()).collect();
+    let selected = DeepestPaths::new(&current, 1);
+    let path_count = selected.count(&current);
 
-    let selected = DeepestPaths::new(&original, depth);
-    let path_count = selected.count(&original);
-
-    let mut current = original.clone();
     let mut kink_points = Vec::new();
     let mut path_index = 0;
 
@@ -200,9 +197,6 @@ pub fn execute(args: &[&[i32]]) -> (Vec<i32>, Vec<i32>) {
         *item = bent;
     }
 
-    // what grows on a bent path moves with the spot it is attached to
-    follow_parents(&original, &mut current);
-
     (concat_arg_vecs(current), encode_points(&kink_points))
 }
 
@@ -212,10 +206,7 @@ mod tests {
     use glam::Vec3;
     use nodarium_utils::{
         concat_arg_vecs, decode_points, encode_float,
-        geometry::{
-            create_multiple_paths, create_path, path_link, set_path_link, with_path_colors,
-            wrap_multiple_paths, wrap_path, wrap_path_mut, PathLink,
-        },
+        geometry::{create_multiple_paths, path_link, with_path_colors, wrap_multiple_paths, wrap_path},
         split_args, Point,
     };
 
@@ -245,7 +236,6 @@ mod tests {
             &[encode_float(range.1)],
             &[encode_float(angle.to_radians())],
             &[encode_float(rotation.to_radians())],
-            &[1],
         ])
     }
 
@@ -395,41 +385,6 @@ mod tests {
 
         assert_eq!(path_link(split_args(&bent)[0]), before);
         assert_eq!(wrap_path(split_args(&bent)[0]).depth, 1);
-    }
-
-    #[test]
-    fn what_grows_on_a_bent_path_moves_with_it() {
-        let plant = stem();
-        let stem_id = path_link(split_args(&plant)[0]).id;
-        // a branch at the tip of the stem
-        let mut branch = create_path(2, 2);
-        set_path_link(&mut branch, PathLink::child(9, stem_id, 1.0, 0));
-        wrap_path_mut(&mut branch)
-            .points
-            .copy_from_slice(&[0.0, 4.0, 0.0, 0.05, 1.0, 4.0, 0.0, 0.0]);
-        let mut items: Vec<Vec<i32>> = split_args(&plant).iter().map(|p| p.to_vec()).collect();
-        items.push(branch);
-
-        // depth 1 only bends the deepest layer, the branch, so this uses depth 2
-        let result = __nodarium_execute_inner(&[
-            &concat_arg_vecs(items),
-            &[1],
-            &[encode_float(0.5)],
-            &[encode_float(0.5)],
-            &[encode_float(90f32.to_radians())],
-            &[encode_float(0.0)],
-            &[2],
-        ]);
-        let items = split_args(&result.0);
-        let stem_tip = tip(items[0]);
-        let branch_base = points_of(items[1])[0];
-
-        assert!(
-            (branch_base - stem_tip).length() < 1e-4,
-            "{:?} {:?}",
-            branch_base,
-            stem_tip
-        );
     }
 
     #[test]

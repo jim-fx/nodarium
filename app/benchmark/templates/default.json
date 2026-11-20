@@ -16,8 +16,7 @@
       "position": [195, 80],
       "type": "max/plantarium/gravity",
       "props": {
-        "strength": 0.38,
-        "depth": 1
+        "strength": 0.38
       }
     },
     {
@@ -27,9 +26,7 @@
       "props": {
         "strength": 4.9,
         "scale": 2.2,
-        "fix_bottom": 1,
         "directional_strength": [1, 1, 1],
-        "depth": 1,
         "octaves": 1
       }
     },
@@ -56,7 +53,6 @@
         "offset_single": 0.5,
         "lowest_branch": 0.46,
         "highest_branch": 1,
-        "depth": 1,
         "rotation": 3.1416
       }
     },
@@ -65,8 +61,7 @@
       "position": [145, 80],
       "type": "max/plantarium/gravity",
       "props": {
-        "strength": 0.38,
-        "depth": 1
+        "strength": 0.38
       }
     },
     {

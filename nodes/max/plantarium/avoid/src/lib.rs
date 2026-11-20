@@ -19,10 +19,9 @@ fn smoothstep(value: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
-/// The layer of paths the node works on, the same way `gravity` and `branch`
-/// pick their paths. The outermost paths are depth 0, a branch is one deeper.
-fn paths_at_depth(plants: &[&[i32]], depth: i32) -> Vec<usize> {
-    let selected = DeepestPaths::new(plants, depth);
+/// The deepest layer of paths, the one the node works on
+fn deepest_paths(plants: &[&[i32]]) -> Vec<usize> {
+    let selected = DeepestPaths::new(plants, 1);
 
     plants
         .iter()
@@ -315,8 +314,8 @@ enum Mode {
     Density,
 }
 
-/// From this many paths on, `auto` spreads by density
-const AUTO_DENSITY_PATHS: usize = 1000;
+/// From this many paths on, the paths are spread by density
+const DENSITY_PATHS: usize = 1000;
 /// The density mode stops pushing contacts apart once a pass removes less than this share of
 /// the overlap the pass before left
 const STALL: f32 = 0.1;
@@ -325,12 +324,11 @@ const STALL: f32 = 0.1;
 const PINNED: f32 = 0.01;
 
 impl Mode {
-    fn new(select: i32, paths: usize) -> Mode {
-        match select {
-            1 => Mode::Contacts,
-            2 => Mode::Density,
-            _ if paths >= AUTO_DENSITY_PATHS => Mode::Density,
-            _ => Mode::Contacts,
+    fn new(paths: usize) -> Mode {
+        if paths >= DENSITY_PATHS {
+            Mode::Density
+        } else {
+            Mode::Contacts
         }
     }
 }
@@ -547,10 +545,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let strength = ctx.float(args[2]).clamp(0.0, 1.0);
     let smoothing = ctx.float(args[3]).clamp(0.0, MAX_SMOOTHING);
     let iterations = int(args[4]).clamp(1, 64) as usize;
-    let depth = int(args[5]).max(1);
 
-    let paths = paths_at_depth(&plants, depth);
-    let mode = Mode::new(args.get(6).map_or(0, |a| int(a)), paths.len());
+    let paths = deepest_paths(&plants);
+    let mode = Mode::new(paths.len());
     let mut output: Vec<Vec<i32>> = plants.iter().map(|p| p.to_vec()).collect();
 
     repel(&mut output, &paths, radius, strength, smoothing, iterations, mode);
@@ -563,7 +560,7 @@ mod tests {
     use super::Mode;
     use nodarium_utils::{
         encode_float,
-        geometry::{create_multiple_paths, wrap_multiple_paths},
+        geometry::{create_multiple_paths, wrap_multiple_paths, wrap_path},
         split_args,
     };
 
@@ -581,13 +578,16 @@ mod tests {
     }
 
     fn run(data: &[i32]) -> Vec<i32> {
+        run_with_radius(data, 0.25)
+    }
+
+    fn run_with_radius(data: &[i32], radius: f32) -> Vec<i32> {
         super::__nodarium_execute_inner(&[
             data,
-            &[encode_float(0.25)],
+            &[encode_float(radius)],
             &[encode_float(1.0)],
             &[encode_float(0.5)],
             &[8],
-            &[1],
         ])
     }
 
@@ -798,7 +798,7 @@ mod tests {
     }
 
     #[test]
-    fn only_paths_on_the_selected_depth_move() {
+    fn only_paths_on_the_deepest_layer_move() {
         let point_amount = 5;
         // header, points and the four brackets
         let path_size = point_amount * 4 + 8 + 4;
@@ -814,14 +814,13 @@ mod tests {
             }
         }
 
-        // depth 1 works on the deepest layer, here the inner paths
+        // only the deepest layer moves, here the inner paths
         let result = super::__nodarium_execute_inner(&[
             data.as_slice(),
             &[encode_float(0.5)],
             &[encode_float(1.0)],
             &[encode_float(0.5)],
             &[8],
-            &[1],
         ]);
         let mut copy = result.clone();
         let paths = wrap_multiple_paths(&mut copy);
@@ -834,41 +833,21 @@ mod tests {
         assert!(horizontal_distance(paths[2].points, paths[3].points, last) > 0.1);
     }
 
-    fn run_mode(data: &[i32], radius: f32, mode: i32) -> Vec<i32> {
-        super::__nodarium_execute_inner(&[
-            data,
-            &[encode_float(radius)],
-            &[encode_float(1.0)],
-            &[encode_float(0.5)],
-            &[8],
-            &[1],
-            &[mode],
-        ])
-    }
-
     #[test]
-    fn auto_spreads_by_density_from_a_thousand_paths() {
-        assert_eq!(Mode::new(0, 999), Mode::Contacts);
-        assert_eq!(Mode::new(0, 1000), Mode::Density);
-        assert_eq!(Mode::new(1, 5000), Mode::Contacts);
-        assert_eq!(Mode::new(2, 2), Mode::Density);
-    }
-
-    #[test]
-    fn auto_pushes_a_few_stems_apart_as_before() {
-        let data = straight_stems(3);
-        assert_eq!(run_mode(&data, 0.25, 0), run_mode(&data, 0.25, 1));
-        assert_eq!(run(&data), run_mode(&data, 0.25, 1));
+    fn spreads_by_density_from_a_thousand_paths() {
+        assert_eq!(Mode::new(999), Mode::Contacts);
+        assert_eq!(Mode::new(1000), Mode::Density);
     }
 
     #[test]
     fn density_still_separates_two_stems() {
-        let result = run_mode(&straight_stems(2), 0.25, 2);
-        let mut copy = result.clone();
-        let paths = wrap_multiple_paths(&mut copy);
+        let data = straight_stems(2);
+        let mut output: Vec<Vec<i32>> = split_args(&data).iter().map(|p| p.to_vec()).collect();
+        super::repel(&mut output, &[0, 1], 0.25, 1.0, 0.5, 8, Mode::Density);
+        let paths: Vec<&[f32]> = output.iter().map(|p| wrap_path(p).points).collect();
 
-        let last = paths[0].length - 1;
-        assert!(horizontal_distance(paths[0].points, paths[1].points, last) > 0.1);
+        let last = paths[0].len() / 4 - 1;
+        assert!(horizontal_distance(paths[0], paths[1], last) > 0.1);
     }
 
     /// Like the groomed mushroom at 5000 strands: half of them in a stipe 5 cm tall and 6 mm in
@@ -928,8 +907,8 @@ mod tests {
     #[test]
     fn density_gives_the_same_result_every_time() {
         let data = bundle(1500);
-        let first = run_mode(&data, 0.0, 2);
+        let first = run_with_radius(&data, 0.0);
         assert_ne!(first, data);
-        assert_eq!(first, run_mode(&data, 0.0, 2));
+        assert_eq!(first, run_with_radius(&data, 0.0));
     }
 }
