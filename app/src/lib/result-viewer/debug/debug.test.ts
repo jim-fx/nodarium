@@ -1,7 +1,46 @@
+import { GEOMETRY_FLAGS } from '@nodarium/runtime';
 import { concatEncodedArrays, PATH_HEADER_SIZE } from '@nodarium/utils';
-import { ArrowHelper, Group, Line, LineSegments, type Mesh, Points, Vector3 } from 'three';
+import {
+  ArrowHelper,
+  Group,
+  InstancedMesh,
+  Line,
+  LineSegments,
+  type Material,
+  Mesh,
+  MeshMatcapMaterial,
+  MeshStandardMaterial,
+  Points,
+  ShaderMaterial,
+  Vector2,
+  Vector3
+} from 'three';
 import { describe, expect, it } from 'vitest';
-import { clipPoints, isShown, updateDebugScene } from './debug';
+import {
+  clipPoints,
+  createDebugScene,
+  type DebugEntry,
+  drawsSomething,
+  inFront,
+  isShown
+} from './debug';
+
+/** Draws one entry into `group` with a scene of its own, like the viewer does on its first run */
+function updateDebugScene(group: Group, entry: DebugEntry, material?: Material) {
+  return createDebugScene(group, material ?? new MeshStandardMaterial()).update(entry);
+}
+
+/** The meshes and instanced meshes that show something */
+function surfaces(group: Group) {
+  const meshes: Mesh[] = [];
+  const instanced: InstancedMesh[] = [];
+  group.traverse((child) => {
+    if (!child.visible) return;
+    if (child instanceof InstancedMesh) instanced.push(child);
+    else if (child instanceof Mesh && !(child.parent instanceof ArrowHelper)) meshes.push(child);
+  });
+  return { meshes, instanced };
+}
 
 function wrap(item: Int32Array) {
   const data = new Int32Array(item.length + 4);
@@ -42,6 +81,25 @@ function point(position: number[], direction: number[], scale = 0.1) {
   return data;
 }
 
+/**
+ * [1, vertices, faces, path id, flags, ...faces, ...positions, ...normals, ...colors?, ...groups?]
+ * with one triangle from (0, 0, 0) to (1, 1, 0)
+ */
+function triangle({ groups = false, colors = false } = {}) {
+  const data = new Int32Array(5 + 3 + 18 + (colors ? 3 : 0) + (groups ? 3 : 0));
+  data.set([
+    1,
+    3,
+    1,
+    -1,
+    (colors ? GEOMETRY_FLAGS.colors : 0) | (groups ? GEOMETRY_FLAGS.groups : 0)
+  ]);
+  data.set([0, 1, 2], 5);
+  new Float32Array(data.buffer).set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1], 8);
+  if (colors) data.set([0xff0000ff, 0xff00ff00, 0xffff0000], 26);
+  return data;
+}
+
 function collect(group: Group) {
   const lines: Line[] = [];
   const points: Points[] = [];
@@ -65,72 +123,32 @@ describe('updateDebugScene', () => {
       wrap(instances(4))
     ]);
 
-    updateDebugScene(group, { 1: { type: 'path', data } });
+    updateDebugScene(group, { type: 'path', data });
 
     const { lines, points, arrows } = collect(group);
     expect(lines).toHaveLength(2);
     expect(points[0].geometry.getAttribute('position').count).toBe(5);
-    // an arrow for every instance
-    expect(arrows).toHaveLength(4);
+    // the instances are drawn as themselves, not as arrows
+    expect(arrows).toHaveLength(0);
+    expect(surfaces(group).instanced[0].count).toBe(4);
   });
 
   it('draws a single geometry that is not wrapped in a list', () => {
     const group = new Group();
-    updateDebugScene(group, { 1: { type: 'path', data: wrap(instances(2)) } });
-    expect(collect(group).arrows).toHaveLength(2);
+    updateDebugScene(group, { type: 'path', data: wrap(instances(2)) });
+    expect(surfaces(group).instanced[0].count).toBe(2);
   });
 
-  it('points an instance along its -z axis, as long as its size, scaled up', () => {
+  it('places the instances with their matrices', () => {
     const group = new Group();
     const data = instances(2);
-    // scale 2 at (1, 2, 3) and scale 1 at (1, 2, 13)
-    new Float32Array(data.buffer).set(
-      [
-        2,
-        0,
-        0,
-        0,
-        0,
-        2,
-        0,
-        0,
-        0,
-        0,
-        2,
-        0,
-        1,
-        2,
-        3,
-        1,
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        1,
-        2,
-        13,
-        1
-      ],
-      26
-    );
-    updateDebugScene(group, { 1: { type: 'path', data: wrap(data) } });
+    const floats = new Float32Array(data.buffer);
+    // the second instance moved to (1, 2, 13)
+    floats.set([1, 2, 13], 26 + 16 + 12);
+    updateDebugScene(group, { type: 'path', data: wrap(data) });
 
-    const arrows = collect(group).arrows;
-    expect(arrows.map((a) => a.position.toArray())).toEqual([[1, 2, 3], [1, 2, 13]]);
-    // an arrow points along +y until it is rotated
-    for (const arrow of arrows) {
-      const direction = new Vector3(0, 1, 0).applyQuaternion(arrow.quaternion);
-      expect(direction.distanceTo(new Vector3(0, 0, -1))).toBeLessThan(1e-6);
-    }
-    expect(arrows.map((a) => a.cone.position.y)).toEqual([200, 100]);
+    const [mesh] = surfaces(group).instanced;
+    expect([...mesh.instanceMatrix.array.subarray(16 + 12, 16 + 15)]).toEqual([1, 2, 13]);
   });
 
   it('draws a dot and an arrow along its direction for every point', () => {
@@ -140,7 +158,7 @@ describe('updateDebugScene', () => {
       wrap(point([0, 2, 0], [-1, 0, 0], 0.2))
     ]);
 
-    updateDebugScene(group, { 1: { type: 'points', data } });
+    updateDebugScene(group, { type: 'points', data });
 
     const { points, arrows, segments } = collect(group);
     expect(points[0].geometry.getAttribute('position').count).toBe(2);
@@ -157,42 +175,84 @@ describe('updateDebugScene', () => {
 
   it('draws a single point that is not wrapped in a list', () => {
     const group = new Group();
-    updateDebugScene(group, { 1: { type: 'points', data: wrap(point([0, 0, 0], [0, 0, 1])) } });
+    updateDebugScene(group, { type: 'points', data: wrap(point([0, 0, 0], [0, 0, 1])) });
     expect(collect(group).arrows).toHaveLength(1);
   });
 
-  it('skips single values and clears the previous result', () => {
+  it('skips single values and clears what it showed before', () => {
     const group = new Group();
-    updateDebugScene(group, {
-      1: { type: 'path', data: wrap(path(1, [[0, 0, 0, 1], [0, 1, 0, 1]])) }
-    });
-    expect(group.children).not.toHaveLength(0);
+    const scene = createDebugScene(group, new MeshStandardMaterial());
+    scene.update({ type: 'path', data: wrap(path(1, [[0, 0, 0, 1], [0, 1, 0, 1]])) });
+    scene.update({ type: 'geometry', data: wrap(triangle()) });
+    expect(collect(group).lines).toHaveLength(0);
+    expect(surfaces(group).meshes).toHaveLength(1);
 
-    updateDebugScene(group, { 1: { type: 'float', data: new Int32Array([5]) } });
-    expect(group.children).toHaveLength(0);
+    const bounds = scene.update({ type: 'float', data: new Int32Array([5]) });
+    expect(bounds.isEmpty()).toBe(true);
+    expect(surfaces(group).meshes).toHaveLength(0);
+    expect(collect(group).lines).toHaveLength(0);
+    expect(drawsSomething({ type: 'float', data: new Int32Array([5]) })).toBe(false);
   });
 
   it('draws a geometry with groups and the preview of a pattern, but not a raw pattern', () => {
-    // [1, vertices, faces, path id, flags, ...faces, ...positions, ...normals, ...groups] with
-    // one triangle, in its brackets
-    const inner = new Int32Array(5 + 3 + 21);
-    inner.set([1, 3, 1, -1, 4, 0, 1, 2]);
-    new Float32Array(inner.buffer).set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1], 8);
-    const mesh = wrap(inner);
-    const meshes = (group: Group) =>
-      group.children.flatMap((g) => g.children.flatMap((pool) => pool.children as Mesh[]));
-
+    const mesh = wrap(triangle({ groups: true }));
     const group = new Group();
-    updateDebugScene(group, { 1: { type: 'geometry', data: mesh } });
-    expect(meshes(group)).toHaveLength(1);
-    expect(meshes(group)[0].geometry.getAttribute('position').count).toBe(3);
+    const scene = createDebugScene(group, new MeshStandardMaterial());
+    scene.update({ type: 'geometry', data: mesh });
+    expect(surfaces(group).meshes).toHaveLength(1);
+    expect(surfaces(group).meshes[0].geometry.getAttribute('position').count).toBe(3);
 
     // the runtime turns a pattern into the list of the output node
-    updateDebugScene(group, { 1: { type: 'pattern', data: Int32Array.of(0, 1, ...mesh, 1, 1) } });
-    expect(meshes(group)).toHaveLength(1);
+    scene.update({ type: 'pattern', data: Int32Array.of(0, 1, ...mesh, 1, 1) });
+    expect(surfaces(group).meshes).toHaveLength(1);
 
-    updateDebugScene(group, { 1: { type: 'pattern', data: Int32Array.of(15, 0, 0) } });
-    expect(group.children).toHaveLength(0);
+    scene.update({ type: 'pattern', data: Int32Array.of(15, 0, 0) });
+    expect(surfaces(group).meshes).toHaveLength(0);
+  });
+});
+
+describe('the surfaces of the debug node', () => {
+  it('are drawn with the material of the viewer, in front and with the depth test', () => {
+    const material = new MeshStandardMaterial({ color: '#336633' });
+    const group = new Group();
+    const scene = createDebugScene(group, material);
+    const bounds = scene.update({ type: 'geometry', data: wrap(triangle()) });
+    expect(bounds.min.toArray()).toEqual([0, 0, 0]);
+    expect(bounds.max.toArray()).toEqual([1, 1, 0]);
+
+    const [mesh] = surfaces(group).meshes;
+    const shown = mesh.material as MeshStandardMaterial;
+    expect(shown).toBeInstanceOf(MeshStandardMaterial);
+    expect(shown.color.getHexString()).toBe(material.color.getHexString());
+    expect(shown.depthTest).toBe(true);
+    expect(shown.wireframe).toBe(false);
+    expect(shown.polygonOffset).toBe(true);
+    expect(shown.polygonOffsetFactor).toBeLessThan(0);
+    expect(shown.customProgramCacheKey()).toBe(material.customProgramCacheKey());
+
+    const next = new MeshStandardMaterial({ color: '#aa0000' });
+    scene.setMaterial(next);
+    expect((mesh.material as MeshStandardMaterial).color.getHexString()).toBe('aa0000');
+  });
+
+  it('keep the colors of the vertices, also with a material that leaves them out in the result', () => {
+    const material = new MeshMatcapMaterial();
+    const group = new Group();
+    createDebugScene(group, material).update({
+      type: 'pattern',
+      data: wrap(triangle({ colors: true, groups: true }))
+    });
+    const [mesh] = surfaces(group).meshes;
+    expect(mesh.geometry.getAttribute('color')).toBeDefined();
+    expect((mesh.material as MeshMatcapMaterial).vertexColors).toBe(true);
+    expect(material.vertexColors).toBe(false);
+  });
+
+  it('share the uniforms of a shader material, its height range is set on them', () => {
+    const material = new ShaderMaterial({ uniforms: { uHeightRange: { value: new Vector2() } } });
+    const front = inFront(material) as ShaderMaterial;
+    expect(front.uniforms).toBe(material.uniforms);
+    expect(inFront(material)).toBe(front);
   });
 });
 
@@ -222,7 +282,7 @@ describe('the amount of the debug node', () => {
     const data = concatEncodedArrays(pathItems(200));
     const draw = (amount: number) => {
       const group = new Group();
-      updateDebugScene(group, { 1: { type: 'path', data, amount } });
+      updateDebugScene(group, { type: 'path', data, amount });
       return drawnStarts(group);
     };
     const few = draw(0.2);
@@ -236,9 +296,19 @@ describe('the amount of the debug node', () => {
 
   it('applies to instances, points and meshes', () => {
     const group = new Group();
-    updateDebugScene(group, { 1: { type: 'path', data: wrap(instances(400)), amount: 0.1 } });
-    expect(collect(group).arrows.length).toBeGreaterThan(10);
-    expect(collect(group).arrows.length).toBeLessThan(80);
+    const data = instances(400);
+    // a path id for every instance
+    const withIds = new Int32Array(data.length + 400);
+    withIds.set(data);
+    withIds.set(Array.from({ length: 400 }, (_, i) => 7000 + i), data.length);
+    updateDebugScene(group, { type: 'path', data: wrap(withIds), amount: 0.1 });
+    const [mesh] = surfaces(group).instanced;
+    expect(mesh.count).toBeGreaterThan(10);
+    expect(mesh.count).toBeLessThan(80);
+    // the path ids stay with the instances they belong to
+    const ids: Int32Array = mesh.userData.pathIds;
+    expect(ids).toHaveLength(mesh.count);
+    expect([...ids].every((id) => id >= 7000 && id < 7400)).toBe(true);
 
     const pointData = concatEncodedArrays(
       Array.from({ length: 200 }, (_, i) => {
@@ -247,7 +317,7 @@ describe('the amount of the debug node', () => {
         return wrap(p);
       })
     );
-    updateDebugScene(group, { 1: { type: 'points', data: pointData, amount: 0.1 } });
+    updateDebugScene(group, { type: 'points', data: pointData, amount: 0.1 });
     expect(collect(group).arrows.length).toBeLessThan(60);
   });
 
@@ -259,9 +329,8 @@ describe('the amount of the debug node', () => {
     const mesh = wrap(inner);
     const drawn = (amount: number) => {
       const group = new Group();
-      updateDebugScene(group, { 1: { type: 'geometry', data: mesh, amount } });
-      const [m] = group.children.flatMap((g) => g.children.flatMap((p) => p.children as Mesh[]));
-      return m.geometry.index!.count / 3;
+      updateDebugScene(group, { type: 'geometry', data: mesh, amount });
+      return surfaces(group).meshes[0].geometry.index!.count / 3;
     };
     expect(drawn(1)).toBe(faces);
     expect(drawn(0.1)).toBeGreaterThan(10);
@@ -284,7 +353,7 @@ describe('the clip of the debug node', () => {
   it('ends the line, the dots and the rings at the cut', () => {
     const data = wrap(path(1, [[0, 0, 0, 0.1], [0, 1, 0, 0.1], [0, 2, 0, 0.1], [0, 3, 0, 0.1]]));
     const group = new Group();
-    updateDebugScene(group, { 1: { type: 'path', data, clip: 0.5 } });
+    updateDebugScene(group, { type: 'path', data, clip: 0.5 });
     const { lines: drawn, points, segments } = collect(group);
     const line = drawn[0].geometry.getAttribute('position');
     expect(line.count).toBe(3);
@@ -316,9 +385,9 @@ describe('the defaults of the debug node', () => {
       return out;
     };
     const before = new Group();
-    updateDebugScene(before, { 1: { type: 'path', data } });
+    updateDebugScene(before, { type: 'path', data });
     const after = new Group();
-    updateDebugScene(after, { 1: { type: 'path', data, amount: 1, clip: 1 } });
+    updateDebugScene(after, { type: 'path', data, amount: 1, clip: 1 });
     expect(positions(after)).toEqual(positions(before));
     expect(positions(before).length).toBeGreaterThan(30);
   });

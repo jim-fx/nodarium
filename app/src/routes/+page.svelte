@@ -17,6 +17,14 @@
   import ProjectBrowser from '#lib/project-manager/ProjectBrowser.svelte';
   import { nodeTraits } from '#lib/provenance/provenance.ts';
   import { ViewportLink } from '#lib/provenance/viewport-link.svelte.ts';
+  import { type DebugEntry, drawsSomething } from '#lib/result-viewer/debug/debug.ts';
+  import {
+    type DebugLink,
+    debugLinks,
+    debugOrder,
+    selectedDebugSource,
+    shownDebugSource
+  } from '#lib/result-viewer/debug/shown-debug.ts';
   import { type ProbePath, readPaths } from '#lib/result-viewer/gizmos/gizmo-paths.ts';
   import {
     addProbe,
@@ -169,7 +177,14 @@
   let sidebarOpen = $state(false);
   let graphInterface = $state<ReturnType<typeof GraphInterface>>(null!);
   let viewerComponent = $state<ReturnType<typeof Viewer>>();
-  let debugData = $state<Record<number, { type: string; data: Int32Array }>>();
+  let debugData = $state.raw<Record<number, DebugEntry>>({});
+  let debugGraph: { id: number; links: DebugLink[]; order: number[] } = $state.raw({
+    id: -1,
+    links: [],
+    order: []
+  });
+  /** The local view of the debug node: only what it shows, framed by the camera */
+  let debugOnly = $state(false);
   let nodeTimings = $state<Record<number, number>>({});
   let errorNodeId = $state<number>();
   let lastBuild = $state.raw<BuildRecord>();
@@ -242,6 +257,26 @@
   $effect(() => {
     if (probeKey !== undefined) untrack(() => manager?.execute());
   });
+
+  const shownDebug = $derived.by(() => {
+    const id = shownDebugSource(
+      debugGraph.links,
+      debugGraph.order,
+      graphInterface?.state.activeNodeId
+    );
+    return id === undefined ? undefined : debugData[id];
+  });
+
+  $effect(() => {
+    if (debugOnly && (!shownDebug || debugGraph.id !== pm.graph?.id)) debugOnly = false;
+  });
+
+  /** Whether I shows the result of the debug node of the selection instead of its parts */
+  function selectsDebugNode() {
+    const active = graphInterface?.state.activeNodeId;
+    const source = selectedDebugSource(debugGraph.links, debugGraph.order, active);
+    return source !== undefined && drawsSomething(debugData[source]);
+  }
 
   const viewportLink = new ViewportLink({
     enabled: () => appSettings.value.viewportLink.enabled,
@@ -334,9 +369,14 @@
     },
     {
       key: 'i',
-      description: 'Local view: only show what the selected node made',
+      description: 'Local view: only show what the selected node made, or its debug node shows',
       callback: () => {
-        viewportLink.toggleLocalView();
+        if (debugOnly) {
+          debugOnly = false;
+          return;
+        }
+        if (!viewportLink.localView && selectsDebugNode()) debugOnly = true;
+        else viewportLink.toggleLocalView();
         count('localView');
       }
     }
@@ -385,6 +425,14 @@
           Object.entries(run.debugData).filter(([id]) => Number(id) !== probed.sourceId)
         )
         : run.debugData;
+      debugGraph = {
+        id: g.id,
+        links: debugLinks(probed.graph),
+        order: debugOrder(
+          debugGraph.id === g.id ? debugGraph.order : [],
+          Object.keys(debugData).map(Number)
+        )
+      };
       nodeTimings = run.nodeTimings;
       dragHold.measured(g, run.runTimings);
       errorNodeId = undefined;
@@ -622,7 +670,8 @@
           bind:scene
           bind:this={viewerComponent}
           perf={performanceStore}
-          debugData={debugData}
+          debug={shownDebug}
+          {debugOnly}
           {gizmos}
           ongizmochange={handleGizmoChange}
           ongizmostart={() => manager?.beginUndoStep()}

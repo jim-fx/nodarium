@@ -31,6 +31,15 @@ export type PartHighlight = {
   creators: Map<number, HighlightMode>;
 };
 
+/**
+ * `highlight` with the parts it shows as they are shown in `rest` instead, everything in `rest`
+ * without a highlight. A local view, which hides its rest already, stays as it is.
+ */
+export function withRest(highlight: PartHighlight | undefined, rest: HighlightMode): PartHighlight {
+  if (!highlight) return { paths: new Map(), instances: new Map(), creators: new Map(), rest };
+  return highlight.rest === HIGHLIGHT.none ? { ...highlight, rest } : highlight;
+}
+
 /** The paths, the instances and the tissues that a highlight leaves visible */
 export function visibleParts(highlight: PartHighlight) {
   const visible = (modes: PartHighlight['paths']) =>

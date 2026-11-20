@@ -5,11 +5,18 @@
   import type { PerformanceStore } from '@nodarium/utils';
   import { Canvas } from '@threlte/core';
   import { untrack } from 'svelte';
-  import { Box3, type Group, type Material } from 'three';
+  import { Box3, Group, type Material } from 'three';
+  import { createDebugScene, type DebugEntry } from './debug/debug';
   import { createResultPools } from './geometry/geometryPool';
   import type { Gizmo, GizmoChange, GizmoMode } from './gizmos/gizmos';
   import { getMaterial, matcapLoaded, setHeightRange } from './materials/materials';
-  import { type PartHighlight, setSelectedStrength, visibleParts } from './provenance/highlight';
+  import {
+    HIGHLIGHT,
+    type PartHighlight,
+    setSelectedStrength,
+    visibleParts,
+    withRest
+  } from './provenance/highlight';
   import { type PartHit, partHit, readPathLinks } from './provenance/part-hit';
   import type { Pick } from './provenance/picker';
   import Scene from './Scene.svelte';
@@ -30,6 +37,7 @@
       material = loadMaterial(id);
       setHeightRange(material, bounds);
       pools?.setMaterial(material);
+      debugScene.setMaterial(material);
       sceneComponent?.invalidate();
     });
   });
@@ -65,7 +73,10 @@
     /** The camera is remembered per project */
     projectId?: number;
     perf: PerformanceStore;
-    debugData?: Record<number, { type: string; data: Int32Array }>;
+    /** What the debug node shows, drawn like the result while the result is dimmed */
+    debug?: DebugEntry;
+    /** Only what `debug` draws is shown, and framed by the camera */
+    debugOnly?: boolean;
     gizmos?: Gizmo[];
     ongizmochange?: (nodeId: number, change: GizmoChange) => void;
     ongizmostart?: () => void;
@@ -86,7 +97,8 @@
     scene = $bindable(),
     centerCamera,
     projectId,
-    debugData,
+    debug,
+    debugOnly = false,
     perf,
     gizmos = [],
     ongizmochange,
@@ -103,6 +115,26 @@
   const materialId = $derived(materialOverride ?? appSettings.value.material.id);
   // svelte-ignore state_referenced_locally
   let material = loadMaterial(materialId);
+
+  const debugGroup = new Group();
+  const debugScene = createDebugScene(debugGroup, material);
+  let debugBounds = $state.raw(new Box3());
+  const debugShown = $derived(!debugBounds.isEmpty());
+
+  $effect(() => {
+    const entry = debug;
+    untrack(() => {
+      debugBounds = debugScene.update(entry);
+      sceneComponent?.invalidate();
+    });
+  });
+
+  /** The result is dimmed behind what the debug node shows, or hidden when only that is shown */
+  const shownHighlight = $derived(
+    debugShown
+      ? debugOnly ? withRest(undefined, HIGHLIGHT.hidden) : withRest(highlight, HIGHLIGHT.dimmed)
+      : highlight
+  );
 
   let items: Int32Array[] = [];
   let links: Map<number, PathLink> | undefined;
@@ -136,7 +168,11 @@
 
   let focused = false;
   function updateFocus() {
-    const focus = localView && highlight && pools ? focusOf(highlight) : undefined;
+    const focus = debugOnly && debugShown
+      ? debugBounds
+      : localView && highlight && pools
+      ? focusOf(highlight)
+      : undefined;
     if (!focus && !focused) return;
     focused = !!focus;
     sceneComponent?.setFocus(focus);
@@ -180,12 +216,15 @@
 
   $effect(() => {
     const next = highlight;
+    const shown = shownHighlight;
     const fade = appSettings.value.viewportLink.fadeSelection;
     void localView;
+    // the bounds of a new debug result move the focus, the highlight may stay the same
+    void debugBounds;
     untrack(() => {
       updateFade(next, fade);
       if (!pools) return;
-      pools.setHighlight(next);
+      pools.setHighlight(shown);
       updateFocus();
       sceneComponent?.invalidate();
     });
@@ -232,7 +271,12 @@
   <SmallPerformanceViewer {fps} store={perf} />
 {/if}
 
-<div class="relative" style="height: 100%">
+<!-- what the debug node shows, for a test or a tool that reads the page -->
+<div
+  class="relative"
+  style="height: 100%"
+  data-debug-view={debugShown ? (debugOnly ? 'only' : 'with-result') : undefined}
+>
   <Canvas>
     <Scene
       bind:this={sceneComponent}
@@ -240,7 +284,7 @@
       {projectId}
       {materialId}
       contentBounds={bounds}
-      {debugData}
+      debugScene={debugGroup}
       {gizmos}
       {gizmoMode}
       {ongizmochange}
