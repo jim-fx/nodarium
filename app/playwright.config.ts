@@ -7,6 +7,8 @@ export default defineConfig({
     port: 4173
   },
   testDir: 'e2e',
+  // each worker is a Firefox with software WebGL; more of them starve the CI runner
+  workers: 2,
   use: {
     browserName: 'firefox',
     launchOptions: {
