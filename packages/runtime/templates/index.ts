@@ -118,8 +118,9 @@ const ABOUT: Record<string, About> = {
   },
   mullein: {
     species: 'Verbascum thapsus (great mullein)',
-    notes: 'A rosette of woolly leaf_surface leaves, a stem of 1.2–1.9 m with clasping leaves '
-      + 'and decurrent wings, and a spike of 200–260 bud clusters with a band of open flowers.'
+    notes: 'A mound of 26–42 woolly leaf_surface leaves in one rosette, a stem of 0.9–2.1 m with '
+      + 'clasping leaves and decurrent wings that shrink to the spike, and a spike of 200–260 bud '
+      + 'clusters with a band of open flowers.'
   },
   plantain: {
     species: 'Plantago lanceolata (ribwort plantain)',
