@@ -76,7 +76,8 @@ const ABOUT: Record<string, About> = {
   },
   'lady-fern': {
     species: 'Athyrium filix-femina (lady fern)',
-    notes: '14 fronds arched into a vase, each with 40–50 pinnae in two ranks.'
+    notes: 'A shuttlecock of 8–14 lanceolate fronds on a spiral, 22–28 pairs of pinnae each, small '
+      + 'pinnules with gaps between them. The fronds unroll one after another.'
   },
   maidenhair: {
     species: 'Adiantum raddianum (delta maidenhair)',
