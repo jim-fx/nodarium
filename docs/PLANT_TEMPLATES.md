@@ -345,12 +345,12 @@ The open umbel is built at the origin along -z and baked:
 
 The bud is a second `umbel`: 16 rays, 1.8 cm, `opening 0.384` and `shape 1`, so the rays stand close together. Its bracts point up toward the tip (`angle 0.8727`).
 
-The leaves are grown live, in a chain of their own that a `join` adds to the stalks before the output. The `gravity` and `noise` of the leaves only work on the deepest paths, so they would bend the stalks too if the leaves grew on the same list. The joined lists contain the stem twice, and the second copy gets new ids.
+The leaves are grown live, in chains of their own that a `join` adds to the stalks before the output. The `gravity` and `noise` of the leaves only work on the deepest paths, so they would bend the stalks too if the leaves grew on the same list. The stem leaves grow on a second copy of the stem, which gets new ids. The rosette has a copy of the chain to itself: its petioles grow on no path, one level higher than the stem leaves, and the deepest paths of one list would leave them out.
 
 - The petioles:
-  - The rosette is 9–12 petioles off a 1 cm crown at the base, each 16–26 cm long and rising 0.26–0.87 rad.
+  - The rosette is 9–12 petioles from the points of a `spiral` (`height` 1 cm, the golden angle) into `branch_from_points`, each 16–26 cm long, 1.25 mm thick and rising 0.26–0.87 rad.
   - The stem leaves are 5 petioles on the main stem from 14% to 78%. An `alpha -> curve` times a `random` makes them shorter toward the top.
-- A `join` combines both kinds of petioles. A `gravity` of random strength (0.15–0.45) per petiole and a gentle `noise` then arch each leaf by its own amount.
+- A `gravity` of random strength (0.15–0.45) per petiole and a gentle `noise` arch each leaf by its own amount.
 - 12–16 pinnae grow on the outer two thirds of the petiole, in opposite pairs (`rotation 3.1416`, `offset_single 1`). Their length is `path_info` length of the petiole times an `alpha -> curve`, so they get shorter toward the tip, and every leaf keeps its proportions at any size.
 - Every pinna is covered by one flat, deeply lobed blade:
   - an `instance` at the base of the pinna with `angle 1.5708`, so the blade lies along the pinna
