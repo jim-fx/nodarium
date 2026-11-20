@@ -1,4 +1,6 @@
+import { NO_CREATOR } from '@nodarium/runtime';
 import {
+  Box3,
   Color,
   ColorManagement,
   Group,
@@ -13,6 +15,7 @@ import {
   Texture
 } from 'three';
 import { describe, expect, it, vi } from 'vitest';
+import { HIGHLIGHT } from '../provenance/highlight';
 import {
   createInstancedGeometryPool,
   createResultPools,
@@ -22,9 +25,9 @@ import {
   withVertexColors
 } from './geometryPool';
 
-// [2, vertices, faces, instances, depth, ...faces, ...positions, ...normals, ...matrices]
+// [2, vertices, faces, instances, creator, ...faces, ...positions, ...normals, ...matrices]
 // with a single triangle, every instance moved along x by its index times `offset`
-function instances(count: number, vertexCount = 3, offset = 1) {
+function instances(count: number, vertexCount = 3, offset = 1, creator = NO_CREATOR) {
   const faces = [0, 1, 2];
   const positions = Array.from({ length: vertexCount * 3 }, (_, i) => i % 3 === 0 ? i / 3 : 0);
   const normals = Array.from({ length: vertexCount * 3 }, (_, i) => i % 3 === 1 ? 1 : 0);
@@ -48,7 +51,7 @@ function instances(count: number, vertexCount = 3, offset = 1) {
   ]).flat();
 
   const data = new Int32Array(5 + 3 + vertexCount * 6 + count * 16);
-  data.set([2, vertexCount, 1, count, 0, ...faces]);
+  data.set([2, vertexCount, 1, count, creator, ...faces]);
   new Float32Array(data.buffer).set([...positions, ...normals, ...matrices], 8);
   return data;
 }
@@ -102,6 +105,30 @@ describe('createInstancedGeometryPool', () => {
     expect([...meshes()[0].geometry.getAttribute('instanceGroup').array]).toEqual([7, 9]);
     pool.update([instances(3)]);
     expect([...meshes()[0].geometry.getAttribute('instanceGroup').array]).toEqual([0, 0, 0]);
+  });
+
+  it('highlights and bounds the instances of the node that placed them', () => {
+    const { pool, meshes } = setup();
+    pool.update([instances(2, 3, 10, 41), instances(2, 4)]);
+    const creators = new Set<number>();
+    pool.collectCreators(creators);
+    expect([...creators]).toEqual([41]);
+
+    pool.setHighlight({
+      paths: new Map(),
+      instances: new Map(),
+      creators: new Map([[41, HIGHLIGHT.hover]]),
+      rest: HIGHLIGHT.dimmed
+    });
+    const modes = (mesh: InstancedMesh) => [
+      ...mesh.geometry.getAttribute('instanceHighlight').array
+    ];
+    expect(modes(meshes()[0])).toEqual([HIGHLIGHT.hover, HIGHLIGHT.hover]);
+    expect(modes(meshes()[1])).toEqual([HIGHLIGHT.dimmed, HIGHLIGHT.dimmed]);
+
+    const bounds = new Box3();
+    pool.unionBounds(new Set(), bounds, new Set([41]));
+    expect(bounds.max.x).toBe(12);
   });
 
   it('keeps the other inputs on their meshes when one is removed', () => {

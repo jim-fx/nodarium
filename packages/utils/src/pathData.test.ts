@@ -9,6 +9,7 @@ import {
   pathPointCount,
   POINT_VALUES,
   readGeometryPathId,
+  readInstanceCreator,
   readInstancePathIds,
   readPathColors,
   readPathLink
@@ -69,15 +70,16 @@ describe('readGeometryPathId', () => {
 });
 
 describe('readInstancePathIds', () => {
-  it('finds the ids after the matrices', () => {
+  it('finds the ids after the matrices and the creator in the header', () => {
     const vertices = 3;
     const faces = 1;
     const count = 2;
     const data = new Int32Array(5 + faces * 3 + vertices * 6 + count * 16 + count);
-    data.set([2, vertices, faces, count, 1]);
+    data.set([2, vertices, faces, count, 41]);
     data.set([10, 20], data.length - count);
 
     expect([...readInstancePathIds(data)]).toEqual([10, 20]);
+    expect(readInstanceCreator(data)).toBe(41);
   });
 });
 

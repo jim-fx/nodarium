@@ -647,6 +647,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "plantarium_spiral"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
 name = "plantarium_stem"
 version = "0.1.0"
 dependencies = [

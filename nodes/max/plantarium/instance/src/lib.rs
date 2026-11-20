@@ -3,7 +3,7 @@ use nodarium_macros::{nodarium_execute, nodarium_definition_file};
 use nodarium_utils::{
     concat_args,
     geometry::{
-        encode_instances, is_collapsed, is_geometry, path_id, pick_geometry, split_items, wrap_path,
+        encode_instances, is_collapsed, NO_CREATOR, is_geometry, path_id, pick_geometry, split_items, wrap_path,
         DeepestPaths,
     },
     int, split_args, Ctx,
@@ -29,6 +29,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let seed = args[9][0];
     let by_index = int(args[10]) == 1;
     let face_path = args.get(13).is_some_and(|face| int(face) == 1);
+    let creator = args.get(14).map_or(NO_CREATOR, |c| int(c));
 
     // the geometry, transform, path and size of every instance
     let mut placed: Vec<(usize, Mat4, i32, f32)> = Vec::new();
@@ -131,7 +132,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         .iter()
         .zip(&groups)
         .filter(|(_, (transforms, _))| !transforms.is_empty())
-        .map(|(geometry, (transforms, path_ids))| encode_instances(geometry, transforms, path_ids))
+        .map(|(geometry, (transforms, path_ids))| encode_instances(geometry, transforms, path_ids, creator))
         .collect();
 
     inputs.extend(instance_data.iter().map(Vec::as_slice));
@@ -147,7 +148,7 @@ mod tests {
         concat_args, encode_float,
         geometry::{
             create_multiple_paths, has_instance_colors, path_id, path_link, with_geometry_colors,
-            wrap_instance_data, wrap_multiple_paths, NO_PATH,
+            wrap_instance_data, wrap_multiple_paths, NO_CREATOR, NO_PATH,
         },
         split_args, wrap_arg,
     };
@@ -194,6 +195,7 @@ mod tests {
         ];
         let defaults: [&[i32]; 3] = [&[0], &[0], &[0]];
         args.extend((0..3).map(|i| pick.get(i).copied().unwrap_or(defaults[i])));
+        args.extend(pick.iter().skip(3));
         __nodarium_execute_inner(&args)
     }
 
@@ -235,6 +237,18 @@ mod tests {
         assert_eq!(path_ids.len(), 6);
         assert_eq!(&path_ids[..3], &[stem_ids[0]; 3]);
         assert_eq!(&path_ids[3..], &[stem_ids[1]; 3]);
+    }
+
+    #[test]
+    fn the_instances_know_the_node_that_placed_them() {
+        let stems = stems();
+        let creator_of = |result: &[i32]| -> Vec<i32> {
+            split_args(result).iter().filter(|item| item[2] == 2).map(|item| item[6]).collect()
+        };
+        let pick: [&[i32]; 5] = [&[0], &[0], &[0], &[0], &[41]];
+        assert_eq!(creator_of(&run_with(&stems, &three(), 6, 1, 1.0, &pick)), vec![41; 3]);
+        // a graph saved before the creator existed
+        assert_eq!(creator_of(&run(&stems, &geometry(3), 3, 0)), vec![NO_CREATOR]);
     }
 
     #[test]

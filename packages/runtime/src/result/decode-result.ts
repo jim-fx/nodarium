@@ -2,6 +2,7 @@ import {
   NO_PATH,
   PATH_LINK_WORDS,
   readGeometryPathId,
+  readInstanceCreator,
   readInstancePathIds,
   splitNestedArray
 } from '@nodarium/utils';
@@ -120,8 +121,8 @@ export function readGeometry(data: Int32Array): GeometryData {
 
 export type InstancesData = MeshData & {
   instanceCount: number;
-  /** how deep in the plant the path the instances sit on is */
-  depth: number;
+  /** the creator id of the graph node that placed the instances, `NO_CREATOR` for none */
+  creator: number;
   /** a column-major 4x4 matrix per instance, the order of three.js `Matrix4.fromArray` */
   matrices: Float32Array;
   /** for every instance the id of the path it sits on, `NO_PATH` (-1) for none */
@@ -129,7 +130,7 @@ export type InstancesData = MeshData & {
 };
 
 /**
- * Plantarium instances: `[2, v, f, instances, depth, ...faces, ...positions, ...normals,
+ * Plantarium instances: `[2, v, f, instances, creator, ...faces, ...positions, ...normals,
  * ...matrices, ...path ids, ...colors?]`, one shape drawn at every matrix. The colors of the
  * shape are there when the length leaves room for one per vertex after the path ids.
  */
@@ -153,7 +154,7 @@ export function readInstances(data: Int32Array): InstancesData {
     padded.set(pathIds);
     pathIds = padded;
   }
-  return { ...shape, instanceCount, depth: data[4], matrices, pathIds };
+  return { ...shape, instanceCount, creator: readInstanceCreator(data), matrices, pathIds };
 }
 
 export type DecodedResult = {

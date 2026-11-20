@@ -40,13 +40,16 @@ type Reader = { node: number; flow: 'main' | 'side' | 'value' };
 export type ResultParts = {
   /** the links of its paths, by path id */
   links: Map<number, PathLink>;
-  /** the creator ids of the nodes that made a tissue of its geometries with groups */
+  /**
+   * the creator ids of the nodes that made a tissue of its geometries with groups or placed
+   * instances
+   */
   tissues: Set<number>;
 };
 
 /**
  * Parts of a result: the geometry of paths and what sits on paths, both by path id, and the
- * tissues of geometries with groups by the creator id of the node that made them
+ * tissues of geometries with groups and instances by the creator id of the node that made them
  */
 export type Parts = { paths: Set<number>; instances: Set<number>; creators: Set<number> };
 
@@ -87,6 +90,8 @@ export function nodeTraits(getNode: (type: string) => NodeDefinition | undefined
     isMainInput: (type, input) => {
       // a join works on all of its inputs alike
       if (JOIN_TYPES.test(type)) return true;
+      // what a node places on points, like a rosette on the points of a spiral, is made of them
+      if (getNode(type)?.inputs?.[input]?.type === 'points') return true;
       const first = Object.entries(getNode(type)?.inputs ?? {}).find(([, i]) =>
         isPartType(i.type) || ('accepts' in i && i.accepts?.some(isPartType))
       );
@@ -279,9 +284,10 @@ export function partsOfRunning(
 }
 
 /**
- * The node that runs and made the part. A group of a geometry names its creator. An instance
- * only knows the path it sits on: it leads to the instance node when exactly one instance node
- * gets the paths of that creator, else to the creator of the path.
+ * The node that runs and made the part. A group of a geometry names its creator, and so do
+ * instances of the nodes that write the node that placed them. Other instances only know the path
+ * they sit on: they lead to the instance node when exactly one instance node gets the paths of
+ * that creator, else to the creator of the path.
  */
 export function nodeOfPart(
   index: ProvenanceIndex,
@@ -291,6 +297,8 @@ export function nodeOfPart(
   if (hit.kind === 'groups') {
     return hit.creator === undefined ? undefined : index.creators.get(hit.creator);
   }
+  const placer = hit.creator === undefined ? undefined : index.creators.get(hit.creator);
+  if (hit.kind === 'instances' && placer !== undefined) return placer;
   const link = result.links.get(hit.pathId);
   const creator = link && index.creators.get(link.creator);
   if (creator === undefined) return;

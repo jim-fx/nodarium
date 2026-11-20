@@ -97,10 +97,18 @@ export function readGeometryPathId(geometry: Int32Array) {
   return geometry[3];
 }
 
+/**
+ * The creator id of the graph node that placed instances `[2, v, f, instances, creator, ...]`,
+ * `NO_CREATOR` for none
+ */
+export function readInstanceCreator(instances: Int32Array) {
+  return instances[4];
+}
+
 /** For every instance the id of the path it sits on, `NO_PATH` for none. */
 export function readInstancePathIds(instances: Int32Array) {
   const [, vertexCount, faceCount, instanceCount] = instances;
-  // type, vertex, face and instance amount and the stem depth, then faces, positions, normals
+  // type, vertex, face and instance amount and the creator, then faces, positions, normals
   // and a 4x4 matrix per instance
   const start = 5 + faceCount * 3 + vertexCount * 6 + instanceCount * 16;
   return instances.subarray(start, start + instanceCount);

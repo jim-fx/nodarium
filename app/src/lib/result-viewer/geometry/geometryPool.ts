@@ -1,4 +1,4 @@
-import { readGeometry, readInstances, sortResultItems } from '@nodarium/runtime';
+import { NO_CREATOR, readGeometry, readInstances, sortResultItems } from '@nodarium/runtime';
 import { readGeometryPathId, readInstancePathIds } from '@nodarium/utils';
 import {
   Box3,
@@ -600,7 +600,7 @@ export function createInstancedGeometryPool(
   const instanceBounds = new Box3();
 
   const pool = createSlotPool<InstancedMesh>(parentScene, {
-    // instances of the same shape and depth share an object
+    // instances of the same shape and node share an object
     key: (data) => `${data[1]}:${data[2]}:${data[4]}`,
     fill: (existing, data, stats) => {
       const {
@@ -611,7 +611,8 @@ export function createInstancedGeometryPool(
         positions,
         normals,
         matrices,
-        colors
+        colors,
+        creator
       } = readInstances(data);
       stats.totalVertices += vertexCount * instanceCount;
       stats.totalFaces += faceCount * instanceCount;
@@ -643,6 +644,7 @@ export function createInstancedGeometryPool(
       // which path each of the instances sits on, missing ids stay 0 here unlike in readInstances
       const pathIds = Int32Array.from(readInstancePathIds(data));
       mesh.userData.pathIds = pathIds;
+      mesh.userData.creator = creator;
       // one group per instance even when the ids are missing, a short buffer would fail the draw
       const groups = new Float32Array(instanceCount);
       groups.set(groupAttribute(pathIds).subarray(0, instanceCount));
@@ -692,13 +694,20 @@ export function createInstancedGeometryPool(
     collectPickables(out: Pickable[]) {
       pool.forEachUsed((object) => out.push({ object, kind: 'instances' }));
     },
-    /** Grows `bounds` by the instances that sit on a path in `pathIds` */
-    unionBounds(pathIds: Set<number>, bounds: Box3) {
+    /** The graph nodes, by creator id, that placed instances */
+    collectCreators(out: Set<number>) {
+      pool.forEachUsed((mesh) => {
+        if (mesh.userData.creator !== NO_CREATOR) out.add(mesh.userData.creator);
+      });
+    },
+    /** Grows `bounds` by the instances that sit on a path in `pathIds` or that `creators` placed */
+    unionBounds(pathIds: Set<number>, bounds: Box3, creators: Set<number>) {
       pool.forEachUsed((mesh) => {
         const ids: Int32Array = mesh.userData.pathIds;
         const geometryBounds = mesh.geometry.boundingBox!;
+        const placed = creators.has(mesh.userData.creator);
         for (let i = 0; i < mesh.count; i++) {
-          if (!pathIds.has(ids[i])) continue;
+          if (!placed && !pathIds.has(ids[i])) continue;
           matrix.fromArray(mesh.instanceMatrix.array, i * 16);
           bounds.union(instanceBounds.copy(geometryBounds).applyMatrix4(matrix));
         }
@@ -733,13 +742,14 @@ function writeInstanceHighlight(mesh: InstancedMesh, highlight: PartHighlight) {
   }
   const modes = attribute.array as Float32Array;
   const ids: Int32Array = mesh.userData.pathIds;
+  const placed = highlight.creators.get(mesh.userData.creator) ?? highlight.rest;
   let previousId = NaN;
-  let mode: HighlightMode = highlight.rest;
+  let mode: HighlightMode = placed;
   for (let i = 0; i < mesh.count; i++) {
     // the instances of a path follow each other
     if (ids[i] !== previousId) {
       previousId = ids[i];
-      mode = highlight.instances.get(previousId) ?? highlight.rest;
+      mode = highlight.instances.get(previousId) ?? placed;
     }
     modes[i] = mode;
   }
@@ -827,14 +837,15 @@ export function createResultPools(parentScene: Group, material: Material) {
     boundsOf(paths: Set<number>, instancePaths: Set<number>, creators: Set<number>) {
       const bounds = new Box3();
       geometries.unionBounds(paths, bounds);
-      instances.unionBounds(instancePaths, bounds);
+      instances.unionBounds(instancePaths, bounds, creators);
       geometries.unionTissueBounds(creators, bounds);
       return bounds;
     },
-    /** The graph nodes, by creator id, that made a group of the geometry shown */
+    /** The graph nodes, by creator id, that made a group of the geometry shown or placed instances */
     meshCreators() {
       const creators = new Set<number>();
       geometries.collectCreators(creators);
+      instances.collectCreators(creators);
       return creators;
     },
     update(items: Int32Array[]) {

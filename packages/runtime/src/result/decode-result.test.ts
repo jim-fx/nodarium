@@ -32,11 +32,11 @@ function geometry(
   return data;
 }
 
-// [2, vertices, faces, instances, depth, ...faces, ...positions, ...normals, ...matrices,
+// [2, vertices, faces, instances, creator, ...faces, ...positions, ...normals, ...matrices,
 // ...path ids, ...colors?] with a single triangle, every instance moved along x by its index
 function instances(count: number, pathIds: number[] = [], colors: number[] = []) {
   const data = new Int32Array(5 + 3 + 3 * 6 + count * 16 + pathIds.length + colors.length);
-  data.set([2, 3, 1, count, 1, 0, 1, 2]);
+  data.set([2, 3, 1, count, 41, 0, 1, 2]);
   const floats = new Float32Array(data.buffer);
   floats.set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1], 8);
   for (let i = 0; i < count; i++) {
@@ -126,10 +126,10 @@ describe('readGeometry', () => {
 });
 
 describe('readInstances', () => {
-  it('reads the shape, the matrices and the path ids', () => {
+  it('reads the shape, the matrices, the path ids and the node that placed them', () => {
     const read = readInstances(instances(2, [7, 9]));
     expect(read.instanceCount).toBe(2);
-    expect(read.depth).toBe(1);
+    expect(read.creator).toBe(41);
     expect([...read.faces]).toEqual([0, 1, 2]);
     expect([...read.positions]).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0]);
     expect(read.matrices).toHaveLength(32);

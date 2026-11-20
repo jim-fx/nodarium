@@ -1,4 +1,4 @@
-import { GEOMETRY_FLAGS, readGeometry, RESULT_TAGS } from '@nodarium/runtime';
+import { GEOMETRY_FLAGS, NO_CREATOR, readGeometry, RESULT_TAGS } from '@nodarium/runtime';
 import { isPath, NO_PATH, type PathLink, readPathLink, readPathLinkTable } from '@nodarium/utils';
 
 /** A part of the result under the pointer */
@@ -8,7 +8,10 @@ export type PartHit = {
   pathId: number;
   /** the vertex group under the pointer, for a geometry with groups */
   group?: number;
-  /** the creator id of the graph node that made that group, when the geometry knows it */
+  /**
+   * the creator id of the graph node that made that group, when the geometry knows it, or that
+   * placed the instance
+   */
   creator?: number;
 };
 
@@ -36,6 +39,8 @@ type PickedObjectData = {
   pathId?: number;
   /** of every instance, the path it sits on */
   pathIds?: ArrayLike<number>;
+  /** of instances, the creator id of the node that placed them */
+  creator?: number;
   /** of a geometry with groups that knows them, by group the creator id of its node */
   creators?: ArrayLike<number>;
 };
@@ -47,6 +52,10 @@ export function partHit(
   index: number
 ): PartHit {
   if (kind === 'geometry') return { kind, pathId: data.pathId ?? NO_PATH };
-  if (kind === 'instances') return { kind, pathId: data.pathIds?.[index] ?? NO_PATH };
+  if (kind === 'instances') {
+    const pathId = data.pathIds?.[index] ?? NO_PATH;
+    const unknown = data.creator === undefined || data.creator === NO_CREATOR;
+    return unknown ? { kind, pathId } : { kind, pathId, creator: data.creator };
+  }
   return { kind, pathId: NO_PATH, group: index, creator: data.creators?.[index] };
 }

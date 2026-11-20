@@ -2,8 +2,8 @@ use glam::{Mat4, Vec3};
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_args, decode_points,
-    geometry::{encode_instances, is_geometry, is_path, path_id, path_link, split_items},
-    group_points_by_parent, split_args, Ctx, Point,
+    geometry::{encode_instances, is_geometry, is_path, path_id, path_link, split_items, NO_CREATOR},
+    group_points_by_parent, int, split_args, Ctx, Point,
 };
 
 nodarium_definition_file!("src/definition.json");
@@ -44,6 +44,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         return concat_args(plant);
     }
     let seed = args.get(5).map_or(0, |s| s[0]);
+    let creator = args.get(6).map_or(NO_CREATOR, |c| int(c));
 
     // the transforms of the instances of each geometry and the paths they sit on
     let mut placed: Vec<(Vec<[f32; 16]>, Vec<i32>)> = vec![Default::default(); geometries.len()];
@@ -80,7 +81,7 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         .iter()
         .zip(&placed)
         .filter(|(_, (transforms, _))| !transforms.is_empty())
-        .map(|(geometry, (transforms, path_ids))| encode_instances(geometry, transforms, path_ids))
+        .map(|(geometry, (transforms, path_ids))| encode_instances(geometry, transforms, path_ids, creator))
         .collect();
     plant.extend(instance_data.iter().map(Vec::as_slice));
     concat_args(plant)
@@ -94,7 +95,7 @@ mod tests {
         concat_args, encode_float, encode_points,
         geometry::{
             create_multiple_paths, has_instance_colors, path_link, with_geometry_colors,
-            wrap_instance_data, NO_PATH,
+            wrap_instance_data, NO_PARENT, NO_PATH,
         },
         split_args, wrap_arg, Point,
     };
@@ -146,6 +147,35 @@ mod tests {
             // the size is the thickness of the path at the point times the size input
             assert!((out.length() - 1.0).abs() < 1e-5);
         }
+    }
+
+    #[test]
+    fn an_instance_on_a_point_without_a_path_knows_the_node_that_placed_it() {
+        let point = Point {
+            position: Vec3::ZERO,
+            direction: Vec3::X,
+            tangent: Vec3::Y,
+            scale: 1.0,
+            parent_id: NO_PARENT,
+            alpha: 0.0,
+            depth: 0,
+            index: 0,
+        };
+        let result = __nodarium_execute_inner(&[
+            &concat_args(vec![]),
+            &encode_points(&[point]),
+            &triangle(),
+            &[encode_float(1.0)],
+            &[encode_float(0.0)],
+            &[3],
+            &[41],
+        ]);
+
+        let items = split_args(&result);
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0][6], 41);
+        let mut instance_data = items[0].to_vec();
+        assert_eq!(wrap_instance_data(&mut instance_data).path_ids, &[NO_PATH]);
     }
 
     #[test]
