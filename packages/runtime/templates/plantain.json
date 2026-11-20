@@ -112,42 +112,9 @@
       ]
     },
     {
-      "id": 33,
-      "type": "max/plantarium/stem",
-      "props": {
-        "length": 0.004,
-        "thickness": 0.002,
-        "taper": 0.5
-      },
-      "position": [
-        -460,
-        0
-      ]
-    },
-    {
-      "id": 140,
-      "type": "max/plantarium/set_color",
-      "props": {
-        "color": [
-          120,
-          96,
-          70
-        ]
-      },
-      "position": [
-        -445,
-        0
-      ]
-    },
-    {
       "id": 34,
-      "type": "max/plantarium/instance",
-      "props": {
-        "lowest_instance": 0,
-        "highest_instance": 1,
-        "rotation": 2.4,
-        "face": 0
-      },
+      "type": "max/plantarium/instance_from_points",
+      "props": {},
       "position": [
         -420,
         0
@@ -245,12 +212,12 @@
           0,
           0.55,
           0.6,
+          0.9495,
           1,
-          1,
-          0.9
+          0.825
         ],
         "min": 0,
-        "max": 0.16
+        "max": 0.0019
       },
       "position": [
         -430,
@@ -1722,6 +1689,18 @@
         700,
         950
       ]
+    },
+    {
+      "id": 33,
+      "type": "max/plantarium/spiral",
+      "props": {
+        "height": 0.004,
+        "rotation": 2.4
+      },
+      "position": [
+        -460,
+        0
+      ]
     }
   ],
   "edges": [
@@ -1750,18 +1729,6 @@
       "amount"
     ],
     [
-      33,
-      0,
-      140,
-      "plant"
-    ],
-    [
-      140,
-      0,
-      34,
-      "plant"
-    ],
-    [
       32,
       0,
       34,
@@ -1772,12 +1739,6 @@
       0,
       36,
       "value"
-    ],
-    [
-      36,
-      0,
-      34,
-      "amount"
     ],
     [
       38,
@@ -2524,6 +2485,8 @@
       0,
       145,
       "b"
-    ]
+    ],
+    [36, 0, 33, "amount"],
+    [33, 0, 34, "points"]
   ]
 }
