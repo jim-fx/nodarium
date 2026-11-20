@@ -69,12 +69,14 @@ test('a debug node on a geometry shows it shaded, and alone in the local view', 
   await page.keyboard.press('.');
   // the camera glides to the nodes, the node is clicked once it stays where it is
   let last = '';
+  let still = 0;
   await expect.poll(async () => {
-    const at = JSON.stringify(await debugNode.boundingBox());
-    const settled = at === last;
+    const box = await debugNode.boundingBox();
+    const at = JSON.stringify(box);
+    still = box && at === last ? still + 1 : 0;
     last = at;
-    return settled;
-  }, { intervals: [100] }).toBe(true);
+    return still;
+  }, { intervals: [100], timeout: 10_000 }).toBeGreaterThanOrEqual(3);
   const box = (await debugNode.boundingBox())!;
   await page.mouse.click(box.x + 10, box.y + 5);
   await expect(debugNode).toHaveClass(/active/);

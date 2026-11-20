@@ -8,14 +8,15 @@ const graph = {
     { id: 1, type: 'max/plantarium/stem' },
     { id: 2, type: 'max/plantarium/leaf' },
     { id: 3, type: 'max/core/output' },
+    { id: 4, type: 'max/core/float' },
     { id: 10, type: DEBUG_NODE },
     { id: 11, type: DEBUG_NODE }
   ],
-  edges: [[1, 0, 3, 'input'], [2, 0, 10, 'input'], [1, 0, 11, 'input']]
+  edges: [[1, 0, 3, 'input'], [4, 0, 10, 'amount'], [2, 0, 10, 'input'], [1, 0, 11, 'input']]
 } as Parameters<typeof debugLinks>[0];
 
 describe('debugLinks', () => {
-  it('finds the node every debug node shows', () => {
+  it('finds the node every debug node shows, not the ones of its amount and clip', () => {
     expect(debugLinks(graph)).toEqual([
       { debugNode: 10, source: 2 },
       { debugNode: 11, source: 1 }

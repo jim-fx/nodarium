@@ -375,8 +375,13 @@
           debugOnly = false;
           return;
         }
-        if (!viewportLink.localView && selectsDebugNode()) debugOnly = true;
-        else viewportLink.toggleLocalView();
+        if (selectsDebugNode()) {
+          // the local view of another node makes way, a second press would be needed otherwise
+          if (viewportLink.localView) viewportLink.toggleLocalView();
+          debugOnly = true;
+        } else {
+          viewportLink.toggleLocalView();
+        }
         count('localView');
       }
     }

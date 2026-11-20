@@ -6,8 +6,9 @@ export type DebugLink = { debugNode: number; source: number };
 /** The debug nodes of a graph as it was run and the nodes they are connected to */
 export function debugLinks(graph: Pick<Graph, 'nodes' | 'edges'>): DebugLink[] {
   const debugNodes = new Set(graph.nodes.filter((n) => isDebugNode(n.type)).map((n) => n.id));
+  // amount and clip can be connected as well, they only change how the output is drawn
   return graph.edges
-    .filter((edge) => debugNodes.has(edge[2]))
+    .filter((edge) => edge[3] === 'input' && debugNodes.has(edge[2]))
     .map((edge) => ({ debugNode: edge[2], source: edge[0] }));
 }
 
