@@ -28,14 +28,6 @@
       "step": 0.0001,
       "unit": "m"
     },
-    "spread": {
-      "type": "float",
-      "description": "0 packs the strands along the axis of the guide, 1 fills the whole tube",
-      "value": 1,
-      "min": 0,
-      "max": 1,
-      "step": 0.01
-    },
     "wobble": {
       "type": "float",
       "description": "How far strands meander across the tube, as a share of its radius. Neighbouring strands meander together and stay inside the tube.",

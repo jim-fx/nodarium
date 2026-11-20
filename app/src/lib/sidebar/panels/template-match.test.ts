@@ -47,7 +47,7 @@ describe('matchTemplate', () => {
   });
 
   it('matches nothing when the graph shares too little with every template', () => {
-    const graph = { nodes: nodes('output', 'box', 'triangle', 'math', 'vec3'), meta: {} };
+    const graph = { nodes: nodes('output', 'cut', 'mix_shape', 'math', 'vec3'), meta: {} };
     expect(matchTemplate(graph, templates)).toBeUndefined();
   });
 });

@@ -24,7 +24,6 @@
 //! straight into its words. `join` joins the geometries with groups of its inputs into one, the
 //! groups of every geometry numbered after those of the ones before it, see [`MeshWords::join`].
 
-mod calculate_normals;
 mod extrude_path;
 mod fill_gaps;
 mod follow;
@@ -35,7 +34,6 @@ mod mesh;
 mod path_data;
 mod transform;
 
-pub use calculate_normals::*;
 pub use extrude_path::*;
 pub use fill_gaps::*;
 pub use follow::*;

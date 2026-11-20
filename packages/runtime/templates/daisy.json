@@ -586,7 +586,6 @@
         "angle": 0.7236135,
         "rotation": 2.3998,
         "taper": 1,
-        "depth": 1,
         "offset_single": 0
       }
     },
@@ -757,8 +756,7 @@
         "radius": 0.05,
         "strength": 0.8,
         "smoothing": 4.9,
-        "iterations": 8,
-        "depth": 1
+        "iterations": 8
       }
     },
     {
@@ -771,9 +769,7 @@
       "props": {
         "plant": 0,
         "strength": 0.456,
-        "elasticity": 0,
-        "depth": 1,
-        "mode": 1
+        "elasticity": 0
       }
     },
     {

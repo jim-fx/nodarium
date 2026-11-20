@@ -230,12 +230,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
 
     let plants = split_args(args[0]);
     let params = Params { range: ctx.float(args[2]), seed: int(args[5]) };
-    let depth = int(args[6]).max(1);
 
     let mut output: Vec<Vec<i32>> = plants.iter().map(|p| p.to_vec()).collect();
     // a subnormal range would make every length measured in ranges overflow
     if params.range > 0.0 && params.range.is_normal() {
-        let selected = DeepestPaths::new(&plants, depth);
+        let selected = DeepestPaths::new(&plants, 1);
         let count = selected.count(&plants);
         let strands: Vec<Strand> = plants
             .iter()
@@ -325,7 +324,6 @@ mod tests {
             &[encode_float(r.bundling)],
             &[encode_float(r.max_offset)],
             &[r.seed],
-            &[1],
         ])
     }
 
@@ -478,7 +476,6 @@ mod tests {
             &[encode_float(0.002)],
             &[encode_float(0.6)],
             &[encode_float(0.0006)],
-            &[1],
             &[1],
         ]);
         let (mut lower, mut upper) = (0.0f32, 0.0f32);

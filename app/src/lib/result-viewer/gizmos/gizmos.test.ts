@@ -55,9 +55,9 @@ describe('force nodes', () => {
     expect(collectGizmos([target], [edgeTo(target, 'radius')], 1, defaults)).toEqual([]);
   });
 
-  it('keep their gizmo when the strength is connected', () => {
+  it('keep their gizmo when the falloff is connected', () => {
     const target = node(1);
-    expect(collectGizmos([target], [edgeTo(target, 'strength')], 1, defaults)).toHaveLength(1);
+    expect(collectGizmos([target], [edgeTo(target, 'falloff')], 1, defaults)).toHaveLength(1);
   });
 
   it('ignore a position that is not three numbers', () => {

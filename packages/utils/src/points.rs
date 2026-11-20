@@ -174,7 +174,6 @@ mod tests {
         let force = crate::Force {
             kind: crate::ForceKind::Point,
             position: Vec3::ZERO,
-            strength: 1.0,
             radius: 1.0,
             falloff: 0.0,
         };

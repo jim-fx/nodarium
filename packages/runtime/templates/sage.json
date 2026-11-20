@@ -49,7 +49,7 @@
       "id": 15,
       "position": [-600, -635.24],
       "type": "max/plantarium/noise",
-      "props": { "scale": 21.333333, "strength": 0.0135, "fix_bottom": 1, "octaves": 2 }
+      "props": { "scale": 21.333333, "strength": 0.0135, "octaves": 2 }
     },
     {
       "id": 16,
@@ -95,7 +95,7 @@
       "id": 24,
       "position": [-480, -494.66],
       "type": "max/plantarium/noise",
-      "props": { "scale": 29.333333, "strength": 0.009, "fix_bottom": 1 }
+      "props": { "scale": 29.333333, "strength": 0.009 }
     },
     {
       "id": 25,
@@ -342,7 +342,7 @@
       "id": 46,
       "position": [-240, -264.95],
       "type": "max/plantarium/noise",
-      "props": { "scale": 18.666667, "strength": 0.0075, "fix_bottom": 1 }
+      "props": { "scale": 18.666667, "strength": 0.0075 }
     },
     {
       "id": 47,

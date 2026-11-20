@@ -124,11 +124,10 @@ mod tests {
         split_args, Force, ForceKind,
     };
 
-    fn point_force(position: Vec3, strength: f32, radius: f32) -> Force {
+    fn point_force(position: Vec3, radius: f32) -> Force {
         Force {
             kind: ForceKind::Point,
             position,
-            strength,
             radius,
             falloff: 0.0,
         }
@@ -160,12 +159,16 @@ mod tests {
     }
 
     fn run(paths: Vec<Vec<i32>>, forces: &[Force], depth: i32, stiffness: f32) -> Vec<Vec<i32>> {
+        run_with(paths, forces, depth, stiffness, 1.0)
+    }
+
+    fn run_with(paths: Vec<Vec<i32>>, forces: &[Force], depth: i32, stiffness: f32, strength: f32) -> Vec<Vec<i32>> {
         let plants = concat_arg_vecs(paths);
         let force_list = concat_arg_vecs(forces.iter().map(|f| f.encode()).collect());
         let result = __nodarium_execute_inner(&[
             &plants,
             if forces.is_empty() { &[] } else { &force_list },
-            &[encode_float(1.0)],
+            &[encode_float(strength)],
             &[encode_float(stiffness)],
             &[depth],
         ]);
@@ -186,7 +189,7 @@ mod tests {
 
     #[test]
     fn a_path_bends_towards_a_point_force() {
-        let force = point_force(Vec3::new(4.0, 4.0, 0.0), 1.0, 20.0);
+        let force = point_force(Vec3::new(4.0, 4.0, 0.0), 20.0);
         let result = run(vec![stem(0, 1, None, Vec3::ZERO)], &[force], 1, 0.0);
 
         assert!(tip(&result[0]).x > 0.5, "tip is {:?}", tip(&result[0]));
@@ -194,21 +197,16 @@ mod tests {
 
     #[test]
     fn a_negative_strength_bends_away() {
-        let force = point_force(Vec3::new(4.0, 4.0, 0.0), -1.0, 20.0);
-        let result = run(vec![stem(0, 1, None, Vec3::ZERO)], &[force], 1, 0.0);
+        let force = point_force(Vec3::new(4.0, 4.0, 0.0), 20.0);
+        let result = run_with(vec![stem(0, 1, None, Vec3::ZERO)], &[force], 1, 0.0, -1.0);
 
         assert!(tip(&result[0]).x < -0.5, "tip is {:?}", tip(&result[0]));
     }
 
     #[test]
     fn the_base_and_the_segment_lengths_stay() {
-        let force = point_force(Vec3::new(4.0, 2.0, 1.0), 2.0, 20.0);
-        let result = run(
-            vec![stem(0, 1, None, Vec3::new(1.0, 0.0, 1.0))],
-            &[force],
-            1,
-            0.3,
-        );
+        let force = point_force(Vec3::new(4.0, 2.0, 1.0), 20.0);
+        let result = run_with(vec![stem(0, 1, None, Vec3::new(1.0, 0.0, 1.0))], &[force], 1, 0.3, 2.0);
 
         let bent = points(&result[0]);
         assert_eq!(bent[0], Vec3::new(1.0, 0.0, 1.0));
@@ -227,14 +225,14 @@ mod tests {
     #[test]
     fn paths_outside_of_the_radius_stay() {
         let paths = vec![stem(0, 1, None, Vec3::ZERO)];
-        let force = point_force(Vec3::new(50.0, 2.0, 0.0), 1.0, 3.0);
+        let force = point_force(Vec3::new(50.0, 2.0, 0.0), 3.0);
         let result = run(paths.clone(), &[force], 1, 0.0);
         assert_eq!(result[0], paths[0]);
     }
 
     #[test]
     fn a_stiffer_path_bends_less_at_the_base() {
-        let force = point_force(Vec3::new(4.0, 4.0, 0.0), 1.0, 20.0);
+        let force = point_force(Vec3::new(4.0, 4.0, 0.0), 20.0);
         let soft = run(vec![stem(0, 1, None, Vec3::ZERO)], &[force], 1, 0.0);
         let stiff = run(vec![stem(0, 1, None, Vec3::ZERO)], &[force], 1, 1.0);
 
@@ -244,8 +242,8 @@ mod tests {
     #[test]
     fn opposite_forces_cancel() {
         let paths = vec![stem(0, 1, None, Vec3::ZERO)];
-        let left = point_force(Vec3::new(-3.0, 2.0, 0.0), 1.0, 20.0);
-        let right = point_force(Vec3::new(3.0, 2.0, 0.0), 1.0, 20.0);
+        let left = point_force(Vec3::new(-3.0, 2.0, 0.0), 20.0);
+        let right = point_force(Vec3::new(3.0, 2.0, 0.0), 20.0);
         let result = run(paths, &[left, right], 1, 0.0);
 
         assert!(
@@ -259,7 +257,7 @@ mod tests {
     fn only_the_selected_layers_bend() {
         let trunk = stem(0, 1, None, Vec3::ZERO);
         let branch = stem(1, 2, Some((0, 0.5)), Vec3::new(0.0, 2.0, 0.0));
-        let force = point_force(Vec3::new(4.0, 6.0, 0.0), 1.0, 30.0);
+        let force = point_force(Vec3::new(4.0, 6.0, 0.0), 30.0);
 
         let result = run(vec![trunk.clone(), branch], &[force], 1, 0.0);
 
@@ -273,9 +271,9 @@ mod tests {
         let attach = 0.5;
         let on_trunk = interpolate_along_path(&flat(&trunk), attach).0.truncate();
         let branch = path(1, 2, Some((0, attach)), &[on_trunk, on_trunk + Vec3::X]);
-        let force = point_force(Vec3::new(-6.0, 3.0, 2.0), 2.0, 50.0);
+        let force = point_force(Vec3::new(-6.0, 3.0, 2.0), 50.0);
 
-        let result = run(vec![trunk.clone(), branch], &[force], 2, 0.2);
+        let result = run_with(vec![trunk.clone(), branch], &[force], 2, 0.2, 2.0);
 
         let bent_trunk = flat(&result[0]);
         assert_ne!(bent_trunk, flat(&trunk));
@@ -304,10 +302,10 @@ mod tests {
         );
         let on_branch = interpolate_along_path(&flat(&branch), attach).0.truncate();
         let twig = path(2, 3, Some((1, attach)), &[on_branch, on_branch + Vec3::Y]);
-        let force = point_force(Vec3::new(-6.0, 3.0, 2.0), 2.0, 50.0);
+        let force = point_force(Vec3::new(-6.0, 3.0, 2.0), 50.0);
 
         // the twig comes first in the list, the order must not matter
-        let result = run(vec![twig, branch, trunk], &[force], 3, 0.2);
+        let result = run_with(vec![twig, branch, trunk], &[force], 3, 0.2, 2.0);
 
         let spot = interpolate_along_path(&flat(&result[1]), attach)
             .0

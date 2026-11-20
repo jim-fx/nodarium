@@ -44,9 +44,7 @@
         "scale": 14.018692,
         "strength": 0.05564,
         "plant": 0,
-        "fix_bottom": 1,
         "directional_strength": [1, 1, 1],
-        "depth": 1,
         "octaves": 1
       }
     },
@@ -54,7 +52,7 @@
       "id": 16,
       "position": [-300, -250.55],
       "type": "max/plantarium/gravity",
-      "props": { "strength": 0.75, "elasticity": 0.35, "plant": 0, "depth": 1, "mode": 1 }
+      "props": { "strength": 0.75, "elasticity": 0.35, "plant": 0 }
     },
     { "id": 17, "position": [-330, -154.55], "type": "max/core/alpha", "props": {} },
     {
@@ -76,15 +74,14 @@
         "rotation": 3.1416,
         "angle": 0.6109,
         "taper": 0.8,
-        "offset_single": 0,
-        "depth": 1
+        "offset_single": 0
       }
     },
     {
       "id": 20,
       "position": [-180, -182.85],
       "type": "max/plantarium/gravity",
-      "props": { "strength": 0.5, "elasticity": 0.4, "plant": 0, "depth": 1, "mode": 1 }
+      "props": { "strength": 0.5, "elasticity": 0.4, "plant": 0 }
     },
     { "id": 21, "position": [-210, -94.85], "type": "max/core/alpha", "props": {} },
     {
@@ -106,15 +103,14 @@
         "rotation": 0.5735152,
         "angle": 0.6981,
         "taper": 0.6,
-        "offset_single": 0,
-        "depth": 1
+        "offset_single": 0
       }
     },
     {
       "id": 24,
       "position": [-90, -69.85],
       "type": "max/plantarium/gravity",
-      "props": { "strength": 0.4, "elasticity": 0.4, "plant": 0, "depth": 1, "mode": 1 }
+      "props": { "strength": 0.4, "elasticity": 0.4, "plant": 0 }
     },
     {
       "id": 25,
@@ -266,8 +262,7 @@
         "radius": 0.08881,
         "strength": 0.55,
         "smoothing": 1,
-        "iterations": 18,
-        "depth": 1
+        "iterations": 18
       }
     },
     {

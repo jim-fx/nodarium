@@ -320,12 +320,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         profile: read_curve(args[3]),
         seed: int(args[4]),
     };
-    let depth = int(args[5]).max(1);
 
     let mut output: Vec<Vec<i32>> = plants.iter().map(|p| p.to_vec()).collect();
     if params.strength > 0.0 {
         // the paths a creator grew on the same parent are one bundle, e.g. the strands of a guide
-        let selected = DeepestPaths::new(&plants, depth);
+        let selected = DeepestPaths::new(&plants, 1);
         let mut bundles: Vec<(i32, Vec<usize>)> = Vec::new();
         let mut lookup: HashMap<(i32, i32), usize> = HashMap::new();
         for (index, path) in plants.iter().enumerate() {
@@ -388,7 +387,7 @@ mod tests {
         let mut curve = vec![0, profile.len() as i32 + 1];
         curve.extend(profile.iter().map(|&v| encode_float(v)));
         curve.extend([1, 1]);
-        let out = __nodarium_execute_inner(&[&input, &[encode_float(strength)], &[clumps], &curve, &[seed], &[1]]);
+        let out = __nodarium_execute_inner(&[&input, &[encode_float(strength)], &[clumps], &curve, &[seed]]);
         split_args(&out).iter().map(|p| p.to_vec()).collect()
     }
 

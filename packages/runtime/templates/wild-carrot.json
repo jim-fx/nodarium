@@ -58,8 +58,7 @@
         "thickness": 0.65,
         "rotation": 2.3998,
         "angle": 0.5585054,
-        "taper": 0.6,
-        "depth": 1
+        "taper": 0.6
       }
     },
     {
@@ -91,8 +90,7 @@
       "type": "max/plantarium/gravity",
       "props": {
         "strength": -0.45,
-        "elasticity": 0.3,
-        "depth": 1
+        "elasticity": 0.3
       }
     },
     {
@@ -150,8 +148,7 @@
       "type": "max/plantarium/gravity",
       "props": {
         "strength": -0.3,
-        "elasticity": 0.4,
-        "depth": 1
+        "elasticity": 0.4
       }
     },
     {
@@ -311,7 +308,6 @@
       "type": "max/plantarium/force",
       "props": {
         "type": 0,
-        "strength": 1,
         "radius": 1,
         "falloff": 0
       }
@@ -375,8 +371,7 @@
         "thickness": 0.5,
         "rotation": 2.3998,
         "angle": -0.1745,
-        "taper": 0.8,
-        "depth": 1
+        "taper": 0.8
       }
     },
     {
@@ -391,8 +386,7 @@
         "thickness": 0.6,
         "rotation": 3.1416,
         "angle": 0.5236,
-        "taper": 0.8,
-        "depth": 1
+        "taper": 0.8
       }
     },
     {
@@ -411,7 +405,6 @@
       "type": "max/plantarium/force",
       "props": {
         "type": 0,
-        "strength": 1,
         "radius": 1,
         "falloff": 0
       }
@@ -505,8 +498,7 @@
         "thickness": 0.5,
         "rotation": 2.3998,
         "angle": 0.8727,
-        "taper": 0.8,
-        "depth": 1
+        "taper": 0.8
       }
     },
     {
@@ -521,8 +513,7 @@
         "thickness": 0.6,
         "rotation": 3.1416,
         "angle": 0.5236,
-        "taper": 0.8,
-        "depth": 1
+        "taper": 0.8
       }
     },
     {
@@ -571,8 +562,7 @@
         "thickness": 0.5,
         "rotation": 2.3998,
         "angle": 0.5236,
-        "taper": 0.7,
-        "depth": 1
+        "taper": 0.7
       }
     },
     {
@@ -614,8 +604,7 @@
         "thickness": 0.35,
         "rotation": 2.3998,
         "angle": 0.6109,
-        "taper": 0.7,
-        "depth": 1
+        "taper": 0.7
       }
     },
     {
@@ -681,8 +670,7 @@
       "type": "max/plantarium/gravity",
       "props": {
         "strength": 0.4,
-        "elasticity": 0.4,
-        "depth": 1
+        "elasticity": 0.4
       }
     },
     {
@@ -716,7 +704,6 @@
         "rotation": 3.1416,
         "angle": 0.6981,
         "taper": 0.7,
-        "depth": 1,
         "offset_single": 1
       }
     },
@@ -785,8 +772,7 @@
       "type": "max/plantarium/gravity",
       "props": {
         "strength": 0.2,
-        "elasticity": 0.5,
-        "depth": 1
+        "elasticity": 0.5
       }
     },
     {

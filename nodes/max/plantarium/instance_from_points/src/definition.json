@@ -19,8 +19,10 @@
     },
     "geometry": {
       "type": "geometry",
-      "accepts": ["path"],
-      "description": "One geometry, or a list of them from a join node or a leaf_surface with variants. Every instance picks one of them, at random or by its index. A link without geometry places nothing."
+      "accepts": [
+        "path"
+      ],
+      "description": "One geometry, or a list of them from a join node or a leaf_surface with variants. Every instance picks one of them at random. A link without geometry places nothing."
     },
     "size": {
       "type": "float",
@@ -41,39 +43,6 @@
     },
     "seed": {
       "type": "seed"
-    },
-    "pick": {
-      "type": "select",
-      "internal": true,
-      "hidden": true,
-      "options": ["random", "index"],
-      "value": 0,
-      "description": "How every instance picks its geometry from the list: at random, or by its index."
-    },
-    "index": {
-      "type": "float",
-      "min": 0,
-      "max": 1,
-      "step": 0.01,
-      "value": 0,
-      "description": "With pick index: 0 is the first geometry and 1 the last. Connect alpha to go through the list from the base of the path to its tip."
-    },
-    "bias": {
-      "type": "float",
-      "min": -1,
-      "max": 1,
-      "step": 0.05,
-      "value": 0,
-      "hidden": true,
-      "description": "With pick random: above 0 the later geometries of the list are picked more often, below 0 the earlier ones."
-    },
-    "face": {
-      "type": "select",
-      "internal": true,
-      "hidden": true,
-      "options": ["up", "path"],
-      "value": 0,
-      "description": "Which way the face of an instance looks, its top side, which y_curve and deform bend it from. Up: toward the sky as far as it can, like leaves that turn to the light. Path: as if the path stood upright, toward its tip and the inside of the ring, so the face turns with the path: the petals or bracts around a head that nods or leans all look at its axis alike. On an upright path both are the same."
     }
   }
 }

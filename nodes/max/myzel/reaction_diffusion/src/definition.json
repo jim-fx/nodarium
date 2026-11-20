@@ -58,13 +58,6 @@
       "max": 1,
       "step": 0.05
     },
-    "steps": {
-      "type": "integer",
-      "description": "How long the pattern settles at every ring as the disc grows. More steps are smoother and slower.",
-      "value": 60,
-      "min": 10,
-      "max": 400
-    },
     "seed": {
       "type": "seed"
     }

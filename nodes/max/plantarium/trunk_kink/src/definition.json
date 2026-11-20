@@ -10,7 +10,7 @@
   "inputs": {
     "plant": {
       "type": "path",
-      "description": "The paths to bend.",
+      "description": "The paths to bend. Only the deepest paths bend, the others are passed on.",
       "external": true
     },
     "amount": {
@@ -55,13 +55,6 @@
       "step": 0.01,
       "value": 3.1416,
       "unit": "rad"
-    },
-    "depth": {
-      "type": "integer",
-      "hidden": true,
-      "min": 1,
-      "value": 1,
-      "description": "On how many of the deepest layers of paths to put kinks."
     }
   }
 }

@@ -3,7 +3,7 @@ use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_args,
     geometry::{orthogonal_to, path_link, wrap_path, wrap_path_mut, DeepestPaths},
-    int, split_args, Ctx,
+    split_args, Ctx,
 };
 use std::collections::HashMap;
 use std::f32::consts::{PI, TAU};
@@ -119,12 +119,11 @@ fn twist_bundle(output: &mut [Vec<i32>], indices: &[usize], turns: f32) {
 pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
     let plants = split_args(args[0]);
-    let depth = int(args[2]).max(1);
 
     let mut output: Vec<Vec<i32>> = plants.iter().map(|p| p.to_vec()).collect();
 
     // the paths a creator grew on the same parent are one bundle, e.g. the strands of a guide
-    let selected = DeepestPaths::new(&plants, depth);
+    let selected = DeepestPaths::new(&plants, 1);
     let mut bundles: Vec<Vec<usize>> = Vec::new();
     let mut lookup: HashMap<(i32, i32), usize> = HashMap::new();
     for (index, path) in plants.iter().enumerate() {
@@ -213,7 +212,7 @@ mod tests {
 
     fn run(paths: &[Vec<i32>], turns: f32) -> Vec<Vec<i32>> {
         let input = concat_args(paths.iter().map(|p| p.as_slice()).collect());
-        let out = __nodarium_execute_inner(&[&input, &[encode_float(turns)], &[1]]);
+        let out = __nodarium_execute_inner(&[&input, &[encode_float(turns)]]);
         split_args(&out).iter().map(|p| p.to_vec()).collect()
     }
 

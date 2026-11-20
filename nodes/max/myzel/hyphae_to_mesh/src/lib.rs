@@ -9,9 +9,8 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         resolution: read_int(args[1]).clamp(16, 256) as usize,
         fibres: read_float(args[2]).max(0.0),
         seed: read_int(args[3]) as u32,
-        blend: read_float(args[4]),
-        fill: read_float(args[5]).max(0.0),
-        loose_strands: read_float(args[6]).clamp(0.0, 1.0),
+        fill: read_float(args[4]).max(0.0),
+        ..HyphaeMeshParams::default()
     };
     paths_mesh(&read_paths(args[0], PathStyle::BODY), &params).encode()
 }
@@ -32,9 +31,7 @@ mod tests {
             vec![d.resolution as i32],
             vec![encode_float(d.fibres)],
             vec![d.seed as i32],
-            vec![encode_float(d.blend)],
             vec![encode_float(d.fill)],
-            vec![encode_float(d.loose_strands)],
         ];
         let refs: Vec<&[i32]> = args.iter().map(|a| a.as_slice()).collect();
         Mesh::decode(&__nodarium_execute_inner(&refs))
@@ -57,7 +54,7 @@ mod tests {
         let def: serde_json::Value = serde_json::from_str(include_str!("definition.json")).unwrap();
         let value = |key: &str| def["inputs"][key]["value"].clone();
         assert_eq!(value("resolution_field"), d.resolution);
-        for (key, expected) in [("fibres", d.fibres), ("blend", d.blend), ("fill", d.fill), ("loose_strands", d.loose_strands)] {
+        for (key, expected) in [("fibres", d.fibres), ("fill", d.fill)] {
             assert!((value(key).as_f64().unwrap() as f32 - expected).abs() < 1e-7, "{}", key);
         }
     }
@@ -92,26 +89,6 @@ mod tests {
         let d = HyphaeMeshParams { seed: 5, ..HyphaeMeshParams::default() };
         let all = concat_arg_vecs(vec![paths(4, 1, 0.0), paths(2, 2, 0.03)]);
         assert_eq!(run(&all, &d), run(&all, &d));
-    }
-
-    #[test]
-    fn loose_strands_keeps_a_strand_that_leaves_the_body() {
-        // a stipe of 16 paths 30 mm high and a strand that leaves its top for 20 mm
-        let mut body = create_multiple_paths(17, 11, 1, 7);
-        for (k, path) in wrap_multiple_paths(&mut body).iter_mut().enumerate() {
-            let a = k as f32 / 16.0 * std::f32::consts::TAU;
-            let (x, z) = (0.005 * a.cos(), 0.005 * a.sin());
-            for i in 0..11 {
-                let t = i as f32 / 10.0;
-                let point = if k < 16 { [x, 0.03 * t, z, 0.001] } else { [0.005, 0.03 + 0.02 * t, 0.0, 0.001] };
-                path.points[i * 4..i * 4 + 4].copy_from_slice(&point);
-            }
-        }
-        let top = |m: &Mesh| (0..m.vertex_count()).map(|v| m.positions[v * 3 + 1]).fold(f32::MIN, f32::max);
-        let at = |loose_strands: f32| run(&body, &HyphaeMeshParams { loose_strands, ..HyphaeMeshParams::default() });
-        // the closing (6 mm) leaves a low fillet where the strand was
-        assert!(top(&at(0.0)) < 0.033, "gone at 0, ends at {}", top(&at(0.0)));
-        assert!(top(&at(1.0)) > 0.05, "kept at 1, ends at {}", top(&at(1.0)));
     }
 
     /// Every path of a list with `value` at every point, written by `give`

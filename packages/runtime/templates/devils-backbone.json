@@ -438,9 +438,7 @@
       "props": {
         "plant": 0,
         "strength": 0.434,
-        "elasticity": 0.7,
-        "depth": 1,
-        "mode": 1
+        "elasticity": 0.7
       }
     },
     {

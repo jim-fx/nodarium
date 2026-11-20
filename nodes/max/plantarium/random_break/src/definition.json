@@ -1,7 +1,7 @@
 {
   "id": "max/plantarium/random_break",
   "meta": {
-    "description": "Breaks off some paths at a random spot, like stems and branches that snapped. What grew above the break is gone."
+    "description": "Breaks off some paths at a random spot, like stems and branches that snapped. To break a stem before anything grows on it, put it before the branch."
   },
   "outputs": [
     "path"
@@ -9,7 +9,7 @@
   "inputs": {
     "plant": {
       "type": "path",
-      "description": "The paths to break.",
+      "description": "The paths to break. Only the deepest paths break, the others are passed on.",
       "external": true
     },
     "chance": {
@@ -38,13 +38,6 @@
     },
     "seed": {
       "type": "seed"
-    },
-    "depth": {
-      "type": "integer",
-      "hidden": true,
-      "min": 1,
-      "value": 1,
-      "description": "On how many of the deepest layers of paths to break."
     }
   }
 }

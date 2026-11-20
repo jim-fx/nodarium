@@ -1,7 +1,7 @@
 {
   "id": "max/plantarium/force",
   "meta": {
-    "description": "A force that pushes or pulls paths, for example towards a point in space. Connect it to apply_force."
+    "description": "A force that pulls paths, for example towards a point in space. Connect it to apply_force, a negative strength there pushes them away."
   },
   "outputs": [
     "force"
@@ -25,12 +25,6 @@
       "external": true,
       "description": "Where the force sits.",
       "unit": "m"
-    },
-    "strength": {
-      "type": "float",
-      "step": 0.05,
-      "value": 1,
-      "description": "How strong the force is. A negative value pushes away from the position instead of pulling towards it."
     },
     "radius": {
       "type": "float",

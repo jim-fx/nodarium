@@ -9,7 +9,7 @@
   "inputs": {
     "plant": {
       "type": "path",
-      "description": "The paths to twist. Paths with the same parent and the same creator are one bundle.",
+      "description": "The paths to twist. Only the deepest paths twist, e.g. the strands, the others are passed on. Paths with the same parent and the same creator are one bundle.",
       "external": true
     },
     "turns": {
@@ -19,14 +19,6 @@
       "max": 4,
       "step": 0.05,
       "value": 0.1
-    },
-    "depth": {
-      "type": "integer",
-      "min": 1,
-      "max": 10,
-      "value": 1,
-      "hidden": true,
-      "description": "On which layers of paths to work, counted from the deepest. 1 twists only the deepest paths, e.g. the strands."
     }
   }
 }

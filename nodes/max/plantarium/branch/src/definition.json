@@ -9,7 +9,7 @@
   "inputs": {
     "plant": {
       "type": "path",
-      "description": "The path to place the branches on.",
+      "description": "The paths to place the branches on. Only the deepest paths get branches, the others are passed on.",
       "external": true
     },
     "length": {
@@ -54,13 +54,6 @@
       "max": 1,
       "step": 0.01,
       "value": 1
-    },
-    "depth": {
-      "type": "integer",
-      "hidden": true,
-      "min": 1,
-      "value": 1,
-      "description": "On how many layern of branches should we place branches."
     },
     "amount": {
       "type": "integer",

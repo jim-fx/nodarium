@@ -9,20 +9,13 @@
   "inputs": {
     "plant": {
       "type": "path",
-      "description": "The paths to bend. Only the deepest depth levels bend (the last level by default), the others are passed on."
+      "description": "The paths to bend. Only the deepest level bends, the others are passed on."
     },
     "strength": {
       "type": "float",
       "description": "How far a path droops: its tip turns by strength × 90° from its own direction toward the ground and on past it, so 0.5 turns it by 45°, 1 an upright tip to horizontal and 2 into a hook that points down. A negative value bends it up. Read along the path, alpha goes from the base (0) to the tip (1), and anew for every path, so time or path_info grown into a curve lets a bud nod and straighten up as it opens.",
       "min": -2,
       "max": 2,
-      "value": 1
-    },
-    "depth": {
-      "type": "integer",
-      "min": 1,
-      "max": 10,
-      "hidden": true,
       "value": 1
     },
     "elasticity": {
@@ -32,15 +25,6 @@
       "max": 1,
       "step": 0.05,
       "value": 0.3
-    },
-    "mode": {
-      "type": "select",
-      "internal": true,
-      "label": "Mode",
-      "options": ["closed-form", "chain"],
-      "value": 1,
-      "hidden": true,
-      "description": "closed-form lerps each segment toward gravity; chain is a forward-kinematic cantilever where each segment rotates by an angle that grows along the stem."
     }
   }
 }

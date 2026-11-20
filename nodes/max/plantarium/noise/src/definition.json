@@ -9,7 +9,7 @@
   "inputs": {
     "plant": {
       "type": "path",
-      "description": "The paths to bend. Only the deepest depth levels bend (the last level by default), the others are passed on."
+      "description": "The paths to bend. Only the deepest level bends, the others are passed on."
     },
     "scale": {
       "type": "float",
@@ -25,14 +25,6 @@
       "max": 1,
       "value": 0.5
     },
-    "fix_bottom": {
-      "type": "float",
-      "label": "Fix bottom of plant",
-      "hidden": true,
-      "value": 1.0,
-      "min": 0,
-      "max": 1
-    },
     "seed": {
       "type": "seed"
     },
@@ -44,13 +36,6 @@
         1,
         1
       ]
-    },
-    "depth": {
-      "type": "integer",
-      "min": 1,
-      "max": 10,
-      "value": 1,
-      "hidden": true
     },
     "octaves": {
       "type": "integer",

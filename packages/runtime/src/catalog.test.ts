@@ -70,7 +70,7 @@ describe('the catalog', () => {
     const block = formatNode(noise()).split('\n');
     expect(block[0]).toBe('max/plantarium/noise (path) -> path');
     expect(block).toContain('  scale: float = 1 [0.1..10]');
-    expect(block).toContain('  fix_bottom: float = 1 [0..1] (hidden)');
+    expect(block).toContain('  octaves: integer = 1 [1..5] (hidden)');
     expect(block).toContain('  seed: seed');
     expect(formatNode(findNodes(nodes, 'rotate')[0])).toContain(
       '  axis: select = x (0 x, 1 y, 2 z)'

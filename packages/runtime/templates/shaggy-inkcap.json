@@ -310,9 +310,7 @@
           "id": 27,
           "position": [-240, -3.75],
           "type": "max/plantarium/keep_apart",
-          "props": {
-            "at": 1
-          }
+          "props": {}
         },
         {
           "id": 28,

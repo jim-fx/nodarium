@@ -418,14 +418,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "plantarium_box"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
 name = "plantarium_branch"
 version = "0.1.0"
 dependencies = [
@@ -537,16 +529,6 @@ dependencies = [
  "glam",
  "nodarium_macros",
  "nodarium_utils",
-]
-
-[[package]]
-name = "plantarium_leaf_growth"
-version = "0.1.0"
-dependencies = [
- "glam",
- "nodarium_macros",
- "nodarium_utils",
- "serde_json",
 ]
 
 [[package]]
@@ -665,14 +647,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "plantarium_snap"
-version = "0.1.0"
-dependencies = [
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
 name = "plantarium_stem"
 version = "0.1.0"
 dependencies = [
@@ -686,14 +660,6 @@ name = "plantarium_to_geometry"
 version = "0.1.0"
 dependencies = [
  "glam",
- "nodarium_macros",
- "nodarium_utils",
-]
-
-[[package]]
-name = "plantarium_triangle"
-version = "0.1.0"
-dependencies = [
  "nodarium_macros",
  "nodarium_utils",
 ]

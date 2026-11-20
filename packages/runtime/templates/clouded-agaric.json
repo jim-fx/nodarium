@@ -351,7 +351,6 @@
           "position": [-240, -3.75],
           "type": "max/plantarium/keep_apart",
           "props": {
-            "at": 1,
             "lean": 1
           }
         },

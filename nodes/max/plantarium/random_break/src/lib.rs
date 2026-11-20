@@ -2,13 +2,9 @@ use glam::Vec4;
 use nodarium_macros::{nodarium_definition_file, nodarium_execute};
 use nodarium_utils::{
     concat_arg_vecs,
-    geometry::{
-        is_path, path_link, path_random, resample_up_to, set_path_link, wrap_path, wrap_path_mut,
-        DeepestPaths, PointValues,
-    },
+    geometry::{path_link, path_random, resample_up_to, wrap_path, wrap_path_mut, DeepestPaths, PointValues},
     split_args, Ctx,
 };
-use std::collections::{HashMap, HashSet};
 
 nodarium_definition_file!("src/definition.json");
 
@@ -20,42 +16,17 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
     let mut items: Vec<Vec<i32>> = split_args(args[0]).iter().map(|p| p.to_vec()).collect();
     let seed = args[4][0];
-    let depth = ctx.int(args[5]);
 
-    let selected = DeepestPaths::new(&items, depth);
+    // nothing grows on the deepest paths, so a break takes nothing else with it
+    let selected = DeepestPaths::new(&items, 1);
     let path_count = selected.count(&items);
-
-    // parents come before their children, so a path knows what happened to its parent
-    let mut order: Vec<usize> = (0..items.len()).filter(|i| is_path(&items[*i])).collect();
-    order.sort_by_key(|i| items[*i][3]);
-
-    let mut removed: HashSet<i32> = HashSet::new();
-    let mut breaks: HashMap<i32, f32> = HashMap::new();
-    let mut keep = vec![true; items.len()];
     let mut path_index = 0;
 
-    for index in order {
-        let mut link = path_link(&items[index]);
-
-        if removed.contains(&link.parent_id) {
-            removed.insert(link.id);
-            keep[index] = false;
-            continue;
-        }
-        if let Some(&b) = breaks.get(&link.parent_id) {
-            if link.parent_alpha > b {
-                removed.insert(link.id);
-                keep[index] = false;
-                continue;
-            }
-            // the parent now ends at the break, the spot keeps its place on it
-            link.parent_alpha /= b;
-            set_path_link(&mut items[index], link);
-        }
-
+    for index in 0..items.len() {
         if !selected.contains(&items[index]) {
             continue;
         }
+        let link = path_link(&items[index]);
         let path = wrap_path(&items[index]);
         if path.length < 2 || path.get_length() <= 0.0 {
             continue;
@@ -90,15 +61,9 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         if let Some(values) = values {
             values.write_into(&mut target);
         }
-        breaks.insert(link.id, alpha);
     }
 
-    let kept = items
-        .into_iter()
-        .zip(keep)
-        .filter_map(|(item, keep)| keep.then_some(item))
-        .collect();
-    concat_arg_vecs(kept)
+    concat_arg_vecs(items)
 }
 
 #[cfg(test)]
@@ -126,7 +91,7 @@ mod tests {
         path
     }
 
-    fn run(paths: Vec<Vec<i32>>, chance: f32, lowest: f32, highest: f32, depth: i32) -> Vec<Vec<i32>> {
+    fn run(paths: Vec<Vec<i32>>, chance: f32, lowest: f32, highest: f32) -> Vec<Vec<i32>> {
         let plant = concat_arg_vecs(paths);
         let out = __nodarium_execute_inner(&[
             &plant,
@@ -134,7 +99,6 @@ mod tests {
             &[encode_float(lowest)],
             &[encode_float(highest)],
             &[3],
-            &[depth],
         ]);
         split_args(&out).iter().map(|p| p.to_vec()).collect()
     }
@@ -147,7 +111,7 @@ mod tests {
     #[test]
     fn a_broken_path_ends_at_the_break_and_keeps_its_resolution() {
         let stem = straight(PathLink::root(1, 0), 1, [0.0; 3], 10.0);
-        let out = run(vec![stem], 1.0, 0.5, 0.5, 1);
+        let out = run(vec![stem], 1.0, 0.5, 0.5);
         assert_eq!(out.len(), 1);
         let path = wrap_path(&out[0]);
         assert_eq!(path.length, 9);
@@ -161,34 +125,18 @@ mod tests {
     #[test]
     fn nothing_breaks_without_a_chance() {
         let stem = straight(PathLink::root(1, 0), 1, [0.0; 3], 10.0);
-        let out = run(vec![stem.clone()], 0.0, 0.5, 0.5, 1);
+        let out = run(vec![stem.clone()], 0.0, 0.5, 0.5);
         assert_eq!(out, vec![stem]);
     }
 
     #[test]
-    fn branches_above_the_break_are_gone_and_the_ones_below_stay_in_place() {
+    fn only_the_deepest_paths_break() {
         let stem_link = PathLink::root(1, 0);
         let stem = straight(stem_link, 1, [0.0; 3], 10.0);
-        let low = PathLink::child(2, stem_link.id, 0.2, 0);
-        let high = PathLink::child(2, stem_link.id, 0.8, 1);
-        let twig = PathLink::child(4, high.id, 0.5, 0);
-        let paths = vec![
-            stem,
-            straight(low, 2, [0.0, 2.0, 0.0], 1.0),
-            straight(high, 2, [0.0, 8.0, 0.0], 1.0),
-            straight(twig, 3, [0.0, 8.5, 0.0], 0.5),
-        ];
-
-        // the stem is the only one on depth 1, so a depth of 3 reaches it
-        let out = run(paths, 1.0, 0.5, 0.5, 3);
-        let ids: Vec<i32> = out.iter().map(|p| path_link(p).id).collect();
-        assert!(ids.contains(&low.id));
-        assert!(!ids.contains(&high.id));
-        assert!(!ids.contains(&twig.id));
-
-        let branch = out.iter().find(|p| path_link(p).id == low.id).unwrap();
-        let alpha = path_link(branch).parent_alpha;
-        assert!((alpha - 0.4).abs() < 1e-5, "parent alpha is {}", alpha);
+        let branch = straight(PathLink::child(2, stem_link.id, 0.8, 0), 2, [0.0, 8.0, 0.0], 1.0);
+        let out = run(vec![stem.clone(), branch], 1.0, 0.5, 0.5);
+        assert_eq!(out[0], stem);
+        assert!((tip_y(&out[1]) - 8.5).abs() < 1e-4);
     }
 
     #[test]
@@ -196,8 +144,8 @@ mod tests {
         let paths: Vec<Vec<i32>> = (0..20)
             .map(|i| straight(PathLink::root(1, i), 1, [i as f32, 0.0, 0.0], 10.0))
             .collect();
-        let a = run(paths.clone(), 0.5, 0.2, 0.9, 1);
-        let b = run(paths, 0.5, 0.2, 0.9, 1);
+        let a = run(paths.clone(), 0.5, 0.2, 0.9);
+        let b = run(paths, 0.5, 0.2, 0.9);
         assert_eq!(a, b);
 
         let broken = a.iter().filter(|p| tip_y(p) < 9.99).count();
@@ -212,7 +160,7 @@ mod tests {
         let strands: Vec<Vec<i32>> = (0..5000)
             .map(|k| straight(PathLink::child(9, guide, 0.0, k), 2, [k as f32 * 0.001, 0.0, 0.0], 10.0))
             .collect();
-        let out = run(strands.clone(), 0.5, 0.85, 1.0, 1);
+        let out = run(strands.clone(), 0.5, 0.85, 1.0);
         assert_eq!(out.len(), strands.len());
 
         let mut shortened = 0;
@@ -232,7 +180,7 @@ mod tests {
     fn a_broken_path_keeps_the_colors_below_the_break() {
         let stem = straight(PathLink::root(1, 0), 1, [0.0; 3], 10.0);
         let colors: Vec<u32> = (0..9).map(|i| 0xff00_0000 | i * 16).collect();
-        let out = run(vec![with_path_colors(&stem, &colors)], 1.0, 0.5, 0.5, 1);
+        let out = run(vec![with_path_colors(&stem, &colors)], 1.0, 0.5, 0.5);
         let path = wrap_path(&out[0]);
         // the lower half spreads over the whole path, the colors between mix in linear light
         for (i, &color) in path.colors.iter().enumerate() {
@@ -249,7 +197,7 @@ mod tests {
         let stem = straight(PathLink::root(1, 0), 1, [0.0; 3], 10.0);
         let fibres: Vec<f32> = (0..9).map(|i| i as f32).collect();
         let valued = with_path_fill(&with_path_fibres(&with_path_colors(&stem, &[7; 9]), &fibres), &[2.0; 9]);
-        let out = run(vec![valued], 1.0, 0.5, 0.5, 1);
+        let out = run(vec![valued], 1.0, 0.5, 0.5);
         let path = wrap_path(&out[0]);
         // the lower half, fibres 0 to 4, spreads over the whole path
         let expected: Vec<f32> = (0..9).map(|i| i as f32 * 0.5).collect();

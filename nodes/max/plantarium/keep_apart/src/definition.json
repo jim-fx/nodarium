@@ -9,7 +9,7 @@
   "inputs": {
     "plant": {
       "type": "path",
-      "description": "The stems to move apart. Only paths that don't grow on another path move."
+      "description": "The stems to move apart, each measured at its tip. Only paths that don't grow on another path move."
     },
     "radius": {
       "type": "float",
@@ -19,27 +19,11 @@
       "unit": "m",
       "description": "The room every stem needs around it, e.g. the radius of its cap or crown. Read for every stem, with its length in path_info, so it can follow the size of each."
     },
-    "at": {
-      "type": "float",
-      "min": 0,
-      "max": 1,
-      "step": 0.05,
-      "value": 1,
-      "description": "Where along a stem its place is measured. 0 is the base, 1 the tip, where a cap sits."
-    },
-    "iterations": {
-      "type": "integer",
-      "min": 1,
-      "max": 64,
-      "value": 24,
-      "hidden": true,
-      "description": "How often the stems are moved. More iterations settle a dense group."
-    },
     "lean": {
       "type": "boolean",
       "value": false,
       "hidden": true,
-      "description": "The base of every stem stays where it is and the stem leans aside instead, so its place at `at` moves as far as the whole stem would. For stems that start on a substrate, which a move would lift off it."
+      "description": "The base of every stem stays where it is and the stem leans aside instead, so its tip moves as far as the whole stem would. For stems that start on a substrate, which a move would lift off it."
     }
   }
 }
