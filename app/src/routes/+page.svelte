@@ -258,11 +258,15 @@
     if (probeKey !== undefined) untrack(() => manager?.execute());
   });
 
+  /** The group nodes the editor is inside of, the selection is told by its ids there */
+  const enteredGroups = $derived(manager?.path.map((entry) => entry.nodeId) ?? []);
+
   const shownDebug = $derived.by(() => {
     const id = shownDebugSource(
       debugGraph.links,
       debugGraph.order,
-      graphInterface?.state.activeNodeId
+      graphInterface?.state.activeNodeId,
+      enteredGroups
     );
     return id === undefined ? undefined : debugData[id];
   });
@@ -274,7 +278,7 @@
   /** Whether I shows the result of the debug node of the selection instead of its parts */
   function selectsDebugNode() {
     const active = graphInterface?.state.activeNodeId;
-    const source = selectedDebugSource(debugGraph.links, debugGraph.order, active);
+    const source = selectedDebugSource(debugGraph.links, debugGraph.order, active, enteredGroups);
     return source !== undefined && drawsSomething(debugData[source]);
   }
 
@@ -432,7 +436,8 @@
         : run.debugData;
       debugGraph = {
         id: g.id,
-        links: debugLinks(probed.graph),
+        // the groups are expanded once more only when there is a debug node
+        links: Object.keys(debugData).length ? debugLinks(probed.graph) : [],
         order: debugOrder(
           debugGraph.id === g.id ? debugGraph.order : [],
           Object.keys(debugData).map(Number)
