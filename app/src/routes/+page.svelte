@@ -275,7 +275,7 @@
     if (debugOnly && (!shownDebug || debugGraph.id !== pm.graph?.id)) debugOnly = false;
   });
 
-  /** Whether I shows the result of the debug node of the selection instead of its parts */
+  /** Whether Shift+H shows the result of the debug node of the selection instead of its parts */
   function selectsDebugNode() {
     const active = graphInterface?.state.activeNodeId;
     const source = selectedDebugSource(debugGraph.links, debugGraph.order, active, enteredGroups);
@@ -373,7 +373,18 @@
     },
     {
       key: 'i',
-      description: 'Local view: only show what the selected node made, or its debug node shows',
+      description: 'Inspect: link the viewport and the nodes, on or off',
+      callback: () => {
+        const link = appSettings.value.viewportLink;
+        link.enabled = !link.enabled;
+        toast(link.enabled ? 'Viewport link on' : 'Viewport link off', 'info', 2000);
+        count('viewportLink');
+      }
+    },
+    {
+      key: 'H',
+      shift: true,
+      description: 'Isolate: only show what the selected node made, or its debug node shows',
       callback: () => {
         if (debugOnly) {
           debugOnly = false;
@@ -383,6 +394,8 @@
           // the local view of another node makes way, a second press would be needed otherwise
           if (viewportLink.localView) viewportLink.toggleLocalView();
           debugOnly = true;
+        } else if (!appSettings.value.viewportLink.enabled && !viewportLink.localView) {
+          toast('Isolating needs the viewport link, I turns it on', 'info', 3000);
         } else {
           viewportLink.toggleLocalView();
         }

@@ -81,7 +81,7 @@ test('a debug node on a geometry shows it shaded, and alone in the local view', 
   await page.mouse.click(box.x + 10, box.y + 5);
   await expect(debugNode).toHaveClass(/active/);
   await page.mouse.move(1, 1);
-  await page.keyboard.press('i');
+  await page.keyboard.press('Shift+H');
   await expect(viewer).toHaveAttribute('data-debug-view', 'only');
   await expect(async () => {
     const pixels = await viewerPixels(page);
@@ -89,7 +89,7 @@ test('a debug node on a geometry shows it shaded, and alone in the local view', 
     expect(pixels.wireframe).toBe(0);
   }).toPass({ timeout: 8000 });
 
-  await page.keyboard.press('i');
+  await page.keyboard.press('Shift+H');
   await expect(viewer).toHaveAttribute('data-debug-view', 'with-result');
 
   // without the debug node the rosette is shown as it is

@@ -70,13 +70,35 @@ test('a part of a plant leads to its node: hover, click and the local view', asy
 
   // the local view points out the chain from the node to the output
   await page.mouse.move(1, 1);
-  await page.keyboard.press('i');
+  await page.keyboard.press('Shift+H');
   await expect(node(2)).toHaveClass(/highlighted/);
-  await page.keyboard.press('i');
+  await page.keyboard.press('Shift+H');
   await expect(node(2)).not.toHaveClass(/highlighted/);
 
   // the pointer is outside the viewer, no part is hovered
   await expect(highlighted()).toHaveCount(0);
+});
+
+test('I turns the viewport link off and on, isolating needs it', async () => {
+  await page.evaluate((g) => window.nodarium!.graph.load(g, { title: 'link' }), stem);
+  await page.evaluate(() => window.nodarium!.idle());
+
+  await page.mouse.move(1, 1);
+  await page.keyboard.press('i');
+  const { x, y } = await middleOfViewer();
+  await page.mouse.move(x - 5, y);
+  await page.mouse.move(x, y, { steps: 3 });
+  await page.waitForTimeout(300);
+  await expect(highlighted()).toHaveCount(0);
+
+  await page.mouse.move(1, 1);
+  await page.keyboard.press('Shift+H');
+  await expect(page.getByText('Isolating needs the viewport link')).toBeVisible();
+
+  await page.keyboard.press('i');
+  await hoverMiddle();
+  await expect(node(1)).toHaveClass(/highlighted/);
+  await page.mouse.move(1, 1);
 });
 
 test('a leaf on no path leads to the node that placed it', async () => {

@@ -190,7 +190,7 @@ export const tutorialConfig: PlantyConfig = {
     debug_intro: {
       position: 'bottom-right',
       text:
-        'Add a **Debug node** from the Add Menu (Shift+A or right-click). It accepts `*` wildcard inputs — connect any socket to inspect the data flowing through. **Shift+right-click** a node to attach it there directly. Select it and press **I** to see only what it shows.\nEnable **Advanced Mode** under General → Debug to also see Performance and Graph Source panels.',
+        'Add a **Debug node** from the Add Menu (Shift+A or right-click). It accepts `*` wildcard inputs — connect any socket to inspect the data flowing through. **Shift+right-click** a node to attach it there directly. Select it and press **Shift+H** to see only what it shows.\nEnable **Advanced Mode** under General → Debug to also see Performance and Graph Source panels.',
       next: 'debug_done'
     },
 
@@ -207,7 +207,7 @@ export const tutorialConfig: PlantyConfig = {
     shortcuts_tour: {
       position: 'bottom-right',
       text:
-        '**Essential shortcuts:**\n`R` — Regenerate\n`Shift+A` / right-click — Add node\n`f` — Smart-connect selected nodes\n`.` — Center camera\n`I` — Show only what the selected node made\n`Ctrl+Z` / `Ctrl+Y` — Undo / Redo\n`Delete` — Remove selected · `Ctrl+Delete` — Remove and restore edges',
+        '**Essential shortcuts:**\n`R` — Regenerate\n`Shift+A` / right-click — Add node\n`f` — Smart-connect selected nodes\n`.` — Center camera\n`Shift+H` — Show only what the selected node made\n`I` — Link the viewport and the nodes, on or off\n`Ctrl+Z` / `Ctrl+Y` — Undo / Redo\n`Delete` — Remove selected · `Ctrl+Delete` — Remove and restore edges',
       next: 'shortcuts_done'
     },
 
