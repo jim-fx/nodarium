@@ -9,7 +9,7 @@
   "inputs": {
     "plant": {
       "type": "path",
-      "description": "The paths to bend. Only the deepest level bends, the others are passed on."
+      "description": "The paths to bend. Only the deepest level bends (see depth), the others are passed on."
     },
     "strength": {
       "type": "float",
@@ -25,6 +25,14 @@
       "max": 1,
       "step": 0.05,
       "value": 0.3
+    },
+    "depth": {
+      "type": "integer",
+      "min": 1,
+      "max": 10,
+      "value": 1,
+      "hidden": true,
+      "description": "On which layers of paths to work, counted from the deepest. 1 bends only the deepest paths, higher values reach down to the trunk. Paths always follow the paths they grow on, also on layers that are not bent."
     }
   }
 }

@@ -586,6 +586,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "plantarium_ramify"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "nodarium_macros",
+ "nodarium_utils",
+]
+
+[[package]]
 name = "plantarium_random_break"
 version = "0.1.0"
 dependencies = [

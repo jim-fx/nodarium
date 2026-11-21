@@ -2,9 +2,9 @@ use glam::Vec3;
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    concat_args,
-    geometry::{wrap_path_mut, DeepestPaths},
-    split_args, Ctx,
+    concat_arg_vecs,
+    geometry::{follow_parents, wrap_path_mut, DeepestPaths},
+    int, split_args, Ctx,
 };
 use noise::{HybridMulti, MultiFractal, NoiseFn, OpenSimplex};
 
@@ -37,11 +37,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let noise_z: HybridMulti<OpenSimplex> =
         HybridMulti::new(seed as u32 + 3).set_octaves(octaves as usize);
 
-    let selected = DeepestPaths::new(&plants, 1);
+    let selected = DeepestPaths::new(&plants, int(args[6]).max(1));
     let path_count = selected.count(&plants);
     let mut path_index = 0;
 
-    let output: Vec<Vec<i32>> = plants
+    let mut output: Vec<Vec<i32>> = plants
         .iter()
         .enumerate()
         .map(|(j, _path_data)| {
@@ -135,7 +135,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         })
         .collect();
 
-    concat_args(output.iter().map(|x| x.as_slice()).collect())
+    // paths on the layers that bent carry what grows on them
+    let original: Vec<Vec<i32>> = plants.iter().map(|p| p.to_vec()).collect();
+    follow_parents(&original, &mut output);
+
+    concat_arg_vecs(output)
 }
 
 #[cfg(test)]
@@ -169,6 +173,7 @@ mod tests {
             &[encode_float(0.5)],
             &[7],
             &direction,
+            &[1],
             &[1],
         ]);
         let path = split_args(&out)[0].to_vec();

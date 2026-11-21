@@ -2,9 +2,9 @@ use glam::Vec3;
 use nodarium_macros::nodarium_definition_file;
 use nodarium_macros::nodarium_execute;
 use nodarium_utils::{
-    concat_args,
-    geometry::{is_path, wrap_path, wrap_path_mut, DeepestPaths},
-    split_args, Ctx,
+    concat_arg_vecs,
+    geometry::{follow_parents, is_path, wrap_path, wrap_path_mut, DeepestPaths},
+    int, split_args, Ctx,
 };
 
 nodarium_definition_file!("src/definition.json");
@@ -34,12 +34,12 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
     let mut ctx = Ctx::default();
 
     let plants = split_args(args[0]);
-    let selected = DeepestPaths::new(&plants, 1);
+    let selected = DeepestPaths::new(&plants, int(args[3]).max(1));
 
     let path_count = plants.iter().filter(|p| is_path(p)).count();
     let mut path_index = 0;
 
-    let output: Vec<Vec<i32>> = plants
+    let mut output: Vec<Vec<i32>> = plants
         .iter()
         .map(|path_data| {
             if !selected.contains(path_data) {
@@ -119,7 +119,11 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         })
         .collect();
 
-    concat_args(output.iter().map(|x| x.as_slice()).collect())
+    // paths on the layers that bent carry what grows on them
+    let original: Vec<Vec<i32>> = plants.iter().map(|p| p.to_vec()).collect();
+    follow_parents(&original, &mut output);
+
+    concat_arg_vecs(output)
 }
 
 #[cfg(test)]
@@ -127,8 +131,11 @@ mod tests {
     use super::__nodarium_execute_inner;
     use glam::Vec3;
     use nodarium_utils::{
-        encode_float,
-        geometry::{create_multiple_paths, wrap_multiple_paths, wrap_path},
+        concat_arg_vecs, encode_float,
+        geometry::{
+            create_multiple_paths, create_path, path_link, set_path_link, wrap_multiple_paths,
+            wrap_path, wrap_path_mut, PathLink,
+        },
         split_args,
     };
 
@@ -149,6 +156,7 @@ mod tests {
             &stem(resolution),
             &[encode_float(0.6)],
             &[encode_float(0.3)],
+            &[1],
         ]);
         let path = split_args(&out)[0].to_vec();
         let p = wrap_path(&path).points;
@@ -169,5 +177,27 @@ mod tests {
                 reference
             );
         }
+    }
+
+    #[test]
+    fn with_depth_the_parents_bend_too_and_carry_their_branches() {
+        let stem = split_args(&stem(8))[0].to_vec();
+        let mut branch = create_path(4, 2);
+        set_path_link(&mut branch, PathLink::child(4, path_link(&stem).id, 1.0, 0));
+        for (i, point) in wrap_path_mut(&mut branch).points.chunks_exact_mut(4).enumerate() {
+            point.copy_from_slice(&[0.5 + 0.2 * i as f32, 5.0, 0.0, 0.05]);
+        }
+        let plant = concat_arg_vecs(vec![stem.clone(), branch]);
+        let run = |depth: i32| {
+            let out = __nodarium_execute_inner(&[&plant, &[encode_float(0.6)], &[encode_float(0.3)], &[depth]]);
+            split_args(&out).iter().map(|p| wrap_path(p).points.to_vec()).collect::<Vec<_>>()
+        };
+
+        let deepest = run(1);
+        assert_eq!(deepest[0], wrap_path(&stem).points);
+        let both = run(2);
+        assert_ne!(both[0], deepest[0]);
+        let tip = Vec3::from_slice(&both[0][both[0].len() - 4..]);
+        assert!(tip.distance(Vec3::from_slice(&both[1][..3])) < 1e-4);
     }
 }

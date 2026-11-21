@@ -1,0 +1,111 @@
+{
+  "id": "max/plantarium/ramify",
+  "meta": {
+    "description": "An L-system without text: grows a whole branching system from one rule, generation by generation, and gives its axes as paths. Every generation each growing tip makes an internode and a node, and the node makes the next tips: monopodial keeps the tip growing with laterals beside it, sympodial ends the tip and lets laterals take over. The inputs of the rule are read at every node, alpha goes from the first generation (0) to the last (1) and path_info reads the axis that is rewritten."
+  },
+  "outputs": [
+    "path"
+  ],
+  "inputs": {
+    "points": {
+      "type": "points",
+      "description": "Where the plants start, for example the points of spiral or points_on_path. Every point starts a plant that grows along its direction. Without points one plant grows straight up from the origin.",
+      "external": true
+    },
+    "architecture": {
+      "type": "select",
+      "options": [
+        "monopodial",
+        "sympodial"
+      ],
+      "value": 0,
+      "description": "What a node does with the tip that made it. Monopodial: the tip grows on along the same axis, the laterals branch off beside it, like a fir or a mullein. Sympodial: the tip ends and the laterals take over, the first one as the leader: with dominance 0 they fork into equal branches (dichotomous), with more dominance the leader continues the line in a zig-zag, like a lime twig or a frangipani."
+    },
+    "generations": {
+      "type": "integer",
+      "description": "How often the rule is applied. Every generation adds one internode to every growing tip, so the paths grow by a factor of about laterals + 1 per generation.",
+      "min": 1,
+      "max": 12,
+      "value": 5
+    },
+    "length": {
+      "type": "float",
+      "description": "The length of the first internode, at the base of the plant. Read once per plant.",
+      "min": 0,
+      "max": 5,
+      "step": 0.01,
+      "value": 0.5,
+      "unit": "m"
+    },
+    "ratio": {
+      "type": "float",
+      "description": "How long the next internode of the leader is, relative to the one the node ends. Below 1 the plant gets finer towards its tips. Read at every node.",
+      "min": 0,
+      "max": 1.5,
+      "step": 0.01,
+      "value": 0.85
+    },
+    "laterals": {
+      "type": "integer",
+      "description": "How many laterals every node makes, spread evenly around the axis: 1 for alternate, 2 for opposite or a fork, more for a whorl. 0 makes no branch there, in sympodial the tip ends. Read at every node.",
+      "min": 0,
+      "max": 16,
+      "value": 1
+    },
+    "angle": {
+      "type": "float",
+      "description": "The branch angle between a lateral and the axis it leaves, in radians: 0 along the axis, 1.5708 rad straight out. Read for every lateral.",
+      "min": 0,
+      "max": 3.1416,
+      "step": 0.01,
+      "value": 0.7,
+      "unit": "rad"
+    },
+    "divergence": {
+      "type": "float",
+      "description": "How far every node turns around the axis from the one before it, in radians: 2.3998 rad, the golden angle, gives a spiral, 3.1416 rad two ranks or a zig-zag, 1.5708 rad with two laterals crossed pairs. Read at every node.",
+      "min": 0,
+      "max": 6.2832,
+      "step": 0.01,
+      "value": 2.3998,
+      "unit": "rad"
+    },
+    "dominance": {
+      "type": "float",
+      "description": "Apical dominance, how strongly the leader of a node wins over its laterals: they are shorter by this share. 0 makes the laterals as long as the leader, 1 leaves them out. In sympodial the leader also bends less, by the same share. Read at every node.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.3
+    },
+    "thickness": {
+      "type": "float",
+      "description": "The thickness at the base of the full-grown plant. Above it every axis is as thick as the pipe model says, the cross section carries what grows above it, so branches thin out towards their tips and a young plant is thinner. Read once per plant.",
+      "min": 0,
+      "max": 1,
+      "step": 0.001,
+      "value": 0.05,
+      "unit": "m"
+    },
+    "growth": {
+      "type": "float",
+      "description": "How far the plant has grown, from 0 to 1: the generations grow one after the other, every internode in its own share of the time, and a lateral starts when the tip of its axis has passed its node. Above 1 the plant is full-grown and only gets older, path_info reads it as grown and age. Read for every axis, an axis never grows ahead of the one it sits on.",
+      "hidden": true,
+      "min": 0,
+      "max": 4,
+      "step": 0.01,
+      "value": 1
+    },
+    "resolution_curve": {
+      "type": "integer",
+      "description": "The resolution of an axis as long as the longest one, shorter axes get fewer points.",
+      "value": 32,
+      "min": 3,
+      "max": 64,
+      "setting": "resolution.curve"
+    },
+    "creator": {
+      "type": "creator"
+    }
+  }
+}
