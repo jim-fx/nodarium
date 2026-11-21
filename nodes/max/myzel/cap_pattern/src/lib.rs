@@ -4,7 +4,7 @@
 //! the axis at its angle, the place of the rays on either side nearest to it is where it is on
 //! the cap, and it is on the top when it lies on the side of the flesh that faces away from the
 //! gills. Where the surface turns over the margin the pattern fades out. Of the vertices there
-//! only those in the material group most of the top is in count, so the stipe, the gills, the
+//! only those in the material group that covers most of the top count, so the stipe, the gills, the
 //! veil and the underside of the cap stay as they are. The faces on the top are split until they
 //! are about as fine as the pattern, and their neighbours so the surface stays closed.
 //!
@@ -63,6 +63,9 @@ const DETAIL: f32 = 2.0;
 /// Faces are split at most this often, and never into more than this many times the vertices
 const MAX_SPLITS: usize = 2;
 const MAX_GROWTH: usize = 4;
+/// The cells of a top by angle and by alpha that [`top_groups`] counts, together at most 128
+const COVER_ANGLES: usize = 16;
+const COVER_ALPHAS: usize = 8;
 
 fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
     let t = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
@@ -442,23 +445,31 @@ fn locate_from(mesh: &Mesh, tops: &[Surface], located: &mut Vec<Option<(usize, O
     }
 }
 
-/// The group of every top: the one most of the top is in, so gills or a stipe that come close
-/// to the top don't get the pattern
+/// The group of every top: the one that covers most of the top, so gills or a stipe that come
+/// close to the top don't get the pattern. Coverage counts the cells of the top, by angle and by
+/// alpha, that a group has a vertex in, not its vertices: the stipe of another mushroom that
+/// passes by a small cap brings many vertices but covers only a strip of it. Of groups that
+/// cover as much the one with the larger weight.
 fn top_groups(mesh: &Mesh, located: &[Option<(usize, OnTop)>]) -> HashMap<usize, u32> {
-    let mut weights: HashMap<(usize, u32), f32> = HashMap::new();
+    let mut votes: HashMap<(usize, u32), (u128, f32)> = HashMap::new();
     for (v, on) in located.iter().enumerate() {
         if let Some((k, on)) = on {
-            *weights.entry((*k, mesh.groups[v])).or_default() += on.weight;
+            let angle = ((on.angle / TAU * COVER_ANGLES as f32) as usize).min(COVER_ANGLES - 1);
+            let alpha = ((on.alpha * COVER_ALPHAS as f32) as usize).min(COVER_ALPHAS - 1);
+            let vote = votes.entry((*k, mesh.groups[v])).or_default();
+            vote.0 |= 1 << (angle * COVER_ALPHAS + alpha);
+            vote.1 += on.weight;
         }
     }
-    let mut groups: HashMap<usize, (u32, f32)> = HashMap::new();
-    for (&(k, group), &weight) in &weights {
-        let best = groups.entry(k).or_insert((group, weight));
-        if weight > best.1 || (weight == best.1 && group < best.0) {
-            *best = (group, weight);
+    let mut groups: HashMap<usize, (u32, u32, f32)> = HashMap::new();
+    for (&(k, group), &(cells, weight)) in &votes {
+        let cover = cells.count_ones();
+        let best = groups.entry(k).or_insert((group, cover, weight));
+        if (cover, weight) > (best.1, best.2) || (cover == best.1 && weight == best.2 && group < best.0) {
+            *best = (group, cover, weight);
         }
     }
-    groups.into_iter().map(|(k, (group, _))| (k, group)).collect()
+    groups.into_iter().map(|(k, (group, _, _))| (k, group)).collect()
 }
 
 /// Adds a vertex in the middle of the edge from `a` to `b`
