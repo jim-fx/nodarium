@@ -23,6 +23,12 @@ export const NODE_SKETCHES: Record<string, NodeSketch> = {
 /** The nodes that get no sketch, and why: their name and inputs already say what they do */
 export const UNSKETCHED: Record<string, string> = {
   'max/core/float': 'a number set on the node',
+  'max/core/random': 'a random number from min to max, the name says it',
+  'max/core/random_int': 'a random whole number from min to max, the name says it',
+  'max/core/math': 'adds, subtracts, multiplies or divides two numbers',
+  'max/core/vec3': 'three numbers as a vector',
+  'max/core/time': 'the time setting of the graph',
+  'max/core/mix_color': 'the two colours and the mix are on the node',
   'max/core/output': 'the end of every graph, it only shows what reaches it',
   'max/plantarium/stem': 'makes straight stems, the name says it',
   'max/plantarium/shape': 'the node shows the outline drawn on it',

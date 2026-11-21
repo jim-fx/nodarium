@@ -56,12 +56,6 @@ describe('the sketches', () => {
       expect(coordinates(sketch.draw(0, 0))).not.toEqual(coordinates(sketch.draw(1, 0)));
     });
   }
-
-  it('random draws new values every time round', () => {
-    const random = NODE_SKETCHES['max/core/random'];
-    expect(random.draw(1, 0).output).not.toEqual(random.draw(1, 1).output);
-    expect(random.draw(1, 4).output).toEqual(random.draw(1, 4).output);
-  });
 });
 
 describe('sketchPhase', () => {

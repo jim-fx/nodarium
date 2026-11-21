@@ -4,11 +4,10 @@ export type SketchPoint = [number, number];
 /** `accent` is what the node changes, `base` what it keeps, `faint` the frame around it */
 export type SketchTone = 'base' | 'accent' | 'faint';
 
-/** `mix` colours a shape between the base (0) and the accent (1), for colours the node mixes */
 export type SketchShape =
   | { kind: 'line'; points: SketchPoint[]; tone: SketchTone; width?: number }
-  | { kind: 'dot'; at: SketchPoint; tone: SketchTone; r?: number; mix?: number }
-  | { kind: 'area'; points: SketchPoint[]; tone: SketchTone; mix?: number };
+  | { kind: 'dot'; at: SketchPoint; tone: SketchTone; r?: number }
+  | { kind: 'area'; points: SketchPoint[]; tone: SketchTone };
 
 export type SketchFrame = { input: SketchShape[]; output: SketchShape[] };
 

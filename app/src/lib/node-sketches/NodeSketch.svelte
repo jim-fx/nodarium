@@ -50,10 +50,6 @@
     faint: 'fill-current opacity-10'
   };
 
-  // the text colour stands for the base, the accent for what the node mixes in
-  const mixed = (mix: number) =>
-    `fill: color-mix(in oklab, var(--color-selected) ${Math.round(mix * 100)}%, currentColor)`;
-
   const toPx = ([x, y]: SketchPoint) => `${(x * W).toFixed(1)},${((1 - y) * H).toFixed(1)}`;
 </script>
 
@@ -76,20 +72,10 @@
             stroke-linejoin="round"
           />
         {:else if shape.kind === 'area'}
-          <polygon
-            points={shape.points.map(toPx).join(' ')}
-            class={shape.mix === undefined ? AREA[shape.tone] : ''}
-            style={shape.mix === undefined ? undefined : mixed(shape.mix)}
-          />
+          <polygon points={shape.points.map(toPx).join(' ')} class={AREA[shape.tone]} />
         {:else}
           {@const [cx, cy] = toPx(shape.at).split(',')}
-          <circle
-            {cx}
-            {cy}
-            r={shape.r ?? 2}
-            class={shape.mix === undefined ? FILL[shape.tone] : ''}
-            style={shape.mix === undefined ? undefined : mixed(shape.mix)}
-          />
+          <circle {cx} {cy} r={shape.r ?? 2} class={FILL[shape.tone]} />
         {/if}
       {/each}
     </svg>
