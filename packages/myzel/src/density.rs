@@ -1390,6 +1390,16 @@ impl TissueField {
     /// [`surface_in`] of the segments the field was made of, without closing them again.
     /// `meshing` must be the same as for the field.
     pub fn surface(self, segments: &[Segment], meshing: &[Meshing], strand: impl Fn(usize) -> bool) -> SegmentSurface {
+        self.mesh(segments, meshing, strand, false).0
+    }
+
+    /// [`TissueField::surface`] and where it is inside
+    pub fn surface_and_inside(self, segments: &[Segment], meshing: &[Meshing], strand: impl Fn(usize) -> bool) -> (SegmentSurface, Inside) {
+        let (surface, inside) = self.mesh(segments, meshing, strand, true);
+        (surface, inside.unwrap())
+    }
+
+    fn mesh(self, segments: &[Segment], meshing: &[Meshing], strand: impl Fn(usize) -> bool, inside: bool) -> (SegmentSurface, Option<Inside>) {
         let TissueField { frame, mut grid, solid, depth, centre, .. } = self;
         drop((depth, centre));
         grid.start_meshing();
@@ -1407,7 +1417,7 @@ impl TissueField {
         add_tissue(&mut grid, &solid, frame.threshold);
         drop(solid);
         frame.floor(&mut grid, segments, meshing);
-        extract(&grid, &frame)
+        (extract(&grid, &frame), inside.then(|| Inside::of(&grid, frame.threshold)))
     }
 
     /// Whether there is any tissue at all
@@ -1766,6 +1776,8 @@ pub struct Frame {
     closing: bool,
     cell: f32,
     min_radius: f32,
+    /// How far the grid reaches past the segments
+    pad: f32,
     origin: Vec3,
     samples: [usize; 3],
 }
@@ -1805,7 +1817,29 @@ impl Frame {
         let origin = min - Vec3::splat(pad);
         let size = max - min + Vec3::splat(2.0 * pad);
         let samples = [0, 1, 2].map(|a| (size[a] / cell).ceil() as usize + 1);
-        Some(Frame { reach_factor, threshold, close_max, close_min, closing, cell, min_radius, origin, samples })
+        Some(Frame { reach_factor, threshold, close_max, close_min, closing, cell, min_radius, pad, origin, samples })
+    }
+
+    /// The part of this grid around some of its segments, with the same padding: the same cell, its
+    /// samples at the same places and the segments meshed the same way, so the surface of a part
+    /// is the one these segments would have on their own on the whole grid. `None` without segments.
+    pub fn around(&self, segments: &[Segment], meshing: &[Meshing]) -> Option<Frame> {
+        let (mut min, mut max) = (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY));
+        for s in segments {
+            min = min.min(s.start.min(s.end));
+            max = max.max(s.start.max(s.end));
+        }
+        if !min.is_finite() || !max.is_finite() {
+            return None;
+        }
+        let lo = ((min - Vec3::splat(self.pad) - self.origin) / self.cell).floor();
+        let hi = ((max + Vec3::splat(self.pad) - self.origin) / self.cell).ceil();
+        let first = [0, 1, 2].map(|a| (lo[a].max(0.0) as usize).min(self.samples[a] - 1));
+        let last = [0, 1, 2].map(|a| (hi[a].max(0.0) as usize).min(self.samples[a] - 1));
+        let origin = self.origin + Vec3::from(first.map(|v| v as f32)) * self.cell;
+        let samples = [0, 1, 2].map(|a| last[a] - first[a] + 1);
+        let closing = self.closing && meshing.iter().any(|m| self.closes(m));
+        Some(Frame { closing, origin, samples, ..self.clone() })
     }
 
     fn grid(&self) -> SparseGrid {
@@ -1907,6 +1941,45 @@ impl Frame {
     }
 }
 
+/// Which samples of a grid lie inside its surface, so other surfaces can tell where they are
+/// inside this one
+#[derive(Clone, Debug, PartialEq)]
+pub struct Inside {
+    origin: Vec3,
+    cell: f32,
+    samples: [usize; 3],
+    bits: Vec<u64>,
+}
+
+impl Inside {
+    fn of(grid: &SparseGrid, threshold: f32) -> Inside {
+        let [nx, ny, nz] = grid.samples;
+        let mut bits = vec![0u64; (nx * ny * nz).div_ceil(64)];
+        for (i, slot) in grid.samples_in_blocks() {
+            if grid.density[slot] > threshold {
+                bits[i / 64] |= 1 << (i % 64);
+            }
+        }
+        Inside { origin: grid.origin, cell: grid.cell, samples: grid.samples, bits }
+    }
+
+    fn sample(&self, p: [usize; 3]) -> bool {
+        let i = p[0] + self.samples[0] * (p[1] + self.samples[1] * p[2]);
+        self.bits[i / 64] & (1 << (i % 64)) != 0
+    }
+
+    /// Whether all eight samples of the cell around `p` are inside, so `p` is inside the surface
+    /// and at least a little away from it
+    pub fn contains(&self, p: Vec3) -> bool {
+        let u = (p - self.origin) / self.cell;
+        if !u.is_finite() || (0..3).any(|a| u[a] < 0.0 || u[a] >= (self.samples[a] - 1) as f32) {
+            return false;
+        }
+        let base = [0, 1, 2].map(|a| u[a] as usize);
+        CORNERS.iter().all(|o| self.sample([base[0] + o[0], base[1] + o[1], base[2] + o[2]]))
+    }
+}
+
 /// [`mesh_segments`] that also tells which segment every vertex belongs to.
 /// A segment owns a vertex where its kernel times `priority(index)` is the largest.
 ///
@@ -1952,6 +2025,22 @@ pub fn surface_in(
     if segments.is_empty() {
         return SegmentSurface::default();
     }
+    let grid = density_in(frame, segments, meshing, strand);
+    extract(&grid, frame)
+}
+
+/// [`surface_in`] and where it is inside
+pub fn surface_and_inside_in(
+    frame: &Frame,
+    segments: &[Segment],
+    meshing: &[Meshing],
+    strand: impl Fn(usize) -> bool,
+) -> (SegmentSurface, Inside) {
+    let grid = density_in(frame, segments, meshing, strand);
+    (extract(&grid, frame), Inside::of(&grid, frame.threshold))
+}
+
+fn density_in(frame: &Frame, segments: &[Segment], meshing: &[Meshing], strand: impl Fn(usize) -> bool) -> SparseGrid {
     let mut grid = frame.grid();
     grid.allocate_all(segments.iter().zip(meshing).enumerate().map(|(i, (s, m))| (*s, frame.splat_reach(m, s, strand(i)))));
     for (i, (s, m)) in segments.iter().zip(meshing).enumerate() {
@@ -1967,7 +2056,7 @@ pub fn surface_in(
         add_tissue(&mut grid, &solid, frame.threshold);
     }
     frame.floor(&mut grid, segments, meshing);
-    extract(&grid, frame)
+    grid
 }
 
 /// Surface Nets on the density of the grid

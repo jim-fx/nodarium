@@ -1,7 +1,7 @@
 {
   "id": "max/myzel/hyphae_to_mesh",
   "meta": {
-    "description": "Turns paths into the surface around them with a fibrous relief along them. Every node that made paths is its own material group. Paths from set_color bring the color of their points: it goes along the surface, a gradient of alpha too, and over smoothly where paths of two colors meet."
+    "description": "Turns paths into the surface around them with a fibrous relief along them. Paths of different bodies get their own surfaces. Every node that made paths is its own material group. Paths from set_color bring the color of their points: it goes along the surface, a gradient of alpha too, and over smoothly where paths of two colors meet."
   },
   "outputs": [
     "geometry"
@@ -12,6 +12,12 @@
       "label": "Paths",
       "external": true,
       "description": "Paths that grow into one body of tissue, like stipe and cap: the gaps between them fill. Paths from set_fill with a fill of 0 keep their gaps open, like gills or the veil"
+    },
+    "bodies": {
+      "type": "path",
+      "label": "Bodies",
+      "external": true,
+      "description": "The paths the paths grew on, like the stipes with the rays of their caps. Paths that grew on different stipes keep their own surfaces and don't fill into one, so the caps of a cluster stay apart. Without it all paths are one body"
     },
     "resolution_field": {
       "type": "integer",

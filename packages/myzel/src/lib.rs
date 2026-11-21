@@ -37,12 +37,12 @@ pub use cap::{
     closing_turn, curl_spread, curl_turn, margin_points, pose_caps, pose_caps_of, testing, AlongRay, Cap, CapFrame, CapRay, Step,
 };
 pub use cap_shape::{cap_alphas, grow_cap, ray_angles, CapShape};
-pub use density::{mesh_segments, surface, surface_in, Frame, Meshing, Segment, SegmentSurface, TissueField};
+pub use density::{mesh_segments, surface, surface_and_inside_in, surface_in, Frame, Inside, Meshing, Segment, SegmentSurface, TissueField};
 pub use gills::{gills, write_gills, GillInputs, GillProfile, Gills};
 pub use hyphae_mesh::{paths_mesh, HyphaeMeshParams};
 pub use pores::{pores, write_pores, PoreInputs};
 pub use paths::{
-    group_creators, group_numbers, path_segments, read_paths, with_values_along, MeshPath, PathGroup, PathStyle,
+    assign_bodies, group_creators, group_numbers, path_segments, read_paths, with_values_along, MeshPath, PathGroup, PathStyle,
 };
 pub use inputs::read_mesh;
 pub use nodarium_utils::{encode_color, linear_rgba, mix_colors, opaque, pack_linear, read_color, read_float, read_floats, read_int, NO_COLOR};

@@ -1,7 +1,7 @@
 use glam::Vec3;
 
 use nodarium_utils::{linear_rgba, pack_linear, NO_COLOR};
-use crate::density::{surface_in, Frame, Meshing, Segment, TissueField};
+use crate::density::{surface_and_inside_in, surface_in, Frame, Inside, Meshing, Segment, SegmentSurface, TissueField};
 use crate::Mesh;
 use crate::noise::value_noise;
 use crate::paths::{group_creators, group_numbers, path_segments, MeshPath, PathGroup, PathStyle};
@@ -43,6 +43,12 @@ const SMOOTHING_PASSES: usize = 8;
 /// [`HyphaeMeshParams::loose_strands`]. Every vertex is in the group of the path that owns it,
 /// see [`group_numbers`].
 ///
+/// Paths of different bodies (see [`MeshPath::body`]) don't fill into one tissue: every body is
+/// closed and meshed on its own, in its part of the one grid, and the surfaces are joined. Where
+/// one body lies inside another, the faces of each inside the other are left out, so only the
+/// outside of both shows. The fill counts in radii of the thickest path of all bodies, so a body
+/// looks as it would alone.
+///
 /// A path that brings its own fibres or fill at its points (see [`MeshPath`]) is meshed with
 /// them instead of `params`: its gaps fill by its own fill and its relief has its own strength,
 /// each segment by the mean of its two points. Where paths of different values meet, the
@@ -77,15 +83,26 @@ pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
         return Mesh::default();
     };
     let loose = params.loose_strands.clamp(0.0, 1.0);
-    let scale = if loose > 0.0 { 1.0 / loose } else { f32::INFINITY };
-    let field = (loose < 1.0).then(|| TissueField::new(&frame, &segments, &meshing, scale)).flatten();
-    let mut s = match field {
-        Some(field) => {
-            let strand = strands(paths, &field, segments.len());
-            field.surface(&segments, &meshing, |i| strand[i])
-        }
-        // at 1 every body path keeps its tube wherever it leaves the tissue
-        None => surface_in(&frame, &segments, &meshing, |i| loose >= 1.0 && meshing[i].closed),
+    let mut bodies: Vec<u32> = paths.iter().filter(|p| !p.is_empty()).map(|p| p.body).collect();
+    bodies.sort_unstable();
+    bodies.dedup();
+    let mut s = if bodies.len() < 2 {
+        let all: Vec<&MeshPath> = paths.iter().collect();
+        body_surface(&frame, &all, &segments, &meshing, loose, false).0
+    } else {
+        let parts = bodies.iter().filter_map(|&b| {
+            let of_body: Vec<usize> = (0..segments.len()).filter(|&i| paths[owner[i]].body == b).collect();
+            let body_segments: Vec<Segment> = of_body.iter().map(|&i| segments[i]).collect();
+            let body_meshing: Vec<Meshing> = of_body.iter().map(|&i| meshing[i]).collect();
+            let body_paths: Vec<&MeshPath> = paths.iter().filter(|p| p.body == b).collect();
+            let part = frame.around(&body_segments, &body_meshing)?;
+            let (mut surface, inside) = body_surface(&part, &body_paths, &body_segments, &body_meshing, loose, true);
+            for o in &mut surface.owners {
+                *o = of_body[*o as usize] as u32;
+            }
+            Some((surface, inside.unwrap()))
+        });
+        join_bodies(parts.collect())
     };
     if s.mesh.vertex_count() == 0 {
         return s.mesh;
@@ -113,6 +130,74 @@ pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
         add_fibres(&mut s.mesh, &segments, owner, s.cell, reference, params.seed);
     }
     s.mesh
+}
+
+/// The surface of the segments of `paths` on `frame`, and where it is inside if `inside` is set
+fn body_surface(
+    frame: &Frame,
+    paths: &[&MeshPath],
+    segments: &[Segment],
+    meshing: &[Meshing],
+    loose: f32,
+    inside: bool,
+) -> (SegmentSurface, Option<Inside>) {
+    let scale = if loose > 0.0 { 1.0 / loose } else { f32::INFINITY };
+    let field = (loose < 1.0).then(|| TissueField::new(frame, segments, meshing, scale)).flatten();
+    match field {
+        Some(field) => {
+            let strand = strands(paths, &field, segments.len());
+            if inside {
+                let (s, i) = field.surface_and_inside(segments, meshing, |i| strand[i]);
+                (s, Some(i))
+            } else {
+                (field.surface(segments, meshing, |i| strand[i]), None)
+            }
+        }
+        // at 1 every body path keeps its tube wherever it leaves the tissue
+        None => {
+            let strand = |i: usize| loose >= 1.0 && meshing[i].closed;
+            if inside {
+                let (s, i) = surface_and_inside_in(frame, segments, meshing, strand);
+                (s, Some(i))
+            } else {
+                (surface_in(frame, segments, meshing, strand), None)
+            }
+        }
+    }
+}
+
+/// The surfaces of the bodies as one, without the faces whose corners all lie inside another body
+fn join_bodies(parts: Vec<(SegmentSurface, Inside)>) -> SegmentSurface {
+    let mut out = SegmentSurface { cell: parts.first().map_or(0.0, |(s, _)| s.cell), ..SegmentSurface::default() };
+    for (k, (part, _)) in parts.iter().enumerate() {
+        let n = part.mesh.vertex_count();
+        let hidden: Vec<bool> = (0..n)
+            .map(|v| {
+                let p = Vec3::from_slice(&part.mesh.positions[v * 3..v * 3 + 3]);
+                parts.iter().enumerate().any(|(j, (_, other))| j != k && other.contains(p))
+            })
+            .collect();
+        let mut index = vec![u32::MAX; n];
+        let mut kept = Vec::new();
+        for f in part.mesh.faces.chunks_exact(3) {
+            if f.iter().all(|&v| hidden[v as usize]) {
+                continue;
+            }
+            for &v in f {
+                let v = v as usize;
+                if index[v] == u32::MAX {
+                    index[v] = out.mesh.vertex_count() as u32;
+                    out.mesh.positions.extend_from_slice(&part.mesh.positions[v * 3..v * 3 + 3]);
+                    out.mesh.normals.extend_from_slice(&part.mesh.normals[v * 3..v * 3 + 3]);
+                    out.owners.push(part.owners[v]);
+                }
+                kept.push(index[v]);
+            }
+        }
+        out.mesh.faces.extend(kept);
+    }
+    out.mesh.groups = vec![0; out.mesh.vertex_count()];
+    out
 }
 
 /// The value of every segment of a path (see [`path_segments`]) from the values at its points,
@@ -299,7 +384,7 @@ fn blend_colors(mesh: &Mesh, owners: &[u32], segments: &[Segment], shading: &Sha
 /// A path outside the tissue all along, such as a bundle too thin for the blur, is one run. So is
 /// a lone path a little thicker than the blur, which wears its tissue down to a core around its
 /// axis: it keeps its tube.
-fn strands(paths: &[MeshPath], field: &TissueField, count: usize) -> Vec<bool> {
+fn strands(paths: &[&MeshPath], field: &TissueField, count: usize) -> Vec<bool> {
     let mut strand = Vec::with_capacity(count);
     for path in paths.iter().filter(|p| !p.is_empty()) {
         let first = strand.len();
@@ -595,6 +680,9 @@ mod tests {
         points
             .iter()
             .map(|(p, creator)| MeshPath {
+                id: 0,
+                parent_id: -1,
+                body: 0,
                 points: Cow::Borrowed(p),
                 colors: Cow::Borrowed(&[]),
                 fibres: Cow::Borrowed(&[]),
@@ -975,6 +1063,69 @@ mod tests {
 
     /// Two slabs of body paths along z side by side, at x < 0 made by node 1 and at x > 0 by node 2.
     /// Further apart from each other than within each, the closing joins them into one tissue.
+    /// The paths of `points`, those of `creator` in body 1
+    fn in_bodies(points: &[(Vec<f32>, i32)], creator: i32) -> Vec<MeshPath<'_>> {
+        let mut paths = mesh_paths(points, PathStyle::BODY);
+        for p in paths.iter_mut().filter(|p| p.group == PathGroup::Creator(creator)) {
+            p.body = 1;
+        }
+        paths
+    }
+
+    #[test]
+    fn slabs_of_two_bodies_keep_their_own_surfaces_and_groups() {
+        // the slabs are 0.1 apart, the fill of 6 radii closes that gap
+        let points = two_slabs();
+        let params = HyphaeMeshParams { resolution: 96, fill: 6.0, ..smooth() };
+        let one = paths_mesh(&mesh_paths(&points, PathStyle::BODY), &params);
+        assert_eq!(components(&one), 1);
+        let two = paths_mesh(&in_bodies(&points, 2), &params);
+        assert_eq!(components(&two), 2);
+        assert_closed(&two);
+        assert_eq!(two.creators, one.creators);
+        for v in 0..two.vertex_count() {
+            let p = vertex(&two, v);
+            assert_eq!(two.groups[v], (p.x > 0.0) as u32, "vertex at {}", p);
+            assert!(p.x.abs() > 0.02, "vertex in the gap at {}", p);
+        }
+        // one body, whatever its number, is the mesh of all paths in one
+        let mut all = mesh_paths(&points, PathStyle::BODY);
+        all.iter_mut().for_each(|p| p.body = 4);
+        assert_eq!(paths_mesh(&all, &params), one);
+        assert_eq!(paths_mesh(&in_bodies(&points, 2), &params), two);
+    }
+
+    #[test]
+    fn a_body_inside_another_shows_only_its_outside() {
+        // a slab of body 1 and a bar of body 0 that crosses it
+        let mut points = Vec::new();
+        for x in [-0.04, 0.0, 0.04] {
+            for y in [-0.04, 0.0, 0.04] {
+                points.push((line(Vec3::new(x, y, -0.5), Vec3::new(x, y, 0.5), 11, 0.03), 1));
+            }
+        }
+        for y in [-0.02, 0.02] {
+            for z in [-0.02, 0.02] {
+                points.push((line(Vec3::new(-0.4, y, z), Vec3::new(0.4, y, z), 11, 0.03), 2));
+            }
+        }
+        let params = HyphaeMeshParams { resolution: 96, ..smooth() };
+        let mesh = paths_mesh(&in_bodies(&points, 1), &params);
+        let margin = 2.0 * 1.5 / 96.0;
+        let mut seen = [0; 2];
+        for v in 0..mesh.vertex_count() {
+            let p = vertex(&mesh, v);
+            let in_slab = p.x.abs() < 0.07 - margin && p.y.abs() < 0.07 - margin;
+            let in_bar = p.y.abs() < 0.05 - margin && p.z.abs() < 0.05 - margin;
+            let group = mesh.groups[v] as usize;
+            assert!(if group == 0 { !in_bar } else { !in_slab }, "a vertex of group {} inside the other body at {}", group, p);
+            // the outside of both shows: the slab around the bar, the bar on both sides of the slab
+            seen[group] += 1;
+        }
+        assert!(seen.iter().all(|&n| n > 100), "{:?}", seen);
+        assert_eq!(mesh.creators, [1, 2]);
+    }
+
     fn two_slabs() -> Vec<(Vec<f32>, i32)> {
         let mut points = Vec::new();
         for x in [-0.25, -0.19, -0.13, -0.07, 0.07, 0.13, 0.19, 0.25] {
