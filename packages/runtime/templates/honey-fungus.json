@@ -85,8 +85,8 @@
           "position": [-390, -100.27],
           "type": "max/core/random_int",
           "props": {
-            "min": 24,
-            "max": 34
+            "min": 6,
+            "max": 11
           }
         },
         {

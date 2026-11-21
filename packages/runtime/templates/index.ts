@@ -137,8 +137,8 @@ const ABOUT: Record<string, About> = {
   },
   'champignon-groomed': { notes: 'The Stipe, Cap, Gills and Veil groups, grown by time.' },
   'fly-agaric': {
-    notes: 'Two to four fruit bodies of their own age, from a white egg to a flat cap, on stout '
-      + 'stipes that swell into a bulb with scaly girdles, with the Cuticle and Volva groups.'
+    notes: 'One fruit body, from a white egg to a flat cap, on a stout '
+      + 'stipe that swells into a bulb with scaly girdles, with the Cuticle and Volva groups.'
   },
   porcini: {
     notes: 'The Stipe and Cap groups, a Pores group instead of the Gills and a Reticulation net on '
@@ -158,7 +158,7 @@ const ABOUT: Record<string, About> = {
     notes: 'Four to eight stipes from one spot, each of its own age, their shell caps in tiers.'
   },
   'honey-fungus': {
-    notes: 'A dense tuft of 24 to 34 stipes on a sunflower spiral, each of its own age, with '
+    notes: 'A tuft of 6 to 11 stipes on a sunflower spiral, each of its own age, with '
       + 'the Gills, Ring and Cuticle groups.'
   },
   'clouded-agaric': {

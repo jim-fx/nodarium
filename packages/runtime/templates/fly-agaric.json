@@ -21,7 +21,6 @@
           "label": "Shape",
           "color": "brown",
           "nodes": [
-            200,
             201,
             202,
             203,
@@ -91,15 +90,6 @@
           "position": [0, 0],
           "type": "__internal/group/output",
           "props": {}
-        },
-        {
-          "id": 200,
-          "position": [-360, -63.96],
-          "type": "max/core/random_int",
-          "props": {
-            "min": 2,
-            "max": 4
-          }
         },
         {
           "id": 201,
@@ -428,6 +418,7 @@
           "position": [-330, -62.08],
           "type": "max/plantarium/stem",
           "props": {
+            "amount": 1,
             "taper": 0
           }
         },
@@ -811,12 +802,6 @@
           0,
           230,
           "b"
-        ],
-        [
-          200,
-          0,
-          231,
-          "amount"
         ],
         [
           211,
