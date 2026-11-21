@@ -115,7 +115,8 @@ pub fn paths_mesh(paths: &[MeshPath], params: &HyphaeMeshParams) -> Mesh {
         let shading = Shading::new(paths, &owner);
         let cell = s.cell;
         let seam: Vec<f32> = segments.iter().zip(&meshing).map(|(g, m)| seam_width(g, m, cell)).collect();
-        s.mesh.colors = blend_colors(&s.mesh, &s.owners, &segments, &shading, &seam);
+        let body: Vec<usize> = owner.iter().map(|&k| bodies.binary_search(&paths[k].body).unwrap_or(0)).collect();
+        s.mesh.colors = blend_colors(&s.mesh, &s.owners, &segments, &body, &shading, &seam);
     }
 
     // the relief of a path is its fibres relative to those of the node, so it stays the same where they are the same
@@ -308,7 +309,11 @@ fn color_along(segment: &Segment, [start, end]: [u32; 2], p: Vec3) -> [f32; 4] {
 /// one path to the next, filled gaps included. A slot of a node that changes color counts as one
 /// color, the one of its nearest segment there, see [`Shading`]. Colors mix in linear light, a
 /// vertex without a color of its own ([`NO_COLOR`]) only lowers the alpha.
-fn blend_colors(mesh: &Mesh, owners: &[u32], segments: &[Segment], shading: &Shading, seam: &[f32]) -> Vec<u32> {
+///
+/// A vertex only sees the segments of the body of its own segment (`body`, numbered from 0, see
+/// [`MeshPath::body`]): bodies are meshed apart, so the color of one doesn't run onto another
+/// that comes close.
+fn blend_colors(mesh: &Mesh, owners: &[u32], segments: &[Segment], body: &[usize], shading: &Shading, seam: &[f32]) -> Vec<u32> {
     let Shading { ends, slot, slots } = shading;
     let n = mesh.vertex_count();
     if let [Some(color)] = slots[..] {
@@ -316,9 +321,10 @@ fn blend_colors(mesh: &Mesh, owners: &[u32], segments: &[Segment], shading: &Sha
     }
     let linear: Vec<Option<[f32; 4]>> = slots.iter().map(|c| c.map(linear_rgba)).collect();
     let reach = seam.iter().fold(0.0f32, |a, &w| a.max(w)) * SEAM_REACH;
-    let mut tubes = vec![Vec::new(); slots.len()];
+    let bodies = body.iter().max().map_or(1, |&b| b + 1);
+    let mut tubes = vec![Vec::new(); bodies * slots.len()];
     for (i, s) in segments.iter().enumerate() {
-        tubes[slot[i]].push((s.start, s.end, s.radius, i as u32));
+        tubes[body[i] * slots.len() + slot[i]].push((s.start, s.end, s.radius, i as u32));
     }
     let trees: Vec<TubeTree> = tubes.into_iter().map(TubeTree::new).collect();
     let tube = |i: usize, p: Vec3| distance_sq_to_segment(p, segments[i].start, segments[i].end).sqrt() - segments[i].radius;
@@ -328,6 +334,7 @@ fn blend_colors(mesh: &Mesh, owners: &[u32], segments: &[Segment], shading: &Sha
     for (p, &own) in mesh.positions.chunks_exact(3).zip(owners) {
         let p = Vec3::from_slice(p);
         let own = own as usize;
+        let trees = &trees[body[own] * slots.len()..][..slots.len()];
         nearest.fill((f32::INFINITY, 0));
         let own_slot = slot[own];
         nearest[own_slot] = (tube(own, p), own);
@@ -1329,7 +1336,7 @@ mod tests {
         let mesh = Mesh { positions: vec![0.0, 0.01, 0.0], ..Mesh::default() };
         let colors = [opaque(RED), opaque(BLUE)];
         let shading = Shading { ends: vec![[colors[0]; 2], [colors[1]; 2]], slot: vec![0, 1], slots: vec![Some(colors[0]), Some(colors[1])] };
-        let [r, _, b, _] = linear_rgba(blend_colors(&mesh, &[0], &segments, &shading, &seam)[0]);
+        let [r, _, b, _] = linear_rgba(blend_colors(&mesh, &[0], &segments, &[0, 0], &shading, &seam)[0]);
         let ([r0, _, b0, _], [r1, _, b1, _]) = (linear_rgba(colors[0]), linear_rgba(colors[1]));
         let blue = ((r - r0) * (r1 - r0) + (b - b0) * (b1 - b0)) / ((r1 - r0).powi(2) + (b1 - b0).powi(2));
         // 0.08 farther than the red tube with a seam of 0.055: exp(-(0.08 / 0.055)²) of blue
@@ -1422,5 +1429,82 @@ mod tests {
                 assert_eq!(mesh.colors[v], opaque(RED), "vertex at {}", p);
             }
         }
+    }
+
+    /// The paths of `points` colored by [`colored`], those of `creator` in body 1
+    fn colored_in_bodies(points: &[(Vec<f32>, i32)], colors: &[(i32, [u8; 3])], creator: i32) -> Vec<MeshPath<'static>> {
+        let mut paths = colored(points, colors);
+        for p in paths.iter_mut().filter(|p| p.group == PathGroup::Creator(creator)) {
+            p.body = 1;
+        }
+        paths
+    }
+
+    #[test]
+    fn bodies_side_by_side_keep_their_own_colors() {
+        // the slabs are 0.1 apart, within the reach of the seam: in one body red and blue meet
+        let points = two_slabs();
+        let params = HyphaeMeshParams { resolution: 96, fill: 6.0, ..HyphaeMeshParams::default() };
+        let one = paths_mesh(&colored(&points, &[(1, RED), (2, BLUE)]), &params);
+        assert!(one.colors.iter().any(|&c| c != opaque(RED) && c != opaque(BLUE)));
+        let mesh = paths_mesh(&colored_in_bodies(&points, &[(1, RED), (2, BLUE)], 2), &params);
+        assert!(mesh.vertex_count() > 0);
+        for v in 0..mesh.vertex_count() {
+            let want = if mesh.groups[v] == 0 { RED } else { BLUE };
+            assert_eq!(mesh.colors[v], opaque(want), "vertex at {}", vertex(&mesh, v));
+        }
+    }
+
+    #[test]
+    fn a_body_inside_another_takes_no_color_of_it() {
+        // a red slab of body 1 and a blue bar of body 0 that crosses it, every tube of one close to the other
+        let mut points = Vec::new();
+        for x in [-0.04, 0.0, 0.04] {
+            for y in [-0.04, 0.0, 0.04] {
+                points.push((line(Vec3::new(x, y, -0.5), Vec3::new(x, y, 0.5), 11, 0.03), 1));
+            }
+        }
+        for y in [-0.02, 0.02] {
+            for z in [-0.02, 0.02] {
+                points.push((line(Vec3::new(-0.4, y, z), Vec3::new(0.4, y, z), 11, 0.03), 2));
+            }
+        }
+        let params = HyphaeMeshParams { resolution: 96, ..smooth() };
+        let mesh = paths_mesh(&colored_in_bodies(&points, &[(1, RED), (2, BLUE)], 1), &params);
+        for v in 0..mesh.vertex_count() {
+            let want = if mesh.groups[v] == 0 { RED } else { BLUE };
+            assert_eq!(mesh.colors[v], opaque(want), "vertex at {}", vertex(&mesh, v));
+        }
+    }
+
+    #[test]
+    fn a_node_that_changes_color_keeps_the_color_of_each_body() {
+        // one node, red in body 0 and blue in body 1: one slot whose nearest segment may lie in the other body
+        let points: Vec<(Vec<f32>, i32)> = two_slabs().into_iter().map(|(p, _)| (p, 1)).collect();
+        let red = |k: usize| points[k].0[0] < 0.0;
+        let mut paths = shaded(&points, &[(1, RED)], |k, _, _| opaque(if red(k) { RED } else { BLUE }));
+        for (k, p) in paths.iter_mut().enumerate() {
+            p.body = (!red(k)) as u32;
+        }
+        let params = HyphaeMeshParams { resolution: 96, fill: 6.0, ..HyphaeMeshParams::default() };
+        let mesh = paths_mesh(&paths, &params);
+        assert!(mesh.vertex_count() > 0);
+        for v in 0..mesh.vertex_count() {
+            let p = vertex(&mesh, v);
+            assert_eq!(mesh.colors[v], opaque(if p.x < 0.0 { RED } else { BLUE }), "vertex at {}", p);
+        }
+    }
+
+    #[test]
+    fn one_body_blends_its_colors_whatever_its_number() {
+        // the seam of a_color_stays_on_its_group_and_goes_over_smoothly_at_the_seam, in body 0 or any other
+        let points = two_slabs();
+        let params = HyphaeMeshParams { resolution: 96, fill: 6.0, ..HyphaeMeshParams::default() };
+        let unconnected = paths_mesh(&colored(&points, &[(1, RED), (2, BLUE)]), &params);
+        let mut numbered = colored(&points, &[(1, RED), (2, BLUE)]);
+        numbered.iter_mut().for_each(|p| p.body = 3);
+        assert_eq!(paths_mesh(&numbered, &params).colors, unconnected.colors);
+        let mixed = unconnected.colors.iter().filter(|&&c| c != opaque(RED) && c != opaque(BLUE)).count();
+        assert!(mixed > 50, "only {} vertices mix red and blue", mixed);
     }
 }

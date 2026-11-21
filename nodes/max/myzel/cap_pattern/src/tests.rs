@@ -471,3 +471,55 @@ fn the_inputs_are_few() {
     assert_eq!(keys, ["cap", "color", "geometry", "opacity", "pattern", "relief", "slide"]);
 }
 
+
+/// The body with `layers` copies of a narrow wedge of its top in group 2, each a little further
+/// out along the normal: the surface of something else, like the stipe of a neighbouring mushroom,
+/// that passes close over the cap with more vertices than the whole top has
+fn body_under_a_crowded_strip(paths: &[Vec<i32>], layers: usize) -> Mesh {
+    let mut mesh = body(paths);
+    mesh.creators.push(30);
+    let n = mesh.vertex_count();
+    let in_wedge: Vec<bool> = (0..n)
+        .map(|v| {
+            let p = position(&mesh, v);
+            mesh.groups[v] == 1 && mesh.normals[v * 3 + 1] > 0.5 && (0.0..0.3).contains(&p.z.atan2(p.x))
+        })
+        .collect();
+    let faces: Vec<[u32; 3]> = mesh.faces.chunks_exact(3).filter(|f| f.iter().all(|&v| in_wedge[v as usize])).map(|f| [f[0], f[1], f[2]]).collect();
+    for layer in 1..=layers {
+        let mut index = vec![u32::MAX; n];
+        for v in (0..n).filter(|&v| in_wedge[v]) {
+            index[v] = mesh.vertex_count() as u32;
+            let normal = Vec3::from_slice(&mesh.normals[v * 3..v * 3 + 3]);
+            let p = position(&mesh, v) + normal * 0.0001 * layer as f32;
+            mesh.positions.extend(p.to_array());
+            mesh.normals.extend(normal.to_array());
+            mesh.groups.push(2);
+        }
+        mesh.faces.extend(faces.iter().flat_map(|f| f.map(|v| index[v as usize])));
+    }
+    mesh
+}
+
+#[test]
+fn a_crowd_of_vertices_of_another_group_over_a_strip_of_the_top_takes_no_pattern() {
+    let cap = cap();
+    let plain = body(&cap);
+    let top = (0..plain.vertex_count()).filter(|&v| plain.groups[v] == 1 && plain.normals[v * 3 + 1] > 0.5).count();
+    let mesh = body_under_a_crowded_strip(&cap, 60);
+    let strip = mesh.groups.iter().filter(|&&g| g == 2).count();
+    assert!(strip > 2 * top, "{strip} vertices in the strip, {top} on the top");
+    let after = Mesh::decode(&run(&mesh, &cap, &disc(|_, _| 1.0), &value(0.0), &value(1.0)));
+    let (mut on_top, mut painted) = (0, 0);
+    for v in 0..mesh.vertex_count() {
+        match mesh.groups[v] {
+            2 => assert_eq!(after.colors[v], NO_COLOR, "a vertex of the strip at {} got the pattern", position(&mesh, v)),
+            1 if mesh.normals[v * 3 + 1] > 0.5 => {
+                on_top += 1;
+                painted += (after.colors[v] != NO_COLOR) as usize;
+            }
+            _ => {}
+        }
+    }
+    assert!(painted as f32 > 0.95 * on_top as f32, "{painted} of {on_top} vertices on the top got the pattern");
+}
