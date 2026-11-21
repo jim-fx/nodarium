@@ -1,0 +1,97 @@
+{
+  "$schema": "https://nodes.max-richter.dev/graph.schema.json",
+  "id": 0,
+  "version": 19,
+  "meta": { "unit": "cm" },
+  "settings": { "time.t": 1, "resolution.field": 128, "resolution.curve": 24 },
+  "nodes": [
+    {
+      "id": 1,
+      "position": [-210, -79.92],
+      "type": "max/plantarium/stem",
+      "props": { "length": 0.045, "thickness": 0.009, "taper": 0.15 }
+    },
+    {
+      "id": 2,
+      "position": [-180, -79.92],
+      "type": "max/plantarium/points_on_path",
+      "props": { "amount": 1, "lowest_point": 1, "highest_point": 1 }
+    },
+    {
+      "id": 3,
+      "position": [-150, -84.92],
+      "type": "max/myzel/cap",
+      "props": {
+        "radius": 0.025,
+        "rays": 64,
+        "profile": [50, 0, 40, 1.5, 30, 6, 20, 14, 12, 23, 6, 33, 2, 44, 0, 52]
+      }
+    },
+    {
+      "id": 4,
+      "position": [-180, -42.42],
+      "type": "max/core/curve",
+      "props": { "curve": [0, 1, 0.5, 0.7, 1, 0], "min": 0.0015, "max": 0.008 }
+    },
+    { "id": 5, "position": [-150, -14.92], "type": "max/core/time" },
+    { "id": 6, "position": [-120, -53.67], "type": "max/myzel/cap_open" },
+    {
+      "id": 7,
+      "position": [-90, -41.67],
+      "type": "max/myzel/hyphae_to_mesh",
+      "props": { "fill": 0.3, "fibres": 0.3 }
+    },
+    {
+      "id": 8,
+      "position": [-120, -28.67],
+      "type": "max/myzel/reaction_diffusion",
+      "props": { "radius": 0.034, "inner_radius": 0.006, "spacing": 0.001 }
+    },
+    {
+      "id": 9,
+      "position": [-120, 41.33],
+      "type": "max/core/curve",
+      "props": { "curve": [0, 0.5, 0.3, 1, 0.75, 0.75, 1, 0], "min": 0, "max": 0.006 }
+    },
+    {
+      "id": 10,
+      "position": [-90, -6.67],
+      "type": "max/myzel/lamellae",
+      "props": { "free_distance": 0.0015 }
+    },
+    {
+      "id": 11,
+      "position": [-120, 84.33],
+      "type": "max/plantarium/points_on_path",
+      "props": { "amount": 1, "lowest_point": 0.67, "highest_point": 0.67 }
+    },
+    {
+      "id": 12,
+      "position": [-90, 63.33],
+      "type": "max/myzel/skirt",
+      "props": { "length": 0.005, "flare": 0.3, "thickness": 0.001 }
+    },
+    { "id": 13, "position": [-60, 0], "type": "max/plantarium/join" },
+    { "id": 14, "position": [-30, 0], "type": "max/plantarium/to_geometry" },
+    { "id": 15, "position": [0, 0], "type": "max/core/output" }
+  ],
+  "edges": [
+    [1, 0, 2, "plant"],
+    [1, 0, 3, "plant"],
+    [2, 0, 3, "points"],
+    [4, 0, 3, "thickness"],
+    [3, 0, 6, "cap"],
+    [5, 0, 6, "opening"],
+    [6, 0, 7, "paths"],
+    [6, 0, 10, "cap"],
+    [8, 0, 10, "pattern"],
+    [9, 0, 10, "depth"],
+    [1, 0, 11, "plant"],
+    [11, 0, 12, "attachment"],
+    [7, 0, 13, "a"],
+    [10, 0, 13, "b"],
+    [12, 0, 13, "c"],
+    [13, 0, 14, "input"],
+    [14, 0, 15, "input"]
+  ]
+}
