@@ -284,6 +284,18 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         }
     }
 
+    // the pipe model: the cross section is the share of the plant that grows above it
+    let thickness_at = |i: usize, s: f32| {
+        let total = carried_full[plant[i]];
+        if total <= 0.0 {
+            return 0.0;
+        }
+        let above = (grown_lengths[i] - s).max(0.0)
+            + tips[i].0
+            + children[i].iter().filter(|&&c| axes[c].attach >= s).map(|&c| carried[c]).sum::<f32>();
+        axes[i].thickness * (above / total).sqrt()
+    };
+
     let mut output = Vec::with_capacity(axes.len());
     for (i, axis) in axes.iter().enumerate() {
         let full = axis.length();
@@ -294,28 +306,26 @@ pub fn execute(args: &[&[i32]]) -> Vec<i32> {
         };
         let grown_length = grown_lengths[i];
         let length = grown_length.max(BUD_LENGTH);
-        let total = carried_full[plant[i]];
+        // the branches of a fork split the cross section of the axis they continue, they widen
+        // to it over their first few radii so the fork has no step
+        let flare = match axis.parent {
+            Some(p) if axis.attach >= axes[p].length() => {
+                let parent = thickness_at(p, axis.attach.min(grown_lengths[p]));
+                (parent - thickness_at(i, 0.0)).max(0.0)
+            }
+            _ => 0.0,
+        };
+        let flare_length = 3.0 * (thickness_at(i, 0.0) + flare);
 
         let mut data = create_path(resolution, axis.depth);
         set_path_link(&mut data, PathLink { grown: axis.grown(grown_length), ..axis.link });
         let path = wrap_path_mut(&mut data);
         for j in 0..resolution {
             let s = length * j as f32 / (resolution - 1) as f32;
-            // the pipe model: the cross section is the share of the plant that grows above it
-            let above = (grown_length - s).max(0.0)
-                + tips[i].0
-                + children[i]
-                    .iter()
-                    .filter(|&&c| axes[c].attach >= s)
-                    .map(|&c| carried[c])
-                    .sum::<f32>();
             let p = axis.base + axis.heading * s;
             path.points[j * 4..j * 4 + 3].copy_from_slice(&p.to_array());
-            path.points[j * 4 + 3] = if total > 0.0 {
-                axis.thickness * (above / total).sqrt()
-            } else {
-                0.0
-            };
+            let widen = if flare_length > 0.0 { (1.0 - s / flare_length).max(0.0).powi(2) } else { 0.0 };
+            path.points[j * 4 + 3] = thickness_at(i, s) + flare * widen;
         }
         output.push(data);
     }

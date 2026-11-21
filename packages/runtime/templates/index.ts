@@ -134,6 +134,11 @@ const ABOUT: Record<string, About> = {
     notes: 'A rosette of 9–24 narrow, striped leaves and 4–14 scapes, each with a spike '
       + 'that flowers from the base up, a ring of anthers between its brown and green part.'
   },
+  'dragon-tree': {
+    species: 'Dracaena draco (dragon tree)',
+    notes: 'One ramify node in sympodial: a trunk that forks into 2–4 branches again and again, '
+      + '5–7 times, with a rosette of sword leaves on every tip that is growing.'
+  },
   'champignon-groomed': { notes: 'The Stipe, Cap, Gills and Veil groups, grown by time.' },
   'fly-agaric': { notes: 'As the champignon, with a Cuticle and a Volva group.' },
   porcini: {
@@ -207,6 +212,7 @@ export const templates: Template[] = [
   plant('yarrow', 'Yarrow', 'cm', () => import('./yarrow.json')),
   plant('mullein', 'Great Mullein', 'm', () => import('./mullein.json')),
   plant('plantain', 'Ribwort Plantain', 'cm', () => import('./plantain.json')),
+  plant('dragon-tree', 'Dragon Tree', 'm', () => import('./dragon-tree.json')),
   mushroom('champignon-groomed', 'Champignon', 'cm', () => import('./champignon-groomed.json')),
   mushroom('fly-agaric', 'Fly agaric', 'cm', () => import('./fly-agaric.json')),
   mushroom('porcini', 'Porcini', 'cm', () => import('./porcini.json')),

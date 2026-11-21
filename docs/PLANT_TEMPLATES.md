@@ -464,6 +464,22 @@ The scapes are a `stem` of 10–40 cm, leaned up to 0.35 rad and spread around t
 
 Missing: the grooves of the scape, the hairs, the seed capsules.
 
+## Dragon Tree: _Dracaena draco_ (Canary Islands dragon tree)
+
+Family Asparagaceae.
+
+**Parts:** a stout trunk, thick branches that fork again and again into an umbrella-shaped crown, and a dense rosette of sword-shaped leaves at the tip of every branch.
+
+**Structure:** A slow tree, 4–12 m tall, with a crown often as wide as the tree is tall. The trunk grows unbranched until the tree first flowers, after about ten years. Every flowering ends its shoot: the terminal inflorescence stops the tip, and two to four (rarely more) new shoots grow from below it, nearly alike, so the crown forks into ever more branches of about the same thickness, Leeuwenberg's model of Hallé and Oldeman. The branches are smooth and grey, the lower forks spread wide, the upper ones stand steeper. The leaves sit only in the rosettes at the tips, 30–60 cm long, 2–4 cm wide, stiff, glaucous grey-green; the old ones at the bottom of a rosette hang, the young ones in its centre stand up.
+
+**Template:** one `ramify` in sympodial makes trunk and crown: the trunk is its first internode (0.9–1.5 m), every node forks into 2–4 equal branches (`random_int` into `laterals`, `dominance` 0.08) and the tree goes through 5–7 generations, a `random_int` into `generations`, so the seeds range from a young tree with a few forks to an old one with a dense crown. The first module after the trunk is 0.62 of it, then every module is about 0.85 of the one it grows on (a `curve` of alpha, the generation, times a `random` 0.85–1.15), and the branch angle falls from 0.85 rad at the first forks to 0.4 at the last (a `curve` of alpha times a `random`), which makes the umbrella. `divergence` is the golden angle, so the forks turn around the crown. `noise` and a slightly negative `gravity` with `depth` 10 bend every module, the thickness is the pipe model of `ramify`, so the forks split the trunk. `time` goes straight into `growth`: the trunk grows first, then every generation of forks after the one before.
+
+A rosette is 36 leaves (`instance` with `depth` 10 on every module, the golden angle, an angle per leaf from −0.4 to 1.35 rad) between 0.86 and 0.995 of the module as far as it has grown (`path_info` grown into the `lowest_instance` and `highest_instance`), so it rides on the tip while the module grows. Its size is a `curve` of `path_info` grown that unfolds it in the first third of the module, times one of grown − 1 that lets it die off while the forks above grow, so only the tips that are growing carry leaves, as on the real tree. A leaf is a `leaf` of a narrow strap, a little curved and channelled.
+
+**Colours:** grey bark, glaucous grey-green leaves.
+
+Missing: the inflorescences and the orange berries at the forks, the aerial roots and the swollen base of old trees, the red resin.
+
 ## Sources
 
 - [Agave americana, NParks Flora & Fauna Web](https://www.nparks.gov.sg/florafaunaweb/flora/3/5/3506), [NZ Flora](https://www.nzflora.info/factsheet/taxon/Agave-americana.html), [iNaturalist key to A. americana varieties](https://inaturalist.laji.fi/journal/mjpapay/archives/2024/03)
@@ -485,3 +501,4 @@ Missing: the grooves of the scape, the hairs, the seed capsules.
 - [Daucus carota, Go Botany](https://gobotany.nativeplanttrust.org/species/daucus/carota/)
 - [Taraxacum officinale, Go Botany](https://gobotany.nativeplanttrust.org/species/taraxacum/officinale/), [Minnesota Wildflowers](https://www.minnesotawildflowers.info/flower/common-dandelion)
 - [Achillea millefolium, Go Botany](https://gobotany.nativeplanttrust.org/species/achillea/millefolium/), [Minnesota Wildflowers](https://www.minnesotawildflowers.info/flower/common-yarrow)
+- [Dracaena draco, Wikipedia](https://en.wikipedia.org/wiki/Dracaena_draco), F. Hallé, R. A. A. Oldeman and P. B. Tomlinson, _Tropical Trees and Forests: An Architectural Analysis_ (1978), for the architectural models
