@@ -158,15 +158,14 @@ const ABOUT: Record<string, About> = {
     notes: 'Four to eight stipes from one spot, each of its own age, their shell caps in tiers.'
   },
   'honey-fungus': {
-    notes: 'A tuft of 6 to 11 stipes on a sunflower spiral, each of its own age, with '
-      + 'the Gills, Ring and Cuticle groups.'
+    notes: 'Six to eleven stipes of their own age, with the Gills, Ring and Cuticle groups.'
   },
   'clouded-agaric': {
     species: 'Clitocybe nebularis',
     notes: 'Three to seven large, fleshy caps on short stout stipes, close together on an arc of '
       + 'a ring, each of its own age, with the Gills and Cuticle groups.'
   },
-  'sulphur-tuft': { notes: 'Eight to fourteen thin stipes from one point, a tuft.' },
+  'sulphur-tuft': { notes: 'Eight to fourteen thin stipes, like the honey fungus.' },
   'false-chanterelle': { notes: 'Like the chanterelle, with lamellae instead of ridges.' },
   'bitter-bolete': {
     notes: 'Like the porcini: a thick cushion of pores, white turning pink, and a coarse dark net '
