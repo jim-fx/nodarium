@@ -9,6 +9,12 @@ test('/template changes a value and a material, and opens the changed template i
 
   const stats = page.getByRole('status').filter({ hasText: 'vertices' });
   await expect(stats).not.toContainText(/^\s*0 vertices/);
+  await expect(page.getByRole('tab', { name: 'Plants' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('button', { name: 'Porcini' })).toHaveCount(0);
+
+  const nodes = page.getByRole('button', { name: 'Nodes', exact: true });
+  await expect(nodes).toHaveAttribute('aria-pressed', 'false');
+  await nodes.click();
   // the leaves on the instance node: 8 to 14 in the template, 20 to 30 after
   const leaves = (input: string) =>
     page.locator(`[data-node-id="56"] [data-node-input="${input}"] input`);
@@ -25,11 +31,16 @@ test('/template changes a value and a material, and opens the changed template i
   await expect(stats).not.toHaveText(before!);
   await expect(page.getByRole('button', { name: 'Reset' })).toBeEnabled();
 
-  const material = page.getByLabel('Material');
-  await material.selectOption('Groups');
-  await expect(material).toHaveValue(
-    await material.locator('option', { hasText: 'Groups' }).getAttribute('value') ?? ''
-  );
+  // the edit stays when the nodes are hidden and shown again
+  await nodes.click();
+  await nodes.click();
+  await expect(leaves('max')).toHaveValue('30');
+
+  const groups = page.getByRole('radiogroup', { name: 'Material' }).getByRole('radio', {
+    name: 'Groups'
+  });
+  await groups.click();
+  await expect(groups).toHaveAttribute('aria-checked', 'true');
 
   const [editor] = await Promise.all([
     context.waitForEvent('page'),
@@ -43,4 +54,42 @@ test('/template changes a value and a material, and opens the changed template i
   });
   expect(opened.meta?.title).toBe('Default Plant');
   expect(opened.nodes.find((n) => n.id === 56)?.props).toEqual({ min: 20, max: 30 });
+});
+
+test('/template lists the mushrooms on their own tab, scrubs the time and keeps the material', async ({ page }) => {
+  await page.goto(`${APP}template?template=porcini`);
+
+  await expect(page.getByRole('tab', { name: 'Mushrooms' })).toHaveAttribute(
+    'aria-selected',
+    'true'
+  );
+  await expect(page.getByRole('button', { name: 'Porcini' })).toHaveAttribute(
+    'aria-current',
+    'page'
+  );
+  await expect(page.getByRole('button', { name: 'Fern', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Nodes', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false'
+  );
+
+  const stats = page.getByRole('status').filter({ hasText: 'vertices' });
+  await expect(stats).not.toContainText(/^\s*0 vertices/);
+  const grown = await stats.textContent();
+
+  await page.getByRole('slider', { name: 'Time' }).fill('0.2');
+  await expect(page.locator('output')).toHaveText('0.20');
+  await expect(stats).not.toHaveText(grown!);
+
+  // the material is remembered for the next visit
+  const groups = page.getByRole('radiogroup', { name: 'Material' }).getByRole('radio', {
+    name: 'Groups'
+  });
+  await groups.click();
+  await page.reload();
+  await expect(groups).toHaveAttribute('aria-checked', 'true');
+
+  await page.getByRole('tab', { name: 'Plants' }).click();
+  await page.getByRole('button', { name: 'Fern', exact: true }).click();
+  await expect(page).toHaveURL(/template=fern/);
 });
