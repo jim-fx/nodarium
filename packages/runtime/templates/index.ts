@@ -58,8 +58,9 @@ const ABOUT: Record<string, About> = {
   sapling: {
     species: 'Betula pendula (silver birch), young tree',
     notes:
-      'A straight trunk with 16 branches at the golden angle, each with 12 hanging twigs, birch leaves '
-      + 'from a node group.'
+      'A straight trunk with 11–19 branches at the golden angle that carry long, thin twigs hanging like '
+      + 'strings, birch leaves from a node group, one habit per seed from narrow and steep to broad and '
+      + 'weeping.'
   },
   lavender: {
     species: 'Lavandula angustifolia (English lavender)',
