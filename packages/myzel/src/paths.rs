@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::HashMap;
 
 use glam::Vec3;
 use nodarium_utils::{
@@ -32,10 +33,15 @@ pub enum PathGroup {
     Creator(i32),
 }
 
-/// A path to mesh: its points as `x, y, z, radius`, the values at its points, its group and how
-/// its surface looks
+/// A path to mesh: its points as `x, y, z, radius`, the values at its points, its group, how
+/// its surface looks and the body it belongs to
 #[derive(Clone, Debug, PartialEq)]
 pub struct MeshPath<'a> {
+    /// The id of the path and of the path it grows on, see `PathLink`
+    pub id: i32,
+    pub parent_id: i32,
+    /// Paths of different bodies keep their own surfaces, see [`assign_bodies`]. 0 for all by default.
+    pub body: u32,
     pub points: Cow<'a, [f32]>,
     /// An RGBA8 color per point as `set_color` writes them, empty for a path without colors
     pub colors: Cow<'a, [u32]>,
@@ -75,6 +81,9 @@ fn collect_paths<'a>(list: &'a [i32], style: PathStyle, out: &mut Vec<MeshPath<'
             let path = wrap_path(item);
             let group = PathGroup::Creator(path.link.creator);
             out.push(MeshPath {
+                id: path.link.id,
+                parent_id: path.link.parent_id,
+                body: 0,
                 points: Cow::Borrowed(path.points),
                 colors: Cow::Borrowed(path.colors),
                 fibres: Cow::Borrowed(path.fibres),
@@ -93,6 +102,39 @@ pub fn read_paths(list: &[i32], style: PathStyle) -> Vec<MeshPath<'_>> {
         collect_paths(list, style, &mut out);
     }
     out
+}
+
+/// Puts every path in the body of the guide it grew on. A path whose parent (or the path itself)
+/// is one of `guides` belongs to the root of that guide's lineage among them, found by following
+/// `parent_id` within `guides`: a cap strand grows on a ray, the ray on its stipe, so it is in the
+/// body of the stipe. The roots are numbered from 1 in the order of `guides`, every other path is
+/// in body 0. Without guides every path stays in body 0.
+pub fn assign_bodies(paths: &mut [MeshPath], guides: &[MeshPath]) {
+    let mut parent: HashMap<i32, i32> = HashMap::with_capacity(guides.len());
+    for g in guides {
+        parent.entry(g.id).or_insert(g.parent_id);
+    }
+    let root = |start: i32| {
+        let mut id = start;
+        // a lineage is never longer than the guides, more steps would be a loop
+        for _ in 0..guides.len() {
+            match parent.get(&id) {
+                Some(&up) if up != id && parent.contains_key(&up) => id = up,
+                _ => break,
+            }
+        }
+        id
+    };
+    let mut number: HashMap<i32, u32> = HashMap::new();
+    for g in guides {
+        let r = root(g.id);
+        let next = number.len() as u32 + 1;
+        number.entry(r).or_insert(next);
+    }
+    for path in paths {
+        let start = if parent.contains_key(&path.id) { Some(path.id) } else { parent.contains_key(&path.parent_id).then_some(path.parent_id) };
+        path.body = start.map_or(0, |s| number[&root(s)]);
+    }
 }
 
 fn count_paths(list: &[i32]) -> usize {
@@ -207,7 +249,54 @@ mod tests {
         assert_eq!(paths.len(), 3);
         assert_eq!(paths.iter().map(|p| p.group).collect::<Vec<_>>(), [5, 5, 9].map(PathGroup::Creator));
         assert_eq!(paths[2].point(1), Vec3::new(0.0, 1.0, 0.0));
+        let ids = nodarium_utils::geometry::path_link(&a[2..]);
+        assert_eq!((paths[0].id, paths[0].parent_id, paths[0].body), (ids.id, ids.parent_id, 0));
         assert!(read_paths(&[], PathStyle::BODY).is_empty());
+    }
+
+    /// A path of one point with the given id and parent
+    fn linked(id: i32, parent_id: i32) -> MeshPath<'static> {
+        MeshPath {
+            id,
+            parent_id,
+            body: 0,
+            points: Cow::Owned(vec![0.0, 0.0, 0.0, 0.1]),
+            colors: Cow::Owned(Vec::new()),
+            fibres: Cow::Owned(Vec::new()),
+            fill: Cow::Owned(Vec::new()),
+            group: PathGroup::Creator(1),
+            style: PathStyle::BODY,
+        }
+    }
+
+    fn bodies(paths: &[(i32, i32)], guides: &[(i32, i32)]) -> Vec<u32> {
+        let mut paths: Vec<MeshPath> = paths.iter().map(|&(id, parent)| linked(id, parent)).collect();
+        let guides: Vec<MeshPath> = guides.iter().map(|&(id, parent)| linked(id, parent)).collect();
+        assign_bodies(&mut paths, &guides);
+        paths.iter().map(|p| p.body).collect()
+    }
+
+    #[test]
+    fn a_path_belongs_to_the_root_of_its_lineage_in_the_guides() {
+        // two stipes 1 and 2, rays 11 and 12 on stipe 1, ray 21 on stipe 2, a ray 13 on ray 11
+        let guides = [(1, -1), (11, 1), (2, -1), (12, 1), (21, 2), (13, 11)];
+        let strands = [(100, 1), (101, 11), (102, 13), (103, 21), (104, 2), (105, 12)];
+        assert_eq!(bodies(&strands, &guides), [1, 1, 1, 2, 2, 1]);
+        // the roots are numbered in the order of the guides, also when a ray comes before its stipe
+        assert_eq!(bodies(&strands, &[(21, 2), (2, -1), (11, 1), (1, -1)]), [2, 2, 0, 1, 1, 0]);
+        // a guide is in its own body
+        assert_eq!(bodies(&[(11, 1), (2, -1)], &guides), [1, 2]);
+    }
+
+    #[test]
+    fn a_path_whose_parent_is_no_guide_is_in_body_0() {
+        let guides = [(1, -1), (11, 1)];
+        assert_eq!(bodies(&[(100, 7), (101, -1), (102, 11)], &guides), [0, 0, 1]);
+        // a ray whose stipe is missing is the root of its own lineage
+        assert_eq!(bodies(&[(100, 11), (101, 12)], &[(11, 1), (12, 1)]), [1, 2]);
+        assert_eq!(bodies(&[(100, 11)], &[]), [0]);
+        // a loop of parents ends
+        assert_eq!(bodies(&[(100, 5)], &[(5, 6), (6, 5)]), [1]);
     }
 
     #[test]
