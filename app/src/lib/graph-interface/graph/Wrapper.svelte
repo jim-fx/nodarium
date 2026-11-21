@@ -18,8 +18,6 @@
     onresult?: (result: Graph) => void;
     /** a wasm file was dropped, the node of it is placed once this resolves */
     onregister?: (node: NodeDefinition, wasm: ArrayBuffer) => Promise<void> | void;
-    /** the `?` shortcut */
-    onhelp?: () => void;
     /** Nodes to point out, apart from the selection: what made the part hovered in the viewer */
     highlightedNodeIds?: number[];
     /** The node under the pointer changed, `undefined` when there is none */
@@ -33,7 +31,6 @@
     onsave,
     onresult,
     onregister,
-    onhelp,
     highlightedNodeIds,
     onnodehover
   }: Props = $props();
@@ -53,7 +50,7 @@
   // the camera of the project with that id
   if (!manager.valuesOnly) onDestroy(persistCamera(state.camera, () => manager.id));
 
-  setupKeymaps(keymap, manager, state, () => onhelp?.(), manager.valuesOnly);
+  setupKeymaps(keymap, manager, state, manager.valuesOnly);
 
   const highlighted = $derived(new Set(highlightedNodeIds));
   state.readHighlightedNodes = () => highlighted;

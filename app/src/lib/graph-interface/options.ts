@@ -1,4 +1,5 @@
-import type { FrameColor } from '@nodarium/types';
+import type { FrameColor, NodeDefinition } from '@nodarium/types';
+import type { Component } from 'svelte';
 import type { Color } from 'three';
 
 /** The colours the editor draws with. The objects stay, a new theme changes their values in place. */
@@ -18,6 +19,8 @@ export type GraphOptions = {
   backgroundType: 'grid' | 'dots' | 'none';
   snapToGrid: boolean;
   showHelp: boolean;
+  /** drawn in the help next to the description of the hovered node, renders nothing for a node it has no picture of */
+  helpSketch?: Component<{ node: NodeDefinition }>;
   /** node ids and timings on the nodes */
   showDebugInfo: boolean;
   /** the name of the theme, the colours are read again when it changes */

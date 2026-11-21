@@ -6,6 +6,7 @@
     type NodeRegistry
   } from '@nodarium/types';
   import { describeAngles } from '@nodarium/ui';
+  import type { Component } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
 
   let mx = $state(0);
@@ -14,8 +15,8 @@
   let node: NodeDefinition | undefined = $state(undefined);
   let input: string | undefined = $state(undefined);
 
-  type Props = { registry: NodeRegistry };
-  const { registry }: Props = $props();
+  type Props = { registry: NodeRegistry; Sketch?: Component<{ node: NodeDefinition }> };
+  const { registry, Sketch }: Props = $props();
 
   let width = $state(0);
 
@@ -68,13 +69,16 @@
   {@attach helpCursor}
 >
   <p class="m-0 text-light opacity-40 flex items-center gap-3 mb-4">
-    <span class="i-tabler-help block w-4 h-4"></span>
+    <span class="i-[tabler--help] block w-4 h-4"></span>
     {node?.id.split('/').at(-1) || 'Help'}
     {#if input}
       <span>> {input}</span>
     {/if}
   </p>
   {#if node}
+    {#if Sketch}
+      <Sketch {node} />
+    {/if}
     <div class="mb-4">
       {#if input}
         {describeAngles(node?.inputs?.[input]?.description || input)}

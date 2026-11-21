@@ -191,7 +191,7 @@
 </div>
 
 {#if graphState.options.showHelp}
-  <HelpView registry={graph.registry} />
+  <HelpView registry={graph.registry} Sketch={graphState.options.helpSketch} />
 {/if}
 
 <ZoomIndicator {safePadding} />

@@ -82,6 +82,8 @@ The viewport link leads from a part in the viewer to the node that made it and b
 
 A debug node shows the output of the node it is connected to in the viewer (`app/src/lib/result-viewer/debug`). Of several debug nodes the viewer shows one: the selected debug node, the one connected to the selected node, otherwise the one connected last (`shown-debug.ts`). Geometry, geometry with groups, instances and the disc of a pattern are drawn like the result, with the material of the viewer and the colours of their vertices, in front of the result, which is dimmed meanwhile; paths and points are lines and dots on top (`debug.ts`). **Shift+H** on a debug node, or on a node a debug node is connected to, hides the result and frames what the debug node shows, also a geometry in a frame of its own like a leaf before it is placed.
 
+The help mode (**?**, or Help → Help mode) shows the description of the node or input under the pointer (`components/HelpView.svelte` of the editor). Above it a small animated sketch shows input → output, for every node but those whose name already says it (`UNSKETCHED` in `sketches.ts`, with the reason). The sketches are the app's (`app/src/lib/node-sketches`, the drawing helpers in `kit.ts` and a file per system), the editor gets their component through `GraphOptions.helpSketch`, so it knows no node of a system.
+
 The app uses Svelte 5 runes (`$state`, `$derived`, `$effect`). Maps and sets that the UI reads are `SvelteMap` and `SvelteSet` from `svelte/reactivity`, so changing them updates the UI.
 
 ## What are the key types?
