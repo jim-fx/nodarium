@@ -9,23 +9,24 @@ Myzel nodes pass `path`, `points`, `pattern`, `geometry` and `color` between the
 ```
        time, or one age per mushroom, into every group
 
-  Stipe ──stipe──▶ Cap ───rays───▶ Gills
-   │ │              │ │              │
-   │ │              │ └─margin─┐     │
-   │ └─────stipe────┼───────▶ Veil   │
-   │                │          │     │
- strands         strands      geom  geom
-   │                │          │     │
-   └─────▶ join ◀───┘          ▼     ▼
-            │                  join ──▶ to_geometry ──▶ output
-            ▼                   ▲
-     hyphae_to_mesh ───geometry─┘
+  Stipe ──stipe──▶ Cap ───rays─────▶ Gills
+   │ │              │ │ │              │
+   │ │              │ │ └─margin──┐    │
+   │ └─────stipe────┼─┼──────▶ Veil    │
+   │                │ │           │    │
+ strands      strands │         geom  geom
+   │                │ │ rays      │    │
+   └─────▶ join ◀───┘ │           ▼    ▼
+            │         │           join ──▶ to_geometry ──▶ output
+            ▼         │            ▲
+     hyphae_to_mesh ◀─┘ bodies     │
+            └──────────geometry────┘
 ```
 
 Every mushroom template is built from the same groups:
 
 - **Stipe**: a `stem`, posed by Plantarium nodes, filled with `strands`. Gives the stipe as a path and its strands, colored.
-- **Cap**: a `cap` at a point at the top of the stipe (`points_on_path` with one point at 1), posed by `fill_gaps`, `margin_waves`, `margin_curl` and `cap_open`, filled with its own `strands`. Gives the rays (with the stipe they grow on) and their strands, colored.
+- **Cap**: a `cap` at a point at the top of the stipe (`points_on_path` with one point at 1), posed by `fill_gaps`, `margin_waves`, `margin_curl` and `cap_open`, filled with its own `strands`. Gives the rays (with the stipe they grow on) and their strands, colored. Where a template has several mushrooms, the rays also go into the `bodies` of `hyphae_to_mesh`, so every mushroom gets its own surface.
 - **Gills**: a `reaction_diffusion` pattern under the rays, made into plates by `lamellae` or folds by `ridges`. Gives geometry.
 - **Pores** (instead of the Gills where the species has tubes): a net of `cracks` under the rays, made into a sponge of tubes by `pores`. Gives geometry.
 - **Veil** (only where the species has one): a `membrane` from the cap margin to a point on the stipe, and `skirt`s for the parts it tears into. Gives geometry.
@@ -35,7 +36,7 @@ Every mushroom template is built from the same groups:
 - **Ring** (only where the veil leaves no more than a ring low on the stipe): a `skirt` around a point on every stipe. Gives geometry.
 - **Substrate** (what the mushrooms grow on, not part of the templates, `withSubstrate()` of `@nodarium/runtime/templates` adds it): a `mesh` of a stump, moss or litter and the places on it from `sample_mesh`. Gives the substrate as geometry for the `join` and the places as points for the `stem` in the Stipe group.
 
-A group takes outcome inputs, like lengths, radii, colors and the time or the age, and gives paths or geometry. At the top level the strands of stipe and cap are joined and go through `hyphae_to_mesh`, a second `join` joins that body with the gills and the veil into one geometry, the groups of each numbered after those of the ones before it, and the `output` of [Core](./CORE.md) shows it, through a `to_geometry` that passes it on as it is.
+A group takes outcome inputs, like lengths, radii, colors and the time or the age, and gives paths or geometry. At the top level the strands of stipe and cap are joined and go through `hyphae_to_mesh`, with the rays of the Cap as its `bodies` in a cluster or a troop, a second `join` joins that body with the gills and the veil into one geometry, the groups of each numbered after those of the ones before it, and the `output` of [Core](./CORE.md) shows it, through a `to_geometry` that passes it on as it is.
 
 | template             | top level                                                                                                                                                                                                                                                                                              | Stipe                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Cap                                                                                                                                                                                                                                                                                                                                                                                                                   | Gills                                                                                                                                                                   | Veil                                                                                                                                                                                                                                                                                           |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -75,7 +76,7 @@ Pattern:
 
 Geometry:
 
-- `hyphae_to_mesh`: paths → one body of tissue around them, colored by the colors of their points. `fibres`, `fill`, the `resolution.field` setting.
+- `hyphae_to_mesh`: paths → one body of tissue around them, colored by the colors of their points, or one for every body of `bodies`, the paths they grew on. `fibres`, `fill`, the `resolution.field` setting.
 - `lamellae`: rays and a pattern → thin plates with a sharp edge, free of the stipe or running down it. `depth`, `free_distance`, `decurrent`, `thickness`, `edge_wave`.
 - `ridges`: rays and a pattern → low blunt folds, never deeper than wide, that run down the stipe. `depth`, `decurrent`, `thickness`, `edge_wave`.
 - `pores`: rays and a pattern → a layer of tubes under the cap that open in pores where the pattern is 0, its walls where it is 1. `depth`, `free_distance`, `pore_depth`.
@@ -134,6 +135,8 @@ These came out of the milestone "Myzel cleanup" (#212 to #224).
 **`membrane` and `skirt`.** `membrane` is the closed skin between two attachments, for example the margin from `cap_margin` and a point on the stipe from `points_on_path`. `skirt` hangs a skin from one attachment: around a point on a path it hangs out all around like a ring, from a ring of points it hangs on the inside like the fringe on a margin. On a ring its strands are spaced evenly along the points, so it follows a lopsided or wavy margin, and start inside the round end of the paths the points sit on (a ray of the cap, as thick as the point's scale), so the skin grows out of the flesh. A ring reads `length` and `flare` at every point: a `random` into them tears the fringe into flaps of different length and hang, a length of 0 leaves a gap. The Champignon switches from the membrane to two skirts when the veil tears, with curves of time into their thickness and length; its fringe gets a `random` length per point whose share of gaps grows with time, and a `random` into the `max` of its flare curve.
 
 **Fill.** `hyphae_to_mesh` fills the gaps between strands a ball of `fill` radii of the thickest strand can't pass. Every ray of a cap carries the same number of strands however thick its flesh is, so the strands lie furthest apart where the flesh is thickest, around the middle of a large cap. A `set_fill` of 4 on the strands of the Cap closes the flesh there, while the stipe keeps the lower fill of `hyphae_to_mesh` and shows its strands. Without it the old caps of the Chanterelle had holes around the centre of their top. The blur that smooths the filled tissue wears away a tissue thinner than about the fill, and a strand whose tube sticks out of what is left keeps its tube, so a lone strand keeps its radius at any fill.
+
+The fill closes gaps between the strands of different mushrooms too, so the caps of a cluster that come within about twice the closing radius grow into one tissue. The `bodies` input of `hyphae_to_mesh` keeps them apart: it takes the paths the strands grew on, in the templates the rays of the Cap with their stipes, and puts every strand in the body of the stipe at the root of its lineage there (a cap strand grows on a ray, the ray on its stipe; `parent_id` in the header of every path). Every body is closed, blurred and meshed on its own, in a box of the one grid around it, and the surfaces are joined into one geometry with the groups and creators of all. The fill still counts in radii of the thickest strand of all bodies, so a mushroom looks as it would alone. Where two bodies lie in each other, like caps that cross or stipes grown together at the base, the faces of each inside the other are left out, so the outside of both shows with a crease where they meet and no faces inside. Strands whose parent isn't in `bodies` share one body, without `bodies` all strands are one, as before. The single mushrooms (Champignon, Porcini, Bitter bolete, Fly agaric) leave it unconnected.
 
 **Fibres and fill.** `set_fibres` and `set_fill` write their value into every point of the paths that pass through them, like `set_color` its color (a path carries them after its points, its type says which, see `point_values` in `nodarium_utils::geometry`). `hyphae_to_mesh` meshes a segment of a path with the mean of its two points, the paths without them with its own `fibres` and `fill`. The value is read for every path and along it, so a `random` per path or a curve of `alpha` shapes it, a strand that loses its relief towards the tip for example. A node that makes a path anew (`cut`, `random_break`, `trunk_kink`) keeps the values where they were along it, like the colors. Up to `@nodarium/runtime` 1.2 the two nodes put their value next to the paths as a hidden item for every path of the nodes that made them, the graphs stay as they were.
 
