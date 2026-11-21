@@ -135,7 +135,10 @@ const ABOUT: Record<string, About> = {
       + 'that flowers from the base up, a ring of anthers between its brown and green part.'
   },
   'champignon-groomed': { notes: 'The Stipe, Cap, Gills and Veil groups, grown by time.' },
-  'fly-agaric': { notes: 'As the champignon, with a Cuticle and a Volva group.' },
+  'fly-agaric': {
+    notes: 'Two to four fruit bodies of their own age, from a white egg to a flat cap, on stout '
+      + 'stipes that swell into a bulb with scaly girdles, with the Cuticle and Volva groups.'
+  },
   porcini: {
     notes: 'The Stipe and Cap groups, a Pores group instead of the Gills and a Reticulation net on '
       + 'the stipe.'
