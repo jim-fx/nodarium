@@ -73,7 +73,7 @@ export const NodeSchema = z.object({
   id: z.number(),
   type: NodeIdSchema,
   props: z
-    .record(z.string(), z.union([z.number(), z.array(z.number())]))
+    .record(z.string(), z.union([z.number(), z.array(z.number()), z.string()]))
     .optional(),
   // hidden inputs that are shown on this node
   exposed: z.array(z.string()).optional(),

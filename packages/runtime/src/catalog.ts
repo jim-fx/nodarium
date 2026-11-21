@@ -57,6 +57,7 @@ function formatValue(input: NodeInput) {
     return selected === undefined ? '' : ` = ${selected} (${options})`;
   }
   if (DATA_TYPES.has(input.type) || value === undefined) return '';
+  if (typeof value === 'string' && input.type === 'text') return ` = ${JSON.stringify(value)}`;
   if (Array.isArray(value)) {
     return value.length <= 4 ? ` = [${value.join(', ')}]` : ` = [${value.length} numbers]`;
   }

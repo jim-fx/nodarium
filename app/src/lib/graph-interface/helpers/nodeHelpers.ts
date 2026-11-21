@@ -30,6 +30,9 @@ export function getParameterHeight(node: NodeDefinition, inputKey: string) {
   if ((input.type === 'shape' || input.type === 'curve') && input.external !== true) {
     return 200;
   }
+  if (input.type === 'text' && input.multiline) {
+    return 180;
+  }
   if (input?.label !== '' && !input.external && !SOCKET_ONLY_TYPES.has(input.type)) {
     return 100;
   }

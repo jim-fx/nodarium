@@ -23,6 +23,7 @@
   /** What the node runs with: its own value, or the default of the input */
   function nodeValue() {
     const value = node?.props?.[id] ?? ('value' in input ? input.value : undefined);
+    if (input.type === 'text') return typeof value === 'string' ? value : '';
     return $state.snapshot(value ?? (input.type === 'float' ? 0.5 : 0));
   }
 

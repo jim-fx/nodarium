@@ -70,6 +70,18 @@ export const NodeInputCurveSchema = z.object({
   value: z.array(z.number()).optional()
 });
 
+/**
+ * A text set on the node, like the rules of `lsystem`. The host sends it as one word per Unicode
+ * code point, `[0, n + 1, ...code points, 1, 1]`. No node gives text, so it is never connected
+ */
+export const NodeInputTextSchema = z.object({
+  ...DefaultOptionsSchema.shape,
+  type: z.literal('text'),
+  value: z.string().optional(),
+  /** a field of several lines, Enter starts a new line */
+  multiline: z.boolean().optional()
+});
+
 export const NodeInputBooleanSchema = z.object({
   ...DefaultOptionsSchema.shape,
   type: z.literal('boolean'),
@@ -158,6 +170,7 @@ export const NodeInputSchema = z.union([
   NodeInputIntegerSchema,
   NodeInputShapeSchema,
   NodeInputCurveSchema,
+  NodeInputTextSchema,
   NodeInputSelectSchema,
   NodeInputVec3Schema,
   NodeInputGeometrySchema,

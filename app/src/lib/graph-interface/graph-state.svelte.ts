@@ -131,7 +131,10 @@ export class GraphState {
     this.selectedNodes.clear();
   }
 
-  isBodyFocused = () => document?.activeElement?.nodeName !== 'INPUT';
+  isBodyFocused = () => {
+    const name = document?.activeElement?.nodeName;
+    return name !== 'INPUT' && name !== 'TEXTAREA';
+  };
 
   private _dirtyPositions = new SvelteSet<NodeInstance>();
   private _positionFlushPending = false;

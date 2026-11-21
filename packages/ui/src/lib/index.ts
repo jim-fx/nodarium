@@ -6,6 +6,7 @@ export { default as InputNumber } from './inputs/InputNumber.svelte';
 export { default as InputSearch } from './inputs/InputSearch.svelte';
 export { default as InputSelect } from './inputs/InputSelect.svelte';
 export { default as InputShape } from './inputs/InputShape.svelte';
+export { default as InputText } from './inputs/InputText.svelte';
 export { default as InputVec3 } from './inputs/InputVec3.svelte';
 export { default as SocketTable } from './inputs/SocketTable.svelte';
 

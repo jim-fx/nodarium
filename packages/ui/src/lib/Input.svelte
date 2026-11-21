@@ -8,6 +8,7 @@
     InputNumber,
     InputSelect,
     InputShape,
+    InputText,
     InputVec3
   } from './index';
 
@@ -32,6 +33,8 @@
   <InputShape bind:value={value as number[]} />
 {:else if input.type === 'curve'}
   <InputCurve bind:value={value as number[]} />
+{:else if input.type === 'text'}
+  <InputText bind:value={value as string} {id} multiline={input.multiline} />
 {:else if input.type === 'color'}
   <InputColor bind:value={value as [number, number, number]} />
 {:else if input.type === 'integer'}

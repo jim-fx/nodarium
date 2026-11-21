@@ -10,6 +10,12 @@ export function toCreatorId(nodeId: number): number {
   return (nodeId | 0) ^ (Math.floor(nodeId / 2 ** 32) | 0);
 }
 
+/** A text as the host sends it, one word per Unicode code point: `[0, n + 1, ...code points, 1, 1]` */
+export function encodeText(text: string) {
+  const codePoints = Array.from(text, (c) => c.codePointAt(0)!);
+  return [0, codePoints.length + 1, ...codePoints, 1, 1];
+}
+
 export function getValue(input: NodeInput, value?: unknown) {
   if (value === undefined && 'value' in input) {
     value = input.value;
@@ -17,6 +23,10 @@ export function getValue(input: NodeInput, value?: unknown) {
 
   if (input.type === 'float') {
     return encodeFloat(value as number);
+  }
+
+  if (input.type === 'text') {
+    return encodeText(String(value ?? ''));
   }
 
   if (input.type === 'select' && typeof value !== 'number') {

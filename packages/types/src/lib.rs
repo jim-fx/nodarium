@@ -141,6 +141,19 @@ pub struct NodeInputCurve {
     pub value: Option<Vec<f64>>,
 }
 
+/// A text set on the node, sent as one word per Unicode code point, see `nodarium_utils::read_text`
+#[derive(Serialize, Deserialize)]
+pub struct NodeInputText {
+    #[serde(flatten)]
+    pub default_options: DefaultOptions,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub multiline: Option<bool>,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct NodeInputGeometry {
     #[serde(flatten)]
@@ -186,6 +199,7 @@ pub enum NodeInput {
     color(NodeInputColor),
     shape(NodeInputShape),
     curve(NodeInputCurve),
+    text(NodeInputText),
     geometry(NodeInputGeometry),
     path(NodeInputPath),
     force(NodeInputForce),

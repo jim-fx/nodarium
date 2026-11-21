@@ -75,9 +75,9 @@
     node.props = node.props || {};
     for (const key of changed) {
       const value = store[key];
-      if (typeof value === 'string') {
+      const input = nodeDefinition[key];
+      if (typeof value === 'string' && input?.type === 'select') {
         // node props store the index of the chosen select option
-        const input = nodeDefinition[key];
         const options: unknown[] = input && 'options' in input ? input.options ?? [] : [];
         node.props[key] = Math.max(0, options.indexOf(value));
       } else if (value !== undefined) {

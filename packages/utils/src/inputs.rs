@@ -39,6 +39,13 @@ pub fn read_floats(arg: &[i32]) -> Vec<f32> {
     frame[2..frame.len() - 2].iter().map(|&w| decode_float(w)).collect()
 }
 
+/// A text input, which the host sends as one word per Unicode code point in the brackets of a
+/// list, `[0, n + 1, ...code points, 1, 1]`. A word that is no code point becomes `\u{fffd}`.
+pub fn read_text(arg: &[i32]) -> String {
+    let words = if is_frame(arg) { &arg[2..arg.len() - 2] } else { arg };
+    words.iter().map(|&w| char::from_u32(w as u32).unwrap_or(char::REPLACEMENT_CHARACTER)).collect()
+}
+
 /// A color input: the sRGB bytes `[0, 4, r, g, b, 1, 1]` set on the node or sent by a color
 /// node, a connected node may wrap it in a list of its own, or the expression of `mix_color`,
 /// read once, without a path and with alpha 0.
@@ -57,6 +64,16 @@ mod tests {
         assert_eq!(read_int(&[7]), 7);
         let curve = [0, 4, encode_float(0.0), encode_float(0.5), encode_float(1.0), 1, 1];
         assert_eq!(read_floats(&curve), vec![0.0, 0.5, 1.0]);
+    }
+
+    #[test]
+    fn reads_a_text_of_code_points() {
+        let mut framed = vec![0, 7];
+        framed.extend("F→[+F]".chars().map(|c| c as i32));
+        framed.extend([1, 1]);
+        assert_eq!(read_text(&framed), "F→[+F]");
+        assert_eq!(read_text(&[0, 1, 1, 1]), "");
+        assert_eq!(read_text(&[0, 2, -5, 1, 1]), "\u{fffd}");
     }
 
     #[test]

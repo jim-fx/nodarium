@@ -52,8 +52,10 @@ export function mapInput(
 ) {
   for (const { nodes } of scopes(graph)) {
     for (const node of nodes) {
-      if (node.type !== type || node.props?.[input] === undefined) continue;
-      node.props[input] = map(node.props[input]);
+      const value = node.props?.[input];
+      // migrations only map numbers, no input of a migrated graph was text
+      if (node.type !== type || value === undefined || typeof value === 'string') continue;
+      node.props![input] = map(value);
     }
   }
   return graph;

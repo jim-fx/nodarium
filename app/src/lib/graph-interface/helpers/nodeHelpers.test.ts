@@ -26,6 +26,27 @@ describe('mesh and pattern sockets', () => {
   });
 });
 
+describe('text inputs', () => {
+  const node = {
+    id: 'max/plantarium/lsystem',
+    inputs: {
+      axiom: { type: 'text', internal: true, value: 'A' },
+      rules: { type: 'text', internal: true, multiline: true, value: 'A = F[+A]' }
+    },
+    outputs: ['path']
+  };
+
+  it('validate as node definition', () => {
+    expect(NodeDefinitionSchema.safeParse(node).success).toBe(true);
+  });
+
+  it('get a field of one line, or a taller one for several lines', () => {
+    const definition = { ...node, execute: () => new Int32Array() } as NodeDefinition;
+    expect(getParameterHeight(definition, 'axiom')).toBe(100);
+    expect(getParameterHeight(definition, 'rules')).toBe(180);
+  });
+});
+
 describe('getNodeRows', () => {
   const stem = {
     id: 'max/plantarium/stem',

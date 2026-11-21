@@ -200,6 +200,8 @@ function wrongValueType(input: NodeInput, value: unknown): string | undefined {
       return isNumberArray(value) && (value as number[]).length === 3
         ? undefined
         : 'three numbers';
+    case 'text':
+      return typeof value === 'string' ? undefined : 'a text in quotes';
     case '*':
       return undefined;
     default:
