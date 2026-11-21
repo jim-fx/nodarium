@@ -544,6 +544,19 @@ mod tests {
     }
 
     #[test]
+    fn the_branches_of_a_fork_start_as_thick_as_the_axis_they_continue() {
+        let rule = Rule { architecture: 1, generations: 3, dominance: 0.0, ..Default::default() };
+        let paths = paths(&run(&rule));
+        let by_id: HashMap<i32, &Path> = paths.iter().map(|p| (p.link.id, p)).collect();
+        for path in paths.iter().filter(|p| p.link.has_parent()) {
+            let parent = by_id[&path.link.parent_id];
+            let tip = parent.points.last().unwrap()[3];
+            assert!((path.points[0][3] - tip).abs() < 1e-6, "{} {}", path.points[0][3], tip);
+            assert!(path.points[1][3] < tip);
+        }
+    }
+
+    #[test]
     fn the_generations_grow_one_after_the_other() {
         let rule = |growth: f32| Rule { generations: 4, laterals: 1, growth, ..Default::default() };
         let full = paths(&run(&rule(1.0)));
