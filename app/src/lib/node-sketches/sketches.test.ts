@@ -1,23 +1,41 @@
+import { readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { NODE_SKETCHES, SKETCH_PERIOD, sketchFor, type SketchFrame, sketchPhase } from './sketches';
+import {
+  NODE_SKETCHES,
+  SKETCH_PERIOD,
+  sketchFor,
+  type SketchFrame,
+  sketchPhase,
+  UNSKETCHED
+} from './sketches';
 
 function coordinates(frame: SketchFrame) {
   return [...frame.input, ...frame.output].flatMap((shape) =>
-    shape.kind === 'line' ? shape.points.flat() : shape.at
+    shape.kind === 'dot' ? shape.at : shape.points.flat()
   );
 }
 
+const NODES_DIR = new URL('../../../../nodes/max/', import.meta.url);
+const nodeIds = ['core', 'plantarium', 'myzel'].flatMap((collection) =>
+  readdirSync(new URL(`${collection}/`, NODES_DIR), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+    .map((entry) => `max/${collection}/${entry.name}`)
+);
+
 describe('sketchFor', () => {
-  it('gives a sketch to the five nodes that are hard to guess, and none to the rest', () => {
-    expect(Object.keys(NODE_SKETCHES).sort()).toEqual([
-      'max/core/alpha',
-      'max/core/curve',
-      'max/core/random',
-      'max/myzel/strands',
-      'max/plantarium/branch'
-    ]);
+  it('every node has a sketch or a reason why it has none, never both', () => {
+    expect(nodeIds.length).toBeGreaterThan(50);
+    for (const id of nodeIds) {
+      expect(id in NODE_SKETCHES !== id in UNSKETCHED, id).toBe(true);
+    }
+    for (const id of [...Object.keys(NODE_SKETCHES), ...Object.keys(UNSKETCHED)]) {
+      expect(nodeIds, id).toContain(id);
+    }
+  });
+
+  it('finds the sketch of a node, nothing for a group', () => {
     expect(sketchFor('max/plantarium/branch')).toBe(NODE_SKETCHES['max/plantarium/branch']);
-    expect(sketchFor('max/plantarium/gravity')).toBeUndefined();
+    expect(sketchFor('max/core/output')).toBeUndefined();
     expect(sketchFor('__internal/group/instance')).toBeUndefined();
   });
 });
@@ -27,7 +45,7 @@ describe('the sketches', () => {
     it(`${id} stays inside its panels and changes from start to end`, () => {
       for (const p of [0, 0.25, 0.5, 1]) {
         const frame = sketch.draw(p, 3);
-        expect(frame.input.length).toBeGreaterThan(0);
+        expect(frame.input.length > 0).toBe(sketch.input !== undefined);
         expect(frame.output.length).toBeGreaterThan(0);
         for (const c of coordinates(frame)) {
           expect(Number.isFinite(c)).toBe(true);

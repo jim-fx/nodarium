@@ -2,6 +2,7 @@
   import type { NodeDefinition } from '@nodarium/types';
   import { MediaQuery } from 'svelte/reactivity';
   import {
+    PANEL,
     sketchFor,
     sketchPhase,
     type SketchPoint,
@@ -11,8 +12,7 @@
 
   const { node }: { node: NodeDefinition } = $props();
 
-  const W = 92;
-  const H = 68;
+  const { width: W, height: H } = PANEL;
 
   const sketch = $derived(sketchFor(node.id));
   const reducedMotion = new MediaQuery('prefers-reduced-motion: reduce');
@@ -44,6 +44,16 @@
     faint: 'fill-current opacity-25'
   };
 
+  const AREA: Record<SketchTone, string> = {
+    base: 'fill-current opacity-30',
+    accent: 'fill-selected opacity-60',
+    faint: 'fill-current opacity-10'
+  };
+
+  // the text colour stands for the base, the accent for what the node mixes in
+  const mixed = (mix: number) =>
+    `fill: color-mix(in oklab, var(--color-selected) ${Math.round(mix * 100)}%, currentColor)`;
+
   const toPx = ([x, y]: SketchPoint) => `${(x * W).toFixed(1)},${((1 - y) * H).toFixed(1)}`;
 </script>
 
@@ -65,9 +75,21 @@
             stroke-linecap="round"
             stroke-linejoin="round"
           />
+        {:else if shape.kind === 'area'}
+          <polygon
+            points={shape.points.map(toPx).join(' ')}
+            class={shape.mix === undefined ? AREA[shape.tone] : ''}
+            style={shape.mix === undefined ? undefined : mixed(shape.mix)}
+          />
         {:else}
           {@const [cx, cy] = toPx(shape.at).split(',')}
-          <circle {cx} {cy} r={shape.r ?? 2} class={FILL[shape.tone]} />
+          <circle
+            {cx}
+            {cy}
+            r={shape.r ?? 2}
+            class={shape.mix === undefined ? FILL[shape.tone] : ''}
+            style={shape.mix === undefined ? undefined : mixed(shape.mix)}
+          />
         {/if}
       {/each}
     </svg>
@@ -77,8 +99,10 @@
 
 {#if sketch && frame}
   <div class="mb-4 flex items-start gap-2" data-node-sketch={node.id}>
-    {@render panel(frame.input, sketch.input)}
-    <span class="i-[tabler--arrow-right] mt-7 block h-4 w-4 shrink-0 opacity-40"></span>
+    {#if sketch.input !== undefined}
+      {@render panel(frame.input, sketch.input)}
+      <span class="i-[tabler--arrow-right] mt-7 block h-4 w-4 shrink-0 opacity-40"></span>
+    {/if}
     {@render panel(frame.output, sketch.output)}
   </div>
 {/if}

@@ -7,7 +7,7 @@ const graph = {
   version: 19,
   nodes: [
     { id: 1, type: 'max/plantarium/branch', position: [60, 0], props: {} },
-    { id: 2, type: 'max/plantarium/gravity', position: [200, 0], props: {} },
+    { id: 2, type: 'max/plantarium/join', position: [200, 0], props: {} },
     { id: 3, type: 'max/core/output', position: [270, 60], props: {} }
   ],
   edges: [],
@@ -38,7 +38,7 @@ test('? turns the help mode on and off, a node with a sketch shows it', async ({
   await expect(help(page).locator('[data-node-sketch="max/plantarium/branch"]')).toBeVisible();
 
   await header(page, 2).hover();
-  await expect(help(page)).toContainText('gravity');
+  await expect(help(page)).toContainText('join');
   await expect(help(page).locator('[data-node-sketch]')).toHaveCount(0);
 
   await page.mouse.click(5, 990);
