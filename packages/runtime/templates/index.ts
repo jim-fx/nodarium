@@ -58,8 +58,9 @@ const ABOUT: Record<string, About> = {
   sapling: {
     species: 'Betula pendula (silver birch), young tree',
     notes:
-      'A straight trunk with 16 branches at the golden angle, each with 12 hanging twigs, birch leaves '
-      + 'from a node group.'
+      'A straight trunk with 11–19 branches at the golden angle that carry long, thin twigs hanging like '
+      + 'strings, birch leaves from a node group, one habit per seed from narrow and steep to broad and '
+      + 'weeping.'
   },
   lavender: {
     species: 'Lavandula angustifolia (English lavender)',
@@ -157,14 +158,15 @@ const ABOUT: Record<string, About> = {
     notes: 'Four to eight stipes from one spot, each of its own age, their shell caps in tiers.'
   },
   'honey-fungus': {
-    notes: 'Six to eleven stipes of their own age, with the Gills, Ring and Cuticle groups.'
+    notes: 'A dense tuft of 24 to 34 stipes on a sunflower spiral, each of its own age, with '
+      + 'the Gills, Ring and Cuticle groups.'
   },
   'clouded-agaric': {
     species: 'Clitocybe nebularis',
     notes: 'Three to seven large, fleshy caps on short stout stipes, close together on an arc of '
       + 'a ring, each of its own age, with the Gills and Cuticle groups.'
   },
-  'sulphur-tuft': { notes: 'Eight to fourteen thin stipes, like the honey fungus.' },
+  'sulphur-tuft': { notes: 'Eight to fourteen thin stipes from one point, a tuft.' },
   'false-chanterelle': { notes: 'Like the chanterelle, with lamellae instead of ridges.' },
   'bitter-bolete': {
     notes: 'Like the porcini: a thick cushion of pores, white turning pink, and a coarse dark net '
