@@ -16,13 +16,20 @@ function getShortcutId(shortcut: KeyMapShortCut) {
   }`;
 }
 
+/** A key pressed here types text, it is no shortcut */
+export function isTextEntry(el: unknown): boolean {
+  if (!el || typeof el !== 'object') return false;
+  const { tagName, isContentEditable } = el as Partial<HTMLElement>;
+  return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT'
+    || isContentEditable === true;
+}
+
 export function createKeyMap(keys: KeyMapShortCut[]) {
   const store = writable(new Map(keys.map(k => [getShortcutId(k), k])));
 
   return {
     handleKeyboardEvent: (event: KeyboardEvent) => {
-      const activeElement = document.activeElement as HTMLElement;
-      if (activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA') return;
+      if (isTextEntry(event.target) || isTextEntry(globalThis.document?.activeElement)) return;
       const key = [...get(store).values()].find(k => {
         if (Array.isArray(k.key) ? !k.key.includes(event.key) : k.key !== event.key) return false;
         if ('shift' in k && k.shift !== event.shiftKey) return false;

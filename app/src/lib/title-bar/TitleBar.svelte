@@ -3,6 +3,7 @@
   import { formatRelativeTime } from '#lib/helpers/formatRelativeTime.ts';
   import type { ProjectManager } from '#lib/project-manager/project-manager.svelte.ts';
   import { appSettings, AppSettingTypes } from '#lib/settings/app-settings.svelte.ts';
+  import { toggleHelpMode } from '#lib/settings/help-mode.ts';
   import { panelState } from '#lib/sidebar/PanelState.svelte.ts';
   import type { ProjectUnit } from '@nodarium/types';
   import {
@@ -229,6 +230,12 @@
     {
       label: 'Help',
       items: [
+        {
+          label: 'Help mode',
+          shortcut: '?',
+          checked: appSettings.value.nodeInterface.showHelp,
+          onselect: toggleHelpMode
+        },
         { label: 'Tutorial', onselect: onstarttutorial },
         { label: 'Keyboard shortcuts', onselect: () => panelState.setActivePanel('shortcuts') },
         { label: 'Changelog', onselect: () => panelState.setActivePanel('changelog') },

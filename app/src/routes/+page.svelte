@@ -8,6 +8,7 @@
   import { localState } from '#lib/helpers/localState.svelte.ts';
   import { groupNode } from '#lib/node-registry/groupNode.ts';
   import { createAppRegistry } from '#lib/node-registry/index.ts';
+  import NodeSketch from '#lib/node-sketches/NodeSketch.svelte';
   import { colors, systemColors } from '#lib/theme/colors.svelte.ts';
 
   import PerformanceViewer from '#lib/performance/PerformanceViewer.svelte';
@@ -41,6 +42,7 @@
   import type { AppRuntime } from '#lib/runtime/types.ts';
   import { appSettings, AppSettingTypes } from '#lib/settings/app-settings.svelte.ts';
   import { changeGraphPanelSetting, graphPanelSettings } from '#lib/settings/graph-settings.ts';
+  import { toggleHelpMode } from '#lib/settings/help-mode.ts';
   import type { SettingsValue } from '#lib/settings/index.ts';
   import MaterialPicker from '#lib/settings/MaterialPicker.svelte';
   import NestedSettings from '#lib/settings/NestedSettings.svelte';
@@ -202,6 +204,7 @@
     get showHelp() {
       return appSettings.value.nodeInterface.showHelp;
     },
+    helpSketch: NodeSketch,
     get showDebugInfo() {
       return appSettings.value.debug.advancedMode;
     },
@@ -342,6 +345,16 @@
   }
 
   let applicationKeymap = createKeyMap([
+    {
+      // `?` is Shift+/ on a US keyboard and Shift+ß on a German one, the key it gives is the same
+      key: '?',
+      ctrl: false,
+      alt: false,
+      description: 'Toggle help mode',
+      callback: (event) => {
+        if (!event.repeat) toggleHelpMode();
+      }
+    },
     {
       key: 'r',
       description: 'Regenerate the plant model',
@@ -717,10 +730,6 @@
             bind:this={graphInterface}
             registry={nodeRegistry}
             options={graphOptions}
-            onhelp={() => {
-              panelState.setActivePanel('shortcuts');
-              track('help-open');
-            }}
             onsave={async (g) => {
               pendingSave = true;
               await pm.saveGraph(g);

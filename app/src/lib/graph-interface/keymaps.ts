@@ -8,7 +8,6 @@ export function setupKeymaps(
   keymap: Keymap,
   graph: GraphManager,
   graphState: GraphState,
-  onhelp: () => void,
   valuesOnly = false
 ) {
   const addEdit: Keymap['addShortcut'] = valuesOnly ? () => {} : (s) => keymap.addShortcut(s);
@@ -27,12 +26,6 @@ export function setupKeymaps(
         }
       }
     }
-  });
-
-  keymap.addShortcut({
-    key: '?',
-    description: 'Toggle Help',
-    callback: onhelp
   });
 
   addEdit({
