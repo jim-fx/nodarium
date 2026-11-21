@@ -17,11 +17,14 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { debugNode, graphLink, MemoryRuntimeExecutor } from '@nodarium/runtime';
-  import { templates } from '@nodarium/runtime/templates';
+  import { templateCategories, templates } from '@nodarium/runtime/templates';
   import type { Graph } from '@nodarium/types';
-  import { Button, InputNumber, InputSelect, Spinner, toast } from '@nodarium/ui';
+  import { Button, Spinner, Tabs, toast } from '@nodarium/ui';
   import { createPerformanceStore } from '@nodarium/utils';
+  import { tick } from 'svelte';
   import type { Group } from 'three';
+  import MaterialBalls from './MaterialBalls.svelte';
+  import Timeline from './Timeline.svelte';
 
   const registry = createAppRegistry([debugNode, groupNode]);
   const runtime = new MemoryRuntimeExecutor(registry);
@@ -31,6 +34,10 @@
   const faces = $derived($perf?.at(-1)?.['total-faces']?.[0] || 0);
   const requested = $derived(page.url.searchParams.get('template'));
   const selected = $derived(templates.find((t) => t.id === requested)?.id ?? 'fern');
+  // follows the selected template, a click on the other tab only browses its list
+  let category = $derived(templates.find((t) => t.id === selected)!.category);
+  let showNodes = $state(false);
+  let list = $state<HTMLElement>();
 
   let scene = $state<Group>(null!);
   let viewer = $state<ReturnType<typeof Viewer>>();
@@ -59,9 +66,8 @@
     return appSettings.value.material.id;
   }
   let material = $state(readMaterial());
-  const materialIndex = $derived(Math.max(0, materials.findIndex((m) => m.id === material)));
-  function selectMaterial(index: number) {
-    material = materials[index]?.id ?? material;
+  function selectMaterial(id: string) {
+    material = id;
     try {
       localStorage.setItem(MATERIAL_KEY, material);
     } catch {
@@ -70,9 +76,7 @@
   }
 
   const graphOptions: GraphOptions = {
-    get backgroundType() {
-      return appSettings.value.nodeInterface.backgroundType;
-    },
+    backgroundType: 'none',
     snapToGrid: false,
     showHelp: false,
     showDebugInfo: false,
@@ -192,67 +196,75 @@
   $effect(() => {
     if (viewer) void load(selected);
   });
+
+  $effect(() => {
+    void selected;
+    void tick().then(() =>
+      list?.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    );
+  });
 </script>
 
 <svelte:document {onkeydown} />
 
-<div class="grid h-dvh bg-layer-0 text-text grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[220px_minmax(0,1fr)] md:grid-rows-1">
-  <nav class="flex gap-3 overflow-auto border-b border-outline bg-layer-1 p-2 md:flex-col md:border-r md:border-b-0 md:px-3 md:py-4">
-    <h1 class="m-0 hidden px-2 text-sm font-semibold opacity-70 md:block">Templates</h1>
-    <ul class="m-0 flex list-none gap-0.5 p-0 md:flex-col">
-      {#each templates as entry (entry.id)}
-        <li>
-          <button
-            class="w-full cursor-pointer rounded-md border-0 p-2 text-left whitespace-nowrap text-inherit hover:bg-layer-2 {entry.id === selected ? 'bg-layer-2 font-semibold' : 'bg-transparent'}"
-            aria-current={entry.id === selected ? 'page' : undefined}
-            onclick={() => select(entry.id)}
-          >
-            {entry.name}
-          </button>
-        </li>
-      {/each}
-    </ul>
-    <p class="mt-auto mb-0 hidden px-2 text-xs opacity-60 md:block">
+<div class="grid h-dvh bg-layer-0 text-text grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[220px_minmax(0,1fr)] md:grid-rows-1">
+  <nav class="flex min-h-0 flex-col gap-2 border-b border-outline bg-layer-1 p-2 md:border-r md:border-b-0 md:px-3 md:py-4">
+    <Tabs
+      tabs={templateCategories}
+      bind:value={() => category, (v) => (category = v)}
+      label="Templates"
+      class="flex min-h-0 flex-1 flex-col"
+      panelClass="min-h-0 flex-1 pt-2"
+    >
+      {#snippet children(current)}
+        <ul
+          bind:this={list}
+          class="m-0 flex h-full list-none gap-0.5 overflow-auto p-0 md:flex-col"
+        >
+          {#each templates.filter((t) => t.category === current) as entry (entry.id)}
+            <li>
+              <button
+                class="w-full cursor-pointer rounded-md border-0 p-2 text-left whitespace-nowrap text-inherit hover:bg-layer-2 {entry.id === selected ? 'bg-layer-2 font-semibold' : 'bg-transparent'}"
+                aria-current={entry.id === selected ? 'page' : undefined}
+                onclick={() => select(entry.id)}
+              >
+                {entry.name}
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/snippet}
+    </Tabs>
+    <p class="mb-0 hidden px-2 text-xs opacity-60 md:block">
       Press <kbd class="rounded border border-current px-1">R</kbd> to regenerate
     </p>
   </nav>
-  <main class="grid min-w-0 grid-rows-2 md:grid-cols-2 md:grid-rows-1">
-    <div class="relative min-h-0">
+  <main class="flex min-h-0 min-w-0 flex-col">
+    <div class="relative min-h-0 flex-1">
       <Viewer bind:scene bind:this={viewer} {perf} {material} centerCamera />
-      <div class="absolute top-3 left-3 z-2 flex items-center gap-2 text-xs">
-        <label for="material" class="opacity-70">Material</label>
-        <InputSelect
-          id="material"
-          options={materials.map((m) => m.name)}
-          bind:value={() => materialIndex, selectMaterial}
-        />
-      </div>
-      <ResultStats {vertices} {faces} class="absolute right-4 bottom-4 items-end" />
-      {#if hasTime}
-        <div class="absolute bottom-4 left-4 z-2 flex w-[200px] items-center gap-2 text-xs md:left-1/2 md:-translate-x-1/2">
-          <label for="time" class="opacity-70">Time</label>
-          <div class="flex-1">
-            <InputNumber id="time" bind:value={() => time, scrub} min={0} max={1} step={0.01} />
-          </div>
+      {#if showNodes && graph}
+        <div class="absolute inset-0 z-10 bg-layer-0/60">
+          {#key template}
+            <GraphInterface
+              graph={structuredClone(graph)}
+              bind:this={graphInterface}
+              {registry}
+              options={graphOptions}
+              onresult={edited}
+            />
+          {/key}
         </div>
       {/if}
-      {#if isLoading || isExecuting}
-        <div class="absolute top-4 right-4"><Spinner size={28} /></div>
-      {/if}
-    </div>
-    <div class="relative min-h-0 border-t border-outline md:border-t-0 md:border-l">
-      {#if template}
-        {#key template}
-          <GraphInterface
-            graph={structuredClone(template)}
-            bind:this={graphInterface}
-            {registry}
-            options={graphOptions}
-            onresult={edited}
-          />
-        {/key}
-      {/if}
-      <div class="absolute top-3 right-3 z-10 flex gap-2">
+      <div class="absolute top-3 right-3 z-20 flex gap-2">
+        <Button
+          size="sm"
+          aria-pressed={showNodes}
+          class={showNodes ? 'border-selected!' : ''}
+          onclick={() => (showNodes = !showNodes)}
+        >
+          <span class="block h-3.5 w-3.5 i-[tabler--schema]"></span>
+          Nodes
+        </Button>
         <Button size="sm" disabled={!hasChanges} onclick={reset}>Reset</Button>
         <Button
           size="sm"
@@ -262,6 +274,22 @@
         >
           Open in editor
         </Button>
+      </div>
+      <ResultStats {vertices} {faces} class="absolute bottom-3 left-4 z-20!" />
+      {#if isLoading || isExecuting}
+        <div class="absolute top-3 left-3 z-20"><Spinner size={24} /></div>
+      {/if}
+    </div>
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-outline bg-layer-1 px-3 py-2">
+      {#if hasTime}
+        {#key template}
+          <div class="min-w-0 basis-full md:basis-0 md:flex-1">
+            <Timeline value={time} onchange={scrub} />
+          </div>
+        {/key}
+      {/if}
+      <div class="max-w-full overflow-x-auto md:ml-auto">
+        <MaterialBalls value={material} onchange={selectMaterial} />
       </div>
     </div>
   </main>
