@@ -6,6 +6,7 @@
     value?: T;
     label?: string;
     class?: string;
+    panelClass?: string;
     children?: Snippet<[T]>;
   }
 
@@ -14,6 +15,7 @@
     value = $bindable(tabs[0]),
     label = 'Tabs',
     class: _class = '',
+    panelClass = 'pt-5',
     children
   }: Props = $props();
 
@@ -73,7 +75,7 @@
       role="tabpanel"
       id="{id}-panel"
       aria-labelledby="{id}-tab-{tabs.indexOf(value)}"
-      class="pt-5"
+      class={panelClass}
     >
       {@render children(value)}
     </div>

@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import type { HTMLButtonAttributes } from 'svelte/elements';
 
-  interface Props {
+  interface Props extends Omit<HTMLButtonAttributes, 'class' | 'children' | 'onclick' | 'type'> {
     variant?: 'default' | 'primary' | 'destructive' | 'ghost';
     size?: 'sm' | 'md';
     disabled?: boolean;
@@ -18,7 +19,8 @@
     class: _class = '',
     onclick,
     children,
-    type = 'button'
+    type = 'button',
+    ...rest
   }: Props = $props();
 
   const variantClasses = {
@@ -35,6 +37,7 @@
 </script>
 
 <button
+  {...rest}
   {type}
   {disabled}
   class:py-1={size === 'sm'}
