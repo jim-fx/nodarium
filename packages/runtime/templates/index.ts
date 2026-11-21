@@ -165,6 +165,12 @@ const ABOUT: Record<string, About> = {
     notes: 'Three to seven large, fleshy caps on short stout stipes, close together on an arc of '
       + 'a ring, each of its own age, with the Gills and Cuticle groups.'
   },
+  'simple-mushroom': {
+    species: 'Agaricus bisporus (button mushroom)',
+    notes: 'A young button mushroom in 15 nodes, no groups: one cap of rays meshed straight by '
+      + 'hyphae_to_mesh, lamellae on a reaction_diffusion pattern, a skirt for the torn veil, '
+      + 'time opens the cap.'
+  },
   'sulphur-tuft': { notes: 'Eight to fourteen thin stipes, like the honey fungus.' },
   'false-chanterelle': { notes: 'Like the chanterelle, with lamellae instead of ridges.' },
   'bitter-bolete': {
@@ -225,7 +231,8 @@ export const templates: Template[] = [
   ),
   mushroom('oyster', 'Oyster mushroom', 'cm', () => import('./oyster.json')),
   mushroom('honey-fungus', 'Honey fungus', 'cm', () => import('./honey-fungus.json')),
-  mushroom('clouded-agaric', 'Clouded agaric', 'cm', () => import('./clouded-agaric.json'))
+  mushroom('clouded-agaric', 'Clouded agaric', 'cm', () => import('./clouded-agaric.json')),
+  mushroom('simple-mushroom', 'Simple mushroom', 'cm', () => import('./simple-mushroom.json'))
 ];
 
 /**
