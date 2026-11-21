@@ -206,6 +206,50 @@ Each mode works in the frame of the straight geometry: curl rolls around lines a
 
 The curve of `leaf` (`y_curve`, `x_curve`, `y_twist`) does the same for its own leaf, as radians that are read along it. `deform` is the generic way: it works on `leaf_surface` and every other geometry and its amount is shaped by the generic `alpha` and `curve` nodes, so `leaf_surface` needs no inputs for it. It has one `mode` and one `amount`, three modes in a chain where a leaf needs them, which keeps the order visible.
 
+## L-system
+
+`lsystem` grows a plant from a grammar written as text, a Lindenmayer system as in _The Algorithmic Beauty of Plants_ (ABOP): the `axiom` is a string of symbols, every generation replaces each symbol that has a rule by what the rule makes of it, all at once, and a turtle then walks the string and draws it.
+
+```
+axiom  FFA
+rules  A = [&FL*A]/(5)[&FL*A]/(7)[&FL*A] : 3
+       A = [&FL*A]/(8)[&FL*A] : 1
+       F = S/(5)F
+       S = FL
+       L = [^^*]
+```
+
+A rule is `symbol = what it becomes` (`->` and `→` work as well), one per line or between `;`, `#` starts a comment and whitespace is left out. A rule replaces a single symbol, a rule with nothing after the `=` removes it. Several rules for one symbol are stochastic: every symbol picks one by their weights, `: 3` at the end of a rule, 1 without. The pick depends on the `seed` and an id every symbol gets from the symbol it was made of and its place in that rule, so a branch keeps its pick when another branch changes. A number in brackets after a symbol scales it: `F(0.5)` is half a step, `+(2)` twice the angle. The numbers are plain numbers, a rule has no parameters or conditions. A text the node can't read stops it with a message that names the line, like other node errors; a `]` without its `[` is left out and a `[` without its `]` ends with the string.
+
+The turtle starts at the origin, heading up (+y), with its left toward -x and its up toward +z. Its symbols:
+
+| symbol   | what the turtle does                                                                                   |
+| -------- | ------------------------------------------------------------------------------------------------------ |
+| `F`, `G` | a step forward, drawn                                                                                  |
+| `f`, `g` | a step forward, not drawn: the path ends there and the next step starts a new one with the same parent |
+| `+`, `-` | turns left, right (around its up)                                                                      |
+| `&`, `^` | pitches down, up (around its left)                                                                     |
+| `\`, `/` | rolls left, right (around its heading)                                                                 |
+| `\|`     | turns around                                                                                           |
+| `$`      | rolls until its left is level                                                                          |
+| `[`, `]` | starts a branch, and goes back to where it started                                                     |
+| `!`      | makes the rest of the branch thinner, by 0.7 or the number in brackets                                 |
+| `"`      | makes the steps of the rest of the branch shorter, by 0.7 or the number in brackets                    |
+| `*`      | a point for a leaf or a flower, on the second output                                                   |
+| other    | nothing, a symbol that only grows by its rules, like `A` or `X`                                        |
+
+Every branch is a path. The steps of a bracket become a new path, a child of the path the bracket starts on, one layer deeper, with the spot it starts on as its `parent_alpha` and `PathLink::child(creator, parent, alpha, index)` as its link, where index counts the branches of the parent in the order of the string. The steps after a `]` go on on the path before the `[`, so `F[+F]F` is a stem of two steps and a branch in its middle. A bracket whose first steps come after another bracket, like `[+[F][-F]]`, makes no path of its own, its branches grow on the path around it. The paths come in the order of `branch`, every child right before its parent, so `gravity`, `noise`, `instance`, `to_geometry` and every other node that works on paths work on it.
+
+`length` and `angle` are read for every step and every turn with the path the symbol belongs to, after `ctx.set_path_info` (its depth, its index among the branches of its parent, its place among all paths, where it starts on its parent and how much of it has grown) and with alpha going along the path, by steps, from 0 at its first step to 1 at its last. So a `random` angle gives every turn its own angle, a `curve` of `path_info` depth makes the twigs shorter than the trunk, and a curve of alpha shortens the steps toward the tip of every branch. `path_info` length reads 0, the length of a path is only known once it is drawn. `tropism` (hidden) bends every step toward the ground by `tropism` times the sine of how far it leans from upright, like the tropism of ABOP, negative values turn it up. It is read like the length, and as the turtle bends while it draws, the points of `*` stay on their branches, which a `gravity` after the node wouldn't move.
+
+The thickness follows what grows above: a point of a path is as thick as `thickness × (L / T) ^ taper`, where `L` is the length of the paths that grow above that point, its own path up to its tip and all branches that start there or higher, and `T` the length of the whole plant once it has grown. `taper` (hidden) 0.5 is Leonardo's rule, the cross sections of the branches above a fork add up to the one below it; 0 keeps every path as thick as the base. So every branch gets thinner after each fork and closes at its tip, a stem with a fork at its tip hands its thickness on to the branches, and no grammar needs `!` for a plausible tree. `!` multiplies on top of it. `thickness` is read once for every path without a parent.
+
+The second output is a point on every `*`, on the path the turtle draws at the time, at the turtle: its direction is the heading of the turtle, its tangent the direction of the last step, turned at right angles to the heading, so `[&*]` points away from the branch and `instance_from_points` with `angle` tilts it along the branch. Its scale is 1, the `size` of `instance_from_points` is the size of the leaf. A `*` before the first step of a bracket sits on the path around the bracket, one before any step on no path. The points are a link of their own, nothing of them is in the paths.
+
+**Generations and growth.** `generations` is read once, a float. A fraction applies the rules once more, and what that last generation adds has grown by the fraction: a new step is that share of its length, a new turn that share of its angle, a new `!` or `"` that share of its factor, and a point of a new `*` has that scale. Steps that replace a step outside of brackets stretch from its length to theirs, so `F = FF` doubles the length of a stem without a jump. Steps that start a bracket grow out of their bud, the branch is there with its id and link from the start of the generation, with `grown` 0 until it has a length. The `grown` of a path is its length now over its length once grown, and its children and points sit at their place on it as shares of that, as on the paths of `stem` and `branch`. So `time → math (× 6) → generations` grows a plant level by level, and the youngest branches always come last: it grows staggered, not scaled up as a whole.
+
+Every generation can multiply the string, so the node stops with a message once a generation makes more than 250 000 symbols, naming the generation and the size of the one before it. Fewer generations, or rules that only rewrite the tips (a symbol like `A` that draws nothing, instead of every `F`), keep a grammar small.
+
 ## Geometry
 
 ```

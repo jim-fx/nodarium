@@ -1,0 +1,84 @@
+{
+  "id": "max/plantarium/lsystem",
+  "meta": {
+    "description": "Grows a plant from a text grammar, a Lindenmayer system: the axiom is rewritten by the rules once per generation, then a turtle draws it. F draws a step, + and - turn, & and ^ pitch, \\ and / roll, [ and ] make a branch, * marks a point for leaves or flowers. Every branch becomes a path with its parent, so every path node works on it. The second output is a point on every *."
+  },
+  "outputs": [
+    "path",
+    "points"
+  ],
+  "inputs": {
+    "axiom": {
+      "type": "text",
+      "internal": true,
+      "description": "The string the plant starts from, for example X or F.",
+      "value": "FFA"
+    },
+    "rules": {
+      "type": "text",
+      "internal": true,
+      "multiline": true,
+      "description": "One rule per line (or between ;), `symbol = what it becomes`, -> works as well. Several rules for one symbol are picked at random by the seed, weighted by `: weight` at their end. A number in brackets scales a symbol: F(0.5) is half a step, +(2) twice the angle, !(0.5) half the thickness, \"(0.8) shorter steps from there on. | turns around, $ rolls the branch level, f moves without drawing. Other letters draw nothing, they only grow. # starts a comment.",
+      "value": "A = [&FL*A]/(5)[&FL*A]/(7)[&FL*A] : 3\nA = [&FL*A]/(8)[&FL*A] : 1\nF = S/(5)F\nS = FL\nL = [^^*]"
+    },
+    "generations": {
+      "type": "float",
+      "description": "How often the rules are applied. A fraction applies them once more and grows what that generation adds by the fraction: new steps grow out of their buds, new turns open up, and a step that becomes several stretches to their length. A time or a curve into it grows the plant generation by generation.",
+      "min": 0,
+      "max": 10,
+      "step": 0.01,
+      "value": 6
+    },
+    "length": {
+      "type": "float",
+      "description": "The length of a step. Read for every step with the path it draws on: alpha goes along the path and path_info reads its depth, index and position, so a curve of path_info depth makes the twigs shorter than the trunk.",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.08,
+      "unit": "m"
+    },
+    "angle": {
+      "type": "float",
+      "description": "How far + - & ^ \\ / turn, in radians. Read for every turn like the length, so a random node gives every turn its own angle.",
+      "min": 0,
+      "max": 3.1416,
+      "step": 0.01,
+      "value": 0.4,
+      "unit": "rad"
+    },
+    "thickness": {
+      "type": "float",
+      "description": "The thickness at the base of the plant. Above it every path is as thick as what still grows above it needs, so branches get thinner after every fork and close at their tips.",
+      "min": 0,
+      "max": 0.5,
+      "step": 0.005,
+      "value": 0.03,
+      "unit": "m"
+    },
+    "tropism": {
+      "type": "float",
+      "hidden": true,
+      "description": "Bends every step toward the ground, the more the more it points sideways, like the tropism of ABOP: positive droops, negative turns up toward the light. Read for every step like the length. The turtle bends while it draws, so the points of * stay on their branches, which a gravity node after it wouldn't move.",
+      "min": -1,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.06
+    },
+    "taper": {
+      "type": "float",
+      "hidden": true,
+      "description": "How fast the paths get thinner toward the tips: the thickness at a point is the thickness at the base times the share of the plant that grows above it, to the power of taper. 0.5 is Leonardo's rule, the cross sections of the branches add up to the one below them; 0 keeps every path as thick as the base.",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "value": 0.5
+    },
+    "seed": {
+      "type": "seed"
+    },
+    "creator": {
+      "type": "creator"
+    }
+  }
+}
