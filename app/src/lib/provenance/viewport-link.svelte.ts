@@ -1,6 +1,6 @@
-import type { GraphManager, GraphState } from '#lib/graph-interface/index.ts';
 import type { PartHighlight } from '#lib/result-viewer/provenance/highlight.ts';
 import type { PartHit } from '#lib/result-viewer/provenance/part-hit.ts';
+import type { GraphManager, GraphState } from '@nodarium/graph-interface';
 import { NO_PATH } from '@nodarium/utils';
 import {
   buildIndex,

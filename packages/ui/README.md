@@ -1,58 +1,46 @@
-# create-svelte
+# @nodarium/ui
 
-Everything you need to build a Svelte library, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/main/packages/create-svelte).
+The Svelte 5 components of [Nodarium](https://nodes.max-richter.dev): the inputs of the nodes (`Input`, `InputNumber`, `InputCurve`, `InputShape`, `InputVec3`, ...), menus, tabs, dialogs, toasts and the keymap, with the theme of the app. `@nodarium/graph-interface`, the node editor, is built on it.
 
-Read more about creating a library [in the docs](https://kit.svelte.dev/docs/packaging).
+## Install
 
-## Creating a project
+The package is in the npm registry of git.max-richter.dev. Add the scope to the `.npmrc` of your project:
 
-If you're seeing this, you've probably already done this step. Congrats!
-
-```bash
-# create a new project in the current directory
-npm create svelte@latest
-
-# create a new project in my-app
-npm create svelte@latest my-app
+```
+@nodarium:registry=https://git.max-richter.dev/api/packages/max/npm/
 ```
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+```sh
+npm install @nodarium/ui @nodarium/runtime
 ```
 
-Everything inside `src/lib` is part of your library, everything inside `src/routes` can be used as a showcase or preview app.
+`svelte` 5, `tailwindcss` 4 and `@nodarium/runtime` (for the types of the inputs) are peer dependencies. The package ships `.svelte` files, use it with Vite and `@sveltejs/vite-plugin-svelte` or SvelteKit.
 
-## Building
+## Styles
 
-To build your library:
+The components are styled with Tailwind classes. `@nodarium/ui/app.css` is a Tailwind entry that builds the classes of the components, the theme (`--color-layer-0` to `--color-layer-3`, `--color-text`, `--color-outline`, `--color-active`, `--color-selected`, `--color-error`, `--color-frame-*`, with `bg-layer-1` and the other utilities of these colours) and the font, Fira Code, which comes with the package. Import it once, in the root layout:
 
-```bash
-npm run package
+```svelte
+<script lang="ts">
+  import '@nodarium/ui/app.css';
+</script>
 ```
 
-To create a production version of your showcase app:
+The themes are classes on `<html>`: none for dark, `theme-light`, `theme-solarized`, `theme-catppuccin`, `theme-high-contrast`. Icons are classes of `@iconify/tailwind4` with the prefix `i`, like `i-[tabler--settings]`.
 
-```bash
-npm run build
+The utilities of the theme colours, like `bg-layer-1` or `text-selected`, are built by that entry, so they work in your own components too. Other Tailwind classes of your components come from your own Tailwind entry.
+
+## Use
+
+```svelte
+<script lang="ts">
+  import { InputNumber, Toast, toast } from '@nodarium/ui';
+  let value = $state(0.5);
+</script>
+
+<InputNumber bind:value min={0} max={1} step={0.01} />
+<button onclick={() => toast('saved')}>save</button>
+<Toast />
 ```
 
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
-
-## Publishing
-
-Go into the `package.json` and give your package the desired name through the `"name"` option. Also consider adding a `"license"` field and point it to a `LICENSE` file which you can create from a template (one popular option is the [MIT license](https://opensource.org/license/mit/)).
-
-To publish your library to [npm](https://www.npmjs.com):
-
-```bash
-npm publish
-```
+`Input` takes a `NodeInput` of `@nodarium/runtime` and shows the input of its type, as the nodes of the editor do. `pnpm -C packages/ui dev` in the repository shows every component.

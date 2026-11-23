@@ -4,15 +4,16 @@ Nodarium is a node editor for procedural 3D models that runs in the browser. Eve
 
 ## Map
 
-| path                                                           | what                                                                                                                                                                  |
-| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app/`                                                         | the app: node editor in `app/src/lib/graph-interface`, viewer in `app/src/lib/result-viewer`, tools in `app/scripts`, bench in `app/benchmark`, e2e test in `app/e2e` |
-| `packages/runtime/`                                            | runs graphs, migrates old ones, holds the templates and the `nodarium` command; published as `@nodarium/runtime`                                                      |
-| `packages/types/`, `packages/utils/`                           | shared TypeScript types and helpers, and the Rust crates `nodarium_types` and `nodarium_utils`                                                                        |
-| `packages/macros/`                                             | the Rust macros every node uses (`nodarium_definition_file!`, `#[nodarium_execute]`)                                                                                  |
-| `packages/myzel/`                                              | `myzel_core`, the mesh and path formats of the Myzel nodes                                                                                                            |
-| `packages/ui/`, `packages/planty/`                             | the Svelte components of the app, and the tutorial system                                                                                                             |
-| `nodes/max/core/`, `nodes/max/plantarium/`, `nodes/max/myzel/` | one Rust crate per node: the value nodes every graph has, the plant nodes, the fungi nodes                                                                            |
+| path                                                           | what                                                                                                                    |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `app/`                                                         | the app: viewer in `app/src/lib/result-viewer`, tools in `app/scripts`, bench in `app/benchmark`, e2e test in `app/e2e` |
+| `packages/runtime/`                                            | runs graphs, migrates old ones, holds the templates and the `nodarium` command; published as `@nodarium/runtime`        |
+| `packages/types/`, `packages/utils/`                           | shared TypeScript types and helpers, and the Rust crates `nodarium_types` and `nodarium_utils`                          |
+| `packages/macros/`                                             | the Rust macros every node uses (`nodarium_definition_file!`, `#[nodarium_execute]`)                                    |
+| `packages/myzel/`                                              | `myzel_core`, the mesh and path formats of the Myzel nodes                                                              |
+| `packages/graph-interface/`                                    | the node editor, published as `@nodarium/graph-interface`                                                               |
+| `packages/ui/`, `packages/planty/`                             | the Svelte components of the app (published as `@nodarium/ui`), and the tutorial system                                 |
+| `nodes/max/core/`, `nodes/max/plantarium/`, `nodes/max/myzel/` | one Rust crate per node: the value nodes every graph has, the plant nodes, the fungi nodes                              |
 
 ## Setup
 
@@ -51,7 +52,7 @@ To measure: `pnpm -C app bench` runs whole graphs (the six of CI, or the templat
 - Run `pnpm dprint fmt` before every commit. Never run `cargo fmt`: the repository is formatted by dprint, and rustfmt rewrites about 25 files.
 - Node wasm links with `--allow-undefined` (`.cargo/config.toml`): since rustc 1.96 the host functions a node imports would be link errors otherwise. Keep it when touching the Cargo config.
 - Components in `packages/ui` use Tailwind classes, not `<style>` blocks.
-- `app/src/lib/graph-interface` stays self-contained: no new imports from other `#lib` or `$lib` modules into it, it is meant to become its own package.
+- `packages/graph-interface` is a package of its own: it knows no app and no node system, what it needs comes in as a prop or an option. It imports the graph types from `@nodarium/runtime`, not from `@nodarium/types` or `@nodarium/utils`, which are not published; so does `packages/ui`.
 - Comments only for reasons the code can't show. No comments that restate the code.
 - Nodes have few inputs. Variation and curves come from shaping an input with the random, curve and alpha nodes, not from extra inputs on every node. A generic node comes before a custom one.
 - Templates get no tests of their look, numbers or structure, only that each one loads and validates. A test that needs a plant uses its own graph or a frozen copy in its fixtures.
@@ -70,6 +71,7 @@ To measure: `pnpm -C app bench` runs whole graphs (the six of CI, or the templat
 - `docs/UX.md`: general UX practices for web apps
 - `docs/AGENT_API.md`: `window.nodarium`, the API of the app for a tool or an agent in a browser
 - `packages/runtime/README.md`: using the runtime without the app
+- `packages/graph-interface/README.md` and `packages/ui/README.md`: the editor and the components in another app
 - `app/README.md`: the template previews
 
 `app/src/docs.test.ts` checks that every path and `pnpm` script named in this file and in `docs/` exists. Update it here when you move a file.

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { NodeInput } from '@nodarium/types';
+  import type { NodeInput } from '@nodarium/runtime';
   type Props = {
     inputs?: Record<string, NodeInput>;
     colors: Record<string, string>;

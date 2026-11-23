@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { NodeInput } from '@nodarium/types';
+  import type { NodeInput } from '@nodarium/runtime';
   import '#lib/app.css';
   import {
     Button,

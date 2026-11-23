@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { InputUnit } from '@nodarium/types';
+  import type { InputUnit } from '@nodarium/runtime';
   import {
     formatStep,
     formatValue,

@@ -1,0 +1,104 @@
+import type { Box, Edge } from '@nodarium/runtime';
+import type { GraphManager } from '../graph-manager.svelte';
+import type { GraphState } from '../graph-state.svelte';
+import { distanceFromPointToSegment } from '../helpers/index.ts';
+
+export class EdgeInteractionManager {
+  constructor(
+    private graph: GraphManager,
+    private state: GraphState
+  ) {}
+
+  private MIN_DISTANCE = 3;
+
+  private _boundingBoxes = new Map<string, Box>();
+
+  handleMouseDown() {
+    this._boundingBoxes.clear();
+
+    for (const edge of this.graph.getPossibleDropOnEdges(this.state.activeNodeId)) {
+      const edgeId = this.graph.getEdgeId(edge);
+      const data = this.state.edgeGeometry.get(edgeId);
+      if (!data) continue;
+      const points = data.points;
+      let minX = points[0].x + data.x1;
+      let maxX = points[0].x + data.x1;
+      let minY = points[0].z + data.y1;
+      let maxY = points[0].z + data.y1;
+
+      for (let i = 0; i < points.length; i++) {
+        const x = data.x1 + points[i].x;
+        const y = data.y1 + points[i].z;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+
+      const boundingBox = {
+        minX: minX - this.MIN_DISTANCE,
+        maxX: maxX + this.MIN_DISTANCE,
+        minY: minY - this.MIN_DISTANCE,
+        maxY: maxY + this.MIN_DISTANCE
+      };
+
+      this._boundingBoxes.set(edgeId, boundingBox);
+    }
+  }
+
+  handleMouseMove() {
+    const [mouseX, mouseY] = this.state.mousePosition;
+    const hoveredEdgeIds: string[] = [];
+
+    for (const [edgeId, box] of this._boundingBoxes) {
+      const isInside = mouseX >= box.minX
+        && mouseX <= box.maxX
+        && mouseY >= box.minY
+        && mouseY <= box.maxY;
+
+      if (isInside) {
+        hoveredEdgeIds.push(edgeId);
+      }
+    }
+
+    let hoveredEdgeId: string | null = null;
+    let hoveredEdgeDistance = Infinity;
+
+    const DENSITY = 10; // higher DENSITY = less points checked (yes density might not be the best name :-)
+    for (const edgeId of hoveredEdgeIds) {
+      const edge = this.state.edgeGeometry.get(edgeId);
+      if (!edge) continue;
+      for (let i = 0; i < edge.points.length - DENSITY; i += DENSITY) {
+        const pointAx = edge.points[i].x + edge.x1;
+        const pointAy = edge.points[i].z + edge.y1;
+        const pointBx = edge.points[i + DENSITY].x + edge.x1;
+        const pointBy = edge.points[i + DENSITY].z + edge.y1;
+        const distance = distanceFromPointToSegment(
+          pointAx,
+          pointAy,
+          pointBx,
+          pointBy,
+          mouseX,
+          mouseY
+        );
+        if (distance < this.MIN_DISTANCE) {
+          if (distance < hoveredEdgeDistance) {
+            hoveredEdgeDistance = distance;
+            hoveredEdgeId = edgeId;
+          }
+        }
+      }
+    }
+
+    this.state.hoveredEdgeId = hoveredEdgeId;
+  }
+
+  // Returns the edge the node was released on. The caller drops it there once the node's final
+  // position is known, so that the nodes around it can make room.
+  handleMouseUp(): Edge | undefined {
+    const edgeId = this.state.hoveredEdgeId;
+    if (!edgeId) return;
+    this.state.hoveredEdgeId = null;
+    return this.graph.getEdgeById(edgeId);
+  }
+}

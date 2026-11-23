@@ -31,5 +31,15 @@ export default defineConfig(
         tsconfigRootDir: import.meta.dirname
       }
     }
+  },
+  {
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: ['@nodarium/types', '@nodarium/utils'].map((name) => ({
+          name,
+          message: 'Not published, the package imports it from @nodarium/runtime, which bundles it.'
+        }))
+      }]
+    }
   }
 );

@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { NodePreview } from '#lib/graph-interface/index.ts';
   import Grid from '#lib/grid/index.ts';
   import { localState } from '#lib/helpers/localState.svelte.ts';
   import { createAppRegistry } from '#lib/node-registry/index.ts';
   import Panel from '#lib/sidebar/Panel.svelte';
   import Sidebar from '#lib/sidebar/Sidebar.svelte';
+  import { NodePreview } from '@nodarium/graph-interface';
   import { type NodeId, type NodeInstance } from '@nodarium/types';
   import { createWasmWrapper, encodeNestedArray } from '@nodarium/utils';
 

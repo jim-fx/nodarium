@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { GraphManager, GraphState } from '#lib/graph-interface/index.ts';
+  import type { GraphManager, GraphState } from '@nodarium/graph-interface';
   import { GROUP_INSTANCE } from '@nodarium/types';
   import type { NodeInstance } from '@nodarium/types';
   import { SocketTable } from '@nodarium/ui';

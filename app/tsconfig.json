@@ -14,7 +14,6 @@
     "moduleResolution": "bundler",
     "types": [
       "$app/types",
-      "vite-plugin-glsl/ext",
       "vite-plugin-comlink/client"
     ]
   }

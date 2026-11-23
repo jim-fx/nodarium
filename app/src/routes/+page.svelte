@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { AgentApiHost, BuildRecord } from '#lib/agent-api/agent-api.ts';
   import { count, msBucket, publicNodeType, setTrackContext, track } from '#lib/analytics.ts';
-  import GraphInterface, { type GraphOptions } from '#lib/graph-interface/index.ts';
   import * as templates from '#lib/graph-templates/index.ts';
   import Grid from '#lib/grid/index.ts';
   import { debounceAsyncFunction } from '#lib/helpers/index.ts';
@@ -10,6 +9,7 @@
   import { createAppRegistry } from '#lib/node-registry/index.ts';
   import NodeSketch from '#lib/node-sketches/NodeSketch.svelte';
   import { colors, systemColors } from '#lib/theme/colors.svelte.ts';
+  import GraphInterface, { type GraphOptions } from '@nodarium/graph-interface';
 
   import PerformanceViewer from '#lib/performance/PerformanceViewer.svelte';
   import { createRepeatGuard } from '#lib/performance/run-values.ts';

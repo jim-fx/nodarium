@@ -1,5 +1,4 @@
 <script lang="ts">
-  import GraphInterface, { type GraphOptions } from '#lib/graph-interface/index.ts';
   import { groupNode } from '#lib/node-registry/groupNode.ts';
   import { createAppRegistry } from '#lib/node-registry/index.ts';
   import { materials } from '#lib/result-viewer/materials/materials.ts';
@@ -16,6 +15,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import GraphInterface, { type GraphOptions } from '@nodarium/graph-interface';
   import { debugNode, graphLink, MemoryRuntimeExecutor } from '@nodarium/runtime';
   import { templateCategories, templates } from '@nodarium/runtime/templates';
   import type { Graph } from '@nodarium/types';

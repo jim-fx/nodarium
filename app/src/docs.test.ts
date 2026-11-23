@@ -10,6 +10,8 @@ const DOCS = [
   'AGENTS.md',
   'README.md',
   'packages/runtime/README.md',
+  'packages/graph-interface/README.md',
+  'packages/ui/README.md',
   ...readdirSync(join(ROOT, 'docs')).filter((f) => f.endsWith('.md')).map((f) => `docs/${f}`)
 ];
 
