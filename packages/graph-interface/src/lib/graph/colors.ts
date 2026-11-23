@@ -1,3 +1,5 @@
+import { Color as ThreeColor } from 'three';
+
 type Color = { hue: number; saturation: number; lightness: number };
 
 // The edges read these values as linear and the canvas shows them as sRGB, so
@@ -18,8 +20,13 @@ export const LINK_COLORS: Record<string, Color> = {
 
 export class ColorGenerator {
   private colors: Map<string, Color> = new Map();
+  private appColors = new Map<string, string>();
 
-  constructor(predefined: Record<string, Color> = LINK_COLORS) {
+  /** `readAppColors` gives CSS colours per type, as the edges should look, see GraphOptions.linkColors */
+  constructor(
+    private readAppColors: () => Record<string, string> | undefined = () => undefined,
+    predefined: Record<string, Color> = LINK_COLORS
+  ) {
     for (const [id, color] of Object.entries(predefined)) {
       this.colors.set(id, color);
     }
@@ -34,6 +41,8 @@ export class ColorGenerator {
   }
 
   public getColor(id: string): string {
+    const appColor = this.readAppColors()?.[id];
+    if (appColor) return this.toLinear(appColor);
     let color = this.colors.get(id);
     if (!color) {
       color = this.generateColor(id);
@@ -49,6 +58,17 @@ export class ColorGenerator {
       hash = (hash * 31 + id.charCodeAt(i)) | 0;
     }
     return { hue: Math.abs(hash) % 360, saturation: 100, lightness: 60 };
+  }
+
+  // what the edges read as linear and the canvas shows as the colour given
+  private toLinear(css: string) {
+    let linear = this.appColors.get(css);
+    if (!linear) {
+      const { r, g, b } = new ThreeColor().setStyle(css);
+      linear = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
+      this.appColors.set(css, linear);
+    }
+    return linear;
   }
 
   private colorToHsl(c: Color): string {

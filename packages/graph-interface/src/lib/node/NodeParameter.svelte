@@ -83,6 +83,27 @@
     })
   );
 
+  // the rows of the Group Input node are no inputs of it
+  const badge = $derived(
+    node.type === GROUP_INPUT ? undefined : graphState?.inputBadge(node.id, id)
+  );
+
+  // a shift right click attaches the debug node
+  function handleContextMenu(ev: MouseEvent) {
+    if (!graphState || ev.shiftKey || node.type === GROUP_INPUT) return;
+    const taken = graphState.openInputContextMenu({
+      nodeId: node.id,
+      nodeType: node.type,
+      key: id,
+      input: inputType ?? input,
+      x: ev.clientX,
+      y: ev.clientY
+    });
+    if (!taken) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+  }
+
   function getSocketType(s: Socket | null) {
     if (!s) return 'unknown';
     return graph.getSocketType(s.node, s.index) || 'unknown';
@@ -97,6 +118,27 @@
   );
 </script>
 
+{#snippet label()}
+  {#if inputType?.label !== ''}
+    <label for={elementId} title={input.description && describeAngles(input.description)}>{
+      input.label || id
+    }</label>
+  {/if}
+{/snippet}
+
+{#snippet labelRow()}
+  {#if badge}
+    <div class="flex min-w-0 items-baseline gap-2">
+      {@render label()}
+      <span data-input-badge class="badge truncate" title={badge}>{badge}</span>
+    </div>
+  {:else}
+    {@render label()}
+  {/if}
+{/snippet}
+
+<!-- the menu key on the focused field or socket sends its contextmenu up to here -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="wrapper"
   data-node-type={node.type}
@@ -104,17 +146,14 @@
   data-node-input={id}
   style:height="{height}px"
   style:--socket-color={hoverColor}
+  oncontextmenu={handleContextMenu}
   class:possible-socket={graphState?.possibleSocketIds.has(socketId)}
 >
   {#key id && graphId}
     <div class="content" class:disabled={disabled}>
       {#if isExposed}
         <div class="flex items-center justify-between gap-2">
-          {#if inputType?.label !== ''}
-            <label for={elementId} title={input.description && describeAngles(input.description)}>{
-              input.label || id
-            }</label>
-          {/if}
+          {@render labelRow()}
           {#if !graphState?.options.valuesOnly}
             <button
               type="button"
@@ -126,10 +165,8 @@
             </button>
           {/if}
         </div>
-      {:else if inputType?.label !== ''}
-        <label for={elementId} title={input.description && describeAngles(input.description)}>{
-          input.label || id
-        }</label>
+      {:else}
+        {@render labelRow()}
       {/if}
       {#if inputType?.external !== true}
         <NodeInputEl {graph} {elementId} bind:node {input} {id} />
@@ -236,6 +273,11 @@
 
     stroke-linejoin: round;
     shape-rendering: geometricPrecision;
+  }
+
+  /* a utility loses against an app's unlayered colour of the text, like `body * { color }` */
+  .badge {
+    color: var(--color-selected);
   }
 
   .content.disabled {

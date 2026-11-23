@@ -5,9 +5,11 @@ import {
   GROUP_INSTANCE,
   type NodeDefinition
 } from '@nodarium/runtime';
-import { flushSync } from 'svelte';
+import { type ComponentProps, flushSync } from 'svelte';
+import { SvelteMap } from 'svelte/reactivity';
 import { assert, describe, expect, it } from 'vitest';
 import { GraphManager } from '../graph-manager.svelte';
+import type { InputContextMenuEvent } from '../options';
 import { createMockNodeRegistry } from '../test-utils';
 import TestNodes from './TestNodes.svelte';
 
@@ -49,12 +51,12 @@ const graph: Graph = {
 // The widgets only exist in a browser, `vitest --browser=false` has no document for them
 const inBrowser = describe.skipIf(import.meta.env.SSR);
 
-async function setup() {
+async function setup(props: Omit<ComponentProps<typeof TestNodes>, 'manager'> = {}) {
   const { render } = await import('vitest-browser-svelte');
   const registry = createMockNodeRegistry([stem, noise, debugNode]);
   const manager = new GraphManager(registry);
   await manager.load(structuredClone(graph));
-  const view = await render(TestNodes, { manager });
+  const view = await render(TestNodes, { manager, ...props });
   const rest = () => {
     flushSync();
     manager.flush();
@@ -62,6 +64,13 @@ async function setup() {
   };
   rest();
   const steps = () => manager.history.history.length;
+  const row = (nodeId: number, key: string) => {
+    const element = view.container.querySelector<HTMLElement>(
+      `[data-node-id="${nodeId}"] [data-node-input="${key}"]`
+    );
+    assert.isNotNull(element);
+    return element;
+  };
   const input = (nodeId: number, key: string) => {
     const element = view.container.querySelector<HTMLInputElement>(
       `[data-node-id="${nodeId}"] [data-node-input="${key}"] input`
@@ -75,7 +84,7 @@ async function setup() {
     element.dispatchEvent(new Event('change', { bubbles: true }));
     rest();
   };
-  return { manager, rest, steps, input, type };
+  return { manager, rest, steps, row, input, type };
 }
 
 const debugNodes = (manager: GraphManager) =>
@@ -195,5 +204,66 @@ inBrowser('a group node from the add menu', () => {
 
     expect(instance?.props).toEqual({ groupId: manager.groups[0].id });
     expect(steps()).toBe(2);
+  });
+});
+
+inBrowser('the hooks of the app on an input', () => {
+  const badgeOf = (row: HTMLElement) => row.querySelector('[data-input-badge]')?.textContent;
+
+  it('draw the badge the app gives and follow it when it changes', async () => {
+    const badges = new SvelteMap([['1.strength', 'midi 12']]);
+    const { row, rest } = await setup({ inputBadge: (node, key) => badges.get(`${node}.${key}`) });
+
+    expect(badgeOf(row(1, 'strength'))).toBe('midi 12');
+    expect(badgeOf(row(0, 'length'))).toBeUndefined();
+
+    badges.set('0.length', 'kick');
+    badges.delete('1.strength');
+    rest();
+    expect(badgeOf(row(0, 'length'))).toBe('kick');
+    expect(badgeOf(row(1, 'strength'))).toBeUndefined();
+  });
+
+  const rightClick = (element: HTMLElement, init: MouseEventInit = {}) =>
+    element.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 4,
+        clientY: 8,
+        ...init
+      })
+    );
+
+  it('hand a right click on an input to the app, which can keep the menu of the editor closed', async () => {
+    const events: InputContextMenuEvent[] = [];
+    const { row } = await setup({
+      oninputcontextmenu: (event) => {
+        events.push(event);
+        if (event.key === 'strength') event.preventDefault();
+      }
+    });
+
+    expect(rightClick(row(1, 'strength'))).toBe(false);
+    expect(events[0]).toMatchObject({
+      nodeId: 1,
+      nodeType: noise.id,
+      key: 'strength',
+      input: { type: 'float', max: 1 },
+      x: 4,
+      y: 8
+    });
+
+    // not taken, it goes on to the editor
+    expect(rightClick(row(0, 'length'))).toBe(true);
+    expect(events).toHaveLength(2);
+  });
+
+  it('leave a shift right click to the debug node', async () => {
+    const events: InputContextMenuEvent[] = [];
+    const { row } = await setup({ oninputcontextmenu: (event) => events.push(event) });
+
+    rightClick(row(1, 'strength'), { shiftKey: true });
+    expect(events).toHaveLength(0);
   });
 });

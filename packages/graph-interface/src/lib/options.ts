@@ -1,4 +1,4 @@
-import type { FrameColor, NodeDefinition } from '@nodarium/runtime';
+import type { FrameColor, NodeDefinition, NodeInput } from '@nodarium/runtime';
 import type { Component } from 'svelte';
 import type { Color } from 'three';
 
@@ -28,6 +28,11 @@ export type GraphOptions = {
   colors: ThemeColors;
   /** CSS colour of the bar on the node header per collection, `max/plantarium`; a collection without one gets no bar */
   systemColors?: Record<string, string>;
+  /**
+   * CSS colour of the links and sockets per link type, as the links look, `{ fx: '#c65a19' }`; also
+   * replaces the colour of a built-in type. A type without one gets a colour from its name.
+   */
+  linkColors?: Record<string, string>;
   safePadding?: { left?: number; right?: number; bottom?: number; top?: number };
   nodeTimings: Record<number, number>;
   /**
@@ -37,4 +42,22 @@ export type GraphOptions = {
   valuesOnly?: boolean;
   /** Node that made the last execution fail */
   errorNodeId?: number;
+};
+
+/** A short text drawn next to the label of an input, like the signal the app maps onto it */
+export type InputBadge = (nodeId: number, key: string) => string | undefined;
+
+export type InputContextMenuEvent = {
+  nodeId: number;
+  /** the type of the node, `max/core/float` */
+  nodeType: string;
+  /** the key of the input */
+  key: string;
+  /** its definition, with the exposed state of the node */
+  input: NodeInput;
+  /** the pointer, in client coordinates */
+  x: number;
+  y: number;
+  /** the editor opens no add menu and the browser no menu of its own */
+  preventDefault(): void;
 };

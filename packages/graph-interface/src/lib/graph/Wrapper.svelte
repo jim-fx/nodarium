@@ -6,7 +6,7 @@
   import { GraphManager } from '../graph-manager.svelte';
   import { GraphState, setGraphManager, setGraphState } from '../graph-state.svelte';
   import { setupKeymaps } from '../keymaps';
-  import type { GraphOptions } from '../options';
+  import type { GraphOptions, InputBadge, InputContextMenuEvent } from '../options';
   import GraphEl from './Graph.svelte';
 
   type Props = {
@@ -22,6 +22,10 @@
     highlightedNodeIds?: number[];
     /** The node under the pointer changed, `undefined` when there is none */
     onnodehover?: (nodeId: number | undefined) => void;
+    /** A short text next to the label of an input, read again when what it reads changes */
+    inputBadge?: InputBadge;
+    /** A right click on an input; `event.preventDefault()` keeps the add menu closed */
+    oninputcontextmenu?: (event: InputContextMenuEvent) => void;
   };
 
   let {
@@ -32,7 +36,9 @@
     onresult,
     onregister,
     highlightedNodeIds,
-    onnodehover
+    onnodehover,
+    inputBadge,
+    oninputcontextmenu
   }: Props = $props();
 
   export const keymap = createKeyMap([]);
@@ -54,6 +60,8 @@
 
   const highlighted = $derived(new Set(highlightedNodeIds));
   state.readHighlightedNodes = () => highlighted;
+  state.readInputBadge = () => inputBadge;
+  state.readInputContextMenu = () => oninputcontextmenu;
 
   $effect(() => {
     const hovered = state.hoveredNodeId;
