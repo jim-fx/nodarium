@@ -42,9 +42,13 @@ jobs:
           echo "${{ secrets.GIT_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           # Gitea's ssh server only accepts connections through the public
-          # proxy (PROXY protocol), which serves it on port 22
+          # proxy (PROXY protocol), which serves it on port 22. Pinned to its
+          # public address: the runners map git.max-richter.dev to the LAN
+          # Traefik for HTTPS, where port 22 is the host's own sshd.
           cat >> ~/.ssh/config <<'EOF'
           Host git.max-richter.dev
+            HostName 167.235.31.193
+            HostKeyAlias git.max-richter.dev
             Port 22
             IdentityFile ~/.ssh/id_ed25519
             IdentitiesOnly yes
