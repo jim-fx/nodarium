@@ -33,11 +33,8 @@ export class ColorGenerator {
   }
 
   public getColors() {
-    return Object.fromEntries(
-      this.colors.entries().map(([key, col]) => {
-        return [key, this.colorToHsl(col)];
-      })
-    );
+    const types = new Set([...this.colors.keys(), ...Object.keys(this.readAppColors() ?? {})]);
+    return Object.fromEntries([...types].map((type) => [type, this.getColor(type)]));
   }
 
   public getColor(id: string): string {

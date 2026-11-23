@@ -41,5 +41,6 @@ describe('ColorGenerator', () => {
     expect(drawn('path')).toBe('ffffff');
     delete appColors.path;
     expect(colors.getColor('path')).toBe(hsl('path'));
+    expect(colors.getColors().fx).toBe(colors.getColor('fx'));
   });
 });
