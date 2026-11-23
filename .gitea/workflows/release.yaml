@@ -67,12 +67,12 @@ jobs:
         run: ./.gitea/scripts/build.sh
 
       # a version can only be published once, so only tags publish; prepack copies the nodes
-      # the rebuild made into the package
-      - name: 📦 Publish @nodarium/runtime
+      # the rebuild made into the runtime and runs svelte-package for ui and graph-interface
+      - name: 📦 Publish @nodarium/runtime, ui and graph-interface
         if: gitea.ref_type == 'tag'
         run: |
           echo "//git.max-richter.dev/api/packages/max/npm/:_authToken=${NPM_TOKEN}" >> ~/.npmrc
-          pnpm --filter @nodarium/runtime publish --no-git-checks
+          pnpm --filter @nodarium/runtime --filter @nodarium/ui --filter @nodarium/graph-interface publish --no-git-checks
         env:
           NPM_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
 
@@ -80,7 +80,7 @@ jobs:
       # tags. A newer push cancels the run of the older one (same concurrency group), so dev ends
       # on the newest commit. The release commit of nodarium-bot is pushed with the token of the
       # run, Gitea starts no workflow for it.
-      - name: 📦 Publish @nodarium/runtime@dev
+      - name: 📦 Publish the packages @dev
         if: gitea.event_name == 'push' && gitea.ref == 'refs/heads/main'
         run: |
           echo "//git.max-richter.dev/api/packages/max/npm/:_authToken=${NPM_TOKEN}" >> ~/.npmrc
