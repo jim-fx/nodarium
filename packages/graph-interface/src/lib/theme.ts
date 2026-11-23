@@ -1,21 +1,24 @@
 import { Color, LinearSRGBColorSpace } from 'three';
 import type { ThemeColors } from './options';
 
-const NAMES = [
-  'layer-0',
-  'layer-1',
-  'layer-2',
-  'outline',
-  'active',
-  'selected',
-  'error',
-  'frame-gray',
-  'frame-green',
-  'frame-brown',
-  'frame-blue',
-  'frame-red',
-  'frame-violet'
-] as const satisfies (keyof ThemeColors)[];
+// a record, so a colour added to ThemeColors has to be added here too
+const NAMES = Object.keys(
+  {
+    'layer-0': true,
+    'layer-1': true,
+    'layer-2': true,
+    outline: true,
+    active: true,
+    selected: true,
+    error: true,
+    'frame-gray': true,
+    'frame-green': true,
+    'frame-brown': true,
+    'frame-blue': true,
+    'frame-red': true,
+    'frame-violet': true
+  } satisfies Record<keyof ThemeColors, true>
+) as (keyof ThemeColors)[];
 
 /**
  * The colours of the editor from the `--color-*` variables of the theme of `@nodarium/ui/app.css`.
