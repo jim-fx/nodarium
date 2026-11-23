@@ -1,0 +1,255 @@
+<script lang="ts">
+  import {
+    getOutputLabel,
+    GROUP_INPUT,
+    GROUP_OUTPUT,
+    type NodeInstance,
+    type Socket
+  } from '@nodarium/runtime';
+  import { tryGetGraphManager, tryGetGraphState } from '../graph-state.svelte';
+  import { createNodePath } from '../helpers/index.ts';
+  import { getNodeHeight, headerSocketSide } from '../helpers/nodeHelpers';
+  import { nodeSystem, systemColor } from '../helpers/nodeSystem';
+  import { socketName } from '../helpers/socketNames';
+
+  const graphState = tryGetGraphState();
+  const graph = tryGetGraphManager();
+
+  const { node }: { node: NodeInstance } = $props();
+  const uid = $props.id();
+  const clipId = `header-${uid}`;
+
+  const socket = () => ({ node, index: 0, position: graphState.getSocketPosition(node, 0) });
+
+  function handleMouseDown(event: MouseEvent) {
+    event.stopPropagation();
+    event.preventDefault();
+    if ('state' in node) graphState.pressSocket(socket(), event);
+  }
+
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    graphState.activateSocket(socket());
+  }
+
+  const cornerTop = 10;
+  const nodeType = $derived(graph.getNodeType(node));
+  const rightBump = $derived(headerSocketSide(node.type, nodeType) === 'right');
+  const title = $derived(nodeType?.meta?.title || node.type?.split('/').pop());
+  const system = $derived(nodeSystem(node.type));
+  const tooltip = $derived(system ? `${title} · ${system.name}` : title);
+  const barColor = $derived(systemColor(node.type, graphState?.options.systemColors));
+  const outputLabel = $derived(
+    (nodeType?.outputs?.length ?? 0) > 1 ? getOutputLabel(nodeType?.outputs?.[0]) : undefined
+  );
+  // a node without visible parameters is only the header, so it needs the bottom corners too
+  const headerOnly = $derived(!!nodeType && getNodeHeight(nodeType) <= 5);
+  const cornerBottom = $derived(
+    headerOnly
+      ? 10
+      : node.type === GROUP_INPUT
+      ? (Object.keys(nodeType?.inputs ?? {}).length ? 0 : 10)
+      : node.type === GROUP_OUTPUT
+      ? (nodeType?.outputs?.length ? 0 : 10)
+      : 0
+  );
+
+  const aspectRatio = 0.25;
+
+  const path = $derived(
+    createNodePath({
+      depth: 5.5,
+      height: 34,
+      y: 49,
+      cornerTop,
+      cornerBottom,
+      rightBump,
+      aspectRatio
+    })
+  );
+  const pathHover = $derived(
+    createNodePath({
+      depth: 7,
+      height: 40,
+      y: 49,
+      cornerTop,
+      cornerBottom,
+      rightBump,
+      aspectRatio
+    })
+  );
+
+  const socketId = $derived(`${node.id}-${0}`);
+  const name = $derived(socketName(node, nodeType, 0));
+
+  function getSocketType(s: Socket | null) {
+    if (!s) return 'unknown';
+    return graph.getSocketType(s.node, s.index) || 'unknown';
+  }
+  const socketType = $derived(getSocketType(graphState.connectingSocket));
+  const hoverColor = $derived(graphState.colors.getColor(socketType));
+
+  const timing = $derived(graphState.options.nodeTimings[node.id]);
+  function formatTiming(ms: number) {
+    if (ms < 1) return '<1ms';
+    if (ms < 10) return `${ms.toFixed(1)}ms`;
+    if (ms < 1000) return `${Math.round(ms)}ms`;
+    return `${(ms / 1000).toFixed(2)}s`;
+  }
+</script>
+
+<div
+  class="wrapper"
+  data-node-id={node.id}
+  data-node-type={node.type}
+  style:--socket-color={hoverColor}
+  class:possible-socket={graphState?.possibleSocketIds.has(socketId)}
+>
+  <div class="content" class:pr-4={rightBump} title={tooltip}>
+    {#if graphState?.options.showDebugInfo}
+      <span class="shrink-0 bg-white text-black! mr-2 px-1 rounded-sm opacity-30">{node.id}</span>
+    {/if}
+    <span class="min-w-0 truncate">{title}</span>
+    <span class="ml-auto"></span>
+    {#if graphState?.options.showDebugInfo && timing !== undefined}
+      <span class="shrink-0 ml-2 mr-2 text-xs opacity-50">{formatTiming(timing)}</span>
+    {/if}
+    {#if outputLabel}
+      <span class="shrink-0 ml-2 mr-1">{outputLabel}</span>
+    {/if}
+  </div>
+  {#if rightBump}
+    <div
+      class="target"
+      role="button"
+      tabindex="0"
+      aria-label={name}
+      aria-pressed={graphState?.isPicked(node, 0)}
+      onmousedown={handleMouseDown}
+      onkeydown={handleKeyDown}
+    >
+    </div>
+  {/if}
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 100 100"
+    width="100"
+    height="100"
+    preserveAspectRatio="none"
+    style={`
+      --path: path("${path}");
+      --hover-path: path("${pathHover}");
+    `}
+  >
+    <path
+      class:fill-only={!!barColor}
+      vector-effect="non-scaling-stroke"
+      stroke="white"
+      stroke-width="0.1"
+    >
+    </path>
+    {#if barColor}
+      <clipPath id={clipId}><path></path></clipPath>
+      <!-- 8px wide on the edge, clipped to the inside and under the outline, leaves 3px -->
+      <line
+        x1="0"
+        y1="0"
+        x2="0"
+        y2="100"
+        stroke={barColor}
+        stroke-width="8"
+        vector-effect="non-scaling-stroke"
+        clip-path="url(#{clipId})"
+      >
+      </line>
+      <path class="stroke-only" vector-effect="non-scaling-stroke"></path>
+    {/if}
+  </svg>
+</div>
+
+<style>
+  .wrapper {
+    position: relative;
+    width: 100%;
+    height: 50px;
+  }
+
+  .possible-socket .target::before {
+    content: "";
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border-radius: 100%;
+    box-shadow: 0px 0px 10px var(--socket-color);
+    background-color: var(--socket-color);
+    outline: solid thin var(--socket-color);
+    opacity: 0.7;
+    z-index: -10;
+  }
+
+  .target {
+    position: absolute;
+    right: 0px;
+    top: 50%;
+    transform: translateX(50%) translateY(-50%);
+    height: 30px;
+    width: 30px;
+    z-index: 100;
+    border-radius: 50%;
+  }
+
+  .target:hover + svg path {
+    d: var(--hover-path);
+  }
+
+  svg {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    z-index: -1;
+    box-sizing: border-box;
+    width: calc(100% - 2px);
+    height: calc(100% - 1px);
+    overflow: visible;
+  }
+
+  svg path {
+    stroke-width: 0.2px;
+    transition:
+      d 0.3s ease,
+      fill 0.3s ease;
+    fill: var(--color-layer-2);
+    stroke: var(--stroke);
+    stroke-width: var(--stroke-width);
+    d: var(--path);
+
+    stroke-linejoin: round;
+    shape-rendering: geometricPrecision;
+  }
+
+  /* the graph only starts a node drag when the mousedown target is .content itself */
+  .content > span {
+    pointer-events: none;
+  }
+
+  .content {
+    font-size: 1em;
+    display: flex;
+    align-items: center;
+    padding-left: 20px;
+    height: 100%;
+  }
+
+  svg path.fill-only {
+    stroke: none;
+  }
+
+  svg path.stroke-only {
+    fill: none;
+  }
+
+  svg:hover path {
+    d: var(--hover-path) !important;
+  }
+</style>

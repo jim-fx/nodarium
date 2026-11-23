@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { GraphManager, GraphState } from '#lib/graph-interface/index.ts';
+  import type { GraphManager, GraphState } from '@nodarium/graph-interface';
   import { FRAME_COLORS } from '@nodarium/types';
 
   type Props = { manager: GraphManager; graphState?: GraphState };

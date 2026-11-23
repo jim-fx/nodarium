@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @source "../../packages/ui/**/*.svelte";
+@source "../../packages/graph-interface/src/lib/**/*.svelte";
 @source "../../packages/planty/src/lib/**/*.svelte";
 
 @plugin "@iconify/tailwind4" {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { NodePreview } from '#lib/graph-interface/index.ts';
+  import { NodePreview } from '@nodarium/graph-interface';
   import type { NodeDefinition, NodeId, NodeInstance } from '@nodarium/types';
   import { onMount } from 'svelte';
 

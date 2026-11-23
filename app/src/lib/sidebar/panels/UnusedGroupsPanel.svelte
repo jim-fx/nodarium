@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { GraphManager } from '#lib/graph-interface/index.ts';
+  import type { GraphManager } from '@nodarium/graph-interface';
   import { groupIdOf } from '@nodarium/types';
   import type { GroupDefinition } from '@nodarium/types';
   import { Button } from '@nodarium/ui';

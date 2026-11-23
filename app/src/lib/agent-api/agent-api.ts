@@ -1,5 +1,5 @@
-import type { GraphManager } from '#lib/graph-interface/index.ts';
 import type { RemoteNodeRegistry } from '#lib/node-registry/index.ts';
+import type { GraphManager } from '@nodarium/graph-interface';
 import { type GraphIssue, type RuntimeErrorInfo, validateGraph } from '@nodarium/runtime';
 import { templates } from '@nodarium/runtime/templates';
 import { type Graph, inputAccepts, type NodeInstance } from '@nodarium/types';

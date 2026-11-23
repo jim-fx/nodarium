@@ -69,7 +69,7 @@ A change that breaks saved graphs, like renaming a node or an input, gets a migr
 
 ## How is the app put together?
 
-`app/src/routes/+page.svelte` wires the parts together. The node editor lives in `app/src/lib/graph-interface`:
+`app/src/routes/+page.svelte` wires the parts together. The node editor lives in `packages/graph-interface` and is published as `@nodarium/graph-interface` with `@nodarium/ui`, so other apps can edit graphs with their own nodes (see its [README](../packages/graph-interface/README.md)):
 
 - `GraphManager` (`graph-manager.svelte.ts`) holds the graph: its nodes, edges, groups and settings. Every change ends in `commit()`, several changes that belong together run inside `transaction()` and become one undo step and one build. `ChangeRecorder` (`change-recorder.ts`) turns a commit into an undo step of the `HistoryManager` (jsondiffpatch deltas) and a save once the changes rest.
 - `GraphState` (`graph-state.svelte.ts`) holds the state of the editor UI: selection, hovered and active node and socket, mouse, clipboard, entering and leaving groups. The camera (position and zoom) is `GraphCamera` in `camera.svelte.ts`.

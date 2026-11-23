@@ -23,7 +23,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-import { layoutGraph } from '../src/lib/graph-interface/helpers/layoutGraph.ts';
+import { layoutGraph } from '../../packages/graph-interface/src/lib/helpers/layoutGraph.ts';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 // the templates of the runtime package and the test graphs of the app

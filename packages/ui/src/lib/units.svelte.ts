@@ -1,4 +1,4 @@
-import type { InputUnit, ProjectUnit } from '@nodarium/types';
+import type { InputUnit, ProjectUnit } from '@nodarium/runtime';
 import { evaluate, type Suffixes } from './expression';
 
 /** How many of each unit fit in one meter, values are stored in meters */

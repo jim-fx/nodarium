@@ -5,7 +5,6 @@ import tailwindcss from '@tailwindcss/vite';
 import { playwright } from '@vitest/browser-playwright';
 import path from 'path';
 import comlink from 'vite-plugin-comlink';
-import glsl from 'vite-plugin-glsl';
 import wasm from 'vite-plugin-wasm';
 import { defineConfig } from 'vitest/config';
 import { devTemplatePlugin } from './scripts/dev-template-plugin.ts';
@@ -16,7 +15,6 @@ export default defineConfig({
     tailwindcss(),
     comlink(),
     sveltekit({ preprocess: vitePreprocess(), adapter: adapter() }),
-    glsl(),
     wasm(),
     devTemplatePlugin(),
     templatePreviewsPlugin()

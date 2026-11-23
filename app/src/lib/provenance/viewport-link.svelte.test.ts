@@ -1,6 +1,6 @@
-import type { GraphManager, GraphState } from '#lib/graph-interface/index.ts';
 import { HIGHLIGHT } from '#lib/result-viewer/provenance/highlight.ts';
 import { AppSettingTypes, settingsToStore } from '#lib/settings/app-settings.svelte.ts';
+import type { GraphManager, GraphState } from '@nodarium/graph-interface';
 import type { Graph, NodeDefinition } from '@nodarium/types';
 import { NO_PARENT, type PathLink } from '@nodarium/utils';
 import { SvelteSet } from 'svelte/reactivity';

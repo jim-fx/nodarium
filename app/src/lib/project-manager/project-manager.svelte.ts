@@ -1,8 +1,8 @@
-import { collectSettings } from '#lib/graph-interface/index.ts';
 import * as templates from '#lib/graph-templates/index.ts';
 import { localState } from '#lib/helpers/localState.svelte.ts';
 import { hashGraph } from '#lib/thumbnails/graph-hash.ts';
 import { ThumbnailService } from '#lib/thumbnails/thumbnail-service.svelte.ts';
+import { collectSettings } from '@nodarium/graph-interface';
 import { type GraphIssue, parseProjectFile } from '@nodarium/runtime';
 import { loadTemplate } from '@nodarium/runtime/templates';
 import type { Graph, NodeRegistry, ProjectUnit } from '@nodarium/types';

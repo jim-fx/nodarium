@@ -31,9 +31,10 @@
 </script>
 
 <script lang="ts">
-  import { browser } from '$app/env';
   import JsonViewer from './JsonViewer.svelte';
   import { toast } from './toast.svelte';
+
+  const browser = typeof window !== 'undefined';
 
   let {
     value,

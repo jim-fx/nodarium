@@ -1,4 +1,4 @@
-import { GraphManager } from '#lib/graph-interface/index.ts';
+import { GraphManager } from '@nodarium/graph-interface';
 import { CURRENT_GRAPH_VERSION } from '@nodarium/runtime';
 import type { Graph, NodeDefinition, NodeRegistry } from '@nodarium/types';
 import { flushSync } from 'svelte';
