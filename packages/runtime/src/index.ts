@@ -1,12 +1,6 @@
-export { areSocketsCompatible, CORE_COLLECTION, inputAccepts } from '@nodarium/types';
-export type {
-  Graph,
-  NodeDefinition,
-  NodeId,
-  NodeRegistry,
-  ProjectFile,
-  SyncCache
-} from '@nodarium/types';
+// the types and helpers of the graph format, for editors and other packages built on the runtime
+export * from '@nodarium/types';
+export { createLogger } from '@nodarium/utils';
 export { createRuntime, type RuntimeOptions } from './create-runtime';
 export { debugNode } from './debug-node';
 export * from './errors';
