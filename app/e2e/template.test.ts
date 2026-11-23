@@ -57,13 +57,13 @@ test('/template changes a value and a material, and opens the changed template i
 });
 
 test('/template lists the mushrooms on their own tab, scrubs the time and keeps the material', async ({ page }) => {
-  await page.goto(`${APP}template?template=porcini`);
+  await page.goto(`${APP}template?template=simple-mushroom`);
 
   await expect(page.getByRole('tab', { name: 'Mushrooms' })).toHaveAttribute(
     'aria-selected',
     'true'
   );
-  await expect(page.getByRole('button', { name: 'Porcini' })).toHaveAttribute(
+  await expect(page.getByRole('button', { name: 'Simple mushroom' })).toHaveAttribute(
     'aria-current',
     'page'
   );

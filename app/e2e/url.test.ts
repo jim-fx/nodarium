@@ -64,9 +64,9 @@ test('?template= opens the template with the seed and the panel, then leaves the
 });
 
 test('a template with groups opened twice is one project', async ({ page }) => {
-  const first = await open(page, `${APP}?template=oyster&tutorial=0`);
+  const first = await open(page, `${APP}?template=champignon-groomed&tutorial=0`);
   const projects = await countProjects(page);
-  const second = await open(page, `${APP}?template=oyster&tutorial=0`);
+  const second = await open(page, `${APP}?template=champignon-groomed&tutorial=0`);
   expect(second.id).toBe(first.id);
   expect(await countProjects(page)).toBe(projects);
 });
