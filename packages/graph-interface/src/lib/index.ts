@@ -3,5 +3,5 @@ export type { GraphState } from './graph-state.svelte';
 export { default } from './graph/Wrapper.svelte';
 export { collectSettings } from './helpers/collectSettings';
 export { default as NodePreview } from './node/NodeHTML.svelte';
-export type { GraphOptions, ThemeColors } from './options';
+export type { GraphOptions, InputBadge, InputContextMenuEvent, ThemeColors } from './options';
 export { readThemeColors } from './theme';

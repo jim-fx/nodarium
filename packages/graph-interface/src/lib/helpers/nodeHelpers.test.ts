@@ -24,6 +24,17 @@ describe('mesh and pattern sockets', () => {
     expect(getParameterHeight(node, 'pattern')).toBe(50);
     expect(getParameterHeight(node, 'size')).toBe(100);
   });
+
+  it('show a type of the app as a plain socket too', () => {
+    const node = {
+      id: 'me/vj/blur',
+      inputs: { fx: { type: 'fx', value: [] }, amount: { type: 'float', value: 1 } },
+      outputs: ['fx'],
+      execute: () => new Int32Array()
+    } as unknown as NodeDefinition;
+    expect(getParameterHeight(node, 'fx')).toBe(50);
+    expect(getParameterHeight(node, 'amount')).toBe(100);
+  });
 });
 
 describe('getNodeRows', () => {

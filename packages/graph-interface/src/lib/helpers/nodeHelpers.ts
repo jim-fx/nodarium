@@ -7,15 +7,23 @@ import {
 } from '@nodarium/runtime';
 import { toPlain } from './index.ts';
 
-// values that only come in through a connection, so their parameter shows no input field
-const SOCKET_ONLY_TYPES = new Set([
-  'path',
-  'geometry',
-  'force',
-  'points',
-  'mesh',
-  'pattern'
+// the types Input of @nodarium/ui draws a field for, not imported: tsx scripts of the app lay out
+// graphs with these helpers and can't load the .svelte files of the ui
+const FIELD_TYPES = new Set([
+  'float',
+  'integer',
+  'boolean',
+  'select',
+  'vec3',
+  'color',
+  'shape',
+  'curve'
 ]);
+
+/** Whether an input of the type gets a field. Any other type, also one of the app, only takes a link. */
+export function hasInputField(type: string) {
+  return FIELD_TYPES.has(type);
+}
 
 export function getParameterHeight(node: NodeDefinition, inputKey: string) {
   if (node.id === GROUP_INPUT) {
@@ -35,7 +43,7 @@ export function getParameterHeight(node: NodeDefinition, inputKey: string) {
   if ((input.type === 'shape' || input.type === 'curve') && input.external !== true) {
     return 200;
   }
-  if (input?.label !== '' && !input.external && !SOCKET_ONLY_TYPES.has(input.type)) {
+  if (input?.label !== '' && !input.external && hasInputField(input.type)) {
     return 100;
   }
   return 50;

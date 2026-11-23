@@ -97,8 +97,47 @@ The editor fills its parent, give that a size. It loads `graph` once, when it mo
 | `onregister`         | `(node, wasm) => void \| Promise<void>`: a `.wasm` file was dropped on the editor and `registry.register()` made it a node |
 | `highlightedNodeIds` | nodes to outline apart from the selection                                                                                  |
 | `onnodehover`        | `(nodeId \| undefined) => void`: the node under the pointer                                                                |
+| `inputBadge`         | `(nodeId, key) => string \| undefined`: a short text next to the label of an input, see below                              |
+| `oninputcontextmenu` | `(event: InputContextMenuEvent) => void`: a right click on an input, see below                                             |
 
-`GraphOptions`: `backgroundType` (`grid`, `dots`, `none`), `snapToGrid`, `showHelp` (the help on hover), `showDebugInfo` (node ids and timings), `theme` (a name, the colours are read again when it changes), `colors` (the `ThemeColors`, three.js colours the WebGL parts draw with; `readThemeColors()` reads them from the CSS variables of the theme, pass the same object again after the theme changed), and the optional `systemColors` (the colour of the bar on the header per collection, `{ 'me/vj': '#c65a19' }`), `safePadding` (room an overlay takes from the view), `nodeTimings` (ms per node id), `errorNodeId` (the node that made the last run fail), `helpSketch` (a component drawn in the help of a node) and `valuesOnly` (only the values of the inputs can change).
+`GraphOptions`: `backgroundType` (`grid`, `dots`, `none`), `snapToGrid`, `showHelp` (the help on hover), `showDebugInfo` (node ids and timings), `theme` (a name, the colours are read again when it changes), `colors` (the `ThemeColors`, three.js colours the WebGL parts draw with; `readThemeColors()` reads them from the CSS variables of the theme, pass the same object again after the theme changed), and the optional `systemColors` (the colour of the bar on the header per collection, `{ 'me/vj': '#c65a19' }`), `safePadding` (room an overlay takes from the view), `nodeTimings` (ms per node id), `errorNodeId` (the node that made the last run fail), `helpSketch` (a component drawn in the help of a node), `valuesOnly` (only the values of the inputs can change) and `linkColors` (the colour of the links and sockets per link type, see below).
+
+### Inputs of the app
+
+An input gets a field when the `Input` of `@nodarium/ui` has one for its type: `float`, `integer`, `boolean`, `select`, `vec3`, `color`, `shape` and `curve`. An input of any other type, like `path` or a type of the app, is a bare socket that only takes a link, it needs no `external: true`. A link connects an output and an input of the same type (or one the input `accepts`). Its colour comes from the name of the type, `linkColors` sets it:
+
+```ts
+const options: GraphOptions = { ...rest, linkColors: { fx: '#c65a19' } };
+```
+
+The colour is the one the link is drawn with; it also replaces the colour of a built-in type.
+
+`inputBadge` puts a short text next to the label of an input, like the signal an app maps onto it. The editor calls it for every input it draws, inside an effect: when the text depends on state of the app (`$state`, a `SvelteMap`, a prop), the badge follows that state without loading the graph again. An empty text or `undefined` draws none. `oninputcontextmenu` gets every right click on an input (apart from a shift right click, which attaches the debug node) with `nodeId`, `nodeType`, `key`, the `input` definition and the pointer `x`, `y` in client coordinates; `event.preventDefault()` keeps the add menu of the editor and the menu of the browser closed, so the app can open its own:
+
+```svelte
+<script lang="ts">
+  import GraphInterface, { type InputContextMenuEvent } from '@nodarium/graph-interface';
+  import { SvelteMap } from 'svelte/reactivity';
+
+  const signals = new SvelteMap<string, string>(); // `<node id>.<input>` → `midi 12`
+  let menu = $state<InputContextMenuEvent>();
+
+  function oninputcontextmenu(event: InputContextMenuEvent) {
+    if (event.input.type !== 'float') return; // the add menu as always
+    event.preventDefault();
+    menu = event;
+  }
+</script>
+
+<GraphInterface
+  {graph}
+  {registry}
+  {options}
+  inputBadge={(nodeId, key) => signals.get(`${nodeId}.${key}`)}
+  {oninputcontextmenu}
+/>
+{#if menu}<MappingMenu x={menu.x} y={menu.y} onclose={() => (menu = undefined)} />{/if}
+```
 
 ### The instance
 

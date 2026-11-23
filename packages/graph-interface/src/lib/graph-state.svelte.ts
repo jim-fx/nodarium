@@ -24,7 +24,7 @@ import {
   serializeEdge,
   serializeNode
 } from './helpers/nodeHelpers';
-import type { GraphOptions } from './options';
+import type { GraphOptions, InputBadge, InputContextMenuEvent } from './options';
 
 const [getGraphState, setGraphState, hasGraphState] = createContext<GraphState>();
 const [getGraphManager, setGraphManager, hasGraphManager] = createContext<GraphManager>();
@@ -54,7 +54,7 @@ type EdgeData = {
 };
 
 export class GraphState {
-  colors = new ColorGenerator();
+  colors = new ColorGenerator(() => this.options.linkColors);
 
   constructor(private graph: GraphManager, private readOptions: () => GraphOptions) {}
 
@@ -69,6 +69,22 @@ export class GraphState {
 
   isHighlighted(nodeId: number) {
     return this.readHighlightedNodes().has(nodeId);
+  }
+
+  /** Set by the wrapper, its props inputBadge and oninputcontextmenu */
+  readInputBadge: () => InputBadge | undefined = () => undefined;
+  readInputContextMenu: () => ((event: InputContextMenuEvent) => void) | undefined = () =>
+    undefined;
+
+  inputBadge(nodeId: number, key: string) {
+    return this.readInputBadge()?.(nodeId, key) || undefined;
+  }
+
+  /** Whether the app took the right click on the input, so the editor opens nothing */
+  openInputContextMenu(event: Omit<InputContextMenuEvent, 'preventDefault'>) {
+    let prevented = false;
+    this.readInputContextMenu()?.({ ...event, preventDefault: () => prevented = true });
+    return prevented;
   }
 
   hoveredEdgeId = $state<string | null>(null);
