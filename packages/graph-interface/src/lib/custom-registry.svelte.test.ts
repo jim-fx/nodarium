@@ -8,6 +8,7 @@ import {
 } from '@nodarium/runtime';
 import { flushSync } from 'svelte';
 import { afterEach, assert, describe, expect, it, vi } from 'vitest';
+import { GraphManager } from './graph-manager.svelte';
 import GraphInterface from './graph/Wrapper.svelte';
 import { createGraphOptions } from './test-utils';
 
@@ -79,40 +80,57 @@ const graph: Graph = {
   groups: []
 };
 
-describe.skipIf(import.meta.env.SSR)('the editor with a registry of the app', () => {
+function edit(manager: GraphManager) {
+  const offered = manager.getNodeDefinitions().map((d) => d.id);
+  expect(offered).toEqual(expect.arrayContaining(['max/vj/circle', 'max/core/float']));
+
+  const added = manager.createNode({ type: 'max/vj/circle', position: [20, 20], props: {} });
+  assert.isDefined(added);
+  expect(manager.createEdge(added, 0, manager.getNode(0)!, 'paths')).toBeDefined();
+  flushSync();
+  manager.flush();
+
+  const saved = manager.serialize();
+  expect(saved.edges).toContainEqual([added.id, 0, 0, 'paths']);
+  expect(saved.edges).not.toContainEqual([2, 0, 0, 'paths']);
+
+  manager.undo();
+  expect(manager.serialize().edges).toContainEqual([2, 0, 0, 'paths']);
+}
+
+describe('a registry of the app and a graph that ends in an output of its own', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('loads and edits a graph that ends in an output of its own', async () => {
+  it('loads and edits in the manager', async () => {
+    const errors = vi.spyOn(console, 'error');
+    const manager = new GraphManager(new AppRegistry());
+    const results: Graph[] = [];
+    manager.on('result', (result) => results.push(result));
+    await manager.load(structuredClone(graph));
+    expect(manager.status).toBe('idle');
+    await vi.waitFor(() => expect(results.length).toBeGreaterThan(0));
+    expect(results.at(-1)!.nodes.map((n) => n.type)).toContain('max/vj/output');
+
+    edit(manager);
+    expect(errors).not.toHaveBeenCalled();
+  });
+
+  // the editor itself needs a browser, `vitest --browser=false` has no document for it
+  it.skipIf(import.meta.env.SSR)('loads and edits in the editor', async () => {
     const errors = vi.spyOn(console, 'error');
     const { render } = await import('vitest-browser-svelte');
     const results: Graph[] = [];
     const view = await render(GraphInterface, {
       graph: structuredClone(graph),
       registry: new AppRegistry(),
-      options: createGraphOptions({ valuesOnly: false }),
+      options: createGraphOptions(),
       onresult: (result) => results.push(result)
     });
     const manager = view.component.manager;
     await vi.waitFor(() => expect(manager.status).toBe('idle'));
     await vi.waitFor(() => expect(results.length).toBeGreaterThan(0));
-    expect(results.at(-1)!.nodes.map((n) => n.type)).toContain('max/vj/output');
 
-    const offered = manager.getNodeDefinitions().map((d) => d.id);
-    expect(offered).toEqual(expect.arrayContaining(['max/vj/circle', 'max/core/float']));
-
-    const added = manager.createNode({ type: 'max/vj/circle', position: [20, 20], props: {} });
-    assert.isDefined(added);
-    const target = manager.getNode(0)!;
-    expect(manager.createEdge(added, 0, target, 'paths')).toBeDefined();
-    flushSync();
-    manager.flush();
-
-    const saved = manager.serialize();
-    expect(saved.edges).toContainEqual([added.id, 0, 0, 'paths']);
-    expect(saved.edges).not.toContainEqual([2, 0, 0, 'paths']);
-
-    manager.undo();
-    expect(manager.serialize().edges).toContainEqual([2, 0, 0, 'paths']);
+    edit(manager);
     expect(view.container.querySelector('[data-node-id="0"]')).not.toBeNull();
     expect(errors).not.toHaveBeenCalled();
   });

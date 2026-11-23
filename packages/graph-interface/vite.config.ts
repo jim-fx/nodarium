@@ -15,8 +15,6 @@ export default defineConfig({
   },
   test: {
     expect: { requireAssertions: true },
-    // CI runs the tests of every package at once, more workers next to a browser get killed for memory
-    maxWorkers: 2,
     projects: [
       {
         extends: './vite.config.ts',
