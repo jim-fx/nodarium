@@ -9,7 +9,7 @@
     "format": "pnpm dprint fmt",
     "format:check": "pnpm dprint check",
     "test:e2e": "pnpm run -r --parallel test:e2e",
-    "test:unit": "pnpm run -r --parallel test:unit",
+    "test:unit": "pnpm run -r --no-sort --workspace-concurrency=3 test:unit",
     "check": "pnpm run -r --parallel check",
     "build": "pnpm build:nodes && pnpm build:app",
     "build:app": "pnpm -r --filter 'app'... build",
