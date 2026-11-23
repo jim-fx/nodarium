@@ -3,6 +3,8 @@
   import type { createKeyMap } from '@nodarium/ui';
   import { Canvas } from '@threlte/core';
   import { HTML } from '@threlte/extras';
+  import { onDestroy } from 'svelte';
+  import { WebGLRenderer } from 'three';
   import Background from '../background/Background.svelte';
   import AddMenu from '../components/AddMenu.svelte';
   import BoxSelection from '../components/BoxSelection.svelte';
@@ -30,6 +32,19 @@
   const safePadding = $derived(graphState.options.safePadding);
   const fileDropEvents = new FileDropEventManager(graph, graphState);
   const mouseEvents = new MouseEventManager(graph, graphState);
+
+  let renderer: WebGLRenderer | undefined;
+  function createRenderer(canvas: HTMLCanvasElement) {
+    renderer = new WebGLRenderer({
+      canvas,
+      powerPreference: 'high-performance',
+      antialias: true,
+      alpha: true
+    });
+    return renderer;
+  }
+  // dispose() keeps the context until it is collected, and the app mounts an editor per project
+  onDestroy(() => renderer?.forceContextLoss());
 
   function getEdgePosition(edge: Edge) {
     const fromNode = graph.nodes.get(edge[0].id);
@@ -94,7 +109,7 @@
 
   <GroupBreadcrumps />
 
-  <Canvas shadows={false} renderMode="on-demand">
+  <Canvas shadows={false} renderMode="on-demand" {createRenderer}>
     <Camera position={graphState.camera.position} />
 
     {#if graphState.options.backgroundType !== 'none'}
