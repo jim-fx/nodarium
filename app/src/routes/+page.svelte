@@ -777,12 +777,8 @@
             class="absolute bottom-4 left-4"
           />
         {/if}
-        {#if grows}
-          <PlayButton
-            status={growth.status}
-            onclick={toggleGrowth}
-            class="absolute bottom-4 left-1/2 -translate-x-1/2"
-          />
+        {#if grows && touchOnly}
+          <PlayButton status={growth.status} onclick={toggleGrowth} round />
         {/if}
         {#if isExecuting || !lastBuild}
           <div class={['viewer-spinner', !lastBuild && 'first']} aria-label="Executing graph">
@@ -894,6 +890,9 @@
           icon="c-[custom--graph] bg-blue-400"
         >
           <span class="block h-[1px]"></span>
+          {#if grows && !touchOnly}
+            <PlayButton status={growth.status} onclick={toggleGrowth} />
+          {/if}
           {#if manager}
             <NestedSettings
               id="graph-settings"

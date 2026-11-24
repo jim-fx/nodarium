@@ -44,6 +44,7 @@ test('a phone shows the plant first: above the nodes, with the play button and n
 });
 
 test('playing the growth leaves the graph as it is', async ({ page }) => {
+  await onPhone(page);
   await open(page, '?tutorial=0');
   const state = () =>
     page.evaluate(() => {
@@ -64,6 +65,7 @@ test('playing the growth leaves the graph as it is', async ({ page }) => {
 });
 
 test('only a graph that reads the time can be played', async ({ page }) => {
+  await onPhone(page);
   await open(page, '?tutorial=0');
   await expect(button(page, 'Play growth')).toBeVisible();
   await page.evaluate(() =>
@@ -74,4 +76,21 @@ test('only a graph that reads the time can be played', async ({ page }) => {
     })
   );
   await expect(button(page, 'Play growth')).toBeHidden();
+});
+
+test.describe('with a mouse', () => {
+  test.use({ viewport: { width: 1280, height: 800 }, hasTouch: false });
+
+  test('the play button is in the graph settings, not over the viewer', async ({ page }) => {
+    await open(page, '?tutorial=0');
+    await expect(button(page, 'Play growth')).toBeHidden();
+    await button(page, 'Open sidebar').click();
+    await button(page, 'graph-settings').click();
+    await expect(
+      page.locator('[data-planty="viewer"]').getByRole('button', { name: 'Play growth' })
+    )
+      .toHaveCount(0);
+    await button(page, 'Play growth').click();
+    await expect(button(page, 'Pause growth')).toBeVisible();
+  });
 });

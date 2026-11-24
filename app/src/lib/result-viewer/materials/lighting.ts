@@ -17,7 +17,7 @@ export const lighting = {
   fill: { sky: '#cddcf5', ground: '#3b3328', intensity: 0.45 },
   ambient: { intensity: 0.05 },
   /** the plant material is lit by the meadow as well, it brings its own fill */
-  environment: { url: '/environments/meadow_1k.exr', intensity: 0.5 }
+  environment: { url: '/environments/meadow_256.exr', intensity: 0.5 }
 };
 
 export function createLights(): Object3D[] {
