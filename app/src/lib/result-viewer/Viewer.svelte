@@ -236,7 +236,8 @@
     { mode: 'scale', label: 'Scale', icon: 'i-[tabler--arrows-maximize]' }
   ];
 
-  export const update = function update(result: Int32Array) {
+  /** `hold` leaves the camera and the grid as the last result set them */
+  export const update = function update(result: Int32Array, { hold = false } = {}) {
     perf.addPoint('split-result');
     const inputs = splitNestedArray(result);
     perf.endPoint();
@@ -251,8 +252,12 @@
 
     perf.addPoint('total-vertices', totalVertices);
     perf.addPoint('total-faces', totalFaces);
-    updateFocus();
-    sceneComponent?.invalidate();
+    if (hold) {
+      sceneComponent?.redraw();
+    } else {
+      updateFocus();
+      sceneComponent?.invalidate();
+    }
 
     return {
       vertices: totalVertices,

@@ -14,6 +14,9 @@
 
   import PerformanceViewer from '#lib/performance/PerformanceViewer.svelte';
   import { createRepeatGuard } from '#lib/performance/run-values.ts';
+  import { grownTime, growsWithTime } from '#lib/playback/grows-with-time.ts';
+  import { frameBucket, GrowthPlayback } from '#lib/playback/growth-playback.svelte.ts';
+  import PlayButton from '#lib/playback/PlayButton.svelte';
   import { openUrlProject } from '#lib/project-manager/open-url.ts';
   import { ProjectManager } from '#lib/project-manager/project-manager.svelte.ts';
   import ProjectBrowser from '#lib/project-manager/ProjectBrowser.svelte';
@@ -78,6 +81,9 @@
   import { version } from '../../package.json';
 
   const urlOptions = readUrlOptions(new URL(location.href));
+
+  // the tutorial needs a right-click and keys, and its dialog would cover the plant
+  const touchOnly = matchMedia('(hover: none) and (pointer: coarse)').matches;
 
   let performanceStore = createPerformanceStore();
   let planty = $state<ReturnType<typeof Planty>>();
@@ -521,11 +527,50 @@
   async function build(g: Graph) {
     buildsRunning++;
     try {
+      // the viewer shows another time than the last build, so the same graph is built again too
+      if (await growth.cancel()) runs.failed();
       await handleUpdate(g);
     } finally {
       buildsRunning--;
     }
   }
+
+  const grows = $derived(
+    !!lastBuild && !lastBuild.error && lastBuild.graph.id === pm.graph?.id
+      && growsWithTime(lastBuild.graph)
+  );
+
+  /** Shows the last build, at another time if one is given. The graph of the editor stays as it is. */
+  async function showAt(time?: number) {
+    if (!lastBuild) return;
+    const { graph } = lastBuild;
+    const settings = { ...graph.settings, ...(time !== undefined && { 'time.t': time }) };
+    const run = await runtime.run(graph, settings);
+    if (pm.graph?.id !== graph.id) return;
+    viewerComponent?.update(run.result, { hold: time !== undefined });
+    if (time === undefined) viewportLink.resultVersion++;
+  }
+
+  const growth = new GrowthPlayback({
+    show: async (share) => {
+      if (lastBuild) await showAt(share * grownTime(lastBuild.graph));
+    },
+    restore: () => showAt(),
+    onerror: (error) => toast(errorInfo(error).message, 'error', 6000),
+    onfinish: (frameMs) => track('growth-play', { action: 'finish', frame: frameBucket(frameMs) })
+  });
+
+  function toggleGrowth() {
+    const action = { idle: 'start', playing: 'pause', paused: 'resume' }[growth.status];
+    track('growth-play', { action });
+    if (action === 'pause') growth.pause();
+    else growth.play();
+  }
+
+  $effect(() => {
+    void pm.graph?.id;
+    return () => void growth.cancel();
+  });
 
   // a build can't be stopped, on a slow graph one of an early value of a drag delays the last one
   const dragHold = createDragHold({
@@ -627,13 +672,16 @@
   }
 </script>
 
-<svelte:document onkeydown={applicationKeymap.handleKeyboardEvent} />
+<svelte:document
+  onkeydown={applicationKeymap.handleKeyboardEvent}
+  onvisibilitychange={() => document.hidden && growth.stop()}
+/>
 <svelte:window onbeforeunload={handleBeforeUnload} onhashchange={handleHashChange} />
 
 <Planty
   bind:this={planty}
   config={tutorialConfig}
-  autoStart={urlOptions.tutorial}
+  autoStart={urlOptions.tutorial && !touchOnly}
   onStepChange={(step) => {
     tutorialStep = step;
     track('tutorial-step', { step });
@@ -729,8 +777,15 @@
             class="absolute bottom-4 left-4"
           />
         {/if}
-        {#if isExecuting}
-          <div class="viewer-spinner" aria-label="Executing graph">
+        {#if grows}
+          <PlayButton
+            status={growth.status}
+            onclick={toggleGrowth}
+            class="absolute bottom-4 left-1/2 -translate-x-1/2"
+          />
+        {/if}
+        {#if isExecuting || !lastBuild}
+          <div class={['viewer-spinner', !lastBuild && 'first']} aria-label="Executing graph">
             <Spinner size={28} />
           </div>
         {/if}
@@ -878,6 +933,8 @@
 <style>
   .wrapper {
     height: 100vh;
+    /* the bars of the browser of a phone hide the bottom of 100vh */
+    height: 100dvh;
     width: 100vw;
     color: white;
     display: grid;
@@ -897,6 +954,12 @@
     color: var(--color-text, #cecece);
     opacity: 0.6;
     pointer-events: none;
+  }
+
+  .viewer-spinner.first {
+    bottom: 50%;
+    right: 50%;
+    transform: translate(50%, 50%);
   }
 
   .wrapper :global(canvas) {
@@ -922,5 +985,7 @@
   :global(body) {
     margin: 0;
     position: relative;
+    /* a drag in the viewer or the graph must not reload the page on a phone */
+    overscroll-behavior: none;
   }
 </style>

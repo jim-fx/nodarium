@@ -278,6 +278,20 @@ export class GraphState {
     this.camera.animateTo(target, () => !!this.mouseDown);
   }
 
+  /** Moves the view of a graph opened for the first time to its last node, if none is wholly in it */
+  showEndOfGraph() {
+    const { position, width, bounds, restored } = this.camera;
+    const boxes = [...this.graph.nodes.values()].map((n) => nodeBox(n, this.graph.getNodeType(n)));
+    if (restored || !boxes.length) return;
+    const inView = boxes.some((box) =>
+      boxContains(bounds, box.minX, box.minY) && boxContains(bounds, box.maxX, box.maxY)
+    );
+    if (inView) return;
+    const last = boxes.reduce((a, b) => b.maxX > a.maxX ? b : a);
+    position[0] = (last.minX + last.maxX) / 2 - width / position[2] / 4;
+    position[1] = (last.minY + last.maxY) / 2;
+  }
+
   // lays out the nodes and lets them glide to their new positions
   formatNodes() {
     const nodes = [...this.graph.nodes.values()];

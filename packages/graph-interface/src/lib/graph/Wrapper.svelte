@@ -88,7 +88,10 @@
   onMount(() => {
     if (!graph) return;
     void manager.load(graph).then(() => {
-      if (manager.valuesOnly) setTimeout(() => state.centerNode());
+      setTimeout(() => {
+        if (manager.valuesOnly) state.centerNode();
+        else state.showEndOfGraph();
+      });
     });
   });
 </script>
