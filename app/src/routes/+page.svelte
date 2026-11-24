@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { AgentApiHost, BuildRecord } from '#lib/agent-api/agent-api.ts';
   import { count, msBucket, publicNodeType, setTrackContext, track } from '#lib/analytics.ts';
+  import { CHANNEL } from '#lib/config.ts';
   import * as templates from '#lib/graph-templates/index.ts';
   import Grid from '#lib/grid/index.ts';
   import { debounceAsyncFunction } from '#lib/helpers/index.ts';
@@ -89,7 +90,7 @@
   let onRegenerate: (() => void) | undefined;
 
   const { data } = $props();
-  setTrackContext(untrack(() => data.git), version);
+  setTrackContext(CHANNEL, version);
   /** The step the tutorial is on, onComplete comes after the step is left */
   let tutorialStep = '';
   /** Graphs that were reported as slow, once per graph and session */

@@ -6,10 +6,19 @@
     <meta name="color-scheme" content="light dark">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     %sveltekit.head%
+    <script>
+      // without it dev servers, tests and benchmarks count as page views
+      function umamiBeforeSend(type, payload) {
+        var local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+        return local ? null : payload;
+      }
+    </script>
     <script
       defer
       src="https://umami.max-richter.dev/script.js"
       data-website-id="585c442b-0524-4874-8955-f9853b44b17e"
+      data-tag="%sveltekit.env.PUBLIC_CHANNEL%"
+      data-before-send="umamiBeforeSend"
       data-exclude-hash="true"
       data-do-not-track="true"
     >

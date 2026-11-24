@@ -11,15 +11,14 @@ function doNotTrack() {
 // tests, the benchmark and agents driving window.nodarium would skew the numbers
 function enabled() {
   if (typeof window === 'undefined' || navigator.webdriver || doNotTrack()) return false;
-  return location.hostname !== 'localhost' && location.hostname !== '127.0.0.1';
+  return !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 }
 
 let context: TrackData = {};
 
 /** The build the events come from, sent with every event */
-export function setTrackContext(git: Record<string, string> | undefined, version: string) {
-  const channel = git?.ref_type === 'tag' ? 'release' : git?.branch || 'unknown';
-  context = { channel, version };
+export function setTrackContext(channel: string, version: string) {
+  context = { channel: channel || 'unknown', version };
 }
 
 /**
