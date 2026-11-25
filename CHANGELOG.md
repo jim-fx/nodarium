@@ -1,3 +1,72 @@
+# v3.1.0 (2026-11-25)
+
+## Features
+
+- The node editor is published as `@nodarium/graph-interface`, with `@nodarium/ui`. `@nodarium/runtime` exports the graph types and `createLogger` (#541).
+- The editor takes `inputBadge`, `oninputcontextmenu` and `linkColors`. An input of an unknown type is a bare socket (#548).
+- `hyphae_to_mesh` has an optional `bodies` input that keeps the mushrooms of a cluster apart. Eight templates use it (#536).
+- New template: a simple mushroom in 15 nodes (#537).
+- `/template` shows the 3D view first, with plant and mushroom tabs, material balls, a timeline and the nodes as an overlay (#526).
+- Help mode shows a sketch of what a node does (#531).
+- I turns the viewport link on and off, Shift+H isolates the selection.
+- Reworked templates: sapling (#532), fly agaric (#534, still one mushroom).
+
+## Fixes
+
+- Colours stay on their own mushroom in `hyphae_to_mesh` and `cap_pattern` (#538).
+- An unmounted editor frees its WebGL context.
+- No analytics from localhost; page views and events carry the branch.
+
+## Upgrading
+
+- `?` toggles help mode instead of opening the shortcuts panel.
+- Update the nodes and the runtime together. The cluster templates, sapling and fly agaric build differently than in v3.0.0.
+
+---
+
+- [27f278b9](https://git.max-richter.dev/max/nodarium/commit/27f278b9643a20628a816ef02944ee02bb5ecddc) fix(app): no analytics from localhost, the branch on every page view and event
+- [70d7d1d5](https://git.max-richter.dev/max/nodarium/commit/70d7d1d50ca418c83f12062577669d913d43c958) Merge pull request 'feat(graph-interface): input badges, input context menu and app link colours' (#548) from feat/editor-input-hooks into main
+- [dd845375](https://git.max-richter.dev/max/nodarium/commit/dd845375fb6a187bb1190dd4d08f4a054777b71a) fix(graph-interface): getColors gives the colours of linkColors too
+- [e5189f30](https://git.max-richter.dev/max/nodarium/commit/e5189f30848114448137405a7c8cfea5a3260519) feat(graph-interface): input badges, input context menu and colours for app link types
+- [3abc905d](https://git.max-richter.dev/max/nodarium/commit/3abc905deac184ed5b6ccdad643f9eeaa6a5ad45) fix(ci): push benchmarks over Gitea's public ssh address
+- [73441159](https://git.max-richter.dev/max/nodarium/commit/734411594d1cc9e7deac7cb62f001c026225761a) test(app): lighter templates in the /template and URL e2e tests
+- [1c8fc626](https://git.max-richter.dev/max/nodarium/commit/1c8fc626093bb00a8897dae76f99809453f2a25a) fix(graph-interface): free the WebGL context of an editor when it is unmounted
+- [78f9d715](https://git.max-richter.dev/max/nodarium/commit/78f9d715e77fcb10cece952ddf9fcd32d226c6d5) Merge pull request 'feat: publish the node editor as @nodarium/graph-interface, with @nodarium/ui' (#541) from feat/graph-interface-package into main
+- [432759cf](https://git.max-richter.dev/max/nodarium/commit/432759cf9e759bb0a018fbbd7371da2bf834b157) fix(graph-interface): readThemeColors covers every colour, publint runs on package
+- [c774e0cd](https://git.max-richter.dev/max/nodarium/commit/c774e0cdc1e5aa372b22237a8231136691b006e1) ci: unit tests of three packages at a time
+- [0e07d3ea](https://git.max-richter.dev/max/nodarium/commit/0e07d3eab8171d183f11ce5000d18a7e14f0686b) test(graph-interface): two workers, the CI job ran out of memory
+- [281167cb](https://git.max-richter.dev/max/nodarium/commit/281167cb965fd43638bf667919ac0ee5f42215a2) test(graph-interface): unit tests without a browser, as in the app
+- [fafb6777](https://git.max-richter.dev/max/nodarium/commit/fafb677727826ef825e0d6cf94ac323ec852184d) test(graph-interface): two workers, CI ran out of memory next to the other packages
+- [3c6962c3](https://git.max-richter.dev/max/nodarium/commit/3c6962c3664de9e30894d54a28454c9f03a2fdbb) ci: publish @nodarium/ui and @nodarium/graph-interface with the runtime
+- [29d5d2bb](https://git.max-richter.dev/max/nodarium/commit/29d5d2bb280d800264427546447169849eda3ee7) feat: the node editor as the package @nodarium/graph-interface, with @nodarium/ui
+- [701157c9](https://git.max-richter.dev/max/nodarium/commit/701157c97bf7e57f9b911509a3e3a9b1b64691d5) feat(runtime): export the graph types and createLogger
+- [5043b575](https://git.max-richter.dev/max/nodarium/commit/5043b57535e4d23fa55e2bb69e13708fee12e3ce) Merge pull request 'fix(myzel): colours stay on their own mushroom in hyphae_to_mesh and cap_pattern' (#538) from fix/myzel-color-bleed into main
+- [9abdc55b](https://git.max-richter.dev/max/nodarium/commit/9abdc55b7dc8ff280d71a811934b5b63c23a57cd) fix(myzel): cap_pattern picks the group of a top by what covers it
+- [2c470217](https://git.max-richter.dev/max/nodarium/commit/2c470217f6dcc2340e42a5c1dfec662d29675d84) fix(myzel): hyphae_to_mesh colours a vertex only from its own body
+- [a8a13a16](https://git.max-richter.dev/max/nodarium/commit/a8a13a1643c934d445f09e079865f1592ee0ffe0) Merge pull request 'feat(templates): a simple mushroom, a young Agaricus bisporus in 15 nodes' (#537) from feat/simple-mushroom-template into main
+- [c6fe254f](https://git.max-richter.dev/max/nodarium/commit/c6fe254ff25068cd3c09f0bd86148bdbe6dfec89) feat(templates): a simple mushroom, a young Agaricus bisporus in 15 nodes
+- [5ca0af26](https://git.max-richter.dev/max/nodarium/commit/5ca0af26223547b6386acb4831caf9165cca5564) Merge pull request 'feat(myzel): hyphae_to_mesh meshes the mushrooms of a cluster apart' (#536) from feat/535-mesh-bodies-apart into main
+- [567687a3](https://git.max-richter.dev/max/nodarium/commit/567687a380968d87f66756690696379cdaad9679) feat(templates): the rays of the Cap keep the mushrooms of a cluster apart
+- [8c220478](https://git.max-richter.dev/max/nodarium/commit/8c220478e532e0384689e025d56d86b97f1f6f35) feat(myzel): hyphae_to_mesh meshes the bodies of a cluster apart
+- [461d1cd5](https://git.max-richter.dev/max/nodarium/commit/461d1cd5ea150c7fea6122b4762433e8ebd73b96) revert(templates): the honey fungus as it was before #533
+- [3342f3a2](https://git.max-richter.dev/max/nodarium/commit/3342f3a27db23229a1fcbbc329ea4d7391bcfb4c) fix(templates): the fly agaric is one mushroom again, the honey fungus a tuft of 6 to 11
+- [307c3b06](https://git.max-richter.dev/max/nodarium/commit/307c3b0602b8d39f8850d56cfe897d7fd19085af) Merge pull request 'feat(templates): the fly agaric grows as a group from white eggs to flat caps on stout stipes with a girdled bulb' (#534) from feat/463-fly-agaric-realism into main
+- [1623f61d](https://git.max-richter.dev/max/nodarium/commit/1623f61d3a74547f7b67bf242aa036e4420083f3) Merge remote-tracking branch 'origin/main' into feat/463-fly-agaric-realism
+- [c5cbf43b](https://git.max-richter.dev/max/nodarium/commit/c5cbf43b10248bd8a18e4c1f2df39b2eef22af17) Merge pull request 'feat(templates): the honey fungus grows as a dense tuft of dozens of caps in tiers' (#533) from feat/463-honey-fungus-realism into main
+- [dad08994](https://git.max-richter.dev/max/nodarium/commit/dad089945343c7bc6e3ecbd1f355dd4e214acdcc) feat(templates): the fly agaric grows as a group of two to four, from white eggs to flat caps on stout stipes that swell into a girdled bulb
+- [af46ce74](https://git.max-richter.dev/max/nodarium/commit/af46ce74004c738b1389b9e9cbe66938cc42debe) Merge pull request 'feat(templates): the sapling has long thin twigs that arch over and hang from its branches like strings' (#532) from feat/463-sapling-realism into main
+- [c0d785b3](https://git.max-richter.dev/max/nodarium/commit/c0d785b38c8e27c9a47c61cb181ebda811b9ad1e) feat(templates): the honey fungus grows as a dense tuft of dozens of caps in tiers
+- [8511b440](https://git.max-richter.dev/max/nodarium/commit/8511b440f733a7be5f6ae499ae61c3b73a199cf3) feat(templates): the sapling's hanging twigs arch over near the branch and hang straight below
+- [ecb039f1](https://git.max-richter.dev/max/nodarium/commit/ecb039f1511a82a1d6fcae330385ae7c685405a2) feat(templates): the sapling has long thin twigs that hang from its branches like strings
+- [8cd18b43](https://git.max-richter.dev/max/nodarium/commit/8cd18b43f511ae9aa074c903e2b582fecec15605) Merge pull request 'feat(app): help mode shows a sketch of what a node does, ? turns it on and off' (#531) from feat/442-node-sketches into main
+- [f78ecbcf](https://git.max-richter.dev/max/nodarium/commit/f78ecbcf31960150deb9cba5069be9df451c8de1) feat(app): no sketch for random, random_int, math, vec3, time and mix_color
+- [b71bc89e](https://git.max-richter.dev/max/nodarium/commit/b71bc89e90f8591bd47c8997fd54149c67291cd9) feat(app): I turns the viewport link on and off, Shift+H isolates the selection
+- [764551ef](https://git.max-richter.dev/max/nodarium/commit/764551ef00c612ff570e4e1b4d95ea56f3441ce7) feat(app): sketches for every node whose effect a picture explains faster
+- [990d3d05](https://git.max-richter.dev/max/nodarium/commit/990d3d0596d9ea377bc1a2ada7b4461f443159b3) feat(app): help mode shows a sketch of what a node does, ? turns it on and off
+- [f16018e1](https://git.max-richter.dev/max/nodarium/commit/f16018e1a685b966480a8ac92f8d875eaca498e3) Merge pull request 'feat(app): /template shows the 3D view first, with plant and mushroom tabs, material balls, a timeline and the nodes as an overlay' (#526) from feat/template-page-rework into main
+- [c272306a](https://git.max-richter.dev/max/nodarium/commit/c272306a895caae065f31235c47a59fd4e5ce538) feat(app): /template shows the 3D view first, plants and mushrooms on tabs, material balls, a timeline and the nodes as an overlay
+- [65fb89ff](https://git.max-richter.dev/max/nodarium/commit/65fb89ff99950d359455852d386541785b7fcdac) feat(ui): Button passes on attributes like aria-pressed, Tabs takes the class of its panel
+
 # v3.0.0 (2026-11-20)
 
 ## Breaking
