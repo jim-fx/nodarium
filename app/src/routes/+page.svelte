@@ -340,8 +340,9 @@
 
   async function randomGenerate() {
     if (!manager) return;
-    manager.setSetting('seed', Math.floor(Math.random() * 100000000));
-    // the benchmark waits for this build
+    let seed = manager.settings['seed'];
+    if (typeof seed !== 'number') seed = 0;
+    manager.setSetting('seed', (seed as number) + 1);
     await build(manager.serialize());
   }
 
