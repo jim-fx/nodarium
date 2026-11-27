@@ -39,6 +39,13 @@ describe('parseProjectFile', () => {
     expect(file.graph.groups).toEqual([]);
   });
 
+  it('accepts node types of a collection with sub-namespaces, not of a collection alone', () => {
+    const nested = { ...graph, nodes: [{ id: 0, type: 'max/vj/fx/bloom', position: [0, 0] }] };
+    expect(parseProjectFile(nested).graph.nodes[0].type).toBe('max/vj/fx/bloom');
+    const short = { ...graph, nodes: [{ id: 0, type: 'max/vj', position: [0, 0] }] };
+    expect(() => parseProjectFile(short)).toThrow();
+  });
+
   it('migrates the graph', () => {
     const old: Partial<Graph> = structuredClone(graph);
     delete old.groups;

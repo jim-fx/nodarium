@@ -4,7 +4,7 @@ import { INTERNAL_PREFIX } from '@nodarium/runtime';
 export function nodeSystem(type: string): { collection: string; name: string } | undefined {
   if (type.startsWith(INTERNAL_PREFIX)) return;
   const parts = type.split('/');
-  if (parts.length !== 3) return;
+  if (parts.length < 3) return;
   return { collection: `${parts[0]}/${parts[1]}`, name: parts[1] };
 }
 
