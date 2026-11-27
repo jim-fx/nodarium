@@ -10,7 +10,7 @@ export type Box = {
 
 export const NodeIdSchema = z
   .string()
-  .regex(/^[^/]+\/[^/]+\/[^/]+$/, 'Invalid NodeId format')
+  .regex(/^[^/]+\/[^/]+(\/[^/]+)+$/, 'Invalid NodeId format')
   .transform((value) => value as `${string}/${string}/${string}`);
 
 export type NodeId = z.infer<typeof NodeIdSchema>;
