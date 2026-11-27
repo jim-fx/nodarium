@@ -59,7 +59,7 @@ export const AppSettingTypes = {
     id: {
       type: 'custom',
       label: '',
-      value: 'matcap' as string
+      value: 'plant' as string
     }
   },
   viewportLink: {

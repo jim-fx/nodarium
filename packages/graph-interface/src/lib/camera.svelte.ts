@@ -12,6 +12,8 @@ const defaultPosition = (): CameraPosition => [140, 100, 3.5];
 
 export class GraphCamera {
   position: CameraPosition = $state(defaultPosition());
+  /** the position is the one the user left the graph at */
+  restored = false;
   /** the size of the view in px */
   width = $state(100);
   height = $state(100);
@@ -115,6 +117,7 @@ export function persistCamera(camera: GraphCamera, graphId: () => number): () =>
         loadedId = undefined;
         const stored = localStorage.getItem(storageKey(id));
         camera.position = defaultPosition();
+        camera.restored = stored !== null;
         if (stored) {
           try {
             const d = JSON.parse(stored);

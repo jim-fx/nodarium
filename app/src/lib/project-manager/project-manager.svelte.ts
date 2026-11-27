@@ -89,7 +89,9 @@ export class ProjectManager {
     }
 
     if (!this.graph) {
-      this.handleCreateProject(await loadTemplate('default-plant'));
+      const daisy = await loadTemplate('daisy');
+      // a seed with many flowers
+      this.handleCreateProject({ ...daisy, settings: { ...daisy.settings, seed: 9 } }, 'Daisy');
     }
   }
 

@@ -21,6 +21,7 @@
   import { maxZoom, minZoom, WEBGL_NODE_MAX_ZOOM } from './constants';
   import { FileDropEventManager } from './drop.events';
   import { MouseEventManager } from './mouse.events';
+  import { TouchEventManager } from './touch.events';
   import ZoomIndicator from './ZoomIndicator.svelte';
 
   const { keymap }: { keymap: ReturnType<typeof createKeyMap> } = $props();
@@ -32,6 +33,8 @@
   const safePadding = $derived(graphState.options.safePadding);
   const fileDropEvents = new FileDropEventManager(graph, graphState);
   const mouseEvents = new MouseEventManager(graph, graphState);
+
+  const touchEvents = new TouchEventManager(graphState.camera, () => graphState.rect);
 
   let renderer: WebGLRenderer | undefined;
   function createRenderer(canvas: HTMLCanvasElement) {
@@ -94,6 +97,10 @@
   style:--padding-right="{safePadding?.right || 0}px"
   onkeydown={(ev) => keymap.handleKeyboardEvent(ev)}
   onmousedown={(ev) => mouseEvents.handleMouseDown(ev)}
+  ontouchstart={(ev) => touchEvents.handleStart(ev)}
+  ontouchmove={(ev) => touchEvents.handleMove(ev)}
+  ontouchend={(ev) => touchEvents.handleStart(ev)}
+  ontouchcancel={(ev) => touchEvents.handleStart(ev)}
   oncontextmenu={(ev) => mouseEvents.handleContextMenu(ev)}
   {...graphState.options.valuesOnly ? {} : fileDropEvents.getEventListenerProps()}
 >
@@ -214,6 +221,7 @@
 <style>
   .graph-wrapper {
     position: relative;
+    touch-action: none;
     z-index: 0;
     transition: opacity 0.3s ease;
     height: 100%;

@@ -117,9 +117,18 @@ test('a tissue of a mushroom leads to the group node that made it', async () => 
   expect(result.ok).toBe(true);
   await page.evaluate(() => window.nodarium!.idle());
 
-  const { x, y } = await hoverMiddle();
-  const id = await highlighted().getAttribute('data-node-id');
+  // the camera glides to the new mushroom, a click while it moves hits another tissue
+  let id: string | null = null;
+  await expect(async () => {
+    await hoverMiddle();
+    const before = await highlighted().getAttribute('data-node-id');
+    await page.waitForTimeout(500);
+    await hoverMiddle();
+    id = await highlighted().getAttribute('data-node-id');
+    expect(id).toBe(before);
+  }).toPass();
 
+  const { x, y } = await middleOfViewer();
   await page.mouse.click(x, y);
   await expect(node(Number(id))).toHaveClass(/active/);
 });

@@ -69,4 +69,14 @@
     z-index: 2;
     left: -7px;
   }
+
+  @media (max-width: 599px) {
+    .seperator {
+      width: 100%;
+      pointer-events: none;
+    }
+    .seperator::before {
+      display: none;
+    }
+  }
 </style>

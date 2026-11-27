@@ -25,13 +25,22 @@
   );
 </script>
 
-<div class="wrapper" style={`grid-template-columns: ${cols};`}>
+<div class="wrapper" style:--columns={cols}>
   {@render children()}
 </div>
 
 <style>
   .wrapper {
     display: grid;
+    grid-template-columns: var(--columns);
     height: 100%;
+  }
+
+  /* a phone held upright, two cells next to each other would be too narrow to use */
+  @media (max-width: 599px) {
+    .wrapper {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(0, 3fr) 1px minmax(0, 2fr);
+    }
   }
 </style>

@@ -57,7 +57,7 @@
     transform: translateX(calc(100% - 30px));
     transition: transform 0.2s, background 0.2s ease;
     width: 30%;
-    min-width: 350px;
+    min-width: min(350px, 100%);
   }
 
   .content {

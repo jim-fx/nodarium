@@ -21,7 +21,7 @@ export type CameraView = {
 const MIN_RADIUS = 0.001;
 /** The radius of an empty scene, one meter */
 const EMPTY_RADIUS = 1;
-const MARGIN = 1.25;
+const MARGIN = 1.05;
 
 /**
  * Works out where the camera has to look and how far away it has to be
