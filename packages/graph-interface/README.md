@@ -18,6 +18,22 @@ npm install @nodarium/graph-interface @nodarium/ui @nodarium/runtime @threlte/co
 
 The package ships `.svelte` files and imports its shaders with `?raw`, so it needs Vite with `@sveltejs/vite-plugin-svelte` (or SvelteKit).
 
+`vite dev` can't prebundle these `?raw` imports and the editor then fails to load ("No such file or directory"), `vite build` is not affected. Leave the package out of the prebundling and prebundle its CommonJS dependencies instead:
+
+```ts
+// vite.config.ts
+export default defineConfig({
+  optimizeDeps: {
+    exclude: ['@nodarium/graph-interface'],
+    include: [
+      '@nodarium/graph-interface > file-saver',
+      '@nodarium/graph-interface > jsondiffpatch',
+      '@threlte/extras > three-perf'
+    ]
+  }
+});
+```
+
 ## Styles
 
 The editor and `@nodarium/ui` are styled with Tailwind 4. `@nodarium/ui/app.css` is a Tailwind entry of its own with the theme (`--color-layer-0` ... `--color-frame-violet`, the themes `theme-light`, `theme-solarized`, `theme-catppuccin`, `theme-high-contrast` as classes on `<html>`), the font and the classes of the ui components. Import it once, and add the editor to the sources of your own Tailwind entry, the path relative to that CSS file:
