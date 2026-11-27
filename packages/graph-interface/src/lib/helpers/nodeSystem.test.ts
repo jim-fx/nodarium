@@ -11,6 +11,7 @@ describe('nodeSystem', () => {
       name: 'plantarium'
     });
     expect(nodeSystem('max/core/float')?.name).toBe('core');
+    expect(nodeSystem('max/vj/fx/bloom')).toEqual({ collection: 'max/vj', name: 'vj' });
   });
 
   it('has none for groups', () => {
